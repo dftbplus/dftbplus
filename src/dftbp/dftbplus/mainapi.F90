@@ -12,6 +12,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc, tolSameDist
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_memman, only : TAlignedArray
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : allocateNeighbourArrays, reallocateArrays1
@@ -124,8 +125,8 @@ contains
     !> mapping between neighbour reference and atom index in the central cell
     integer, intent(in) :: neighbour2CentCell(:)
 
-    real(dp), allocatable :: dist2(:)
-    real(dp), pointer :: rCellVec(:)
+    type(TAlignedArray) :: dist2Mem
+    real(dp), pointer :: rCellVec(:), dist2(:)
     real(dp) :: diff(3)
     integer :: nMaxNeighbours, nCellVec
     integer :: iAtom, iCell, iNeigh, iImage, iCellVec, iAtFirst, iAtLast
@@ -174,7 +175,8 @@ contains
       !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would
       !> have there, and determine the cell in which this is very close to the actual coordinates
       nCellVec = size(main%rCellVec, dim=2)
-      allocate(dist2(nCellVec))
+      call dist2Mem%allocate(nCellVec)
+      call dist2Mem%getArray(dist2)
 
       rCellVec(1:3*nCellVec) => main%rCellVec
 
