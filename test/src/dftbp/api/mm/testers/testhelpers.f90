@@ -112,7 +112,7 @@ contains
       call taggedWriter%write(autotestTag%unit, tagLabels%qOutAtCM5, cm5Charges)
     end if
     if (present(cutOff)) then
-      call taggedWriter%write(autotestTag, "cutoff", cutOff)
+      call taggedWriter%write(autotestTag%unit, "cutoff", cutOff)
     end if
     call closeFile(autotestTag)
 
