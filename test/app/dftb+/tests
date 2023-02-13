@@ -370,6 +370,9 @@ timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and not WITH_MPI
 timedep/OCH2-S1-Opt                    #? WITH_ARPACK and not WITH_MPI
 timedep/OCH2-md                        #? WITH_ARPACK and not WITH_MPI
 
+timedep/Furan-NACV		       #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/Furan-NACV-LC 		       #? MPI_PROCS <= 1
+
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 2
