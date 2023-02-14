@@ -122,6 +122,7 @@ contains
   end function polynomialInterpolation
 
 
+  !> Determines the elements of an array which surround a third value
   pure function locateByBisection(xx, yy) result(idx)
 
     !> tabulated values in increasing or decreasing order
@@ -181,7 +182,7 @@ contains
 
     iMin = minloc(arr(:))
     iMinLoc = imin(1)
-    
+
   end function iMinLoc
 
 

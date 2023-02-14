@@ -82,10 +82,10 @@ module waveplot_initwaveplot
     !> If eigvecs/hamiltonian is real
     logical :: tRealHam
 
-    !> Occupations
+    !> Occupations, Shape: [nState, nKPoint, nSpin]
     real(dp), allocatable :: occupations(:,:,:)
 
-    !> k-points and weights
+    !> k-points and weights, Shape: [4, nKPoint]
     real(dp), allocatable :: kPointsandWeight(:,:)
 
   end type TInput
@@ -97,10 +97,10 @@ module waveplot_initwaveplot
     !> Nr. of states
     integer :: nState
 
-    !> Real eigenvectors
+    !> Real eigenvectors, Shape: [orbitals, eigenvectors, k-points, spin]
     real(dp), allocatable :: eigvecsReal(:,:,:,:)
 
-    !> Complex eigenvectors
+    !> Complex eigenvectors, Shape: [orbitals, eigenvectors, k-points, spin]
     complex(dp), allocatable :: eigvecsCplx(:,:,:,:)
 
   end type TEig
@@ -127,6 +127,7 @@ module waveplot_initwaveplot
     !> Spins to plot
     integer, allocatable :: plottedSpins(:)
 
+    !> Number of cached grids
     integer :: nCached
 
     !> If box should filled with folded atoms
@@ -177,7 +178,8 @@ module waveplot_initwaveplot
     !> Origin of the (total) grid in the box
     real(dp) :: totGridOrig(3)
 
-    !> List of levels to plot, whereby insignificant occupations were filtered out
+    !> List of levels to plot, whereby insignificant occupations were filtered out,
+    !> Shape: [3, nStates * nKPoints * nSpin]
     integer, allocatable :: levelIndex(:,:)
 
     !> Type for radial wavefunction tabulation.
@@ -186,7 +188,7 @@ module waveplot_initwaveplot
     !> Interpolation type for grid interpolation.
     integer :: gridInterType
 
-    !> NUmber of parallel regions which should be used in the mapping from subgrid to the total grid
+    !> Number of parallel regions which should be used in the mapping from subgrid to the total grid
     integer :: parallelRegionNum
 
   end type TOption
@@ -195,7 +197,7 @@ module waveplot_initwaveplot
   !> Data type containing variables from the Basis block
   type TBasis
 
-    !> Definition of the wfcs
+    !> Definition of the wfcs, Shape: [nSpecies]
     type(TSpeciesBasis), allocatable :: basis(:)
 
     !> Resolution of the radial wfcs
@@ -207,7 +209,7 @@ module waveplot_initwaveplot
   !> Data type containing variables from the AtomicNumbers block
   type TAtomicNumber
 
-    !> species-atomic nr. corresp.
+    !> species-atomic nr. corresp., Shape: [nSpecies]
     integer, allocatable :: atomicNumbers(:)
 
   end type TAtomicNumber
@@ -225,7 +227,7 @@ module waveplot_initwaveplot
     !> (total) grid vectors
     real(dp) :: totGridVec(3,3)
 
-    !> (species) grids vectors
+    !> (species) grids vectors, Shape: [3, 3, nSpecies]
     real(dp), allocatable :: speciesGridsVecs(:,:,:)
 
     !> Volume of the grid
@@ -234,37 +236,48 @@ module waveplot_initwaveplot
     !> Center coordinate of total grid
     real(dp) :: totGridCenter(3)
 
-    !> m-resolved orbital occupations
+    !> m-resolved orbital occupations, Shape: [nOrb, 1]
     real(dp), allocatable :: orbitalOcc(:,:)
 
-    !> Origins of species grids
+    !> Origins of species grids, Shape: [3, nSpecies]
     real(dp), allocatable :: speciesGridsOrigs(:,:)
 
-    !> Index mapping: orbital --> atom
+    !> Index mapping: orbital --> atom, Shape: [nOrb]
     integer, allocatable :: orbitalToAtom(:)
 
-    !> Index mapping: orbital --> species
+    !> Index mapping: orbital --> species, Shape: [nOrb]
     integer, allocatable :: orbitalToSpecies(:)
 
-    !> Index mapping: orbital --> angular momentum
+    !> Index mapping: orbital --> angular momentum, Shape: [nOrb]
     integer, allocatable :: orbitalToAngMoms(:)
 
-    !> Index mapping: orbital --> magnetic quantum number
+    !> Index mapping: orbital --> magnetic quantum number, Shape: [nOrb]
     integer, allocatable :: orbitalToM(:)
 
-    !> Index mapping: orbital --> slater type orbital
+    !> Index mapping: orbital --> slater type orbital, Shape: [nOrb]
     integer, allocatable :: orbitalToStos(:)
 
+    !> Index mappings: states in levelIndex --> array indices, Shape: [nStates * nKPoints * nSpin]
     integer, allocatable :: iLPrime(:)
     integer, allocatable :: iKPointPrime(:)
     integer, allocatable :: iSpinPrime(:)
 
+    !> Required levels to calculate, Shape: [nStates]
     integer, allocatable :: requiredLevels(:)
+
+    !> Required k-points to calculate, Shape: [nKPoints]
     integer, allocatable :: requiredkPoints(:)
+
+    !> Required spins to calculate, Shape: [nSpins]
     integer, allocatable :: requiredSpins(:)
 
+    !> Number of k-points to calculate for each required level, Shape: [nRequiredLevels]
     integer, allocatable :: kPointNumForLevel(:)
+
+    !> Number of spins to calculate for each required level, Shape: [nRequiredLevels]
     integer, allocatable :: spinNumForLevel(:)
+
+    !> Required k-points for each level, Shape: [nRequiredLevels, nRequiredKPoints]
     integer, allocatable :: requiredKPointsForLevel(:,:)
 
   end type TInternal
@@ -326,11 +339,13 @@ contains
     !> Nr. of spins
     integer :: nSpin
 
+    !> Version of parser
     integer :: inputVersion
 
     !> If grid should shifted by a half of a grid vector
     logical :: tShiftGrid
 
+    !> look for ground state occupations (True) or excited (False)
     logical :: tGroundState
 
     !> Array to temporary store the eigenvectors from the eigenvec.bin file
@@ -340,6 +355,8 @@ contains
     !> True, if the radial WFs should be calculated explicitly, false, if they should be calculated
     !> via interpolation
     logical :: rwExplicit
+
+    !> Stores the tabulation and interpolation types
     type(string) :: buffer
     character(len=:), allocatable :: charTabulation
 
@@ -491,7 +508,7 @@ contains
     !> Nr. of states
     integer, intent(out) :: nState
 
-    !> K-Points & weights
+    !> K-Points & weights, Shape: [4, nKPoint]
     real(dp), allocatable :: kPointsWeights(:,:)
 
     type(fnode), pointer :: tmp, occ, spin
@@ -608,7 +625,8 @@ contains
     !> If grid should shifted by a half of a grid vector
     logical, intent(out) :: tShiftGrid
 
-    !> List of levels to plot, whereby insignificant occupations were filtered out
+    !> List of levels to plot, whereby insignificant occupations were filtered out,
+    !> Shape: [3, nStates * nKPoints * nSpin]
     integer, allocatable :: levelIndex(:,:)
 
     type(fnode), pointer :: subnode, field, value
@@ -620,6 +638,12 @@ contains
 
     !> If current level is found be calculated explicitely
     logical :: tFound
+
+    !> The number of threads
+    integer :: numThreads
+
+    !> Grid interpolation types
+    character(len=:), allocatable :: charInterpol
 
     !> Warning issued, if the detailed.xml id does not match the eigenvector id
     character(len=63) :: warnId(3) = [&
@@ -633,8 +657,6 @@ contains
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
     real(dp), allocatable :: mcutoffs(:)
     real(dp) :: minEdge
-    integer :: numThreadsDefault
-    character(len=:), allocatable :: charInterpol
 
     ! Warning, if processed input is read in, but eigenvectors are different
     call getChildValue(node, "Identity", curId, this%input%identity)
@@ -751,12 +773,10 @@ contains
       call detailedError(field, "Specified numbers must be greater than zero")
     end if
 
-    numThreadsDefault = omp_get_max_threads()
-    ! write(*, '(/A)') 'numThreadsDefault'
-    ! write(*,*) numThreadsDefault
+    numThreads = omp_get_max_threads()
 
     call getChildValue(node, "ParallelRegionNum", this%opt%parallelRegionNum,&
-        & default=numThreadsDefault, child=field)
+        & default=numThreads, child=field)
     if (this%opt%parallelRegionNum <= 0) then
       call detailedError(field, "Specified numbers must be greater than zero")
     end if
@@ -919,7 +939,7 @@ contains
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
 
-    !> cartesian total grid coordinates
+    !> cartesian total grid coordinates, Shape: [3, 8]
     real(dp), allocatable :: subcubeCartCoords(:,:)
 
     !> real total grid coordinates
@@ -998,9 +1018,12 @@ contains
     !> via interpolation
     logical, intent(in) :: rwExplicit
 
+    !> Number of species
+    integer :: nSpecies
+
+    !> Auxiliary variables
     character(len=len(speciesNames)) :: speciesName
     type(fnode), pointer :: speciesNode
-    integer :: nSpecies
     integer :: ii
 
     nSpecies = size(speciesNames)
@@ -1040,20 +1063,22 @@ contains
     !> Grid distance for discretising the basis functions
     real(dp), intent(in), optional :: basisResolution
 
-    type(fnode), pointer :: tmpNode, child
-    type(fnodeList), pointer :: children
-
     !> Real-valued buffer lists
     type(TListReal) :: bufferExps, bufferCoeffs
 
     !> Basis coefficients and exponents
     real(dp), allocatable :: coeffs(:), exps(:)
 
+    !> Tabulated radial wavefunctions, only used, if rwExplicit is .false.
+    real(dp), allocatable :: rwf(:)
     type(TListReal) :: bufferRwf
+
+    !> Auxiliary variables
     type(string) :: buffer
     character(len=10) :: charBuffer
-    real(dp), allocatable :: rwf(:)
     integer :: ii
+    type(fnode), pointer :: tmpNode, child
+    type(fnodeList), pointer :: children
 
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
     call getChildren(node, "Orbital", children)
@@ -1301,8 +1326,8 @@ contains
       end if
     end do
 
-    ! Extract all required k-points, levels and spins which are required for the calculation from the
-    ! levelIndex
+    ! Extract all required k-points, levels and spins which are required for the calculation from
+    ! the levelIndex
     allocate(this%loc%requiredKPoints(KNum))
     allocate(this%loc%requiredLevels(LNum))
     allocate(this%loc%requiredSpins(SNum))
@@ -1342,7 +1367,8 @@ contains
     allocate(this%loc%spinNumForLevel(size(this%loc%requiredLevels)))
     this%loc%spinNumForLevel(:) = 0
 
-    allocate(this%loc%requiredKPointsForLevel(size(this%loc%requiredLevels), size(this%loc%requiredKPoints)))
+    allocate(this%loc%requiredKPointsForLevel(size(this%loc%requiredLevels), &
+        & size(this%loc%requiredKPoints)))
 
     ind = 1
     do jj = 1, size(this%loc%requiredLevels)
@@ -1367,7 +1393,7 @@ contains
           if (this%loc%requiredLevels(jj) == this%opt%levelIndex(1, ii)) then
             if ((this%opt%levelIndex(3, ii) == this%loc%requiredSpins(kk)) .and. &
                 & (this%loc%requiredSpins(kk) .ne. this%loc%requiredSpins(kk))) then
-                  this%loc%spinNumForLevel(jj) = this%loc%spinNumForLevel(jj) + 1
+              this%loc%spinNumForLevel(jj) = this%loc%spinNumForLevel(jj) + 1
             end if
           end if
         end do
@@ -1457,6 +1483,7 @@ contains
     !> Number of orbitals per state
     integer :: nOrb
 
+    !> Auxiliary variables
     integer :: fd, iOrb, dummy
     logical :: exst
 
@@ -1496,6 +1523,7 @@ contains
     !> Identity number.
     integer, intent(in) :: identity
 
+    !> Variables corresponding to reading of file
     integer :: fd, id, iostat
 
     open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted",&
@@ -1526,6 +1554,7 @@ contains
     !> Determinant of the matrix.
     real(dp) :: determinant
 
+    !> Auxiliary variable
     real(dp) :: tmp
 
     @:ASSERT(all(shape(matrix) == (/3, 3/)))

@@ -38,16 +38,16 @@ module waveplot_molorb
     !> Nr. of orbitals
     integer :: nOrb
 
-    !> Angular momentum for each orb.
+    !> Angular momentum for each orb., Shape: [nOrb]
     integer, allocatable :: angMoms(:)
 
-    !> Cutoff for each orbital
+    !> Cutoff for each orbital, Shape: [nOrb]
     real(dp), allocatable :: cutoffs(:)
 
-    !> STO for each orbital
+    !> STO for each orbital, Shape: [nOrb]
     type(TSlaterOrbital), allocatable :: stos(:)
 
-    !> Occupation for each orb.
+    !> Occupation for each orb. Shape: [nOrb]
     real(dp), allocatable :: occupations(:)
 
   end type TSpeciesBasis
@@ -62,19 +62,19 @@ module waveplot_molorb
     !> Nr. of species
     integer :: nSpecies
 
-    !> Species of each atom
+    !> Species of each atom, Shape: [nAtom]
     integer, allocatable :: species(:)
 
-    !> Index array for STOs
+    !> Index array for STOs, Shape: [nSpecies + 1]
     integer, allocatable :: iStos(:)
 
-    !> All STOs sequentially
+    !> All STOs sequentially, Shape: [nOrb]
     type(TSlaterOrbital), allocatable :: stos(:)
 
-    !> Cutoff for each STO
+    !> Cutoff for each STO, Shape: [nOrb]
     real(dp), allocatable :: cutoffs(:)
 
-    !> Angular mometum for each STO
+    !> Angular mometum for each STO, Shape: [nOrb]
     integer, allocatable :: angMoms(:)
 
     !> Nr. of orbitals in the system
@@ -83,10 +83,10 @@ module waveplot_molorb
     !> If sytem is periodic
     logical :: tPeriodic
 
-    !> Lattice vectors
+    !> Lattice vectors, shape: [3,3]
     real(dp), allocatable :: latVecs(:,:)
 
-    !> Reciprocal vectors divided by 2pi
+    !> Reciprocal vectors divided by 2pi, shape: [3,3]
     real(dp), allocatable :: recVecs2p(:,:)
 
     !> Cell shift vectors
@@ -95,7 +95,7 @@ module waveplot_molorb
     !> Nr. of cell shift vectors
     integer :: nCell
 
-    !> Coordinates in all cells
+    !> Coordinates in all cells, shape: [3, nAtom, nCell]
     real(dp), allocatable :: coords(:,:,:)
 
     !> If it is initialised
@@ -128,7 +128,7 @@ contains
     !> Boundary condition
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
-    !> Basis for each species.
+    !> Basis for each species. Shape: [nSpecies]
     type(TSpeciesBasis), intent(in) :: basis(:)
 
     integer :: nOrb

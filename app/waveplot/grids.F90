@@ -34,6 +34,8 @@ module waveplot_grids
   public :: TRealTessY, TRealTessY_init
   public :: subgridsToGlobalGrid
   public :: modifyEigenvecs
+  public :: parallelGridSlices
+  public :: calcCartCoords
 
 
   ! Enumerates the different types which are used for the tabulation of the radial wf.
@@ -1422,8 +1424,8 @@ contains
     !$omp parallel do default(none)&
     !$omp& shared(nRegions, regionGridDat, subgridsDat, orbitalToAtom, orbitalToSubgrid, stos,&
     !$omp& orbitalToAngs, orbitalToM, cartCoords, orbitalToStos, coords, coeffs, levelIndex, &
-    !$omp& globalGridsDat, tiling, tAddDensities, gridInterType, basis, statesTiling, requiredLevels,&
-    !$omp& requiredSpins)&
+    !$omp& globalGridsDat, tiling, tAddDensities, gridInterType, basis, statesTiling,&
+    !$omp& requiredLevels, requiredSpins)&
     !$omp& private(iGrid, iOrb, iAtom, iSubgrid, iCell, iAng, iM, iStos, ind, currentLevel, &
     !$omp& currentSpin, iL, iSpin, levelInd)
     lpGrid: do iGrid = 1, nRegions
@@ -1467,7 +1469,8 @@ contains
 
               globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iSpin) =&
                   & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iSpin)&
-                  & + coeffs(iOrb, currentLevel, 1, currentSpin) * basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
+                  & + coeffs(iOrb, currentLevel, 1, currentSpin) * &
+                  & basis(:,:, tiling(1, iGrid):tiling(2, iGrid))
 
             end do lpSpin
 
@@ -1658,9 +1661,9 @@ contains
               lpSpin: do iSpin = 1, size(requiredSpins)
                 currentSpin = requiredSpins(iSpin)
 
-                globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) =&
-                    & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin)&
-                    & + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
+                globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, iKPoint, iSpin) = &
+                    & globalGridsDat(:,:, tiling(1, iGrid):tiling(2, iGrid), levelInd, &
+                    & iKPoint, iSpin) + coeffs(iOrb, currentLevel, currentKPoint, currentSpin) * &
                     & basis(:,:,:, currentKPoint)
 
               end do lpSpin
@@ -1702,6 +1705,80 @@ contains
   end subroutine checkParallelBasis
 
 
+  ! Divides a grid in multiple parallel grid slices.
+  subroutine parallelGridSlices(totGridDat, regionGridDat, parallelRegionNum, tiling)
+
+    !> Grid data instance to divide in slices
+    type(TGridData), intent(inout) :: totGridDat
+
+    !> Grid data instances representing the slices of the total grid, shape: [nParallelRegions]
+    type(TGridData), allocatable, intent(inout) :: regionGridDat(:)
+
+    !> Number of parallel regions of the total grid
+    integer, intent(in) :: parallelRegionNum
+
+    !> start and end indices of all parallel tiles, exp. shape: [2, nRegions]
+    integer, intent(in) :: tiling(:,:)
+
+    !> temporary grid instance
+    type(TGrid) :: tmpGrid
+    real(dp), pointer :: pTmpData(:,:,:)
+
+    !> auxiliary variable
+    integer :: iGrid
+
+    ! allocate regional global grid tiles
+    allocate(regionGridDat(parallelRegionNum))
+
+    ! assign subgrids to parallel regions of the total grid
+    do iGrid = 1, parallelRegionNum
+      tmpGrid = totGridDat%grid
+      tmpGrid%lowerBounds(3) = tiling(1, iGrid) - 1
+      tmpGrid%upperBounds(3) = tiling(2, iGrid) - 1
+      tmpGrid%nPoints(3) = tiling(2, iGrid) - tiling(1, iGrid) + 1
+      pTmpData => totGridDat%data(:,:, tiling(1, iGrid):tiling(2, iGrid))
+      call TGridData_init(regionGridDat(iGrid), tmpGrid, pTmpData,&
+          & rwTabulationType=rwTabulationTypes%explicit)
+    end do
+
+  end subroutine parallelGridSlices
+
+
+  ! Calculates the cartesian coordinates of the grid points.
+  subroutine calcCartCoords(totGridDat, cartCoords)
+
+    !> Grid data instance to calculate the cartesian coordinates for
+    type(TGridData), intent(inout) :: totGridDat
+
+    !> Cartesian coordinates of the grid points, shape: [3, nxPoints, nyPoints, nzPoints]
+    real(dp), allocatable, intent(inout) :: cartCoords(:,:,:,:)
+
+    !> Temporary stored cartesian coordinates of one grid point, shape: [3,1]
+    real(dp), allocatable :: cartcoordsTmp(:,:)
+
+    !> Auxiliary variables
+    integer :: iGrid, kk, jj, ii, idx(3, 1), aa(3)
+
+    allocate(cartCoords(3, totGridDat%grid%nPoints(1), &
+        & totGridDat%grid%nPoints(2), totGridDat%grid%nPoints(3)))
+
+    do kk = totGridDat%grid%lowerBounds(3), totGridDat%grid%upperBounds(3)
+      idx(3, 1) = kk
+      do jj = totGridDat%grid%lowerBounds(2), totGridDat%grid%upperBounds(2)
+        idx(2, 1) = jj
+        do ii = totGridDat%grid%lowerBounds(1), &
+              & totGridDat%grid%upperBounds(1)
+          idx(1, 1) = ii
+          aa(:) = idx(:, 1) - totGridDat%grid%lowerBounds + 1
+          call totGridDat%grid%gridcoordToCartesian(idx, cartCoordsTmp)
+          cartCoords(:, aa(1), aa(2), aa(3)) = cartcoordsTmp(:,1)
+        end do
+      end do
+    end do
+
+  end subroutine calcCartCoords
+
+
 #:for DTYPE, NAME in [('complex', 'Cplx'), ('real', 'Real')]
 
   !> Takes a 2d array of eigenvectors where the first dimension runs over the orbitals and the
@@ -1721,7 +1798,7 @@ contains
 
     integer :: nBlock
 
-    !> auxillary variables for do loops
+    !> auxiliary variables for do loops
     integer :: iKP, iS, iL
 
     nBlock = 0

@@ -24,14 +24,14 @@ module waveplot_slater
 
     !> Number of coeffs in aa
     integer :: nPow
-    
+
     !> Number of exponentials
     integer :: nAlpha
 
     !> Angular momentum
     integer :: ll
 
-    !> Summation coefficients
+    !> Summation coefficients, shape: [nCoeffPerAlpha, nAlpha]
     real(dp), allocatable :: aa(:,:)
 
     !> Exponential coefficients
@@ -70,14 +70,16 @@ contains
     !> Magnetic quantum number
     integer, intent(in) :: mm
 
-    !> Coordinate where the value should be calculated
+    !> Coordinate where the value should be calculated, shape: [3]
     real(dp), intent(in) :: coord(:)
 
     !> Length of the coordinate vector, if known in advance
     real(dp), intent(in), optional :: rrOpt
 
+    !> Value of the real tesseral spherical harmonic
     real(dp) :: rty
 
+    !> Distance and coordinates
     real(dp) :: rr, xx, yy, zz
 
     if (present(rrOpt)) then
@@ -175,7 +177,7 @@ contains
     !> SlaterOrbital instance to initialise
     type(TSlaterOrbital), intent(inout) :: this
 
-    !> Summation coefficients (nCoeffPerAlpha, nAlpha)
+    !> Summation coefficients, shape: [nCoeffPerAlpha, nAlpha]
     real(dp), intent(in) :: aa(:,:)
 
     !> Exponential coefficients
@@ -247,6 +249,7 @@ contains
     !> Contains the value of the function on return
     real(dp), intent(out) :: sto
 
+    !> Auxiliary variables
     integer :: ind
     real(dp) :: frac
 

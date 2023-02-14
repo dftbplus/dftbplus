@@ -21,6 +21,7 @@ module waveplot_parallel
 
 contains
 
+  !> Determines start and end indices for a specific chunk
   pure subroutine getStartAndEndIndex(nSystems, nProcs, iProc, iStart, iEnd)
 
     !> array size to split
@@ -57,6 +58,7 @@ contains
   end subroutine getStartAndEndIndex
 
 
+  !> Determines all start and end indices for chunks that divide an array by known number of chunks
   pure subroutine getStartAndEndIndices(nSystems, nChunks, chunks)
 
     !> array size to split
@@ -80,6 +82,7 @@ contains
   end subroutine getStartAndEndIndices
 
 
+  !> Determines start and end indices of chunks that divide an array by known size of the chunks
   pure subroutine getStartAndEndIndicesByChunkSize(nSystems, nChunks, chunkSize, chunks)
 
     !> array size to split
