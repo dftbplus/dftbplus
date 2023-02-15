@@ -390,8 +390,8 @@ contains
       end if
       if (this%tDipole) then
         call writeBornChargesOut(bornChargesOut,&
-            & this%eFieldScaling%scaledSoluteDipole(pDipDerivMatrix),&
-            & this%indMovedAtom, size(this%iAtInCentralRegion), errStatus)
+            & this%eFieldScaling%scaledSoluteDipole(pDipDerivMatrix), this%indMovedAtom,&
+            & size(this%indDerivAtom), errStatus)
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
@@ -402,7 +402,7 @@ contains
       end if
       if (this%doPerturbEachGeom) then
         call writeBornDerivs(bornDerivativesOut, pPolDerivMatrix, this%indMovedAtom,&
-            & size(this%iAtInCentralRegion), errStatus)
+            & size(this%indDerivAtom), errStatus)
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
