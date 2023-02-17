@@ -22,6 +22,9 @@ Fixed
 - Tool dp_dos produced obviously incorrect results for Pauli-Hamiltonians (e.g.
   when using spin-orbit coupling). Other Hamiltonians were not affected.
 
+- Born charges and derivatives can now be calculated for a subset of the desired
+  atoms (similar to the Hessian).
+
 
 22.2 (2022-12-20)
 =================
