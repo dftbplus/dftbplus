@@ -87,7 +87,7 @@ program test_setSpeciesAndDependents
   type(MDstatus_type):: MDstatus
   type(TGeometry) :: geo
   integer :: imd
-  real(dp) :: merminEnergy
+  real(dp) :: merminEnergy, cutOff
   character(100) :: imd_lab
   character(100) :: fname
   real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
@@ -149,6 +149,9 @@ program test_setSpeciesAndDependents
     ! Update species order every step
     call dftb%setSpeciesAndDependents(geo%speciesNames, geo%species)
 
+    ! get the cutoff
+    cutOff = dftb%getCutOff()
+
     ! Do a total energy calculation
     call dftb%getEnergy(merminEnergy)
     call dftb%getGradients(gradients)
@@ -173,7 +176,7 @@ program test_setSpeciesAndDependents
   call TDftbPlus_destruct(dftb)
 
   ! Write file for internal test system, using the last structure that was run
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor,&
+  call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&
       & grossCharges=grossCharges)
 
 #:if WITH_MPI

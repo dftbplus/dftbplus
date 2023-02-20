@@ -11,7 +11,8 @@
 #:set CHUNK_TYPES = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
     & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), &
     & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), &
-    & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4')]
+    & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4'), &
+    & ('integer', 1, 'I1')]
 
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_common_schedule

@@ -9,15 +9,19 @@
 
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
-  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_accuracy, only : dp, mc, tolSameDist
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_memman, only : TAlignedArray
+  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_periodic, only : allocateNeighbourArrays, reallocateArrays1
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
+  use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_timeprop, only : initializeDynamics, finalizeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
@@ -31,9 +35,9 @@ module dftbp_dftbplus_mainapi
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
-  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
+  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField
+  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
   public :: setTdCoordsAndVelos, getTdForces
 
 
@@ -91,6 +95,170 @@ contains
     end if
 
   end subroutine setGeometry
+
+
+  !> Explicitly set the neighbour list instead of calculating it in DFTB+
+  subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
+      & coordNeighbours, neighbour2CentCell)
+
+    !> Instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), target, intent(inout) :: main
+
+    !> number of neighbours of an atom in the central cell
+    integer, intent(in) :: nNeighbour(:)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer, intent(in) :: iNeighbour(:,:)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(dp), intent(in) :: neighDist(:,:)
+
+    !> cutoff distance used for this neighbour list
+    real(dp), intent(in) :: cutOff
+
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
+
+    type(TAlignedArray) :: dist2Mem
+    real(dp), pointer :: rCellVec(:), dist2(:)
+    real(dp) :: diff(3)
+    integer :: nMaxNeighbours, nCellVec
+    integer :: iAtom, iCell, iNeigh, iImage, iCellVec, iAtFirst, iAtLast
+    integer, allocatable :: indx(:)
+    logical :: copyData
+
+    if (allocated(main%electronDynamics)) then
+      call error("Not implemented: Cannot set the neighbour list when time propagation is enabled")
+    end if
+    if (main%tLocalCurrents) then
+      call error("Not implemented: Cannot set the neighbour list when local bond-currents should be&
+          & computed")
+    end if
+
+    nMaxNeighbours = maxval(nNeighbour)
+
+    main%neighbourList%setExternally = .true.
+
+    #:if WITH_MPI
+      call allocateNeighbourArrays(main%neighbourList, nMaxNeighbours, main%nAtom, .true., env)
+    #:else
+      call allocateNeighbourArrays(main%neighbourList, nMaxNeighbours, main%nAtom, .false.)
+    #:endif
+
+    @:ASSERT(size(nNeighbour) == main%nAtom)
+    main%neighbourList%nNeighbour(:) = nNeighbour(:)
+    main%neighbourList%cutoff = cutOff
+
+    main%nAllAtom = size(neighbour2CentCell) + main%nAtom
+    @:ASSERT(size(neighbour2CentCell) == size(coordNeighbours, dim=2))
+
+    if (size(main%img2CentCell) /= main%nAllAtom) then
+      call reallocateArrays1(main%img2CentCell, main%iCellVec, main%coord, main%nAllAtom)
+    end if
+
+    !> Prepend data for the atoms in the central cell
+    main%coord(1:3, 1:main%nAtom) = main%coord0(1:3, 1:main%nAtom)
+    main%img2CentCell(1:main%nAtom) = [(iAtom, iAtom = 1, main%nAtom)]
+    main%iCellVec(1:main%nAtom) = 1
+
+    if (main%nAtom < main%nAllAtom) then
+      main%coord(1:3,main%nAtom+1:) = coordNeighbours(1:3,:)
+      main%img2CentCell(main%nAtom+1:) = neighbour2CentCell
+      main%iCellVec(main%nAtom+1:) = 0
+
+      !> Now set main%iCellVec: Iterate over all cells, calculate the coordinates the atom would
+      !> have there, and determine the cell in which this is very close to the actual coordinates
+      nCellVec = size(main%rCellVec, dim=2)
+      call dist2Mem%allocate(nCellVec)
+      call dist2Mem%getArray(dist2)
+
+      rCellVec(1:3*nCellVec) => main%rCellVec
+
+      call distributeRangeInChunks(env, main%nAtom + 1, main%nAllAtom, iAtFirst, iAtLast)
+
+      do iAtom = iAtFirst, iAtLast
+        iImage = main%img2CentCell(iAtom)
+        diff(:) = main%coord0(:,iImage) - main%coord(:,iAtom)
+        do iCell = 1, nCellVec
+          iCellVec = 3 * (iCell - 1)
+          ! Note that we need an explicit loop unrolling here to assist vectorization.
+          ! Using the pointer rCellVec helps the compiler to assume continuous memory access.
+          dist2(iCell) = (diff(1) + rCellVec(iCellVec + 1))**2 +&
+              & (diff(2) + rCellVec(iCellVec + 2))**2 + (diff(3) + rCellVec(iCellVec + 3))**2
+        end do
+        main%iCellVec(iAtom) = minloc(dist2, dim=1)
+      end do
+
+      call assembleChunks(env, main%iCellVec(main%nAtom + 1:))
+    end if
+
+    if (size(main%species) /= main%nAllAtom) then
+      deallocate(main%species)
+      allocate(main%species(main%nAllAtom))
+    end if
+    main%species(1:main%nAllAtom) = main%species0(main%img2CentCell(1:main%nAllAtom))
+
+    #:if WITH_MPI
+      call main%neighbourList%iNeighbourWin%lock()
+      call main%neighbourList%neighDist2Win%lock()
+      copyData = env%mpi%nodeComm%lead
+    #:else
+      copyData = .true.
+    #:endif
+
+    !> This is done only for task 0 on the node due to MPI shared memory: Copy to the actual
+    !> neighbour arrays.
+    if (copyData) then
+      @:ASSERT(nMaxNeighbours <= size(iNeighbour, dim=1))
+      @:ASSERT(nMaxNeighbours <= size(neighDist, dim=1))
+      @:ASSERT(size(iNeighbour, dim=2) == main%nAtom)
+      @:ASSERT(size(neighDist, dim=2) == main%nAtom)
+
+      allocate(indx(maxval(nNeighbour)))
+      do iAtom = 1, main%nAtom
+        call index_heap_sort(indx(1:nNeighbour(iAtom)), neighDist(1:nNeighbour(iAtom),iAtom),&
+            & tolSameDist)
+        !$OMP SIMD
+        do iNeigh = 1, nNeighbour(iAtom)
+          main%neighbourList%iNeighbour(iNeigh, iAtom) = iNeighbour(indx(iNeigh), iAtom)&
+              & + main%nAtom
+        end do
+        !$OMP SIMD
+        do iNeigh = 1, nNeighbour(iAtom)
+          main%neighbourList%neighDist2(iNeigh, iAtom) = neighDist(indx(iNeigh), iAtom)**2
+        end do
+
+        if (nNeighbour(iAtom) < nMaxNeighbours) then
+          !$OMP SIMD
+          do iNeigh = nNeighbour(iAtom) + 1, nMaxNeighbours
+            main%neighbourList%iNeighbour(iNeigh, iAtom) = 0
+          end do
+          !$OMP SIMD
+          do iNeigh = nNeighbour(iAtom) + 1, nMaxNeighbours
+            main%neighbourList%neighDist2(iNeigh, iAtom) = 0.0_dp
+          end do
+        end if
+
+        main%neighbourList%iNeighbour(0,iAtom) = iAtom
+        main%neighbourList%neighDist2(0,iAtom) = 0.0_dp
+      end do
+    end if
+
+    #:if WITH_MPI
+      call main%neighbourList%iNeighbourWin%sync()
+      call main%neighbourList%neighDist2Win%sync()
+
+      call main%neighbourList%iNeighbourWin%unlock()
+      call main%neighbourList%neighDist2Win%unlock()
+    #:endif
+
+  end subroutine setNeighbourList
 
 
   !> Returns the free energy of the system at finite temperature
@@ -674,6 +842,21 @@ contains
     outMass = main%mass
 
   end subroutine getAtomicMasses
+
+
+  !> Returns the cutoff distance for interactions
+  function getCutOff(main) result(cutOff)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Cutoff distance
+    real(dp) :: cutOff
+
+    cutOff = main%cutOff%mCutOff
+
+  end function getCutOff
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

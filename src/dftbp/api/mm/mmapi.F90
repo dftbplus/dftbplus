@@ -21,8 +21,8 @@ module dftbp_mmapi
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
       & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
-      & getStressTensor, getGradients, getEnergy, setQDepExtPotProxy, setExternalCharges,&
-      & setGeometry
+      & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
+      & setExternalCharges, setGeometry, setNeighbourList
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -84,6 +84,8 @@ module dftbp_mmapi
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     !> set/replace the geometry of a calculator
     procedure :: setGeometry => TDftbPlus_setGeometry
+    !> set/replace the neighbour list
+    procedure :: setNeighbourList => TDftbPlus_setNeighbourList
     !> add an external potential to a calculator
     procedure :: setExternalPotential => TDftbPlus_setExternalPotential
     !> add external charges to a calculator
@@ -130,6 +132,8 @@ module dftbp_mmapi
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
     !> Return the number of basis functions for each atom in the system
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
+    !> get the maximum cutoff distance
+    procedure :: getCutOff => TDftbPlus_getCutOff
   end type TDftbPlus
 
 
@@ -418,6 +422,39 @@ contains
   end subroutine TDftbPlus_setGeometry
 
 
+  !> Sets the neighbour list and skips the neighbour list creation in DFTB+
+  subroutine TDftbPlus_setNeighbourList(this, nNeighbour, iNeighbour, neighDist, cutOff,&
+      & coordNeighbours, neighbour2CentCell)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> number of neighbours of an atom in the central cell
+    integer, intent(in) :: nNeighbour(:)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer, intent(in) :: iNeighbour(:,:)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(dp), intent(in) :: neighDist(:,:)
+
+    !> cutoff distance used for this neighbour list
+    real(dp), intent(in) :: cutOff
+
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
+
+    call this%checkInit()
+
+    call setNeighbourList(this%env, this%main, nNeighbour, iNeighbour, neighDist, cutOff,&
+        & coordNeighbours, neighbour2CentCell)
+
+  end subroutine TDftbPlus_setNeighbourList
+
+
   !> Sets an external potential.
   subroutine TDftbPlus_setExternalPotential(this, atomPot, potGrad)
 
@@ -676,6 +713,22 @@ contains
     nOrbs(:) = this%main%orb%nOrbAtom
 
   end subroutine TDftbPlus_getNOrbAtoms
+
+
+  !> Gets the cutoff distance used for interactions
+  function TDftbPlus_getCutOff(this) result(cutOff)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Cutoff distance
+    real(dp) :: cutOff
+
+    call this%checkInit()
+
+    cutOff = getCutOff(this%main)
+
+  end function TDftbPlus_getCutOff
 
 
   !> Checks whether the type is already initialized and stops the code if not.
