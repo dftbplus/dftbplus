@@ -19,6 +19,7 @@
 
   #:block TEST_FIXTURE("readTGeometryLammps")
 
+    real(dp), parameter :: prec = 1.e-14_dp
     type(fnode), pointer :: node
     type(TGeometry) :: geo
     integer :: ii, jj
@@ -41,10 +42,10 @@
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
       @:ASSERT(geo%tPeriodic)
-      @:ASSERT(all(abs(geo%origin + 0.5_dp * AA__Bohr) < 1e-15_dp))
+      @:ASSERT(all(abs(geo%origin + 0.5_dp * AA__Bohr) < prec))
       @:ASSERT(all(geo%coords == 0.0_dp))
       do ii = 1, 3
-        @:ASSERT(abs(geo%latVecs(ii,ii) - AA__Bohr) < 1e-15_dp)
+        @:ASSERT(abs(geo%latVecs(ii,ii) - AA__Bohr) < prec)
       end do
       call destroyNode(node)
     #:endblock
@@ -72,7 +73,7 @@
       @:ASSERT(geo%tPeriodic)
       @:ASSERT(all(geo%origin == 0.0_dp))
       do ii = 1, 3
-        @:ASSERT(abs(geo%latVecs(ii,ii) - real(ii, dp) * AA__Bohr) < 1e-15_dp)
+        @:ASSERT(abs(geo%latVecs(ii,ii) - real(ii, dp) * AA__Bohr) < prec)
       end do
       call destroyNode(node)
     #:endblock
@@ -101,7 +102,7 @@
       @:ASSERT(all(geo%origin == 0.0))
       @:ASSERT(all(geo%species == 1))
       do ii = 1, 3
-        @:ASSERT(abs(geo%latVecs(ii,ii) - real(ii, dp) * AA__Bohr) < 1e-15_dp)
+        @:ASSERT(abs(geo%latVecs(ii,ii) - real(ii, dp) * AA__Bohr) < prec)
       end do
       call destroyNode(node)
     #:endblock
@@ -125,7 +126,7 @@
       @:ASSERT(all(geo%species == 1))
       do ii = 1, 3
         do jj = 1, 3
-          @:ASSERT(abs(geo%coords(ii,jj) - real(ii + 10*jj, dp) * AA__Bohr) < 1e-15_dp)
+          @:ASSERT(abs(geo%coords(ii,jj) - real(ii + 10*jj, dp) * AA__Bohr) < prec)
         end do
       end do
       call destroyNode(node)
@@ -189,12 +190,12 @@
       @:ASSERT(geo%species(2) == 1)
       @:ASSERT(geo%species(3) == 1)
       @:ASSERT(all(geo%species == 1))
-      @:ASSERT(all(abs(geo%coords(:,1) - 4.0_dp * AA__Bohr) < 1e-15_dp))
+      @:ASSERT(all(abs(geo%coords(:,1) - 4.0_dp * AA__Bohr) < prec))
       @:ASSERT(all(geo%coords(:,2) == 0.0_dp))
       @:ASSERT(all(geo%coords(:,3) == 0.0_dp))
       do ii = 1, 3
-        @:ASSERT(abs(geo%origin(ii) + real(ii, dp) * AA__Bohr) < 1e-15_dp)
-        @:ASSERT(abs(geo%latVecs(ii,ii) - real(2 * ii, dp) * AA__Bohr) < 1e-15_dp)
+        @:ASSERT(abs(geo%origin(ii) + real(ii, dp) * AA__Bohr) < prec)
+        @:ASSERT(abs(geo%latVecs(ii,ii) - real(2 * ii, dp) * AA__Bohr) < prec)
       end do
       call destroyNode(node)
     #:endblock
@@ -213,15 +214,15 @@
           & "1 1")
       call readTGeometryLammps(node, geo)
       geo%latVecs = geo%latVecs / AA__Bohr
-      @:ASSERT(abs(geo%latVecs(1,1) - 1.0_dp) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(2,1)) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(3,1)) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(1,2) - 4.0_dp) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(2,2) - 2.0_dp) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(3,2)) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(1,3) - 5.0_dp) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(2,3) - 6.0_dp) < 1e-15_dp)
-      @:ASSERT(abs(geo%latVecs(3,3) - 3.0_dp) < 1e-15_dp)
+      @:ASSERT(abs(geo%latVecs(1,1) - 1.0_dp) < prec)
+      @:ASSERT(abs(geo%latVecs(2,1)) < prec)
+      @:ASSERT(abs(geo%latVecs(3,1)) < prec)
+      @:ASSERT(abs(geo%latVecs(1,2) - 4.0_dp) < prec)
+      @:ASSERT(abs(geo%latVecs(2,2) - 2.0_dp) < prec)
+      @:ASSERT(abs(geo%latVecs(3,2)) < prec)
+      @:ASSERT(abs(geo%latVecs(1,3) - 5.0_dp) < prec)
+      @:ASSERT(abs(geo%latVecs(2,3) - 6.0_dp) < prec)
+      @:ASSERT(abs(geo%latVecs(3,3) - 3.0_dp) < prec)
       call destroyNode(node)
     #:endblock
 
@@ -239,8 +240,8 @@
       call readTGeometryLammps(node, geo)
       @:ASSERT(geo%speciesNames(1) == 'C')
       do ii = 1, 3
-        @:ASSERT(abs(geo%latVecs(ii,ii) - 1.0e10_dp * AA__Bohr) < 1e-15_dp)
-        @:ASSERT(abs(geo%coords(ii,1) - real(ii, dp) * AA__Bohr) < 1e-15_dp)
+        @:ASSERT(abs(geo%latVecs(ii,ii) - 1.0e10_dp * AA__Bohr) < prec)
+        @:ASSERT(abs(geo%coords(ii,1) - real(ii, dp) * AA__Bohr) < prec)
       end do
       call destroyNode(node)
     #:endblock
