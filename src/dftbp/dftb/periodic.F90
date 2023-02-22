@@ -10,11 +10,11 @@
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_dftb_periodic
-  use dftbp_common_accuracy, only : dp, tolSameDist2, minNeighDist, minNeighDist2
+  use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, minNeighDist, minNeighDist2
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_memman, only : incrmntOfArray
-  use dftbp_common_schedule, only : getChunkRanges
+  use dftbp_common_memman, only : incrmntOfArray, TAlignedArray
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks, getChunkRanges
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
@@ -35,10 +35,12 @@ module dftbp_dftb_periodic
   public :: getSuperSampling
   public :: frac2cart, cart2frac
   public :: TNeighbourList, TNeighbourList_init
-  public :: updateNeighbourList, updateNeighbourListAndSpecies
+  public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
-  public :: allocateNeighbourArrays, fillNeighbourArrays, distributeAtoms, reallocateArrays1,&
-      & reallocateArrays2
+
+  ! NOTE: this entries are public only temporarily for unit testing purposes. Do not call them
+  ! from the outside.
+  public :: distributeAtoms, reallocateArrays2, allocateNeighbourArrays, fillNeighbourArrays
 
 
   !> Contains essential data for the neighbourlist
@@ -603,6 +605,187 @@ contains
         & nAtom, isParallel)
 
   end subroutine updateNeighbourList
+
+
+  !> Explicitly set the neighbour list
+  subroutine setNeighbourList(neigh, env, nNeighbour, iNeighbour, neighDist, cutOff, coord0,&
+      & species0, coordNeighs, neigh2CentCell, rCellVec, nAllAtom, img2CentCell, iCellVec, coord,&
+      & species)
+
+    !> neighbourlist instance
+    type(TNeighbourList), intent(inout) :: neigh
+
+    !> environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> number of neighbours of an atom in the central cell
+    integer, intent(in) :: nNeighbour(:)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer, intent(in) :: iNeighbour(:,:)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(dp), intent(in) :: neighDist(:,:)
+
+    !> cutoff distance used for this neighbour list
+    real(dp), intent(in) :: cutOff
+
+    !> coordinates of the central cell
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> species of the atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighs(:,:)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neigh2CentCell(:)
+
+    real(dp), contiguous, target, intent(in) :: rCellVec(:,:)
+
+    !> nr. of all atoms in the system
+    integer, intent(out) :: nAllAtom
+
+    !> mapping of the atoms into the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> index of unit cell containing atom
+    integer, allocatable, intent(inout) :: iCellVec(:)
+
+    !> coordinates of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> species of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
+    integer, allocatable, intent(inout) :: species(:)
+
+    type(TAlignedArray) :: dist2Mem
+    real(dp), pointer :: rCellVecFlat(:), dist2(:)
+    real(dp) :: diff(3)
+    integer :: nMaxNeighbours, nCellVec, nAtom
+    integer :: iAtom, iCell, iNeigh, iImage, iCellFlat, iAtFirst, iAtLast
+    integer, allocatable :: indx(:)
+    logical :: copyData
+
+    nMaxNeighbours = maxval(nNeighbour)
+    nAtom = size(nNeighbour)
+
+    neigh%setExternally = .true.
+
+    #:if WITH_MPI
+      call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, .true., env)
+    #:else
+      call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, .false.)
+    #:endif
+
+    neigh%nNeighbour(:) = nNeighbour(:)
+    neigh%cutoff = cutOff
+
+    nAllAtom = size(neigh2CentCell) + nAtom
+    @:ASSERT(size(neigh2CentCell) == size(coordNeighs, dim=2))
+
+    if (size(img2CentCell) /= nAllAtom) then
+      call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
+    end if
+
+    !> Prepend data for the atoms in the central cell
+    coord(1:3, 1:nAtom) = coord0(1:3, 1:nAtom)
+    img2CentCell(1:nAtom) = [(iAtom, iAtom = 1, nAtom)]
+    iCellVec(1:nAtom) = 1
+
+    if (nAtom < nAllAtom) then
+      coord(1:3,  nAtom + 1:) = coordNeighs(1:3,:)
+      img2CentCell(nAtom + 1:) = neigh2CentCell
+      iCellVec(nAtom + 1:) = 0
+
+      !> Now set iCellVec: Iterate over all cells, calculate the coordinates the atom would
+      !> have there, and determine the cell in which this is very close to the actual coordinates
+      nCellVec = size(rCellVec, dim=2)
+      call dist2Mem%allocate(nCellVec)
+      call dist2Mem%getArray(dist2)
+
+      rCellVecFlat(1 : 3 * nCellVec) => rCellVec
+
+      call distributeRangeInChunks(env, nAtom + 1, nAllAtom, iAtFirst, iAtLast)
+
+      do iAtom = iAtFirst, iAtLast
+        iImage = img2CentCell(iAtom)
+        diff(:) = coord0(:,iImage) - coord(:,iAtom)
+        do iCell = 1, nCellVec
+          iCellFlat = 3 * (iCell - 1)
+          ! Note that we need an explicit loop unrolling here to assist vectorization.
+          ! Using the pointer rCellVecFlat helps the compiler to assume continuous memory access.
+          dist2(iCell) = (diff(1) + rCellVecFlat(iCellFlat + 1))**2&
+              & + (diff(2) + rCellVecFlat(iCellFlat + 2))**2&
+              & + (diff(3) + rCellVecFlat(iCellFlat + 3))**2
+        end do
+        iCellVec(iAtom) = minloc(dist2, dim=1)
+      end do
+
+      call assembleChunks(env, iCellVec(nAtom + 1:))
+    end if
+
+    if (size(species) /= nAllAtom) then
+      deallocate(species)
+      allocate(species(nAllAtom))
+    end if
+    species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
+
+    #:if WITH_MPI
+      call neigh%iNeighbourWin_%lock()
+      call neigh%neighDist2Win_%lock()
+      copyData = env%mpi%nodeComm%lead
+    #:else
+      copyData = .true.
+    #:endif
+
+    !> This is done only for task 0 on the node due to MPI shared memory: Copy to the actual
+    !> neighbour arrays.
+    if (copyData) then
+      @:ASSERT(nMaxNeighbours <= size(iNeighbour, dim=1))
+      @:ASSERT(nMaxNeighbours <= size(neighDist, dim=1))
+      @:ASSERT(size(iNeighbour, dim=2) == nAtom)
+      @:ASSERT(size(neighDist, dim=2) == nAtom)
+
+      allocate(indx(maxval(nNeighbour)))
+      do iAtom = 1, nAtom
+        call index_heap_sort(indx(1:nNeighbour(iAtom)), neighDist(1:nNeighbour(iAtom), iAtom),&
+            & tolSameDist)
+        !$OMP SIMD
+        do iNeigh = 1, nNeighbour(iAtom)
+          neigh%iNeighbour(iNeigh, iAtom) = iNeighbour(indx(iNeigh), iAtom) + nAtom
+        end do
+        !$OMP SIMD
+        do iNeigh = 1, nNeighbour(iAtom)
+          neigh%neighDist2(iNeigh, iAtom) = neighDist(indx(iNeigh), iAtom)**2
+        end do
+
+        if (nNeighbour(iAtom) < nMaxNeighbours) then
+          !$OMP SIMD
+          do iNeigh = nNeighbour(iAtom) + 1, nMaxNeighbours
+            neigh%iNeighbour(iNeigh, iAtom) = 0
+          end do
+          !$OMP SIMD
+          do iNeigh = nNeighbour(iAtom) + 1, nMaxNeighbours
+            neigh%neighDist2(iNeigh, iAtom) = 0.0_dp
+          end do
+        end if
+
+        neigh%iNeighbour(0, iAtom) = iAtom
+        neigh%neighDist2(0, iAtom) = 0.0_dp
+      end do
+    end if
+
+    #:if WITH_MPI
+      call neigh%iNeighbourWin_%sync()
+      call neigh%neighDist2Win_%sync()
+
+      call neigh%iNeighbourWin_%unlock()
+      call neigh%neighDist2Win_%unlock()
+    #:endif
+
+  end subroutine setNeighbourList
+
 
 
   !> Allocate arrays for type 'neigh'
