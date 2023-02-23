@@ -257,11 +257,6 @@ module waveplot_initwaveplot
     !> Index mapping: orbital --> slater type orbital, Shape: [nOrb]
     integer, allocatable :: orbitalToStos(:)
 
-    !> Index mappings: states in levelIndex --> array indices, Shape: [nStates * nKPoints * nSpin]
-    integer, allocatable :: iLPrime(:)
-    integer, allocatable :: iKPointPrime(:)
-    integer, allocatable :: iSpinPrime(:)
-
     !> Required levels to calculate, Shape: [nStates]
     integer, allocatable :: requiredLevels(:)
 
@@ -270,12 +265,6 @@ module waveplot_initwaveplot
 
     !> Required spins to calculate, Shape: [nSpins]
     integer, allocatable :: requiredSpins(:)
-
-    !> Number of k-points to calculate for each required level, Shape: [nRequiredLevels]
-    integer, allocatable :: kPointNumForLevel(:)
-
-    !> Number of spins to calculate for each required level, Shape: [nRequiredLevels]
-    integer, allocatable :: spinNumForLevel(:)
 
     !> Required k-points for each level, Shape: [nRequiredLevels, nRequiredKPoints]
     integer, allocatable :: requiredKPointsForLevel(:,:)
@@ -1169,8 +1158,10 @@ contains
 
     !> Auxiliary variables
     integer :: iAtom, iOrb, iSpecies, iAng, iL, iM, iOrbPerSpecies, mAng, ind, magnQN, &
-        & angularMoment, kPointCounter, levelCounter, spinCounter, KNum, LNum, SNum, ii, &
+        & angularMoment, kPointCounter, levelCounter, spinCounter, kNum, lNum, sNum, ii, &
         & tmparray(1), tmpKPoint, tmpSpin, i1, i2, i3, jj, kk
+
+    character(len=100) :: strBuffer
 
     allocate(this%loc%orbitalOcc(this%input%nOrb, 1))
     allocate(this%loc%orbitalToAtom(this%input%nOrb))
@@ -1263,74 +1254,28 @@ contains
     deallocate(tmp2)
     deallocate(tmp3)
 
-    ! Calculate mapping from the values which are in the level index to array indices. The 'Prime'
-    ! variables contain these mappings.
-    allocate(this%loc%iLPrime(size(this%opt%levelIndex, dim=2)))
-    allocate(this%loc%iKPointPrime(size(this%opt%levelIndex, dim=2)))
-    allocate(this%loc%iSpinPrime(size(this%opt%levelIndex, dim=2)))
-
-    this%loc%iLPrime(:) = 0
-    this%loc%iKPointPrime(:) = 0
-    this%loc%iSpinPrime(:) = 0
-
-    levelCounter = 1
-    kpointCounter = 1
-    spinCounter = 1
-
-    LNum = 1
-    KNum = 1
-    SNum = 1
+    ! Calculate the number of unique levels, k-points and spins in levelIndex.
+    lNum = 0
+    kNum = 0
+    sNum = 0
 
     do ii = 1, size(this%opt%levelIndex, dim=2)
-      if (ii .eq. 1) then
-        this%loc%iLPrime(ii) = 1
-      else
-        if (any(this%opt%levelIndex(1, 1:ii - 1) .eq. this%opt%levelIndex(1, ii))) then
-          tmparray = findloc(this%opt%levelIndex(1,:), this%opt%levelIndex(1, ii))
-          this%loc%iLPrime(ii) = this%loc%iLPrime(tmparray(1))
-        else
-          this%loc%iLPrime(ii) = this%loc%iLPrime(ii - 1) + 1
-          LNum = LNum + 1
-        end if
-        levelCounter = levelCounter + 1
+      if (.not. (any(this%opt%levelIndex(1, 1:ii - 1) .eq. this%opt%levelIndex(1, ii)))) then
+        lNum = lNum + 1
       end if
-    end do
-
-    do ii = 1, size(this%opt%levelIndex, dim=2)
-      if (ii .eq. 1) then
-        this%loc%iKPointPrime(ii) = 1
-      else
-        if (any(this%opt%levelIndex(2, 1:ii - 1) .eq. this%opt%levelIndex(2, ii))) then
-          tmparray = findloc(this%opt%levelIndex(2, :), this%opt%levelIndex(2, ii))
-          this%loc%iKPointPrime(ii) = this%loc%iKPointPrime(tmparray(1))
-        else
-          this%loc%iKPointPrime(ii) = this%loc%iKPointPrime(ii - 1) + 1
-          KNum = KNum + 1
-        end if
-        kpointCounter = kpointCounter + 1
+      if (.not. (any(this%opt%levelIndex(2, 1:ii - 1) .eq. this%opt%levelIndex(2, ii)))) then
+        kNum = knum + 1
       end if
-    end do
-
-    do ii = 1, size(this%opt%levelIndex, dim=2)
-      if (ii .eq. 1) then
-        this%loc%iSpinPrime(ii) = 1
-      else
-        if (any(this%opt%levelIndex(3, 1:ii - 1) .eq. this%opt%levelIndex(3, ii))) then
-          tmparray = findloc(this%opt%levelIndex(3, :), this%opt%levelIndex(3, ii))
-          this%loc%iSpinPrime(ii) = this%loc%iSpinPrime(tmparray(1))
-        else
-          this%loc%iSpinPrime(ii) = this%loc%iSpinPrime(ii - 1) + 1
-          SNum = SNum + 1
-        end if
-        spinCounter = spinCounter + 1
+      if (.not. (any(this%opt%levelIndex(3, 1:ii - 1) .eq. this%opt%levelIndex(3, ii)))) then
+        sNum = sNum + 1
       end if
     end do
 
     ! Extract all required k-points, levels and spins which are required for the calculation from
     ! the levelIndex
-    allocate(this%loc%requiredKPoints(KNum))
-    allocate(this%loc%requiredLevels(LNum))
-    allocate(this%loc%requiredSpins(SNum))
+    allocate(this%loc%requiredKPoints(kNum))
+    allocate(this%loc%requiredLevels(lNum))
+    allocate(this%loc%requiredSpins(sNum))
 
     this%loc%requiredKPoints(:) = 0
     this%loc%requiredLevels(:) = 0
@@ -1362,11 +1307,6 @@ contains
     tmpKPoint = 0
     tmpSpin = 0
 
-    allocate(this%loc%kPointNumForLevel(size(this%loc%requiredLevels)))
-    this%loc%kPointNumForLevel(:) = 0
-    allocate(this%loc%spinNumForLevel(size(this%loc%requiredLevels)))
-    this%loc%spinNumForLevel(:) = 0
-
     allocate(this%loc%requiredKPointsForLevel(size(this%loc%requiredLevels), &
         & size(this%loc%requiredKPoints)))
 
@@ -1377,7 +1317,6 @@ contains
           if ((this%opt%levelIndex(1, ii) == this%loc%requiredLevels(jj)) .and. &
               & (this%opt%levelIndex(2, ii) == this%loc%requiredKPoints(kk)) .and. &
               & (this%opt%levelIndex(3, ii) == 1)) then
-            this%loc%kPointNumForLevel(jj) = this%loc%kPointNumForLevel(jj) + 1
             this%loc%requiredKPointsForLevel(jj, ind) = this%opt%levelIndex(2, ii)
             ind = ind + 1
           end if
@@ -1387,18 +1326,12 @@ contains
       ind = 1
     end do
 
-    do jj = 1, size(this%loc%requiredLevels)
-      do kk = 1, size(this%loc%requiredSpins)
-        do ii = 1, size(this%opt%levelIndex, dim=2)
-          if (this%loc%requiredLevels(jj) == this%opt%levelIndex(1, ii)) then
-            if ((this%opt%levelIndex(3, ii) == this%loc%requiredSpins(kk)) .and. &
-                & (this%loc%requiredSpins(kk) .ne. this%loc%requiredSpins(kk))) then
-              this%loc%spinNumForLevel(jj) = this%loc%spinNumForLevel(jj) + 1
-            end if
-          end if
-        end do
-      end do
-    end do
+    write(*,*) this%loc%requiredkPoints
+    write(*,*) shape(this%loc%requiredKPointsForLevel)
+
+    write(strbuffer, "(I3)") size(this%loc%requiredKPointsForLevel, dim=2)
+    write(strbuffer, *) '(' // trim(strBuffer) // '(i6, 1X)/)'
+    write(*, strBuffer) transpose(this%loc%requiredKPointsForLevel)
 
   end subroutine getIndexMappings
 

@@ -360,9 +360,9 @@ program waveplot
             currentSpin = wp%loc%requiredSpins(iSpin)
 
             ! Build charge if needed for total charge or if it was explicitely required
-            tPlotLevel = any(wp%opt%plottedSpins == currentSpin) .and. &
-                & any(wp%opt%plottedKPoints == currentKPoint) .and. &
-                & any(wp%opt%plottedLevels == currentLevel)
+            tPlotLevel = any(wp%opt%plottedSpins == iSpin) .and. &
+                & any(wp%opt%plottedKPoints == iKPoint) .and. &
+                & any(wp%opt%plottedLevels == iLevel)
 
             if (wp%opt%tCalcTotChrg .or. (tPlotLevel .and. (wp%opt%tPlotChrg .or.&
                 & wp%opt%tPlotChrgDiff))) then

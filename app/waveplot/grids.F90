@@ -120,7 +120,7 @@ module waveplot_grids
     !> representation of parallelepiped grid
     class(TGrid), allocatable :: grid
 
-    !> tabulated real tesseral spherical harmonics
+    !> tabulated real tesseral spherical harmonics, shape: [nxPoints, nyPoints, nzPoints, lmCombs]
     real(dp), allocatable :: data(:,:,:,:)
 
     !> possible combinations of angular momenta l and magnetic quantum numbers m
@@ -545,7 +545,7 @@ contains
     !> position where to place subgrid onto grid, expected shape: [3]
     real(dp), intent(in) :: position(:)
 
-    !> lower and upper bounds of intersection in integer grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in integer total grid coordinates, shape: [3,2]
     integer, intent(out), allocatable :: luGc(:,:)
 
     !> lower and upper bounds of intersection in real subgrid coordinates, shape: [3,2]
@@ -554,25 +554,23 @@ contains
     !> true if there is an intersection between both grids, false otherwise
     logical, intent(out) :: intersection
 
-    !> lower and upper bounds of intersection in real grid coordinates, shape: [3,2]
-    real(dp), allocatable :: realLuGc(:,:)
-
-    !> lower and upper bounds of intersection in real subgrid coordinates, shape: [3,2]
-    real(dp), allocatable :: realLuSubGc(:,:)
-
-    !> lower and upper bounds of intersection in real grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in real total grid coordinates, shape: [3,2]
     real(dp) :: luRGc(3,2)
 
-    !> lower and upper bounds of intersection in cartesian coordinates, shape: [3,2]
+    !> lower and upper bounds of subgrid in cartesian coordinates, shape: [3,2]
     real(dp) :: lCc(3, 2), uCc(3,2)
 
     !> auxiliary array for containing cartesian coordinates of processed intersection, shape: [3,2]
     real(dp), allocatable :: roundedLuCc(:,:)
 
-    !> lower and upper cartesian bounds of grid and (partly) contained subgrid, shape: [3,1]
-    real(dp), allocatable :: lCcTotGrid(:,:), uCcTotGrid(:,:), lCcSubGrid(:,:), uCcSubGrid(:,:)
+    !> lower and upper bounds of the total grid in cartesian coordinates, shape: [3, 1]
+    real(dp), allocatable :: lCcTotGrid(:,:), uCcTotGrid(:,:)
 
-    !> lower and upper real grid coordinates of intersection, shape: [3,1]
+    !> lower and upper bounds of the subgrid in cartesian coordinates in the reference frame of the
+    !> subgrid (so the position relative to the total grid is not included), shape: [3, 1]
+    real(dp), allocatable :: lCcSubGrid(:,:), uCcSubGrid(:,:)
+
+    !> lower and upper bounds of subgrid in real total grid coordinates, shape: [3,1]
     real(dp), allocatable :: lRGc(:,:), uRGc(:,:)
 
     !> auxiliary variable
@@ -1053,7 +1051,7 @@ contains
     !> subgrid to calculate intersection with
     class(TGrid), intent(in) :: subgrid
 
-    !> lower and upper bounds of intersection in integer grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in integer total grid coordinates, shape: [3,2]
     integer, intent(in) :: luGc(:,:)
 
     !> lower and upper bounds of intersection in real subgrid coordinates, shape: [3,2]
@@ -1978,13 +1976,13 @@ contains
     !> True, if data should be squared, i.e. for densities
     logical, intent(in), optional :: square
 
-    !> lower and upper bounds of intersection in integer grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in integer total grid coordinates, shape: [3,2]
     integer, allocatable :: luGc(:,:)
 
-    !> lower and upper bounds of intersection in real grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in real subgrid coordinates, shape: [3,2]
     real(dp), allocatable :: luSubGc(:,:)
 
-    !> real grid coordinates of subgrid that intersect with grid,
+    !> real subgrid coordinates of subgrid that intersect with grid,
     !> shape: [3, nxIntersecPoints, nyIntersecPoints, nzIntersecPoints]
     real(dp), allocatable :: intersecSubGc(:,:,:,:)
 
@@ -2082,15 +2080,15 @@ contains
     !> True, if data should be squared, i.e. for densities
     logical, intent(in), optional :: square
 
-    !> real grid coordinates of subgrid that intersect with grid,
-    !> shape: [3, nxIntersecPoints, nyIntersecPoints, nzIntersecPoints]
-    real(dp), allocatable :: intersecSubGc(:,:,:,:)
-
-    !> lower and upper bounds of intersection in integer grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in integer total grid coordinates, shape: [3,2]
     integer, allocatable :: luGc(:,:)
 
-    !> lower and upper bounds of intersection in real grid coordinates, shape: [3,2]
+    !> lower and upper bounds of intersection in real subgrid coordinates, shape: [3,2]
     real(dp), allocatable :: luSubGc(:,:)
+
+    !> real subgrid coordinates of subgrid that intersect with grid,
+    !> shape: [3, nxIntersecPoints, nyIntersecPoints, nzIntersecPoints]
+    real(dp), allocatable :: intersecSubGc(:,:,:,:)
 
     !> interpolated data, shape: [nxRegionPoints, nyRegionPoints, nzRegionPoints]
     real(dp), allocatable :: interp(:,:,:)
