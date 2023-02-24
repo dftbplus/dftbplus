@@ -189,7 +189,7 @@ derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
 derivatives/C60_Polfreq                #? MPI_PROCS <= 4
 
 derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
-derivatives/CH4_kpt_freq               #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0)
+derivatives/CH4_kpt_freq               #? not WITH_MPI or MPI_PROCS == 4
 derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
