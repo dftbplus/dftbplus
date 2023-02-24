@@ -9,6 +9,7 @@
 
 !> Contains a file descriptor and methods to set the default file access type globally.
 module dftbp_common_file
+  use dftbp_io_charmanip, only : i2c
   use dftbp_io_message, only : error
   implicit none
 
@@ -275,7 +276,8 @@ contains
         end if
         return
       else
-        call error("Failed to open file '" // trim(file) // "'")
+        call error("Failed to open file '" // trim(file) // "' [(" // i2c(ioStat_) // ") "&
+            &  // trim(ioMsg_) // "]")
       end if
     end if
     if (present(ioStat)) then
