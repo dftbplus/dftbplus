@@ -11,6 +11,9 @@
 module dftbp_common_file
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_message, only : error
+#:block DEBUG_CODE
+  use dftbp_common_globalenv, only : stdOut0
+#:endblock
   implicit none
 
   private
@@ -286,6 +289,12 @@ contains
     this%file = trim(file)
     this%needsClosing_ = .true.
 
+  #:block DEBUG_CODE
+    write(stdOut0, "(5a)") "[Debug] File '", trim(file), "' opened (action='", trim(opts%action),&
+        & "')"
+    flush(stdOut0)
+  #:endblock DEBUG_CODE
+
   end subroutine TFileDescr_connectToFile
 
 
@@ -312,6 +321,10 @@ contains
 
     if (this%unit /= -1 .and. this%needsClosing_) then
       close(this%unit)
+    #:block DEBUG_CODE
+      write(stdOut0, "(3a)") "[Debug] File '", trim(this%file), "' closed"
+      flush(stdOut0)
+    #:endblock DEBUG_CODE
     end if
     this%unit = -1
     if (allocated(this%file)) then

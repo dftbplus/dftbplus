@@ -26,7 +26,7 @@ module dftbp_common_globalenv
   private
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
-  public :: stdOut, stdErr, tIoProc
+  public :: stdOut, stdOut0, stdErr, stdErr0, tIoProc
   public :: withScalapack, withMpi
   public :: instanceSafeBuild
   #:if WITH_MPI
