@@ -42,6 +42,7 @@ module dftbp_derivs_perturb
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
+  use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
 #:endif
@@ -51,7 +52,50 @@ module dftbp_derivs_perturb
   implicit none
 
   private
-  public :: TResponse, TResponse_init, responseSolverTypes
+  public :: TPerturbInp, TResponse, TResponse_init, responseSolverTypes
+
+
+  !> Input type for perturbation calculations
+  type :: TPerturbInp
+
+    !> Is a perturbation expression in use
+    logical :: doPerturbation = .false.
+
+    !> Is a perturbation expression in use for each geometry step
+    logical :: doPerturbEachGeom = .false.
+
+    !> Tolerance for idenfifying need for degenerate perturbation theory
+    real(dp) :: tolDegenDFTBPT = 128.0_dp
+
+    !> Is this is a static electric field perturbation calculation
+    logical :: isEPerturb = .false.
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynEFreq(:)
+
+    !> Frequency dependent perturbation eta
+    real(dp), allocatable :: etaFreq
+
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
+    logical :: isRespKernelPert = .false.
+
+    !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
+    logical :: isRespKernelRPA
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynKernelFreq(:)
+
+    !> Self-consistency tolerance for perturbation (if SCC)
+    real(dp) :: perturbSccTol = 0.0_dp
+
+    !> Maximum iterations for perturbation theory
+    integer :: maxPerturbIter = 1
+
+    !> Require converged perturbation (if true, terminate on failure, otherwise return NaN for
+    !> non-converged)
+    logical :: isPerturbConvRequired = .true.
+
+  end type TPerturbInp
 
 
   !> Namespace for possible perturbation solver methods
@@ -907,7 +951,7 @@ contains
     logical, intent(in) :: tMetallic(:,:)
 
     !> Number of electrons at the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: neFermi(:)
+    real(dp), allocatable, intent(in) :: neFermi(:)
 
     !> Tolerance for SCC convergence
     real(dp), intent(in) :: sccTol
@@ -933,8 +977,11 @@ contains
     !> Derivative of density matrix
     real(dp), target, allocatable, intent(inout) :: dRhoOut(:)
 
-    !> delta density matrix for rangeseparated calculations
-    real(dp), pointer :: dRhoOutSqr(:,:,:), dRhoInSqr(:,:,:)
+    !> delta density matrix response for range separated calculations
+    real(dp), pointer :: dRhoOutSqr(:,:,:)
+
+    !> delta density matrix input for range separated calculations
+    real(dp), pointer :: dRhoInSqr(:,:,:)
 
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -1035,7 +1082,6 @@ contains
     !> Small complex value for frequency dependent
     complex(dp), intent(in), optional :: eta
 
-
     logical :: tSccCalc, tConverged
     integer :: iSccIter
     real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
@@ -1048,9 +1094,23 @@ contains
     real(dp), allocatable :: dRhoExtra(:,:), idRhoExtra(:,:)
     real(dp) :: dqDiffRed(nMixElements)
 
+    real(dp), allocatable :: dqInBackup(:,:,:), dqBlockInBackup(:,:,:,:), dRhoInBackup(:)
+    real(dp) :: qnan
+
     tSccCalc = allocated(sccCalc)
 
     @:ASSERT(abs(omega) <= epsilon(0.0_dp) .or. present(eta))
+
+    if (tSccCalc.and..not.isSccConvRequired) then
+      ! store back-ups of the input charges/density matrix in case the iteration fails
+      dqInBackup = dqIn
+      if (allocated(dqBlockIn)) then
+        dqBlockInBackup = dqBlockIn
+      end if
+      if (allocated(dRhoIn)) then
+        dRhoInBackup = dRhoIn
+      end if
+    end if
 
     if (allocated(spinW) .or. allocated(thirdOrd)) then
       allocate(shellPot(orb%mShell, nAtom, nSpin))
@@ -1427,6 +1487,23 @@ contains
         @:RAISE_ERROR(errStatus, -1, "SCC in perturbation is NOT converged, maximal SCC&
             & iterations exceeded")
       else
+        qnan = ieee_value(1.0_dp, ieee_quiet_nan)
+        dRho(:,:) = qnan
+        dqOut(:,:,:) = qnan
+        if (allocated(idRho)) idRho(:,:) = qnan
+        if (allocated(dEi)) dEi(:,:,:) = qnan
+        if (allocated(dEf)) dEf(:) = qnan
+        if (allocated(dqBlockOut)) dqBlockOut(:,:,:,:) = qnan
+        if (allocated(dPsiReal)) dPsiReal(:,:,:) = qnan
+        if (allocated(dPsiCmplx)) dPsiCmplx(:,:,:,:) = qnan
+        ! restore back-ups of the input charges/density matrix in case the iteration fails
+        dqIn(:,:,:) = dqInBackup
+        if (allocated(dqBlockIn)) then
+          dqBlockInBackup(:,:,:,:) = dqBlockIn
+        end if
+        if (allocated(dRhoIn)) then
+          dRhoInBackup(:) = dRhoIn
+        end if
         call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
       end if
     end if
