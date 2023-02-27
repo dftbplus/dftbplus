@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Simple script looking for files with write access opened more than once."""
+
+import argparse
+import collections
+import re
+import sys
+
+
+_DESCRIPTION = """
+Checks the output for [Debug] messages indicating file opening and closing activities and warns if
+a file opened for writing is already open. Only opening for writing is checked, as multiple
+MPI-processess might open the same file for reading concurrently, but only the lead process should
+open a file for writing and only if the file is not already open (on any processes). Note that the
+order of the [Debug] messages is influenced by buffering issues in MPI runs with multiple
+processes, which might lead to false alerts.
+"""
+
+_FILE_DEBUG_PAT = re.compile(
+    r"^\[Debug\] File '(?P<file>[^']+)' (?:opened|closed)(?: \(action='(?P<action>[^']+)'\))?"
+)
+
+
+def main():
+    "Main routine"
+    args = _parse_arguments()
+    with open(args.file, mode="r", encoding="utf-8") as fp:
+        lines = fp.readlines()
+    _check_open_files(lines, args.error)
+
+
+def _parse_arguments() -> argparse.Namespace:
+    "Parses arguments"
+    parser = argparse.ArgumentParser(description=_DESCRIPTION)
+    msg = "Stops with error (instead of printing a warning only)"
+    parser.add_argument("-e", "--error", action="store_true", default=False, help=msg)
+    parser.add_argument("file")
+    return parser.parse_args()
+
+
+def _check_open_files(lines, stop_on_error):
+    "Executes checks for open files"
+    open_files = collections.defaultdict(lambda: 0)
+    for iline, line in enumerate(lines):
+        if match := _FILE_DEBUG_PAT.match(line):
+            file, action = match.groups()
+            if action is not None:
+                if open_files[file] and action == "write":
+                    print(f"Open file '{file}' opened once more for writing (line: {iline + 1})")
+                    if stop_on_error:
+                        sys.exit(1)
+                open_files[file] += 1
+            else:
+                open_files[file] -= 1
+
+
+if __name__ == "__main__":
+    main()

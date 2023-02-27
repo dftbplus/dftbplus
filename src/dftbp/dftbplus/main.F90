@@ -439,7 +439,7 @@ contains
 
   #:if WITH_TRANSPORT
 
-    if (this%isAContactCalc) then
+    if (env%tGlobalLead .and. this%isAContactCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
       call writeContactShifts(this%transpar%contacts(this%transpar%taskContInd)%name, this%orb,&
           & this%potential%coulombShell, this%qOutput, this%Ef, this%qBlockOut,&
