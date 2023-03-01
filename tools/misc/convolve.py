@@ -18,9 +18,9 @@ import sys
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("infile", metavar="INPUT",
+parser.add_argument("-i", "--input", dest="infile", required=True,
                     help="input file name")
-parser.add_argument("outfile", metavar="OUTPUT",
+parser.add_argument("-o", "--output", dest="outfile", required=True,
                     help="output file name")
 parser.add_argument("-b", "--broaden", dest="sigma", type=float, default=0.1,
                     help="broadening width")

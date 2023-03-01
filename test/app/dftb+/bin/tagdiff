@@ -325,7 +325,7 @@ def zOpen(filename, mode):
 def parseOptions():
     """Parses script's options"""
 
-    parser = ArgumentParser(usage="usage: %(prog)s [ options ] orig new",
+    parser = ArgumentParser(usage="%(prog)s [ options ] orig new",
                             description=DESCRIPTION)
     parser.add_argument('--version', action='version',
                         version=("%%(prog)s %s" % VERSION))
