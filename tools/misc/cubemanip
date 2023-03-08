@@ -311,7 +311,7 @@ def _get_pos_funcs(origin, ngrids, gridvecs):
     "Delivers three functions which return x, y & z position of the grid points"
 
     def posx():
-        "Returns the x-position of every grid point"
+        "Returns the x-position of every grid point, allowing for the use of a coordinate origin"
         return _calc_positions(0)
 
     def posy():
