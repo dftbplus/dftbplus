@@ -315,7 +315,7 @@ def _get_pos_funcs(origin, ngrids, gridvecs):
         return _calc_positions(0)
 
     def posy():
-        "Returns the y-position of every grid point"
+        "Returns the y-position of every grid point, allowing for the the use of a coordinate origin"
         return _calc_positions(1)
 
     def posz():
