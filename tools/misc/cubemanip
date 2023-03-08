@@ -39,7 +39,7 @@ data array is created by evaluating the expression. The number of cube files
 passed as arguments must be higher than the maximal reference index in the
 expression.
 
-Apart of the data arrays, following variables and functions can be used in the
+Apart from the data arrays, following variables and functions can be used in the
 expression:
 
   origin:  origin of the grid in the first input file as (3,) shaped array
