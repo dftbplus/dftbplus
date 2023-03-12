@@ -9,8 +9,8 @@
 
 #:block TEST_SUITE("period")
   use dftbp_common_accuracy, only : dp, minNeighDist
-  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, fillNeighbourArrays,&
-      & TNeighbourList, updateNeighbourList, TNeighbourlist_init
+  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
+      & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
   implicit none
 
@@ -138,6 +138,8 @@
       allocate(neighDist2(1:maxNeighbour, 1:nAtom))
 
       call createTestArray(neighDist2)
+
+      call allocateNeighbourArrays(neigh, maxNeighbour, nAtom, .false.)
 
       call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
           & nAtom, .false.)

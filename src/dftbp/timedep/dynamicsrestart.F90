@@ -11,6 +11,7 @@
 !> routines for the restart of the time propagation of the density matrix/atoms
 module dftbp_timedep_dynamicsrestart
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_common_status, only : TStatus
   implicit none
 
@@ -54,16 +55,17 @@ contains
     !> operation status
     type(TStatus), intent(out) :: errStatus
 
-    integer :: fd, ii, jj, kk, iErr
+    type(TFileDescr) :: fd
+    integer :: ii, jj, kk, iErr
     character(len=120) :: error_string
 
 
     if (isAsciiFile) then
-      open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
-          & iostat=iErr)
+      call openFile(fd, trim(fileName) // '.dat', mode="w", iostat=iErr)
     else
-      open(newunit=fd, file=trim(fileName) // '.bin', form='unformatted', access='stream',&
-          & action='write', iostat=iErr)
+      ! Set to stream explicitely, as it was written as stream from the beginning
+      call openFile(fd, trim(fileName) // '.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='write'), iostat=iErr)
     end if
 
     if (iErr /= 0) then
@@ -79,38 +81,38 @@ contains
 
     if (isAsciiFile) then
 
-      write(fd, *)iDumpFormat
-      write(fd, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      write(fd%unit, *)iDumpFormat
+      write(fd%unit, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
       do ii = 1, size(rho, dim=3)
         do jj = 1, size(rho, dim=2)
           do kk = 1, size(rho, dim=1)
-            write(fd, *)rho(kk,jj,ii)
+            write(fd%unit, *)rho(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(rhoOld, dim=3)
         do jj = 1, size(rhoOld, dim=2)
           do kk = 1, size(rhoOld, dim=1)
-            write(fd, *)rhoOld(kk,jj,ii)
+            write(fd%unit, *)rhoOld(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(coord, dim=2)
-        write(fd, *)coord(:,ii)
+        write(fd%unit, *)coord(:,ii)
       end do
       do ii = 1, size(veloc, dim=2)
-        write(fd, *)veloc(:,ii)
+        write(fd%unit, *)veloc(:,ii)
       end do
 
     else
 
-      write(fd)iDumpFormat
-      write(fd)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
-      write(fd) rho, rhoOld, coord, veloc
+      write(fd%unit) iDumpFormat
+      write(fd%unit) size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      write(fd%unit) rho, rhoOld, coord, veloc
 
     end if
 
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeRestartFile
 
@@ -146,7 +148,8 @@ contains
     !> operation status
     type(TStatus), intent(out) :: errStatus
 
-    integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
+    type(TFileDescr) :: fd
+    integer :: ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
     real(dp) :: deltaT
     logical :: isExisting
     character(len=120) :: error_string
@@ -166,10 +169,12 @@ contains
     end if
 
     if (isAsciiFile) then
-      open(newunit=fd, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
+      call openFile(fd, trim(fileName)//'.dat', mode="r", iostat=iErr)
     else
-      open(newunit=fd, file=trim(fileName)//'.bin', form='unformatted', access='stream',&
-          & action='read', iostat=iErr)
+      ! Set to stream explicitely, as it was written as stream from the beginning
+      call openFile(fd, file=trim(fileName)//'.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='read',&
+          & position="rewind"), iostat=iErr)
     end if
 
     if (iErr /= 0) then
@@ -180,14 +185,13 @@ contains
       end if
       @:RAISE_ERROR(errStatus, -1, error_string)
     end if
-    rewind(fd)
 
     if (isAsciiFile) then
-      read(fd, *)version
+      read(fd%unit, *)version
       if (version /= iDumpFormat) then
         @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
-      read(fd, *) nOrb, nSpin, nAtom, time, deltaT
+      read(fd%unit, *) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
@@ -210,29 +214,29 @@ contains
       do ii = 1, size(rho, dim=3)
         do jj = 1, size(rho, dim=2)
           do kk = 1, size(rho, dim=1)
-            read(fd, *)rho(kk,jj,ii)
+            read(fd%unit, *)rho(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(rhoOld, dim=3)
         do jj = 1, size(rhoOld, dim=2)
           do kk = 1, size(rhoOld, dim=1)
-            read(fd, *)rhoOld(kk,jj,ii)
+            read(fd%unit, *)rhoOld(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(coord, dim=2)
-        read(fd, *)coord(:,ii)
+        read(fd%unit, *)coord(:,ii)
       end do
       do ii = 1, size(veloc, dim=2)
-        read(fd, *)veloc(:,ii)
+        read(fd%unit, *)veloc(:,ii)
       end do
     else
-      read(fd)version
+      read(fd%unit)version
       if (version /= iDumpFormat) then
         @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
-      read(fd) nOrb, nSpin, nAtom, time, deltaT
+      read(fd%unit) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
@@ -252,9 +256,9 @@ contains
         write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
             & deltaT, " instead of current timestep of", dt
       end if
-      read(fd) rho, rhoOld, coord, veloc
+      read(fd%unit) rho, rhoOld, coord, veloc
     end if
-    close(fd)
+    call closeFile(fd)
 
   end subroutine readRestartFile
 

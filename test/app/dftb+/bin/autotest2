@@ -49,9 +49,6 @@ TIME_CMD=time
 # Override time command if not available on the system
 ($TIME_CMD ls 2>&1) > /dev/null || TIME_CMD=""
 
-SUMMARY_TAGDIFF_LOG="$TAGDIFF_LOG"
-SUMMARY_STDERROR="$APP_STDERR"
-
 STATUS_PREFIX=_tagstatus_
 STATUS_MATCH=Match
 STATUS_MISMATCH=Mismatch
@@ -305,7 +302,6 @@ error_list=""
 #---------------------------------------------------------------------
 # main work
 #---------------------------------------------------------------------
-SUMMARY_INITIALIZED=""
 for testname in $tests
 do
     test -d $workroot/$testname || {
@@ -416,17 +412,6 @@ do
 	    test -n "$verbose" && echo_n " gathering .."
 	fi
 
-	if [ -z "$SUMMARY_INITIALIZED" ]; then
-	    SUMMARY_INITIALIZED=1
-
-	    INIT_OWD=`pwd`
-	    safecd $workroot
-	    rm -f $SUMMARY_STDERROR $SUMMARY_TAGDIFF_LOG 2> /dev/null
-	    exec 3> $SUMMARY_STDERROR
-	    exec 4> $SUMMARY_TAGDIFF_LOG
-	    cd $INIT_OWD
-	fi
-
 	if [ ! -f $APP_TAGDATA ]; then
 	    todo_list="$todo_list $testname"
 	else
@@ -440,14 +425,6 @@ do
 	    else
 		error_list="$error_list $testname"	# missing status?
 	    fi
-
-	    echo "======= $testname ======="	1>&3
-	    cat $APP_STDERR			1>&3 2>/dev/null
-	    echo ""				1>&3
-
-	    echo "======= $testname ======="	1>&4
-	    cat $TAGDIFF_LOG			1>&4 2>/dev/null
-	    echo ""				1>&4
 	fi
     fi
     test -n "$show_tests" && echo ""
@@ -505,11 +482,6 @@ if [ -n "$STAGE_SUMMARY" ]; then
 	echo "Status: FAIL"
 	#echo "Problems:$problems"
     fi
-    echo "$TABLE_SEP"
-    echo Details in:
-    echo  $workroot/$SUMMARY_STDERROR
-    echo  $workroot/$SUMMARY_TAGDIFF_LOG
-    echo "$TABLE_HEADER"
     exit $exit_status
 fi
 

@@ -86,6 +86,7 @@ spin/ipea1_Fe4_noncolinear             #? WITH_TBLITE and MPI_PROCS <= 1
 
 input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1
+input/ammonia_lammps                   #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1
 input/unsorted_contcar                 #? MPI_PROCS <= 1
 
@@ -188,11 +189,12 @@ derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
 derivatives/C60_Polfreq                #? MPI_PROCS <= 4
 
 derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
-derivatives/CH4_kpt_freq               #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0)
+derivatives/CH4_kpt_freq               #? not WITH_MPI or MPI_PROCS == 4
 derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
+legacy/file_access                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
 non-scc/Si_2_origin                    #? MPI_PROCS <= 1
 non-scc/Si_2_originF                   #? MPI_PROCS <= 1

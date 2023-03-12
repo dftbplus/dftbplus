@@ -118,7 +118,7 @@ contains
 
 
   !> Unquotes a string by removing the paired quotation marks
-  function unquote(string, optLower) result(unquoted)
+  elemental function unquote(string, optLower) result(unquoted)
 
     !> String to remove the quotation marks from
     character(len=*), intent(in) :: string
@@ -179,7 +179,7 @@ contains
   !> Returns the starting and ending position of the next quotation
   !> Note: Starting and ending positions are retuned as integer greater than the string length if
   !> there is not a match for the quotes string
-  subroutine getNextQuotationPos(str, qStart, qEnd)
+  pure subroutine getNextQuotationPos(str, qStart, qEnd)
 
     !> String to investigate
     character(len=*), intent(in) :: str

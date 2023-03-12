@@ -22,3 +22,6 @@ mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)
 expdmhs             #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 imp_ham             #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 mpiexpdmhs          #? WITH_MPI and (MPI_PROCS % 2 == 0) and defined('WITH_C_EXECUTABLES')
+neighbour_list      #? not WITH_MPI
+neighbour_list_c    #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
+

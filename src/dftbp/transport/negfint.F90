@@ -13,6 +13,7 @@ module dftbp_transport_negfint
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
@@ -928,27 +929,27 @@ contains
     !> Overlap in CSR format
     type(z_CSR), intent(in) :: SS
 
-    integer :: fdUnit
+    type(TFileDescr) :: fd
 
     write(stdOut, *) 'Dumping H and S in files...'
 
-    open(newunit=fdUnit, file='HH.dat')
-    write(fdUnit, *) '% Size =',HH%nrow, HH%ncol
-    write(fdUnit, *) '% Nonzeros =',HH%nnz
-    write(fdUnit, *) '% '
-    write(fdUnit, *) 'zzz = ['
-    call printcsr(fdUnit, HH)
-    write(fdUnit, *) ']'
-    close(fdUnit)
+    call openFile(fd, 'HH.dat', mode="w")
+    write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
+    write(fd%unit, *) '% Nonzeros =',HH%nnz
+    write(fd%unit, *) '% '
+    write(fd%unit, *) 'zzz = ['
+    call printcsr(fd%unit, HH)
+    write(fd%unit, *) ']'
+    call closeFile(fd)
 
-    open(newunit=fdUnit, file='SS.dat')
-    write(fdUnit, *) '% Size =',SS%nrow, SS%ncol
-    write(fdUnit, *) '% Nonzeros =',SS%nnz
-    write(fdUnit, *) '% '
-    write(fdUnit, *) 'zzz = ['
-    call printcsr(fdUnit, SS)
-    write(fdUnit, *) ']'
-    close(fdUnit)
+    call openFile(fd, 'SS.dat', mode="w")
+    write(fd%unit, *) '% Size =',SS%nrow, SS%ncol
+    write(fd%unit, *) '% Nonzeros =',SS%nnz
+    write(fd%unit, *) '% '
+    write(fd%unit, *) 'zzz = ['
+    call printcsr(fd%unit, SS)
+    write(fd%unit, *) ']'
+    call closeFile(fd)
 
   end subroutine negf_dumpHS
 
@@ -1744,30 +1745,31 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, nK, iK, iS, iKS, fdUnit
+    type(TFileDescr) :: fd
+    integer :: ii, jj, nK, iK, iS, iKS
     type(lnParams) :: params
 
     call get_params(negf, params)
 
     nK = size(kpoints, dim=2)
 
-    open(newunit=fdUnit, file=trim(filename)//'.dat')
+    call openFile(fd, trim(filename)//'.dat', mode="w")
     do ii = 1, size(matTot, dim=1)
-      write(fdUnit,'(F20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+      write(fd%unit,'(F20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
       do jj = 1, size(matTot, dim=2)
-        write(fdUnit,'(ES20.8)',ADVANCE='NO') matTot(ii,jj)
+        write(fd%unit,'(ES20.8)',ADVANCE='NO') matTot(ii,jj)
       enddo
-      write(fdUnit,*)
+      write(fd%unit,*)
     enddo
-    close(fdUnit)
+    call closeFile(fd)
 
     if (nK*nS > 1) then
 
-      open(newunit=fdUnit, file=trim(filename)//'_kpoints.dat')
-      write(fdUnit,*)'# NKpoints = ', nK
-      write(fdUnit,*)'# NSpin = ', nS
-      write(fdUnit,*)'# Energy [eV], <spin k1 k2 k3 weight> '
-      write(fdUnit,'(A1)', ADVANCE='NO') '# '
+      call openFile(fd, file=trim(filename)//'_kpoints.dat', mode="w")
+      write(fd%unit, *)'# NKpoints = ', nK
+      write(fd%unit, *)'# NSpin = ', nS
+      write(fd%unit, *)'# Energy [eV], <spin k1 k2 k3 weight> '
+      write(fd%unit, '(A1)', ADVANCE='NO') '# '
 
       ! iKS = 1 2 3 4 5 6 7 8 9 10
       ! iK=groupKS(1,iKS), iS=groupKS(2,iKS)
@@ -1775,24 +1777,24 @@ contains
       ! iS  = 1 1 1 1 1 2 2 2 2 2
       do iS = 1, nS
         do iK = 1, nK
-          write(fdUnit,'(i5.2)', ADVANCE='NO') iS
-          write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
+          write(fd%unit, '(i5.2)', ADVANCE='NO') iS
+          write(fd%unit, '(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
         end do
       end do
-      write(fdUnit,*)
+      write(fd%unit, *)
 
       if (allocated(matSKRes)) then
         do ii = 1, size(matSKRes(:,:,:), dim=1)
-          write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+          write(fd%unit, '(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
           do jj = 1, size(matSKRes(:,:,:), dim=2)
             do iKS = 1, nK*nS
-              write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
+              write(fd%unit, '(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
             enddo
-            write(fdUnit,*)
+            write(fd%unit, *)
           enddo
         enddo
       end if
-      close(fdUnit)
+      call closeFile(fd)
 
     end if
 
@@ -1823,7 +1825,8 @@ contains
     !> Labels for the separate regions
     character(lc), intent(in) :: regionLabels(:)
 
-    integer :: ii, jj, nKS, iKS, nK, iK, iS, fdUnit
+    type(TFileDescr) :: fd
+    integer :: ii, jj, nKS, iKS, nK, iK, iS
     type(lnParams) :: params
 
     call get_params(negf, params)
@@ -1832,40 +1835,40 @@ contains
     nKS = nK*nS
 
     do jj=1,size(matTot, dim=2)
-      open(newunit=fdUnit, file=trim(regionLabels(jj))//'.dat')
-      write(fdUnit,"(A)")'# Energy / eV     States / e'
+      call openFile(fd, trim(regionLabels(jj))//'.dat', mode="w")
+      write(fd%unit,"(A)")'# Energy / eV     States / e'
       do ii=1,size(matTot, dim=1)
-        write(fdUnit,'(F12.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-        write(fdUnit,'(ES20.8)') matTot(ii,jj)
+        write(fd%unit,'(F12.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+        write(fd%unit,'(ES20.8)') matTot(ii,jj)
       enddo
-      close(fdUnit)
+      call closeFile(fd)
     enddo
 
     if (allocated(matSKRes)) then
       if (nKS > 1) then
         do jj = 1, size(matSKRes(:,:,:), dim=2)
-          open(newunit=fdUnit, file=trim(regionLabels(jj))//'_kpoints.dat')
-          write(fdUnit,"(A,I0)")'# NKpoints = ', nK
-          write(fdUnit,"(A,I1)")'# NSpin = ', nS
-          write(fdUnit,"(A)")'# <spin k1 k2 k3 weight> '
-          write(fdUnit,'(A1)', ADVANCE='NO') '# '
+          call openFile(fd, trim(regionLabels(jj))//'_kpoints.dat', mode="w")
+          write(fd%unit, "(A,I0)")'# NKpoints = ', nK
+          write(fd%unit, "(A,I1)")'# NSpin = ', nS
+          write(fd%unit, "(A)")'# <spin k1 k2 k3 weight> '
+          write(fd%unit, '(A1)', ADVANCE='NO') '# '
           do iS = 1, nS
             do iK = 1, nK
-              write(fdUnit,'(i5.1)', ADVANCE='NO') iS
-              write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
+              write(fd%unit, '(i5.1)', ADVANCE='NO') iS
+              write(fd%unit, '(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
                   & kWeights(iK)
             end do
           end do
-          write(fdUnit,*)
+          write(fd%unit, *)
 
           do ii = 1, size(matSKRes(:,:,:), dim=1)
-            write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+            write(fd%unit, '(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
             do iKS = 1,nKS
-              write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
+              write(fd%unit, '(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
             enddo
-            write(fdUnit,*)
+            write(fd%unit, *)
           enddo
-          close(fdUnit)
+          call closeFile(fd)
         enddo
       end if
     end if
@@ -1959,7 +1962,7 @@ contains
     type(z_CSR), target :: csrDens, csrEDens
     type(z_CSR), pointer :: pCsrHam, pCsrOver, pCsrDens, pCsrEDens
     type(lnParams) :: params
-    integer :: fdUnit
+    type(TFileDescr) :: fd
     logical :: tPrint
 
     ! Workaround: intel18
@@ -2057,7 +2060,7 @@ contains
         ! print local currents
         iKgl = (iS-1) * nK + iK
         write(skp, fmtstring) iKgl
-        open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
+        call openFile(fd, 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat', mode="w")
 
         ! loop on central cell atoms and write local currents to all other
         ! interacting atoms within the cell and neighbour cells
@@ -2066,7 +2069,7 @@ contains
           mOrb = orb%nOrbAtom(mm)
           iRow = iAtomStart(mm)
 
-          write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
+          write(fd%unit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
 
           do inn = 1, lc_neigh%nNeighbour(mm)
             nn = lc_neigh%iNeighbour(inn, mm)
@@ -2085,14 +2088,14 @@ contains
             end do
             ! pi-factor  comes from  Gn = rho * pi
             Im = Im * 2.0_dp*params%g_spin*pi*eovh*kWeights(iK)
-            write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im
+            write(fd%unit,'(I5,ES17.8)',advance='NO') nn, Im
             lcurr(inn, mm, iS) = lcurr(inn, mm, iS) + Im
           end do
 
-          write(fdUnit,*)
+          write(fd%unit,*)
         end do
 
-        close(fdUnit)
+        call closeFile(fd)
       end if
 
       call destruct(csrDens)
@@ -2109,17 +2112,17 @@ contains
       testArray(:,:) = 0.0_dp
       ! Write the total current per spin channel
       do iS = 1, nSpin
-        open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
+        call openFile(fd, 'lcurrents_'//spin2ch(iS)//'.dat', mode="w")
         do mm = 1, nAtom
-          write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
+          write(fd%unit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
           do inn = 1, lc_neigh%nNeighbour(mm)
-            write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
+            write(fd%unit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
             testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS)
           end do
-          write(fdUnit,*)
+          write(fd%unit,*)
         end do
       end do
-      close(fdUnit)
+      call closeFile(fd)
     end if
     deallocate(lcurr)
 
@@ -2328,11 +2331,11 @@ contains
     end do
 
     !Save H_dftb_orth.mtr to file
-    !open(12,file='H_dftb_orth.mtr',action="write")
+    !call openFile(fd, 'H_dftb_orth.mtr', mode="w")
     !do i = 1,N
-    !  write(12,*) H(i,1:N)* Hartree__eV
+    !  write(fd%unit,*) H(i,1:N)* Hartree__eV
     !end do
-    !close(12)
+    !call closeFile(fd)
 
   end subroutine orthogonalization
 
@@ -2411,24 +2414,8 @@ contains
 
     deallocate(A)
 
-    !C=sqrt(S) big matrix
-    !print *,'C=sqrt(S) big matrix'
-    !do i=1,N
-    !   write(stdOut,*) C(i,1:N)
-    !end do
-
-    !print *,'H_dftb before orthogonalization'
-    !do i=1,N
-    !   write(stdOut,*) H(i,1:N)
-    !end do
-
     H(:,:) = matmul(transpose(C),matmul(H,C))
     S(:,:) = matmul(transpose(C),matmul(S,C))
-
-    !print *,'H_dftb_orth before replacement'
-    !do i=1,N
-    !   write(stdOut,*) H(i,1:N)
-    !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
     do m=1,negf%str%num_conts
@@ -2440,30 +2427,6 @@ contains
        H(n2_first:n2_last,n2_first:n2_last) = H(n1_first:n1_last,n1_first:n1_last)
        S(n2_first:n2_last,n2_first:n2_last) = S(n1_first:n1_last,n1_first:n1_last)
     end do
-
-    !print *,'H_dftb_orth after replacement'
-    !do i=1,N
-    !   write(stdOut,*) H(i,1:N)
-    !end do
-
-    !print *,'S_dftb_orth after replacement'
-    !do i=1,N
-    !   write(stdOut,*) S(i,1:N)
-    !end do
-
-    !Save H_dftb_orth.mtr to file
-    !open(12,file='H_dftb_orth.mtr',action="write")
-    !do i=1,N
-    !   write(12,*) H(i,1:N)*Hartree__eV
-    !end do
-    !close(12)
-
-    !Save S_dftb_orth.mtr to file
-    !open(12,file='S_dftb_orth.mtr',action="write")
-    !do i=1,N
-    !   write(12,*) S(i,1:N)
-    !end do
-    !close(12)
 
   end subroutine orthogonalization_dev
 

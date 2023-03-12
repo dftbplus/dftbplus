@@ -9,6 +9,7 @@ module transporttools_helpsetupgeom
   use dftbp_common_accuracy
   use dftbp_common_constants
   use dftbp_common_globalenv
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_io_message
   use dftbp_math_f08math
   use dftbp_math_simplealgebra
@@ -520,96 +521,97 @@ contains
     real(dp), intent(in) :: plCutoff
 
 
+    type(TFileDescr) :: fd1, fd2
     integer, allocatable :: atomsInPL(:)
     character(10) :: sindx
-    integer :: ii, jj, kk, icont, ncont, fd1, fd2
+    integer :: ii, jj, kk, icont, ncont
 
     ncont = size(iAtInRegion)-1
 
-    open(newunit=fd2, file='transport.hsd')
-    write(fd2,'(A)') 'Transport{'
+    call openFile(fd2, 'transport.hsd', mode="w")
+    write(fd2%unit,'(A)') 'Transport{'
 
     ! Write Device Atoms
-    write(fd2,'(2x,A)') 'Device{'
-    write(fd2,'(4x,A)', advance='no') 'FirstLayerAtoms={ '
+    write(fd2%unit,'(2x,A)') 'Device{'
+    write(fd2%unit,'(4x,A)', advance='no') 'FirstLayerAtoms={ '
     kk = 0
     do jj = 1, len(PLlist)
       write(sindx,'(I10)') kk+1
-      write(fd2,'(A)', advance='no') ' '//trim(adjustl(sindx))
+      write(fd2%unit,'(A)', advance='no') ' '//trim(adjustl(sindx))
       call get(PLlist, atomsInPL, jj)
       kk = kk + size(atomsInPL)
       deallocate(atomsInPL)
     end do
-    write(fd2,*) '}' !close FirstLayerAtoms
+    write(fd2%unit,*) '}' !close FirstLayerAtoms
     write(sindx,'(I10)') kk
-    write(fd2,'(4x,A)') 'AtomRange= 1 '//trim(adjustl(sindx))
-    write(fd2,'(2x,A)') '}' !close Device
+    write(fd2%unit,'(4x,A)') 'AtomRange= 1 '//trim(adjustl(sindx))
+    write(fd2%unit,'(2x,A)') '}' !close Device
 
     ! Write Contact Atoms
     do icont = 1, ncont
-      write(fd2,'(2x,A)') 'Contact{'
-      write(fd2,'(4x,A)') 'Id = "'//trim(contacts(icont)%name)//'"'
+      write(fd2%unit,'(2x,A)') 'Contact{'
+      write(fd2%unit,'(4x,A)') 'Id = "'//trim(contacts(icont)%name)//'"'
       write(sindx,'(I10)') kk+1
-      write(fd2,'(4x,A)',advance='no') 'AtomRange= '//trim(adjustl(sindx))
+      write(fd2%unit,'(4x,A)',advance='no') 'AtomRange= '//trim(adjustl(sindx))
       kk = kk + size(iAtInRegion(icont)%data)
       write(sindx,'(I10)') kk
-      write(fd2,'(A)') ' '//trim(adjustl(sindx))
-      write(fd2,'(2x,A)') '}' !close Contact
+      write(fd2%unit,'(A)') ' '//trim(adjustl(sindx))
+      write(fd2%unit,'(2x,A)') '}' !close Contact
     end do
-    write(fd2,'(A)') '}' !close Transport
-    write(fd2,'(A)') 'Hamiltonian = DFTB{'
-    write(fd2,'(2x,A)') 'TruncateSKRange = {'
-    write(fd2,'(4x,A,F8.4)') 'SKMaxDistance = ', plCutoff
-    write(fd2,'(4x,A)') 'HardCutoff = Yes'
-    write(fd2,'(2x,A)') '}'
-    write(fd2,'(A)') '}'
+    write(fd2%unit,'(A)') '}' !close Transport
+    write(fd2%unit,'(A)') 'Hamiltonian = DFTB{'
+    write(fd2%unit,'(2x,A)') 'TruncateSKRange = {'
+    write(fd2%unit,'(4x,A,F8.4)') 'SKMaxDistance = ', plCutoff
+    write(fd2%unit,'(4x,A)') 'HardCutoff = Yes'
+    write(fd2%unit,'(2x,A)') '}'
+    write(fd2%unit,'(A)') '}'
 
-    close(fd2)
+    call closeFile(fd2)
 
     ! gen output
 
-    open(newunit=fd1, file='processed.gen')
+    call openFile(fd1, 'processed.gen', mode="w")
     if (geom%tPeriodic) then
-      write(fd1,*) geom%natom, 'S'
+      write(fd1%unit,*) geom%natom, 'S'
     else
-      write(fd1,*) geom%natom, 'C'
+      write(fd1%unit,*) geom%natom, 'C'
     endif
     do ii = 1, geom%nSpecies
-      write(fd1,'(1x,A,1x)',advance='No') trim(geom%SpeciesNames(ii))
+      write(fd1%unit,'(1x,A,1x)',advance='No') trim(geom%SpeciesNames(ii))
     end do
-    write(fd1,*)
+    write(fd1%unit,*)
 
 102 format(I5,I2,3E20.10)
 
     ! Write Device Atoms
-    write(fd1,"(4X,A)") '# device atoms'
+    write(fd1%unit,"(4X,A)") '# device atoms'
     do jj = 1, len(PLlist)
       kk = 0
       call get(PLlist, atomsInPL, jj)
       do ii = 1, size(atomsInPL)
         kk = kk + 1
-        write(fd1,102) kk, geom%species(atomsInPL(ii)), geom%coords(:,atomsInPL(ii))*Bohr__AA
+        write(fd1%unit,102) kk, geom%species(atomsInPL(ii)), geom%coords(:,atomsInPL(ii))*Bohr__AA
       end do
       deallocate(atomsInPL)
     end do
 
     ! Write Contact Atoms
     do icont = 1, ncont
-      write(fd1,"(4X,A)") '# contact "'//trim(contacts(icont)%name)//'" atoms'
+      write(fd1%unit,"(4X,A)") '# contact "'//trim(contacts(icont)%name)//'" atoms'
       do ii = 1, size(iAtInRegion(icont)%data)
         kk = mod(ii - 1, size(iAtInRegion(icont)%data) / 2) + 1
-        write(fd1,102) kk, geom%species(iAtInRegion(icont)%data(ii)), &
+        write(fd1%unit,102) kk, geom%species(iAtInRegion(icont)%data(ii)), &
             geom%coords(:,iAtInRegion(icont)%data(ii))*Bohr__AA
       end do
     end do
 
     if (geom%tPeriodic) then
-      write(fd1,*) geom%origin*Bohr__AA
-      write(fd1,*) geom%latVecs(:,1)*Bohr__AA
-      write(fd1,*) geom%latVecs(:,2)*Bohr__AA
-      write(fd1,*) geom%latVecs(:,3)*Bohr__AA
+      write(fd1%unit,*) geom%origin*Bohr__AA
+      write(fd1%unit,*) geom%latVecs(:,1)*Bohr__AA
+      write(fd1%unit,*) geom%latVecs(:,2)*Bohr__AA
+      write(fd1%unit,*) geom%latVecs(:,3)*Bohr__AA
     end if
-    close(fd1)
+    call closeFile(fd1)
 
   end subroutine print_gen
 

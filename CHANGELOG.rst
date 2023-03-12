@@ -8,6 +8,22 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Changed
+-------
+
+- Binary output is done using stream I/O to enable processing of those files in
+  Python or C. The FileAccessTypes option can be used to restore the old
+  (compiler dependent) sequential I/O.
+
+
+Fixed
+-----
+
+- Tool dp_dos produced obviously incorrect results for Pauli-Hamiltonians (e.g.
+  when using spin-orbit coupling). Other Hamiltonians were not affected.
+
+- Born charges and derivatives can now be calculated for a subset of the desired
+  atoms (similar to the Hessian).
 
 
 22.2 (2022-12-20)

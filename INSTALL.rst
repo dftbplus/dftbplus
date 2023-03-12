@@ -72,10 +72,10 @@ Additionally there are optional requirements for some DFTB+ features:
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
 
-* The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for metadynamics
-  simulations. If you build DFTB+ with MPI, the linked PLUMED library must be
-  also MPI-aware (and must have been built with the same MPI-framework as
-  DFTB+).
+* The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for
+  metadynamics simulations. If you build DFTB+ with MPI, the linked
+  PLUMED library must also be MPI-aware (and must have been built with
+  the same MPI-framework as DFTB+).
 
 
 External library requirements
@@ -340,17 +340,17 @@ should like something like below::
   add_executable(testprogram testprogram.f90)
   target_link(testprogram DftbPlus::DftbPlus)
 
-Note, that this will link all libraries in the correct order, which where
+Note, that this will link all libraries in the correct order, which were
 compiled during the DFTB+ build (e.g. libs-dftd3, libnegf, etc.). It will
-additionally contain target dependencies on the external libraries needed to
+additionally contain target dependencies for the external libraries needed to
 create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Scalapack::Scalapack``, ``Arpack::Arpack``, ``Plumed::Plumed``,
 ``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
 the DFTB+ source to find those libraries (and to define the corresponding
-targets) or create your own ones, provided they define the appropriate CMake
+targets) or create your own, provided they define the appropriate CMake
 targets. The ELSI library offers a CMake export file providing the
 ``elsi::elsi`` target. Make sure, that CMake can find this export file if the
-DFTB+ library was compiled with ELSI support (e.g. by setting up the environment
+DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
 
 
@@ -373,11 +373,12 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
-pkg-config can also find their respective pkconfig files, as those libraries are
-declared as dependencies in the DFTB+ pkg-config file. For external dependencies
-without pkg-config files (e.g. mbd, negf) the options for linking those
-libraries can not be queried via pkg-config and must be added manually.
+If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure
+that pkg-config can also find the respective pkconfig files for these
+packages, as those libraries are declared as dependencies in the DFTB+
+pkg-config file. For external dependencies without pkg-config files
+(e.g. mbd, negf) the options for linking those libraries can not be
+queried via pkg-config and must be added manually.
 
 
 Generating developer documentation

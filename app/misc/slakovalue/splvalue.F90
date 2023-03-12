@@ -12,6 +12,7 @@
 program splvalue
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
@@ -24,7 +25,8 @@ program splvalue
   character(lc) :: arg
   type(TSplineRepInp) :: splineRepInp
   type(TSplineRep) :: splineRep
-  integer :: fp, iostat, ii, npoint
+  type(TFileDescr) :: fp
+  integer :: iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr, energy, dEnergy, d2Energy
 
@@ -54,12 +56,12 @@ program splvalue
     stop
   end if
 
-  open(newunit=fp, file=arg, action="read", status="old", iostat=iostat)
+  call openFile(fp, arg, mode="r", ioStat=iostat)
   if (iostat /= 0) then
     call error("Unable to open file '" // trim(fname) // "'")
   end if
-  call readsplinerep(fp, fname, splineRepInp)
-  close(fp)
+  call readsplinerep(fp%unit, fname, splineRepInp)
+  call closeFile(fp)
 
   call TSplineRep_init(splineRep, splineRepInp)
   npoint = floor((splineRepInp%cutoff - rstart) / dr) + 1

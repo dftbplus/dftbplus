@@ -63,7 +63,7 @@ contains
 
 #:for VC, LABEL in [('sp', 'single'), ('dp', 'double')]
 
-  !> Calculates the appropriate function in double precision.
+  !> Calculates the appropriate function in ${LABEL}$ precision.
   elemental function erfcalc_calc${LABEL}$(arg, jint) result(res)
 
     !> Where to evaluate the function (x).

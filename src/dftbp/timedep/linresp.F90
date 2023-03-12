@@ -18,6 +18,7 @@
 !> * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -254,7 +255,7 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file id for tagging information
-    integer, intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdTagged
 
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -273,8 +274,8 @@ contains
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
+          & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
+          & taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -285,7 +286,7 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
+      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
       & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
@@ -345,11 +346,8 @@ contains
     !> difference density matrix (vs. uncharged atoms)
     real(dp), intent(inout), pointer :: deltaRho(:,:,:)
 
-    !> print tag information
-    logical, intent(in) :: tWriteTagged
-
     !> file descriptor for tagged data
-    integer, intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdTagged
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -387,12 +385,12 @@ contains
 
       if (allocated(occNatural)) then
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
             & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
             & skOverCont, excgradient, derivator, rhoSqr)
       end if

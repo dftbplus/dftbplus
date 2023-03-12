@@ -12,6 +12,7 @@ program skderivs
   use dftbp_common_accuracy
   use dftbp_common_constants
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_slakoeqgrid
   use dftbp_io_charmanip
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
@@ -64,7 +65,7 @@ contains
     type(TInputData), intent(inout) :: inp
 
     real(dp), allocatable :: sk(:,:), ham(:,:), over(:,:)
-    integer, allocatable :: fpHam(:), fpOver(:)
+    type(TFileDescr), allocatable :: fdHam(:), fdOver(:)
     character(lc) :: strTmp
     type(string) :: buffer
     integer :: ii, jj, nGrid
@@ -74,20 +75,20 @@ contains
     allocate(sk(getNIntegrals(inp%skHam), -1:1))
     allocate(ham(getNIntegrals(inp%skHam), 0:2))
     allocate(over(getNIntegrals(inp%skOver), 0:2))
-    allocate(fpHam(size(inp%iHam)))
-    allocate(fpOver(size(inp%iOver)))
+    allocate(fdHam(size(inp%iHam)))
+    allocate(fdOver(size(inp%iOver)))
 
     write(stdout, "(A)") ""
     write(stdout, "(A)") "Following files will be created:"
     call resize_string(buffer, 1024)
     do ii = 1, size(inp%iHam)
       strTmp = trim(inp%output) // ".ham." // i2c(ii)
-      open(newunit=fpHam(ii), file=strTmp, status="replace", position="rewind")
+      call openFile(fdHam(ii), strTmp, mode="w")
       write(stdout, "(2X,A)") trim(strTmp)
     end do
     do ii = 1, size(inp%iOver)
       strTmp = trim(inp%output) // ".ovr." // i2c(ii)
-      open(newunit=fpOver(ii), file=strTmp, status="replace", position="rewind")
+      call openFile(fdOver(ii), strTmp, mode="w")
       write(stdout, "(2X,A)") trim(strTmp)
     end do
 
@@ -123,7 +124,7 @@ contains
           write (strTmp, "(E23.15)") ham(inp%iHam(jj), 2)
           call append_to_string(buffer, trim(strTmp))
         end if
-        write (fpHam(jj), "(A)") char(buffer)
+        write (fdHam(jj)%unit, "(A)") char(buffer)
       end do
 
       do jj = 1, size(inp%iOver)
@@ -141,16 +142,12 @@ contains
           write (strTmp, "(E23.15)") over(inp%iOver(jj), 2)
           call append_to_string(buffer, trim(strTmp))
         end if
-        write (fpOver(jj), "(A)") char(buffer)
+        write (fdOver(jj)%unit, "(A)") char(buffer)
       end do
     end do
 
-    do jj = 1, size(inp%iHam)
-      close(fpHam(jj))
-    end do
-    do jj = 1, size(inp%iOver)
-      close(fpOver(jj))
-    end do
+    call closeFile(fdHam)
+    call closeFile(fdOver)
 
   end subroutine main
 

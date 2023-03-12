@@ -32,8 +32,9 @@ class BandOut:
         nkpt: Number of k-points.
         nstate: Number of states per k-point and spin.
         kweights: Weight of the k-points.
-        eigvalarray: (nspin, nkpt, nstate, 2) shaped array containing
-            the energy of the states and their occupation.
+        eigvalarray: (nspin, nkpt, nstate, 2 or 5) shaped array containing
+            the energy of the states and their occupation (a single number
+            or as occ_q, occ_mx, occ_my, occ_my for non-collinear spin)
     """
 
     def __init__(self, kweights, eigvalarray):
@@ -43,7 +44,9 @@ class BandOut:
             kweights: Weights of the kpoints as ( nkpt, ) shaped array.
             eigvalarray: Eigenvalues and additional information (e.g occupation)
                 for each spin and kpt as an (npsin, nkpt, nlevel, 2) shaped
-                array.
+                array. Alternatively, (for non-collinear spin) 4 values for the
+                additional information (occ_q, occ_mx, occ_my, occ_mz) can be
+                used by passing an array of the shape (nspin, nkpt, nlevel, 5).
         """
         self.kweights = kweights
         self.eigvalarray = eigvalarray
@@ -62,35 +65,35 @@ class BandOut:
         ispins = set()
         kweights = []
         eigvalarrays = []
-        match = _PAT_BLOCK.search(txt)
-        while match:
+        ndatacols = 0
+        for match in  _PAT_BLOCK.finditer(txt):
             ispin = match.group("ispin")
-            if ispin:
-                ispins.add(int(ispin))
-            else:
-                ispins.add(1)
+            ispins.add(int(ispin) if ispin is not None else 1)
             kweight = match.group("kweight")
-            if kweight:
-                kweights.append(float(kweight))
-            else:
-                kweights.append(1.0)
+            kweights.append(float(kweight) if kweight is not None else 1.0)
+
             vals = match.group("vals")
             tmp = np.array(vals.split(), dtype=float)
-
-            # Only keep last two data columns
-            # (optional first column, if present, contains sequential numbering)
             nrows = vals.strip().count('\n') + 1
             ncols = len(tmp) // nrows
-            tmp.shape = (nrows, ncols)
-            tmp = tmp[:, ncols - 2 : ncols]
 
+            # Optional first column might contain sequential numbering.
+            # Then either 2 columns (energy, occ) follow for spin-unpol and
+            # collinear cases or 5 columns (energy, occ_q, occ_mx, occ_my,
+            # occ_mz) for the non-collinear case.
+            if ncols not in (2, 3, 5, 6):
+                raise ValueError("Bandout file contains invalid nr. of columns")
+            startcol = 0 if ncols == 2 or ncols == 5 else 1
+            ndatacols = 2 if ncols == 2 or ncols == 3 else 5
+
+            tmp.shape = (nrows, ncols)
+            tmp = tmp[:, startcol : startcol + ndatacols]
             eigvalarrays.append(tmp)
-            match = _PAT_BLOCK.search(txt, match.end())
 
         nspin = len(ispins)
         nkpt = len(eigvalarrays) // nspin
         eigvalspin = np.array(eigvalarrays)
-        eigvalspin.shape = (nspin, nkpt, -1, 2)
+        eigvalspin.shape = (nspin, nkpt, -1, ndatacols)
         kweights = np.array(kweights)
         kweights.shape = (nspin, nkpt)
         return cls(kweights, eigvalspin)
