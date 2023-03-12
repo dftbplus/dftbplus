@@ -153,8 +153,8 @@ int main() {
                                      : conj(overlap[iK - 1][iS - 1][j][i]);
           double complex h = (i < j) ? hamiltonian[iK - 1][iS - 1][i][j]
                                      : conj(hamiltonian[iK - 1][iS - 1][j][i]);
-          Ssum += d * s;
-          Hsum += d * h;
+          Ssum += conj(d) * s;
+          Hsum += conj(d) * h;
         }
       }
       fprintf(atf, "Ssum_%d_%d       :complex:0:\n%f %f\n", iK, iS, creal(Ssum),
