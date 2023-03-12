@@ -19,7 +19,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin, nrOfKPoints, nrOfLocalKS, &
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
-      & getLocalKS,
+      & getLocalKS,&
       & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
       & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
       & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
