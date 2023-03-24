@@ -2919,7 +2919,7 @@ contains
         if (tmpI1(jj) == 0) then
           cycle
         end if
-        rTmp3 = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
+        rTmp3(:) = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
         do kk = 1, tmpI1(jj)
           ctrl%kPoint(:,ind) = kpts(:,jj-1) + real(kk, dp) * rTmp3
           ind = ind + 1
@@ -3018,13 +3018,13 @@ contains
       if (.not.ctrl%tSpinOrbit) then
         ctrl%nKPoint = iTmp * nint(geo%latvecs(3,1))
         allocate(ctrl%kPoint(2, ctrl%nKPoint))
-        ctrl%kPoint = 0.0_dp
+        ctrl%kPoint(:,:) = 0.0_dp
         allocate(ctrl%kWeight(ctrl%nKPoint))
-        ctrl%kWeight = 1.0_dp / real(iTmp,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(iTmp,dp)
         do ii = 0, iTmp-1
           ctrl%kPoint(1,ii+1) = ii * 0.5_dp*ctrl%kWeight(ii+1) + 0.5_dp*rTmp3(2)/rTmp3(1)
         end do
-        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(ctrl%nKPoint,dp)
         do ii = 2, nint(geo%latvecs(3,1))
           ctrl%kPoint(1,(ii-1)*iTmp+1:ii*iTmp) = ctrl%kPoint(1,1:iTmp)
           ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geo%latvecs(3,1))
@@ -3061,7 +3061,7 @@ contains
       if (.not.ctrl%tSpinOrbit) then
         ctrl%nKPoint = product(iTmp2)
         allocate(ctrl%kPoint(2, ctrl%nKPoint))
-        ctrl%kPoint = 0.0_dp
+        ctrl%kPoint(:,:) = 0.0_dp
         allocate(ctrl%kWeight(ctrl%nKPoint))
 
         kk = 1
@@ -3073,7 +3073,7 @@ contains
           end do
         end do
 
-        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(ctrl%nKPoint,dp)
 
       else
         call error("Helical boundaries not yet added for spin-orbit")
