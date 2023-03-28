@@ -90,6 +90,15 @@ class DpdosTest(common.TestWithWorkDir):
         dp_dos.main(cmdargs)
         self.assertTrue(common.nxy_file_equals(outfile, reffile))
 
+    def test_pdos_noncollinear(self):
+        '''PDOS with broadening-function gauss'''
+        infile = self.get_input('pdos_c.1.out')
+        reffile = self.get_input('pdos_c.1.dat')
+        outfile = self.get_output('pdos_c.1.dat')
+        cmdargs = ['-w', infile, outfile]
+        dp_dos.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
     def test_fail_mporder_withoutmp(self):
         '''Failing due to a mporder without specifying broadening type mp.'''
         infile = self.get_input('TiO2_band.out')

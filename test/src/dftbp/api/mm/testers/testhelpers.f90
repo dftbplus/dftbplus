@@ -22,7 +22,7 @@ contains
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
       & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, &
-      & tdCoords, tdForces, atomMasses, potential, cm5Charges)
+      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -62,6 +62,9 @@ contains
 
     !> Gross CM5 charges
     real(dp), optional, intent(in) :: cm5Charges(:)
+
+    !> Cutoff distance
+    real(dp), optional, intent(in) :: cutOff
 
     type(TTaggedWriter) :: taggedWriter
     type(TFileDescr) :: autotestTag
@@ -107,6 +110,9 @@ contains
     end if
     if (present(cm5Charges)) then
       call taggedWriter%write(autotestTag%unit, tagLabels%qOutAtCM5, cm5Charges)
+    end if
+    if (present(cutOff)) then
+      call taggedWriter%write(autotestTag%unit, "cutoff", cutOff)
     end if
     call closeFile(autotestTag)
 

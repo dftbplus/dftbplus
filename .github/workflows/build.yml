@@ -56,7 +56,7 @@ jobs:
     - name: Install GCC (OSX)
       if: ${{ contains(matrix.os, 'macos') }}
       run: |
-        brew install gcc@${{ matrix.version }} openblas
+        brew install gcc@${{ matrix.version }} openblas pkg-config
         ln -s /usr/local/bin/gfortran-${{ matrix.version }} /usr/local/bin/gfortran
         ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
         ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++

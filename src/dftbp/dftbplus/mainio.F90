@@ -2545,8 +2545,7 @@ contains
 
 
   !> Write the dipole derivative wrt.coordinates matrix/Born charges
-  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nAtInCentralRegion,&
-      & errStatus)
+  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2557,8 +2556,8 @@ contains
     !> Indices of moved atoms
     integer, intent(in) :: indMovedAtoms(:)
 
-    !> Number of atoms in central region
-    integer, intent(in) :: nAtInCentralRegion
+    !> Number of atoms for which derivatives should be calculated (>= size(indMovedAtoms))
+    integer, intent(in) :: nDerivAtoms
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -2566,17 +2565,14 @@ contains
     type(TFileDescr) :: fd
     integer :: ii
     character(10) :: suffix1, suffix2
-    logical :: tPartialMatrix = .false.
+    logical :: tPartialMatrix
 
     ! Sanity check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
-    ! It is a partial matrix Calculation if BornMatrix is not squared
-    if (size(pBornMatrix, dim=2) > 3*nAtInCentralRegion) then
-      tPartialMatrix = .true.
-    end if
 
+    tPartialMatrix = size(pBornMatrix, dim=2) < 3 * nDerivAtoms
     if (tPartialMatrix) then
       write(suffix1,'(I10)') indMovedAtoms(1)
       write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
@@ -2603,8 +2599,7 @@ contains
 
 
   !> Write the Derivatives of the polarizability
-  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nAtInCentralRegion,&
-      & errStatus)
+  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2615,8 +2610,8 @@ contains
     !> Indices of moved atoms
     integer, intent(in) :: indMovedAtoms(:)
 
-    !> Number of atoms in central region
-    integer, intent(in) :: nAtInCentralRegion
+    !> Number of atoms for which derivatives should be calculated (>= size(indMovedAtoms))
+    integer, intent(in) :: nDerivAtoms
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -2625,17 +2620,14 @@ contains
     character(:), allocatable :: file
     integer :: ii
     character(10) :: suffix1, suffix2
-    logical :: tPartialMatrix = .false.
+    logical :: tPartialMatrix
 
     ! Sanity check in case some bug is introduced
     if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
-    ! It is a partial matrix Calculation if BornMatrix is not squared
-    if (size(pdBornMatrix, dim=3) > 3*nAtInCentralRegion) then
-      tPartialMatrix = .true.
-    end if
 
+    tPartialMatrix = size(pdBornMatrix, dim=3) < 3 * nDerivAtoms
     if (tPartialMatrix) then
       write(suffix1,'(I10)') indMovedAtoms(1)
       write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))

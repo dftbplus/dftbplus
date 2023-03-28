@@ -1,280 +1,365 @@
 #!/usr/bin/env python3
-#------------------------------------------------------------------------------#
-#  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
-#                                                                              #
-#  See the LICENSE file for terms of usage and distribution.                   #
-#------------------------------------------------------------------------------#
+#--------------------------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations                                #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                                               #
+#                                                                                                  #
+#  See the LICENSE file for terms of usage and distribution.                                       #
+#--------------------------------------------------------------------------------------------------#
 
-from numpy import oldnumeric as num
-from numpy import linalg as linal
-import math
-import sys
-import re
+"""Script to evaluate expressions on cube files"""
+
 import argparse
+from dataclasses import dataclass, field
+import re
+import sys
+import numpy as np
+import numpy.linalg as la
 
 SCRIPT_NAME = "cubemanip"
 
-# Tolerance for positions to be treated as equal
-tolerance = 1.0e-5
+# tolerance for positions to be treated as equal
+TOLERANCE = 1.0e-5
 
 # Pattern for the argument parsing
-patVar = re.compile(r"\((\$(?P<number>\d+))\)")
+VAR_PATTERN = re.compile(r"\((\$(?P<number>\d+))\)")
 
 # Help text
-helpTxt = """
-%(name)s <expr> [ <cubeFile1> [ <cubeFile2> [ ... ]]]
+USAGE = f"""cubemanip [-h] [-d] expr cubefile [cubefile ...]
 
-Combines the passed cube files (<cubeFile1>, <cubeFile2>, ...)  according the
-expression <expr> to a new cube file.  The cube files provided as arguments
-after the expression must be referenced in the expression as ($n), where n the
-index of appropriate file is. The expression can be any arbitrary expression
-which is valid in python using the Numerical and LinearAlgebra packages and
-results in a float or a float array. Unless the '-d' option is passed, the
-result must have the same shape, as the data arrays in the cube files. The
-references in the expression are substituted by the data arrays of the
-appropriate cube files. The resulting cube file (dumped on stdout!) will have
-the same header as the first file, while its data array is created by evaluating
-the expression <expr>. The number of cube files passed as arguments must be
-higher than the maximal reference index in the expression.
+Combines the passed cube files according to an expression expression to a new
+cube file. The cube files provided as arguments after the expression must be
+referenced in the expression as ($n), with n being the index of the appropriate
+file. The expression can be any arbitrary expression which is valid in python
+using the functions found in the numpy and numpy.linalg packages and results in
+a float or a float array. Unless the '-d' option is passed, the result must have
+the same shape, as the data arrays in the cube files. The references in the
+expression are substituted by the data arrays of the appropriate cube files. The
+resulting cube file will have the same header as the first input file, while its
+data array is created by evaluating the expression. The number of cube files
+passed as arguments must be higher than the maximal reference index in the
+expression.
 
-Please note, that <expr> may not contain any whitespace characters.
+Apart from the data arrays, following variables and functions can be used in the
+expression:
 
-You have access to the following variables:
-  origin   -- origin of the grid in the first file as (3,) shaped array
-  gridVecs -- grid vectors in the first file as (3,3) shaped array
-  nGrid    -- nr. of grid units along the grid vectors as (3,) shaped array
+  origin:  origin of the grid in the first input file as (3,) shaped array
 
-example:
+  gridvecs: grid vectors in the first input file as (3, 3) shaped array
 
-%(name)s '0.25*($1)+0.25*($2)+0.5*($3)' file1.cube file2.cube file3.cube
-Weighted sum of three cube files.
+  ngrids: nr. of grid units along the grid vectors as a (3,) shaped array
 
-%(name)s -d 'sum(sum(sum(($1)**2)))' file1.cube
-Sums up the square of the function stored in the cube file.
+  posx(), posy(), posz(): x-, y- and z- coordinates of each grid point
 
-%(name)s -d 'sum(sum(sum(($1))))*determinant(gridVecs)' file1.cube
-Integrates the function in the cube file.
-""" % { "name": SCRIPT_NAME }
+Examples:
 
+  Weighted sum of three cube files:
+  {SCRIPT_NAME} '0.25 * ($1) + 0.25 * ($2) + 0.5 * ($3)' f1.cube f2.cube f3.cube
 
-def error(msg):
-    """Prints an error message and stops"""
-    print("Error: %s" % msg, file=sys.stderr)
-    sys.exit(1)
+  Integral of the values in a cube file:
+  {SCRIPT_NAME} -d 'sum(($1)) * det(gridvecs)' file1.cube
+
+  Dipole integral (x-component):
+  {SCRIPT_NAME} -d 'sum(($1) * posx()) * det(gridvecs)' file1.cube
+"""
 
 
-def warning(msg):
-    """Prints a warning message"""
-    print("Warning: %s" % msg, file=sys.stderr)
+@dataclass
+class Cube:
+    """Contains data found in a cube file
+
+    Attributes:
+        species: Integer species index for each atom, shape: (natoms,).
+        coords: Cartesian coordinates of each atom, shape: (natoms, 3).
+        origin: Origin of the grid, shape: (3, 3).
+        gridvecs: Vectors defining shifts between neighbouring grid points, shape: (3, 3).
+        ngrids: Nr. of grid points along each grid vector, shape (3,).
+        data: Volumentric data for each grid point, with shape of ngrids.
+        natoms: Nr. of atoms in the system.
+    """
+
+    species: np.ndarray
+    coords: np.ndarray
+    origin: np.ndarray
+    gridvecs: np.ndarray
+    ngrids: np.ndarray
+    data: np.ndarray
+    natoms: int = field(default=0, init=False)
 
 
-class cube:
-    "Empty type to carry information about cube headers"
-    pass
+    def __post_init__(self):
+        """Cheks array compatibilities, fills up uninitialized fields."""
+
+        if len(self.coords.shape) != 2 or self.coords.shape[1] != 3:
+            raise ValueError(_invalid_shape_msg("coords", (-1, 3), self.coords.shape))
+        self.natoms = len(self.coords)
+
+        if self.species.shape != (self.natoms,):
+            raise ValueError(_invalid_shape_msg("species", (self.natoms,), self.species.shape))
+
+        if self.origin.shape != (3,):
+            raise ValueError(_invalid_shape_msg("origin", (3,), self.origin.shape))
+
+        if self.gridvecs.shape != (3, 3):
+            raise ValueError(_invalid_shape_msg("gridvecs", (3, 3), self.gridvecs.shape))
+
+        if self.ngrids.shape != (3,):
+            raise ValueError(_invalid_shape_msg("ngrids", (3,), self.ngrids.shape))
+
+        if self.data.shape != tuple(self.ngrids):
+            raise ValueError(_invalid_shape_msg("data", self.ngrids, self.data.shape))
 
 
+    @classmethod
+    def from_file(cls, fname):
+        """Creates a Cube instance from a file.
 
-def getCubeRepr(fname):
-    """Reads in a cube file with a given name"""
+        Args:
+            fname: Name of the file to read the data from.
 
-    try:
-        fp = open(fname, "r")
-        lines = fp.read().split("\n")
-        fp.close()
-    except IOError as ex:
-        error("Could not open file '%s'\n%s" % (fname, ex))
-    cc = cube()
-    words = lines[2].split()
-    cc.nAtom = int(words[0])
-    cc.origin = num.array([ float(s) for s in words[1:4] ])
-    words = (" ".join(lines[3:6])).split()
-    cc.nGrid = tuple([ int(s) for s in [words[0], words[4], words[8]]])
-    tmp = [ words[i] for i in (1, 2, 3, 5, 6, 7, 9, 10, 11) ]
-    cc.gridVecs = num.reshape(num.array([ float(s) for s in tmp ]), (3,3))
-    words = (" ".join(lines[6:6+cc.nAtom])).split()
-    tmp = [ words[i] for i in range(0, 5*cc.nAtom, 5) ]
-    cc.species = num.array([ int(s) for s in tmp ])
-    tmp = []
-    for ii in range(2, 5*cc.nAtom, 5):
-        tmp.append(words[ii])
-        tmp.append(words[ii+1])
-        tmp.append(words[ii+2])
-    cc.coords = num.reshape(num.array([ float(s) for s in tmp ]), (-1, 3))
-    data = []
-    for line in lines[6+cc.nAtom:]:
-        data.extend([ float(s) for s in line.split()])
-    cc.data = num.array(data, num.Float)
-    nAllData = cc.nGrid[0] * cc.nGrid[1] * cc.nGrid[2]
-    if cc.data.shape[0] != nAllData:
-        error(("Data in '%s' inconsistent with header (expected: %d, got: %d)"
-               % (fname, nAllData, cc.data.shape[0])))
-    cc.data = num.reshape(cc.data, cc.nGrid)
-
-    return cc
+        Returns:
+            Cube instance
+        """
+        with open(fname, "r", encoding="utf-8") as fp:
+            fp.readline()
+            fp.readline()
+            line = fp.readline()
+            words = line.split()
+            natoms = int(words[0])
+            origin = np.array([float(s) for s in words[1:4]])
+            lines = [fp.readline() for _ in range(3)]
+            words = " ".join(lines).split()
+            ngrids = np.array([words[0], words[4], words[8]], dtype=int)
+            gridvecs = np.array([words[ii] for ii in (1, 2, 3, 5, 6, 7, 9, 10, 11)], dtype=float)
+            gridvecs.shape = (3, 3)
+            lines = [fp.readline() for _ in range(natoms)]
+            words = " ".join(lines).split()
+            species = np.array([words[ii] for ii in range(0, 5 * natoms, 5)], dtype=int)
+            tmp = []
+            for ii in range(2, 5 * natoms, 5):
+                tmp += words[ii : ii + 3]
+            coords = np.array(tmp, dtype=float)
+            coords.shape = (-1, 3)
+            data = np.fromfile(fp, sep=" ", count=np.prod(ngrids))
+            data.shape = tuple(ngrids)
+        return cls(species, coords, origin, gridvecs, ngrids, data)
 
 
-def dumpCubeFile(cc):
-    """Dumps a cube file to stdout"""
+    def to_file(self, fobj):
+        """Writes the cube data to a file
 
-    print("Cube file created by cubemanip")
-    print("Cube file created by cubemanip")
-    print(("%10d %18.10E %18.10E %18.10E"
-           % (cc.nAtom, cc.origin[0], cc.origin[1], cc.origin[2])))
-    for ii in range(3):
-        print(("%10d %18.10E %18.10E %18.10E"
-               % (cc.nGrid[ii], cc.gridVecs[ii][0], cc.gridVecs[ii][1],
-                  cc.gridVecs[ii][2])))
-    for ii in range(cc.nAtom):
-        print(("%4d %18.10E %18.10E %18.10E %18.10E"
-               % (cc.species[ii], 0.0, cc.coords[ii][0],
-                  cc.coords[ii][1], cc.coords[ii][2])))
-    for i1 in range(cc.nGrid[0]):
-        for i2 in range(cc.nGrid[1]):
-            line = []
-            for i3 in range(cc.nGrid[2]):
-                line.append("%18.10E" % cc.data[i1][i2][i3])
-                if len(line) == 4:
-                    print(" ".join(line))
-                    line = []
-            if len(line):
-                print(" ".join(line))
-
-
-def dumpData(data):
-    """Dumps an arbitrary shaped numerical array"""
-
-    shape = data.shape
-    if not len(shape):
-        print("%18.10E" % data)
-        return
-
-    curShape = [0,] * len(data.shape)
-    finished = False
-    carry = False
-    while not (curShape[0] == 0 and carry):
-        line = []
-        curShape[-1] = -1
-        for ii in range(shape[-1]):
-            curShape[-1] += 1
-            line.append("%18.10E" % data[curShape])
-            if len(line) == 4:
-                print(" ".join(line))
-                line = []
-        if len(line):
-            print(" ".join(line))
-        carry = True
-        for ii in range(len(shape)-1, -1, -1):
-            if carry:
-                curShape[ii] = curShape[ii] + 1
-                if curShape[ii] == shape[ii]:
-                    curShape[ii] = 0
-                    carry = True
-                else:
-                    carry = False
-            else:
-                break
+        Args:
+            fobj: File name (str) or a file like object
+        """
+        isfilename = isinstance(fobj, str)
+        fp = open(fobj, "w", encoding="utf-8") if isfilename else fobj
+        fp.write("Cube file created by cubemanip\n")
+        fp.write("Cube file created by cubemanip\n")
+        natoms = self.natoms
+        fp.write(
+            f"{natoms:10d} {self.origin[0]:18.10E} {self.origin[1]:18.10E} "
+            f"{self.origin[2]:18.10E}\n"
+        )
+        for ii in range(3):
+            fp.write(
+                f"{self.ngrids[ii]:10d} {self.gridvecs[ii][0]:18.10E} "
+                f"{self.gridvecs[ii][1]:18.10E} {self.gridvecs[ii][2]:18.10E}\n"
+            )
+        for ii in range(natoms):
+            fp.write(
+                f"{self.species[ii]:4d} {0.0:18.10E} {self.coords[ii][0]:18.10E} "
+                f"{self.coords[ii][1]:18.10E} {self.coords[ii][2]:18.10E}\n"
+            )
+        _dump_data(fp, self.data)
+        if isfilename:
+            fp.close()
 
 
 def main():
     """Main program"""
 
-    # Parse command line options
-    parser = argparse.ArgumentParser(usage=helpTxt)
-    parser.add_argument("-d", "--data-only", action="store_true",
-                        dest="data_only", default=False,
-                        help="Dump only data without cube header. The resulting "
-                        "data may have different shape as as the input data.")
-    options, args = parser.parse_known_args()
+    args = _parse_cmd_line_args()
+    expr = args.expr
+    cubefiles = args.cubefiles
 
-    if len(args) < 1:
-        error("No expression specified!\nType '%s -h' for help." % SCRIPT_NAME)
-        sys.exit(1)
-    expr = args[0]
+    maxref = _max_ref_ind(expr)
+    if maxref == 0:
+        _error("Expression contains no cube file reference indices!")
+    if len(cubefiles) < maxref:
+        _error(f"Missing files! You must specify at least {maxref} cube file(s).")
 
-    # Look for the highest reference index
-    maxArg = 0
-    start = 0
-    match = patVar.search(expr)
-    while match:
-        argNum = int(match.group("number"))
-        if argNum > maxArg:
-            maxArg = argNum
-        match = patVar.search(expr, match.end())
-
-    if maxArg == 0:
-        error("Expression contains no parameters!")
-
-    if len(args) < maxArg + 1:
-        error("Missing files! You must specify at least %d cube file(s)."
-              % maxArg)
-
-    # Read in the necessary cube files
-    fnames = args[1:]
-    cubeList = [ getCubeRepr(fname) for fname in fnames ]
-
-    # Check for compatibility
-    c0 = cubeList[0]
-    for ii in range(1, len(cubeList)):
-        if cubeList[ii].nGrid != c0.nGrid:
-            error(("Grid points in '%s' and '%s' are incompatible!"
-                   % (fnames[0], fnames[ii])))
-
-        if cubeList[ii].nAtom != c0.nAtom:
-            warning("Nr. of atoms in '%s' and '%s' differ" % (fnames[0],
-                                                              fnames[ii]))
-        elif num.any(cubeList[ii].species != c0.species):
-            warning(("Specie indexes in '%s' and '%s' differ"
-                     % (fnames[0], fnames[ii])))
-        elif (max(num.sqrt(num.sum((cubeList[ii].coords - c0.coords)**2, -1)))
-              > tolerance):
-            warning("Coordinates in '%s' and '%s' differ!" % (fnames[0],
-                                                              fnames[ii]))
-
-        if (num.sqrt(num.sum((cubeList[ii].origin - c0.origin)**2))
-            > tolerance):
-            warning("Origins in '%s' and '%s' differ!" % (fnames[0],
-                                                          fnames[ii]))
-        if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2,
-                                 -1))) > tolerance):
-            warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0],
-                                                               fnames[ii]))
-        if (max(num.sqrt(num.sum((cubeList[ii].gridVecs - c0.gridVecs)**2,
-                                 -1))) > tolerance):
-            warning("Grid vectors in '%s' and '%s' differ!" % (fnames[0],
-                                                               fnames[ii]))
-
-    # Evaluate expression
-    data = [ cc.data for cc in cubeList ]
-    pyExpr = patVar.sub(r"(data[\g<number>-1])", expr)
-    varDict = { "data": data, "origin": c0.origin, "gridVecs": c0.gridVecs,
-               "nGrid": c0.nGrid }
-    varDict.update(num.__dict__)
-    varDict.update(linal.__dict__)
     try:
-        result = eval(pyExpr, varDict)
-        resArr = num.array(result, num.Float)
-    except (Exception,) as exp:
-        error("Unable to evaluate you expression!\n%s" % exp)
+        cubes = [Cube.from_file(fname) for fname in cubefiles]
+    except IOError as exc:
+        _error(f"IO error occured during processing input files [{exc}]")
 
-    # Check shape of the result
-    if (not options.data_only) and resArr.shape != c0.data.shape:
-        error(("Resulting shape %s is incompatible with the original one %s"
-               % (str(resArr.shape), str(c0.data.shape))))
+    _check_cube_compatibility(cubefiles, cubes)
 
-    # Write out the result
-    if options.data_only:
-        dumpData(resArr)
+    try:
+        result = _evaluate_expression(expr, cubes)
+    except Exception as exp:
+        _error(f"Unable to evaluate the expression:\n{exp}")
+    if result.shape != cubes[0].data.shape and not args.data_only:
+        _error(
+            f"Resulting shape {result.shape} is incompatible with the original data shape "
+            f"{cubes[0].data.shape}"
+        )
+
+    if args.data_only:
+        if isfile := args.output_file != "-":
+            fp = open(args.output_file, "w", encoding="utf-8")
+        else:
+            fp = sys.stdout
+        _dump_data(fp, result)
+        if isfile:
+            fp.close()
     else:
-        c0.data = resArr
-        dumpCubeFile(c0)
+        c0 = cubes[0]
+        cube = Cube(c0.species, c0.coords, c0.origin, c0.gridvecs, c0.ngrids, result)
+        outfobj = sys.stdout if args.output_file == "-" else args.output_file
+        cube.to_file(outfobj)
+
+
+def _parse_cmd_line_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(usage=USAGE)
+
+    msg = "expression evaluated with data from cube file(s)"
+    parser.add_argument("expr", help=msg)
+
+    msg = "cube file providing input data"
+    parser.add_argument("cubefiles", metavar="cubefile", nargs="+", help=msg)
+
+    msg = (
+        "dump data without cube header, allows for dumping data with a different shape as the "
+        "volumentric data in the cube file(s)"
+    )
+    parser.add_argument(
+        "-d", "--data-only", action="store_true", dest="data_only", default=False, help=msg
+    )
+
+    msg = "output file, default: - (standard output)"
+    parser.add_argument("-o", "--output-file", default="-", help=msg)
+
+    return parser.parse_args()
+
+
+def _max_ref_ind(expr):
+    """Highest reference index in the expression"""
+    maxref = 0
+    for match in VAR_PATTERN.finditer(expr):
+        maxref = max(maxref, int(match.group("number")))
+    return maxref
+
+
+def _check_cube_compatibility(cubefiles, cubes):
+    """Checks cube file data for compatibility"""
+
+    fname0, cube0 = cubefiles[0], cubes[0]
+    for fname, cube in zip(cubefiles[1:], cubes[1:]):
+        if np.any(cube.ngrids != cube0.ngrids):
+            _error(f"Grid points in '{fname0}' and '{fname}' are incompatible!")
+
+        if cube.natoms != cube0.natoms:
+            _warning(f"Nr. of atoms in '{fname0}' and '{fname}' differ")
+
+        elif np.any(cube.species != cube0.species):
+            _warning(f"Specie indexes in '{fname0}' and '{fname}' differ")
+
+        elif np.max(np.sqrt(np.sum((cube.coords - cube0.coords) ** 2, -1))) > TOLERANCE:
+            _warning(f"Coordinates in '{fname0}' and '{fname}' differ!")
+
+        if np.sqrt(np.sum((cube.origin - cube0.origin) ** 2)) > TOLERANCE:
+            _warning(f"Origins in '{fname0}' and '{fname}' differ!")
+
+        if max(np.sqrt(np.sum((cube.gridvecs - cube0.gridvecs) ** 2, -1))) > TOLERANCE:
+            _warning(f"Grid vectors in '{fname0}' and '{fname}' differ!")
+
+        if max(np.sqrt(np.sum((cube.gridvecs - cube0.gridvecs) ** 2, -1))) > TOLERANCE:
+            _warning(f"Grid vectors in '{fname0}' and '{fname}' differ!")
+
+
+def _evaluate_expression(expr, cubes):
+    """Evaluates a cube data expression"""
+
+    data = [cube.data for cube in cubes]
+    pyexpr = VAR_PATTERN.sub(r"(data[\g<number>-1])", expr)
+    exprscope = {
+        "data": data,
+        "origin": cubes[0].origin,
+        "gridvecs": cubes[0].gridvecs,
+        "ngrids": cubes[0].ngrids,
+    }
+    exprscope.update(np.__dict__)
+    exprscope.update(la.__dict__)
+    posx, posy, posz = _get_pos_funcs(cubes[0].origin, cubes[0].ngrids, cubes[0].gridvecs)
+    exprscope.update({"posx": posx, "posy": posy, "posz": posz})
+    return np.array(eval(pyexpr, exprscope), float)
+
+
+def _error(msg):
+    """Prints an error message and stops"""
+    print(f"Error: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _warning(msg):
+    """Prints a warning message"""
+    print(f"Warning: {msg}", file=sys.stderr)
+
+
+def _get_pos_funcs(origin, ngrids, gridvecs):
+    "Delivers three functions which return x, y & z position of the grid points"
+
+    def posx():
+        "Returns the x-position of every grid point, allowing for the use of a coordinate origin"
+        return _calc_positions(0)
+
+    def posy():
+        "Returns the y-position of every grid point, allowing for the the use of a coordinate origin"
+        return _calc_positions(1)
+
+    def posz():
+        "Returns the z-position of every grid point allowing for the use  of a coordinate origin"
+        return _calc_positions(2)
+
+    def _calc_positions(ind):
+        ranges = [np.arange(nGrid) for nGrid in ngrids]
+        mgrid = np.meshgrid(*ranges, sparse=True, indexing="ij")
+        pos = (
+            mgrid[0] * gridvecs[0, ind] + mgrid[1] * gridvecs[1, ind] + mgrid[2] * gridvecs[2, ind]
+        )
+        pos += origin[ind]
+        return pos
+
+    return posx, posy, posz
+
+
+def _dump_data(fp, data):
+    """Dumps an arbitrary shaped numerical array"""
+
+    rank = len(data.shape)
+    if rank > 1:
+        for block in data:
+            _dump_data(fp, block)
+    elif rank == 1:
+        line = []
+        for item in data:
+            line.append(f"{item:18.10E}")
+            if len(line) == 4:
+                fp.write(" ".join(line))
+                fp.write("\n")
+                line = []
+        if line:
+            fp.write(" ".join(line))
+            fp.write("\n")
+    else:
+        fp.write(f"{data:18.10E}\n")
+
+
+def _invalid_shape_msg(array, expected, obtained):
+    """Generates an invalid shape mismatch message"""
+    return f"Array {array} has invalid shape (expected {expected}, obtained {obtained})"
 
 
 if __name__ == "__main__":
     main()
-
-
-
-### Local Variables:
-### mode:python
-### End:

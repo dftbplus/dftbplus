@@ -16,30 +16,29 @@ from scipy import linalg, constants
 import sys
 hplanck = constants.physical_constants['Planck constant in eV s'][0] * 1.0E15
 
-USAGE = """Reads output from TD calculation (after kick) and excitation energy
+DESCRIPTION = """Reads output from TD calculation (after kick) and excitation energy
 (or wavelength) of interest and diagonalizes polarizability tensor, to
 calculate direction of maximum polarizability of that particular excitation.
-
 Needs mux.dat, muy.dat and muz.dat files in working directory."""
 
 def main():
-    parser = argparse.ArgumentParser(description=USAGE)
-    parser.add_argument("tau", metavar="DAMPING",
-                        help="damping constant in fs")
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument("-d", "--damping", dest="tau", required=True,
+                        type=float, help="damping constant in fs")
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-e", "--energy", dest="energy",
-                        help="excitation energy in eV")
-    group.add_argument("-w", "--wavelength", dest="wvlength",
-                        help="wavelength of excitation in nm")
+    group.add_argument("-e", "--energy", dest="energy", type=float,
+                       help="excitation energy in eV")
+    group.add_argument("-w", "--wavelength", dest="wvlength", type=float,
+                       help="wavelength of excitation in nm")
 
     args = parser.parse_args()
 
     if args.energy is not None:
-        energy = float(args.energy)
+        energy = args.energy
     elif args.wvlength is not None:
         cspeednm = constants.speed_of_light * 1.0e9 / 1.0e15
-        energy = hplanck * cspeednm / float(args.wvlength)
+        energy = hplanck * cspeednm / args.wvlength
 
     mux = np.loadtxt('mux.dat')
     muy = np.loadtxt('muy.dat')
@@ -87,7 +86,7 @@ def main():
         mu[2,1] += factor * muz[:,5]
         mu[2,2] += factor * muz[:,6]
 
-    damp = np.exp(-time/float(args.tau))
+    damp = np.exp(-time/ args.tau)
     energsev = np.fft.rfftfreq(10*time.shape[0],time[1]-time[0]) * hplanck
     idx = (np.abs(energsev-energy)).argmin()
 

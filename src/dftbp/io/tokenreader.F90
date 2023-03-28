@@ -20,6 +20,8 @@ module dftbp_io_tokenreader
   implicit none
 
   private
+  public :: getNextToken, TOKEN_OK, TOKEN_EOS, TOKEN_ERROR
+  public :: LOGICAL_TRUE, LOGICAL_FALSE, LOGICAL_TRUE_LO, LOGICAL_FALSE_LO
 
 
   !> Flag for signals successful token reading
@@ -41,6 +43,8 @@ module dftbp_io_tokenreader
     module procedure getNextToken_integerR1
     module procedure getNextToken_real
     module procedure getNextToken_realR1
+    module procedure getNextToken_complex
+    module procedure getNextToken_complexR1
     module procedure getNextToken_logical
     module procedure getNextToken_logicalR1
   end interface getNextToken
@@ -60,9 +64,6 @@ module dftbp_io_tokenreader
 
   !> Lower cased character representation of the logical false value
   character(len=*), parameter :: LOGICAL_FALSE_LO = "no"
-
-  public :: getNextToken, TOKEN_OK, TOKEN_EOS, TOKEN_ERROR
-  public :: LOGICAL_TRUE, LOGICAL_FALSE, LOGICAL_TRUE_LO, LOGICAL_FALSE_LO
 
 contains
 
@@ -295,6 +296,139 @@ contains
     end if
 
   end subroutine getNextToken_realR1
+
+
+  !> Returns the next token from the provided string as a real value.
+  subroutine getNextToken_complex(str, tokenValue, start, iostat)
+
+    !> String to parse
+    character(len=*), intent(in) :: str
+
+    !> Contains the value of the token on return
+    complex(dp), intent(out) :: tokenValue
+
+    !> Starting position for the parsing on call, first position after the end of the token on
+    !> return.
+    integer, intent(inout) :: start
+
+    !> Token reader i/o status flag on return
+    integer, intent(out), optional :: iostat
+
+    integer :: iStart, iError, tokStart, tokEnd, tokLen, sepPos
+
+    tokenValue = (0.0_dp, 0.0_dp)
+    iStart = start
+    processComplexToken: block
+      call getNextToken_local(str, tokStart, tokEnd, tokLen, iStart)
+      iError = TOKEN_EOS
+      if (tokLen == 0) exit processComplexToken
+      iError = TOKEN_ERROR
+      sepPos = findComplexSeparator_(str(tokStart:tokEnd)) + tokStart - 1
+      if (sepPos < tokStart) then
+        ! Token contains only one number, either the imaginary or the real part
+        if (str(tokEnd:tokEnd) == "i") then
+          read(str(tokStart : tokEnd - 1), *, iostat=iError) tokenValue%im
+        else
+          read(str(tokStart : tokEnd), *, iostat=iError) tokenValue%re
+        end if
+        if (iError /= 0) exit processComplexToken
+      else
+        ! Token contains two numbers, the real part and the imaginary part
+        if (str(tokEnd:tokEnd) /= "i") exit processComplexToken
+        if (findComplexSeparator_(str(sepPos + 1 : tokEnd)) /= 0) exit processComplexToken
+        read(str(tokStart : sepPos - 1), *, iostat=iError) tokenValue%re
+        if (iError /= 0) exit processComplexToken
+        read(str(sepPos : tokEnd - 1), *, iostat=iError) tokenValue%im
+        if (iError /= 0) exit processComplexToken
+      end if
+      iError = TOKEN_OK
+      start = iStart
+    end block processComplexToken
+    if (present(iostat)) then
+      iostat = iError
+    else if (iError == TOKEN_ERROR) then
+        call error("Complex reading error")
+    end if
+
+  contains
+
+    ! Returns separator position between real and imaginary parts, or 0 if not found.
+    pure function findComplexSeparator_(str) result(pos)
+      character(*), intent(in) :: str
+      integer :: pos
+
+      character :: cur, prev
+      integer :: ii
+
+      pos = 0
+      if (len(str) < 2) return
+      ! Search for +/- which is not the first character and is not part of an exponential notation
+      do ii = 2, len(str)
+        prev = str(ii - 1 : ii - 1)
+        cur = str(ii : ii)
+        if ((cur == "+" .or. cur == "-") .and. .not. (prev == "e" .or. prev == "E")) then
+          pos = ii
+          return
+        end if
+      end do
+
+    end function findComplexSeparator_
+
+  end subroutine getNextToken_complex
+
+
+  !> Returns the next token from the provided string as rank one complex array
+  subroutine getNextToken_complexR1(str, tokenValue, start, iostat, nItem)
+
+    !> String to parse
+    character(len=*), intent(in) :: str
+
+    !> Contains the value of the token on return
+    complex(dp), intent(out) :: tokenValue(:)
+
+    !> Starting position for the parsing on call, first position after the end of the token on
+    !> return.
+    integer, intent(inout) :: start
+
+    !> Token reader i/o status flag on return
+    integer, intent(out), optional :: iostat
+
+    !> Nr. of read items
+    integer, intent(out), optional :: nItem
+
+    integer :: iStart, iError, nReadItem
+    integer :: ii
+    complex(dp) :: tmp
+
+    tokenValue(:) = 0.0_dp
+    iError = TOKEN_OK
+    iStart = start
+    do ii = 1, size(tokenValue)
+      call getNextToken(str, tmp, iStart, iError)
+      if (iError /= TOKEN_OK) then
+        exit
+      end if
+      tokenValue(ii) = tmp
+    end do
+
+    if (iError == TOKEN_OK) then
+      start = iStart
+      nReadItem = size(tokenValue)
+    else
+      nReadItem = ii - 1
+    end if
+
+    if (present(nItem)) then
+      nItem = nReadItem
+    end if
+
+    if (present(iostat)) then
+      iostat = iError
+    elseif (iError /= TOKEN_OK) then
+      call error("Complex reading error")
+    end if
+
+  end subroutine getNextToken_complexR1
 
 
   !> Returns the next token from the provided string as logical

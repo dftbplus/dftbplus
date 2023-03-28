@@ -1397,7 +1397,10 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   number of steps, the program stops. However in cases where the
   calculation is not for a static structure (so \is{Driver} $\neq$
   \cb), this behaviour can be overridden using
-  \kw{ConvergentSccOnly}.
+  \kw{ConvergentSccOnly}. {\bf Note:} For calculations using
+  $k$-points, the default number of SCC iterations will default to 1
+  in cases where a band structure is being plotted (see \iscb{KLines}
+  in section \ref{sec:dftbp.KLines}).
 
 \item[\is{ConvergentSccOnly}] If true, requires that the SCC cycle converges
   before proceeding to subsequent stages of the calculation (forces, analysis,
@@ -4959,16 +4962,35 @@ section~\ref{sec:dftbp.dEbandout}.
 There are common options for the perturbations, which appear outside
 their respective blocks in the \is{Analysis} environment:
 \begin{ptable}
-\kw{DegeneracyTolerance} & r & & 128\\
-\kw{eta} & r & & 1E-8\\
+  \kw{ConvergedPerturb} & l & SCC = Yes & Yes\\
+  \kw{MaxPerturbIter} & i & SCC = Yes & 100\\
+  \kw{PerturbDegenTol} & r & & 128\\
+  \kw{PerturbEta} & r & Dynamic Polarisation& 1E-8\\
+  \kw{PerturbSccTol} & r & SCC = Yes & 1e-5\\
 \end{ptable}
 \begin{description}
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems,
+\item[\is{ConvergedPerturb}] If true, requires that the
+  perturbation self-consistently converges. If false, the code can
+  continue with a warning, but will return NaN for properties
+  evaluated at that stage.
+\item[\is{MaxPerturbIter}] Maximal number of self-consistent
+  cycles to reach convergence for perturbation evaluation of
+  properties. If convergence is not reached after the specified number
+  of steps, the program stops. This behaviour can be overridden using
+  \kw{ConvergedPerturb}, but will then produce Not a Number
+  (NaN) for non-convergent properties. {\bf Note:} For calculations
+  using $k$-points, the default number of self-consistent iterations
+  will default to 1 in cases where a band structure is being plotted
+  (see \iscb{KLines} in section \ref{sec:dftbp.KLines}).
+\item[\is{PerturbDegenTol}] In the case of degenerate systems,
   determines the number of times machine epsilon that separated
   eigenvalues are considered non-degenerate.
-\item[\is{eta}] In the case of finite frequency perturbations, a small
-  imaginary constant, of magnitude \is{eta} is used in the expression
+\item[\is{PerturbEta}] In the case of finite frequency perturbations, a small
+  imaginary constant, of magnitude \is{PerturbEta} is used in the expression
   to avoid divergences at resonant conditions.
+\item[\is{PerturbSccTol}] Stopping criteria for the perturbation
+  self-consistency.  Specifies the tolerance for the maximum
+  difference in any charge derivatives between two cycles.
 \end{description}
 
 
@@ -5008,7 +5030,7 @@ Static polarisability, with an adjusted degeneracy tolerance:
 \begin{verbatim}
 Analysis {
   Polarisability = {} # static enabled by default
-  DegeneracyTolerance = 1024 # levels within 1024 x machine tolerance
+  PerturbDegenTol = 1024 # levels within 1024 x machine tolerance
 }
 \end{verbatim}
 

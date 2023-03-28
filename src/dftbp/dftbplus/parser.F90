@@ -125,7 +125,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("22.2", 12),&
+      & TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -1329,7 +1329,6 @@ contains
     real(dp) :: rTmp
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
-    logical :: tBadIntegratingKPoints
     real(dp) :: rSKCutOff
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut
@@ -1564,7 +1563,7 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (associated(child)) then
@@ -1824,7 +1823,6 @@ contains
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, modifier
     type(string), allocatable :: searchPath(:)
-    logical :: tBadIntegratingKPoints
     integer :: method, iSp1
     character(len=:), allocatable :: paramFile, paramTmp
     type(TOrbitals) :: orb
@@ -1934,7 +1932,7 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, &
@@ -2750,7 +2748,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+  subroutine readKPoints(node, ctrl, geo, poorKSampling)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2762,52 +2760,79 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: tBadIntegratingKPoints
+    logical, intent(out) :: poorKSampling
 
     integer :: ii
     character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
-    tBadIntegratingKPoints = .false.
+    poorKSampling = .false.
 
     ! K-Points
     if (geo%tPeriodic) then
 
-      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+      call getEuclideanKSampling(poorKSampling, ctrl, node, geo)
 
     else if (geo%tHelical) then
 
-      call getHelicalKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+      call getHelicalKSampling(poorKSampling, ctrl, node, geo)
 
     end if
 
-    if (ctrl%tSCC) then
-      if (tBadIntegratingKPoints) then
-        ! prevent full SCC with these points
-        ii = 1
-      else
-        ii = 100
-      end if
-      call getChildValue(node, "MaxSCCIterations", ctrl%maxIter, ii)
-    end if
-
-    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. ctrl%maxIter /= 1) then
-      write(errorStr, "(A,I3)") "SCC cycle with these k-points probably will&
-          & not correctly calculate many properties, SCC iterations set to:", ctrl%maxIter
-      call warning(errorStr)
-    end if
-    if (tBadIntegratingKPoints .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
+    call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
+    ! Eventually, perturbation routines should also have restart reads:
+    if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
   end subroutine readKPoints
 
 
+  !> Set the maximum number of SCC cycles, depending on k-point behaviour
+  subroutine maxSelfConsIterations(node, ctrl, label, maxSccIter)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Name of the tag
+    character(*), intent(in) :: label
+
+    !> Number of self-consistent iterations
+    integer, intent(out) :: maxSccIter
+
+    ! string for error return
+    character(lc) :: warningStr
+
+    integer :: ii
+
+    maxSccIter = 1
+    if (ctrl%tSCC) then
+      if (ctrl%poorKSampling) then
+        ! prevent full SCC with these points
+        ii = 1
+      else
+        ii = 100
+      end if
+      call getChildValue(node, trim(label), maxSccIter, ii)
+    end if
+
+    if (ctrl%poorKSampling .and. maxSccIter /= 1) then
+      write(warningStr, "(A,I3)") "A self-consistent cycle with these k-points probably will&
+          & not correctly calculate many properties, maximum iterations set to:", maxSccIter
+      call warning(warningStr)
+    end if
+
+  end subroutine maxSelfConsIterations
+
+
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+  subroutine getEuclideanKSampling(poorKSampling, ctrl, node, geo)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: tBadIntegratingKPoints
+    logical, intent(out) :: poorKSampling
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2834,7 +2859,7 @@ contains
     select case(char(buffer))
 
     case ("supercellfolding")
-      tBadIntegratingKPoints = .false.
+      poorKSampling = .false.
       if (len(modifier) > 0) then
         call detailedError(child, "No modifier is allowed, if the &
             &SupercellFolding scheme is used.")
@@ -2860,7 +2885,7 @@ contains
 
     case ("klines")
       ! probably unable to integrate charge for SCC
-      tBadIntegratingKPoints = .true.
+      poorKSampling = .true.
       call init(li1)
       call init(lr1)
       call getChildValue(value1, "", 1, li1, 3, lr1)
@@ -2894,7 +2919,7 @@ contains
         if (tmpI1(jj) == 0) then
           cycle
         end if
-        rTmp3 = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
+        rTmp3(:) = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
         do kk = 1, tmpI1(jj)
           ctrl%kPoint(:,ind) = kpts(:,jj-1) + real(kk, dp) * rTmp3
           ind = ind + 1
@@ -2918,7 +2943,7 @@ contains
     case (textNodeName)
 
       ! no idea, but assume user knows what they are doing
-      tBadIntegratingKPoints = .false.
+      poorKSampling = .false.
 
       call init(lr1)
       call getChildValue(child, "", 4, lr1, modifier=modifier)
@@ -2953,10 +2978,10 @@ contains
 
 
   !> K-points for helical boundaries
-  subroutine getHelicalKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+  subroutine getHelicalKSampling(poorKSampling, ctrl, node, geo)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: tBadIntegratingKPoints
+    logical, intent(out) :: poorKSampling
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2976,7 +3001,7 @@ contains
     character(lc) :: errorStr
 
     ! assume the user knows what they are doing
-    tBadIntegratingKPoints = .false.
+    poorKSampling = .false.
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child)
     call getNodeName(value1, buffer)
@@ -2993,13 +3018,13 @@ contains
       if (.not.ctrl%tSpinOrbit) then
         ctrl%nKPoint = iTmp * nint(geo%latvecs(3,1))
         allocate(ctrl%kPoint(2, ctrl%nKPoint))
-        ctrl%kPoint = 0.0_dp
+        ctrl%kPoint(:,:) = 0.0_dp
         allocate(ctrl%kWeight(ctrl%nKPoint))
-        ctrl%kWeight = 1.0_dp / real(iTmp,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(iTmp,dp)
         do ii = 0, iTmp-1
           ctrl%kPoint(1,ii+1) = ii * 0.5_dp*ctrl%kWeight(ii+1) + 0.5_dp*rTmp3(2)/rTmp3(1)
         end do
-        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(ctrl%nKPoint,dp)
         do ii = 2, nint(geo%latvecs(3,1))
           ctrl%kPoint(1,(ii-1)*iTmp+1:ii*iTmp) = ctrl%kPoint(1,1:iTmp)
           ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geo%latvecs(3,1))
@@ -3036,7 +3061,7 @@ contains
       if (.not.ctrl%tSpinOrbit) then
         ctrl%nKPoint = product(iTmp2)
         allocate(ctrl%kPoint(2, ctrl%nKPoint))
-        ctrl%kPoint = 0.0_dp
+        ctrl%kPoint(:,:) = 0.0_dp
         allocate(ctrl%kWeight(ctrl%nKPoint))
 
         kk = 1
@@ -3048,7 +3073,7 @@ contains
           end do
         end do
 
-        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+        ctrl%kWeight(:) = 1.0_dp / real(ctrl%nKPoint,dp)
 
       else
         call error("Helical boundaries not yet added for spin-orbit")
@@ -5059,53 +5084,65 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
 
-      ctrl%doPerturbation = .false.
+      call getChild(node, "Polarisability", child=child, requested=.false.)
+      call getChild(node, "ResponseKernel", child=child2, requested=.false.)
+      if (associated(child) .or. associated(child2)) then
+        allocate(ctrl%perturbInp)
+      end if
 
       ! electric field polarisability of system
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
-        ctrl%doPerturbation = .true.
-        ctrl%isEPerturb = .true.
-        call freqRanges(child, ctrl%dynEFreq)
+        ctrl%perturbInp%isEPerturb = .true.
+        call freqRanges(child, ctrl%perturbInp%dynEFreq)
       end if
 
       call getChild(node, "ResponseKernel", child=child, requested=.false.)
       if (associated(child)) then
-        ctrl%doPerturbation = .true.
-        ctrl%isRespKernelPert = .true.
+        ctrl%perturbInp%isRespKernelPert = .true.
         if (ctrl%tSCC) then
-          call getChildValue(child, "RPA", ctrl%isRespKernelRPA, .false.)
+          call getChildValue(child, "RPA", ctrl%perturbInp%isRespKernelRPA, .false.)
         else
-          ctrl%isRespKernelRPA = .true.
+          ctrl%perturbInp%isRespKernelRPA = .true.
         end if
-        call freqRanges(child, ctrl%dynKernelFreq)
+        call freqRanges(child, ctrl%perturbInp%dynKernelFreq)
       end if
 
-      if (ctrl%doPerturbation) then
-        call getChildValue(node, "DegeneracyTolerance", ctrl%tolDegenDFTBPT, 128.0_dp,&
+      if (allocated(ctrl%perturbInp)) then
+        call getChildValue(node, "PertubDegenTol", ctrl%perturbInp%tolDegenDFTBPT, 128.0_dp,&
             & child=child)
-        if (ctrl%tolDegenDFTBPT < 1.0_dp) then
-          call detailedError(child, "Degeneracy tolerance must be above 1x")
+        if (ctrl%perturbInp%tolDegenDFTBPT < 1.0_dp) then
+          call detailedError(child, "Perturbation degeneracy tolerance must be above 1x")
         end if
-        ctrl%tolDegenDFTBPT = ctrl%tolDegenDFTBPT * epsilon(0.0_dp)
+        ctrl%perturbInp%tolDegenDFTBPT = ctrl%perturbInp%tolDegenDFTBPT * epsilon(0.0_dp)
         isEtaNeeded = .false.
-        if (allocated(ctrl%dynEFreq)) then
-          if (any(ctrl%dynEFreq /= 0.0_dp)) then
+        if (allocated(ctrl%perturbInp%dynEFreq)) then
+          if (any(ctrl%perturbInp%dynEFreq /= 0.0_dp)) then
             isEtaNeeded = .true.
           end if
         end if
-        if (allocated(ctrl%dynKernelFreq)) then
-          if (any(ctrl%dynKernelFreq /= 0.0_dp)) then
+        if (allocated(ctrl%perturbInp%dynKernelFreq)) then
+          if (any(ctrl%perturbInp%dynKernelFreq /= 0.0_dp)) then
             isEtaNeeded = .true.
           end if
         end if
         if (isEtaNeeded) then
-          allocate(ctrl%etaFreq)
-          call getChildValue(node, "eta", ctrl%etaFreq, 1.0E-8_dp, child=child)
-          if (ctrl%etaFreq < epsilon(0.0_dp)) then
+          allocate(ctrl%perturbInp%etaFreq)
+          call getChildValue(node, "PerturbEta", ctrl%perturbInp%etaFreq, 1.0E-8_dp, child=child)
+          if (ctrl%perturbInp%etaFreq < epsilon(0.0_dp)) then
             call detailedError(child, "Imaginary constant for finite frequency perturbation too&
                 & small")
           end if
+        end if
+      end if
+
+      if (allocated(ctrl%perturbInp)) then
+        call maxSelfConsIterations(node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
+        if (ctrl%tScc) then
+          call getChildValue(node, "PerturbSccTol", ctrl%perturbInp%perturbSccTol, 1.0e-5_dp)
+          ! self consistency required, or not, to proceed with perturbation
+          call getChildValue(node, "ConvergedPerturb", ctrl%perturbInp%isPerturbConvRequired,&
+              & .true.)
         end if
       end if
 
