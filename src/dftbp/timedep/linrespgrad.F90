@@ -3933,10 +3933,10 @@ contains
     nOrb = size(ovrXev, dim=1)
     nSpin = size(homo)
 
-    ALLOCATE(p(nxov))
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(p(nxov))
+    allocate(nxoo(nSpin))
+    alllocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = nOrb - homo(:)
