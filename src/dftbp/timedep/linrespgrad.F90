@@ -4450,7 +4450,7 @@ contains
          write(fdDes%unit,'(2(I4,2x))') nCoupLev, mCoupLev
          do i = 1, size(nacv(1,:,iNac))
            write(fdDes%unit,'(3(E20.12,2x))') nacv(1,i,iNac), nacv(2,i,iNac), nacv(3,i,iNac)
-         enddo
+         end do
       end do
     end do
 
