@@ -68,7 +68,7 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
 
   !> Treshold for near-identical NACV values to fix phase
-  real(dp), parameter :: NACTOL = 1.d-6
+  real(dp), parameter :: nacTol = 1.0e-6_dp
 
 contains
 
@@ -302,8 +302,8 @@ contains
     nxov = sum(nxov_ud)
 
     ! # occupied/virtual states per spin channel
-    ALLOCATE(nocc_ud(nSpin))
-    ALLOCATE(nvir_ud(nSpin))
+    allocate(nocc_ud(nSpin))
+    allocate(nvir_ud(nSpin))
     nocc_ud = 0
     nvir_ud = 0
     do iSpin = 1, nSpin
@@ -371,33 +371,33 @@ contains
     if (.not. tSpin) then
       select case (this%symmetry)
       case ("B")
-        ALLOCATE(symmetries(2))
+        allocate(symmetries(2))
         symmetries(:) = [ "T", "S" ]
       case ("S")
-        ALLOCATE(symmetries(1))
+        allocate(symmetries(1))
         symmetries(:) = [ "S" ]
       case ("T")
-        ALLOCATE(symmetries(1))
+        allocate(symmetries(1))
         symmetries(:) = [ "T" ]
       end select
     else
       ! ADG: temporary solution for spin polarized case.
-      ALLOCATE(symmetries(1))
+      allocate(symmetries(1))
       symmetries(:) = [ " " ]
     end if
     ! Allocation for general arrays
-    ALLOCATE(gammaMat(this%nAtom, this%nAtom))
-    ALLOCATE(snglPartTransDip(nxov, 3))
-    ALLOCATE(ovrXev(norb, norb, nSpin))
-    ALLOCATE(wij(nxov))
-    ALLOCATE(win(nxov))
-    ALLOCATE(sqrOccIA(nxov))
-    ALLOCATE(eval(this%nExc))
-    ALLOCATE(getIA(nxov, 3))
-    ALLOCATE(getIJ(nxoo, 3))
-    ALLOCATE(getAB(nxvv, 3))
-    ALLOCATE(transitionDipoles(this%nExc, 3))
-    ALLOCATE(sposz(nxov))
+    allocate(gammaMat(this%nAtom, this%nAtom))
+    allocate(snglPartTransDip(nxov, 3))
+    allocate(ovrXev(norb, norb, nSpin))
+    allocate(wij(nxov))
+    allocate(win(nxov))
+    allocate(sqrOccIA(nxov))
+    allocate(eval(this%nExc))
+    allocate(getIA(nxov, 3))
+    allocate(getIJ(nxoo, 3))
+    allocate(getAB(nxvv, 3))
+    allocate(transitionDipoles(this%nExc, 3))
+    allocate(sposz(nxov))
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
     ! remove the need to symmetrize the overlap and ground state density matrix in the main code if
@@ -410,7 +410,7 @@ contains
     call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
 
     ! Oscillator strengths for exited states, when needed.
-    ALLOCATE(osz(this%nExc))
+    allocate(osz(this%nExc))
 
     ! Find all single particle transitions and KS energy differences for cases that go from filled
     ! to empty states, create index arrays for ov,oo,vv
@@ -529,13 +529,13 @@ contains
     ! size(wij), but now for just states that are actually included in the excitation calculation.
     call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd, tSpin)
 
-    ALLOCATE(xpy(nxov_rd, this%nExc))
+    allocate(xpy(nxov_rd, this%nExc))
     if (tZVector .or. tRangeSep) then
-      ALLOCATE(xmy(nxov_rd, this%nExc))
+      allocate(xmy(nxov_rd, this%nExc))
     end if
 
     ! set up transition indexing
-    ALLOCATE(iatrans(norb, norb, nSpin))
+    allocate(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
 
     if (this%iLinRespSolver /= linrespSolverTypes%stratmann .and. tRangeSep) then
@@ -633,16 +633,16 @@ contains
       end if
 
       ! Arrays needed for Z vector
-      ALLOCATE(t(norb, norb, nSpin))
-      ALLOCATE(rhs(nxov_rd))
-      ALLOCATE(woo(nxoo_max, nSpin))
-      ALLOCATE(wvv(nxvv_max, nSpin))
-      ALLOCATE(wov(nxov_rd))
+      allocate(t(norb, norb, nSpin))
+      allocate(rhs(nxov_rd))
+      allocate(woo(nxoo_max, nSpin))
+      allocate(wvv(nxvv_max, nSpin))
+      allocate(wov(nxov_rd))
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
-        ALLOCATE(dqex(this%nAtom, nSpin))
-        ALLOCATE(pc(norb, norb, nSpin))
+        allocate(dqex(this%nAtom, nSpin))
+        allocate(pc(norb, norb, nSpin))
       end if
 
       do iLev = nStartLev, nEndLev
@@ -957,12 +957,12 @@ contains
 
     lworkl = ncv * (ncv + 8)
 
-    ALLOCATE(workl(lworkl))
-    ALLOCATE(workd(3 * nxov_rd))
-    ALLOCATE(resid(nxov_rd))
-    ALLOCATE(selection(ncv))
-    ALLOCATE(vv(nxov_rd, ncv))
-    ALLOCATE(qij(natom))
+    allocate(workl(lworkl))
+    allocate(workd(3 * nxov_rd))
+    allocate(resid(nxov_rd))
+    allocate(selection(ncv))
+    allocate(vv(nxov_rd, ncv))
+    allocate(qij(natom))
 
     resid(:) = 0.0_dp
     workd(:) = 0.0_dp
@@ -1590,10 +1590,10 @@ contains
     nxov = size(rhs)
     nOrb = size(ovrXev, dim=1)
 
-    ALLOCATE(xpyq(natom))
-    ALLOCATE(qTr(natom))
-    ALLOCATE(gamxpyq(natom))
-    ALLOCATE(gamqt(natom))
+    allocate(xpyq(natom))
+    allocate(qTr(natom))
+    allocate(gamxpyq(natom))
+    allocate(gamqt(natom))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -1603,24 +1603,24 @@ contains
 
     nSpin = size(t, dim=3)
 
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(nxoo(nSpin))
+    allocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = size(t, dim=1) - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
     !! transition charges use compound index ijs = ij + soo(s)
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
+    soo(:) = [0, nxoo(1)]
+    svv(:) = [0, nxvv(1)]
 
-    ALLOCATE(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
+    allocate(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
 
     if (nSpin == 2) then
       tSpin = .true.
-      ALLOCATE(xpyqds(natom))
-      ALLOCATE(gamxpyqds(natom))
+      allocate(xpyqds(natom))
+      allocate(gamxpyqds(natom))
     else
       tSpin = .false.
     end if
@@ -2197,23 +2197,23 @@ contains
     natom = size(gammaMat, dim=1)
     nSpin = size(grndEigVal, dim=2)
 
-    ALLOCATE(qTr(natom))
-    ALLOCATE(gamxpyq(natom))
-    ALLOCATE(zq(natom))
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(qTr(natom))
+    allocate(gamxpyq(natom))
+    allocate(zq(natom))
+    allocate(nxoo(nSpin))
+    allocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = size(grndEigVecs, dim=1) - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
+    soo(:) = [0, nxoo(1)]
+    svv(:) = [0, nxvv(1)]
 
     if ( nSpin == 2 ) then
       tSpin = .true.
-      ALLOCATE(zqds(natom))
+      allocate(zqds(natom))
     else
       tSpin = .false.
     end if
@@ -2511,17 +2511,17 @@ contains
     nSpin = size(grndEigVecs, dim=3)
     tSpin = (nSpin == 2)
 
-    ALLOCATE(shift_excited(natom, nSpin))
-    ALLOCATE(xpyq(natom))
-    ALLOCATE(shxpyq(natom, nSpin))
-    ALLOCATE(xpycc(norb, norb, nSpin))
-    ALLOCATE(wcc(norb, norb, nSpin))
-    ALLOCATE(qTr(natom))
-    ALLOCATE(temp(norb))
-    ALLOCATE(tmp5(nSpin))
-    ALLOCATE(tmp7(nSpin))
+    allocate(shift_excited(natom, nSpin))
+    allocate(xpyq(natom))
+    allocate(shxpyq(natom, nSpin))
+    allocate(xpycc(norb, norb, nSpin))
+    allocate(wcc(norb, norb, nSpin))
+    allocate(qTr(natom))
+    allocate(temp(norb))
+    allocate(tmp5(nSpin))
+    allocate(tmp7(nSpin))
 
-    ALLOCATE(Dens(norb,norb))
+    allocate(Dens(norb,norb))
     !! TO CHANGE: For tRangeSep density from call seems to be incorrect, have
     !! to recreate it from eigenvectors.
     Dens = 0._dp
@@ -2532,54 +2532,54 @@ contains
       Dens(:,:) = sum(rhoSqr, dim=3)
     endif
 
-    ALLOCATE(dH0(orb%mOrb, orb%mOrb, 3))
-    ALLOCATE(dSo(orb%mOrb, orb%mOrb, 3))
+    allocate(dH0(orb%mOrb, orb%mOrb, 3))
+    allocate(dSo(orb%mOrb, orb%mOrb, 3))
 
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(nxoo(nSpin))
+    allocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = norb - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
+    soo(:) = [0, nxoo(1)]
+    svv(:) = [0, nxvv(1)]
 
-    ALLOCATE(dq(natom))
+    allocate(dq(natom))
     dq(:) = dq_ud(:,1)
 
     if (tSpin) then
-      ALLOCATE(dm(natom))
-      ALLOCATE(xpyqds(natom))
-      ALLOCATE(tmp11(nSpin))
+      allocate(dm(natom))
+      allocate(xpyqds(natom))
+      allocate(tmp11(nSpin))
 
-      ALLOCATE(SpinDens(norb,norb))
+      allocate(SpinDens(norb,norb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
-      ALLOCATE(dsigma(2))
+      allocate(dsigma(2))
       dsigma(1) = 1.0_dp
       dsigma(2) = -1.0_dp
       dm(:) = dq_ud(:,2)
     end if
 
     if (tRangeSep) then
-      ALLOCATE(xmycc(norb, norb, nSpin))
-      ALLOCATE(xpyas(norb, norb, nSpin))
-      ALLOCATE(xmyas(norb, norb, nSpin))
-      ALLOCATE(PS(norb, norb, nSpin))
-      ALLOCATE(DS(norb, norb, nSpin))
-      ALLOCATE(SPS(norb, norb, nSpin))
-      ALLOCATE(SDS(norb, norb, nSpin))
-      ALLOCATE(SX(norb, norb, nSpin))
-      ALLOCATE(XS(norb, norb, nSpin))
-      ALLOCATE(SXS(norb, norb, nSpin))
-      ALLOCATE(SY(norb, norb, nSpin))
-      ALLOCATE(YS(norb, norb, nSpin))
-      ALLOCATE(SYS(norb, norb, nSpin))
-      ALLOCATE(overlap(norb, norb))
-      ALLOCATE(lrGammaOrb(norb, norb))
-      ALLOCATE(gammaLongRangePrime(3, nAtom, nAtom))
+      allocate(xmycc(norb, norb, nSpin))
+      allocate(xpyas(norb, norb, nSpin))
+      allocate(xmyas(norb, norb, nSpin))
+      allocate(PS(norb, norb, nSpin))
+      allocate(DS(norb, norb, nSpin))
+      allocate(SPS(norb, norb, nSpin))
+      allocate(SDS(norb, norb, nSpin))
+      allocate(SX(norb, norb, nSpin))
+      allocate(XS(norb, norb, nSpin))
+      allocate(SXS(norb, norb, nSpin))
+      allocate(SY(norb, norb, nSpin))
+      allocate(YS(norb, norb, nSpin))
+      allocate(SYS(norb, norb, nSpin))
+      allocate(overlap(norb, norb))
+      allocate(lrGammaOrb(norb, norb))
+      allocate(gammaLongRangePrime(3, nAtom, nAtom))
 
       ! Symmetrize deltaRho
       do mu = 1, norb
@@ -2956,7 +2956,7 @@ contains
 
     if (present(occNatural).or.tCoeffs) then
 
-      ALLOCATE(t2(norb, norb, nSpin))
+      allocate(t2(norb, norb, nSpin))
       t2 = tt
       if (tIncGroundState) then
         do ii = 1, norb
@@ -2968,11 +2968,11 @@ contains
         naturalOrbs = t2
         call evalCoeffs(naturalOrbs(:,:,1), occNatural, grndEigVecs(:,:,1))
         if (tCoeffs) then
-          ALLOCATE(occtmp(size(occ), nSpin))
+          allocate(occtmp(size(occ), nSpin))
           occTmp(:,1) = occNatural
         end if
       else
-        ALLOCATE(occtmp(size(occ), nSpin))
+        allocate(occtmp(size(occ), nSpin))
         occtmp = 0.0_dp
         do iSpin = 1, nSpin
           call evalCoeffs(t2(:,:,iSpin), occtmp(:,iSpin), grndEigVecs(:,:,iSpin))
@@ -3026,7 +3026,7 @@ contains
 
     real(dp), allocatable :: coeffs(:,:)
 
-    ALLOCATE(coeffs(size(occ),size(occ)))
+    allocate(coeffs(size(occ),size(occ)))
 
     call heev(t2, occ, 'U', 'V')
     call gemm(coeffs, eig, t2)
@@ -3679,7 +3679,7 @@ contains
 
     nOrb = size(ovrXev, dim=1)
     nSpin = size(t, dim=3)
-    soo(:) = (/ 0, nXoo(1) /)
+    soo(:) = [0, nXoo(1)]
 
     allocate(qIJ(nAtom))
     allocate(gqIJ(nAtom))
@@ -3925,7 +3925,7 @@ contains
     !> W^+ vector occupied part
     real(dp), intent(out) :: woo(:,:)
 
-    real(dp), allocatable :: p(:), vecHoo(:),vecHvv(:)
+    real(dp), allocatable :: p(:), vecHoo(:)
     integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
     integer :: soo(2), i, a, s, ias, j, ij, ijs, nxov, nSpin, nOrb
 
@@ -3935,20 +3935,17 @@ contains
 
     allocate(p(nxov))
     allocate(nxoo(nSpin))
-    alllocate(nxvv(nSpin))
+    allocate(nxvv(nSpin))
     allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = nOrb - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
-    ALLOCATE(vecHoo(sum(nxoo)))
-    ! Actually only needed because getHplusXYfr has poor interface
-    ALLOCATE(vecHvv(sum(nxvv)))
- 
+    allocate(vecHoo(sum(nxoo)))
 
     !! transition charges use compound index ijs = ij + soo(s)
-    soo(:) = (/ 0, nxoo(1) /)
+    soo(:) = [0, nxoo(1)]
 
     p   = 0.0_dp
     wov = 0.0_dp
@@ -3971,7 +3968,7 @@ contains
     end do
     
     call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
-      &  species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo, vecHvv)
+      &  species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo=vecHoo)
 
     do s = 1, nSpin
       do ij = 1, nXoo(s)
@@ -4115,10 +4112,10 @@ contains
     nxov = size(rhs)
     nOrb = size(ovrXev, dim=1)
 
-    ALLOCATE(xpyq(natom))
-    ALLOCATE(qTr(natom))
-    ALLOCATE(gamxpyq(natom))
-    ALLOCATE(gamqt(natom))
+    allocate(xpyq(natom))
+    allocate(qTr(natom))
+    allocate(gamxpyq(natom))
+    allocate(gamqt(natom))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -4128,26 +4125,26 @@ contains
 
     nSpin = size(t, dim=3)
 
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(nxoo(nSpin))
+    allocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = size(t, dim=1) - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
     !! transition charges use compound index ijs = ij + soo(s)
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
+    soo(:) = [0, nxoo(1)]
+    svv(:) = [0, nxvv(1)]
 
-    ALLOCATE(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
-    ALLOCATE(vecHooXorY(sum(nxoo)))
-    ALLOCATE(vecHvvXorY(sum(nxvv)))   
+    allocate(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
+    allocate(vecHooXorY(sum(nxoo)))
+    allocate(vecHvvXorY(sum(nxvv)))   
 
     if (nSpin == 2) then
       tSpin = .true.
-      ALLOCATE(xpyqds(natom))
-      ALLOCATE(gamxpyqds(natom))
+      allocate(xpyqds(natom))
+      allocate(gamxpyqds(natom))
     else
       tSpin = .false.
     end if
@@ -4215,7 +4212,8 @@ contains
 
     ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
     call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
-      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHooXorY, vecHvvXorY)
+      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHoo=vecHooXorY,            &
+      &  vecHvv=vecHvvXorY)
 
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -4248,7 +4246,8 @@ contains
 
     ! Now m <-> n
     call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
-      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHooXorY, vecHvvXorY)
+      &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHoo=vecHooXorY,            &
+      &  vecHvv=vecHvvXorY)
 
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
@@ -4436,25 +4435,25 @@ contains
     !> non-adiabatic coupling vector
     real(dp), intent(in) :: nacv(:,:,:)
 
-    type(TFileDescr) :: fdDes
-    integer :: iErr, i, iNac, nCoupLev, mCoupLev
+    type(TFileDescr) :: fdNaCoupl
+    integer :: iErr, ii, iNac, nCoupLev, mCoupLev
     character(lc) :: error_string
 
 
-    call openFile(fdDes, naCouplingOut, mode="w")
+    call openFile(fdNaCoupl, naCouplingOut, mode="w")
 
     iNac = 0
     do nCoupLev = iLev, jLev-1
       do mCoupLev = nCoupLev+1, jLev
          iNac = iNac + 1
-         write(fdDes%unit,'(2(I4,2x))') nCoupLev, mCoupLev
-         do i = 1, size(nacv(1,:,iNac))
-           write(fdDes%unit,'(3(E20.12,2x))') nacv(1,i,iNac), nacv(2,i,iNac), nacv(3,i,iNac)
+         write(fdNaCoupl%unit,'(2(I4,2x))') nCoupLev, mCoupLev
+         do ii = 1, size(nacv(1,:,iNac))
+           write(fdNaCoupl%unit,'(3(E20.12,2x))') nacv(1,ii,iNac), nacv(2,ii,iNac), nacv(3,ii,iNac)
          end do
       end do
     end do
 
-    call closeFile(fdDes)
+    call closeFile(fdNaCoupl)
 
     if (fdTagged%isConnected()) then
       call taggedWriter%write(fdTagged%unit, tagLabels%nacv, nacv)
@@ -4606,25 +4605,25 @@ contains
     nSpin = size(grndEigVecs, dim=3)
     tSpin = (nSpin == 2)
 
-    ALLOCATE(shift_excited(natom, nSpin))
-    ALLOCATE(xpyq(natom,2))
-    ALLOCATE(shxpyq(natom, nSpin,2))
-    ALLOCATE(xpycc(norb, norb, nSpin,2))
-    ALLOCATE(wcc(norb, norb, nSpin))
-    ALLOCATE(qTr(natom))
-    ALLOCATE(temp(norb))
-    ALLOCATE(tmp5(nSpin))
-    ALLOCATE(tmp7(nSpin,2))
+    allocate(shift_excited(natom, nSpin))
+    allocate(xpyq(natom,2))
+    allocate(shxpyq(natom, nSpin,2))
+    allocate(xpycc(norb, norb, nSpin,2))
+    allocate(wcc(norb, norb, nSpin))
+    allocate(qTr(natom))
+    allocate(temp(norb))
+    allocate(tmp5(nSpin))
+    allocate(tmp7(nSpin,2))
 
     !! This should be changed to save memory
-    ALLOCATE(xpy(nxov,2))
-    ALLOCATE(xmy(nxov,2))
+    allocate(xpy(nxov,2))
+    allocate(xmy(nxov,2))
     xpy(:,1) = xpyn
     xpy(:,2) = xpym
     xmy(:,1) = xmyn
     xmy(:,2) = xmym
 
-    ALLOCATE(Dens(norb,norb))
+    allocate(Dens(norb,norb))
     !! TO CHANGE: For tRangeSep density from call seems to be incorrect, have
     !! to recreate it from eigenvectors.
     Dens = 0._dp
@@ -4635,55 +4634,55 @@ contains
       Dens(:,:) = sum(rhoSqr, dim=3)
     endif
 
-    ALLOCATE(dH0(orb%mOrb, orb%mOrb, 3))
-    ALLOCATE(dSo(orb%mOrb, orb%mOrb, 3))
+    allocate(dH0(orb%mOrb, orb%mOrb, 3))
+    allocate(dSo(orb%mOrb, orb%mOrb, 3))
 
-    ALLOCATE(nxoo(nSpin))
-    ALLOCATE(nxvv(nSpin))
-    ALLOCATE(nvir(nSpin))
+    allocate(nxoo(nSpin))
+    allocate(nxvv(nSpin))
+    allocate(nvir(nSpin))
 
     nxoo(:) = (homo(:)*(homo(:)+1))/2
     nvir(:) = norb - homo(:)
     nxvv(:) = (nvir(:)*(nvir(:)+1))/2
 
-    soo(:) = (/ 0, nxoo(1) /)
-    svv(:) = (/ 0, nxvv(1) /)
+    soo(:) = [0, nxoo(1)]
+    svv(:) = [0, nxvv(1)]
 
-    ALLOCATE(dq(natom))
+    allocate(dq(natom))
     dq(:) = dq_ud(:,1)
 
     if (tSpin) then
-      ALLOCATE(dm(natom))
-      ALLOCATE(xpyqds(natom,2))
+      allocate(dm(natom))
+      allocate(xpyqds(natom,2))
       xpyqds = 0.0_dp
-      ALLOCATE(tmp11(nSpin))
+      allocate(tmp11(nSpin))
 
-      ALLOCATE(SpinDens(norb,norb))
+      allocate(SpinDens(norb,norb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
-      ALLOCATE(dsigma(2))
+      allocate(dsigma(2))
       dsigma(1) = 1.0_dp
       dsigma(2) = -1.0_dp
       dm(:) = dq_ud(:,2)
     end if
 
     if (tRangeSep) then
-      ALLOCATE(xmycc(norb, norb, nSpin, 2))
-      ALLOCATE(xpyas(norb, norb, nSpin, 2))
-      ALLOCATE(xmyas(norb, norb, nSpin, 2))
-      ALLOCATE(PS(norb, norb, nSpin))
-      ALLOCATE(DS(norb, norb, nSpin))
-      ALLOCATE(SPS(norb, norb, nSpin))
-      ALLOCATE(SDS(norb, norb, nSpin))
-      ALLOCATE(SX(norb, norb, nSpin, 2))
-      ALLOCATE(XS(norb, norb, nSpin, 2))
-      ALLOCATE(SXS(norb, norb, nSpin, 2))
-      ALLOCATE(SY(norb, norb, nSpin, 2))
-      ALLOCATE(YS(norb, norb, nSpin, 2))
-      ALLOCATE(SYS(norb, norb, nSpin, 2))
-      ALLOCATE(overlap(norb, norb))
-      ALLOCATE(lrGammaOrb(norb, norb))
-      ALLOCATE(gammaLongRangePrime(3, nAtom, nAtom))
+      allocate(xmycc(norb, norb, nSpin, 2))
+      allocate(xpyas(norb, norb, nSpin, 2))
+      allocate(xmyas(norb, norb, nSpin, 2))
+      allocate(PS(norb, norb, nSpin))
+      allocate(DS(norb, norb, nSpin))
+      allocate(SPS(norb, norb, nSpin))
+      allocate(SDS(norb, norb, nSpin))
+      allocate(SX(norb, norb, nSpin, 2))
+      allocate(XS(norb, norb, nSpin, 2))
+      allocate(SXS(norb, norb, nSpin, 2))
+      allocate(SY(norb, norb, nSpin, 2))
+      allocate(YS(norb, norb, nSpin, 2))
+      allocate(SYS(norb, norb, nSpin, 2))
+      allocate(overlap(norb, norb))
+      allocate(lrGammaOrb(norb, norb))
+      allocate(gammaLongRangePrime(3, nAtom, nAtom))
 
       ! Symmetrize deltaRho
       do mu = 1, norb
@@ -5128,10 +5127,10 @@ contains
     real(dp), intent(in) :: XorY(:)
 
     !> Output vector H[V] occupied-occupied
-    real(dp), intent(out) :: vecHoo(:)
+    real(dp), optional, intent(out) :: vecHoo(:)
 
     !> Output vector H[V] virtual-virtual
-    real(dp), intent(out) :: vecHvv(:)
+    real(dp), optional, intent(out) :: vecHvv(:)
 
     integer :: nSpin, ab, s, abs, svv(2), ij, ijs, soo(2)
     real(dp) :: fact
@@ -5140,14 +5139,19 @@ contains
 
     nSpin = size(grndEigVecs, dim=3)
     tSpin = (nSpin == 2)
-    ALLOCATE(xpyq(nAtom))
-    ALLOCATE(qTr(nAtom))
-    ALLOCATE(gamxpyq(nAtom))
-    soo(:) = (/ 0, nXoo(1) /)
-    svv(:) = (/ 0, nXvv(1) /)
+    allocate(xpyq(nAtom))
+    allocate(qTr(nAtom))
+    allocate(gamxpyq(nAtom))
+    soo(:) = [0, nXoo(1)]
+    svv(:) = [0, nXvv(1)]
 
-    vecHoo(:) = 0.0_dp
-    vecHvv(:) = 0.0_dp
+    if(present(vecHoo)) then
+       vecHoo(:) = 0.0_dp
+    end if 
+    if(present(vecHvv)) then
+       vecHvv(:) = 0.0_dp
+    end if 
+
     xpyq(:) = 0.0_dp
     call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
 
@@ -5155,30 +5159,38 @@ contains
       ! vecHvv(ab) = sum_jc K_ab,jc (X+Y)_jc
       if (sym == "S") then
         call hemv(gamxpyq, frGamma,  xpyq)
-        do ab = 1, nXvv(1)
-          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
-          vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
-        end do
-        do ij = 1, nXoo(1)
-          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
-          ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
-          vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
-        end do
+        if(present(vecHvv)) then
+          do ab = 1, nXvv(1)
+            qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+            vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
+          end do
+        end if
+        if(present(vecHoo)) then
+          do ij = 1, nXoo(1)
+            qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
+            vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
+          end do
+        end if 
       else ! triplet case
-        do ab = 1, nXvv(1)
-          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
-          vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
-        end do
-        do ij = 1, nXoo(1)
-          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
-          vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
-        end do
+        if(present(vecHvv)) then
+          do ab = 1, nXvv(1)
+            qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+            vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+          end do
+        end if
+        if(present(vecHoo)) then
+          do ij = 1, nXoo(1)
+            qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+          end do
+        end if
       end if
 
     else  ! ---- spin-polarized case -----
 
-      ALLOCATE(xpyqds(nAtom))
-      ALLOCATE(gamxpyqds(nAtom))
+      allocate(xpyqds(nAtom))
+      allocate(gamxpyqds(nAtom))
       xpyqds(:) = 0.0_dp
       call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
 
@@ -5189,20 +5201,24 @@ contains
         else
           fact = -1.0_dp
         end if
-        do ab = 1, nXvv(s)
-          abs = ab + svv(s)
-          qTr(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
-          vecHvv(abs) = sum(qTr * gamxpyq)
-          !magnetization part
-          vecHvv(abs) = vecHvv(abs) + fact * sum(qTr * xpyqds * spinW(species0))
-        end do
-        do ij = 1, nXoo(s)
-          ijs = ij + soo(s)
-          qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
-          vecHoo(ijs) = sum(qTr * gamxpyq)
-          !magnetization part
-          vecHoo(ijs) = vecHoo(ijs) + fact * sum(qTr * xpyqds * spinW(species0))
-        end do
+        if(present(vecHvv)) then
+          do ab = 1, nXvv(s)
+            abs = ab + svv(s)
+            qTr(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
+            vecHvv(abs) = sum(qTr * gamxpyq)
+            !magnetization part
+            vecHvv(abs) = vecHvv(abs) + fact * sum(qTr * xpyqds * spinW(species0))
+          end do
+        end if
+        if(present(vecHoo)) then
+          do ij = 1, nXoo(s)
+            ijs = ij + soo(s)
+            qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            vecHoo(ijs) = sum(qTr * gamxpyq)
+            !magnetization part
+            vecHoo(ijs) = vecHoo(ijs) + fact * sum(qTr * xpyqds * spinW(species0))
+          end do
+        end if  
       end do
 
     end if
@@ -5274,7 +5290,7 @@ contains
     real(dp), intent(out) :: vecH(:)
 
     integer :: nSpin, ab, i, j, a, b, s, svv(2), ij, soo(2), ias
-    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
+    real(dp), dimension(2) :: spinFactor = [1.0_dp, -1.0_dp]
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
     real(dp), allocatable  :: gamqt(:)
     logical :: tSpin
@@ -5290,15 +5306,15 @@ contains
     nSpin = size(grndEigVecs, dim=3)
     tSpin = (nSpin == 2)
     if (tSpin) then
-      ALLOCATE(xpyqds(natom))
-      ALLOCATE(gamxpyqds(natom))
+      allocate(xpyqds(natom))
+      allocate(gamxpyqds(natom))
     endif       
-    ALLOCATE(xpyq(nAtom))
-    ALLOCATE(qTr(nAtom))
-    ALLOCATE(gamxpyq(nAtom))
-    ALLOCATE(gamqt(nAtom))
-    soo(:) = (/ 0, nXoo(1) /)
-    svv(:) = (/ 0, nXvv(1) /)
+    allocate(xpyq(nAtom))
+    allocate(qTr(nAtom))
+    allocate(gamxpyq(nAtom))
+    allocate(gamqt(nAtom))
+    soo(:) = [0, nXoo(1)]
+    svv(:) = [0, nXvv(1)]
 
     vecH(:) = 0.0_dp
    ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) M_ij
@@ -5411,7 +5427,7 @@ contains
   end subroutine getHplusMfr
 
   ! Convention to fix phase of NAC vector: Largest value is positive. If several entries
-  ! are closer than NACTOL to the maximum, the lowest index is chosen
+  ! are closer than nacTol to the maximum, the lowest index is chosen
   subroutine fixNACVPhase(nacv)
     real(dp), intent(inout) :: nacv(:,:,:)
     real(dp)                :: max
@@ -5423,7 +5439,7 @@ contains
       max = maxval(abs(nacv(:,:,iNac)))
       outer: do ii = 1, nAtoms
         do jj = 1, 3
-          if(abs(abs(nacv(jj,ii,iNac)) - max) < NACTOL) exit outer
+          if(abs(abs(nacv(jj,ii,iNac)) - max) < nacTol) exit outer
         enddo
       enddo outer
 
