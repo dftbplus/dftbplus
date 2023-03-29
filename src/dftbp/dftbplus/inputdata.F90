@@ -390,6 +390,10 @@ module dftbp_dftbplus_inputdata
     !> Three diagonal elements of supercell folding coefficient matrix
     integer, allocatable :: supercellFoldingDiag(:)
 
+    !> Tolerance for helical symmetry determination of acceptable k-points commensurate with the
+    !! C_n symmetry
+    real(dp) :: helicalSymTol = 1.0E-8_dp
+
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp
     logical :: tBarostat = .false.
