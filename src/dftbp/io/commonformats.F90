@@ -7,11 +7,15 @@
 
 !> Common format strings
 module dftbp_io_commonformats
+  use dftbp_common_accuracy, only : dp
   implicit none
 
+
   private
-  public :: formatHessian, formatBorn, formatdBorn, formatGeoOut, format1U, format2U, format1Ue,&
+  public :: formatHessian, formatBorn, formatdBorn, formatGeoOut, format1U, format1Ue,&
       & format2Ue, format1U1e
+  public :: strFormat2U
+
 
   !> Format string for energy second derivative matrix
   character(len=*), parameter :: formatHessian = '(4f16.10)'
@@ -28,9 +32,6 @@ module dftbp_io_commonformats
   !> Format for a single value with units
   character(len=*), parameter :: format1U = "(A, ':', T32, F18.10, T51, A)"
 
-  !> Format for two values with units
-  character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
-
   !> Format for a single value using exponential notation with units
   character(len=*), parameter :: format1Ue = "(A, ':', T37, E13.6, T51, A)"
 
@@ -40,5 +41,43 @@ module dftbp_io_commonformats
   !> Format for mixed decimal and exponential values with units
   character(len=*), parameter :: format1U1e =&
       & "(' ', A, ':', T32, F18.10, T51, A, T57, E13.6, T71, A)"
+
+contains
+
+
+  !> Formats a string using the "(a, ':', t32, f18.10, t51, a, t54, f16.4, t71, a)" format.
+  pure function strFormat2U(quantity, value1, unit1, value2, unit2) result(str)
+
+    !> Name of the quantity to print (first character in the output)
+    character(*), intent(in) :: quantity
+
+    !> First value
+    real(dp), intent(in) :: value1
+
+    !> First unit
+    character(*), intent(in) :: unit1
+
+    !> Second value
+    real(dp), intent(in) :: value2
+
+    !> Second unit
+    character(*), intent(in) :: unit2
+
+    !> Formatted string
+    character(70 + len(unit2)) :: str
+
+    integer :: itemLen
+
+    str = repeat(" ", len(str))
+    itemLen = min(len(quantity), 30)
+    str(1 : itemLen) = quantity(: itemLen)
+    str(itemLen + 1 : itemLen + 1) = ":"
+    write(str(32 : 49), "(F18.10)") value1
+    itemLen = min(len(unit1), 3)
+    str(51 : 51 + itemLen - 1) = unit1(: itemLen)
+    write(str(54 : 69), "(F16.4)") value2
+    str(71 : len(str)) = unit2
+
+  end function strformat2U
 
 end module dftbp_io_commonformats

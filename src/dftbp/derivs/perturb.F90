@@ -35,7 +35,7 @@ module dftbp_derivs_perturb
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
-  use dftbp_io_commonformats, only : format2U
+  use dftbp_io_commonformats, only : strFormat2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_mixer_mixer, only : TMixer, mix, reset
@@ -470,8 +470,8 @@ contains
     do iOmega = 1, size(omega)
       write(stdOut,*)
       if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-        write(stdOut, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
-            & omega(iOmega) * Hartree__eV, ' eV'
+        write(stdOut, "(a)") strFormat2U("Polarisability at omega = ", omega(iOmega), ' H ',&
+            & omega(iOmega) * Hartree__eV, ' eV')
       else
         write(stdOut, "(A)")"Static polarisability:"
       end if
@@ -821,8 +821,8 @@ contains
 
         if (fdDetailedOut%isConnected()) then
           if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-            write(fdDetailedOut%unit, format2U)"Response at omega = ", omega(iOmega), ' H ',&
-                & omega(iOmega) * Hartree__eV, ' eV'
+            write(fdDetailedOut%unit, "(a)") strFormat2U("Response at omega = ", omega(iOmega),&
+                & ' H ', omega(iOmega) * Hartree__eV, ' eV')
           else
             write(fdDetailedOut%unit, "(A)")"Static response:"
           end if
@@ -1145,7 +1145,8 @@ contains
 
     if (abs(omega) > epsilon(0.0_dp)) then
       write(stdOut, "(1X,A)")"Frequency dependant response calculation"
-      write(stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
+      write(stdOut, "(a)")  strFormat2U("omega driving frequency", omega, ' H ',&
+          & omega * Hartree__eV, ' eV')
     else
       write(stdOut, "(1X,A)")"Static response calculation"
     end if

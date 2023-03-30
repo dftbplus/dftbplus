@@ -35,7 +35,7 @@ module dftbp_dftbplus_mainio
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
-      & format1U, format2U, format1Ue, format2Ue, format1U1e
+      & format1U, format1Ue, format2Ue, format1U1e, strFormat2U
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -3301,22 +3301,24 @@ contains
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
       if (electronicSolver%elecChemPotAvailable) then
-        write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
+        write(fd, "(a)") strFormat2U('Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV')
       end if
       if (electronicSolver%providesBandEnergy) then
-        write(fd, format2U) 'Band energy', energy%Eband(iSpin), "H",&
-            & Hartree__eV * energy%Eband(iSpin), 'eV'
+        write(fd, "(a)") strFormat2U('Band energy', energy%Eband(iSpin), "H",&
+            & Hartree__eV * energy%Eband(iSpin), 'eV')
       end if
       if (electronicSolver%providesElectronEntropy) then
-        write(fd, format2U)'TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin), 'eV'
+        write(fd, "(a)") strFormat2U('TS', energy%TS(iSpin), "H", Hartree__eV * energy%TS(iSpin),&
+          & 'eV')
       end if
       if (electronicSolver%providesFreeEnergy) then
         if (electronicSolver%providesBandEnergy) then
-          write(fd, format2U) 'Band free energy (E-TS)', energy%Eband(iSpin)-energy%TS(iSpin), "H",&
-              & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV'
+          write(fd, "(a)") strFormat2U('Band free energy (E-TS)',&
+              & energy%Eband(iSpin)-energy%TS(iSpin), "H",&
+              & Hartree__eV * (energy%Eband(iSpin) - energy%TS(iSpin)), 'eV')
         end if
-        write(fd, format2U) 'Extrapolated E(0K)', energy%E0(iSpin), "H",&
-            & Hartree__eV * (energy%E0(iSpin)), 'eV'
+        write(fd, "(a)") strFormat2U('Extrapolated E(0K)', energy%E0(iSpin), "H",&
+            & Hartree__eV * (energy%E0(iSpin)), 'eV')
       end if
       if (tPrintMulliken) then
         if (nSpin == 2) then
@@ -3337,69 +3339,82 @@ contains
       write(fd, *)
     end do lpSpinPrint3
 
-    write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV,&
+        & 'eV')
 
     if (tSCC) then
-      write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV')
       if (tSpin) then
-        write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV,&
+            & 'eV')
       end if
       if (t3rd) then
-        write(fd, format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV,&
+            & 'eV')
       end if
       if (tRangeSep) then
-        write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV,&
+            & 'eV')
       end if
       if (tDFTBU) then
-        write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Energy DFTB+U', energy%Edftbu, 'H',&
+            & energy%Edftbu * Hartree__eV, 'eV')
       end if
       if (tOnSite) then
-        write (fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
+        write (fd, "(a)") strFormat2U('Energy onsite', energy%eOnSite, 'H',&
+            & energy%eOnSite*Hartree__eV, 'eV')
       end if
     end if
 
     if (tSpinOrbit) then
-      write(fd, format2U) 'Energy L.S', energy%ELS, 'H', energy%ELS * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Energy L.S', energy%ELS, 'H', energy%ELS * Hartree__eV, 'eV')
     end if
 
     if (isExtField) then
-      write(fd, format2U) 'Energy ext. field', energy%Eext, 'H', energy%Eext * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Energy ext. field', energy%Eext, 'H',&
+          & energy%Eext * Hartree__eV, 'eV')
     end if
 
     if (tSolv) then
-      write(fd, format2U) 'Solvation energy', energy%ESolv, 'H', energy%ESolv * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Solvation energy', energy%ESolv, 'H',&
+          & energy%ESolv * Hartree__eV, 'eV')
     end if
 
-    write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', energy%Eelec * Hartree__eV,&
-        & 'eV'
-    write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Total Electronic energy', energy%Eelec, 'H',&
+        & energy%Eelec * Hartree__eV, 'eV')
+    write(fd, "(a)") strFormat2U('Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV,&
+        & 'eV')
 
     if (allocated(dispersion)) then
       if (dispersion%energyAvailable()) then
-        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Dispersion energy', energy%eDisp, 'H',&
+            & energy%eDisp * Hartree__eV, 'eV')
       else
-        write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
+        write(fd, "(a)") 'Dispersion energy not yet evaluated, so also missing from other energies'
       end if
     end if
 
     if (tHalogenX) then
-      write(fd, format2U) 'Halogen correction energy', energy%eHalogenX, 'H',&
-          & energy%eHalogenX * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Halogen correction energy', energy%eHalogenX, 'H',&
+          & energy%eHalogenX * Hartree__eV, 'eV')
     end if
 
-    write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV,&
+        & 'eV')
     if (electronicSolver%providesElectronEntropy) then
-      write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
-      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(energy%TS), 'H',&
-          & (energy%Etotal - sum(energy%TS)) * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Extrapolated to 0', energy%Ezero, 'H',&
+          & energy%Ezero * Hartree__eV, 'eV')
+      write(fd, "(a)") strFormat2U('Total Mermin free energy', energy%Etotal - sum(energy%TS), 'H',&
+          & (energy%Etotal - sum(energy%TS)) * Hartree__eV, 'eV')
     end if
     if (electronicSolver%providesFreeEnergy) then
-      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
-          & energy%EForceRelated * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV')
     end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(energy%TS) + cellVol * pressure,&
-          & 'H', Hartree__eV * (energy%Etotal - sum(energy%TS) + cellVol * pressure), 'eV'
+      write(fd, "(a)") strFormat2U('Gibbs free energy', &
+          & energy%Etotal - sum(energy%TS) + cellVol * pressure, 'H',&
+          & Hartree__eV * (energy%Etotal - sum(energy%TS) + cellVol * pressure), 'eV')
     end if
     write(fd, *)
 
@@ -3516,8 +3531,8 @@ contains
     ! only print excitation energy if 1) its been calculated and 2) its avaialable for a single
     ! state
     if (isLinResp .and. energy%Eexcited /= 0.0_dp) then
-      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", Hartree__eV * energy%Eexcited,&
-          & "eV"
+      write(fd, "(a)") strFormat2U("Excitation Energy", energy%Eexcited, "H",&
+          & Hartree__eV * energy%Eexcited, "eV")
       write(fd, *)
     end if
 
@@ -3565,7 +3580,8 @@ contains
       if (tPeriodic .and. .not. tMd) then
         write(fd, format1Ue) 'Volume', cellVol, 'au^3'
         if (tStress) then
-          write(fd, format2Ue)'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+          write(fd, "(a)") strFormat2U('Pressure', cellPressure, 'au', cellPressure * au__pascal,&
+              & 'Pa')
         end if
         write(fd, *)
       end if
@@ -3630,19 +3646,19 @@ contains
     end if
 
     if (tSetFillingTemp) then
-      write(fd, format2U) "Electronic Temperature", tempElec, 'au', tempElec * Hartree__eV,&
-          & 'eV'
+      write(fd, "(a)") strFormat2U("Electronic Temperature", tempElec, 'au',&
+          & tempElec * Hartree__eV, 'eV')
     end if
     write(fd, format1U) "MD Kinetic Energy", energy%EKin, "H"
     write(fd, format1U) "Total MD Energy", energy%EKin + energy%EMermin, "H"
     if (tPeriodic) then
       write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
       if (pressure /= 0.0_dp) then
-        write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+        write(fd, "(a)") strFormat2U('Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+            & Hartree__eV * energy%EGibbsKin, 'eV')
       end if
     end if
-    write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
+    write(fd, "(a)") strFormat2U("MD Temperature", tempIon, "H", tempIon / Boltzmann, "K")
 
   end subroutine writeDetailedOut5
 
@@ -3660,9 +3676,9 @@ contains
     real(dp), intent(in) :: tempIon
 
     write(fd, format1U) "MD Kinetic Energy", energy%Ekin, "H"
-    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
-        & Hartree__eV * energy%EMerminKin, "eV"
-    write(fd, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
+    write(fd, "(a)") strFormat2U("Total MD Energy", energy%EMerminKin, "H",&
+        & Hartree__eV * energy%EMerminKin, "eV")
+    write(fd, "(a)") strFormat2U("MD Temperature", tempIon, "H", tempIon / Boltzmann, "K")
     write(fd, *)
 
   end subroutine writeDetailedOut6
@@ -4004,31 +4020,33 @@ contains
       if (tPeriodic) then
         write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
         if (pressure /= 0.0_dp) then
-          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-              & Hartree__eV * energy%EGibbs,'eV'
-          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-              & Hartree__eV * energy%EGibbsKin, 'eV'
+          write(fd, "(a)") strFormat2U('Gibbs free energy', energy%EGibbs, 'H',&
+              & Hartree__eV * energy%EGibbs,'eV')
+          write(fd, "(a)") strFormat2U('Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+              & Hartree__eV * energy%EGibbsKin, 'eV')
         end if
       end if
     end if
     if (isLinResp) then
       if (energy%Eexcited /= 0.0_dp) then
-        write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
-            & Hartree__eV * energy%Eexcited, "eV"
+        write(fd, "(a)") strFormat2U("Excitation Energy", energy%Eexcited, "H",&
+            & Hartree__eV * energy%Eexcited, "eV")
       end if
       if (allocated(energiesCasida)) then
         do ii = 1, size(energiesCasida)
           write(strTmp,"('Excitation ',I0)")ii
-          write(fd, format2U) trim(strTmp), energiesCasida(ii), "H",&
-              & Hartree__eV * energiesCasida(ii), "eV"
+          write(fd, "(a)") strFormat2U(trim(strTmp), energiesCasida(ii), "H",&
+              & Hartree__eV * energiesCasida(ii), "eV")
         end do
       end if
     end if
-    write(fd, format2U) 'Potential Energy', energy%EMermin,'H', energy%EMermin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total MD Energy', energy%EMerminKin, 'H',&
-        & energy%EMerminKin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K'
+    write(fd, "(a)") strFormat2U('Potential Energy', energy%EMermin,'H',&
+        & energy%EMermin * Hartree__eV, 'eV')
+    write(fd, "(a)") strFormat2U('MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV,&
+        & 'eV')
+    write(fd, "(a)") strFormat2U('Total MD Energy', energy%EMerminKin, 'H',&
+        & energy%EMerminKin * Hartree__eV, 'eV')
+    write(fd, "(a)") strFormat2U('MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K')
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
         write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
@@ -4549,37 +4567,40 @@ contains
     if (deltaDftb%iGround > 0) then
 
       if (deltaDftb%isNonAufbau) then
-        write(iUnit, format2U) "Ground State Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
-            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        write(iUnit, "(a)") strFormat2U("Ground State Total Energy",&
+            & energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV")
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Ground State Extrapolated to 0K",&
+          write(iUnit, "(a)") strFormat2U("Ground State Extrapolated to 0K",&
               & energy(deltaDftb%iGround)%Ezero, "H",&
-              & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+              & Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV")
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Total Ground State Mermin egy",&
+          write(iUnit, "(a)") strFormat2U("Total Ground State Mermin egy",&
               & energy(deltaDftb%iGround)%EMermin, "H",&
-              & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
+              & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV")
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Ground State Force related egy',&
+          write(iUnit, "(a)") strFormat2U('Ground State Force related egy',&
               & energy(deltaDftb%iGround)%EForceRelated, 'H',&
-              & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
+              & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV')
         end if
       else
-        write(iUnit, format2U) "Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
-            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV"
+        write(iUnit, "(a)") strFormat2U("Total Energy", energy(deltaDftb%iGround)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iGround)%Etotal,"eV")
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
-              & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV"
+          write(iUnit, "(a)") strFormat2U("Extrapolated to 0K", energy(deltaDftb%iGround)%Ezero,&
+              & "H", Hartree__eV * energy(deltaDftb%iGround)%Ezero, "eV")
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Total Mermin free energy", energy(deltaDftb%iGround)%EMermin,&
-              & "H", Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV"
+          write(iUnit, "(a)") strFormat2U("Total Mermin free energy",&
+              & energy(deltaDftb%iGround)%EMermin, "H",&
+              & Hartree__eV * energy(deltaDftb%iGround)%EMermin, "eV")
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Force related energy', energy(deltaDftb%iGround)%EForceRelated,&
-              & 'H', energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV'
+          write(iUnit, "(a)") strFormat2U('Force related energy',&
+              & energy(deltaDftb%iGround)%EForceRelated, 'H',&
+              & energy(deltaDftb%iGround)%EForceRelated * Hartree__eV, 'eV')
         end if
       end if
       write(iUnit,*)
@@ -4587,22 +4608,23 @@ contains
 
     if (deltaDftb%iTriplet > 0) then
 
-      write(iUnit, format2U) "Triplet State Total Energy", energy(deltaDftb%iTriplet)%Etotal,"H",&
-          & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal,"eV"
+      write(iUnit, "(a)") strFormat2U("Triplet State Total Energy",&
+          & energy(deltaDftb%iTriplet)%Etotal, "H",&
+          & Hartree__eV * energy(deltaDftb%iTriplet)%Etotal, "eV")
       if (electronicSolver%providesEigenvals) then
-        write(iUnit, format2U) "Triplet State Extrapolated to 0K",&
+        write(iUnit, "(a)") strFormat2U("Triplet State Extrapolated to 0K",&
             & energy(deltaDftb%iTriplet)%Ezero, "H",&
-            & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV"
+            & Hartree__eV * energy(deltaDftb%iTriplet)%Ezero, "eV")
       end if
       if (electronicSolver%providesElectronEntropy) then
-        write(iUnit, format2U) "Triplet State Mermin free egy",&
+        write(iUnit, "(a)") strFormat2U("Triplet State Mermin free egy",&
             & energy(deltaDftb%iTriplet)%EMermin, "H",&
-            & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV"
+            & Hartree__eV * energy(deltaDftb%iTriplet)%EMermin, "eV")
       end if
       if (electronicSolver%providesFreeEnergy) then
-        write(iUnit, format2U) 'Triplet State Force related egy',&
+        write(iUnit, "(a)") strFormat2U('Triplet State Force related egy',&
             & energy(deltaDftb%iTriplet)%EForceRelated, 'H',&
-            & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV'
+            & energy(deltaDftb%iTriplet)%EForceRelated * Hartree__eV, 'eV')
       end if
       write(iUnit,*)
     end if
@@ -4611,58 +4633,59 @@ contains
 
       if (deltaDftb%isSpinPurify) then
 
-        write(iUnit, format2U) "Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
-            & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV"
+        write(iUnit, "(a)") strFormat2U("Purified State Total Energy", energy(deltaDftb%iFinal)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iFinal)%Etotal,"eV")
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Purified Extrapolated 0K",&
+          write(iUnit, "(a)") strFormat2U("Purified Extrapolated 0K",&
               & energy(deltaDftb%iFinal)%Ezero, "H",&
-              & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV"
+              & Hartree__eV * energy(deltaDftb%iFinal)%Ezero, "eV")
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Purified State Mermin free egy",&
+          write(iUnit, "(a)") strFormat2U("Purified State Mermin free egy",&
               & energy(deltaDftb%iFinal)%EMermin, "H",&
-              & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV"
+              & Hartree__eV * energy(deltaDftb%iFinal)%EMermin, "eV")
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Purified Force related egy',&
+          write(iUnit, "(a)") strFormat2U('Purified Force related egy',&
               & energy(deltaDftb%iFinal)%EForceRelated, 'H',&
-              & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV'
+              & energy(deltaDftb%iFinal)%EForceRelated * Hartree__eV, 'eV')
         end if
 
         if (deltaDftb%iGround > 0) then
           if (electronicSolver%providesFreeEnergy) then
             write(iUnit, *)
-            write(iUnit, format2U) 'S0 -> T1',&
+            write(iUnit, "(a)") strFormat2U('S0 -> T1',&
                 & energy(deltaDftb%iTriplet)%EForceRelated&
                 & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
                 & (energy(deltaDftb%iTriplet)%EForceRelated&
-                & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
-            write(iUnit, format2U) 'S0 -> S1',&
+                & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV')
+            write(iUnit, "(a)") strFormat2U('S0 -> S1',&
                 & energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated,&
                 & 'H',&
                 & (energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated)&
-                & * Hartree__eV, 'eV'
+                & * Hartree__eV, 'eV')
           end if
         end if
 
       else
 
-        write(iUnit, format2U) "Mixed State Total Energy", energy(deltaDftb%iMixed)%Etotal,"H",&
-            & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV"
+        write(iUnit, "(a)") strFormat2U("Mixed State Total Energy",&
+            & energy(deltaDftb%iMixed)%Etotal,"H",&
+            & Hartree__eV * energy(deltaDftb%iMixed)%Etotal,"eV")
         if (electronicSolver%providesEigenvals) then
-          write(iUnit, format2U) "Mixed Extrapolated to 0K",&
+          write(iUnit, "(a)") strFormat2U("Mixed Extrapolated to 0K",&
               & energy(deltaDftb%iMixed)%Ezero, "H",&
-              & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV"
+              & Hartree__eV * energy(deltaDftb%iMixed)%Ezero, "eV")
         end if
         if (electronicSolver%providesElectronEntropy) then
-          write(iUnit, format2U) "Mixed State Mermin free egy",&
+          write(iUnit, "(a)") strFormat2U("Mixed State Mermin free egy",&
               & energy(deltaDftb%iMixed)%EMermin, "H",&
-              & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV"
+              & Hartree__eV * energy(deltaDftb%iMixed)%EMermin, "eV")
         end if
         if (electronicSolver%providesFreeEnergy) then
-          write(iUnit, format2U) 'Mixed State Force related egy',&
+          write(iUnit, "(a)") strFormat2U('Mixed State Force related egy',&
               & energy(deltaDftb%iMixed)%EForceRelated, 'H',&
-              & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV'
+              & energy(deltaDftb%iMixed)%EForceRelated * Hartree__eV, 'eV')
         end if
 
       end if
@@ -4699,7 +4722,7 @@ contains
 
     write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
     if (abs(pressure) > epsilon(1.0_dp)) then
-      write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
+      write(stdOut, "(a)") strFormat2U("Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV')
     end if
 
   end subroutine printPressureAndFreeEnergy
@@ -4778,7 +4801,8 @@ contains
     type(TEnergies), intent(in) :: energy
 
     if (tSetFillingTemp) then
-      write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
+      write(stdOut, "(a)") strFormat2U('Electronic Temperature', tempElec, 'H',&
+          & tempElec / Boltzmann, 'K')
     end if
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
@@ -4786,15 +4810,16 @@ contains
             & eField%absEField * au__V_m, 'V/m'
       end if
     end if
-    write(stdOut, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
-    write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
-    write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
-        & Hartree__eV * energy%EMerminKin, "eV"
+    write(stdOut, "(a)") strFormat2U("MD Temperature", tempIon, "H", tempIon / Boltzmann, "K")
+    write(stdOut, "(a)") strFormat2U("MD Kinetic Energy", energy%Ekin, "H",&
+        & Hartree__eV * energy%Ekin, "eV")
+    write(stdOut, "(a)") strFormat2U("Total MD Energy", energy%EMerminKin, "H",&
+        & Hartree__eV * energy%EMerminKin, "eV")
     if (tPeriodic) then
       write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
       if (abs(pressure) < epsilon(1.0_dp)) then
-        write(stdOut, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+        write(stdOut, "(a)") strFormat2U('Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+            & Hartree__eV * energy%EGibbsKin, 'eV')
       end if
     end if
 
@@ -5676,25 +5701,30 @@ contains
 
     call setReksTargetEnergy(reks, energy, cellVol, pressure)
 
-    write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV,&
+        & 'eV')
     if (tSCC) then
-      write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
-      write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV')
+      write(fd, "(a)") strFormat2U('Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV,&
+          & 'eV')
       if (t3rd) then
-        write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
+        write (fd,"(a)") strFormat2U('Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV')
       end if
       if (isRangeSep) then
-        write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV,&
+          & 'eV')
       end if
     end if
 
-    write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', &
-        & energy%Eelec * Hartree__eV, 'eV'
-    write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Total Electronic energy', energy%Eelec, 'H', &
+        & energy%Eelec * Hartree__eV, 'eV')
+    write(fd, "(a)") strFormat2U('Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV,&
+        & 'eV')
 
     if (allocated(dispersion)) then
       if (dispersion%energyAvailable()) then
-        write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H', energy%eDisp * Hartree__eV, 'eV'
+        write(fd, "(a)") strFormat2U('Dispersion energy', energy%eDisp, 'H',&
+            & energy%eDisp * Hartree__eV, 'eV')
       else
         write(fd, "(A)") 'Dispersion energy not yet evaluated, so also missing from other energies'
       end if
@@ -5702,24 +5732,26 @@ contains
 
     write(fd, *)
     if (reks%nstates > 1) then
-      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
-          & Hartree__eV * energy%Eexcited, "eV"
+      write(fd, "(a)") strFormat2U("Excitation Energy", energy%Eexcited, "H", &
+          & Hartree__eV * energy%Eexcited, "eV")
       write(fd, *)
     end if
 
-    write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
+    write(fd, "(a)") strFormat2U('Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV,&
+        & 'eV')
     if (electronicSolver%providesElectronEntropy) then
-      write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
-      write(fd, format2U) 'Total Mermin free energy', energy%Emermin, 'H',&
-          & energy%Emermin * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Extrapolated to 0', energy%Ezero, 'H',&
+          & energy%Ezero * Hartree__eV, 'eV')
+      write(fd, "(a)") strFormat2U('Total Mermin free energy', energy%Emermin, 'H',&
+          & energy%Emermin * Hartree__eV, 'eV')
     end if
     if (electronicSolver%providesFreeEnergy) then
-      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
-          & energy%EForceRelated * Hartree__eV, 'eV'
+      write(fd, "(a)") strFormat2U('Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV')
     end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
-      write(fd, format2U) 'Gibbs free energy', energy%EGibbs,&
-          & 'H', Hartree__eV * energy%EGibbs, 'eV'
+      write(fd, "(a)") strFormat2U('Gibbs free energy', energy%EGibbs,&
+          & 'H', Hartree__eV * energy%EGibbs, 'eV')
     end if
     write(fd, *)
 
