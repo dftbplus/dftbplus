@@ -145,13 +145,6 @@ void dftbp_final(DftbPlus *instance);
 
 
 /**
- * Obtain nr. of atoms and list of species from the MM program.
- */
-void dftbp_get_atom_list(DftbPlusAtomList *atomListHandler, int *nAtomC, int *nSpeciesC,
-                         char *elementC, int *species);
-
-
-/**
  * Fills up a DFTB+ input tree from a HSD input file.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
