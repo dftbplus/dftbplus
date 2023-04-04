@@ -1,0 +1,55 @@
+Geometry = GenFormat {
+ 2  C
+  O
+     1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     2    1    1.20700000000E+00   0.00000000000E+00   0.00000000000E+00
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.000000000000000E-010   # Extremely small!
+  MaxSCCIterations = 1000
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    O = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.000000000000000E-008
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix  = ".skf"
+  }
+  SpinPolarisation = Colinear {
+    RelaxTotalSpin = Yes
+    InitialSpins {
+      AtomSpin { Atoms = O; SpinPerAtom = 0.5 }
+    }
+  }
+  SpinConstants {
+    ShellResolvedSpin = Yes
+    O = -0.035 -0.030 -0.030 -0.028
+  }
+}
+
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 12
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  Blacs {
+    BlockSize = 4
+  }
+  Groups = 2
+}
+

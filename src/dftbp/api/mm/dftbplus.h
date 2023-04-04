@@ -87,6 +87,25 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
 
 
 /**
+ * Callback function signature for overlap, hamiltonian, or density matrix export in square 
+ * dense BLACS format.Type of the matrix elements is either double or complex double, depending on 
+ * the task (number of k-points), that can be obtained via dftbp_is_hs_real() call.
+ * Total matrix size is NxN, where N - number of basis functions returned by dftbp_get_basis_size().
+ *
+ * \param aux_ptr[in] Pointer to auxilary data that is set when callback is registered.
+ *
+ * \param iK[value] Index of k-point (1-based) of the current matrix.
+ *
+ * \param iS[value] Index of spin chanel (1-based) of the current matrix.
+ *
+ * \param blacs_descr[in] Pointer to BLACS descriptor of the metrix. Can be NULL if 
+ *     DFTB+ is built without SCALAPACK support.
+ *
+ * \param blacs_data[in] Pointer to the matrix elements.
+ */
+typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data);
+
+/**
  * Returns current version of the DFTB+ API
  *
  * \param[out] major Major release number.
@@ -288,6 +307,115 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
 
 
 /**
+ * Queries the nr. of spin channels in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of spin channels
+ */
+int dftbp_get_nr_spin(DftbPlus *instance);
+
+
+/**
+ * Queries the size of the total basis set of the system.
+ * 
+ * Essencially returns a number of orbitals. Meant to be used with density matrix, overlap, 
+ * and hamiltonian matrix export subroutines.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of basis functions
+ */
+int dftbp_get_basis_size(DftbPlus *instance);
+
+
+/**
+ * Queries the size of the total basis set of the system.
+ * 
+ * Essencially returns a number of orbitals. Meant to be used with density matrix, overlap, 
+ * and hamiltonian matrix export subroutines.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of basis functions
+ */
+ 
+
+/**
+ * Returns whether the system is described with real or complex matrices.
+ * 
+ * Meant to be used with density matrix, overlap, and hamiltonian matrix export subroutines.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return If the system is described with real matrices
+ */
+_Bool dftbp_is_hs_real(DftbPlus *instance);
+
+
+/**
+ * Register callback function to be invoked on each evaluation of the desity matrix.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] callback Pointer to a function that will be invoked each time when the density matrix 
+  *                    is evaluated.
+ *
+ * \param[in] aux_ptr Pointer that will be passed to callback on each invocation. Meant to pass
+ *                    external context to the callback.
+ */
+void dftbp_register_dm_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
+
+
+/**
+ * Register callback function to be invoked on the first evaluation of the overlap matrix.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] callback Pointer to a function that will be invoked the first time when the overlap 
+  *                    matrix is evaluated.
+ *
+ * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
+ *                    external context to the callback.
+ */
+void dftbp_register_s_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
+
+
+/**
+ * Register callback function to be invoked on the first evaluation of the hamiltonian matrix.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] callback Pointer to a function that will be invoked the first time when the hamiltonian 
+  *                    matrix is evaluated.
+ *
+ * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
+ *                    external context to the callback.
+ */
+void dftbp_register_h_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
+
+
+/**
+ * Queries weights of k-points.
+ * 
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] kweights List of k-point's weights. Size of the array is dftbp_nr_kpoints()
+*/
+void dftbp_get_kweights(DftbPlus *instance, double *kweights);
+
+
+/**
+ * Queries the nr. of (k-point,spin chanel) pairs in current process group.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. (k-point,spin chanel) pairs
+ */
+int dftbp_get_nr_local_ks(DftbPlus *instance);
+
+
+/**
  * Queries the nr. of k-points in the system.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -305,6 +433,17 @@ int dftbp_nr_kpoints(DftbPlus *instance);
  * \param[out] mermin_energy Mermin free energy of the current geometry. Unit: Bohr.
  */
 void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
+
+
+/**
+ * Queries (k-point,spin chanel) pairs in current process group.
+ * Reurn number of pairs, same as dftbp_get_nr_local_ks().
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] local_ks (k-point,spin chanel) pairs in current process group Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+ */
+int dftbp_get_local_ks(DftbPlus *instance, int *local_ks);
 
 
 /**

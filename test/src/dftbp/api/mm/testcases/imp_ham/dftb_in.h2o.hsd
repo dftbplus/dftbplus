@@ -1,0 +1,30 @@
+Geometry = GenFormat { 
+    <<< "geo_end.gen" 
+} 
+ 
+Hamiltonian = DFTB{ 
+   MaxAngularMomentum = { 
+      H = "s" 
+      O = "p" 
+   } 
+   SCC = Yes 
+   SlaterKosterFiles = Type2FileNames{ 
+      Prefix = ./ 
+      Separator = "-" 
+      Suffix = ".skf" 
+      } 
+   } 
+Options { 
+   WriteResultsTag = Yes 
+} 
+ParserOptions { 
+   IgnoreUnprocessedNodes = Yes  
+} 
+Analysis { 
+   CalculateForces = Yes  
+} 
+
+ParserOptions = {
+  ParserVersion = 12
+}
+
