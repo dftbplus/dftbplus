@@ -11,6 +11,7 @@
 module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_derivs_perturb, only : TPerturbInp
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -212,32 +213,8 @@ module dftbp_dftbplus_inputdata
     !> Input data for Pipek-Mezey localisation
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp
 
-    !> Is a perturbation expression in use
-    logical :: doPerturbation = .false.
-
-    !> Is a perturbation expression in use for each geometry step
-    logical :: doPerturbEachGeom = .false.
-
-    !> Tolerance for idenfifying need for degenerate perturbation theory
-    real(dp) :: tolDegenDFTBPT = 128.0_dp
-
-    !> Is this is a static electric field perturbation calculation
-    logical :: isEPerturb = .false.
-
-    !> Frequencies for perturbation (0 being static case)
-    real(dp), allocatable :: dynEFreq(:)
-
-    !> Frequency dependent perturbation eta
-    real(dp), allocatable :: etaFreq
-
-    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isRespKernelPert = .false.
-
-    !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
-    logical :: isRespKernelRPA
-
-    !> Frequencies for perturbation (0 being static case)
-    real(dp), allocatable :: dynKernelFreq(:)
+    !> Perturbation theory input data
+    type(TPerturbInp), allocatable :: perturbInp
 
     !> Printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
@@ -300,7 +277,10 @@ module dftbp_dftbplus_inputdata
     type(TElectronicSolverInp) :: solver
 
     integer :: iMixSwitch = 0
-    integer :: maxIter = 0
+
+    !> Maximum number of self-consitent iterations
+    integer :: maxSccIter = 0
+
     real(dp) :: almix = 0.0_dp
     integer :: iGenerations = 0
     logical :: tFromStart = .true.
@@ -367,10 +347,17 @@ module dftbp_dftbplus_inputdata
     !> Second derivative finite difference step
     real(dp) :: deriv2ndDelta = 0.0_dp
 
+    !> Number of k-points for the calculation
     integer :: nKPoint = 0
+
+    !> K-points for the system (= 0 for molecular in free space and no symmetries)
     real(dp), allocatable :: kPoint(:,:)
+
+    !> Weights for the k-points
     real(dp), allocatable :: kWeight(:)
 
+    !> Are the k-points not suitable for integrals over the Brillouin zone
+    logical :: poorKSampling = .false.
 
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp

@@ -505,6 +505,16 @@ module dftbp_dftbplus_initprogram
     !> Density functional tight binding perturbation theory
     logical :: doPerturbation = .false.
 
+    !> Self-consistency tolerance for perturbation (if SCC)
+    real(dp) :: perturbSccTol = 0.0_dp
+
+    !> Maximum iteration for self-consistency in the perturbation routines
+    integer :: maxPerturbIter = 0
+
+    !> Require converged perturbation (if true, terminate on failure, otherwise return NaN for
+    !> non-converged)
+    logical :: isPerturbConvRequired = .true.
+
     !> Density functional tight binding perturbation for each geometry step
     logical :: doPerturbEachGeom = .false.
 
@@ -1384,6 +1394,10 @@ contains
 
     ! Brillouin zone sampling
     if (this%tPeriodic .or. this%tHelical) then
+      if (input%ctrl%poorKSampling) then
+        call warning("The suplied k-points are probably not accurate for properties requiring&
+            & integration over the Brillouin zone")
+      end if
       this%nKPoint = input%ctrl%nKPoint
       allocate(this%kPoint(size(input%ctrl%KPoint,dim=1), this%nKPoint))
       allocate(this%kWeight(this%nKPoint))
@@ -1453,7 +1467,7 @@ contains
     this%isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc)
 
     if (this%tSccCalc) then
-      this%maxSccIter = input%ctrl%maxIter
+      this%maxSccIter = input%ctrl%maxSccIter
     else
       this%maxSccIter = 1
     end if
@@ -2282,30 +2296,34 @@ contains
           & spin orbit calculations")
     end if
 
-    this%doPerturbation = input%ctrl%doPerturbation
+    this%doPerturbation = allocated(input%ctrl%perturbInp)
     this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
 
     if (this%doPerturbation .or. this%doPerturbEachGeom) then
 
+      this%perturbSccTol = input%ctrl%perturbInp%perturbSccTol
+      this%maxPerturbIter = input%ctrl%perturbInp%maxPerturbIter
+      this%isPerturbConvRequired = input%ctrl%perturbInp%isPerturbConvRequired
+
       allocate(this%response)
       call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
-          & input%ctrl%tolDegenDFTBPT, input%ctrl%etaFreq)
+          & input%ctrl%perturbInp%tolDegenDFTBPT, input%ctrl%perturbInp%etaFreq)
 
-      this%isEResp = allocated(input%ctrl%dynEFreq)
+      this%isEResp = allocated(input%ctrl%perturbInp%dynEFreq)
       if (this%isEResp) then
-        call move_alloc(input%ctrl%dynEFreq, this%dynRespEFreq)
+        call move_alloc(input%ctrl%perturbInp%dynEFreq, this%dynRespEFreq)
         if (this%isRangeSep .and. any(this%dynRespEFreq /= 0.0_dp)) then
           call error("Finite frequency range separated calculation not currently supported")
         end if
       end if
 
-      this%isKernelResp = allocated(input%ctrl%dynKernelFreq)
+      this%isKernelResp = allocated(input%ctrl%perturbInp%dynKernelFreq)
       if (this%isKernelResp) then
-        call move_alloc(input%ctrl%dynKernelFreq, this%dynKernelFreq)
+        call move_alloc(input%ctrl%perturbInp%dynKernelFreq, this%dynKernelFreq)
         if (this%isRangeSep .and. any(this%dynKernelFreq /= 0.0_dp)) then
           call error("Finite frequency range separated calculation not currently supported")
         end if
-        this%isRespKernelRPA = input%ctrl%isRespKernelRPA
+        this%isRespKernelRPA = input%ctrl%perturbInp%isRespKernelRPA
         if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
           call error("RPA option only relevant for SCC calculations of response kernel")
         end if
@@ -2320,8 +2338,7 @@ contains
         call error("Currently the perturbation expressions for NEGF are not implemented")
       end if
       if (.not. this%electronicSolver%providesEigenvals) then
-        call error("Perturbation expression for polarisability require eigenvalues and&
-            & eigenvectors")
+        call error("Perturbation expressions currently require eigenvalues and eigenvectors")
       end if
 
       if (this%t3rd) then

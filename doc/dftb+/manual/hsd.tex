@@ -21,6 +21,7 @@ where the value \verb|value| was assigned to the property
   \begin{itemize}
   \item integer
   \item real
+  \item complex
   \item logical
   \item string
   \end{itemize}
@@ -64,16 +65,24 @@ The following examples demonstrate the assignments with scalar types:
   SomeInt2 = -3
   SomeRealFixedForm = 3.453
   SomeRealExpForm = 2.12e-45
+  ComplexList = 4+9i  0.32-0.45i  3.2e-1+4.5e-1i  -1i  8.0
   Logical1 = Yes
   Logical2 = no
   SomeString = "this is a string value"
 \end{verbatim}
 
-As showed above, real numbers can be entered in either fixed or
-exponential form. The value for logical properties can be either
-\verb|Yes| or \verb|No| (case insensitive). Strings should always be
-enclosed in quotation marks, to make sure that they are treated as one
-string and that they are not interpreted by the parser:
+As shown above, real numbers can be entered in either fixed or exponential
+form. Complex values are entered as two consecutive real valued numbers, one for
+the real part and the other for the imaginary component. The imaginary part must
+have a suffix of the letter \verb|i|.  No spaces are allowed inside the complex
+number, and the sign of the imaginary part must be explicitly written out (if
+the real part is present).  If one of the two components is zero, it can be
+omitted.
+
+The value for logical properties can be either \verb|Yes| or \verb|No| (and are
+case insensitive). Strings should always be enclosed in quotation marks, to make
+sure that they are treated as one string and that they are not interpreted by
+the parser:
 \begin{verbatim}
   String1 = "quoted string"
   String2 = this value is actually a list of 9 strings  # list of strings!

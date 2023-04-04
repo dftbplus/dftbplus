@@ -15,15 +15,15 @@ import argparse
 import numpy as np
 from scipy import constants
 
-USAGE = """Reads output from TD calculation (after kick) and produces
-absorption spectra. Needs mux.dat, muy.dat and muz.dat files in working directory."""
+DESCRIPTION = """Reads output from TD calculation (after kick) and produces absorption spectra.
+Needs mux.dat, muy.dat and muz.dat files in working directory."""
 
 def main():
-    parser = argparse.ArgumentParser(description=USAGE)
-    parser.add_argument("tau", metavar="DAMPING",
-                        help="damping constant in fs")
-    parser.add_argument("field", metavar="FIELD",
-                        help="field intensity in volts/angstrom")
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument("-d", "--damping", dest="tau", required=True,
+                        type=float, help="damping constant in fs")
+    parser.add_argument("-f", "--field", dest="field", required=True,
+                        type=float, help="field intensity in volts/angstrom")
 
     args = parser.parse_args()
 
@@ -38,7 +38,7 @@ def main():
     else:
         spinpol = False
 
-    damp = np.exp(-mux[:,0]/float(args.tau))
+    damp = np.exp(-mux[:,0]/ args.tau)
     if not spinpol:
         average = ((mux[:,1]-mux[0,1]) + (muy[:,2]-muy[0,2]) + (muz[:,3]-muz[0,3]))/3.0
     elif (spintype == 's'):
@@ -54,7 +54,7 @@ def main():
     cspeednm = constants.speed_of_light * 1.0e9 / 1.0e15
     energsev = np.fft.rfftfreq(10*mux.shape[0], mux[1,0]-mux[0,0]) * hplanck
     frec = np.fft.rfftfreq(10*mux.shape[0], (mux[1,0] - mux[0,0]) * 1.0E-15 )
-    absorption = -2.0 * energsev * spec.imag / np.pi / float(args.field)
+    absorption = -2.0 * energsev * spec.imag / np.pi / args.field
     energsnm = constants.nu2lambda(frec[1:]) * 1.0E9
 
     emin = 0.5

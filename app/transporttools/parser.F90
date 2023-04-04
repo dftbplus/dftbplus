@@ -302,7 +302,7 @@ contains
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: selectionRange(2)
-    integer :: ii
+    integer :: ii, ishift
     type(fnode), pointer :: field, pNode, pTmp
     type(string) :: buffer, modif
     type(TListReal) :: vecBuffer
@@ -336,11 +336,14 @@ contains
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
         if (isZeroBased(char(modif))) then
           selectionRange(:) = [0, size(geom%species) - 1]
+          ishift = 1
         else
           selectionRange(:) = [1, size(geom%species)]
+          ishift = 0
         end if
         call getSelectedAtomIndices(pTmp, char(buffer), geom%speciesNames, geom%species, &
             & iAtInRegion(ii)%data, selectionRange=selectionRange)
+        iAtInRegion(ii)%data = iAtInRegion(ii)%data + ishift
         call init(vecBuffer)
         call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
         if (len(vecBuffer).eq.3) then
