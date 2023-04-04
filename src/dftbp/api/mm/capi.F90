@@ -17,6 +17,8 @@ module dftbp_capi
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
+  use dftbp_apicallbackc, only: dmhs_callback_c_wrapper, TCAuxWrapper
+
   implicit none
   private
 
@@ -178,10 +180,10 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Number of requested points
-    integer, value, intent(in) :: nLocations
+    integer(c_int), value, intent(in) :: nLocations
 
     !> Resulting potentials
-    real(dp), intent(out) :: pot(*)
+    real(c_double), intent(out) :: pot(*)
 
     !> Sites to calculate potential
     real(c_double), intent(in) :: locations(3,*)
@@ -253,6 +255,94 @@ contains
     call instance%setQDepExtPotGen(extPotGenC)
 
   end subroutine c_DftbPlus_registerExtPotGenerator
+
+
+  !> register DM exporting callback
+  subroutine c_DftbPlus_registerDMCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_dm_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
+
+    call c_f_pointer(handler%instance, instance)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%auxPtr = aux_ptr
+      wrapper%callback = callback
+    end select
+    call instance%registerDMCallback(dmhs_callback_c_wrapper, wrapper)
+
+  end subroutine c_DftbPlus_registerDMCallback
+
+
+  !> register S exporting callback
+  subroutine c_DftbPlus_registerSCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_s_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
+
+    call c_f_pointer(handler%instance, instance)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%auxPtr = aux_ptr
+      wrapper%callback = callback
+    end select
+    
+    call instance%registerSCallback(dmhs_callback_c_wrapper, wrapper)
+
+  end subroutine c_DftbPlus_registerSCallback
+
+
+  !> register H exporting callback
+  subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_h_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
+
+    call c_f_pointer(handler%instance, instance)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%auxPtr = aux_ptr
+      wrapper%callback = callback
+    end select
+    call instance%registerHCallback(dmhs_callback_c_wrapper, wrapper)
+
+  end subroutine c_DftbPlus_registerHCallback
 
 
   !> Set/replace the coordinates in a DFTB+ calculation instance
@@ -378,6 +468,94 @@ contains
     nAtom = instance%nrOfAtoms()
 
   end function c_DftbPlus_nrOfAtoms
+
+
+  !> Obtain nr. of spin channels.
+  function c_DftbPlus_nrOfSpin(handler) result(nSpin) bind(C, name='dftbp_get_nr_spin')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nSpin
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nSpin = instance%nrOfSpin()
+  end function c_DftbPlus_nrOfSpin
+
+
+  !> Obtain nr. of (k-point,spin chanel) pairs in current process group.
+  function c_DftbPlus_nrOfLocalKS(handler) result(nLocalKS) bind(C, name='dftbp_get_nr_local_ks')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nLocalKS
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nLocalKS = instance%nrOfLocalKS()
+
+  end function c_DftbPlus_nrOfLocalKS
+  
+  !> Get (k-point,spin chanel) pairs in current process group, returns number of pairs
+  function c_DftbPlus_getLocalKS(handler, localKS) result(nLocalKS) bind(C, name='dftbp_get_local_ks')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int), intent(out) :: localKS(2, *)
+
+    type(TDftbPlusC), pointer :: instance
+    integer(c_int) :: nLocalKS
+
+    call c_f_pointer(handler%instance, instance)
+    nLocalKS = instance%nrOfLocalKS()
+
+    call instance%getLocalKS(localKS(:,1:nLocalKS))
+
+  end function c_DftbPlus_getLocalKS
+
+
+  !> Queries weights of k-points
+  subroutine c_DftbPlus_getKWeights(handler, kweights)  bind(C, name='dftbp_get_kweights')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    real(c_double), intent(out) :: kweights(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nkpts
+
+    call c_f_pointer(handler%instance, instance)
+    nkpts = instance%nrOfKPoints()
+
+    call instance%getKWeights(kweights(1:nkpts))
+
+  end subroutine c_DftbPlus_getKWeights
+
+
+  !> Obtain total size of the basis set
+  function c_DftbPlus_getBasisSize(handler) result(BasisSize) bind(C, name='dftbp_get_basis_size')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    type(TDftbPlusC), pointer :: instance
+    integer(c_int) :: BasisSize
+
+    call c_f_pointer(handler%instance, instance)
+    
+    BasisSize = instance%getBasisSize()
+
+  end function c_DftbPlus_getBasisSize
+  
+
+  !> Whether the system is described with real matrices
+  function c_DftbPlus_isHSReal(handler) result(HSReal) bind(C, name='dftbp_is_hs_real')
+  !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    type(TDftbPlusC), pointer :: instance
+    logical(kind=C_BOOL) :: HSReal
+
+    call c_f_pointer(handler%instance, instance)
+    
+    HSReal = instance%isHSReal()
+
+  end function c_DftbPlus_isHSReal
 
 
   !> Obtain nr. of k-points.
