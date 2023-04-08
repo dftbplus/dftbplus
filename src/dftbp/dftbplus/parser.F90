@@ -7421,7 +7421,7 @@ contains
     type(fnode), pointer :: node, container, child
     type(fnodeList), pointer :: nodes
     type(string) :: buffer
-    integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecies, nAtom
     character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
@@ -7446,19 +7446,18 @@ contains
       call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
-        call detailedError(child, "Atom region contains atom(s) which have&
-            & already been overridden")
+        call detailedError(child, "Atom region contains atom(s) which have already been overridden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
-      iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))
-      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecie)) then
-        call detailedError(child, "All atoms in a ReferenceOccupation&
-            & declaration must have the same type.")
+      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+        call detailedError(child, "All atoms in a ReferenceOccupation declaration must have the&
+            & same type.")
       end if
-      call getShellNames(iSpecie, orb, shellNamesTmp)
-      do iShell = 1, orb%nShell(iSpecie)
+      call getShellNames(iSpecies, orb, shellNamesTmp)
+      do iShell = 1, orb%nShell(iSpecies)
           call getChildValue(node, shellNamesTmp(iShell), customOcc(iShell, iCustomOcc), &
-            & default=referenceOcc(iShell, iSpecie))
+            & default=referenceOcc(iShell, iSpecies))
       end do
       deallocate(shellNamesTmp)
     end do

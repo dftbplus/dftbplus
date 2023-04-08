@@ -513,8 +513,10 @@ module dftbp_dftbplus_inputdata
     !> Maximal timing level to show in output
     integer :: timingLevel
 
-    ! Custom occupations
+    !> Array of lists of atoms where the 'neutral' shell occupation is modified
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
+
+    !> Modified occupations for shells of the groups atoms in customOccAtoms
     real(dp), allocatable :: customOccFillings(:,:)
 
     ! TI-DFTB variables
