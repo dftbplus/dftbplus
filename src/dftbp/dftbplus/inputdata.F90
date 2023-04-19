@@ -112,6 +112,9 @@ module dftbp_dftbplus_inputdata
     !> Choice of range separation method
     integer :: rangeSepAlg
 
+    !> Hybrid xc-functional type, as extracted from SK-file(s)
+    integer :: rangeSepType
+
   end type TRangeSepInp
 
 
