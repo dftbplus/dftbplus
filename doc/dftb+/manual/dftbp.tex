@@ -458,6 +458,28 @@ Driver = GeometryOptimisation {
 \end{verbatim}
 
 
+\subsubsection{Optimiser: SteepestDescent}
+\label{sec:dftbp.Optimiser.SteepestDescent}
+
+Steepest descent optimiser, that proposes displacements according to the (scaled) gradient value.
+
+\begin{ptable}
+  \kw{ScalingFactor} & r &  & 1.0 & \\
+\end{ptable}
+\begin{description}
+\item[\is{ScalingFactor}]
+  Scaling factor to displace downwards according to the directional derivative.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = SteepestDescent {
+    ScalingFactor = 1.0
+  }
+}
+\end{verbatim}
+
+
 \subsubsection{Convergence}
 \label{sec:dftbp.Convergence}
 
