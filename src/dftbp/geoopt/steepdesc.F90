@@ -7,199 +7,97 @@
 
 #:include 'common.fypp'
 
-!> Function minimization with steepest descent algorithm
+!> Implementation of a steepest descent optimization procedure.
 module dftbp_geoopt_steepdesc
   use dftbp_common_accuracy, only : dp
+  use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   implicit none
 
   private
+  public :: TSteepdescInput, TSteepdesc, TSteepdesc_init
 
 
-  !> Contains data for the steepest descent minimizer
-  type TSteepDesc
-    private
+  !> Input for the steepest descent optimizer
+  type, extends(TOptimizerInput) :: TSteepdescInput
 
-    !> Dimensionality of the space
-    integer :: nElem
+    !> Scaling factor of gradients
+    real(dp) :: scalingFactor
 
-    !> Previous coordinate
-    real(dp), allocatable :: xOld(:)
-
-    !> Weights for the coordinates
-    real(dp), allocatable :: weight(:)
-
-    !> Tolerance criteria for convergence
-    real(dp) :: tolerance
-
-    !> Maximal displacement along one coordinate in one step
-    real(dp) :: maxDisp
-
-    !> If CG converged
-    logical :: tConverged
-
-    !> If object is initialized
-    logical :: tInitialized
-  end type TSteepDesc
+  end type TSteepdescInput
 
 
-  !> Creates SD instance
-  interface init
-    module procedure SteepDesc_init
-  end interface
+  !> Steepest descent optimization driver
+  type, extends(TOptimizer) :: TSteepdesc
 
+    !> Number of variables to optimize
+    integer :: nVar
 
-  !> Resets the SD instance
-  interface reset
-    module procedure SteepDesc_reset
-  end interface
+    !> Scaling factor of gradients
+    real(dp) :: scalingFactor
 
+  contains
 
-  !> Passes calculated gradient to the minimizer and returns a new point
-  interface next
-    module procedure SteepDesc_next
-  end interface
+    !> Calculate displacement from gradient
+    procedure :: step
 
-  public :: TSteepDesc
-  public :: init, reset, next
+    !> Reset optimizer
+    procedure :: reset
+
+  end type TSteepdesc
 
 contains
 
 
-  !> Initialises a steepest descent instance
-  subroutine SteepDesc_init(this, nElem, tol, maxDisp, weight)
+  !> Creates new steepest descent optimization driver.
+  subroutine TSteepdesc_init(this, input, nVar)
 
-    !> Steepest descent instance on exit
-    type(TSteepDesc), intent(out) :: this
+    !> Instance of the optimizer
+    type(TSteepdesc), intent(out) :: this
 
-    !> Nr. of elements in the vectors
-    integer, intent(in) :: nElem
+    !> Input for the steepest descent optimizer
+    type(TSteepdescInput), intent(in) :: input
 
-    !> Tolerance for the gradient
-    real(dp), intent(in) :: tol
+    !> Number of variables to optimize
+    integer, intent(in) :: nVar
 
-    !> Maximal displacement in one element in one step
-    real(dp), intent(in) :: maxDisp
+    @:ASSERT(nVar > 0)
 
-    !> The weights of the gradient components
-    real(dp), intent(in) :: weight(:)
+    this%nVar = nVar
+    this%scalingFactor = input%scalingFactor
 
-    @:ASSERT(nElem > 0)
-    @:ASSERT(tol > 0.0_dp)
-    @:ASSERT(maxDisp > 0.0_dp)
-    @:ASSERT(size(weight) == nElem)
-
-    this%nElem = nElem
-    this%tolerance = tol
-    this%maxDisp = maxDisp
-    allocate(this%weight(nElem))
-    this%weight(:) = weight(:)
-    allocate(this%xOld(nElem))
-    this%tInitialized = .false.
-
-  end subroutine SteepDesc_init
+  end subroutine TSteepdesc_init
 
 
-  !> Resets CG minimizer
-  subroutine SteepDesc_reset(this, x0)
+  !> Calculates displacement from gradients.
+  subroutine step(this, val, grad, displ)
 
-    !> minimizer object
-    type(TSteepDesc), intent(inout) :: this
+    !> Instance of geometry optimization driver
+    class(TSteepdesc), intent(inout) :: this
 
-    !> Point to start from
-    real(dp), intent(in) :: x0(:)
+    !> Current function value
+    real(dp), intent(in) :: val
 
-    @:ASSERT(size(x0) == this%nElem)
-
-    this%xOld(:) = x0(:)
-    this%tConverged = .false.
-    this%tInitialized = .true.
-
-  end subroutine SteepDesc_reset
-
-
-  !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
-  !> back.
-  !> When calling the first time, gradient for the starting point of the minimization should be
-  !> passed.
-  subroutine SteepDesc_next(this, dx, xNew, tConverged)
-
-    !> CG minimizer
-    type(TSteepDesc), intent(inout) :: this
-
-    !> Gradient in the last point
-    real(dp), intent(in) :: dx(:)
-
-    !> New proposed point
-    real(dp), intent(out) :: xNew(:)
-
-    !> True, if gradient got below the specified tolerance.
-    logical,  intent(out) :: tConverged
-
-    @:ASSERT(this%tInitialized)
-    @:ASSERT(size(xNew) == this%nElem)
-    @:ASSERT(size(dx) == this%nElem)
-
-    if (.not. this%tConverged) then
-      call next_local(xNew, this%xOld, dx, this%weight, this%maxDisp, &
-          &this%tolerance, this%tConverged)
-    else
-      xNew(:) = this%xOld(:)
-    end if
-    tConverged = this%tConverged
-
-  end subroutine SteepDesc_next
-
-
-  !> Workhorse for the SD minimizer
-  subroutine next_local(xNew, xOld, grad, weight, maxDisp, tolerance, &
-      &tConverged)
-
-    !> Coordinates of the new point on exit
-    real(dp), intent(out) :: xNew(:)
-
-    !> Coordinates of the previous point
-    real(dp), intent(inout) :: xOld(:)
-
-    !> Gradient at xOld
+    !> Current gradient
     real(dp), intent(in) :: grad(:)
 
-    !> Weighting factors for the gradient components
-    real(dp), intent(in) :: weight(:)
+    !> Next displacement step
+    real(dp), intent(out) :: displ(:)
 
-    !> Maximal displacement along one component
-    real(dp), intent(in) :: maxDisp
+    @:ASSERT(size(grad) == this%nVar)
+    @:ASSERT(size(displ) == this%nVar)
 
-    !> Termination tolerance
-    real(dp), intent(in) :: tolerance
+    displ(:) = -this%scalingFactor * grad
 
-    !> Completion of the minimiser
-    logical,  intent(out) :: tConverged
+  end subroutine step
 
-    real(dp) :: maxX
 
-    @:ASSERT(size(xNew) == size(xOld))
-    @:ASSERT(size(xNew) == size(xOld))
-    @:ASSERT(size(xNew) == size(xOld))
-    @:ASSERT(maxDisp > 0.0_dp)
+  !> Resets the optimizer.
+  subroutine reset(this)
 
-    if (maxval(abs(grad)) < tolerance) then
-      tConverged = .true.
-      xNew(:) = xOld(:)
-      return
-    else
-      tConverged = .false.
-    end if
+    !> Instance of geometry optimization driver
+    class(TSteepdesc), intent(inout) :: this
 
-    xNew(:) = -1.0_dp * weight(:) * grad(:)
+  end subroutine reset
 
-    maxX = maxval(abs(xNew))
-    if (maxX <= maxDisp) then
-      xNew(:) = xOld(:) + xNew(:)
-    else
-      xNew(:) = xOld(:) + (maxDisp / maxX) * xNew(:)
-    end if
-    xOld(:) = xNew(:)
-
-  end subroutine next_local
 
 end module dftbp_geoopt_steepdesc
