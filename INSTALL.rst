@@ -310,7 +310,7 @@ Parallelism options
 +=================+========+==================================================+
 |-DWITH_OMP       | Y      |OpenMP parallelism enabled in the build.          |
 +-----------------+--------+--------------------------------------------------+
-|-DWITH_MPI       | N      |MPI parallelism enanbled in the build.            |
+|-DWITH_MPI       | N      |MPI parallelism enabled in the build.             |
 +-----------------+--------+--------------------------------------------------+
 |-DWITH_ELSI      | N      |Requires that MPI is also enabled.                |
 +-----------------+--------+--------------------------------------------------+
@@ -376,7 +376,7 @@ before building are below.
 |                        |build with ctest.                                   |
 +------------------------+----------------------------------------------------+
 |-DTEST_RUNNER_TEMPLATE  |Modifies the DFTB+ invocation inside the test system|
-|                        |(for example if a specific mpi loader is required to|
+|                        |(for example if a specific MPI loader is required to|
 |                        |run calculations).                                  |
 +------------------------+----------------------------------------------------+
 
