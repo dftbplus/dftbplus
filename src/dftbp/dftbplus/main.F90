@@ -4705,6 +4705,7 @@ contains
       end do
     end if
 
+
   end subroutine getDipoleMoment
 
 
@@ -4766,12 +4767,12 @@ contains
       potentialDerivative(:,1) = -eFieldScaling%scaledExtEField(coord0(iCart,:))
       hprime(:,:) = 0.0_dp
       dipole(:,:) = 0.0_dp
-      call addShift(env, hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potentialDerivative, .true.)
+      call addShift(env, hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species,&
+          & orb, iSparseStart, nAtom, img2CentCell, potentialDerivative, .true.)
 
       ! evaluate <psi| dH/dE | psi> = Tr_part rho dH/dE
-      call mulliken(env, dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
-          & img2CentCell, iSparseStart)
+      call mulliken(env, dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour,&
+          & nNeighbourSK, img2CentCell, iSparseStart)
 
       ! add nuclei term for derivative wrt E
       do iAt = 1, nAtom
