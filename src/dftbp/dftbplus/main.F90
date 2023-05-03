@@ -131,6 +131,10 @@ module dftbp_dftbplus_main
   use dftbp_transport_negfint, only : TNegfInt_final
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
+#:if WITH_MAGMA
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealGPU, makeDensityMtxCmplxGPU
+#:endif
+
   implicit none
 
   private
@@ -140,6 +144,8 @@ module dftbp_dftbplus_main
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
+  !> Should MAGMA GPU routines be used?
+  logical, parameter :: withMAGMA = ${FORTRAN_LOGICAL(WITH_MAGMA)}$
 
 contains
 
@@ -3308,7 +3314,13 @@ contains
     #:else
       !> Either pack density matrix or delta density matrix
       if(.not. associated(deltaRhoOutSqr)) then
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
+        
+        if (withMAGMA) then
+           call makeDensityMtxRealGPU(work, eigvecs(:,:,iKS), filling(:,iSpin))
+        else
+           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
+        end if
+        
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packHelicalHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
@@ -3320,9 +3332,16 @@ contains
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         ! Rangeseparated case: pack delta density matrix
-        call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
-            & eigvecs(:,:,iKS), filling(:,iSpin))
-        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+         
+        if (withMAGMA) then
+           call makeDensityMtxRealGPU(deltaRhoOutSqr(:,:,iSpin),&
+                & eigvecs(:,:,iKS), filling(:,iSpin))
+        else
+           call makeDensityMatrix(deltaRhoOutSqr(:,:,iSpin),&
+                & eigvecs(:,:,iKS), filling(:,iSpin))
+        end if
+        
+      call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packHelicalHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
@@ -3431,7 +3450,11 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
-      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
+      if (withMAGMA) then
+        call makeDensityMtxCmplxGPU(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
+      else
+        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
+      end if
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       if (tHelical) then
         call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
@@ -3567,7 +3590,13 @@ contains
       call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
           & eigvecs(:,:,iKS), work)
     #:else
-      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
+       
+      if (withMAGMA) then
+           call makeDensityMtxCmplxGPU(work, eigvecs(:,:,iKS), filling(:,iK))
+      else
+           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
+      end if
+        
     #:endif
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
         call getOnsiteSpinOrbitEnergy(env, rVecTemp, work, denseDesc, xi, orb, species)
@@ -5145,7 +5174,13 @@ contains
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
         call blockSymmetrizeHS(work, denseDesc%iAtomStart)
-        call makeDensityMatrix(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        
+        if (withMAGMA) then
+          call makeDensityMtxRealGPU(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        else
+          call makeDensityMatrix(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        end if
+        
         ! D H
         call symm(eigvecsReal(:,:,iKS), "L", work2, work)
         ! (D H) D
@@ -5182,7 +5217,12 @@ contains
         call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=1.0_dp,&
             & beta=1.0_dp)
       #:else
-        call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        if (withMAGMA) then
+          call makeDensityMtxRealGPU(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        else
+          call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
+        end if
+
         if (tHelical) then
           call unpackHelicalHS(work2, ints%hamiltonian(:,iS), neighbourlist%iNeighbour,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
@@ -5353,7 +5393,12 @@ contains
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
       #:else
-        call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        if (withMAGMA) then
+          call makeDensityMtxCmplxGPU(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        else
+          call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        end if
+
         if (tHelical) then
           call unpackHelicalHS(work, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
@@ -5399,7 +5444,12 @@ contains
         call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
       #:else
-        call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        if (withMAGMA) then
+          call makeDensityMtxCmplxGPU(work,eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        else
+          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
+        end if
+
         if (tHelical) then
           call unpackHelicalHS(work2, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
