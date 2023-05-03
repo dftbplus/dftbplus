@@ -175,8 +175,8 @@ contains
 
     ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
     energy%atomNonSCC(:) = 0.0_dp
-    call mulliken(env, energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
-        & img2CentCell, iSparseStart)
+    call mulliken(env, energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour,&
+        & nNeighbourSK, img2CentCell, iSparseStart)
     energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion))
 
     energy%atomExt(:) = 0.0_dp
