@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Implementation of a rational function optimization procedure.
 !>
 !> The optimization problem is solved by determining the lowest eigensolution of the
@@ -35,7 +37,7 @@ module dftbp_geoopt_rationalfunc
   type, extends(TOptimizer) :: TRationalFunc
 
     !> Number of variables to optimize
-    integer :: nvar
+    integer :: nVar
 
     !> Lower limit of diagonal Hessian elements
     real(dp) :: diagLimit
@@ -57,6 +59,9 @@ module dftbp_geoopt_rationalfunc
     !> Calculate displacement from gradient
     procedure :: step
 
+    !> Reset optimizer
+    procedure :: reset
+
   end type TRationalFunc
 
 contains
@@ -74,23 +79,25 @@ contains
     !> Number of variables to optimize
     integer, intent(in) :: nVar
 
-    integer :: ii, nvar1, npvar, npvar1
+    integer :: ii, nVar1, npVar, npVar1
 
-    this%nvar = nVar
+    this%nVar = nVar
     this%diagLimit = input%diagLimit
 
-    nvar1  = this%nvar+1
-    npvar = this%nvar*nvar1/2
-    npvar1 = nvar1*(1+nvar1)/2
+    nVar1 = this%nVar + 1
+    npVar = this%nVar * nVar1 / 2
+    npVar1 = nVar1 * (1 + nVar1) / 2
+
     allocate(this%gLast(nVar), source=0.0_dp)
-    allocate(this%hess(npvar), source=0.0_dp)
-    allocate(this%aaug(npvar1), source=0.0_dp)
-    allocate(this%uaug(nvar1), source=0.0_dp)
+    allocate(this%hess(npVar), source=0.0_dp)
+    allocate(this%aaug(npVar1), source=0.0_dp)
+    allocate(this%uaug(nVar1), source=0.0_dp)
 
     this%hess(:) = 0.0_dp
-    do ii = 1, this%nvar
-      this%hess(ii*(1+ii)/2) = 1.0_dp
+    do ii = 1, this%nVar
+      this%hess(ii * (1 + ii) / 2) = 1.0_dp
     end do
+
   end subroutine TRationalFunc_init
 
 
@@ -110,24 +117,44 @@ contains
     real(dp), intent(out) :: displ(:)
 
     real(dp) :: eaug
-    integer :: nvar1, npvar, npvar1
+    integer :: nVar1
     logical :: fail
 
-    nvar1  = this%nvar+1
-    npvar = this%nvar*nvar1/2
-    npvar1 = nvar1*(1+nvar1)/2
+    nVar1  = this%nVar + 1
 
-    displ(:) = this%uaug(:this%nvar) / this%uaug(nvar1)
+    displ(:) = this%uaug(:this%nVar) / this%uaug(nVar1)
     call bfgsUpdate(grad, this%gLast, displ, this%diagLimit, this%hess)
 
     this%aaug(:) = [this%hess, grad, 0.0_dp]
     this%uaug(:) = [-grad, 1.0_dp]
     this%uaug(:) = this%uaug(:) / norm2(this%uaug)
-    call davidson(nvar1, sqrt(epsilon(1.0_dp)), this%aaug, this%uaug, eaug, fail)
-    displ(:) = this%uaug(:this%nvar) / this%uaug(nvar1)
+
+    call davidson(nVar1, sqrt(epsilon(1.0_dp)), this%aaug, this%uaug, eaug, fail)
+    displ(:) = this%uaug(:this%nVar) / this%uaug(nVar1)
     this%gLast(:) = grad
 
   end subroutine step
+
+
+  !> Reset optimizer
+  subroutine reset(this)
+
+    !> Instance of geometry optimization driver
+    class(TRationalFunc), intent(inout) :: this
+
+    !! Iterates over number of variables to optimize
+    integer :: ii
+
+    this%gLast(:) = 0.0_dp
+    this%hess(:) = 0.0_dp
+    this%aaug(:) = 0.0_dp
+    this%uaug(:) = 0.0_dp
+
+    do ii = 1, this%nVar
+      this%hess(ii * (1 + ii) / 2) = 1.0_dp
+    end do
+
+  end subroutine reset
 
 
   !> Davidson iterative eigenvalue solver, solves for the first (lowest) eigenvalue only

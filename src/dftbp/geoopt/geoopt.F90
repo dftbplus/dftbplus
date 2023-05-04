@@ -162,7 +162,7 @@ contains
     case (geoOptTypes%lbfgs)
       call this%pLbfgs%reset(x0)
     case (geoOptTypes%fire)
-      call this%pFire%reset(x0)
+      call this%pFire%reset_old(x0)
     end select
 
   end subroutine GeoOpt_reset
