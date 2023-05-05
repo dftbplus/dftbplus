@@ -8,6 +8,7 @@
 !> FIRE optimiser
 module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
+  use dftbp_io_message, only : error
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   implicit none
 
@@ -86,6 +87,7 @@ module dftbp_geoopt_fire
   contains
 
     procedure :: reset
+    procedure :: reset_old
     procedure :: next
     procedure :: step
 
@@ -167,20 +169,39 @@ contains
 
 
   !> Reset the integrator state
-  subroutine reset(this, x0)
+  subroutine reset_old(this, xx)
 
     !> Instance
     class(TFire), intent(inout) :: this
 
     !> Coordinates
-    real(dp), intent(in) :: x0(:)
+    real(dp), intent(in) :: xx(:)
+
+    if (.not. allocated(this%x)) then
+      call error("Trying to reset new FIRE optimizer with old routine.")
+    end if
 
     this%iter = 0
     this%resetStep = 0
     this%a = this%a_start
     this%dt = this%dt_init
     this%velocity(:) = 0.0_dp
-    this%x(:) = x0
+    this%x(:) = xx
+
+  end subroutine reset_old
+
+
+  !> Reset the integrator state
+  subroutine reset(this)
+
+    !> Instance
+    class(TFire), intent(inout) :: this
+
+    this%iter = 0
+    this%resetStep = 0
+    this%a = this%a_start
+    this%dt = this%dt_init
+    this%velocity(:) = 0.0_dp
 
   end subroutine reset
 
