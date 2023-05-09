@@ -33,7 +33,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_halogenx, only : THalogenX
   use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
       & getSccHamiltonian, mergeExternalPotentials, resetExternalPotentials,&
-      & addBlockChargePotentials
+      & addBlockChargePotentials, constrainSccHamiltonian
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
@@ -72,7 +72,7 @@ module dftbp_dftbplus_main
       & writeFinalDriverstatus, writeHessianout, writeBornChargesOut, writeBornDerivs,&
       & writeAutotestTag, writeResultsTag, writeDetailedXml, writeCosmoFile, printForceNorm,&
       & printLatticeForceNorm, writeDerivBandOut, writeDetailedOut8, writeDetailedOut9,&
-      & writeDetailedOut10
+      & writeDetailedOut10, printElecConstrHeader, printElecConstrInfo
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, fCharges, fShifts, fStopScc, mdOut,&
       & userOut, fStopDriver, hessianOut, bornChargesOut, bornDerivativesOut, resultsTag,&
       & derivEBandOut
@@ -709,6 +709,9 @@ contains
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
+    ! Shift due to constraints
+    real(dp) :: constrShift(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin)
+
     ! Charge difference
     real(dp), allocatable :: dQ(:,:,:)
 
@@ -744,6 +747,12 @@ contains
             & qiBlock, this%onSiteElements, this%species, this%orb, this%q0)
       end if
 
+    end if
+
+    if (allocated(this%elecConstrain)) then
+      constrShift(:,:,:,:) = 0.0_dp
+      call this%elecConstrain%getConstrainShift(constrShift)
+      this%potential%intBlock = this%potential%intBlock + constrShift
     end if
 
     ! All potentials are added up into intBlock
@@ -994,9 +1003,25 @@ contains
     ! Charge difference
     real(dp), allocatable :: dQ(:,:,:)
 
-    ! loop index
+    ! Loop indices
     integer :: iSpin, iKS
 
+    ! Iteration of constraints
+    integer :: iConstrIter
+
+    ! Number of constraint iterations
+    integer :: nConstrIter
+
+    !> Contribution to free energy functional from constraint(s)
+    real(dp) :: deltaW
+
+    !> Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    ! Whether constraints are converged
+    logical :: tConstrConverged
+
+    ! Auxiliary dipole storage
     real(dp), allocatable :: dipoleTmp(:)
 
     if (this%tDipole) then
@@ -1110,7 +1135,7 @@ contains
       if (this%tWriteDetailedOut) then
         call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       end if
-      ! We need to define hamiltonian by adding the potential
+      ! We need to define Hamiltonian by adding the potential
       call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
@@ -1132,6 +1157,11 @@ contains
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
     call env%globalTimer%startTimer(globalTimers%scc)
+
+    if (allocated(this%elecConstrain)) then
+      deltaW = 0.0_dp
+      dWdVcMax = 0.0_dp
+    end if
 
     REKS_SCC: if (allocated(this%reks)) then
 
@@ -1240,67 +1270,97 @@ contains
 
       lpSCC: do iSccIter = 1, this%maxSccIter
 
-        call processPotentials(env, this, iSccIter, .true., this%qInput, this%qBlockIn,&
-            & this%qiBlockIn)
-
-        if (this%electronicSolver%iSolver == electronicSolverTypes%pexsi .and. this%tSccCalc) then
-          call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
+        if (allocated(this%elecConstrain)) then
+          nConstrIter = this%elecConstrain%getMaxIter()
+          call printElecConstrHeader()
+          if (allocated(this%elecConstrain)) then
+            call this%elecConstrain%potOpt%reset()
+          end if
+        else
+          nConstrIter = 1
         end if
 
-        call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
-            & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
-            & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
+        lpConstrInner: do iConstrIter = 1, nConstrIter
 
-        if (this%tWriteRealHS .or. this%tWriteHS&
-            & .and. any(this%electronicSolver%iSolver ==&
-            & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
-          call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
-              & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
-              & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
-              & this%iCellVec, this%cellVec, this%ints%hamiltonian, this%ints%iHamiltonian)
-        end if
+          call processPotentials(env, this, iSccIter, .true., this%qInput, this%qBlockIn,&
+              & this%qiBlockIn)
 
-        call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
+          if (this%electronicSolver%iSolver == electronicSolverTypes%pexsi .and. this%tSccCalc) then
+            call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
+          end if
 
-        call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
-            & this%neighbourList, this%nNeighbourSk, this%iSparseStart, this%img2CentCell,&
-            & this%iCellVec, this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical,&
-            & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
-            & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
-            & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%eigen,&
-            & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
-            & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
-            & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
-            & this%nNeighbourLC, this%deltaDftb, errStatus)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
+          call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
+              & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
+              & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
 
-        if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
-          call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
-        end if
+          if (this%tWriteRealHS .or. this%tWriteHS&
+              & .and. any(this%electronicSolver%iSolver ==&
+              & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+              & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
+            call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
+                & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
+                & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
+                & this%iCellVec, this%cellVec, this%ints%hamiltonian, this%ints%iHamiltonian)
+          end if
 
-        call processOutputCharges(env, this)
+          call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
 
-        ! Note: if XLBOMD is active, potential created with input charges is needed later,
-        ! therefore it should not be overwritten here.
-        if (.not.this%isXlbomd) then
-          ! iteration is +1 as output potential in iteration 1 only available after solution of H
-          call processPotentials(env, this, iSccIter+1, this%updateSccAfterDiag, this%qOutput,&
-              & this%qBlockOut, this%qiBlockOut)
-        end if
+          call getDensity(env, this%negfInt, iSccIter, this%denseDesc, this%ints,&
+              & this%neighbourList, this%nNeighbourSk, this%iSparseStart, this%img2CentCell,&
+              & this%iCellVec, this%cellVec, this%kPoint, this%kWeight, this%orb, this%tHelical,&
+              & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
+              & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
+              & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
+              & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%eigen,&
+              & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
+              & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
+              & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
+              & this%nNeighbourLC, this%deltaDftb, errStatus)
+          if (errStatus%hasError()) then
+            call error(errStatus%message)
+          end if
 
-        call calcEnergies(env, this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
-            & this%multipoleOut, this%species, this%isExtField, this%isXlbomd, this%dftbU,&
-            & this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb, this%neighbourList,&
-            & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
-            & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
-            & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
-            & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
+          if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
+            call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+          end if
+
+          call processOutputCharges(env, this)
+
+          ! Note: if XLBOMD is active, potential created with input charges is needed later,
+          ! therefore it should not be overwritten here.
+          if (.not.this%isXlbomd) then
+            ! iteration is +1 as output potential in iteration 1 only available after solution of H
+            call processPotentials(env, this, iSccIter+1, this%updateSccAfterDiag, this%qOutput,&
+                & this%qBlockOut, this%qiBlockOut)
+          end if
+
+          call calcEnergies(env, this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
+              & this%multipoleOut, this%species, this%isExtField, this%isXlbomd, this%dftbU,&
+              & this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb, this%neighbourList,&
+              & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
+              & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
+              & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
+              & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
+              & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
+              & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
+
+          if (allocated(this%elecConstrain)) then
+            call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
+            call this%elecConstrain%propagateConstraints(this%qOutput,&
+                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, deltaW, dWdVcMax,&
+                & tConstrConverged)
+          else
+            tConstrConverged = .true.
+          end if
+
+          if (allocated(this%elecConstrain)) then
+            call printElecConstrInfo(iConstrIter,&
+                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, deltaW, dWdVcMax)
+          end if
+
+          if (tConstrConverged) exit lpConstrInner
+
+        end do lpConstrInner
 
         call processScc(env, this, iGeoStep, iSccIter, sccErrorQ, tConverged, eOld, diffElec,&
             & tStopScc)
@@ -1316,9 +1376,10 @@ contains
 
         call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
 
-        if (tConverged .or. tStopScc) then
-          exit lpSCC
-        end if
+        if (tConverged .or. tStopScc) exit lpSCC
+        ! if (allocated(this%elecConstrain)) then
+        !   if (.not. tConstrConverged .and. this%elecConstrain%isConstrConvRequired) exit lpSCC
+        ! end if
 
       end do lpSCC
 
@@ -1396,8 +1457,17 @@ contains
     end if
 
     if (allocated(this%dispersion)) then
-      if (.not.this%dispersion%energyAvailable()) then
+      if (.not. this%dispersion%energyAvailable()) then
         call warning("Dispersion contributions are not included in the energy")
+      end if
+    end if
+
+    if (allocated(this%elecConstrain)) then
+      if (.not. tConstrConverged) then
+        call warning("Constraints did NOT converge, maximal micro-iterations exceeded")
+        if (this%elecConstrain%isConstrConvRequired) then
+          call env%shutdown()
+        end if
       end if
     end if
 
@@ -1552,13 +1622,13 @@ contains
 
     end if
 
-    if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
-      call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc, tConverged, this%isXlbomd,&
-          & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD,&
-          & this%tPrintForces, this%tStress,&
-          & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
-          & this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol,&
-          & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
+    if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
+      call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc, allocated(this%elecConstrain),&
+          & tConverged, tConstrConverged, this%isXlbomd, this%isLinResp, this%isGeoOpt&
+          & .or. allocated(this%geoOpt), this%tMD, this%tPrintForces, this%tStress, this%tPeriodic,&
+          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress, this%totalLatDeriv,&
+          & this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol, this%intPressure,&
+          & this%geoOutFile, this%iAtInCentralRegion)
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
@@ -1573,9 +1643,8 @@ contains
 
 
   !> Process geometry for constrains
-  subroutine postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDerivs,&
-      & extLatDerivs, normLatVecs, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic,&
-      & constrLatDerivs)
+  subroutine postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDerivs, extLatDerivs,&
+      & normLatVecs, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
 
     !> On input energy derivatives, on exit resulting projected derivatives
     real(dp), intent(inout), allocatable :: derivs(:,:)

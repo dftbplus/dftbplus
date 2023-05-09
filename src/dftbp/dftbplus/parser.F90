@@ -19,6 +19,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
+  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -1705,6 +1706,14 @@ contains
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
+    end if
+
+    ! Electronic constraints
+    call getChildValue(node, "StateConstraints", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstrainInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstrainInp, ctrl%tSpin)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
