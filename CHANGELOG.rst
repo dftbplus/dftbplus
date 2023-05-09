@@ -8,6 +8,14 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+- State constraints on arbitrary fragments, targeting the electronic ground
+  state by determining a self-consistent constraint potential
+  (restricted to Mulliken populations at the moment)
+
+
 Changed
 -------
 

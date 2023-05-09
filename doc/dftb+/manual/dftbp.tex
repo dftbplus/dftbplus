@@ -1365,6 +1365,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{StateConstraints} &p&  & \cb & \pref{sec:dftbp.StateConstraints} \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
@@ -1841,6 +1842,91 @@ library.
 Hamiltonian = xTB {
   Method = "GFN1-xTB"
 }
+\end{verbatim}
+
+
+\subsection{StateConstraints}
+\label{sec:dftbp.StateConstraints}
+Allows to impose constraints on the electronic ground state by finding
+the ground state of the system in a (carefully chosen) external
+potential~\cite{Hourahine2010}.
+
+\begin{ptable}
+  \kw{Regions} & p & & \cb & \\
+  \kw{Optimiser} & m & & FIRE & \\
+  \kw{ConstrTolerance} & r & & 1e-8 & \\
+  \kw{MaxConstrIterations} & i & & 100 & \\
+  \kw{ConvergentConstrOnly} & l & & \is{Yes} & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Regions}]
+  Specifies region (e.g.\ of atoms) targeted by electronic constraints.
+  \begin{ptable}
+    \kw{Atoms} & p &  & \cb & \\
+  \end{ptable}
+    \begin{description}
+      \item[\is{Atoms}] Defines a region of atoms (the specification of several blocks is possible).
+    \begin{ptable}
+      \kw{Domain} & (i|s)+ &  &  & \\
+      \kw{Population} & r &  &  & \\
+    \end{ptable}
+      \begin{description}
+        \item[\is{Domain}] Indices of the atoms building a constrained region. The
+          atoms can be specified via index selection expressions, as described
+          in appendix \ref{sec:index_selection}.
+        
+        \item[\is{Population}] Sets constraint on the Mulliken population of all
+          atoms included in the region.
+      \end{description}
+    \end{description}
+
+\item[\is{Optimiser}]
+  The optimiser is responsible for propagating the micro-iterations, while searching
+  for an optimal auxiliary potential that enforces the electronic constraints set
+  in the \kw{Regions\cb} block.
+  Currently the following methods are available:
+  \begin{description}
+    \item[\iscb{SteepestDescent}] Propagate micro-iterations using the
+      steepest descent algorithm. See p.~\pref{sec:dftbp.Optimiser.SteepestDescent}.
+    \item[\iscb{FIRE}] Propagate micro-iterations using the FIRE
+      algorithm. See p.~\pref{sec:dftbp.Optimiser.FIRE}.
+    \item[\iscb{Rational}] Propagate micro-iterations using a
+      rational function based optimiser. See p.~\pref{sec:dftbp.Optimiser.RF}.
+    \item[\iscb{LBFGS}] Propagate micro-iterations using the LBFGS
+      algorithm. See p.~\pref{sec:dftbp.Optimiser.LBFGS}.
+  \end{description}
+  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb} optimiser proved to be most
+  stable, when propagating the micro-iterations. However, your experience may vary and
+  manual testing based on your particular system is advised.
+
+\item[\is{ConstrTolerance}] Stopping criteria for the micro-iterations.
+  Specifies the tolerance for the maximum difference in any condition of
+  \kw{Regions\cb} between two micro-iteration cycles.
+
+\item[\is{MaxConstrIterations}] Maximal number of micro-iterations to reach
+  convergence. If convergence is not reached after the specified
+  number of steps, the program stops.
+  
+\item[\is{ConvergentConstrOnly}] If true, requires that the micro-iterations
+  converge before proceeding to subsequent stages of the calculation (next SCC
+  step and eventually forces, analysis, etc.).
+\end{description}
+
+Example:
+\begin{verbatim}
+  StateConstraints = {
+    Regions = {
+      Atoms = {
+        Domain = 1
+        Population = 1.5
+      }
+    }
+    Optimiser = FIRE {}
+    ConstrTolerance = 1.0e-08
+    MaxConstrIterations = 30
+    ConvergentConstrOnly = Yes
+  }
 \end{verbatim}
 
 
