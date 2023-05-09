@@ -12,10 +12,10 @@ module dftbp_capi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
-  use dftbp_dftbplus_qdepextpotgenc, only :&
-      & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
-  use dftbp_mmapi, only :&
-      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
+  use dftbp_dftbplus_qdepextpotgenc, only : getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC,&
+      & TQDepExtPotGenC_init
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput,&
+      & TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
   use dftbp_apicallbackc, only: dmhs_callback_c_wrapper, TCAuxWrapper
 
@@ -257,7 +257,7 @@ contains
   end subroutine c_DftbPlus_registerExtPotGenerator
 
 
-  !> register DM exporting callback
+  !> register a density matrix exporting callback
   subroutine c_DftbPlus_registerDMCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_dm_callback')
 
@@ -286,7 +286,7 @@ contains
   end subroutine c_DftbPlus_registerDMCallback
 
 
-  !> register S exporting callback
+  !> register overlap matrix exporting callback
   subroutine c_DftbPlus_registerSCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_s_callback')
 
@@ -310,13 +310,13 @@ contains
       wrapper%auxPtr = aux_ptr
       wrapper%callback = callback
     end select
-    
+
     call instance%registerSCallback(dmhs_callback_c_wrapper, wrapper)
 
   end subroutine c_DftbPlus_registerSCallback
 
 
-  !> register H exporting callback
+  !> register hamiltonian exporting callback
   subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
       & bind(C, name='dftbp_register_h_callback')
 
@@ -459,7 +459,11 @@ contains
 
   !> Obtain nr. of atoms.
   function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of atoms in the system
     integer(c_int) :: nAtom
 
     type(TDftbPlusC), pointer :: instance
@@ -472,19 +476,28 @@ contains
 
   !> Obtain nr. of spin channels.
   function c_DftbPlus_nrOfSpin(handler) result(nSpin) bind(C, name='dftbp_get_nr_spin')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of spin channels in the calculation
     integer(c_int) :: nSpin
 
     type(TDftbPlusC), pointer :: instance
 
     call c_f_pointer(handler%instance, instance)
     nSpin = instance%nrOfSpin()
+
   end function c_DftbPlus_nrOfSpin
 
 
   !> Obtain nr. of (k-point,spin chanel) pairs in current process group.
   function c_DftbPlus_nrOfLocalKS(handler) result(nLocalKS) bind(C, name='dftbp_get_nr_local_ks')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Total number of k and spin local to this processor group
     integer(c_int) :: nLocalKS
 
     type(TDftbPlusC), pointer :: instance
@@ -493,15 +506,22 @@ contains
     nLocalKS = instance%nrOfLocalKS()
 
   end function c_DftbPlus_nrOfLocalKS
-  
+
+
   !> Get (k-point,spin chanel) pairs in current process group, returns number of pairs
-  function c_DftbPlus_getLocalKS(handler, localKS) result(nLocalKS) bind(C, name='dftbp_get_local_ks')
-  !> handler for the calculation
+  function c_DftbPlus_getLocalKS(handler, localKS) result(nLocalKS)&
+      & bind(C, name='dftbp_get_local_ks')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> K and spin local to this processor group
     integer(c_int), intent(out) :: localKS(2, *)
 
-    type(TDftbPlusC), pointer :: instance
+    !> Number of local K&S values on this COMM
     integer(c_int) :: nLocalKS
+
+    type(TDftbPlusC), pointer :: instance
 
     call c_f_pointer(handler%instance, instance)
     nLocalKS = instance%nrOfLocalKS()
@@ -513,8 +533,11 @@ contains
 
   !> Queries weights of k-points
   subroutine c_DftbPlus_getKWeights(handler, kweights)  bind(C, name='dftbp_get_kweights')
-  !> handler for the calculation
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> K-point weights for all k-points
     real(c_double), intent(out) :: kweights(*)
 
     type(TDftbPlusC), pointer :: instance
@@ -530,37 +553,47 @@ contains
 
   !> Obtain total size of the basis set
   function c_DftbPlus_getBasisSize(handler) result(BasisSize) bind(C, name='dftbp_get_basis_size')
-  !> handler for the calculation
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    type(TDftbPlusC), pointer :: instance
+    !> Total number of spatial basis functions
     integer(c_int) :: BasisSize
 
+    type(TDftbPlusC), pointer :: instance
+
     call c_f_pointer(handler%instance, instance)
-    
+
     BasisSize = instance%getBasisSize()
 
   end function c_DftbPlus_getBasisSize
-  
+
 
   !> Whether the system is described with real matrices
   function c_DftbPlus_isHSReal(handler) result(HSReal) bind(C, name='dftbp_is_hs_real')
-  !> handler for the calculation
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    type(TDftbPlusC), pointer :: instance
+    !> Is this a real matrix calculation (typically a molecule without spin-orbit)
     logical(kind=C_BOOL) :: HSReal
 
+    type(TDftbPlusC), pointer :: instance
+
     call c_f_pointer(handler%instance, instance)
-    
+
     HSReal = instance%isHSReal()
 
   end function c_DftbPlus_isHSReal
 
 
-  !> Obtain nr. of k-points.
+  !> Obtain nr. of k-points for the whole calculation.
   function c_DftbPlus_nrOfKPoints(handler) result(nKPoints) bind(C, name='dftbp_nr_kpoints')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Total number of k-points
     integer(c_int) :: nKPoints
 
     type(TDftbPlusC), pointer :: instance
@@ -573,7 +606,11 @@ contains
 
   !> Obtain masses of atoms in the DFTB+ calculation.
   subroutine c_DftbPlus_get_atom_masses(handler, masses) bind(C, name='dftbp_get_masses')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Masses of atoms
     real(c_double), intent(out) :: masses(*)
 
     type(TDftbPlusC), pointer :: instance
@@ -588,7 +625,11 @@ contains
 
   !> Obtain nr. basis functions at each atoms in the DFTB+ calculation.
   subroutine c_DftbPlus_get_atom_nr_basis(handler, nOrbitals) bind(C, name='dftbp_get_nr_orbitals')
+
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of atomic orbitals (basis fns.) for each atom
     integer(c_int), intent(out) :: nOrbitals(*)
 
     type(TDftbPlusC), pointer :: instance
@@ -601,7 +642,7 @@ contains
   end subroutine c_DftbPlus_get_atom_nr_basis
 
 
-  !> Retrieve the cutoff distance that is being used for interactions
+  !> Retrieve the maximum cutoff distance that is being used for all interactions
   function c_DftbPlus_getCutOff(handler) result(cutOff) bind(C, name='dftbp_get_cutoff')
 
     !> handler for the calculation
@@ -748,13 +789,17 @@ contains
   end function fortranChar
 
 
-  ! Returns a unit for an opened output file.
-  !
-  ! If outputFileName is associated, a file with that name will be created (and returned), otherwise
-  ! the output_unit is returned (and no file is created)
-  !
+  !> Returns a unit for an opened output file.
+  !>
+  !> If outputFileName is associated, a file with that name will be created (and returned),
+  !> otherwise the output_unit is returned (and no file is created)
+  !>
   subroutine handleOutputFile_(outputFileName, outputFile)
+
+    !> File name to open
     type(c_ptr), intent(in) :: outputFileName
+
+    !> Resulting descriptor for the file handle
     type(TFileDescr), intent(out) :: outputFile
 
     character(c_char), pointer :: pOutputFileName
