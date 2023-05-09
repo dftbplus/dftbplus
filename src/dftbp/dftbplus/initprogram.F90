@@ -1110,10 +1110,10 @@ module dftbp_dftbplus_initprogram
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
-    
-    !> This object encapsulates subroutines and variables that are used for registering and 
+
+    !> This object encapsulates subroutines and variables that are used for registering and
     !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
-    type(TAPICallback) :: apicallback
+    type(TAPICallback) :: apiCallBack
 
   #:if WITH_SCALAPACK
 

@@ -401,6 +401,7 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Resulting atom count
     integer :: nrOfAtoms
 
     nrOfAtoms = main%nAtom
@@ -414,6 +415,7 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Spin channel count (1 for spin free, 2 conventional z-spin, 4 non-collinear)
     integer :: nrOfSpin
 
     nrOfSpin = main%nSpin
@@ -427,11 +429,13 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Number of k-points present
     integer :: nrOfKPoints
 
     nrOfKPoints = main%nKPoint
 
   end function nrOfKPoints
+
 
   !> Obtains number of (k-point,spin chanel) pairs in current process group
   function nrOfLocalKS(main)
@@ -439,17 +443,20 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> k-points and spin on the local processor group
     integer :: nrOfLocalKS
 
     nrOfLocalKS = main%parallelKS%nLocalKS
 
   end function nrOfLocalKS
 
+
   !> Get (k-point,spin chanel) pairs in current process group
   subroutine getLocalKS(main, localKS)
 
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
+
     !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
     !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
     integer, intent(out) :: localKS(:,:)
@@ -457,6 +464,7 @@ contains
     localKS(:,:) = main%parallelKS%localKS
 
   end subroutine getLocalKS
+
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
   !> need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters
@@ -474,7 +482,7 @@ contains
     !> Labels of atomic species from external program
     character(len=*), intent(in) :: inputSpeciesName(:)
 
-    !> Has speciesName changed?
+    !> Has the speciesName changed?
     logical :: tSpeciesNameChanged
 
   #:block DEBUG_CODE
@@ -500,7 +508,8 @@ contains
 
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies.
-  !  Updated data returned via module use statements
+  !>
+  !> Updated data returned via module use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, main, inputSpecies)
 
     !> dftb+ environment

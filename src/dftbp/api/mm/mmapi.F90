@@ -17,13 +17,12 @@ module dftbp_mmapi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin, nrOfKPoints, nrOfLocalKS, &
-      & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
-      & getLocalKS,&
-      & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
-      & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
-      & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
-      & setExternalCharges, setGeometry, setNeighbourList
+  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfSpin,&
+      & nrOfKPoints, nrOfLocalKS,  setExternalPotential, getTdForces, setTdCoordsAndVelos,&
+      & setTdElectricField, getLocalKS, initializeTimeProp, finalizeTimeProp,&
+      & updateDataDependentOnSpeciesOrdering, getAtomicMasses, getGrossCharges, getCM5Charges,&
+      & getElStatPotential, getExtChargeGradients, getStressTensor, getGradients, getEnergy,&
+      & getCutOff, setQDepExtPotProxy, setExternalCharges, setGeometry, setNeighbourList
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -73,8 +72,11 @@ module dftbp_mmapi
   !> A DFTB+ calculation
   type :: TDftbPlus
     private
+    !> Computational environment
     type(TEnvironment), allocatable :: env
+    !> Calculation instance
     type(TDftbPlusMain), allocatable :: main
+    !> Has this been initialised and ready to use
     logical :: tInit = .false.
   contains
     !> read input from a file
@@ -121,7 +123,7 @@ module dftbp_mmapi
     procedure :: getBasisSize => TDftbPlus_getBasisSize
     !> Whether the system is described with real matrices (complex otherwise)
     procedure :: isHSReal => TDftbPlus_isHSReal
-    !> Register callback function to be invoked on each evaluation of the desity matrix
+    !> Register callback function to be invoked on each evaluation of the density matrix
     procedure :: registerDMCallback => TDftbPlus_registerDMCallback
     !> Register callback function to be invoked on the first evaluation of the overlap matrix
     procedure :: registerSCallback => TDftbPlus_registerSCallback
@@ -697,7 +699,7 @@ contains
     !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
     !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
     integer, intent(out) :: localKS(:,:)
-    
+
     call getLocalKS(this%main, localKS)
 
   end subroutine TDftbPlus_getLocalKS
@@ -740,7 +742,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(in) :: this
 
-    !> Nr. of (k-point,spin chanel) pairs 
+    !> Nr. of (k-point,spin chanel) pairs
     integer :: nLocalKS
 
     call this%checkInit()
@@ -753,14 +755,13 @@ contains
   !> Returns size of the basis set
   function TDftbPlus_getBasisSize(this) result(basisSize)
 
-
     !> Instance
     class(TDftbPlus), intent(in) :: this
-    
+
     integer :: basisSize
 
     call this%checkInit()
-    
+
     basisSize = this%main%denseDesc%fullSize
 
   end function TDftbPlus_getBasisSize
@@ -771,17 +772,17 @@ contains
 
     !> Instance
     class(TDftbPlus), intent(in) :: this
-    
+
     logical isHSReal
 
     call this%checkInit()
-    
+
     isHSReal = this%main%tRealHS
 
   end function TDftbPlus_isHSReal
 
 
-  !> Register callback function to be invoked on each evaluation of the desity matrix
+  !> Register callback function to be invoked on each evaluation of the density matrix
   subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
     use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
 
@@ -796,6 +797,7 @@ contains
 
     call this%checkInit()
     call this%main%apicallback%registerDM(callback, aux_ptr)
+
   end subroutine TDftbPlus_registerDMCallback
 
 
@@ -814,6 +816,7 @@ contains
 
     call this%checkInit()
     call this%main%apicallback%registerS(callback, aux_ptr)
+
   end subroutine TDftbPlus_registerSCallback
 
 
@@ -832,8 +835,8 @@ contains
 
     call this%checkInit()
     call this%main%apicallback%registerH(callback, aux_ptr)
-  end subroutine TDftbPlus_registerHCallback
 
+  end subroutine TDftbPlus_registerHCallback
 
 
   !> Returns the nr. of k-points describing the system.
@@ -988,7 +991,11 @@ contains
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
+
+    !> Instance
     class(TDftbPlus),  intent(inout) :: this
+
+    !> Chemical species labels
     character(len=*), intent(in) :: inputSpeciesNames(:)
 
     logical :: tSpeciesNameChanged
