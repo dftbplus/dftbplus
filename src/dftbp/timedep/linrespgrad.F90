@@ -706,7 +706,7 @@ contains
         ! This overwrites T, RHS and W
         numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
         numNAC = numNAC * (numNAC-1) / 2
-       allocate(nacv(size(excgrad, dim=1), size(excgrad, dim=2), numNAC))
+        allocate(nacv(size(excgrad, dim=1), size(excgrad, dim=2), numNAC))
         allocate(xpyn, mold=xpy(:,1))
         allocate(xpym, mold=xpy(:,1))
         allocate(xmyn, mold=xpy(:,1))
