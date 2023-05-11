@@ -772,7 +772,7 @@ contains
 
               call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
                  & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,&
-                 & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,           &
+                 & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,&
                  & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)  
 
               call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
