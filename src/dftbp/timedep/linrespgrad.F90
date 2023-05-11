@@ -4162,7 +4162,7 @@ contains
         ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)&
               & + xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
    
-        ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) + &
+        ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs)&
               & + xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
 
         tmp3 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)
