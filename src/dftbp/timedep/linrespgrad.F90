@@ -3967,7 +3967,7 @@ contains
       pc(a,i,s) = 0.5_dp * p(ias)
     end do
     
-    call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+    call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart,&
       &  species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo=vecHoo)
 
     do s = 1, nSpin
