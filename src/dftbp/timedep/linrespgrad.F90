@@ -765,7 +765,7 @@ contains
               ! compute + component of RHS for Z-vector eq. in the NaCoupling case
               ! also computes the + components of W and T
               call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),& 
-                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, transChrg,     &
+                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, transChrg,&
                  & getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev,    &
                  & grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t,         &
                  & wov, woo, wvv)
