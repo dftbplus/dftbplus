@@ -4170,7 +4170,7 @@ contains
 
         ! Set t(a,b,s) = t(a,b,s) + 0.5_dp * tmp3 for asymmetric T
         t(a,b,s) = t(a,b,s) + 0.25_dp * (tmp3 + tmp4)
-        wvv(ab,s) = wvv(ab,s) + 0.5_dp * grndEigVal(i,s) * ptmp1  &
+        wvv(ab,s) = wvv(ab,s) + 0.5_dp * grndEigVal(i,s) * ptmp1&
                    & + 0.5_dp * omegaAvg * ptmp2 
                             
         ! to prevent double counting
