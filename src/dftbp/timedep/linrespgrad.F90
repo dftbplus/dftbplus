@@ -4841,7 +4841,7 @@ contains
       ! again replace with DSYR2 call :
       do nu = 1, norb
         do mu = 1, norb
-          wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *                     &
+          wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *&
               & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
               & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )            
         end do
