@@ -4159,7 +4159,7 @@ contains
       do b = homo(s) + 1, a
         ibs = iatrans(i, b, s)
         ab = iaTrans(a, b, s) - svv(s)
-        ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs) + &
+        ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)&
               & xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
    
         ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) + &
