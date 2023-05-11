@@ -4734,7 +4734,7 @@ contains
           shxpyq(:,1,iState) = xpyq(:,iState) * spinW(species0)
         end if
       else
-        call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
+        call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win,&
              & xpy(:,iState), xpyqds(:,iState))
         do iSpin = 1, nSpin
           call hemv(shxpyq(:,iSpin,iState), gammaMat, xpyq(:,iState))
