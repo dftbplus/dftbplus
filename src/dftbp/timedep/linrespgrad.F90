@@ -4284,7 +4284,7 @@ contains
 
     !!> -RHS^+ += - H^+_ia[T^+]
     call getHplusMfr(3, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
-      &  species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHovT)
+      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHovT)
 
     rhs = rhs - vecHovT
 
