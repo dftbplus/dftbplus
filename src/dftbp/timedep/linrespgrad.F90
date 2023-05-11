@@ -651,7 +651,7 @@ contains
 
         ! solve for Z and W to get excited state density matrix
         call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
-            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,   &
+            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
             & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,      &
             & wov, woo, wvv)
 
