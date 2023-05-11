@@ -4738,7 +4738,7 @@ contains
              & xpy(:,iState), xpyqds(:,iState))
         do iSpin = 1, nSpin
           call hemv(shxpyq(:,iSpin,iState), gammaMat, xpyq(:,iState))
-          shxpyq(:,iSpin,iState) = shxpyq(:,iSpin,iState) + dsigma(iSpin) &
+          shxpyq(:,iSpin,iState) = shxpyq(:,iSpin,iState) + dsigma(iSpin)&
                & * spinW(species0) * xpyqds(:,iState)
           shxpyq(:,iSpin,iState) = 0.5_dp * shxpyq(:,iSpin,iState)
         end do
