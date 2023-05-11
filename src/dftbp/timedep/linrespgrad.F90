@@ -4197,7 +4197,7 @@ contains
 
         !!t(i,j,s) = t(i,j,s) - 0.5_dp * tmp3
         t(i,j,s) = t(i,j,s) - 0.25_dp * (tmp3 + tmp4)
-        woo(ij,s) = woo(ij,s) - 0.5_dp * grndEigVal(a,s) * ptmp1   &
+        woo(ij,s) = woo(ij,s) - 0.5_dp * grndEigVal(a,s) * ptmp1&
                    & + 0.5_dp * omegaAvg * ptmp2 
 
         ! to prevent double counting
