@@ -5001,7 +5001,7 @@ contains
                 tmp3 = tmp3 - dSo(n,m,xyz) * wcc(mu,nu,iSpin)
                 tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * Dens(mu,nu)
                 ! tmp6 generalization could be wrong
-                tmp6 = tmp6 + 0.5_dp * dSo(n,m,xyz) * (tmp7(iSpin,2) * xpycc(mu,nu,iSpin,1) + &
+                tmp6 = tmp6 + 0.5_dp * dSo(n,m,xyz) * (tmp7(iSpin,2) * xpycc(mu,nu,iSpin,1) +&
                          & tmp7(iSpin,1) * xpycc(mu,nu,iSpin,2))
 
                 if (tSpin) then
