@@ -4187,7 +4187,7 @@ contains
         ij = iatrans(i, j, s) - soo(s)
 
         ptmp1 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)& 
-              &  xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
+              & + xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
 
         ptmp2 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) + &
               &  xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas)) 
