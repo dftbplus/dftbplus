@@ -4776,7 +4776,7 @@ contains
           ! should replace with DSYR2 call :
           do nu = 1, norb
             do mu = 1, norb
-               xmycc(mu,nu,iSpin,iState) = xmycc(mu,nu,iSpin,iState) + xmy(ia,iState) * &
+               xmycc(mu,nu,iSpin,iState) = xmycc(mu,nu,iSpin,iState) + xmy(ia,iState) *&
                 & ( grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin) &
                 & + grndEigVecs(mu,a,iSpin) * grndEigVecs(nu,i,iSpin) )
                xpyas(mu,nu,iSpin,iState) = xpyas(mu,nu,iSpin,iState) + xpy(ia,iState) * &
