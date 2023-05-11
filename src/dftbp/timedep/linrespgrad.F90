@@ -4160,7 +4160,7 @@ contains
         ibs = iatrans(i, b, s)
         ab = iaTrans(a, b, s) - svv(s)
         ptmp1 = xpyn(ias) * xpym(ibs) + xmyn(ias) * xmym(ibs)&
-              & xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
+              & + xpym(ias) * xpyn(ibs) + xmym(ias) * xmyn(ibs)
    
         ptmp2 = (xpyn(ias) * xmym(ibs) + xmyn(ias) * xpym(ibs) + &
               &  xpym(ias) * xmyn(ibs) + xmym(ias) * xpyn(ibs)) 
