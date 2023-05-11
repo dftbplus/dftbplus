@@ -3981,7 +3981,7 @@ contains
     end do
 
     if (tRangeSep) then
-      call getHooXY(1, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win, iAtomStart, &
+      call getHooXY(1, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win, iAtomStart,&
        & ovrXev, grndEigVecs, lrGamma, transChrg, p, vecHoo)
       do s = 1, nSpin
         do ij = 1, nXoo(s)
