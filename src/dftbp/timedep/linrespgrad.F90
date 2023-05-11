@@ -5071,6 +5071,7 @@ contains
 
   end subroutine addNadiaGradients
 
+
   !> Computes full range part of H^+_pq [X+-Y] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are both virtual or both occupied orbitals and V is either X+Y or X-Y
   !> Note: The full range part of H^- is zero! 
