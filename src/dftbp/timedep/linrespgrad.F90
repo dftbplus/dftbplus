@@ -4245,7 +4245,7 @@ contains
     end do
 
     ! Now m <-> n
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0,&
       &  ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHoo=vecHooXorY,            &
       &  vecHvv=vecHvvXorY)
 
