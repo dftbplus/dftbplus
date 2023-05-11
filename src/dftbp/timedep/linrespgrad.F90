@@ -730,7 +730,7 @@ contains
               xmym = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
               call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, iAtomStart, nocc_ud,& 
-                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, &
+                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
                  & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
                  & woo)
 
