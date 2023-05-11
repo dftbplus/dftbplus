@@ -4247,7 +4247,7 @@ contains
     ! Now m <-> n
     call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0,&
       & ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHoo=vecHooXorY,&
-      &  vecHvv=vecHvvXorY)
+      & vecHvv=vecHvvXorY)
 
     do ias = 1, nxov
       call indxov(win, ias, getIA, i, a, s)
