@@ -4842,7 +4842,7 @@ contains
       do nu = 1, norb
         do mu = 1, norb
           wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *                     &
-              & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)              &
+              & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
               & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )            
         end do
       end do
