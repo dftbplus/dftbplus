@@ -4189,7 +4189,7 @@ contains
         ptmp1 = (xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)& 
               & + xpym(ias) * xpyn(jas) + xmym(ias) * xmyn(jas))
 
-        ptmp2 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas) + &
+        ptmp2 = (xpyn(ias) * xmym(jas) + xmyn(ias) * xpym(jas)&
               & + xpym(ias) * xmyn(jas) + xmym(ias) * xpyn(jas)) 
 
         tmp3 = xpyn(ias) * xpym(jas) + xmyn(ias) * xmym(jas)
