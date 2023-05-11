@@ -2123,7 +2123,7 @@ contains
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
   subroutine calcWvectorZ(zz, win, homo, getIA, getIJ, getAB, iaTrans, iAtomStart, ovrXev,&
-      & grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, spinW,     &
+      & grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, spinW,&
       & tRangeSep, lrGamma)
 
     !> Z vector
