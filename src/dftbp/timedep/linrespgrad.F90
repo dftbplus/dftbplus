@@ -4722,7 +4722,7 @@ contains
     ! complexity norb * norb * norb
     xpyq = 0.0_dp
     do iState = 1, 2
-      call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
+      call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win,&
            & xpy(:,iState), xpyq(:,iState))
       
       ! complexity norb * norb
