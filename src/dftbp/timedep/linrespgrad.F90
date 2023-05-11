@@ -4783,7 +4783,7 @@ contains
                 & + grndEigVecs(mu,a,iSpin) * grndEigVecs(nu,i,iSpin) )
                xpyas(mu,nu,iSpin,iState) = xpyas(mu,nu,iSpin,iState) + xpy(ia,iState) *&
                 &  grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
-               xmyas(mu,nu,iSpin,iState) = xmyas(mu,nu,iSpin,iState) + xmy(ia,iState) * &
+               xmyas(mu,nu,iSpin,iState) = xmyas(mu,nu,iSpin,iState) + xmy(ia,iState) *&
                 &  grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
             end do
           end do
