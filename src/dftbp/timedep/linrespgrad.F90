@@ -4403,7 +4403,7 @@ contains
       rhs = rhs - cExchange * vecHovT
 
       !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
-      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
+      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
        & ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
       do s = 1, nSpin
