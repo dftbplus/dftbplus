@@ -776,7 +776,7 @@ contains
                  & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)  
 
               call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
-                 & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,      &
+                 & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,&
                  & species0, this%spinW, tRangeSep, lrGamma)
 
               call calcPMatrix(t, rhs, win, getIA, pc)
