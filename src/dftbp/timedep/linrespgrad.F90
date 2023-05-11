@@ -788,7 +788,7 @@ contains
               end do
 
               call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,  &
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,&
                 & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym,    &
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep,&
                 & rangeSep, nacv(:,:,iNac))
