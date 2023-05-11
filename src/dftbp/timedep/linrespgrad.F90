@@ -655,7 +655,7 @@ contains
             & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
 
-        call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud, &
+        call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
