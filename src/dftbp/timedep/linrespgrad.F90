@@ -4010,7 +4010,7 @@ contains
   !> do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
   !> Furche PCCP 21 18999 (2019)
   !> Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed. 
-  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,       & 
+  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,& 
       & transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs,&
       &  gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
 
