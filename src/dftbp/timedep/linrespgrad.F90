@@ -4462,6 +4462,7 @@ contains
 
   end subroutine writeNACV
 
+
   !> Calculation of nacv using gradient routine
   subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,       &
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU,   &
