@@ -4211,7 +4211,7 @@ contains
     end do
 
     ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0, &
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0,&
       & ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHoo=vecHooXorY,&
       & vecHvv=vecHvvXorY)
 
