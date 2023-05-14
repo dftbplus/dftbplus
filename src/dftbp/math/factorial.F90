@@ -37,6 +37,7 @@ contains
     @:ASSERT(size(nbang)==n+1)
     nbang(0)=1
     do i=1,n-1
+      nbang(i) = nbang(i-1) * i
       @:ASSERT(nbang(i) <= huge(1) / (i+1) )
     end do
     nbang(n)=nbang(n-1)*n
