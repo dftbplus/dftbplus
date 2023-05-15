@@ -702,6 +702,9 @@ contains
         if(this%nExc < this%indNACouplings(2)) then
           call error('Coupling: Index must not exceed number of states to calculate.')
         end if  
+        if (.not. tForces) then
+          call error('Coupling: CalculateForces must be set to Yes.')
+        end if
 
         ! This overwrites T, RHS and W
         numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
