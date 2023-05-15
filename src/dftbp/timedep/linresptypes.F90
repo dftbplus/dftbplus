@@ -74,6 +74,12 @@ module dftbp_timedep_linresptypes
     !> whether X+Y data should be written
     logical :: writeXplusY = .false.
 
+    !> Should non-adiabatic couplings be computed?
+    logical :: tNaCoupling = .false.
+
+    !> Initial and final state for non-adiabatic coupling evaluation
+    integer :: indNACouplings(2)
+
     !> whether coefficients for the excited states should be written to disc
     logical :: writeCoeffs = .false.
 
