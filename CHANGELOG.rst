@@ -8,6 +8,11 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+- Non-adiabatic coupling vectors for linear response calculations
+
 Changed
 -------
 

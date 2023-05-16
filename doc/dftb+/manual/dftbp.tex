@@ -5173,7 +5173,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
-    \kw{Couplings}              & 2i & \is{CalculateForces} = Yes & - & \\
+    \kw{StateCouplings}         & 2i & \is{CalculateForces} = Yes & - & \\
   \end{ptable}
 
   \begin{description}
@@ -5267,12 +5267,14 @@ available for range separated calculations.
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
 
-  \item[\is{Couplings}] Non-adiabatic coupling vectors between two
-    states \is{iStat} and \is{jStat} with $\is{jStat}> \is{iStat}$ are computed
-    according to the method described in \cite{niehaus2021ground,niehaus2023exact}. The keyword expects the
-    indices of the two states in question (\is{iStat} = 0 for the
-    ground state). Example:  \is{Couplings = \{0 3\}}. Results are
-    written to NACV.DAT.  
+  \item[\is{StateCouplings}] Non-adiabatic coupling vectors between
+    two states, $n$ and $m$ where $m > n$, as computed according to
+    the method described
+    in~\cite{niehaus2021ground,niehaus2023exact}. The keyword expects
+    the indices of the two states (where \is{iStat} = 0 is the ground
+    state). Example: \is{Couplings = \{0 3\}} for coupling from the
+    ground state to the 3$\mathrm{rd}$ excited state. Results are
+    written to the file NACV.DAT.
   \end{description}
 
   \subsubsection{Diagonaliser / Diagonalizer}
