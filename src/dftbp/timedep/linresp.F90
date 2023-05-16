@@ -176,6 +176,7 @@ contains
       call error("Excited energy window should be non-zero if used")
     end if
 
+    print *,'I am in doing stuff'
     if(all(ini%indNACouplings == 0)) then
       this%tNaCoupling = .false.
     else if (any(ini%indNACouplings < 0)) then
@@ -379,8 +380,8 @@ contains
     !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-    !> contribution to forces from derivative of excited state energy
-    real(dp), intent(inout), allocatable :: excgradient(:,:)
+    !> contribution to forces from derivatives of excited state energy
+    real(dp), intent(inout), allocatable :: excgradient(:,:,:)
 
     !> occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), allocatable :: occNatural(:)

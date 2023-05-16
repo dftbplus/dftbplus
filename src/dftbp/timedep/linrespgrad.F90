@@ -147,8 +147,8 @@ contains
     !> overlap data
     type(TSlakoCont), intent(in), optional :: skOverCont
 
-    !> excitation energy gradient with respect to atomic positions
-    real(dp), intent(out), optional :: excgrad(:,:)
+    !> excitation energy gradients with respect to atomic positions
+    real(dp), intent(out), optional :: excgrad(:,:,:)
 
     !> Differentiator for H0 and S matrices.
     class(TNonSccDiff), intent(in), optional :: derivator
@@ -689,7 +689,7 @@ contains
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-              & tRangeSep, rangeSep, excgrad)
+              & tRangeSep, rangeSep, excgrad(:,:,iLev))
         end if
 
       end do

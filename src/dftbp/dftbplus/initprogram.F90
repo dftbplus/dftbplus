@@ -936,8 +936,8 @@ module dftbp_dftbplus_initprogram
     !> Forces on any external charges
     real(dp), allocatable :: chrgForces(:,:)
 
-    !> Excited state force addition
-    real(dp), allocatable :: excitedDerivs(:,:)
+    !> Excited state force addition (xyz,atom,state)
+    real(dp), allocatable :: excitedDerivs(:,:,:)
 
     !> Dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
@@ -4649,7 +4649,7 @@ contains
     type(TInputData), intent(in) :: input
 
     logical :: isREKS
-    integer :: nSpinHams, sqrHamSize, iDet
+    integer :: nSpinHams, sqrHamSize, iDet, dLev
 
     isREKS = allocated(this%reks)
 
@@ -4680,8 +4680,13 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect .and. this%tCasidaForces) then
-        allocate(this%excitedDerivs(3, this%nAtom))
+      ! For CI optimization store gradient for several states  
+      if(this%linearResponse%tNaCoupling) then
+        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+        allocate(this%excitedDerivs(3, this%nAtom, dLev))
+      ! Store excited state gradient for state of interest only  
+      else if (this%tLinRespZVect .and. this%tCasidaForces) then  
+        allocate(this%excitedDerivs(3, this%nAtom, 1))
       end if
     end if
 

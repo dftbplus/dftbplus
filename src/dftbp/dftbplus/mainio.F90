@@ -1904,7 +1904,7 @@ contains
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
 
     !> Excited state forces on atoms (allocation status used as a flag)
-    real(dp), allocatable, intent(in) :: excitedDerivs(:,:)
+    real(dp), allocatable, intent(in) :: excitedDerivs(:,:,:)
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -1976,9 +1976,10 @@ contains
     if (allocated(chrgForces)) then
       call taggedWriter%write(fd%unit, tagLabels%chrgForces, -chrgForces)
     end if
+    !> If CI is optimized, lowest coupled state is printed, otherwise the state of interest 
     if (allocated(excitedDerivs)) then
       if (size(excitedDerivs) > 0) then
-        call taggedWriter%write(fd%unit, tagLabels%excForce, -excitedDerivs)
+        call taggedWriter%write(fd%unit, tagLabels%excForce, -excitedDerivs(:,:,1))
       end if
     end if
     if (tStress) then

@@ -1520,8 +1520,9 @@ contains
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
+        print *,'Dimension of forces is', size(this%excitedDerivs,dim=3)
         if (this%tCasidaForces) then
-          this%derivs(:,:) = this%derivs + this%excitedDerivs
+          this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)
         end if
       end if
 
@@ -4512,8 +4513,8 @@ contains
     !> difference density matrix (vs. uncharged atoms) in dense form
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    !> excited state energy derivative with respect to atomic coordinates
-    real(dp), intent(inout), allocatable :: excitedDerivs(:,:)
+    !> excited state energy derivatives per state with respect to atomic coordinates
+    real(dp), intent(inout), allocatable :: excitedDerivs(:,:,:)
 
     !> natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
