@@ -28,7 +28,7 @@ ExcitedState {
         StateOfInterest = 1
         Symmetry = Singlet
         Diagonaliser = Stratmann{}
-        Couplings = {0 4}
+        StateCouplings = {0 4}
     }
 }
 
