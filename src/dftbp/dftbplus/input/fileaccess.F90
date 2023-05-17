@@ -16,15 +16,15 @@ module dftbp_dftbplus_input_fileaccess
   implicit none
 
   private
-  public :: readFileAccessTypes
+  public :: readBinaryAccessTypes
 
 contains
 
 
   !> Reads in the file acess types
-  subroutine readFileAccessTypes(node, accessTypes)
+  subroutine readBinaryAccessTypes(node, accessTypes)
 
-    !> Parent note which should contain the "FileAccessTypes" subnode
+    !> Parent note which should contain the "BinaryAccessTypes" subnode
     type(fnode), pointer, intent(in) :: node
 
     !> Read and write access types on exit (defaulting to ["stream", "stream"])
@@ -36,14 +36,14 @@ contains
 
     @:ASSERT(size(accessTypes) == 2)
 
-    call getChild(node, "FileAccessTypes", child, requested=.false.)
+    call getChild(node, "BinaryAccessTypes", child, requested=.false.)
     if (.not. associated(child)) then
-      call setChildValue(node, "FileAccessTypes", ["stream"], child=child)
+      call setChildValue(node, "BinaryAccessTypes", ["stream"], child=child)
     end if
     call init(stringList)
     call getChildValue(child, "", stringList)
     if (len(stringList) < 1 .or. len(stringList) > 2) then
-      call detailedError(child, "FileAccessTypes needs one or two arguments")
+      call detailedError(child, "BinaryAccessTypes needs one or two arguments")
     end if
     call asArray(stringList, accessTypes(1 : len(stringList)))
     if (len(stringList) == 1) then
@@ -57,6 +57,6 @@ contains
       end if
     end do
 
-  end subroutine readFileAccessTypes
+  end subroutine readBinaryAccessTypes
 
 end module dftbp_dftbplus_input_fileaccess
