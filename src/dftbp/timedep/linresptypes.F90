@@ -77,6 +77,9 @@ module dftbp_timedep_linresptypes
     !> Should non-adiabatic couplings be computed?
     logical :: tNaCoupling = .false.
 
+    !> should CI be optimized
+    logical :: tCIopt
+    
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 

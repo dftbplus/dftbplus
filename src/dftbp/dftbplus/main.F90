@@ -104,6 +104,7 @@ module dftbp_dftbplus_main
   use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, LinResp_addGradients
+  use dftbp_timedep_linrespgrad, only : conicalIntersectionOptimizer
   use dftbp_timedep_pprpa, only : ppRpaEnergies
   use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
@@ -1421,7 +1422,8 @@ contains
           & this%img2CentCell, this%tWriteAutotest, this%tCasidaForces, this%tLinRespZVect,&
           & this%tPrintExcitedEigvecs, this%tPrintEigvecsTxt, this%nonSccDeriv,&
           & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal, this%rhoSqrReal,&
-          & this%deltaRhoOutSqr, this%excitedDerivs, this%occNatural, this%rangeSep)
+          & this%deltaRhoOutSqr, this%excitedDerivs, this%naCouplings, this%occNatural,&
+          & this%rangeSep)
     end if
 
     if (allocated(this%ppRPA)) then
@@ -1520,10 +1522,15 @@ contains
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
 
-        print *,'Dimension of forces is', size(this%excitedDerivs,dim=3)
-        if (this%tCasidaForces) then
+        if (this%linearResponse%tCIopt) then
+          print *,'#### Calling CI optimizer'
+          call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
+               & this%linearResponse%indNACouplings, this%naCouplings, this%energiesCasida)       
+        else if (this%tCasidaForces) then
+          print *,'#### Doing normal excited forces'
           this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)
         end if
+        print *,'#### Default' 
       end if
 
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
@@ -4406,7 +4413,7 @@ contains
       & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
       & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, deltaRhoOutSqr,&
-      & excitedDerivs, occNatural, rangeSep)
+      & excitedDerivs, naCouplings, occNatural, rangeSep)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4516,6 +4523,9 @@ contains
     !> excited state energy derivatives per state with respect to atomic coordinates
     real(dp), intent(inout), allocatable :: excitedDerivs(:,:,:)
 
+    !> Non-adiabatic coupling vectors
+    real(dp), intent(inout), allocatable :: naCouplings(:,:,:)
+
     !> natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
 
@@ -4561,7 +4571,7 @@ contains
       call LinResp_addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen,&
           & work, filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, skHamCont, skOverCont, fdAutotest, taggedWriter,&
-          & rangeSep, dftbEnergy%Eexcited, energies, excitedDerivs, nonSccDeriv,&
+          & rangeSep, dftbEnergy%Eexcited, energies, excitedDerivs, naCouplings, nonSccDeriv,&
           & rhoSqrReal, deltaRhoOutSqr, occNatural, naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&

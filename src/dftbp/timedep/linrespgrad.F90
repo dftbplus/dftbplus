@@ -41,7 +41,7 @@ module dftbp_timedep_linrespgrad
   implicit none
 
   private
-  public :: LinRespGrad_old
+  public :: LinRespGrad_old, conicalIntersectionOptimizer
 
   !> Output files for results
   character(*), parameter :: transitionsOut = "TRA.DAT"
@@ -77,7 +77,7 @@ contains
   subroutine LinRespGrad_old(tSpin, this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
       & SSqr, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
       & taggedWriter, rangeSep, omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad,&
-      & derivator, rhoSqr, occNatural, naturalOrbs)
+      & nacv, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -150,6 +150,9 @@ contains
     !> excitation energy gradients with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:,:)
 
+    !> Non-adiabatic coupling vectors
+    real(dp), intent(out), optional :: nacv(:,:,:)
+
     !> Differentiator for H0 and S matrices.
     class(TNonSccDiff), intent(in), optional :: derivator
 
@@ -170,7 +173,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -185,7 +188,7 @@ contains
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
-    integer :: nCoupLev, mCoupLev, numNAC, iNac
+    integer :: nCoupLev, mCoupLev, iNac
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -707,9 +710,6 @@ contains
         end if
 
         ! This overwrites T, RHS and W
-        numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
-        numNAC = numNAC * (numNAC-1) / 2
-        allocate(nacv(size(excgrad, dim=1), size(excgrad, dim=2), numNAC))
         allocate(xpyn, mold=xpy(:,1))
         allocate(xpym, mold=xpy(:,1))
         allocate(xmyn, mold=xpy(:,1))
@@ -804,10 +804,10 @@ contains
           end do
         end do
 
-        !> Convention to determine arbitrary phase 
-        call fixNACVPhase(nacv) 
+        !> Convention to determine arbitrary phase
+        call fixNACVPhase(nacv)
 
-        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)   
+        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
             
       end if
 
@@ -5454,6 +5454,94 @@ contains
     end do
     
   end subroutine fixNACVPhase
+  
+  !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
+  !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
+  subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, naCouplings, excEnergies)
 
+    !> Ground state gradient (overwritten)
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> Gradients of the excitation energy
+    real(dp), intent(in) :: excDerivs(:,:,:)
+
+    !> States between which CI is optimized
+    integer, intent(in) :: indNACouplings(2)
+
+    !> Nonadiabatic coupling vectors
+    real(dp), intent(in) :: naCouplings(:,:,:)
+
+    !> Sn-S0 excitation energy
+    real(dp), intent(in) :: excEnergies(:)
+
+    !> shift of excited state PES
+    real(dp), parameter :: shift = 0.0_dp
+
+    integer :: nAtoms, nexcGrad, nCoupl
+    real(dp), allocatable :: X1(:), X2(:), dE2(:), gpf(:)
+    real(dp) :: dpX1, dpX2, prj1, prj2, deltaE, normGP
+
+    nAtoms = size(derivs, dim=2)
+    nexcGrad = indNACouplings(2)-indNACouplings(1)+1   
+    nCoupl = nexcGrad*(nexcGrad-1)/2
+    @:ASSERT(nexcGrad ==  size(excDerivs, dim=3))
+    @:ASSERT(nCoupl == size(naCouplings, dim=3))
+
+    allocate(X1(3 * nAtoms))
+    allocate(X2(3 * nAtoms))
+    allocate(dE2(3 * nAtoms))
+    allocate(gpf(3 * nAtoms))
+
+    if (indNACouplings(1) == 0) then
+      X1 = reshape(excDerivs(:,:,nexcGrad), (/ 3 * nAtoms /))
+    else
+      X1 = reshape(excDerivs(:,:,nexcGrad)-excDerivs(:,:,1), (/ 3 * nAtoms /))
+    end if
+    ! Last entry of array holds coupling between states indNACouplings(1/2) 
+    X2 = reshape(naCouplings(:,:,nCoupl), (/ 3 * nAtoms /))
+
+    ! Original Bearbark suggestion would be dS1/dq, Harabuchi chooses
+    ! 0.5 (dS0/dq + dS1/dq)
+    dE2 = reshape(derivs + 0.5_dp * (excDerivs(:,:,nexcGrad) + excDerivs(:,:,1)), (/ 3 * nAtoms /))
+
+    dpX1 = dot_product(X1, X1)
+    dpX2 = dot_product(X2, X2)
+
+    prj1 = dot_product(dE2, X1)
+    prj2 = dot_product(dE2, X2)
+
+    ! Eq. 5 in Bearpark et al.
+    gpf(:) = dE2(:) - prj1 * X1(:) / dpX1 - prj2 * X2(:) / dpX2
+    normGP = norm2(gpf)
+
+    ! Eq. 4 in Bearpark et al. with modifications by Harabuchi
+    ! Yields approximate CI without running into SCF problems too early
+    ! Shift should be brought to zero
+    deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
+    gpf(:) = gpf(:) + 2.0_dp * (deltaE - shift) * X1(:) / sqrt(dpX1) 
+
+    derivs(:,:) = reshape(gpf, (/ 3, nAtoms /))
+
+    write(*, "(A, f10.4, A, f16.8)") 'Energy gap:                ', &
+         & deltaE * Hartree__eV, ' eV, Projected force ', normGP 
+
+!!$    write(tmpStr, "(A,I0,A,I0,A)")"delgrd", indNACouplings(1),"-", indNACouplings(2), ".dat"
+!!$
+!!$    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", &
+!!$        & form='formatted',iostat=iErr)
+!!$
+!!$    if (iErr /= 0) then
+!!$      write(error_string, *) "Failure to open grad file"
+!!$      call error(error_string)
+!!$    end if
+!!$
+!!$    naCouplings = deltaDerivs2 - deltaDerivs1
+!!$    do i = 1, size(derivs(1,:))
+!!$      write(fdunit,'(3(E20.12,2x))') naCouplings(1,i), naCouplings(2,i), naCouplings(3,i)
+!!$    enddo
+!!$
+!!$    close(fdUnit)
+
+  end subroutine conicalIntersectionOptimizer
 
 end module dftbp_timedep_linrespgrad

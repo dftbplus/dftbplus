@@ -939,6 +939,9 @@ module dftbp_dftbplus_initprogram
     !> Excited state force addition (xyz,atom,state)
     real(dp), allocatable :: excitedDerivs(:,:,:)
 
+    !> Nonadiabatic coupling vectors
+    real(dp), allocatable :: naCouplings(:,:,:)
+
     !> Dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
 
@@ -4680,14 +4683,17 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      ! For CI optimization store gradient for several states  
-      if(this%linearResponse%tNaCoupling) then
-        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-        allocate(this%excitedDerivs(3, this%nAtom, dLev))
-      ! Store excited state gradient for state of interest only  
-      else if (this%tLinRespZVect .and. this%tCasidaForces) then  
-        allocate(this%excitedDerivs(3, this%nAtom, 1))
-      end if
+      if (this%isLinResp) then
+        ! For CI optimization store gradient for several states  
+        if(this%linearResponse%tNaCoupling) then
+          dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+          allocate(this%excitedDerivs(3, this%nAtom, dLev)) 
+          allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
+        ! Store excited state gradient for state of interest only  
+        else if (this%tLinRespZVect .and. this%tCasidaForces) then  
+          allocate(this%excitedDerivs(3, this%nAtom, 1))
+        end if
+      end if 
     end if
 
     call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &

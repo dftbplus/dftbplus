@@ -67,7 +67,7 @@ module dftbp_timedep_linresp
     !> atom resolved Hubbard U
     real(dp), allocatable :: HubbardU(:)
 
-    !> atom resolved spin constants
+    !> atom resolved spinconstants
     real(dp), allocatable :: spinW(:)
 
     !> print excited state mulliken populations
@@ -87,7 +87,10 @@ module dftbp_timedep_linresp
 
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
-
+    
+    !> should CI be optimized
+    logical :: tCIopt
+    
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 
@@ -176,7 +179,6 @@ contains
       call error("Excited energy window should be non-zero if used")
     end if
 
-    print *,'I am in doing stuff'
     if(all(ini%indNACouplings == 0)) then
       this%tNaCoupling = .false.
     else if (any(ini%indNACouplings < 0)) then
@@ -188,7 +190,10 @@ contains
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
       dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
-    endif
+   endif
+    
+    this%tCIopt = ini%tCIopt
+    print *,'in respo',ini%tCIopt, this%tCIopt
 
     this%writeMulliken = ini%tMulliken
     this%writeCoeffs = ini%tCoeffs
@@ -305,7 +310,7 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
+      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient, nacv,&
       & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
@@ -383,6 +388,9 @@ contains
     !> contribution to forces from derivatives of excited state energy
     real(dp), intent(inout), allocatable :: excgradient(:,:,:)
 
+    !> Non-adiabatic coupling vectors
+    real(dp), intent(inout), allocatable :: nacv(:,:,:)
+
     !> occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), allocatable :: occNatural(:)
 
@@ -406,12 +414,12 @@ contains
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
-            & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+            & skOverCont, excgradient, nacv, derivator, rhoSqr, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
-            & skOverCont, excgradient, derivator, rhoSqr)
+            & skOverCont, excgradient, nacv, derivator, rhoSqr)
       end if
 
     else
