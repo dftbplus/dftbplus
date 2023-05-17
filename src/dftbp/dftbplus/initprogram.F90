@@ -2277,7 +2277,10 @@ contains
       end if
       allocate(this%electrostatPot)
       call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
-          & allocated(this%eField) .or. this%tExtChrg)
+          & allocated(this%eField) .or. this%tExtChrg, this%hamiltonianType, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
