@@ -74,13 +74,10 @@ contains
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
-  subroutine LinRespGrad_old(tSpin, this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
-      & SSqr, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
-      & taggedWriter, rangeSep, omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad,&
-      & derivator, rhoSqr, occNatural, naturalOrbs)
-
-    !> spin polarized calculation
-    logical, intent(in) :: tSpin
+  subroutine LinRespGrad_old(this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0, SSqr,&
+      & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep, omega,&
+      & allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
+      & naturalOrbs)
 
     type(TLinResp), intent(inout) :: this
 
@@ -345,6 +342,12 @@ contains
       end if
     end if
 
+    if (this%tNaCoupling) then
+      if (.not. tForces) then
+        call error('StateCouplings: CalculateForces must be set to Yes.')
+      end if
+    end if
+
     !> is a z vector required?
     tZVector = tForces .or. this%writeMulliken .or. this%writeCoeffs .or. present(naturalOrbs) .or.&
         & this%tWriteDensityMatrix
@@ -368,7 +371,7 @@ contains
     end if
 
     ! Select symmetries to process
-    if (.not. tSpin) then
+    if (.not. this%tSpin) then
       select case (this%symmetry)
       case ("B")
         allocate(symmetries(2))
@@ -429,7 +432,7 @@ contains
     wij = wij(win)
 
     ! Build square root of occupation difference between virtual and occupied states
-    call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, tSpin, sqrOccIA)
+    call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, this%tSpin, sqrOccIA)
 
     ! dipole strength of transitions between K-S states
     call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, iAtomStart, ovrXev, grndEigVecs,&
@@ -513,7 +516,7 @@ contains
     ! excitation energies
     call openFile(fdExc, excitationsOut, mode="w")
     write(fdExc%unit, *)
-    if (tSpin) then
+    if (this%tSpin) then
       write(fdExc%unit, '(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
           & 'Weight', 'KS [eV]','D<S*S>'
     else
@@ -527,7 +530,8 @@ contains
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd, tSpin)
+    call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd,&
+        & this%tSpin)
 
     allocate(xpy(nxov_rd, this%nExc))
     if (tZVector .or. tRangeSep) then
@@ -547,24 +551,24 @@ contains
       sym = symmetries(isym)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
-        call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
+        call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,&
             & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
             & tRangeSep, tZVector)
       case (linrespSolverTypes%stratmann)
-        call buildAndDiagExcMatrixStratmann(tSpin, this%subSpaceFactorStratmann, wij(:nxov_rd),&
-            & sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA,&
-            & getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
-            & species0, this%spinW, transChrg, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
-            & tRangeSep, lrGamma, tZVector)
+        call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
+            & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+            & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, eval, xpy, xmy,&
+            & this%onSiteMatrixElements, orb, tRangeSep, lrGamma, tZVector)
       end select
 
       ! Excitation oscillator strengths for resulting states
-      call getOscillatorStrengths(sym, tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy, &
+      call getOscillatorStrengths(sym, this%tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy,&
             & sqrOccIA(:nxov_rd), nstat, osz, this%writeTransDip, transitionDipoles)
 
-      if (tSpin) then
+      if (this%tSpin) then
         call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXev, grndEigVecs)
         call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getIA, win, eval, xpy,&
             & wij(:nxov_rd), fdXPlusY, fdTrans, fdTransDip,&
@@ -620,7 +624,7 @@ contains
         nEndLev = nstat
       end if
 
-      if (tSpin) then
+      if (this%tSpin) then
         if (any( abs(filling) > elecTolMax .and. abs(filling-1.0_dp) > elecTolMax ) ) then
           call error("Fractional fillings not currently possible for excited state property&
               & calculations")
@@ -655,7 +659,7 @@ contains
             & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
 
-        call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
+        call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
             & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
@@ -696,41 +700,31 @@ contains
 
       if (this%tNaCoupling) then
 
-        if (this%tNaCoupling .and. tSpin) then
-          call error('Couplings for spin-polarized systems currently not available.')
-        end if
-        if(this%nExc < this%indNACouplings(2)) then
-          call error('Coupling: Index must not exceed number of states to calculate.')
-        end if  
-        if (.not. tForces) then
-          call error('Coupling: CalculateForces must be set to Yes.')
-        end if
-
         ! This overwrites T, RHS and W
         numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
         numNAC = numNAC * (numNAC-1) / 2
-        allocate(nacv(size(excgrad, dim=1), size(excgrad, dim=2), numNAC))
+        allocate(nacv(3, size(excgrad, dim=2), numNAC))
         allocate(xpyn, mold=xpy(:,1))
         allocate(xpym, mold=xpy(:,1))
         allocate(xmyn, mold=xpy(:,1))
         allocate(xmym, mold=xpy(:,1))
 
         iNac = 0
-        nacv = 0.0_dp
+        nacv(:,:,:) = 0.0_dp
         do nCoupLev = this%indNACouplings(1), this%indNACouplings(2)-1
           do mCoupLev = nCoupLev+1, this%indNACouplings(2)
 
             iNac = iNac + 1 
-            woo = 0.0_dp
-            wvv = 0.0_dp
-            pc = 0.0_dp
-            t = 0.0_dp
-            rhs = 0.0_dp
+            woo(:,:) = 0.0_dp
+            wvv(:,:) = 0.0_dp
+            pc(:,:,:) = 0.0_dp
+            t(:,:,:) = 0.0_dp
+            rhs(:) = 0.0_dp
 
             !> Ground-to-excited NACV 
             if(nCoupLev == 0) then
-              xpym = xpy(:,mCoupLev)
-              xmym = xmy(:,mCoupLev)
+              xpym(:) = xpy(:,mCoupLev)
+              xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
               call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, iAtomStart, nocc_ud,& 
                  & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
@@ -745,11 +739,11 @@ contains
 
               !> For 0-n couplings, the standard force routine can be used, where
               !> X+Y and W_ab are zeroed out
-              wvv  = 0.0_dp
-              xpym = 0.0_dp
-              xmym = 0.0_dp
-              xpyn = 0.0_dp
-              xmyn = 0.0_dp
+              wvv(:,:)  = 0.0_dp
+              xpym(:) = 0.0_dp
+              xmym(:) = 0.0_dp
+              xpyn(:) = 0.0_dp
+              xmyn(:) = 0.0_dp
               call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym,&
@@ -758,10 +752,10 @@ contains
 
             else
  
-              xpyn = xpy(:,nCoupLev)
-              xmyn = xmy(:,nCoupLev)
-              xpym = xpy(:,mCoupLev)
-              xmym = xmy(:,mCoupLev)
+              xpyn(:) = xpy(:,nCoupLev)
+              xmyn(:) = xmy(:,nCoupLev)
+              xpym(:) = xpy(:,mCoupLev)
+              xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(nCoupLev)) - sqrt(eval(mCoupLev))
               omegaAvg = 0.5_dp * (sqrt(eval(nCoupLev)) + sqrt(eval(mCoupLev)))
              
@@ -773,10 +767,11 @@ contains
                  & grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t,&
                  & wov, woo, wvv)
 
-              call solveZVectorPrecond(rhs, tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
-                 & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart,&
-                 & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0,&
-                 & this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)  
+              call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud,&
+                  & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,&
+                  & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
+                  & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,&
+                  & lrGamma)
 
               call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
                  & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,&
@@ -807,10 +802,9 @@ contains
         !> Convention to determine arbitrary phase 
         call fixNACVPhase(nacv) 
 
-        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)   
-            
-      end if
+        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
 
+      end if
 
       if (nstat == 0) then
         omega = 0.0_dp
@@ -4451,7 +4445,7 @@ contains
       do mCoupLev = nCoupLev+1, jLev
          iNac = iNac + 1
          write(fdNaCoupl%unit,'(2(I4,2x))') nCoupLev, mCoupLev
-         do ii = 1, size(nacv(1,:,iNac))
+         do ii = 1, size(nacv, dim=2)
            write(fdNaCoupl%unit,'(3(E20.12,2x))') nacv(1,ii,iNac), nacv(2,ii,iNac), nacv(3,ii,iNac)
          end do
       end do
@@ -5435,7 +5429,10 @@ contains
   ! Convention to fix phase of NAC vector: Largest value is positive. If several entries
   ! are closer than nacTol to the maximum, the lowest index is chosen
   subroutine fixNACVPhase(nacv)
+
+    !> Non-adiabatic coupling matrix for (3,atoms,transitions)
     real(dp), intent(inout) :: nacv(:,:,:)
+
     real(dp)                :: max
     integer                 :: ii, jj, iNac, nAtoms, phase
 
