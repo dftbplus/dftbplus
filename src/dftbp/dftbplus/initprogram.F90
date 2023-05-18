@@ -28,11 +28,14 @@ module dftbp_dftbplus_initprogram
       & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only :buildSquaredAtomIndex
-  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
+  use dftbp_dftb_deltadets, only : TDeltaDeterminants, TDeltaDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
   use dftbp_dftb_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
       & TDispDftD4, init, DispSlaKirk_init, DispUff_init
+#:if WITH_MBD
+  use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
+#:endif
   use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_etemp, only : fillingTypes
@@ -40,6 +43,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
   use dftbp_dftb_hamiltonian, only : TRefExtPot
+  use dftbp_dftb_modifiedham, only : TModifiedHam, TModifiedHam_init
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
@@ -125,9 +129,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_type_multipole, only : TMultipole, TMultipole_init
   use dftbp_type_orbitals, only : getShellNames
   use dftbp_type_wrappedintr, only : TWrappedInt1
-#:if WITH_MBD
-  use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
-#:endif
 #:if WITH_OMP
   use omp_lib, only : omp_get_max_threads
 #:endif
@@ -1081,11 +1082,12 @@ module dftbp_dftbplus_initprogram
     !> All of the excited energies actually solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
 
-    !> Type for determinant control in DFTB (Delta DFTB)
-    type(TDftbDeterminants) :: deltaDftb
+    !> Type for determinant or numerical perturbation control of hamiltonians in DFTB (Delta DFTB)
+    type(TModifiedHam) :: modifiedHamiltonian
 
-    !> Number of determinants in use in the calculation
-    integer :: nDets
+    !> Number of different hamiltonians (determinants, finite difference cases, ...) to store
+    !> results for post processing
+    integer :: nHams
 
     !> Final SCC charges if multiple determinants being used
     real(dp), allocatable :: qDets(:,:,:,:)
@@ -1284,6 +1286,11 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
+
+    !> Format for two values using exponential notation values with units
+    character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
+
+    type(TDeltaDeterminants), allocatable :: deltaDFTB
 
     @:ASSERT(input%tInitialized)
 
@@ -1844,9 +1851,16 @@ contains
       call error("Custom occupation not compatible with linear response")
     end if
 
+    ! Delta-SCF
+    if (input%ctrl%isNonAufbau) then
+      allocate(deltaDFTB)
+      call TDeltaDeterminants_init(deltaDFTB, input%ctrl%isNonAufbau,&
+        & input%ctrl%isSpinPurify, input%ctrl%isGroundGuess)
+    end if
+
     ! DFTB related variables if multiple determinants are used
-    call TDftbDeterminants_init(this%deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
-        & input%ctrl%isGroundGuess, this%nEl, this%dftbEnergy)
+    call TModifiedHam_init(this%modifiedHamiltonian, input%ctrl%isNonAufbau,&
+        & input%ctrl%isSpinPurify, input%ctrl%isGroundGuess, this%dftbEnergy)
 
     if (this%tForces) then
       this%tCasidaForces = input%ctrl%tCasidaForces
@@ -1909,7 +1923,8 @@ contains
 
     end if
 
-    if (this%deltaDftb%isNonAufbau .and. .not.this%electronicSolver%providesEigenvals) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. .not.this%electronicSolver%providesEigenvals)&
+        & then
       call error("Eigensolver that calculates eigenvalues is required for Delta DFTB")
     end if
 
@@ -2344,7 +2359,7 @@ contains
       if (allocated(this%reks)) then
         call error("REKS not currently supported for perturbation")
       end if
-      if (this%deltaDftb%isNonAufbau) then
+      if (this%modifiedHamiltonian%isNonAufbau) then
         call error("Delta-DFTB not currently supported for perturbation")
       end if
       if (allocated(this%solvation)) then
@@ -2611,7 +2626,7 @@ contains
     end if
 
     this%tReadChrg = input%ctrl%tReadChrg
-    if (this%tReadChrg .and. this%deltaDftb%isNonAufbau) then
+    if (this%tReadChrg .and. this%modifiedHamiltonian%isNonAufbau) then
       call error("Charge restart not currently supported for Delta DFTB")
     end if
 
@@ -3530,7 +3545,7 @@ contains
       end do
     end if
 
-    if (this%deltaDftb%isNonAufbau) then
+    if (this%modifiedHamiltonian%isNonAufbau) then
       if (this%nSpin /= 2) then
         call error("Internal error, Delta DFTB requires two spin channels")
       end if
@@ -3550,31 +3565,31 @@ contains
         call error("Delta DFTB requires at least one full orbital in the system")
       end if
     end if
-    if (this%deltaDftb%isNonAufbau .and. .not.this%tSccCalc) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. .not.this%tSccCalc) then
       call error("Delta DFTB must use SCC = Yes")
     end if
-    if (this%deltaDftb%isNonAufbau .and. this%isLinResp) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. this%isLinResp) then
       call error("Delta DFTB incompatible with linear response")
     end if
-    if (this%deltaDftb%isNonAufbau .and. allocated(this%ppRPA)) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. allocated(this%ppRPA)) then
       call error("Delta DFTB incompatible with ppRPA")
     end if
-    if (this%deltaDftb%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
       call error("Delta DFTB incompatible with electron dynamics")
     end if
-    if (this%deltaDftb%isNonAufbau .and. this%tFixEf) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. this%tFixEf) then
       call error("Delta DFTB incompatible with fixed Fermi energy")
     end if
-    if (this%deltaDftb%isNonAufbau .and. this%tSpinSharedEf) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. this%tSpinSharedEf) then
       call error("Delta DFTB incompatible with shared Fermi energy")
     end if
-    if (this%deltaDftb%isNonAufbau .and. allocated(this%reks)) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. allocated(this%reks)) then
       call error("Delta DFTB incompatible with REKS")
     end if
-    if (this%deltaDftb%isNonAufbau .and. this%tNegf) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. this%tNegf) then
       call error("Delta DFTB incompatible with transport")
     end if
-    if (this%deltaDftb%isNonAufbau .and. this%tLocalise) then
+    if (this%modifiedHamiltonian%isNonAufbau .and. this%tLocalise) then
       call error("Delta DFTB incompatible with localisation")
     end if
 
@@ -4671,7 +4686,7 @@ contains
         allocate(this%ERhoPrim(0))
       end if
       allocate(this%derivs(3, this%nAtom))
-      if (this%deltaDftb%isNonAufbau) then
+      if (this%modifiedHamiltonian%isNonAufbau) then
         allocate(this%groundDerivs(3, this%nAtom))
         allocate(this%tripletDerivs(3, this%nAtom))
         allocate(this%mixedDerivs(3, this%nAtom))
@@ -4786,10 +4801,10 @@ contains
     end if
 
     if (this%tDipole) then
-      if (this%deltaDftb%isSpinPurify) then
-        allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()+1))
+      if (this%modifiedHamiltonian%isSpinPurify) then
+        allocate(this%dipoleMoment(3, this%nHams+1))
       else
-        allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()))
+        allocate(this%dipoleMoment(3, this%nHams))
       end if
     end if
 
@@ -4802,19 +4817,18 @@ contains
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
-
-    this%nDets = this%deltaDftb%nDeterminant()
-    if (this%nDets > 1) then
+    this%nHams = this%modifiedHamiltonian%nDeterminant()
+    if (this%nHams > 1) then
       ! must be SCC and also need storage for final charges
-      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
+      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nHams))
       this%qDets(:,:,:,:) = 0.0_dp
       ! When block charges are needed
       if (allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
-        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
+        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nHams))
         this%qBlockDets(:,:,:,:,:) = 0.0_dp
       end if
       if (this%isRangeSep) then
-        allocate(this%deltaRhoDets(this%nOrb * this%nOrb * this%nSpin, this%nDets))
+        allocate(this%deltaRhoDets(this%nOrb * this%nOrb * this%nSpin, this%nHams))
         this%deltaRhoDets(:,:) = 0.0_dp
       end if
     end if

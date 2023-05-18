@@ -11,7 +11,7 @@
 module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
+  use dftbp_dftb_modifiedham, only : TModifiedHam, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies

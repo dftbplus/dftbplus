@@ -21,11 +21,12 @@ module dftbp_dftbplus_mainio
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_determinants, only : TDftbDeterminants
+  use dftbp_dftb_modifiedham, only : TModifiedHam
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_extfields, only : TEField
+  use dftbp_dftb_modifiedham, only : TModifiedHam
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sccinit, only : writeQToFile
   use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
@@ -3129,7 +3130,7 @@ contains
     type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> type for DFTB determinants
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: deltaDftb
 
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
@@ -3694,7 +3695,7 @@ contains
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
     !> type for DFTB determinants
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: deltaDftb
 
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
@@ -4531,7 +4532,7 @@ contains
     type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> type for DFTB determinants
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: deltaDftb
 
     !> Optional unit to print out the results
     integer, intent(in), optional :: outUnit

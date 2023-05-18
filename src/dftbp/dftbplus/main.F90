@@ -22,7 +22,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
-  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
+  use dftbp_dftb_modifiedham, only : TModifiedHam, TModifiedHam_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_elstatpot, only : TElStatPotentials
@@ -187,12 +187,14 @@ contains
     !> Should the geometry loop be stopped early
     logical :: tExitGeoOpt
 
-    !> Which state is being calculated in the determinant loop?
-    integer :: iDet
+    !> Should the charges be reduced for mixing purposes
     logical :: isUnReduced
 
     type(TStatus) :: errStatus
+
     real(dp), pointer :: pDynMatrix(:,:), pDipDerivMatrix(:,:), pPolDerivMatrix(:,:,:)
+
+    integer :: iDet
 
     call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
         & iGeoStep, iLatGeoStep)
@@ -214,12 +216,13 @@ contains
 
       ! DFTB Determinant Loop
       ! Will pass though loop once, unless specified in input to perform multiple determinants
-      lpDets : do iDet = 1, this%nDets
+      lpDets : do iDet = 1, this%modifiedHamiltonian%nSteps()
 
-        this%deltaDftb%iDeterminant = iDet
+        this%modifiedHamiltonian%iDet = iDet
 
-        call preDetCharges(isUnReduced, iDet, this%nDets, iGeoStep, this%deltaDftb, this%qInput,&
-            & this%qDets, this%qBlockIn, this%qBlockDets, this%deltaRhoIn, this%deltaRhoDets)
+        call preDetCharges(isUnReduced, this%modifiedHamiltonian%iHam(), this%nHams, iGeoStep,&
+            & this%modifiedHamiltonian, this%qInput, this%qDets, this%qBlockIn, this%qBlockDets,&
+            & this%deltaRhoIn, this%deltaRhoDets)
         if (isUnReduced) then
           call reduceCharges(this%orb, this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed,&
               & this%qBlockIn, this%iEqBlockDftbu, this%qiBlockIn, this%iEqBlockDftbuLS,&
@@ -232,25 +235,31 @@ contains
           call error(errStatus%message)
         end if
 
-        call postDetCharges(iDet, this%nDets, this%qOutput, this%qDets, this%qBlockDets,&
-            & this%qBlockOut, this%deltaRhoDets, this%deltaRhoOut)
+        ! move this into the modifiedHamiltonian determinants type at later stage:
+        call postDetCharges(this%modifiedHamiltonian%iHam(), this%nHams, this%qOutput, this%qDets,&
+            & this%qBlockDets, this%qBlockOut, this%deltaRhoDets, this%deltaRhoOut)
+
+        if (this%modifiedHamiltonian%stopLoop()) then
+          exit lpDets
+        end if
 
       end do lpDets
 
-      call this%deltaDftb%postProcessDets(this%dftbEnergy, this%qOutput, this%qDets,&
+      call this%modifiedHamiltonian%postProcessDets(this%dftbEnergy, this%qOutput, this%qDets,&
           & this%qBlockOut, this%qBlockDets, this%dipoleMoment, this%totalStress,&
           & this%tripletStress, this%mixedStress, this%derivs, this%tripletderivs, this%mixedderivs)
 
-      if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() > 1) then
+
+      if (this%tWriteDetailedOut .and. this%nHams > 1) then
         call writeDetailedOut2Dets(this%fdDetailedOut, userOut, tAppendDetailedOut,&
-            & this%dftbEnergy, this%electronicSolver, this%deltaDftb, this%q0, this%orb,&
+            & this%dftbEnergy, this%electronicSolver, this%modifiedHamiltonian, this%q0, this%orb,&
             & this%qOutput, this%qDets, this%qBlockDets, this%species, this%iAtInCentralRegion,&
             & this%tPrintMulliken, this%cm5Cont)
       end if
 
       if (.not.this%tRestartNoSC .and.&
           & this%electronicSolver%iSolver /= electronicSolverTypes%OnlyTransport) then
-        call printEnergies(this%dftbEnergy, this%electronicSolver, this%deltaDftb)
+        call printEnergies(this%dftbEnergy, this%electronicSolver, this%modifiedHamiltonian)
       end if
 
       if (this%tStress) then
@@ -260,7 +269,7 @@ contains
         ! MD case includes the atomic kinetic energy contribution, so print that later
         if (.not. (this%tMD .or. this%tHelical)) then
           call printPressureAndFreeEnergy(this%extPressure, this%intPressure,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant)%EGibbs)
+              & this%dftbEnergy(this%modifiedHamiltonian%iDet)%EGibbs)
         end if
       end if
 
@@ -276,14 +285,14 @@ contains
           & this%indMovedAtom)
     #:if WITH_SOCKETS
       if (this%tSocket) then
-        call sendEnergyAndForces(env, this%socket, this%dftbEnergy(this%deltaDftb%iFinal),&
-            & this%derivs, this%totalStress, this%cellVol)
+        call sendEnergyAndForces(env, this%socket,&
+            & this%dftbEnergy(this%modifiedHamiltonian%iFinal), this%derivs, this%totalStress,&
+            & this%cellVol)
       end if
     #:endif
       tWriteCharges = allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
-          & .and. this%tSccCalc .and. .not. this%tDerivs&
-          & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1&
-          & .and. this%tWriteCharges
+          & .and. this%tSccCalc .and. .not. this%tDerivs .and. this%maxSccIter > 1&
+          & .and. this%nHams == 1 .and. this%tWriteCharges
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
             & this%qiBlockIn, this%deltaRhoIn, size(this%iAtInCentralRegion), this%multipoleInp)
@@ -322,8 +331,8 @@ contains
       end if
 
       if (this%tWriteDetailedOut .and. this%tMd) then
-        call writeDetailedOut6(this%fdDetailedOut%unit, this%dftbEnergy(this%deltaDftb%iFinal),&
-            & tempIon)
+        call writeDetailedOut6(this%fdDetailedOut%unit,&
+            & this%dftbEnergy(this%modifiedHamiltonian%iFinal), tempIon)
       end if
 
       if (tGeomEnd) then
@@ -357,7 +366,7 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling,&
+            & this%eField, this%dipoleMoment, this%modifiedHamiltonian, this%eFieldScaling,&
             & this%dipoleMessage)
       end if
 
@@ -539,27 +548,29 @@ contains
     if (this%tWriteAutotest.and..not.this%tRestartNoSC) then
       if (this%tPeriodic) then
         this%cellVol = abs(determinant33(this%latVec))
-        this%dftbEnergy(this%deltaDftb%iFinal)%EGibbs =&
-            & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin + this%extPressure * this%cellVol
+        this%dftbEnergy(this%modifiedHamiltonian%iFinal)%EGibbs =&
+            & this%dftbEnergy(this%modifiedHamiltonian%iFinal)%EMermin&
+            & + this%extPressure * this%cellVol
       end if
       call writeAutotestTag(autotestTag, this%electronicSolver, this%tPeriodic, this%cellVol,&
           & this%tMulliken, this%qOutput, this%derivs, this%chrgForces, this%excitedDerivs,&
-          & this%tStress, this%totalStress, pDynMatrix, this%dftbEnergy(this%deltaDftb%iFinal),&
-          & this%extPressure, this%coord0, this%tLocalise, localisation, this%electrostatPot,&
-          & this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray, this%polarisability,&
-          & this%dEidE, this%dipoleMoment, this%eFieldScaling)
+          & this%tStress, this%totalStress, pDynMatrix,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iFinal), this%extPressure, this%coord0,&
+          & this%tLocalise, localisation, this%electrostatPot, this%taggedWriter, this%tunneling,&
+          & this%ldos, this%lCurrArray, this%polarisability, this%dEidE, this%dipoleMoment,&
+          & this%eFieldScaling)
     end if
     if (this%tWriteResultsTag) then
-      call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
-          & this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling, this%electronicSolver,&
-          & this%tStress, this%totalStress, pDynMatrix, pDipDerivMatrix, this%tPeriodic,&
-          & this%cellVol, this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
-          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
+      call writeResultsTag(resultsTag, this%dftbEnergy(this%modifiedHamiltonian%iFinal),&
+          & this%derivs, this%chrgForces, this%nEl, this%Ef, this%eigen, this%filling,&
+          & this%electronicSolver, this%tStress, this%totalStress, pDynMatrix,&
+          & pDipDerivMatrix, this%tPeriodic, this%cellVol, this%tMulliken, this%qOutput, this%q0,&
+          & this%taggedWriter, this%cm5Cont, this%polarisability, this%dEidE, this%dqOut,&
+          & this%neFermi, this%dEfdE, this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
-          & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin)
+          & this%dftbEnergy(this%modifiedHamiltonian%iFinal)%EMermin)
     end if
     if (this%tWriteDetailedXML) then
       call writeDetailedXml(this%runId, this%speciesName, this%species0, this%pCoord0Out,&
@@ -581,23 +592,23 @@ contains
 
 
   !> Set up charges before determinant calculations
-  subroutine preDetCharges(isUnReduced, iDet, nDets, iGeoStep, deltaDftb, qInput, qDets, qBlockIn,&
-      & qBlockDets, deltaRhoIn, deltaRhoDets)
+  subroutine preDetCharges(isUnReduced, iHam, nHams, iGeoStep, modifiedHamiltonian, qInput, qDets,&
+      & qBlockIn, qBlockDets, deltaRhoIn, deltaRhoDets)
 
     !> Are charge reductions required after this routine
     logical, intent(out) :: isUnReduced
 
     !> The current determinant being processed
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iHam
 
     !> Total number of determinants
-    integer, intent(in) :: nDets
+    integer, intent(in) :: nHams
 
     !> Geometry step
     integer, intent(in) :: iGeoStep
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: modifiedHamiltonian
 
     !> input charges
     real(dp), intent(inout) :: qInput(:,:,:)
@@ -618,25 +629,25 @@ contains
     real(dp), intent(inout), allocatable :: deltaRhoDets(:,:)
 
     isUnReduced = .false.
-    if (nDets > 1) then
+    if (nHams > 1) then
       if (iGeoStep == 0) then
-        if (deltaDftb%iGround > 0 .and. iDet /= deltaDftb%iGround) then
-          qInput(:,:,:) = qDets(:,:,:,deltaDftb%iGround)
+        if (modifiedHamiltonian%iGround > 0 .and. iHam /= modifiedHamiltonian%iGround) then
+          qInput(:,:,:) = qDets(:,:,:,modifiedHamiltonian%iGround)
           if (allocated(qBlockIn)) then
-            qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,deltaDftb%iGround)
+            qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,modifiedHamiltonian%iGround)
           end if
           if (allocated(deltaRhoIn)) then
-            deltaRhoIn(:) = deltaRhoDets(:,deltaDftb%iGround)
+            deltaRhoIn(:) = deltaRhoDets(:,modifiedHamiltonian%iGround)
           end if
           isUnReduced = .true.
         end if
       else
-        qInput(:,:,:) = qDets(:,:,:,iDet)
+        qInput(:,:,:) = qDets(:,:,:,iHam)
         if (allocated(qBlockIn)) then
-          qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iDet)
+          qBlockIn(:,:,:,:) = qBlockDets(:,:,:,:,iHam)
         end if
         if (allocated(deltaRhoIn)) then
-          deltaRhoIn(:) = deltaRhoDets(:,iDet)
+          deltaRhoIn(:) = deltaRhoDets(:,iHam)
         end if
         isUnReduced = .true.
       end if
@@ -646,14 +657,14 @@ contains
 
 
   !> Store (if necessary) charges after determinant calculations
-  subroutine postDetCharges(iDet, nDets, qOutput, qDets, qBlockDets, qBlockOut, deltaRhoDets,&
+  subroutine postDetCharges(iHam, nHams, qOutput, qDets, qBlockDets, qBlockOut, deltaRhoDets,&
       & deltaRhoOut)
 
     !> The current determinant being processed
-    integer, intent(in) :: iDet
+    integer, intent(in) :: iHam
 
     !> Total number of determinants
-    integer, intent(in) :: nDets
+    integer, intent(in) :: nHams
 
     !> output charges
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -673,13 +684,13 @@ contains
     !> delta density matrix as input for next SCC cycle (if needed for range sep. potentials)
     real(dp), intent(inout), allocatable :: deltaRhoOut(:)
 
-    if (nDets > 1) then
-      qDets(:,:,:,iDet) = qOutput(:,:,:)
+    if (nHams > 1) then
+      qDets(:,:,:,iHam) = qOutput(:,:,:)
       if (allocated(qBlockOut)) then
-        qBlockDets(:,:,:,:,iDet) = qBlockOut
+        qBlockDets(:,:,:,:,iHam) = qBlockOut
       end if
       if (allocated(deltaRhoDets)) then
-        deltaRhoDets(:,iDet) = deltaRhoOut
+        deltaRhoDets(:,iHam) = deltaRhoOut
       end if
     end if
 
@@ -875,13 +886,13 @@ contains
             & this%qBlockOut)
       end if
 
-      call getSccInfo(iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, Eold,&
+      call getSccInfo(iSccIter, this%dftbEnergy(this%modifiedHamiltonian%iDet)%Eelec, Eold,&
           & diffElec)
       if (this%tNegf) then
         call printSccHeader()
       end if
       call printSccInfo(allocated(this%dftbU), iSccIter,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, diffElec, sccErrorQ)
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet)%Eelec, diffElec, sccErrorQ)
 
       if (this%tNegf) then
         call printBlankLine()
@@ -922,11 +933,11 @@ contains
     !> Self-consistency error
     real(dp), intent(in) :: sccErrorQ
 
-    if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
+    if (this%tWriteDetailedOut .and. this%nHams == 1) then
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
           & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
-          & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
+          & iSccIter, this%dftbEnergy(this%modifiedHamiltonian%iDet), diffElec, sccErrorQ,&
           & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
           & this%invLatVec, this%kPoint)
       call writeDetailedOut2(this%fdDetailedOut%unit, this%q0, this%qOutput, this%orb,&
@@ -935,7 +946,7 @@ contains
           & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont,&
           & this%qNetAtom)
       call writeDetailedOut3(this%fdDetailedOut%unit, this%qInput, this%qOutput,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%species, allocated(this%dftbU),&
           & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
           & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
           & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
@@ -1081,17 +1092,18 @@ contains
 
     if (allocated(this%repulsive)) then
       call this%repulsive%getEnergy(this%coord, this%species, this%img2CentCell,&
-          & this%neighbourList,this%dftbEnergy(this%deltaDftb%iDeterminant)%atomRep,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%ERep,&
+          & this%neighbourList,this%dftbEnergy(this%modifiedHamiltonian%iDet)%atomRep,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet)%ERep,&
           & iAtInCentralRegion=this%iAtInCentralRegion)
     end if
 
     if (allocated(this%halogenXCorrection)) then
       call this%halogenXCorrection%getEnergies(this%dftbEnergy(&
-          & this%deltaDftb%iDeterminant)%atomHalogenX, this%coord, this%species,&
+          & this%modifiedHamiltonian%iDet)%atomHalogenX, this%coord, this%species,&
           & this%neighbourList, this%img2CentCell)
-      this%dftbEnergy(this%deltaDftb%iDeterminant)%EHalogenX =&
-          & sum(this%dftbEnergy(this%deltaDftb%iDeterminant)%atomHalogenX(this%iAtInCentralRegion))
+      this%dftbEnergy(this%modifiedHamiltonian%iDet)%EHalogenX =&
+          & sum(this%dftbEnergy(this%modifiedHamiltonian%iDet)&
+          &%atomHalogenX(this%iAtInCentralRegion))
     end if
 
     call resetExternalPotentials(this%refExtPot, this%potential)
@@ -1207,13 +1219,14 @@ contains
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
               & this%eigvecsReal, this%electronicSolver, this%eigen, this%qOutput, this%q0,&
               & this%tDipole, dipoleTmp, this%reks)
-          call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
-              & this%tDipole, this%reks, isSingleState=.true.)
+          call assignDipoleMoment(dipoleTmp, this%dipoleMoment,&
+              & this%modifiedHamiltonian%iDet, this%tDipole, this%reks,&
+              & isSingleState=.true.)
 
           call getReksEnProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
               & this%img2CentCell, this%iSparseStart, this%eigvecsReal, this%coord0, this%reks)
 
-          if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
+          if (this%tWriteDetailedOut .and. this%nHams == 1) then
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
@@ -1270,16 +1283,16 @@ contains
             & this%coord, this%species, this%electronicSolver, this%tRealHS, this%tSpinSharedEf,&
             & this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep, this%tFixEf, this%tMulliken,&
             & this%iDistribFn, this%tempElec, this%nEl, this%parallelKS, this%Ef, this%mu,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%rangeSep, this%eigen,&
+            & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%rangeSep, this%eigen,&
             & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
             & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
             & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
-            & this%nNeighbourLC, this%deltaDftb, errStatus)
+            & this%nNeighbourLC, this%modifiedHamiltonian, errStatus)
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
 
-        if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
+        if (this%tWriteBandDat .and. this%nHams == 1) then
           call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
         end if
 
@@ -1297,11 +1310,12 @@ contains
             & this%multipoleOut, this%species, this%isExtField, this%isXlbomd, this%dftbU,&
             & this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb, this%neighbourList,&
             & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
-            & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
-            & this%rangeSep, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
-            & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
+            & this%extPressure, this%dftbEnergy(this%modifiedHamiltonian%iDet)%TS,&
+            & this%potential, this%dftbEnergy(this%modifiedHamiltonian%iDet),&
+            & this%thirdOrd, this%solvation, this%rangeSep, this%reks, this%qDepExtPot,&
+            & this%qBlockOut, this%qiBlockOut, this%xi, this%iAtInCentralRegion, this%tFixEf,&
+            & this%Ef, this%onSiteElements, this%qNetAtom, this%potential%intOnSiteAtom,&
+            & this%potential%extOnSiteAtom)
 
         call processScc(env, this, iGeoStep, iSccIter, sccErrorQ, tConverged, eOld, diffElec,&
             & tStopScc)
@@ -1310,10 +1324,11 @@ contains
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
               & this%species0, tConverged)
           call calcDispersionEnergy(this%dispersion,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant)%atomDisp,&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant)%Edisp, this%iAtInCentralRegion)
+              & this%dftbEnergy(this%modifiedHamiltonian%iDet)%atomDisp,&
+              & this%dftbEnergy(this%modifiedHamiltonian%iDet)%Edisp,&
+              & this%iAtInCentralRegion)
         end if
-        call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
+        call sumEnergies(this%dftbEnergy(this%modifiedHamiltonian%iDet))
 
         call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
 
@@ -1352,13 +1367,13 @@ contains
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
           & this%species0, tConverged .or. .not. this%isSccConvRequired)
       call calcDispersionEnergy(this%dispersion,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%atomDisp,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%Edisp,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet)%atomDisp,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet)%Edisp,&
           & this%iAtInCentralRegion)
-      call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
+      call sumEnergies(this%dftbEnergy(this%modifiedHamiltonian%iDet))
     end if
 
-    if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
+    if (this%tWriteDetailedOut .and. this%nHams == 1) then
       call closeFile(this%fdDetailedOut)
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       if (allocated(this%reks)) then
@@ -1373,20 +1388,21 @@ contains
       else
         call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
             & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
-            & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
-            & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
-            & this%invLatVec, this%kPoint)
-        call writeDetailedOut2(this%fdDetailedOut%unit, this%q0, this%qOutput, this%orb,&
-            & this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
+            & iSccIter, this%dftbEnergy(this%modifiedHamiltonian%iDet), diffElec,&
+            & sccErrorQ, this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc,&
+            & this%tNegf, this%invLatVec, this%kPoint)
+        call writeDetailedOut2(this%fdDetailedOut%unit, this%q0, this%qOutput,&
+            & this%orb, this%species, allocated(this%dftbU), this%tImHam.or.this%tSpinOrbit,&
             & this%tPrintMulliken, this%orbitalL, this%qBlockOut, this%nSpin,&
             & allocated(this%onSiteElements), this%iAtInCentralRegion, this%cm5Cont, this%qNetAtom)
         call writeDetailedOut3(this%fdDetailedOut%unit, this%qInput, this%qOutput,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%species, allocated(this%dftbU),&
-            & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
-            & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
-            & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
-            & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-            & this%isRangeSep, allocated(this%thirdOrd), allocated(this%solvation))
+            & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%species,&
+            & allocated(this%dftbU), this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol,&
+            & this%tAtomicEnergy, this%dispersion, allocated(this%eField), this%tPeriodic,&
+            & this%nSpin, this%tSpin, this%tSpinOrbit, this%tSccCalc,&
+            & allocated(this%onSiteElements), this%iAtInCentralRegion,&
+            & this%electronicSolver, allocated(this%halogenXCorrection), this%isRangeSep,&
+            & allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
 
@@ -1445,7 +1461,7 @@ contains
 
     if (this%tDipole .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
-          & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
+          & this%dipoleMoment(:,this%modifiedHamiltonian%iDet), this%iAtInCentralRegion)
     #:block DEBUG_CODE
       if (this%hamiltonianType == hamiltonianTypes%dftb) then
         call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
@@ -1475,8 +1491,8 @@ contains
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if ((this%isGeoOpt .or. allocated(this%geoOpt)) .and. tWriteRestart) then
-      if (.not. (this%deltaDftb%isSpinPurify .and.&
-          & this%deltaDftb%iDeterminant == determinants%triplet)) then
+      if (.not. (this%modifiedHamiltonian%isSpinPurify .and.&
+          & this%modifiedHamiltonian%iDet == determinants%triplet)) then
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
             & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
             & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
@@ -1497,8 +1513,8 @@ contains
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%ints%overlap, this%rhoPrim,&
             & this%qOutput, this%q0, this%tDipole, dipoleTmp, this%chrgForces, this%reks)
-        call assignDipoleMoment(dipoleTmp, this%dipoleMoment, this%deltaDftb%iDeterminant,&
-            & this%tDipole, this%reks, isSingleState=.false.)
+        call assignDipoleMoment(dipoleTmp, this%dipoleMoment,&
+            & this%modifiedHamiltonian%iDet, this%tDipole, this%reks, isSingleState=.false.)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, this%negfInt, this%electronicSolver, this%denseDesc,&
@@ -1518,7 +1534,7 @@ contains
             & this%tripletderivs, this%mixedderivs, this%iRhoPrim, this%thirdOrd,&
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
-            & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
+            & this%halogenXCorrection, this%tHelical, this%coord0, this%modifiedHamiltonian)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -1528,7 +1544,7 @@ contains
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
 
       call updateDerivsByPlumed(env, this%plumedCalc, iGeoStep, this%derivs,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%EMermin, this%coord0, this%mass,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet)%EMermin, this%coord0, this%mass,&
           & this%tPeriodic, this%latVec)
 
       if (this%tStress) then
@@ -1547,7 +1563,8 @@ contains
               & this%orb, this%potential, this%coord, this%latVec, this%invLatVec,&
               & this%cellVol, this%coord0, this%totalStress, this%totalLatDeriv,&
               & this%intPressure, this%iRhoPrim, this%solvation, this%dispersion,&
-              & this%halogenXCorrection, this%deltaDftb, this%tripletStress, this%mixedStress)
+              & this%halogenXCorrection, this%modifiedHamiltonian, this%tripletStress,&
+              & this%mixedStress)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
 
@@ -1555,13 +1572,13 @@ contains
 
     end if
 
-    if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
+    if (this%tWriteDetailedOut  .and. this%nHams == 1) then
       call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc, tConverged, this%isXlbomd,&
           & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD,&
           & this%tPrintForces, this%tStress,&
-          & this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress,&
-          & this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol,&
-          & this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
+          & this%tPeriodic, this%dftbEnergy(this%modifiedHamiltonian%iDet),&
+          & this%totalStress, this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom,&
+          & this%cellVol, this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
@@ -1697,11 +1714,11 @@ contains
 
         call this%filter%transformDerivative(this%coord0, this%latVec, &
             & this%derivs, this%totalStress, this%gcurr)
-        call this%geoOpt%step(this%dftbEnergy(this%deltaDftb%iFinal)%Emermin, &
+        call this%geoOpt%step(this%dftbEnergy(this%modifiedHamiltonian%iFinal)%Emermin, &
             & this%gcurr, this%displ)
         call this%filter%transformStructure(this%coord0, this%latVec, this%displ)
 
-        energy = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
+        energy = this%dftbEnergy(this%modifiedHamiltonian%iFinal)%Emermin
         ediff = energy - this%elast
         gnorm = norm2(this%gcurr)
         gamax = maxval(abs(this%gcurr))
@@ -1713,7 +1730,7 @@ contains
         converged = econv .and. gconv .and. dconv
       end block
 
-      this%elast = this%dftbEnergy(this%deltaDftb%iFinal)%Emermin
+      this%elast = this%dftbEnergy(this%modifiedHamiltonian%iFinal)%Emermin
 
       if (tGeomEnd) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
@@ -1726,9 +1743,9 @@ contains
     else if (this%isGeoOpt) then
       this%tCoordsChanged = .true.
       if (tCoordStep) then
-        call getNextCoordinateOptStep(this%pGeoCoordOpt, this%dftbEnergy(this%deltaDftb%iFinal),&
-            & this%derivs, this%indMovedAtom, this%coord0, diffGeo, tCoordEnd,&
-            & .not. this%tCasidaForces)
+        call getNextCoordinateOptStep(this%pGeoCoordOpt,&
+            & this%dftbEnergy(this%modifiedHamiltonian%iFinal), this%derivs, this%indMovedAtom,&
+            & this%coord0, diffGeo, tCoordEnd, .not.this%tCasidaForces)
         if (.not. this%tLatOpt) then
           tGeomEnd = tCoordEnd
         end if
@@ -1736,9 +1753,10 @@ contains
           tCoordStep = .false.
         end if
       else
-        call getNextLatticeOptStep(this%pGeoLatOpt, this%dftbEnergy(this%deltaDftb%iDeterminant),&
-            & constrLatDerivs, this%origLatVec, this%tLatOptFixAng, this%tLatOptFixLen,&
-            & this%tLatOptIsotropic, this%indMovedAtom, this%latVec, this%coord0, diffGeo, tGeomEnd)
+        call getNextLatticeOptStep(this%pGeoLatOpt,&
+            & this%dftbEnergy(this%modifiedHamiltonian%iDet), constrLatDerivs,&
+            & this%origLatVec, this%tLatOptFixAng, this%tLatOptFixLen, this%tLatOptIsotropic,&
+            & this%indMovedAtom, this%latVec, this%coord0, diffGeo, tGeomEnd)
         iLatGeoStep = iLatGeoStep + 1
         this%tLatticeChanged = .true.
         if (.not. tGeomEnd .and. this%tCoordOpt) then
@@ -1759,36 +1777,36 @@ contains
       call getNextMdStep(this%pMdIntegrator, this%pMdFrame, this%temperatureProfile, this%derivs,&
           & this%movedMass, this%mass, this%cellVol, this%invLatVec, this%species0,&
           & this%indMovedAtom, this%tStress, this%tBarostat,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%newCoords, this%latVec,&
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%newCoords, this%latVec,&
           & this%intPressure, this%totalStress, this%totalLatDeriv, this%velocities, tempIon)
       this%tCoordsChanged = .true.
       this%tLatticeChanged = this%tBarostat
       call printMdInfo(this%tSetFillingTemp, this%eField, this%tPeriodic, this%tempElec,&
           & tempIon, this%intPressure, this%extPressure,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant))
+          & this%dftbEnergy(this%modifiedHamiltonian%iDet))
       if (tWriteRestart) then
         if (this%tPeriodic) then
           this%cellVol = abs(determinant33(this%latVec))
-          this%dftbEnergy(this%deltaDftb%iDeterminant)%EGibbs =&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant)%EMermin&
+          this%dftbEnergy(this%modifiedHamiltonian%iDet)%EGibbs =&
+              & this%dftbEnergy(this%modifiedHamiltonian%iDet)%EMermin&
               & + this%extPressure * this%cellVol
         end if
         call writeMdOut2(this%fdMd%unit, this%tStress, this%tBarostat, this%tPeriodic,&
             & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
-            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage)
+            & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%energiesCasida,&
+            & this%latVec, this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput,&
+            & this%q0, this%dipoleMoment, this%eFieldScaling, this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
             & this%qOutput, this%velocities)
       end if
       this%coord0(:,:) = this%newCoords
-      if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
+      if (this%tWriteDetailedOut  .and. this%nHams == 1) then
         call writeDetailedOut5(this%fdDetailedOut%unit, this%tPrintForces, this%tSetFillingTemp,&
             & this%tPeriodic, this%tStress, this%totalStress, this%totalLatDeriv,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%tempElec, this%extPressure,&
-            & this%intPressure, tempIon)
+            & this%dftbEnergy(this%modifiedHamiltonian%iDet), this%tempElec,&
+            & this%extPressure, this%intPressure, tempIon)
       end if
     else if (this%tSocket .and. iGeoStep < this%nGeoSteps) then
       ! Only receive geometry from socket, if there are still geometry iterations left
@@ -2420,8 +2438,8 @@ contains
       & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
       & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen,&
       & filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb,&
-      & errStatus)
+      & SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC,&
+      & modifiedHamiltonian, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2572,7 +2590,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(inout) :: deltaDftb
+    type(TModifiedHam), intent(inout) :: modifiedHamiltonian
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -2617,7 +2635,8 @@ contains
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
           & tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling, rhoPrim, xi,&
           & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, deltaDftb, errStatus)
+          & rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC, modifiedHamiltonian,&
+          & errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -2644,7 +2663,7 @@ contains
       & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
       & eigen, filling, rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, nNeighbourLC,&
-      & deltaDftb, errStatus)
+      & modifiedHamiltonian, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2789,7 +2808,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(inout) :: deltaDftb
+    type(TModifiedHam), intent(inout) :: modifiedHamiltonian
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -2821,7 +2840,8 @@ contains
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb)
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0,&
+        & modifiedHamiltonian)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2840,8 +2860,8 @@ contains
       filling(:,:,1) = 2.0_dp * filling(:,:,1)
       call getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
           & tMulliken, kPoint, kWeight, filling(:,:,1), neighbourList, nNeighbourSK, orb,&
-          & iSparseStart, img2CentCell, iCellVec, cellVec, species, parallelKS, eigVecsCplx,&
-          & SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
+          & iSparseStart, img2CentCell, iCellVec, cellVec, species, parallelKS,&
+          & modifiedHamiltonian, eigVecsCplx, SSqrCplx, energy, rhoPrim, xi, orbitalL, iRhoPrim)
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
@@ -3457,8 +3477,8 @@ contains
   !> Creates sparse density matrix from two component complex eigenvectors.
   subroutine getDensityFromPauliEigvecs(env, denseDesc, tRealHS, tSpinOrbit, tDualSpinOrbit,&
       & tMulliken, kPoint, kWeight, filling, neighbourList, nNeighbourSK, orb, iSparseStart,&
-      & img2CentCell, iCellVec, cellVec, species, parallelKS, eigvecs, work, dftbEnergy, rhoPrim,&
-      & xi, orbitalL, iRhoPrim)
+      & img2CentCell, iCellVec, cellVec, species, parallelKS, modifiedHamiltonian, eigvecs, work,&
+      & dftbEnergy, rhoPrim, xi, orbitalL, iRhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3513,6 +3533,9 @@ contains
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
+
+    !> Determinant derived type
+    type(TModifiedHam), intent(inout) :: modifiedHamiltonian
 
     !> eigenvectors
     complex(dp), intent(inout) :: eigvecs(:,:,:)
@@ -3634,7 +3657,8 @@ contains
 
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, deltaDftb)
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0,&
+      & modifiedHamiltonian)
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(inout) :: eigvals(:,:,:)
@@ -3680,7 +3704,7 @@ contains
     real(dp), intent(out) :: E0(:)
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(inout) :: deltaDftb
+    type(TModifiedHam), intent(inout) :: modifiedHamiltonian
 
     real(dp) :: EbandTmp(2), TSTmp(2), E0Tmp(2), EfTmp(2), nElecFill(2), kWeightTmp(2)
     integer :: nSpinHams, nKPoints, nLevels, iS, iK
@@ -3718,16 +3742,17 @@ contains
       E0(:) = 0.0_dp
       kWeightTmp(:) = 1.0_dp
       do iK = 1, nKPoints
-        call deltaDftb%detFilling(fillings(:,iK:iK,:), EBandTmp(:nSpinHams), EfTmp, TSTmp, E0Tmp, nElecFill,&
-            & eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams), iDistribFn)
+        call modifiedHamiltonian%detFilling(fillings(:,iK:iK,:), EBandTmp(:nSpinHams), EfTmp,&
+            & TSTmp, E0Tmp, nElecFill, eigVals(:,iK:iK,:), tempElec, kWeightTmp(:nSpinHams),&
+            & iDistribFn)
         Eband(:) = Eband + EbandTmp(:nSpinHams) * kWeights(iK)
         Ef(:) = Ef + EfTmp(:nSpinHams) * kWeights(iK)
         TS(:) = TS + TSTmp(:nSpinHams) * kWeights(iK)
         E0(:) = E0 + E0Tmp(:nSpinHams) * kWeights(iK)
       end do
     else
-      call deltaDftb%detFilling(fillings, EBand, Ef, TS, E0, nElecFill, eigVals, tempElec,&
-          & kWeights, iDistribFn)
+      call modifiedHamiltonian%detFilling(fillings, EBand, Ef, TS, E0, nElecFill, eigVals,&
+          & tempElec, kWeights, iDistribFn)
     end if
 
     if (nSpinBlocks == 1) then
@@ -5565,7 +5590,7 @@ contains
       & nNeighbourSK, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
       & chrgForces, dispersion, rangeSep, SSqrReal, ints, denseDesc, deltaRhoOutSqr,&
-      & halogenXCorrection, tHelical, coord0, deltaDftb)
+      & halogenXCorrection, tHelical, coord0, modifiedHamiltonian)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5688,7 +5713,7 @@ contains
     real(dp), intent(in) :: coord0(:,:)
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: modifiedHamiltonian
 
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dQ(:,:,:)
@@ -5830,8 +5855,8 @@ contains
 
     call boundaryConds%alignVectorCentralCell(derivs, coord, coord0, nAtom)
 
-    if(deltaDftb%isNonAufbau) then
-      select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
+    if(modifiedHamiltonian%isNonAufbau) then
+      select case (modifiedHamiltonian%whichDeterminant())
       case (determinants%ground)
         groundDerivs(:,:) = derivs
       case (determinants%triplet)
@@ -5898,7 +5923,7 @@ contains
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec,&
       & cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation,&
-      & dispersion, halogenXCorrection, deltaDftb, tripletStress, mixedStress)
+      & dispersion, halogenXCorrection, modifiedHamiltonian, tripletStress, mixedStress)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5997,7 +6022,7 @@ contains
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
 
     !> Determinant derived type
-    type(TDftbDeterminants), intent(in) :: deltaDftb
+    type(TModifiedHam), intent(in) :: modifiedHamiltonian
 
     !> Stress tensor in triplet state (TI-DFTB excited states)
     real(dp), intent(inout), optional :: tripletStress(:,:)
@@ -6071,8 +6096,8 @@ contains
     end if
     totalStress(:,:) = totalStress + tmpStress
 
-    if(deltaDftb%isNonAufbau) then
-      select case (deltaDftb%whichDeterminant(deltaDftb%iDeterminant))
+    if(modifiedHamiltonian%isNonAufbau) then
+      select case (modifiedHamiltonian%whichDeterminant())
       case (determinants%triplet)
         tripletStress(:,:) = totalStress
       case (determinants%mixed)
