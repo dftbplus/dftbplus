@@ -10,13 +10,13 @@
 !> Contains the routines for initialising waveplot.
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultFileAccess
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
-  use dftbp_dftbplus_input_fileaccess, only : readFileAccessTypes
+  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
@@ -128,7 +128,7 @@ module waveplot_initwaveplot
     integer, allocatable :: levelIndex(:,:)
 
     !> File access types
-    character(20) :: fileAccessTypes(2)
+    character(20) :: binaryAccessTypes(2)
 
   end type TOption
 
@@ -356,8 +356,8 @@ contains
     write(stdout, "(A)") "Doing initialisation"
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
-    call setDefaultFileAccess(this%opt%fileAccessTypes(1), this%opt%fileAccessTypes(2),&
-        & this%opt%fileAccessTypes(2))
+    call setDefaultBinaryAccess(this%opt%binaryAccessTypes(1), this%opt%binaryAccessTypes(2),&
+        & this%opt%binaryAccessTypes(2))
 
     ! Check eigenvector id
     call checkEigenvecs(eigVecBin, this%input%identity)
@@ -727,7 +727,7 @@ contains
 
     call getChildValue(node, "Verbose", this%opt%tVerbose, default=.false.)
 
-    call readFileAccessTypes(node, this%opt%fileAccessTypes)
+    call readBinaryAccessTypes(node, this%opt%binaryAccessTypes)
 
   end subroutine readOptions
 

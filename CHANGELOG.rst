@@ -17,7 +17,7 @@ Changed
 -------
 
 - Binary output is done using stream I/O to enable processing of those files in
-  Python or C. The FileAccessTypes option can be used to restore the old
+  Python or C. The BinaryAccessTypes option can be used to restore the old
   (compiler dependent) sequential I/O.
 
 
