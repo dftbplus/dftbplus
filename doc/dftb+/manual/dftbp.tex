@@ -4733,12 +4733,12 @@ This block collects some global options for the run.
 \item[\is{BinaryAccessTypes}\label{sec:dftbp.Options.BinaryAccessTypes}]
   Specifies the default access format for binary (non-human-readable) files. It
   contains either one string specifying the same type for both reading and
-  writing those files, or two strings specifying the types separately for
+  writing those files, or two strings separately specifying the types for
   reading and writing. Each value must be either \is{"stream"} or
   \is{"sequential"}. The default is \is{"stream"} for both actions.
 
   Starting with version 23.1, \dftbp{} consistently uses stream-I/O for binary
-  files in order to procude files (e.g.\ \verb|eigenvec.bin|,
+  files in order to produce files (e.g.\ \verb|eigenvec.bin|,
   \verb|charges.bin|, etc.), which can be processed by programs written in other
   languages (Python, C). In earlier versions most binary files were written
   using sequential I/O, which were not transferable between languages or even
