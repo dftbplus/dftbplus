@@ -11,7 +11,7 @@
 }
 
 +Options {
-  FileAccessTypes = "stream"
+  BinaryAccessTypes = "stream"
 }
 
 %
@@ -21,7 +21,7 @@
 }
 
 +Options {
-  FileAccessTypes = "stream" "stream"
+  BinaryAccessTypes = "stream" "stream"
 }
 
 %
@@ -31,7 +31,7 @@
 }
 
 +Options {
-  FileAccessTypes = "stream" "sequential"
+  BinaryAccessTypes = "stream" "sequential"
 }
 
 %
@@ -41,7 +41,7 @@
 }
 
 +Options {
-  FileAccessTypes = "sequential"
+  BinaryAccessTypes = "sequential"
 }
 
 %
@@ -51,7 +51,7 @@
 }
 
 +Options {
-  FileAccessTypes = "sequential" "sequential"
+  BinaryAccessTypes = "sequential" "sequential"
 }
 
 %
@@ -61,7 +61,7 @@
 }
 
 +Options {
-  FileAccessTypes = "sequential" "stream"
+  BinaryAccessTypes = "sequential" "stream"
 }
 
 %
