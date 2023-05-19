@@ -570,6 +570,9 @@ contains
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
 
+    !> Error status
+    type(TStatus) :: errStatus
+
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
 
@@ -614,7 +617,10 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -657,7 +663,7 @@ contains
           & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
           & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
           & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
+          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%hybridXc,&
           & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
           & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
           & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, errStatus)
@@ -725,7 +731,7 @@ contains
           & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
           & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
           & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
-          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+          & main%hybridXc, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
           & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then

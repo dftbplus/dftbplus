@@ -107,7 +107,7 @@ module dftbp_common_environment
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
-      & TTimerItem("Range separated Hamiltonian", 4),&
+      & TTimerItem("Hybrid Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
@@ -135,7 +135,7 @@ module dftbp_common_environment
     integer :: diagonalization = 12
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
-    integer :: rangeSeparatedH = 15
+    integer :: hybridXcH = 15
     integer :: densityMatrix = 16
     integer :: energyEval = 17
     integer :: postScc = 18

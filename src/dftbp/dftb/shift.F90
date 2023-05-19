@@ -39,7 +39,7 @@ contains
 
 
   !> Regular atomic shift (potential is only dependent on number of atom)
-  subroutine addShift_atom(env, ham,over, nNeighbour, iNeighbour, species, orb, iPair, nAtom,&
+  subroutine addShift_atom(env, ham, over, nNeighbour, iNeighbour, species, orb, iPair, nAtom,&
       & img2CentCell, shift, isInputZero)
 
     !> Computational environment settings

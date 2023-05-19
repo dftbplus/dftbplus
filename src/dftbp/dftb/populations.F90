@@ -12,15 +12,33 @@
 module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_common_environment, only : TEnvironment
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
+  use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_integral, only : TIntegral
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, MB_, CSRC_, RSRC_, scalafx_indxl2g,&
+      & scalafx_getdescriptor, scalafx_addl2g, scalafx_addg2l
+  use dftbp_math_bisect, only : bisection
+#:endif
   implicit none
 
   private
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms
   public :: getChargePerShell, denseBlockMulliken
   public :: getOnsitePopulation, getAtomicMultipolePopulation
+  public :: denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks
+  public :: denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks
+#:if WITH_SCALAPACK
+  public :: denseMulliken_real_blacs
+#:endif
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -28,8 +46,15 @@ module dftbp_dftb_populations
   interface mulliken
     module procedure mullikenPerBlock
     module procedure mullikenPerOrbital
+    module procedure mullikenPerOrbital_bvKDensityMatrix
     module procedure mullikenPerAtom
   end interface mulliken
+
+
+  !> Provides an interface to calculate Mulliken populations, using dense lower triangle matrices.
+  interface denseMulliken
+    module procedure denseMulliken_real
+  end interface denseMulliken
 
 
   !> Provides an interface to calculate Mulliken populations for anti-symmetric density matrices
@@ -39,12 +64,16 @@ module dftbp_dftb_populations
 
 
   !> Interface to subtract superposition of atomic densities from dense density matrix.
-  !> Required for rangeseparated calculations
+  !> Required for hybrid xc-functional calculations
   interface denseSubtractDensityOfAtoms
-     module procedure denseSubtractDensityOfAtoms_nospin_real
-     module procedure denseSubtractDensityOfAtoms_spin_real
-     module procedure denseSubtractDensityOfAtoms_nospin_cmplx
-     module procedure denseSubtractDensityOfAtoms_spin_cmplx
+    module procedure denseSubtractDensityOfAtoms_real_nonperiodic
+    module procedure denseSubtractDensityOfAtoms_cmplx_nonperiodic
+    module procedure denseSubtractDensityOfAtoms_real_periodic
+    module procedure denseSubtractDensityOfAtoms_cmplx_periodic
+  #:if WITH_SCALAPACK
+    module procedure denseSubtractDensityOfAtoms_real_nonperiodic_blacs
+    module procedure denseSubtractDensityOfAtoms_real_periodic_blacs
+  #:endif
   end interface denseSubtractDensityOfAtoms
 
 contains
@@ -66,7 +95,7 @@ contains
     !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
 
-    !> Information about the orbitals.
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours of each real atom (central cell)
@@ -91,10 +120,10 @@ contains
     allocate(qPerOrbital(orb%mOrb, nAtom))
     qPerOrbital(:,:) = 0.0_dp
 
-    call mullikenPerOrbital(env, qPerOrbital,over,rho,orb,iNeighbour,nNeighbourSK, img2CentCell,iPair )
+    call mullikenPerOrbital(env, qPerOrbital, over, rho, orb, iNeighbour, nNeighbourSK,&
+        & img2CentCell, iPair)
 
-    qq(:) = qq(:) + sum(qPerOrbital, dim=1)
-    deallocate(qPerOrbital)
+    qq(:) = qq + sum(qPerOrbital, dim=1)
 
   end subroutine mullikenPerAtom
 
@@ -104,7 +133,8 @@ contains
   !> one triangle of real space extended matrices
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerOrbital(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine mullikenPerOrbital(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell,&
+      & iPair)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -118,7 +148,7 @@ contains
     !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
 
-    !> Information about the orbitals.
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours of each real atom (central cell)
@@ -157,12 +187,11 @@ contains
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         nOrb2 = orb%nOrbAtom(iAtom2f)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iPair(iNeigh, iAtom1) + 1
         mulTmp(1:nOrb1*nOrb2) = over(iOrig:iOrig+nOrb1*nOrb2-1) * rho(iOrig:iOrig+nOrb1*nOrb2-1)
         sqrTmp(1:nOrb2,1:nOrb1) = reshape(mulTmp(1:nOrb1*nOrb2), (/nOrb2,nOrb1/))
         qq(1:nOrb1,iAtom1) = qq(1:nOrb1,iAtom1) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=1)
-        ! Add contribution to the other triangle sum, using the symmetry
-        ! but only when off diagonal
+        ! Add contribution to the other triangle sum, using the symmetry, but only when off diagonal
         if (iAtom1 /= iAtom2f) then
           qq(1:nOrb2,iAtom2f) = qq(1:nOrb2,iAtom2f) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=2)
         end if
@@ -174,11 +203,124 @@ contains
   end subroutine mullikenPerOrbital
 
 
+  !> Calculate the Mulliken population for each orbital in the system using purely real-space
+  !> overlap and BvK density matrix values. Currently Mulliken is transformed into real space sums
+  !> over one triangle of real space extended matrices
+  !>
+  !> To do: add description of algorithm to programer manual / documentation.
+  subroutine mullikenPerOrbital_bvKDensityMatrix(qq, over, rho, orb, iNeighbour, nNeighbourSK,&
+      & img2CentCell, iPair, iSquare, iCellVec, cellVecs, hybridXc)
+
+    !> Mulliken orbital charges on output (mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:)
+
+    !> Overlap matrix in packed format
+    real(dp), intent(in) :: over(:)
+
+    !> Real-space BvK density matrix in square format for every shift
+    real(dp), intent(in) :: rho(:,:,:,:,:,:)
+
+    !> Information about the orbitals
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours of each real atom (central cell)
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Indexing array to convert images of atoms back into their number in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Indexing array for the sparse Hamiltonian/overlap
+    integer, intent(in) :: iPair(0:,:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Shift vector index for every interacting atom, including periodic images
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors to neighbouring unit cells in relative coordinates
+    real(dp), intent(in) :: cellVecs(:,:)
+
+    !> Data for hybrid xc-functional calculation
+    class(THybridXcFunc), intent(in) :: hybridXc
+
+    !! Real-space overlap shift in relative coordinates
+    real(dp) :: overShift(3)
+
+    !> Real-space overlap shift folded to BvK cell and translated to density matrix indices
+    integer :: bvKIndex(3)
+
+    !! Starting point for atomic block in sparse (packed) format
+    integer :: iOrig
+
+    !! Neighbour atom index
+    integer :: iNeigh
+
+    !! Number of atoms in central cell
+    integer :: nAtom0
+
+    !! Atom indices
+    integer :: iAtom1, iAtom2, iAtom2f
+
+    !! Number of orbitals of atoms
+    integer :: nOrb1, nOrb2
+
+    !! Start and end index of atomic block atom1-atom2 in square matrices
+    integer :: iAt1SqrStart, iAt1SqrEnd, iAt2SqrStart, iAt2SqrEnd
+
+    !! Number of spin channels and spin index
+    integer :: nSpin, iSpin
+
+    !! Square, temporary storage
+    real(dp) :: sqrTmp(orb%mOrb, orb%mOrb)
+
+    nAtom0 = size(qq, dim=2)
+    nSpin = size(qq, dim=3)
+
+    qq(:,:,:) = 0.0_dp
+
+    do iSpin = 1, nSpin
+      do iAtom1 = 1, nAtom0
+        nOrb1 = orb%nOrbAtom(iAtom1)
+        iAt1SqrStart = iSquare(iAtom1)
+        iAt1SqrEnd = iSquare(iAtom1 + 1) - 1
+        do iNeigh = 0, nNeighbourSK(iAtom1)
+          sqrTmp(:,:) = 0.0_dp
+          iAtom2 = iNeighbour(iNeigh, iAtom1)
+          iAtom2f = img2CentCell(iAtom2)
+          nOrb2 = orb%nOrbAtom(iAtom2f)
+          iOrig = iPair(iNeigh, iAtom1) + 1
+          ! get real-space overlap shift (relative coordinates)
+          overShift(:) = cellVecs(:, iCellVec(iAtom2))
+          bvKIndex(:) = hybridXc%foldToBvKIndex(overShift)
+          iAt2SqrStart = iSquare(iAtom2f)
+          iAt2SqrEnd = iSquare(iAtom2f + 1) - 1
+          sqrTmp(1:nOrb2, 1:nOrb1) = reshape(over(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])&
+              & * rho(iAt2SqrStart:iAt2SqrEnd, iAt1SqrStart:iAt1SqrEnd, bvKIndex(1), bvKIndex(2),&
+              & bvKIndex(3), iSpin)
+          qq(1:nOrb1, iAtom1, iSpin) = qq(1:nOrb1, iAtom1, iSpin)&
+              & + sum(sqrTmp(1:nOrb2, 1:nOrb1), dim=1)
+          ! Add contribution to the other triangle sum using symmetry, but only when off-diagonal
+          if (iAtom1 /= iAtom2f) then
+            qq(1:nOrb2, iAtom2f, iSpin) = qq(1:nOrb2, iAtom2f, iSpin)&
+                & + sum(sqrTmp(1:nOrb2, 1:nOrb1), dim=2)
+          end if
+        end do
+      end do
+    end do
+
+  end subroutine mullikenPerOrbital_bvKDensityMatrix
+
+
   !> Calculate the Mulliken population for each element of the dual atomic blocks in the system
   !> using purely real-space overlap and density matrix values.
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine mullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine mullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell,&
+      & iPair)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -192,7 +334,7 @@ contains
     !> Density matrix in Packed format
     real(dp), intent(in) :: rho(:)
 
-    !> Information about the orbitals.
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours of each real atom (central cell)
@@ -253,7 +395,8 @@ contains
   !> system using purely real-space overlap and density matrix values.
   !>
   !> To do: add description of algorithm to programer manual / documentation.
-  subroutine skewMullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine skewMullikenPerBlock(env, qq, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell,&
+      & iPair)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -264,10 +407,10 @@ contains
     !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
 
-    !> Density matrix in Packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: rho(:)
 
-    !> Information about the orbitals.
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours of each real atom (central cell)
@@ -324,8 +467,67 @@ contains
   end subroutine skewMullikenPerBlock
 
 
+#:if WITH_SCALAPACK
+
+  !> Mulliken analysis with distributed dense matrices.
+  subroutine denseMulliken_real_blacs(env, parallelKS, denseDesc, rhoSqr, overSqr, qq)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Square (lower triangular) spin polarized density matrix
+    real(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Mulliken charges on output (mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:)
+
+    integer :: iKS, iS, iK, iAt, iGlob, iLocCol
+    integer :: nLocalCols, nLocalKS
+
+    ! need distributed matrix descriptors
+    integer :: desc(DLEN_), nn
+
+    nn = denseDesc%fullSize
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, desc)
+
+    qq(:,:,:) = 0.0_dp
+
+    nLocalCols = size(rhoSqr, dim=2)
+    nLocalKS = size(rhoSqr, dim=3)
+
+    do iKS = 1, nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
+      do iLocCol = 1, nLocalCols
+        iGlob = scalafx_indxl2g(iLocCol, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+            & env%blacs%orbitalGrid%ncol)
+        ! search atom index that corresponds to the global matrix index
+        call bisection(iAt, denseDesc%iAtomStart, iGlob)
+        qq(iGlob - denseDesc%iAtomStart(iAt) + 1, iAt, iS)&
+            & = sum(overSqr(:, iLocCol) * rhoSqr(:, iLocCol, iKS))
+      end do
+    end do
+
+    ! distribute all charges to all nodes via a global summation
+    call mpifx_allreduceip(env%mpi%globalComm, qq, MPI_SUM)
+
+  end subroutine denseMulliken_real_blacs
+
+#:endif
+
+
   !> Mulliken analysis with dense lower triangle matrices.
-  subroutine denseMulliken(rhoSqr, overSqr, iSquare, qq)
+  subroutine denseMulliken_real(rhoSqr, overSqr, iSquare, qq)
 
     !> Square (lower triangular) spin polarized density matrix
     real(dp), intent(in) :: rhoSqr(:,:,:)
@@ -345,35 +547,57 @@ contains
 
     nAtom = size(qq, dim=2)
     nSpin = size(qq, dim=3)
+
     qq(:,:,:) = 0.0_dp
+
     do iSpin = 1, nSpin
-       do iAtom1 = 1, nAtom
-          iStart1 = iSquare(iAtom1)
-          iEnd1 = iSquare(iAtom1 + 1) - 1
-          nOrb1 = iEnd1 - iStart1 + 1
-          do iAtom2 = iAtom1, nAtom
-             iStart2 = iSquare(iAtom2)
-             iEnd2 = iSquare(iAtom2 + 1) - 1
-             nOrb2 = iEnd2 - iStart2 + 1
-             tmpSqr(1:nOrb2, 1:nOrb1) = &
-                  & rhoSqr(iStart2:iEnd2, iStart1:iEnd1, iSpin) &
-                  & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
-             qq(1:nOrb1,iAtom1,iSpin) = qq(1:nOrb1,iAtom1,iSpin) &
-                  &+ sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
-             if (iAtom1 /= iAtom2) then
-                qq(1:nOrb2,iAtom2,iSpin) = qq(1:nOrb2, iAtom2, iSpin)&
-                     &+ sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
-             end if
-          end do
-       end do
+      do iAtom1 = 1, nAtom
+        iStart1 = iSquare(iAtom1)
+        iEnd1 = iSquare(iAtom1 + 1) - 1
+        nOrb1 = iEnd1 - iStart1 + 1
+        do iAtom2 = iAtom1, nAtom
+          iStart2 = iSquare(iAtom2)
+          iEnd2 = iSquare(iAtom2 + 1) - 1
+          nOrb2 = iEnd2 - iStart2 + 1
+          tmpSqr(1:nOrb2, 1:nOrb1) = &
+              & rhoSqr(iStart2:iEnd2, iStart1:iEnd1, iSpin)&
+              & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
+          qq(1:nOrb1, iAtom1, iSpin) = qq(1:nOrb1, iAtom1, iSpin)&
+              & + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
+          if (iAtom1 /= iAtom2) then
+            qq(1:nOrb2, iAtom2, iSpin) = qq(1:nOrb2, iAtom2, iSpin)&
+                & + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
+          end if
+        end do
+      end do
     end do
 
-  end subroutine denseMulliken
+  end subroutine denseMulliken_real
 
 
-    !> Subtracts superposition of atomic densities from dense density matrix.
-  !> Works only for closed shell!
-  subroutine denseSubtractDensityOfAtoms_nospin_real(q0, iSquare, rho)
+  !> Returns pre-factor of Mulliken populations, depending on the number of spin-channels.
+  pure function populationScalingFactor(nSpin) result(scale)
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Pre-factor of Mulliken populations
+    real(dp) :: scale
+
+    ! distinguish cases: spin-unpolarized, colinear-spin
+    select case(nSpin)
+    case(1)
+      scale = 1.0_dp
+    case(2)
+      scale = 0.5_dp
+    end select
+
+  end function populationScalingFactor
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_real_nonperiodic(q0, iSquare, rho)
 
     !> Reference atom populations
     real(dp), intent(in) :: q0(:,:,:)
@@ -381,104 +605,292 @@ contains
     !> Atom positions in the row/column of square matrices
     integer, intent(in) :: iSquare(:)
 
-    !>Spin polarized (lower triangular) density matrix
+    !> Spin polarized density matrix to substract q0 from
     real(dp), intent(inout) :: rho(:,:,:)
 
     integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+    real(dp) :: scale
 
     nAtom = size(iSquare) - 1
-    nSpin = size(rho, dim=3)
-    do iSpin = 1, nSpin
-       do iAtom = 1, nAtom
-          iStart = iSquare(iAtom)
-          iEnd = iSquare(iAtom + 1) - 1
-          do iOrb = 1, iEnd - iStart + 1
-             rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
-                  & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-                  & - q0(iOrb, iAtom, iSpin)
-          end do
-       end do
-    end do
+    nSpin = size(q0, dim=3)
 
-  end subroutine denseSubtractDensityOfAtoms_nospin_real
+    scale = populationScalingFactor(nSpin)
 
-
-  !> Subtracts superposition of atomic densities from dense density matrix.
-  !> The spin unrestricted version
-  !> RangeSep: for spin-unrestricted calculation
-  !> the initial guess should be equally distributed to
-  !> alpha and beta density matrices
-  subroutine denseSubtractDensityOfAtoms_spin_real(q0, iSquare, rho, iSpin)
-
-    !> Reference atom populations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Atom positions in the row/colum of square matrix
-    integer, intent(in) :: iSquare(:)
-
-    !> Spin polarized (lower triangular) matrix
-    real(dp), intent(inout) :: rho(:,:,:)
-
-    !> Spin index
-    integer, intent(in) :: iSpin
-
-    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb
-
-    nAtom = size(iSquare) - 1
-    nSpin = size(rho, dim=3)
-
-    do iAtom = 1, nAtom
-       iStart = iSquare(iAtom)
-       iEnd = iSquare(iAtom + 1) - 1
-       do iOrb = 1, iEnd - iStart + 1
-          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
-               & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-               & - q0(iOrb, iAtom, 1) * 0.5_dp
-       end do
-    end do
-
-
-  end subroutine denseSubtractDensityOfAtoms_spin_real
-
-
-  !> Subtracts superposition of atomic densities from dense density matrix.
-  !> Works only for closed shell!
-  subroutine denseSubtractDensityOfAtoms_nospin_cmplx(q0, iSquare, rho)
-
-    !> Reference atom populations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Atom positions in the row/column of square matrices
-    integer, intent(in) :: iSquare(:)
-
-    !>Spin polarized (lower triangular) density matrix
-    complex(dp), intent(inout) :: rho(:,:,:)
-
-    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
-
-    nAtom = size(iSquare) - 1
-    nSpin = size(rho, dim=3)
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
         iStart = iSquare(iAtom)
         iEnd = iSquare(iAtom + 1) - 1
         do iOrb = 1, iEnd - iStart + 1
-          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = &
-              & rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-              & - q0(iOrb, iAtom, iSpin)
+          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+              & - scale * q0(iOrb, iAtom, 1)
         end do
       end do
     end do
 
-  end subroutine denseSubtractDensityOfAtoms_nospin_cmplx
+  end subroutine denseSubtractDensityOfAtoms_real_nonperiodic
 
 
   !> Subtracts superposition of atomic densities from dense density matrix.
-  !> The spin unrestricted version
-  !> RangeSep: for spin-unrestricted calculation
-  !> the initial guess should be equally distributed to
-  !> alpha and beta density matrices
-  subroutine denseSubtractDensityOfAtoms_spin_cmplx(q0, iSquare, rho, iSpin)
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  !> Note: q0 is normalized by the overlap that includes periodic images.
+  subroutine denseSubtractDensityOfAtoms_real_periodic(q0, iSquare, overSqr, rho)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Spin polarized (lower triangular) density matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+    real(dp) :: scale
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(q0, dim=3)
+
+    scale = populationScalingFactor(nSpin)
+
+    do iSpin = 1, nSpin
+      do iAtom = 1, nAtom
+        iStart = iSquare(iAtom)
+        iEnd = iSquare(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+              & - scale * q0(iOrb, iAtom, 1) / overSqr(iStart+iOrb-1, iStart+iOrb-1)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_real_periodic
+
+
+  !> Subtracts superposition of atomic densities from BvK density matrix.
+  !> Works only for closed shell!
+  subroutine denseSubtractDensityOfAtoms_nospin_bvKDensityMatrix(q0, iSquare, rho, hybridXc)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Real-space BvK density matrix in square format for every shift
+    real(dp), intent(in), pointer :: rho(:,:,:,:,:,:)
+
+    !> Data for hybrid xc-functional calculation
+    class(THybridXcFunc), intent(in) :: hybridXc
+
+    !! Integer BvK real-space shift translated to density matrix indices
+    integer :: bvKIndex(3)
+
+    !! Number of atoms in central cell
+    integer :: nAtom
+
+    !! Atom, orbital and spin index
+    integer :: iAtom, iOrb, iSpin
+
+    !! Start and end index of atomic block in dense (unpacked) matrices
+    integer :: iStart, iEnd
+
+    !! Number of spin channels
+    integer :: nSpin
+
+    !! Iterates over all BvK shifts
+    integer :: iG
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(q0, dim=3)
+
+    do iSpin = 1, nSpin
+      do iG = 1, size(hybridXc%bvKShifts, dim=2)
+        bvKIndex(:) = hybridXc%foldToBvKIndex(hybridXc%bvKShifts(:, iG))
+        do iAtom = 1, nAtom
+          iStart = iSquare(iAtom)
+          iEnd = iSquare(iAtom + 1) - 1
+          do iOrb = 1, iEnd - iStart + 1
+            rho(iStart+iOrb-1, iStart+iOrb-1, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+                & = rho(iStart+iOrb-1, iStart+iOrb-1, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+                & - q0(iOrb, iAtom, iSpin)
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_nospin_bvKDensityMatrix
+
+
+  !> Subtracts superposition of atomic densities from BvK density matrix (spin unrestricted version)
+  !> HybridXc: for spin-unrestricted calculation
+  !> Note: The initial guess should be equally distributed to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_spin_bvKDensityMatrix(q0, iSquare, rho, hybridXc, iSpin)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Real-space BvK density matrix in square format for every shift
+    real(dp), intent(in), pointer :: rho(:,:,:,:,:,:)
+
+    !> Spin index
+    integer, intent(in) :: iSpin
+
+    !> Data for hybrid xc-functional calculation
+    class(THybridXcFunc), intent(in) :: hybridXc
+
+    !! Integer BvK real-space shift translated to density matrix indices
+    integer :: bvKIndex(3)
+
+    !! Number of atoms in central cell
+    integer :: nAtom
+
+    !! Atom and orbital index
+    integer :: iAtom, iOrb
+
+    !! Start and end index of atomic block in dense (unpacked) matrices
+    integer :: iStart, iEnd
+
+    !! Iterates over all BvK shifts
+    integer :: iG
+
+    nAtom = size(iSquare) - 1
+
+    do iG = 1, size(hybridXc%bvKShifts, dim=2)
+      bvKIndex(:) = hybridXc%foldToBvKIndex(hybridXc%bvKShifts(:, iG))
+      do iAtom = 1, nAtom
+        iStart = iSquare(iAtom)
+        iEnd = iSquare(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+              & = rho(iStart+iOrb-1, iStart+iOrb-1, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+              & - 0.5_dp * q0(iOrb, iAtom, 1)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_spin_bvKDensityMatrix
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_cmplx_nonperiodic(q0, iSquare, rho)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Spin polarized density matrix to substract q0 from
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(q0, dim=3)
+
+    do iSpin = 1, nSpin
+      do iAtom = 1, nAtom
+        iStart = iSquare(iAtom)
+        iEnd = iSquare(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+              & - q0(iOrb, iAtom, 1)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_cmplx_nonperiodic
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  !> Note: q0 is normalized by the overlap that includes periodic images.
+  subroutine denseSubtractDensityOfAtoms_cmplx_periodic(env, ints, denseDesc, parallelKS,&
+      & neighbourList, kPoint, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, q0, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> K-points and spins to be handled
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> List of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Spin polarized density matrix for all k-points/spins
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    !! Temporarily stores square overlap matrix of current k-point
+    complex(dp), allocatable :: SSqrCplx(:,:)
+
+    integer :: nAtom, iAtom, iStart, iEnd, iOrb, iSpin, nSpin, iK, iKS
+    real(dp) :: scale
+
+    nAtom = size(denseDesc%iAtomStart) - 1
+    nSpin = size(q0, dim=3)
+
+    allocate(SSqrCplx(denseDesc%fullSize, denseDesc%fullSize))
+
+    scale = populationScalingFactor(nSpin)
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iSpin = parallelKS%localKS(2, iKS)
+      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+      do iAtom = 1, nAtom
+        iStart = denseDesc%iAtomStart(iAtom)
+        iEnd = denseDesc%iAtomStart(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, iKS) = rho(iStart+iOrb-1, iStart+iOrb-1, iKS)&
+              & - scale * q0(iOrb, iAtom, 1) / SSqrCplx(iStart+iOrb-1, iStart+iOrb-1)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_cmplx_periodic
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_spin_cmplx_nonperiodic(q0, iSquare, rho, iSpin)
 
     !> Reference atom populations
     real(dp), intent(in) :: q0(:,:,:)
@@ -492,10 +904,9 @@ contains
     !> Spin index
     integer, intent(in) :: iSpin
 
-    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb
+    integer :: nAtom, iAtom, iStart, iEnd, iOrb
 
     nAtom = size(iSquare) - 1
-    nSpin = size(rho, dim=3)
 
     do iAtom = 1, nAtom
       iStart = iSquare(iAtom)
@@ -508,7 +919,173 @@ contains
     end do
 
 
-  end subroutine denseSubtractDensityOfAtoms_spin_cmplx
+  end subroutine denseSubtractDensityOfAtoms_spin_cmplx_nonperiodic
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> Works only for closed shell!
+  subroutine denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks(q0, iSquare, rho)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Spin polarized (lower triangular) density matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(rho, dim=3)
+
+    do iSpin = 1, nSpin
+      do iAtom = 1, nAtom
+        iStart = iSquare(iAtom)
+        iEnd = iSquare(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+              & - q0(iOrb, iAtom, iSpin)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix (spin unrestricted).
+  !> HybridXc: For spin-unrestricted calculation the initial guess should be equally distributed to
+  !> alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks(q0, iSquare, rho, iSpin)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/colum of square matrix
+    integer, intent(in) :: iSquare(:)
+
+    !> Spin polarized (lower triangular) matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    !> Spin index
+    integer, intent(in) :: iSpin
+
+    integer :: nAtom, iAtom, iStart, iEnd, iOrb
+
+    nAtom = size(iSquare) - 1
+
+    do iAtom = 1, nAtom
+      iStart = iSquare(iAtom)
+      iEnd = iSquare(iAtom + 1) - 1
+      do iOrb = 1, iEnd - iStart + 1
+        rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
+            & - 0.5_dp * q0(iOrb, iAtom, 1)
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks
+
+
+#:if WITH_SCALAPACK
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtoms_real_nonperiodic_blacs(env, parallelKS, q0, denseDesc, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Spin polarized (lower triangular) matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    real(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
+    real(dp) :: scale
+
+    nAtom = size(q0, dim=2)
+
+    scale = populationScalingFactor(size(q0, dim=3))
+
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
+      do iAt = 1, nAtom
+        iOrbStart = denseDesc%iAtomStart(iAt)
+        nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
+        tmp(:,:) = 0.0_dp
+        do iOrb = 1, nOrb
+          tmp(iOrb, iOrb) = -scale * q0(iOrb, iAt, 1)
+        end do
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp(1:nOrb, 1:nOrb), denseDesc%blacsOrbSqr,&
+            & iOrbStart, iOrbStart, rho(:,:,iKS))
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_real_nonperiodic_blacs
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  !> Note: q0 is normalized by the overlap that includes periodic images.
+  subroutine denseSubtractDensityOfAtoms_real_periodic_blacs(env, parallelKS, q0, denseDesc,&
+      & overSqr, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Spin polarized (lower triangular) matrix
+    real(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    real(dp) :: tmp(size(q0, dim=1), size(q0, dim=1)), tmpSqr(size(q0, dim=1), size(q0, dim=1))
+    real(dp) :: scale
+
+    nAtom = size(q0, dim=2)
+
+    scale = populationScalingFactor(size(q0, dim=3))
+
+    do iKS = 1, parallelKS%nLocalKS
+      iS = parallelKS%localKS(2, iKS)
+      do iAt = 1, nAtom
+        iOrbStart = denseDesc%iAtomStart(iAt)
+        nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
+        tmpSqr(:,:) = 0.0_dp
+        call scalafx_addg2l(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, iOrbStart, iOrbStart,&
+            & overSqr, tmpSqr(1:nOrb, 1:nOrb))
+        call mpifx_allreduceip(env%mpi%groupComm, tmpSqr, MPI_SUM)
+        tmp(:,:) = 0.0_dp
+        do iOrb = 1, nOrb
+          tmp(iOrb, iOrb) = -scale * q0(iOrb, iAt, 1) / tmpSqr(iOrb, iOrb)
+        end do
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp(1:nOrb, 1:nOrb), denseDesc%blacsOrbSqr,&
+            & iOrbStart, iOrbStart, rho(:,:,iKS))
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_real_periodic_blacs
+
+#:endif
 
 
   !> Calculate the number of charges per shell given the orbital charges.
@@ -651,15 +1228,15 @@ contains
       & nNeighbourSK, img2CentCell, iPair)
 
     !> Cumulative atomic multipole moments
-    real(dp), intent(inout) :: mpAtom(:, :, :)
+    real(dp), intent(inout) :: mpAtom(:,:,:)
 
     !> Multipole moment integral in packed format
-    real(dp), intent(in) :: mpintBra(:, :), mpintKet(:, :)
+    real(dp), intent(in) :: mpintBra(:,:), mpintKet(:,:)
 
     !> Density matrix in Packed format
-    real(dp), intent(in) :: rho(:, :)
+    real(dp), intent(in) :: rho(:,:)
 
-    !> Information about the orbitals.
+    !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours of each real atom (central cell)
@@ -679,7 +1256,7 @@ contains
 
     nSpin = size(rho, dim=2)
     nAtom = size(orb%nOrbAtom)
-    mpAtom(:, :, :) = 0.0_dp
+    mpAtom(:,:,:) = 0.0_dp
 
     do iSpin = 1, nSpin
       do iAt1 = 1, nAtom

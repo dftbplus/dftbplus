@@ -89,8 +89,7 @@ contains
 
     ! increase the parser version number in the tree - since the resulting dftb_pin would not work
     ! with the old parser as the options have changed to the new parser by now
-    call getChildValue(root, "ParserOptions", ch1, "", child=par, &
-        &allowEmptyValue=.true.)
+    call getChildValue(root, "ParserOptions", ch1, "", child=par, allowEmptyValue=.true.)
     call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
@@ -224,7 +223,7 @@ contains
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
-      call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
+      call detailedWarning(node, "Keyword renamed to 'InitialSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
 
@@ -849,7 +848,15 @@ contains
       call setNodeName(ch1, "PrintForces")
     end if
 
+    call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
+          & 'Hamiltonian/DFTB/Hybrid'.")
+      call setNodeName(ch1, "Hybrid")
+    end if
+
   end subroutine convert_13_14
+
 
   !> Update values in the DftD3 block to match behaviour of v6 parser
   subroutine handleD3Defaults(root)
