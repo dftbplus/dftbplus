@@ -1395,7 +1395,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
+  \kw{Hybrid} & p &  & \is{None} & \pref{sec:dftbp.Hybrid} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Solvation} & m & & - & \pref{sec:dftbp.Solvation}\\
@@ -4512,38 +4512,46 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\subsection{RangeSeparated}
-\label{sec:dftbp.RangeSep}
+\subsection{Hybrid}
+\label{sec:dftbp.Hybrid}
 
-The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
-functional. Currently, only the long-range corrected hybrid functional (\is{LC})
-\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
-electrostatic interaction is split up into long and short ranged components
-according to
+The \kw{Hybrid} keyword specifies the use of a (range-separated) hybrid functional.
+For the non-periodic formalism we refer to
+Refs.~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}, whereas the formalism for
+periodic boundary conditions is developed in Ref.~\cite{vdH-JCP-???-??????}.
+The electron-electron interaction is partitioned into short- and long-range contributions
 \begin{equation*}
-\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\frac{1}{r} = \underbrace{\frac{1 - (\alpha + \beta)
++ \beta \mathrm{e}^{-\omega r}}{r}}_{\text{DFT}} + \underbrace{\frac{\alpha
++ \beta (1 - \mathrm{e}^{-\omega r})}{r}}_{\text{HF}},
 \end{equation*}
-with the range-separation parameter $\omega$, which is set in the Slater-Koster
-files. The option should only be used with corresponding parameter sets created
-for use with long-range corrections.
+where the short-range part is handled by a modified pure density functional, while
+the exact Fock exchange enforces the correct asymptotic decay in the long-range.
+The parameters $\alpha, \beta$ and $\omega$ determine the fraction of global and
+long-range Fock exchange, as well as the value of the smooth range-separation function,
+that is of Yukawa type.
+$\alpha, \beta$ and $\omega$ are set in the Slater-Koster files. If the provided
+parametrization was not created for the respective hybrid xc-functional,
+\dftbp{} will issue an error message and halt.
 
-The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
-range-separated hybrid functional) or the \is{LC}\cb\ block as value. The latter
-has the following option:
+The \kw{Hybrid} keyword expects either \is{None} (default -- no use of hybrid functional),
+\is{Global}\cb, \is{LC}\cb\ or the \is{CAM}\cb\ block as value. \is{Global}\cb\ and
+\is{LC}\cb\ are special cases of \is{CAM}\cb\ with $0 < \alpha \leq 1, \beta = 0$ and
+$\alpha = 0, \beta = 1$ respectively. The blocks have the following options:
 
 \begin{ptable}
   \kw{Screening} & m & & Thresholded \cb & \\
+  \kw{CoulombMatrix} & m & Periodic = Yes & Truncated \cb & \\
 \end{ptable}
-
 
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
   possible:
 
   \begin{description}
-  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+  \item[\is{Thresholded \cb}] Screening according to estimated magnitude of
     terms. This is faster than the \is{NeighbourBased} method below, but does
-    not support all of the cases (restarting and spin polarisation).
+    not support all of the cases (restarting and spin-polarisation).
 
     \begin{ptable}
       \kw{Threshold} & r & & 1e-6 & \\
@@ -4555,55 +4563,183 @@ has the following option:
       zero.
     \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
       cutoff, beyond which the overlap between atoms is considered to be zero.
-      This can be used as an additional tweak to speed up the LC-calculation,
+      This can be used as an additional tweak to speed up the hybrid-calculation,
       but make sure first, that your results do not change
       considerably. Default: 0.0 -- no reduction, using the cutoff from the
       SK-files.
     \end{description}
+    
+    Note: The thresholded algorithm is only available for non-periodic systems.
 
-  \item[\is{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
+  \item[\is{NeighbourBased} \cb] Uses a purely neighbour-list based algorithm. This
     algorithm is usually considerably slower than the \is{Thresholded}.
 
     \begin{ptable}
+      \kw{Threshold} & r & Periodic = Yes & 1e-6 & \\
       \kw{CutoffReduction} & r & & 0.0 & \\
     \end{ptable}
 
     \begin{description}
     \item[\is{CutoffReduction}]\modif{\modtype{length}} See description in the
       \is{Thresholded} block.
+    \item[\is{Threshold}] See description in the \is{Thresholded} block.
     \end{description}
+    
+  Note: The neighbour-list based algorithm is the only method available for periodic
+    systems treated beyond the $\Gamma$-point.
 
-  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
-    can be faster than other two algorithms.
+  \item[\is{MatrixBased} \cb] Uses a matrix-matrix multiplication based algorithm. For
+    small to medium sized systems, this method is \emph{significantly faster} than the
+    other two algorithms.
+
+  Note: The matrix-based algorithm is available for non-periodic systems or
+    calculations restricted to the $\Gamma$-point.
 
   \end{description}
 \end{description}
 
-Example for thresholded screening with customised threshold value.
+\begin{description}
+\item[\is{CoulombMatrix}] Choice of $\gamma$-electrostatics. The following options are
+  available:
+
+  \item[\is{Truncated \cb}] Truncated Coulomb operator of Ref.~\cite{spencer-alavi-tci}.
+
+    \begin{ptable}
+      \kw{CoulombCutoff} & r & & coupled to lattice vectors and k-point sampling & \\
+      \kw{GSummationCutoff} & r & & calculated based on CoulombCutoff value & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CoulombCutoff}]\modif{\modtype{length}} Spatial cutoff beyond which
+      $\gamma$-integrals are truncated to avoid the artificial Born--von K\'arm\'an
+      periodicity of the density matrix for finite k-point samplings.
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} Spatial cutoff of g-summations
+      of Ref.~\cite{}. Usually a modification of the default value by the user is not
+      necessary. Tweak only if you know what you are doing.
+    \end{description}
+    
+    Note: Recommended choice for calculations where analytic energy gradients are required.
+    
+  \item[\is{Truncated+Damping \cb}] Identical to \is{Truncated} block, but with additional
+    fifth-order polynomial damping to zero, instead of hard truncation.
+
+    \begin{ptable}
+      \kw{CoulombCutoff} & r & & see \is{Truncated} block & \\
+      \kw{GSummationCutoff} & r & & see \is{Truncated} block & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CoulombCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \end{description}
+    
+  \item[\is{MIC \cb}] Adaption of the minimum image convention to avoid divergent lattice
+    sums.
+
+    \begin{ptable}
+      \kw{WignerSeitzReduction} & i & & 1 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{WignerSeitzReduction}] Number of unit cells to remove from the outer shell of
+      the Wigner-Seitz cell of the Born--von K\'arm\'an superlattice while carrying out the
+      g-summations. Usually the default value does not need to be changed by the user, since
+      convergence is established with increasingly fine k-point sampling.
+    \end{description}
+
+    Note: Recommended choice for single-point calculations without forces. The MIC algorithm
+      does not yet support analytic energy gradients, i.e.\ atomic forces.
+    
+  \item[\is{Full \cb}] Full, unaltered Coulomb operator. This option only exists for
+    testing and debugging purposes, do NOT use for production runs.
+
+    \begin{ptable}
+      \kw{GSummationCutoff} & r & & & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \end{description}
+  
+\end{description}
+
+\subsubsection{Examples: non-periodic systems}
+Example for thresholded screening with customised threshold value (purely
+long-range corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = Thresholded {
     Threshold = 1e-5
   }
 }
 \end{verbatim}
 
-Example for neighbour list based screening with customised cutoff reduction:
+Example for neighbour-list based screening with customised cutoff reduction
+(purely long-range corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = NeighbourBased {
     CutoffReduction [AA] = 2.0
   }
 }
 \end{verbatim}
 
-Example for matrix-matrix multiplication based method:
+Example for matrix-matrix multiplication based method (purely long-range
+corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = MatrixBased {}
 }
 \end{verbatim}
 
+\subsubsection{Examples: $\Gamma$-point calculations}
+Example for neighbour-list based screening with customised screening threshold
+and Coulomb cutoff (global hybrid functional):
+\begin{verbatim}
+  Hybrid = Global {
+    CoulombMatrix = Truncated {
+      CoulombCutoff = 20.0
+    }
+    Screening = NeighbourBased {
+      Threshold = 1e-05
+    }
+  }
+\end{verbatim}
+
+Example for matrix-matrix multiplication based method (general range-separated functional):
+\begin{verbatim}
+Hybrid = CAM {
+  Screening = MatrixBased {}
+}
+\end{verbatim}
+
+\subsubsection{Examples: calculations with k-points}
+Example for neighbour-list based screening with customised screening threshold and Coulomb
+cutoff (global hybrid functional):
+\begin{verbatim}
+Hybrid = Global {
+  CoulombMatrix = Truncated {
+    CoulombCutoff = 25.0
+  }
+  Screening = NeighbourBased {
+    Threshold = 1e-05
+  }
+}
+\end{verbatim}
+
+Example for neighbour-list based screening with customised screening threshold and MIC
+algorithm (general range-separated functional):
+\begin{verbatim}
+Hybrid = CAM {
+  CoulombMatrix = MIC {}
+  Screening = NeighbourBased {
+    Threshold = 1e-07
+  }
+}
+\end{verbatim}
 
 \subsection{On site corrections}
 \label{sec:dftbp.Onsites}
@@ -5238,7 +5374,7 @@ available for collinear spin-polarised systems but not for fractional occupation
 specifications for this block have the following properties:
 
 \textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
-functionals (Section \ref{sec:dftbp.RangeSep}) can be performed for
+functionals (Section \ref{sec:dftbp.Hybrid}) can be performed for
 molecular (non-periodic) systems that do not have fractional
 fillings. The various window options (see below) are not yet
 available for range separated calculations.
@@ -5308,7 +5444,7 @@ available for range separated calculations.
     single-particle excitations).
 
   \item[\is{WriteTransitionCharges}] For range separated calculations
-    (p.~\pref{sec:dftbp.RangeSep}) setting this to \is{Yes} generates the file
+    (p.~\pref{sec:dftbp.Hybrid}) setting this to \is{Yes} generates the file
     ATQ.DAT containing the Mulliken charges for a specific transition (chosen by
     \is{StateOfInterest}).
 

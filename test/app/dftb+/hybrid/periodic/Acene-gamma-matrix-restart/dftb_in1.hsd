@@ -1,0 +1,56 @@
+Geometry = GenFormat {
+   <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  MaxSccIterations = 5
+  SccTolerance = 1e-10
+  ConvergentSCCOnly = No
+
+  Mixer = Simple {}
+
+  Filling = Fermi {
+    Temperature [K] = 0.0
+  }
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Hybrid = LC {
+    CoulombMatrix = Truncated {
+      CoulombCutoff = 0.930123E+01
+      GSummationCutoff = 0.186025E+02
+    }
+    Screening = MatrixBased {}
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     1   0   0
+     0   1   0
+     0   0   1
+    0.0 0.0 0.0
+  }
+
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 13
+}

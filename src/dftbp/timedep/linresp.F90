@@ -29,7 +29,7 @@ module dftbp_timedep_linresp
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   implicit none
 
   private
@@ -242,8 +242,8 @@ contains
 
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
-      & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, rangeSep, excEnergy, allExcEnergies)
+      & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
+      & hybridXc, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
@@ -287,9 +287,6 @@ contains
     !> data type with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> print tag information
-    logical, intent(in) :: tWriteTagged
-
     !> file id for tagging information
     type(TFileDescr), intent(in) :: fdTagged
 
@@ -297,7 +294,7 @@ contains
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> Data for range separated calcualtion
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
@@ -305,13 +302,11 @@ contains
     !> energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-    real(dp), pointer :: dummyPtr(:,:,:) => null()
-
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-          & rangeSep, excEnergy, allExcEnergies, dummyPtr)
+          & hybridXc, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -322,8 +317,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
-      & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
+      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, derivator,&
+      & rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -380,7 +375,7 @@ contains
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
+    real(dp), intent(inout), allocatable :: deltaRho(:,:,:)
 
     !> file descriptor for tagged data
     type(TFileDescr), intent(in) :: fdTagged
@@ -389,7 +384,7 @@ contains
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
@@ -421,19 +416,19 @@ contains
 
       if (allocated(occNatural)) then
         call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
-            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
+            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, hybridXc,&
             & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
         call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
-            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
+            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, hybridXc,&
             & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr)
       end if
 
     else
       call error('Internal error: Illegal routine call to LinResp_addGradients.')
-    endif
+    end if
 
   end subroutine LinResp_addGradients
 

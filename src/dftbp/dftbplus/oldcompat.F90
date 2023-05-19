@@ -86,8 +86,7 @@ contains
 
     ! increase the parser version number in the tree - since the resulting dftb_pin would not work
     ! with the old parser as the options have changed to the new parser by now
-    call getChildValue(root, "ParserOptions", ch1, "", child=par, &
-        &allowEmptyValue=.true.)
+    call getChildValue(root, "ParserOptions", ch1, "", child=par, allowEmptyValue=.true.)
     call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
@@ -221,7 +220,7 @@ contains
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
-      call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
+      call detailedWarning(node, "Keyword renamed to 'InitialSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
 
@@ -771,7 +770,7 @@ contains
   end subroutine convert_11_12
 
 
-  !> Converts input from version 12 to 13. (Version 13 introduced in February 2023)
+  !> Converts input from version 12 to 13. (Version 13 introduced in October 2022)
   subroutine convert_12_13(root)
 
     !> Root tag of the HSD-tree
@@ -827,6 +826,13 @@ contains
         call setUnprocessed(ch2)
       end if
 
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
+          & 'Hamiltonian/DFTB/Hybrid'.")
+      call setNodeName(ch1, "Hybrid")
     end if
 
   end subroutine convert_12_13

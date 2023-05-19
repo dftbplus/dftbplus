@@ -1,0 +1,65 @@
+Geometry = GenFormat {
+  <<< "Benzene_Crystal_optimized.gen"
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1e-12
+
+  Charge = 8
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  SpinPolarisation = Colinear {
+      UnpairedElectrons = 8
+  }
+
+  Filling = Fermi {Temperature [K] = 0.0}
+
+  Hybrid = LC {
+    CoulombMatrix = Truncated {}
+    Screening = MatrixBased {}
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     1   0   0
+     0   1   0
+     0   0   1
+    0.0 0.0 0.0
+  }
+
+  SpinConstants = {
+      C = {-0.023} # HOMO Wpp
+      H = {-0.072} # HOMO Wss
+  }
+
+}
+
+ParserOptions {
+    ParserVersion = 13
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+Parallel {
+  Groups = 1
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

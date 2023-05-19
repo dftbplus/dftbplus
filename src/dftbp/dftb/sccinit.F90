@@ -15,6 +15,8 @@ module dftbp_dftb_sccinit
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix
+  use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
   implicit none
 
   private
@@ -22,7 +24,7 @@ module dftbp_dftb_sccinit
   public :: initQFromUsrChrg
 
   !> version number for restart format, please increment if you change the interface.
-  integer, parameter :: restartFormat = 6
+  integer, parameter :: restartFormat = 7
 
 contains
 
@@ -176,8 +178,8 @@ contains
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
-  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
-      & magnetisation, nEl, multipoles)
+  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
+      & magnetisation, nEl, coeffsAndShifts, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -200,8 +202,11 @@ contains
     !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
-    !> Full density matrix with on-diagonal adjustment
-    real(dp), intent(inout), allocatable :: deltaRho(:)
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(inout) :: densityMatrix
+
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
 
     !> magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
@@ -209,29 +214,38 @@ contains
     !> Nr. of electrons for each spin channel
     real(dp), intent(in), optional :: nEl
 
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), intent(inout), optional :: coeffsAndShifts(:,:)
+
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(inout), optional :: multipoles
 
-    ! nr. of orbitals / atoms / spin channels
+    !! Diagonal elements of supercell folding matrix
+    integer :: supercellFoldingDiag(3)
+
+    !! nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
 
-    ! error returned by the io commands
+    !! error returned by the io commands
     integer :: iErr
 
-        ! total charge is present at the top of the file
-    real(dp) :: CheckSum(size(qq, dim=3))
+    !! total charge is present at the top of the file
+    real(dp) :: checkSum(size(qq, dim=3))
+
+    integer :: iOrb, iAtom, iSpin, ii, jj, kk, ll, mm, nn, nAtomInFile, nDipole, nQuadrupole
 
     type(TFileDescr) :: file
 
-    integer :: iOrb, iAtom, iSpin, ii, nAtomInFile, nDipole, nQuadrupole
     integer :: fileFormat
     real(dp) :: sumQ
 
-    !> present in the file itself
-    logical :: tBlockPresent, tiBlockPresent, tRhoPresent
+    !! Requested to be re-loaded
+    logical :: tBlock, tiBlock, tRho, tKpointInfo, isMultipolar
 
-    !> requested to be re-loaded
-    logical :: tBlock, tiBlock, tRho, isMultipolar
+    !! Present in the file itself
+    logical :: tBlockPresent, tiBlockPresent, tRhoPresent, tKpointInfoPresent
 
     character(len=120) :: error_string
 
@@ -240,7 +254,8 @@ contains
 
     tBlock = allocated(qBlock)
     tiBlock = allocated(qiBlock)
-    tRho = allocated(deltaRho)
+    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplxHS)
+    tKpointInfo = present(coeffsAndShifts)
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
@@ -252,7 +267,7 @@ contains
     end if
 
     if (tBlock) then
-      @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
+      @:ASSERT(all(shape(qBlock) == [orb%mOrb, orb%mOrb, nAtom, nSpin]))
     end if
 
     if (tiBlock) then
@@ -260,8 +275,12 @@ contains
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
     end if
 
-    if (tRho) then
-      @:ASSERT(size(deltaRho) == orb%nOrb*orb%nOrb*nSpin)
+    if (tKpointInfo) then
+      @:ASSERT(all(shape(coeffsAndShifts) == [3, 4]))
+    end if
+
+    if (allocated(densityMatrix%deltaRhoIn)) then
+      @:ASSERT(size(densityMatrix%deltaRhoIn) == orb%nOrb * orb%nOrb * nSpin)
     end if
 
   #:endblock DEBUG_CODE
@@ -286,29 +305,38 @@ contains
       call error("Error during reading external file of charge data")
     end if
     isMultipolar = .false.
+    tKpointInfoPresent = .false.
     select case(fileFormat)
     case(4)
       if (tReadAscii) then
-        read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+        read(file%unit, *, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, checkSum
       else
-        read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+        read(file%unit, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, checkSum
       end if
       nAtomInFile = nAtom
     case(5)
       if (tReadAscii) then
         read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile,&
-            & iSpin, CheckSum
+            & iSpin, checkSum
       else
         read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
-            & CheckSum
+            & checkSum
       end if
     case(6)
       if (tReadAscii) then
         read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
-            & nAtomInFile, iSpin, CheckSum
+            & nAtomInFile, iSpin, checkSum
       else
         read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
-            & nAtomInFile, iSpin, CheckSum
+            & nAtomInFile, iSpin, checkSum
+      end if
+    case(7)
+      if (tReadAscii) then
+        read(file%unit, *, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent,&
+            & tKpointInfoPresent, isMultipolar, nAtomInFile, iSpin, checkSum
+      else
+        read(file%unit, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent,&
+            & tKpointInfoPresent, isMultipolar, nAtomInFile, iSpin, checkSum
       end if
     case default
       call error("Incompatible file type for external charge data")
@@ -331,18 +359,18 @@ contains
       do iAtom = 1, nAtomInFile
         nOrb = orb%nOrbAtom(iAtom)
         if (tReadAscii) then
-          read (file%unit, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          read(file%unit, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
         else
-          read (file%unit, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          read(file%unit, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
         end if
         if (iErr /= 0) then
-          write (error_string, *) "Failure to read file of external charges"
+          write(error_string, *) "Failure to read file of external charges"
           call error(error_string)
         end if
       end do
     end do
 
-    if (any(abs(CheckSum(:) - sum(sum(qq(:,:nAtomInFile,:),dim=1),dim=1))>elecTolMax))then
+    if (any(abs(checkSum(:) - sum(sum(qq(:,:nAtomInFile,:),dim=1),dim=1)) > elecTolMax))then
       call error("Error during reading external file of charge data - internal checksum failure,&
           & probably a damaged file")
     end if
@@ -398,9 +426,9 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nDipole
-              read (file%unit, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom,iSpin)
+              read(file%unit, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom,iSpin)
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for atomic dipoles"
+                write(error_string, *) "Failure to read file for atomic dipoles"
                 call error(error_string)
               end if
             end do
@@ -409,9 +437,9 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nQuadrupole
-              read (file%unit, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom,iSpin)
+              read(file%unit, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom,iSpin)
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for atomic quadrupoles"
+                write(error_string, *) "Failure to read file for atomic quadrupoles"
                 call error(error_string)
               end if
             end do
@@ -445,12 +473,12 @@ contains
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
-                read (file%unit, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+                read(file%unit, *, iostat=iErr) qBlock(1:nOrb, ii, iAtom, iSpin)
               else
-                read (file%unit, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+                read(file%unit, iostat=iErr) qBlock(1:nOrb, ii, iAtom, iSpin)
               end if
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for external block charges"
+                write(error_string, *) "Failure to read file for external block charges"
                 call error(error_string)
               end if
             end do
@@ -475,12 +503,12 @@ contains
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
-                read (file%unit, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+                read(file%unit, *, iostat=iErr) qiBlock(1:nOrb, ii, iAtom, iSpin)
               else
-                read (file%unit, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+                read(file%unit, iostat=iErr) qiBlock(1:nOrb, ii, iAtom, iSpin)
               end if
               if (iErr /= 0) then
-                write (error_string, *) "Failure to read file for external imaginary block charges"
+                write(error_string, *) "Failure to read file for external imaginary block charges"
                 call error(error_string)
               end if
             end do
@@ -490,20 +518,79 @@ contains
     end if
     ! need a checksum here
 
+    if (allocated(densityMatrix%deltaRhoIn)) then
+      densityMatrix%deltaRhoIn(:,:,:) = 0.0_dp
+    end if
+    ! In this case the size of deltaRho couldn't be known in advance, therefore deallocating
+    if (allocated(densityMatrix%deltaRhoInCplxHS) .and. tKpointInfo .and. tKpointInfoPresent) then
+      deallocate(densityMatrix%deltaRhoInCplxHS)
+    end if
+
+    ! tKpointInfo = present(coeffsAndShifts)
+
     if (tRho) then
-      deltaRho(:) = 0.0_dp
+      if (tKpointInfo) then
+        coeffsAndShifts(:,:) = 0.0_dp
+        if (tKpointInfoPresent) then
+          do jj = 1, size(coeffsAndShifts, dim=2)
+            do ii = 1, size(coeffsAndShifts, dim=1)
+              if (tReadAscii) then
+                read(file%unit, *, iostat=iErr) coeffsAndShifts(ii, jj)
+              else
+                read(file%unit, iostat=iErr) coeffsAndShifts(ii, jj)
+              end if
+            end do
+          end do
+          call checkSupercellFoldingMatrix(coeffsAndShifts,&
+              & supercellFoldingDiagOut=supercellFoldingDiag)
+          allocate(densityMatrix%deltaRhoInCplxHS(orb%nOrb, orb%nOrb, supercellFoldingDiag(1),&
+              & supercellFoldingDiag(2), supercellFoldingDiag(3), nSpin))
+        end if
+      end if
       if (tRhoPresent) then
-        do ii = 1, size(deltaRho)
-          if (tReadAscii) then
-            read (file%unit, *, iostat=iErr) deltaRho(ii)
-          else
-            read (file%unit, iostat=iErr) deltaRho(ii)
-          end if
-          if (iErr /= 0) then
-            write (error_string, *) "Failure to read file for external imaginary block charges"
-            call error(error_string)
-          end if
-        end do
+        if (.not. tRealHS) then
+          ! general k-point case
+          do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
+            do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
+              do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
+                do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
+                  do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
+                    do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
+                      if (tReadAscii) then
+                        read(file%unit, *, iostat=iErr)&
+                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
+                      else
+                        read(file%unit, iostat=iErr)&
+                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
+                      end if
+                      if (iErr /= 0) then
+                        write(error_string, *) 'Failure to read file for delta density matrix.'
+                        call error(error_string)
+                      end if
+                    end do
+                  end do
+                end do
+              end do
+            end do
+          end do
+        else
+          ! cluster/Gamma-only case
+          do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
+            do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
+              do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
+                if (tReadAscii) then
+                  read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                else
+                  read(file%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+                end if
+                if (iErr /= 0) then
+                  write(error_string, *) 'Failure to read file for delta density matrix.'
+                  call error(error_string)
+                end if
+              end do
+            end do
+          end do
+        end if
       end if
     end if
 
@@ -513,14 +600,14 @@ contains
 
 
   !> Write the current charges to an external file
-  subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, deltaRhoIn,&
-      & nAtInCentralRegion, multipoles)
+  subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
+      & nAtInCentralRegion, coeffsAndShifts, multipoles)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
 
     !> Name of the file to write the charges
-    character(*), intent(in) :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Write in a ascii format (T) or binary (F)
     logical, intent(in) :: tWriteAscii
@@ -534,12 +621,20 @@ contains
     !> block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
-    !> Full density matrix with on-diagonal adjustment
-    real(dp), intent(in), allocatable :: deltaRhoIn(:)
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(in) :: densityMatrix
+
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
 
     !> Number of atoms in central region (atoms outside this will have charges suplied from
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), intent(in), optional :: coeffsAndShifts(:,:)
 
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(in), optional :: multipoles
@@ -547,7 +642,7 @@ contains
     character(len=120) :: error_string
 
     integer :: nAtom, nOrb, nSpin, nDipole, nQuadrupole
-    integer :: iAtom, iOrb, iSpin, ii
+    integer :: iAtom, iOrb, iSpin, ii, jj, kk, ll, mm, nn
     integer :: iErr
     logical :: tqBlock, tqiBlock, tRho
     type(TFileDescr) :: fd
@@ -559,9 +654,26 @@ contains
     @:ASSERT(size(qq, dim=1) >= orb%mOrb)
     @:ASSERT(size(qq, dim=2) >= nAtInCentralRegion)
 
+    if (present(coeffsAndShifts)) then
+      ! corresponds to RSH-DFTB case
+      @:ASSERT(all(shape(coeffsAndShifts) == [3, 4]))
+    end if
+
     tqBlock = allocated(qBlock)
     tqiBlock = allocated(qiBlock)
-    tRho = allocated(deltaRhoIn)
+    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplxHS)
+
+    if (tRho .and. (.not. allocated(densityMatrix%deltaRhoIn))&
+        & .and. (.not. present(coeffsAndShifts))) then
+      call error("Failure while writing restart file: This appears to be a cluster/Gamma-only&
+          & calculations, but the associated density matrix is missing.")
+    end if
+
+    if (present(coeffsAndShifts) .and. (.not. tRealHS)&
+        & .and. (.not. allocated(densityMatrix%deltaRhoInCplxHS))) then
+      call error("Failure while writing restart file: Supercell folding coefficients and shifts&
+          & present, but the associated density matrix is missing.")
+    end if
 
   #:block DEBUG_CODE
 
@@ -572,10 +684,6 @@ contains
     if (tqiBlock) then
       @:ASSERT(allocated(qBlock))
       @:ASSERT(all(shape(qiBlock) == shape(qBlock)))
-    end if
-
-    if (tRho) then
-      @:ASSERT(size(deltaRhoIn) == orb%nOrb*orb%nOrb*nSpin)
     end if
 
   #:endblock DEBUG_CODE
@@ -594,11 +702,11 @@ contains
     end if
 
     if (tWriteAscii) then
-      write(fd%unit, *, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom, nSpin,&
-          & sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
+      write(fd%unit, *, iostat=iErr) tqBlock, tqiBlock, tRho, present(coeffsAndShifts),&
+          & present(multipoles), nAtom, nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     else
-      write(fd%unit, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom,&
-          & nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
+      write(fd%unit, iostat=iErr) tqBlock, tqiBlock, tRho, present(coeffsAndShifts),&
+          & present(multipoles), nAtom, nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     end if
 
     if (iErr /= 0) then
@@ -692,9 +800,9 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteAscii) then
-              write(fd%unit, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, *, iostat=iErr) qBlock(1:nOrb, ii, iAtom, iSpin)
             else
-              write(fd%unit, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, iostat=iErr) qBlock(1:nOrb, ii, iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block charges"
@@ -711,9 +819,9 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteAscii) then
-              write(fd%unit, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, *, iostat=iErr) qiBlock(1:nOrb, ii, iAtom, iSpin)
             else
-              write(fd%unit, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, iostat=iErr) qiBlock(1:nOrb, ii, iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block imaginary charges"
@@ -725,17 +833,58 @@ contains
     end if
 
     if (tRho) then
-      do ii = 1, size(deltaRhoIn)
-        if (tWriteAscii) then
-          write(fd%unit, *, iostat=iErr) deltaRhoIn(ii)
-        else
-          write(fd%unit, iostat=iErr) deltaRhoIn(ii)
-        end if
-        if (iErr /= 0) then
-          write(error_string, *) "Failure to write file for external density matrix"
-          call error(error_string)
-        end if
-      end do
+      ! Write k-point set information to file, if CAM calculation with k-points is present
+      if (present(coeffsAndShifts)) then
+        do jj = 1, size(coeffsAndShifts, dim=2)
+          do ii = 1, size(coeffsAndShifts, dim=1)
+            write(fd%unit, iostat=iErr) coeffsAndShifts(ii, jj)
+          end do
+        end do
+      end if
+
+      if (tRealHS) then
+        ! cluster/Gamma-only case
+        do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
+          do jj = 1, size(densityMatrix%deltaRhoIn, dim=2)
+            do kk = 1, size(densityMatrix%deltaRhoIn, dim=1)
+              if (tWriteAscii) then
+                write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+              else
+                write(fd%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
+              end if
+              if (iErr /= 0) then
+                write(error_string, *) "Failure to write file for external density matrix"
+                call error(error_string)
+              end if
+            end do
+          end do
+        end do
+      else
+        ! general k-point case
+        do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
+          do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
+            do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
+              do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
+                do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
+                  do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
+                    if (tWriteAscii) then
+                      write(fd%unit, *, iostat=iErr)&
+                          & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
+                    else
+                      write(fd%unit, iostat=iErr)&
+                          & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
+                    end if
+                    if (iErr /= 0) then
+                      write(error_string, *) "Failure to write file for external density matrix"
+                      call error(error_string)
+                    end if
+                  end do
+                end do
+              end do
+            end do
+          end do
+        end do
+      end if
     end if
 
     call closeFile(fd)

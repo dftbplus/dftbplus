@@ -15,25 +15,30 @@
 !> Caveat: The routines create the transposed and complex conjugated of the density matrices! (cc*
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
+
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : pi
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_sorting, only : unique, heap_sort
-  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_common_globalenv, only : stdOut
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptran,&
-      & pblasfx_ptranc
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptranc
 #:endif
-  implicit none
 
+  implicit none
   private
-  public :: makeDensityMatrix
+
+  public :: makeDensityMatrix, TDensityMatrix
+  public :: transformDualSpaceToBvKRealSpace
+
 #:if WITH_SCALAPACK
   public :: makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
 #:endif
 
 
-  !> Provides an interface to calculate the two types of dm - regular and
-  !> weighted and put them into packed storage
+  !> Provides an interface to calculate the two types of dm - regular and weighted and put them into
+  !! packed storage.
   interface makeDensityMatrix
     module procedure fullDensityMatrix_real
     module procedure fullDensityMatrix_cmplx
@@ -41,9 +46,91 @@ module dftbp_dftb_densitymatrix
     module procedure fullEnergyDensityMatrix_cmplx
   end interface makeDensityMatrix
 
+
+  !> Holds real and complex delta density matrices and pointers.
+  type :: TDensityMatrix
+
+    !> DeltaRho input for range separation in matrix form
+    real(dp), allocatable :: deltaRhoIn(:,:,:)
+
+    !> DeltaRho output from range separation in matrix form
+    real(dp), allocatable :: deltaRhoOut(:,:,:)
+
+    !> Complex, square dual-space deltaRho output from range separation
+    complex(dp), allocatable :: deltaRhoOutCplx(:,:,:)
+
+    !> Real-space, square deltaRho input for range separation
+    real(dp), allocatable :: deltaRhoInCplxHS(:,:,:,:,:,:)
+
+    !> Real-space, square deltaRho output for range separation
+    real(dp), allocatable :: deltaRhoOutCplxHS(:,:,:,:,:,:)
+
+    !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
+    integer, allocatable :: iKiSToiGlobalKS(:,:)
+
+  ! #:if WITH_SCALAPACK
+  !   !> DeltaRho diff from calculation of range separated Hamiltonian
+  !   real(dp), allocatable :: deltaRhoDiff(:)
+  ! #:endif
+
+  end type TDensityMatrix
+
+
   real(dp), parameter :: arbitraryConstant = 0.1_dp
 
 contains
+
+
+  !> Transforms dense, square density matrix for all spins/k-points to real-space (BvK cell).
+  subroutine transformDualSpaceToBvKRealSpace(rhoDual, parallelKS, kPoint, kWeight, bvKShifts,&
+      & coeffsDiag, rhoBvK)
+
+    !> Complex, dense, square dual-space rho of all spins/k-points
+    complex(dp), intent(in) :: rhoDual(:,:,:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> k-points in relative units
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights of k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> K-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
+    real(dp), intent(in) :: bvKShifts(:,:)
+
+    !> Supercell folding coefficients (diagonal elements)
+    integer, intent(in) :: coeffsDiag(:)
+
+    !> Real-space, dense, square rho for BvK cell
+    real(dp), intent(inout) :: rhoBvK(:,:,:,:,:,:)
+
+    !! K-point-spin composite index and k-point/spin index
+    integer :: iKS, iK, iSpin
+
+    !! Iterates over all BvK real-space vectors
+    integer :: iG
+
+    !! Phase factor
+    complex(dp) :: phase
+
+    !! Integer BvK real-space shift translated to density matrix indices
+    integer :: bvKIndex(3)
+
+    do iG = 1, size(bvKShifts, dim=2)
+      bvKIndex(:) = nint(bvKShifts(:, iG)) + 1
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        iSpin = parallelKS%localKS(2, iKS)
+        phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoint(:, iK), bvKShifts(:, iG)))
+        rhoBvK(:,:, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+            & = rhoBvK(:,:, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
+            & + kWeight(iK) * real(rhoDual(:,:, iKS) * phase, dp)
+      end do
+    end do
+
+  end subroutine transformDualSpaceToBvKRealSpace
 
 
   !> Make a regular density matrix for the real wave-function case
@@ -383,9 +470,6 @@ contains
 
     ! Create matrix
     call pblasfx_pgemm(eigenVecs, desc, work, desc, densityMtx, desc, transb="T")
-    ! symmetrize
-    work(:,:) = densityMtx
-    call pblasfx_ptran(work, desc, densityMtx, desc, alpha=0.5_dp, beta=0.5_dp)
 
   end subroutine makeDensityMtxRealBlacs
 

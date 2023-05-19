@@ -16,7 +16,7 @@ module dftbp_derivs_linearresponse
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS
@@ -47,12 +47,13 @@ module dftbp_derivs_linearresponse
     module procedure dynamic_CC_weight
   end interface weightMatrix
 
+
 contains
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0, k=0
   subroutine dRhoReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, dRhoSqr, rangeSep, over, nNeighbourLC, transform, species, dEi, dPsi, coord,&
+      & dRhoSparse, dRhoSqr, hybridXc, over, nNeighbourCam, transform, species, dEi, dPsi, coord,&
       & errStatus, omega, isHelical, eta)
 
     !> Environment settings
@@ -110,14 +111,13 @@ contains
     real(dp), pointer :: dRhoSqr(:,:,:)
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
-    integer, intent(inout), allocatable :: nNeighbourLC(:)
+    !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
+    integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
@@ -363,14 +363,15 @@ contains
           & iSparseStart, img2CentCell)
     end if
 
-    if (allocated(rangeSep)) then
+    if (allocated(hybridXc)) then
       if (isHelical_) then
         @:RAISE_ERROR(errStatus, -1, "Helical geometry range separation not currently possible")
       end if
       call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call rangeSep%addLRHamiltonian(env, dRhoSqr(:,:,iS), over, neighbourList%iNeighbour,&
-          & nNeighbourLC, denseDesc%iAtomStart, iSparseStart, orb, dRho, workLocal)
+      call hybridXc%addCamHamiltonian_real(env, dRhoSqr(:,:,iS), workLocal, over,&
+          & neighbourList%iNeighbour, nNeighbourCam, denseDesc%iAtomStart, iSparseStart, orb,&
+          & img2CentCell, .false., dRho)
     end if
 
     ! form |c> H' <c|

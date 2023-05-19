@@ -24,6 +24,9 @@ module dftbp_extlibs_poisson
   use libmpifx_module, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_POISSON
+#:if WITH_MPI
+  use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
+#:endif
   use dftbp_poisson_poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms,&
       & verbose, bufferBox, deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm,&
       & FoundBox, Gate, GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter,&

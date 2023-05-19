@@ -1,0 +1,66 @@
+Geometry = GenFormat {
+   <<< Acene_Primitive_Cell.gen
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SccTolerance = 1e-06
+  ReadInitialCharges = Yes
+  MaxSccIterations = 50
+
+  Mixer = Simple {MixingParameter = 0.9}
+
+  Filling = Fermi {
+    Temperature [K] = 0.0
+  }
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Hybrid = LC {
+    CoulombMatrix = Truncated {
+      CoulombCutoff = 0.162772E+02
+      GSummationCutoff = 0.325543E+02
+    }
+    Screening = NeighbourBased {
+      Threshold = 1e-100
+    }
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     1   0   0
+     0   1   0
+     0   0   7
+    0.0 0.0 0.0
+  }
+
+}
+
+Analysis {
+  CalculateForces = No
+}
+
+Options {
+  WriteResultsTag = No
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 13
+}
+
+Parallel {
+  Groups = 1
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

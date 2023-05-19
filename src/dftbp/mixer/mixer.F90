@@ -28,53 +28,56 @@ module dftbp_mixer_mixer
   type TMixer
     private
 
-    !> numerical type of mixer 1:4
+    !> Numerical type of mixer 1:4
     integer :: mixerType
 
-    !> simple mixer instance
-    type(TSimpleMixer),   allocatable :: pSimpleMixer
+    !> Simple mixer instance
+    type(TSimpleMixer), allocatable :: pSimpleMixer
 
     !> Anderson mixer instance
     type(TAndersonMixer), allocatable :: pAndersonMixer
 
     !> Broyden mixer instance
-    type(TBroydenMixer),  allocatable :: pBroydenMixer
+    type(TBroydenMixer), allocatable :: pBroydenMixer
 
-    !> modified DIIS mixer instance
-    type(TDIISMixer),  allocatable :: pDIISMixer
+    !> Modified DIIS mixer instance
+    type(TDIISMixer), allocatable :: pDIISMixer
+
   end type TMixer
 
 
   !> Initialises specific mixer in use
   interface init
-    module procedure Mixer_initSimple
-    module procedure Mixer_initAnderson
-    module procedure Mixer_initBroyden
-    module procedure Mixer_initDIIS
+    module procedure TMixer_initSimple
+    module procedure TMixer_initAnderson
+    module procedure TMixer_initBroyden
+    module procedure TMixer_initDIIS
   end interface
 
 
   !> Resets mixer
   interface reset
-    module procedure Mixer_reset
+    module procedure TMixer_reset
   end interface reset
 
 
   !> Does the actual mixing
   interface mix
-    module procedure Mixer_mix
+    module procedure TMixer_mix1D
+    module procedure TMixer_mix3D
+    module procedure TMixer_mix6D
   end interface mix
 
 
   !> Is J^-1 available?
   interface hasInverseJacobian
-    module procedure Mixer_hasInverseJacobian
+    module procedure TMixer_hasInverseJacobian
   end interface hasInverseJacobian
 
 
   !> Return J^-1 if possible
   interface getInverseJacobian
-    module procedure Mixer_getInverseJacobian
+    module procedure TMixer_getInverseJacobian
   end interface getInverseJacobian
 
 
@@ -92,7 +95,7 @@ contains
 
 
   !> Initializes a simple mixer.
-  subroutine Mixer_initSimple(this, pSimple)
+  subroutine TMixer_initSimple(this, pSimple)
 
     !> Mixer instance
     type(TMixer), intent(out) :: this
@@ -103,11 +106,11 @@ contains
     this%mixerType = mixerTypes%simple
     call move_alloc(pSimple, this%pSimpleMixer)
 
-  end subroutine Mixer_initSimple
+  end subroutine TMixer_initSimple
 
 
   !> Initializes an Anderson mixer.
-  subroutine Mixer_initAnderson(this, pAnderson)
+  subroutine TMixer_initAnderson(this, pAnderson)
 
     !> Mixer instance
     type(TMixer), intent(out) :: this
@@ -118,11 +121,11 @@ contains
     this%mixerType = mixerTypes%anderson
     call move_alloc(pAnderson, this%pAndersonMixer)
 
-  end subroutine Mixer_initAnderson
+  end subroutine TMixer_initAnderson
 
 
   !> Initializes a Broyden mixer
-  subroutine Mixer_initBroyden(this, pBroyden)
+  subroutine TMixer_initBroyden(this, pBroyden)
 
     !> Mixer instance
     type(TMixer), intent(out) :: this
@@ -133,11 +136,11 @@ contains
     this%mixerType = mixerTypes%broyden
     call move_alloc(pBroyden, this%pBroydenMixer)
 
-  end subroutine Mixer_initBroyden
+  end subroutine TMixer_initBroyden
 
 
   !> Initializes a DIIS mixer
-  subroutine Mixer_initDIIS(this, pDIIS)
+  subroutine TMixer_initDIIS(this, pDIIS)
 
     !> Mixer instance
     type(TMixer), intent(out) :: this
@@ -148,11 +151,11 @@ contains
     this%mixerType = mixerTypes%diis
     call move_alloc(pDIIS, this%pDIISMixer)
 
-  end subroutine Mixer_initDIIS
+  end subroutine TMixer_initDIIS
 
 
   !> Resets the mixer
-  subroutine Mixer_reset(this, nElem)
+  subroutine TMixer_reset(this, nElem)
 
     !> Mixer instance.
     type(TMixer), intent(inout) :: this
@@ -171,20 +174,20 @@ contains
       call reset(this%pDIISMixer, nElem)
     end select
 
-  end subroutine Mixer_reset
+  end subroutine TMixer_reset
 
 
   !> Mixes vectors together
-  subroutine Mixer_mix(this, qInpRes, qDiff)
+  subroutine TMixer_mix1D(this, qInpRes, qDiff)
 
     !> Mixer instance.
     type(TMixer), intent(inout) :: this
 
     !> Input vector on entry, result vector on exit.
-    real(dp),      intent(inout) :: qInpRes(:)
+    real(dp), intent(inout) :: qInpRes(:)
 
     !> Difference between input and output vectors (measure of lack of convergence)
-    real(dp),      intent(in) :: qDiff(:)
+    real(dp), intent(in) :: qDiff(:)
 
     select case (this%mixerType)
     case (mixerTypes%simple)
@@ -197,11 +200,63 @@ contains
       call mix(this%pDIISMixer, qInpRes, qDiff)
     end select
 
-  end subroutine Mixer_mix
+  end subroutine TMixer_mix1D
+
+
+  !> Mixes vectors together
+  subroutine TMixer_mix3D(this, qInpResSqr, qDiffSqr)
+
+    !> Mixer instance.
+    type(TMixer), intent(inout) :: this
+
+    !> Input vector on entry, result vector on exit
+    real(dp), intent(inout), contiguous, target :: qInpResSqr(:,:,:)
+
+    !> Difference between input and output vectors (measure of lack of convergence)
+    real(dp), intent(in), contiguous, target :: qDiffSqr(:,:,:)
+
+    !! Difference between input and output vectors (1D pointer)
+    real(dp), pointer :: qDiff(:)
+
+    !! Input vector on entry, result vector on exit (1D pointer)
+    real(dp), pointer :: qInpRes(:)
+
+    qDiff(1:size(qDiffSqr)) => qDiffSqr
+    qInpRes(1:size(qInpResSqr)) => qInpResSqr
+
+    call TMixer_mix1D(this, qInpRes, qDiff)
+
+  end subroutine TMixer_mix3D
+
+
+  !> Mixes vectors together
+  subroutine TMixer_mix6D(this, qInpResSqr, qDiffSqr)
+
+    !> Mixer instance.
+    type(TMixer), intent(inout) :: this
+
+    !> Input vector on entry, result vector on exit
+    real(dp), intent(inout), contiguous, target :: qInpResSqr(:,:,:,:,:,:)
+
+    !> Difference between input and output vectors (measure of lack of convergence)
+    real(dp), intent(in), contiguous, target :: qDiffSqr(:,:,:,:,:,:)
+
+    !! Difference between input and output vectors (1D pointer)
+    real(dp), pointer :: qDiff(:)
+
+    !! Input vector on entry, result vector on exit (1D pointer)
+    real(dp), pointer :: qInpRes(:)
+
+    qDiff(1:size(qDiffSqr)) => qDiffSqr
+    qInpRes(1:size(qInpResSqr)) => qInpResSqr
+
+    call TMixer_mix1D(this, qInpRes, qDiff)
+
+  end subroutine TMixer_mix6D
 
 
   !> Tells whether the mixer is able to provide the inverse Jacobian.
-  function Mixer_hasInverseJacobian(this) result(has)
+  function TMixer_hasInverseJacobian(this) result(has)
 
     !> Mixer instance.
     type(TMixer), intent(inout) :: this
@@ -220,11 +275,11 @@ contains
       has = .false.
     end select
 
-  end function Mixer_hasInverseJacobian
+  end function TMixer_hasInverseJacobian
 
 
   !> Return an inverse Jacobian if possible, halting if not
-  subroutine Mixer_getInverseJacobian(this, invJac)
+  subroutine TMixer_getInverseJacobian(this, invJac)
 
     !> Mixer instance.
     type(TMixer), intent(inout) :: this
@@ -243,6 +298,6 @@ contains
       call error("DIIS mixer does not provide inverse Jacobian")
     end select
 
-  end subroutine Mixer_getInverseJacobian
+  end subroutine TMixer_getInverseJacobian
 
 end module dftbp_mixer_mixer
