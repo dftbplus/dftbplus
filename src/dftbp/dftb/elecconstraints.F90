@@ -17,6 +17,7 @@ module dftbp_dftb_elecconstraints
   use dftbp_geoopt_package, only : TOptimizer, TOptimizerInput, createOptimizer
   use dftbp_io_hsdutils, only : getChildValue, getChildren, getSelectedAtomIndices
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
+  use dftbp_extlibs_xmlf90, only : destroyNodeList
   implicit none
 
   private
@@ -24,6 +25,7 @@ module dftbp_dftb_elecconstraints
   public :: readElecConstraintInput
 
 
+  !> Contains input data for electronic constraints.
   type TElecConstraintInput
 
     !> Optimiser input choice
@@ -50,6 +52,7 @@ module dftbp_dftb_elecconstraints
   end type TElecConstraintInput
 
 
+  !> Represents electronic contraints.
   type TElecConstraint
 
     !> Value of the constraint
@@ -58,15 +61,22 @@ module dftbp_dftb_elecconstraints
     !> Potential
     real(dp), allocatable :: Vc(:)
 
-    ! Weighting function for constrain
+    !> Contribution to free energy functional from constraint
+    real(dp), allocatable :: deltaW(:)
 
-    !> Atom(s) involved in each constrain
+    !> Derivative of energy functional with respect to Vc
+    real(dp), allocatable :: dWdVc(:)
+
+    ! Weighting function for constraint
+
+    !> Atom(s) involved in each constraint
     type(TWrappedInt1), allocatable :: wAt(:)
 
-    !> Atomic orbital(s) involved in each constrain
+    !> Atomic orbital(s) involved in each constraint
     type(TWrappedInt1), allocatable :: wAtOrb(:)
 
-    !> Atomic orbital charge/spin quaternion involved in each constrain
+    !> Atomic orbital qm-values  involved in each constraint
+    !> ([q] for spin unpolarized case, [q, m] for colinear spin)
     type(TWrappedReal2), allocatable :: wAtSpin(:)
 
     !> General optimiser
@@ -83,9 +93,11 @@ module dftbp_dftb_elecconstraints
 
   contains
 
-    procedure getConstrainShift
-    procedure propagateConstraints
-    procedure getMaxIter
+    procedure :: getConstraintShift
+    procedure :: propagateConstraints
+    procedure :: getMaxIter
+    procedure :: getFreeEnergy
+    procedure :: getMaxEnergyDerivWrtVc
 
   end type TElecConstraint
 
@@ -94,7 +106,7 @@ contains
 
 
   !> General entry point to read constraint on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, tSpinPol)
+  subroutine readElecConstraintInput(node, geo, input, isSpinPol)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -106,7 +118,7 @@ contains
     type(TElecConstraintInput), intent(out) :: input
 
     !> True, if this is a spin polarized calculation
-    logical, intent(in) :: tSpinPol
+    logical, intent(in) :: isSpinPol
 
     type(fnode), pointer :: val, child1, child2, child3
     type(fnodeList), pointer :: children
@@ -138,14 +150,14 @@ contains
           & input%atomGrp(iConstr)%data)
       call getChildValue(child2, "Population", input%atomNc(iConstr))
       ! Functionality currently restricted to charges
-      if (tSpinPol) then
-        allocate(input%atomSpinDir(iConstr)%data(2))
-        input%atomSpinDir(iConstr)%data(1) = 1.0_dp
+      if (isSpinPol) then
+        input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
       else
-        allocate(input%atomSpinDir(iConstr)%data(1))
-        input%atomSpinDir(iConstr)%data(1) = 1.0_dp
+        input%atomSpinDir(iConstr)%data = [1.0_dp]
       end if
     end do
+
+    call destroyNodeList(children)
 
   end subroutine readElecConstraintInput
 
@@ -153,7 +165,7 @@ contains
   !> Initialises the constraints structure.
   subroutine TElecConstraint_init(this, input, orb)
 
-    !> Constrain structure instance
+    !> Constraint structure instance
     type(TElecConstraint), intent(out) :: this
 
     !> Input data structure
@@ -166,9 +178,11 @@ contains
 
     nConstr = size(input%atomGrp)
 
-    allocate(this%Vc(nConstr))
-    ! should enable optional initialization of Vc from input
-    this%Vc(:) = 0.0_dp
+    ! We should enable optional initialization of Vc from input at some point.
+    allocate(this%Vc(nConstr), source=0.0_dp)
+
+    allocate(this%dWdVc(nConstr), source=0.0_dp)
+    allocate(this%deltaW(nConstr), source=0.0_dp)
 
     call createOptimizer(input%optimiser, nConstr, this%potOpt)
 
@@ -189,12 +203,10 @@ contains
         iAt = input%atomGrp(iConstr)%data(ii)
         nOrb = nOrb + orb%nOrbAtom(iAt)
       end do
-      allocate(this%wAt(iConstr)%data(nOrb))
-      allocate(this%wAtOrb(iConstr)%data(nOrb))
+      allocate(this%wAt(iConstr)%data(nOrb), source=0)
+      allocate(this%wAtOrb(iConstr)%data(nOrb), source=0)
       nSpin = size(input%atomSpinDir(iConstr)%data)
-      allocate(this%wAtSpin(iConstr)%data(nOrb,nSpin))
-      this%wAt(iConstr)%data(:) = 0
-      this%wAtOrb(iConstr)%data(:) = 0
+      allocate(this%wAtSpin(iConstr)%data(nOrb, nSpin), source=0.0_dp)
       nOrb = 0
       do ii = 1, size(input%atomGrp(iConstr)%data)
         iAt = input%atomGrp(iConstr)%data(ii)
@@ -224,8 +236,36 @@ contains
   end function getMaxIter
 
 
+  !> Returns total contribution to free energy functional from constraints.
+  pure function getFreeEnergy(this) result(deltaWTotal)
+
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
+
+    !> Summed up contribution to free energy functional from constraints
+    real(dp) :: deltaWTotal
+
+    deltaWTotal = sum(this%deltaW)
+
+  end function getFreeEnergy
+
+
+  !> Returns maximum derivative of energy functional with respect to Vc.
+  pure function getMaxEnergyDerivWrtVc(this) result(dWdVcMax)
+
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
+
+    !> Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    dWdVcMax = maxval(abs(this%dWdVc))
+
+  end function getMaxEnergyDerivWrtVc
+
+
   !> Applies electronic constraints to system.
-  subroutine propagateConstraints(this, qq, energy, deltaW, dWdVcMax, tConverged)
+  subroutine propagateConstraints(this, qq, energy, tConverged)
 
     !> Class instance
     class(TElecConstraint), intent(inout) :: this
@@ -236,44 +276,36 @@ contains
     !> Energy
     real(dp), intent(in) :: energy
 
-    !> Contribution to free energy functional from constraint(s)
-    real(dp), intent(out) :: deltaW
-
-    !> Maximum derivative of energy functional with respect to Vc
-    real(dp), intent(out) :: dWdVcMax
-
     !> Gradient convergence achieved
     logical, intent(out) :: tConverged
 
-    !! Derivative of energy functional with respect to Vc
-    real(dp), allocatable :: dWdVc(:)
+    ! Summed up contribution to free energy functional from constraints
+    real(dp) :: deltaWTotal
 
-    !! Potential displacement proposed by optimizer
+    ! Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    ! Potential displacement proposed by optimizer
     real(dp) :: potDisplace(size(this%Vc))
 
-    !! Iterates over constraints
-    integer :: iConstr
-
-    !! Number of constraints requested by the user
-    integer :: nConstr
+    integer :: iConstr, nConstr
 
     nConstr = size(this%wAt)
-    allocate(dWdVc(nConstr))
-    dWdVc(:) = 0.0_dp
-    deltaW = 0.0_dp
 
     do iConstr = 1, nConstr
-      call getConstrainEnergyAndPotQ(deltaW, dWdVc(iConstr), this%Vc(iConstr), this%Nc(iConstr),&
-          & this%wAt(iConstr)%data, this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data,&
-          & qq)
+      call getConstraintEnergyAndPotQ(this%Vc(iConstr), this%Nc(iConstr), this%wAt(iConstr)%data,&
+          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data, qq, this%deltaW(iConstr),&
+          & this%dWdVc(iConstr))
     end do
 
-    ! Optimizers set up to minimize, therefore sign change in total energy and gradients
-    ! call next(this%potOpt, -(energy + deltaW), -dWdVc, this%Vc, tConverged)
-    call this%potOpt%step(energy + deltaW, -dWdVc, potDisplace)
-    this%Vc(:) = this%Vc + potDisplace
+    ! Sum up all free energy contributions
+    deltaWTotal = this%getFreeEnergy()
 
-    dWdVcMax = maxval(abs(dWdVc))
+    ! Get maximum derivative of energy functional with respect to Vc
+    dWdVcMax = this%getMaxEnergyDerivWrtVc()
+
+    call this%potOpt%step(energy + deltaWTotal, -this%dWdVc, potDisplace)
+    this%Vc(:) = this%Vc + potDisplace
 
     ! In this case dWdVc is equivalent to the condition itself,
     ! so we can use it to measure convergence.
@@ -283,13 +315,7 @@ contains
 
 
   !> Calculate artificial potential to realize constraint on atomic charge.
-  subroutine getConstrainEnergyAndPotQ(deltaW, dWdV, Vc, Nc, wAt, wOrb, wSp, qq)
-
-    !> Free energy contribution from current contraint
-    real(dp), intent(inout) :: deltaW
-
-    !> Derivative of free energy with respect to potential
-    real(dp), intent(out) :: dWdV
+  subroutine getConstraintEnergyAndPotQ(Vc, Nc, wAt, wOrb, wSp, qq, deltaW, dWdV)
 
     !> Potential / Lagrange multiplier
     real(dp), intent(in) :: Vc
@@ -309,16 +335,22 @@ contains
     !> Mulliken populations
     real(dp), intent(in) :: qq(:,:,:)
 
-    !! Number of spin channels to be constrained
+    !> Free energy contribution from current contraint
+    real(dp), intent(out) :: deltaW
+
+    !> Derivative of free energy with respect to potential
+    real(dp), intent(out) :: dWdV
+
+    ! Number of spin channels to be constrained
     integer :: nSpin
 
-    !! Index of spin channel
+    ! Index of spin channel
     integer :: iSpin
 
-    !! Index of atomic orbital
+    ! Index of atomic orbital
     integer :: iW
 
-    !! Present population
+    ! Present population
     real(dp) :: wn
 
     nSpin = size(wSp, dim=2)
@@ -330,13 +362,13 @@ contains
     end do
 
     dWdV = wn - Nc
-    deltaW = deltaW + Vc * dWdV
+    deltaW = Vc * dWdV
 
-  end subroutine getConstrainEnergyAndPotQ
+  end subroutine getConstraintEnergyAndPotQ
 
 
   !> Get total shift of all constraints.
-  subroutine getConstrainShift(this, shift)
+  subroutine getConstraintShift(this, shift)
 
     !> Class instance
     class(TElecConstraint), intent(inout) :: this
@@ -344,25 +376,21 @@ contains
     !> Total shift of all constraints
     real(dp), intent(out) :: shift(:,:,:,:)
 
-    !! Iterates over constraints
-    integer :: iConstr
-
-    !! Number of constraints requested by the user
-    integer :: nConstr
+    integer :: iConstr, nConstr
 
     shift(:,:,:,:) = 0.0_dp
     nConstr = size(this%wAt)
 
     do iConstr = 1, nConstr
-      call getConstrainShiftQ(shift, this%Vc(iConstr), this%wAt(iConstr)%data,&
+      call getConstraintShiftQ(shift, this%Vc(iConstr), this%wAt(iConstr)%data,&
           & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data)
     end do
 
-  end subroutine getConstrainShift
+  end subroutine getConstraintShift
 
 
   !> Get shift for atomic charge constraint.
-  subroutine getConstrainShiftQ(shift, Vc, wAt, wOrb, wSp)
+  subroutine getConstraintShiftQ(shift, Vc, wAt, wOrb, wSp)
 
     !> Shift to which contribution is appended
     real(dp), intent(inout) :: shift(:,:,:,:)
@@ -379,13 +407,13 @@ contains
     !> Spin(s) involved in current constrain
     real(dp), intent(in) :: wSp(:,:)
 
-    !! Number of spin channels to be constrained
+    ! Number of spin channels to be constrained
     integer :: nSpin
 
-    !! Index of spin channel
+    ! Index of spin channel
     integer :: iSpin
 
-    !! Index of atomic orbital
+    ! Index of atomic orbital
     integer :: iW
 
     nSpin = size(wSp, dim=2)
@@ -397,6 +425,6 @@ contains
       end do
     end do
 
-  end subroutine getConstrainShiftQ
+  end subroutine getConstraintShiftQ
 
 end module dftbp_dftb_elecconstraints

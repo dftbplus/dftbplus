@@ -23,6 +23,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_dftb_elecconstraints, only: TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_extfields, only : TEField
@@ -3433,7 +3434,7 @@ contains
 
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, tScc, tConstr, tConverged, tConstrConverged, tXlbomd, isLinResp,&
+  subroutine writeDetailedOut4(fd, tScc, tConstr, tConverged, constrConverged, tXlbomd, isLinResp,&
       & tGeoOpt, tMd, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs,&
       & chrgForces, indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
@@ -3450,7 +3451,7 @@ contains
     logical, intent(in) :: tConverged
 
     !> Have all constraint cycles converged?
-    logical, intent(in) :: tConstrConverged
+    logical, intent(in) :: constrConverged
 
     !> Is the extended Lagrangian in use for MD
     logical, intent(in) :: tXlbomd
@@ -3506,7 +3507,7 @@ contains
     integer :: iAt, ii
 
     if (tConstr) then
-      if (tConstrConverged) then
+      if (constrConverged) then
         write(fd, "(A)") "Constraints converged"
         write(fd, *)
       else
@@ -4523,7 +4524,10 @@ contains
 
 
   !> Prints info about electronic constraint convergence.
-  subroutine printElecConstrInfo(iConstrIter, Eelec, deltaW, dWdVcMax)
+  subroutine printElecConstrInfo(elecConstraint, iConstrIter, Eelec)
+
+    !> Represents electronic contraints
+    type(TElecConstraint), intent(in) :: elecConstraint
 
     !> Iteration count
     integer, intent(in) :: iConstrIter
@@ -4531,13 +4535,19 @@ contains
     !> Electronic energy
     real(dp), intent(in) :: Eelec
 
-    !> Contribution to free energy functional from constraint(s)
-    real(dp), intent(in) :: deltaW
+    !> Total contribution to free energy functional from constraint(s)
+    real(dp) :: deltaWTotal
 
     !> Maximum derivative of energy functional with respect to Vc
-    real(dp), intent(in) :: dWdVcMax
+    real(dp) :: dWdVcMax
 
-    write(stdOut, "(A,I5,3E18.8)") repeat(" ", 6), iConstrIter, Eelec, deltaW, dWdVcMax
+    ! Sum up all free energy contributions
+    deltaWTotal = elecConstraint%getFreeEnergy()
+
+    ! Get maximum derivative of energy functional with respect to Vc
+    dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
+
+    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
 
   end subroutine printElecConstrInfo
 

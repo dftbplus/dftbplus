@@ -749,14 +749,13 @@ contains
 
     end if
 
-    if (allocated(this%elecConstrain)) then
-      constrShift(:,:,:,:) = 0.0_dp
-      call this%elecConstrain%getConstrainShift(constrShift)
-      this%potential%intBlock = this%potential%intBlock + constrShift
+    if (allocated(this%elecConstraint)) then
+      call this%elecConstraint%getConstraintShift(constrShift)
+      this%potential%intBlock(:,:,:,:) = this%potential%intBlock + constrShift
     end if
 
     ! All potentials are added up into intBlock
-    this%potential%intBlock = this%potential%intBlock + this%potential%extBlock
+    this%potential%intBlock(:,:,:,:) = this%potential%intBlock + this%potential%extBlock
 
     if (allocated(this%qDepExtPot)) then
       call getChargePerShell(q, this%orb, this%species, dQ, qRef=this%q0)
@@ -991,10 +990,10 @@ contains
     ! Loop variables
     integer :: iSccIter
 
-    ! energy in previous scc cycles
+    ! Energy in previous scc cycles
     real(dp) :: Eold
 
-    ! whether scc converged
+    ! Whether scc converged
     logical :: tConverged
 
     ! Whether scc restart info should be written in current iteration
@@ -1003,36 +1002,19 @@ contains
     ! Charge difference
     real(dp), allocatable :: dQ(:,:,:)
 
-    ! Loop indices
-    integer :: iSpin, iKS
-
-    ! Iteration of constraints
-    integer :: iConstrIter
-
-    ! Number of constraint iterations
-    integer :: nConstrIter
-
-    !> Contribution to free energy functional from constraint(s)
-    real(dp) :: deltaW
-
-    !> Maximum derivative of energy functional with respect to Vc
-    real(dp) :: dWdVcMax
-
-    ! Whether constraints are converged
-    logical :: tConstrConverged
-
     ! Auxiliary dipole storage
     real(dp), allocatable :: dipoleTmp(:)
 
-    if (this%tDipole) then
-      allocate(dipoleTmp(3))
-    end if
+    ! Whether constraints are converged
+    logical :: constrConverged
+
+    integer :: iSpin, iKS, iConstrIter, nConstrIter
+
+    if (this%tDipole) allocate(dipoleTmp(3))
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
-    if (allocated(this%qDepExtPot)) then
-      allocate(dQ(this%orb%mShell, this%nAtom, this%nSpin))
-    end if
+    if (allocated(this%qDepExtPot)) allocate(dQ(this%orb%mShell, this%nAtom, this%nSpin))
 
     call this%electronicSolver%reset()
     tExitGeoOpt = .false.
@@ -1158,11 +1140,6 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%scc)
 
-    if (allocated(this%elecConstrain)) then
-      deltaW = 0.0_dp
-      dWdVcMax = 0.0_dp
-    end if
-
     REKS_SCC: if (allocated(this%reks)) then
 
       lpSCC_REKS: do iSccIter = 1, this%maxSccIter
@@ -1270,12 +1247,10 @@ contains
 
       lpSCC: do iSccIter = 1, this%maxSccIter
 
-        if (allocated(this%elecConstrain)) then
-          nConstrIter = this%elecConstrain%getMaxIter()
+        if (allocated(this%elecConstraint)) then
+          nConstrIter = this%elecConstraint%getMaxIter()
           call printElecConstrHeader()
-          if (allocated(this%elecConstrain)) then
-            call this%elecConstrain%potOpt%reset()
-          end if
+          call this%elecConstraint%potOpt%reset()
         else
           nConstrIter = 1
         end if
@@ -1344,21 +1319,20 @@ contains
               & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%onSiteElements,&
               & this%qNetAtom, this%potential%intOnSiteAtom, this%potential%extOnSiteAtom)
 
-          if (allocated(this%elecConstrain)) then
+          if (allocated(this%elecConstraint)) then
             call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
-            call this%elecConstrain%propagateConstraints(this%qOutput,&
-                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, deltaW, dWdVcMax,&
-                & tConstrConverged)
+            call this%elecConstraint%propagateConstraints(this%qOutput,&
+                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, constrConverged)
           else
-            tConstrConverged = .true.
+            constrConverged = .true.
           end if
 
-          if (allocated(this%elecConstrain)) then
-            call printElecConstrInfo(iConstrIter,&
-                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, deltaW, dWdVcMax)
+          if (allocated(this%elecConstraint)) then
+            call printElecConstrInfo(this%elecConstraint, iConstrIter,&
+                & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec)
           end if
 
-          if (tConstrConverged) exit lpConstrInner
+          if (constrConverged) exit lpConstrInner
 
         end do lpConstrInner
 
@@ -1377,9 +1351,6 @@ contains
         call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
 
         if (tConverged .or. tStopScc) exit lpSCC
-        ! if (allocated(this%elecConstrain)) then
-        !   if (.not. tConstrConverged .and. this%elecConstrain%isConstrConvRequired) exit lpSCC
-        ! end if
 
       end do lpSCC
 
@@ -1462,10 +1433,10 @@ contains
       end if
     end if
 
-    if (allocated(this%elecConstrain)) then
-      if (.not. tConstrConverged) then
+    if (allocated(this%elecConstraint)) then
+      if (.not. constrConverged) then
         call warning("Constraints did NOT converge, maximal micro-iterations exceeded")
-        if (this%elecConstrain%isConstrConvRequired) then
+        if (this%elecConstraint%isConstrConvRequired) then
           call env%shutdown()
         end if
       end if
@@ -1623,12 +1594,12 @@ contains
     end if
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
-      call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc, allocated(this%elecConstrain),&
-          & tConverged, tConstrConverged, this%isXlbomd, this%isLinResp, this%isGeoOpt&
-          & .or. allocated(this%geoOpt), this%tMD, this%tPrintForces, this%tStress, this%tPeriodic,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress, this%totalLatDeriv,&
-          & this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol, this%intPressure,&
-          & this%geoOutFile, this%iAtInCentralRegion)
+      call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc,&
+          & allocated(this%elecConstraint), tConverged, constrConverged, this%isXlbomd,&
+          & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD, this%tPrintForces,&
+          & this%tStress, this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant),&
+          & this%totalStress, this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom,&
+          & this%cellVol, this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&

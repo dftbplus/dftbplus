@@ -13,7 +13,7 @@ Hamiltonian = DFTB {
   ConvergentSCCOnly = Yes
   MaxSCCIterations = 10
 
-  MaxAngularMomentum = {
+  MaxAngularMomentum {
     O = "p"
     H = "s"
   }
@@ -28,7 +28,7 @@ Hamiltonian = DFTB {
     Prefix = "slakos/origin/mio-1-1/"
   }
 
-  StateConstraints {
+  ElectronicConstraints {
     Regions {
       Atoms {
         Domain = H

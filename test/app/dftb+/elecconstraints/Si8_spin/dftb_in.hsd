@@ -17,7 +17,7 @@ Hamiltonian = DFTB {
     Si = "p"
   }
 
-  SlaterKosterFiles = {
+  SlaterKosterFiles {
     Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
   }
 
@@ -28,20 +28,18 @@ Hamiltonian = DFTB {
     0.5 0.5 0.5
   }
 
-  SpinPolarisation = {
-    Colinear = {
-      UnpairedElectrons = 1
-      RelaxTotalSpin = No
-      InitialSpins = {}
-    }
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 1
+    RelaxTotalSpin = No
+    InitialSpins = {}
   }
 
-  SpinConstants = {
+  SpinConstants {
     ShellResolvedSpin = No
-    Si = {-0.0144}
+    Si = -0.0144
   }
 
-  StateConstraints = {
+  ElectronicConstraints {
     Regions {
       Atoms {
         Domain = 8
@@ -53,7 +51,6 @@ Hamiltonian = DFTB {
     MaxConstrIterations = 100
     ConvergentConstrOnly = Yes
   }
-
 }
 
 Options {

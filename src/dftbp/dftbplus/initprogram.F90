@@ -752,7 +752,7 @@ module dftbp_dftbplus_initprogram
     logical :: isRangeSep
 
     !> Whether constraints are imposed on electronic ground state
-    logical :: isElecconstr
+    logical :: isElecConstr
 
     !> Range-separation data
     type(TRangeSepFunc), allocatable :: rangeSep
@@ -836,7 +836,7 @@ module dftbp_dftbplus_initprogram
     logical :: tWriteCosmoFile
 
     !> Structure holding electronic constraints
-    type(TElecConstraint), allocatable :: elecConstrain
+    type(TElecConstraint), allocatable :: elecConstraint
 
     !> Library interface handler
     type(TTBLite), allocatable :: tblite
@@ -1334,7 +1334,7 @@ contains
     this%t2Component = input%ctrl%t2Component
     this%isXlbomd = allocated(input%ctrl%xlbomd)
     this%isRangeSep = allocated(input%ctrl%rangeSepInp)
-    this%isElecconstr = allocated(input%ctrl%elecConstrainInp)
+    this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
 
     if (this%t2Component) then
@@ -1961,7 +1961,7 @@ contains
       if (this%isRangeSep) then
         call error("Range separated calculations do not yet work with transport calculations")
       end if
-      if (this%isElecconstr) then
+      if (this%isElecConstr) then
         call error("Constrained DFTB calculations do not yet support electron transport.")
       end if
     end if
@@ -2247,10 +2247,10 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
-    if (allocated(input%ctrl%elecConstrainInp)) then
-      call this%ensureConstrainedDftbReqs(input%ctrl%elecConstrainInp)
-      allocate(this%elecConstrain)
-      call TElecConstraint_init(this%elecConstrain, input%ctrl%elecConstrainInp, this%orb)
+    if (allocated(input%ctrl%elecConstraintInp)) then
+      call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
+      allocate(this%elecConstraint)
+      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb)
     end if
 
     this%tDipole = this%tMulliken
@@ -5334,28 +5334,32 @@ contains
 
 
   !> Stop if any setting incompatible with the constrained DFTB formalism is found.
-  subroutine ensureConstrainedDftbReqs(this, elecConstrainInp)
+  subroutine ensureConstrainedDftbReqs(this, elecConstraintInp)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
     !> Input parameters for electronic constraints
-    type(TElecConstraintInput), intent(in) :: elecConstrainInp
+    type(TElecConstraintInput), intent(in) :: elecConstraintInp
+
+    if (.not. this%tSccCalc) then
+      call error("Electronically constrained calculations do not yet support non-SCC calculations.")
+    end if
 
     if (this%isXlbomd) then
-      call error("Constrained DFTB calculations do not yet support XLBOMD.")
+      call error("Electronically constrained calculations do not yet support XLBOMD.")
     end if
 
     if (allocated(this%reks)) then
-      call error("Constrained DFTB calculations do not yet support REKS.")
+      call error("Electronically constrained calculations do not yet support REKS.")
     end if
 
     if (this%deltaDftb%isNonAufbau) then
-      call error("Constrained DFTB calculations do not yet support delta-DFTB.")
+      call error("Electronically constrained calculations do not yet support delta-DFTB.")
     end if
 
     if (this%isElecDyn) then
-      call error("Constrained DFTB calculations do not yet support electron dynamics.")
+      call error("Electronically constrained calculations do not yet support electron dynamics.")
     end if
 
   end subroutine ensureConstrainedDftbReqs
