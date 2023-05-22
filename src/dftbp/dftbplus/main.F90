@@ -1521,16 +1521,15 @@ contains
             & this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
-
-        if (this%linearResponse%tCIopt) then
-          print *,'#### Calling CI optimizer'
+        
+        
+        if (this%tCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
-               & this%linearResponse%indNACouplings, this%naCouplings, this%energiesCasida)       
+              & this%linearResponse%indNACouplings, this%linearResponse%energyShiftCI,&
+              & this%naCouplings, this%energiesCasida)       
         else if (this%tCasidaForces) then
-          print *,'#### Doing normal excited forces'
           this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)
         end if
-        print *,'#### Default' 
       end if
 
       call env%globalTimer%stopTimer(globalTimers%forceCalc)

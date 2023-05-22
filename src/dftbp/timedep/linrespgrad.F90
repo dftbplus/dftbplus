@@ -14,6 +14,8 @@
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
+  use dftbp_io_commonformats, only : format2U
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
@@ -187,7 +189,7 @@ contains
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
-    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
+    integer :: i, j, iSpin, isym, iLev, iSav, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev, iNac
     integer :: nSpin
     character :: sym
@@ -618,7 +620,14 @@ contains
           call error("Forces currently not available unless a single excited state is specified")
         end if
 
-      else
+      else if (this%tCIopt) then
+        if(this%indNACouplings(1) == 0) then
+          nStartLev = this%indNACouplings(1) + 1
+        else
+          nStartLev = this%indNACouplings(1)
+        end if
+        nEndLev = this%indNACouplings(2)
+      else  
         nStartLev = nstat
         nEndLev = nstat
       end if
@@ -688,13 +697,13 @@ contains
         end if
 
         if (tForces) then
+          iSav = iLev - nStartLev + 1 
           call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-              & tRangeSep, rangeSep, excgrad(:,:,iLev))
+              & tRangeSep, rangeSep, excgrad(:,:,iSav))
         end if
-
       end do
 
       if (this%tNaCoupling) then
@@ -5457,7 +5466,9 @@ contains
   
   !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
   !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
-  subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, naCouplings, excEnergies)
+  !> Previous published results [Niehaus JCP 158 054103 (2023), TCA 140 34 (2021)] were obtained
+  !> with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
+  subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, energyShift, naCouplings, excEnergies)
 
     !> Ground state gradient (overwritten)
     real(dp), intent(inout) :: derivs(:,:)
@@ -5468,22 +5479,28 @@ contains
     !> States between which CI is optimized
     integer, intent(in) :: indNACouplings(2)
 
+    !> Shift of excited state PES (Harabuchi/Hatanaka/Maeda CPL X 2019)
+    real(dp), intent(in) :: energyShift
+
     !> Nonadiabatic coupling vectors
     real(dp), intent(in) :: naCouplings(:,:,:)
 
     !> Sn-S0 excitation energy
     real(dp), intent(in) :: excEnergies(:)
 
-    !> shift of excited state PES
-    real(dp), parameter :: shift = 0.0_dp
 
     integer :: nAtoms, nexcGrad, nCoupl
     real(dp), allocatable :: X1(:), X2(:), dE2(:), gpf(:)
-    real(dp) :: dpX1, dpX2, prj1, prj2, deltaE, normGP
+    real(dp) :: dpX1, dpX2, dp12, prj1, prj2, deltaE, normGP
+    real(dp) :: alpa, beta
+    character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
 
     nAtoms = size(derivs, dim=2)
-    nexcGrad = indNACouplings(2)-indNACouplings(1)+1   
+    nexcGrad = indNACouplings(2)-indNACouplings(1)+1
     nCoupl = nexcGrad*(nexcGrad-1)/2
+    if (indNACouplings(1) == 0) then
+      nexcGrad = nexcGrad - 1
+    end if
     @:ASSERT(nexcGrad ==  size(excDerivs, dim=3))
     @:ASSERT(nCoupl == size(naCouplings, dim=3))
 
@@ -5506,41 +5523,30 @@ contains
 
     dpX1 = dot_product(X1, X1)
     dpX2 = dot_product(X2, X2)
-
+    dp12 = dot_product(X1, X2)
     prj1 = dot_product(dE2, X1)
     prj2 = dot_product(dE2, X2)
 
+    alpa = (prj2*dp12 - prj1*dpX2)/(dpX1*dpX2 - dp12*dp12)
+    beta = (prj2*dpX1 - prj1*dp12)/(dp12*dp12 - dpX1*dpX2)
+
     ! Eq. 5 in Bearpark et al.
-    gpf(:) = dE2(:) - prj1 * X1(:) / dpX1 - prj2 * X2(:) / dpX2
+    gpf(:) = dE2(:) + alpa * X1(:) + beta * X2(:) 
     normGP = norm2(gpf)
 
     ! Eq. 4 in Bearpark et al. with modifications by Harabuchi
     ! Yields approximate CI without running into SCF problems too early
     ! Shift should be brought to zero
-    deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
-    gpf(:) = gpf(:) + 2.0_dp * (deltaE - shift) * X1(:) / sqrt(dpX1) 
+    if (indNACouplings(1) == 0) then
+      deltaE = excEnergies(indNACouplings(2)) 
+    else
+      deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
+    end if
+    gpf(:) = gpf(:) + 2.0_dp * (deltaE - energyShift) * X1(:) / sqrt(dpX1) 
 
     derivs(:,:) = reshape(gpf, (/ 3, nAtoms /))
 
-    write(*, "(A, f10.4, A, f16.8)") 'Energy gap:                ', &
-         & deltaE * Hartree__eV, ' eV, Projected force ', normGP 
-
-!!$    write(tmpStr, "(A,I0,A,I0,A)")"delgrd", indNACouplings(1),"-", indNACouplings(2), ".dat"
-!!$
-!!$    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", &
-!!$        & form='formatted',iostat=iErr)
-!!$
-!!$    if (iErr /= 0) then
-!!$      write(error_string, *) "Failure to open grad file"
-!!$      call error(error_string)
-!!$    end if
-!!$
-!!$    naCouplings = deltaDerivs2 - deltaDerivs1
-!!$    do i = 1, size(derivs(1,:))
-!!$      write(fdunit,'(3(E20.12,2x))') naCouplings(1,i), naCouplings(2,i), naCouplings(3,i)
-!!$    enddo
-!!$
-!!$    close(fdUnit)
+    write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
 
   end subroutine conicalIntersectionOptimizer
 

@@ -474,6 +474,9 @@ module dftbp_dftbplus_initprogram
     !> Is the contribution from an excited state needed for the forces
     logical :: tCasidaForces
 
+    !> Optimization of conical intersections
+    logical :: tCIopt = .false.
+
     !> Are forces being returned
     logical :: tPrintForces
 
@@ -4684,15 +4687,23 @@ contains
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
       if (this%isLinResp) then
-        ! For CI optimization store gradient for several states  
         if(this%linearResponse%tNaCoupling) then
           dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-          allocate(this%excitedDerivs(3, this%nAtom, dLev)) 
           allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
-        ! Store excited state gradient for state of interest only  
-        else if (this%tLinRespZVect .and. this%tCasidaForces) then  
+        end if
+        ! For CI optimization store gradient for several states,
+        ! otherwise store excited state gradient for state of interest only  
+        if(this%linearResponse%tCIopt) then
+          dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1 
+          if (this%linearResponse%indNACouplings(1) == 0) then
+            allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
+          else
+            allocate(this%excitedDerivs(3, this%nAtom, dLev))
+          end if          
+        else  if (this%tLinRespZVect .and. this%tCasidaForces) then  
           allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
+        this%tCIopt = this%linearResponse%tCIopt
       end if 
     end if
 

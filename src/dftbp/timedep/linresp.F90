@@ -90,6 +90,9 @@ module dftbp_timedep_linresp
     
     !> should CI be optimized
     logical :: tCIopt
+
+    !> Energy shift used in CI optimizer
+    real(dp) :: energyShiftCI
     
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
@@ -187,14 +190,16 @@ contains
       if (ini%indNACouplings(1) >=  ini%indNACouplings(2)) then
         call error("Couplings: Second index must be larger than first one.")
       end if
+      if (ini%tCIopt .and. ini%indNACouplings(2)-ini%indNACouplings(1) > 1) then
+        call error("CI optimization: States must be neighbouring.")
+      end if
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
       dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
-   endif
+    endif
     
     this%tCIopt = ini%tCIopt
-    print *,'in respo',ini%tCIopt, this%tCIopt
-
+    this%energyShiftCI = ini%energyShiftCI
     this%writeMulliken = ini%tMulliken
     this%writeCoeffs = ini%tCoeffs
     this%tGrndState = ini%tGrndState

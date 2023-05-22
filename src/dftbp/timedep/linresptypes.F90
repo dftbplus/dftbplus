@@ -79,6 +79,9 @@ module dftbp_timedep_linresptypes
 
     !> should CI be optimized
     logical :: tCIopt
+
+    !> Energy shift used in CI optimizer
+    real(dp) :: energyShiftCI
     
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
