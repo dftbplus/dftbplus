@@ -8,6 +8,10 @@
 #:include "common.fypp"
 
 !> Contains a file descriptor and methods to set the default file access type globally.
+!>
+!> Note, setDefaultBinaryAccess() manipulates a global variable and is not thread or even
+!> multi-instance safe!
+!>
 module dftbp_common_file
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_message, only : error
@@ -18,7 +22,7 @@ module dftbp_common_file
 
   private
   public :: TFileDescr, TOpenOptions, openFile, closeFile, clearFile, fileExists
-  public :: defaultFileAccess, setDefaultFileAccess, fileAccessValues
+  public :: defaultBinaryAccess, defaultTextAccess, setDefaultBinaryAccess, fileAccessValues
 
 
   !> Length of the character string holding a file option value
@@ -29,7 +33,8 @@ module dftbp_common_file
   type :: TOpenOptions
 
     !> File access ("sequential", "direct", "stream" or "default"), default: "default"
-    !> "default" indicates to use the global default value defined in defaultFileAccess
+    !> "default" indicates to use the global default values defined in defaultBinaryAccess and
+    !> defaultTextAccess for binary (unformatted) and text (formatted) files, respetively.
     character(openOptionCharLen_) :: access = "default"
 
     !> File action ("read", "write", "readwrite"), default: "read"
@@ -85,10 +90,13 @@ module dftbp_common_file
   character(*), parameter :: fileAccessValues(*) =&
       & [character(openOptionCharLen_) :: "sequential", "stream"]
 
-
-  !> Current default file access type for read, write and readwrite actions
-  character(openOptionCharLen_), protected :: defaultFileAccess(3) = &
+  !> Current default file access type for read, write and readwrite actions for binary files
+  character(openOptionCharLen_), protected :: defaultBinaryAccess(3) = &
       & [character(openOptionCharLen_) :: "stream", "stream", "stream"]
+
+  !> Current default file access type for read, write and readwrite actions for text files
+  character(openOptionCharLen_), parameter :: defaultTextAccess(3) = &
+      & [character(openOptionCharLen_) :: "sequential", "sequential", "sequential"]
 
 contains
 
@@ -249,11 +257,23 @@ contains
     if (opts%access == "default") then
       select case (opts%action)
       case ("read")
-        opts%access = defaultFileAccess(1)
+        if (opts%form == "unformatted") then
+          opts%access = defaultBinaryAccess(1)
+        else
+          opts%access = defaultTextAccess(1)
+        end if
       case ("write")
-        opts%access = defaultFileAccess(2)
+        if (opts%form == "unformatted") then
+          opts%access = defaultBinaryAccess(2)
+        else
+          opts%access = defaultTextAccess(2)
+        end if
       case ("readwrite")
-        opts%access = defaultFileAccess(3)
+        if (opts%form == "unformatted") then
+          opts%access = defaultBinaryAccess(3)
+        else
+          opts%access = defaultTextAccess(3)
+        end if
       end select
     end if
 
@@ -422,7 +442,10 @@ contains
 
 
   !> Sets the default access type for file opening operations
-  subroutine setDefaultFileAccess(readAccess, writeAccess, readwriteAccess)
+  !>
+  !> Note: this routine is not thread of multi-instance-safe!
+  !>
+  subroutine setDefaultBinaryAccess(readAccess, writeAccess, readwriteAccess)
 
     !> Access type to use for read access ("sequential", "direct", "stream")
     character(*), intent(in) :: readAccess
@@ -437,9 +460,9 @@ contains
     @:ASSERT(any(writeAccess == fileAccessValues))
     @:ASSERT(any(readwriteAccess == fileAccessValues))
 
-    defaultFileAccess(:) = [readAccess, writeAccess, readwriteAccess]
+    defaultBinaryAccess(:) = [readAccess, writeAccess, readwriteAccess]
 
-  end subroutine setDefaultFileAccess
+  end subroutine setDefaultBinaryAccess
 
 
   !> Checks, whether a certain file exists in the file system.

@@ -4627,7 +4627,7 @@ This block collects some global options for the run.
   \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
-  \kw{FileAccessTypes} & s | 2s & & "stream"  & \\
+  \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
 \end{ptable}
 \begin{description}
 
@@ -4730,29 +4730,28 @@ This block collects some global options for the run.
   section~\ref{sec:charges.bin}), the check-sum this option removed the
   requirement that the checksum values in the file match the charges.
 
-\item[\is{FileAccessTypes}\label{sec:dftbp.Options.FileAccessTypes}] Specifies
-  the default file access types. It contains either one string specifying the
-  same access type for both reading and writing files, or two strings specifying
-  the access type separately for reading and writing. Each value must be either
-  \is{"sequential"} or \is{"stream"}. The default is \is{"stream"} for both
-  actions. It only affects the I/O of binary files.
+\item[\is{BinaryAccessTypes}\label{sec:dftbp.Options.BinaryAccessTypes}]
+  Specifies the default access format for binary (non-human-readable) files. It
+  contains either one string specifying the same type for both reading and
+  writing those files, or two strings separately specifying the types for
+  reading and writing. Each value must be either \is{"stream"} or
+  \is{"sequential"}. The default is \is{"stream"} for both actions.
 
-  Starting with version 23.1, \dftbp{} consistently uses stream-I/O in order to
-  procude binary files (e.g.\ \verb|eigenvec.bin|, \verb|charges.bin|, etc.),
-  which can be processed by programs written in other languages (Python, C). In
-  earlier versions most binary files were written using sequential I/O, which
-  were not transferable between languages or even between Fortran compilers. You
-  can read in or write out files in this old format by setting the appropriate
-  action to \is{"sequential"}.
+  Starting with version 23.1, \dftbp{} consistently uses stream-I/O for binary
+  files in order to produce files (e.g.\ \verb|eigenvec.bin|,
+  \verb|charges.bin|, etc.), which can be processed by programs written in other
+  languages (Python, C). In earlier versions most binary files were written
+  using sequential I/O, which were not transferable between languages or even
+  between Fortran compilers. You can read in or write out files in this old
+  format by setting the appropriate action to \is{"sequential"}.
 
   Example:
 \begin{verbatim}
   # Use old sequential I/O for input and output of binary files
-  FileAccessTypes = "sequential"
+  BinaryAccessTypes = "sequential"
 
   # Use the old format when reading and the new format when writing binary files
-  FileAccessTypes = "sequential"  "stream"
-
+  BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
 
@@ -5267,14 +5266,15 @@ available for range separated calculations.
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
 
-  \item[\is{StateCouplings}] Non-adiabatic coupling vectors between
-    two states, $n$ and $m$ where $m > n$, as computed according to
-    the method described
-    in~\cite{niehaus2021ground,niehaus2023exact}. The keyword expects
-    the indices of the two states (where \is{iStat} = 0 is the ground
-    state). Example: \is{Couplings = \{0 3\}} for coupling from the
-    ground state to the 3$\mathrm{rd}$ excited state. Results are
-    written to the file NACV.DAT.
+  \item[\is{StateCouplings}] Evaluates non-adiabatic coupling vectors
+    between specified many-body states of your system. This keyword
+    requires two values, $m$ and $n$, with $m < n$ and state 0 being
+    defined as the ground state. The couplings are computed according
+    to the method described
+    in~\cite{niehaus2021ground,niehaus2023exact}.\\ Example:
+    \is{Couplings = \{0 2\}} would generate the the couplings between
+    states $0\to 1$, $0\to 2$ and $1\to 2$. The results are written to
+    the file NACV.DAT (See p.~\pref{subsec:nacv.dat}).
   \end{description}
 
   \subsubsection{Diagonaliser / Diagonalizer}
@@ -6489,10 +6489,20 @@ energy and spin symmetry are given together with the contributions from each of
 the single particle transitions.
 
 \subsection{NACV.DAT}
+\label{subsec:nacv.dat}
 \index{NACV.DAT}
 
-TD-(LC)-DFTB non-adiabatic coupling vectors between states. First the indices of the
-two states are written, then the coupling vector follows. 
+Contains the TD-(LC)-DFTB non-adiabatic coupling vectors between
+many-body states, $$d^\xi_{mn} = \mel{\Psi_m}{\dv{\xi}}{\Psi_n}.$$
+The file is written as blocks, one for each requested electronic
+transition combination.
+
+Each block starts with the indices of the two states being coupled,
+$m$ and $n$ (counting from 0 for the ground state), then the coupling
+vector in atomic units. Each line contains the coupling contribution
+associated with the three Cartesian displacements an atom in the
+geometry (combined index $\xi$), with one atom per line and ordered as
+in the geometry.
 
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}

@@ -25,7 +25,6 @@ module dftbp_dftbplus_main
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : electronFill, Efilling
   use dftbp_dftb_extfields, only : addUpExternalField

@@ -36,7 +36,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_slakocont, only : init, addTable
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_dftbplus_input_fileaccess, only : readFileAccessTypes
+  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
@@ -3963,7 +3963,7 @@ contains
       call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
     end if
 
-    call readFileAccessTypes(node, ctrl%fileAccessTypes)
+    call readBinaryAccessTypes(node, ctrl%binaryAccessTypes)
 
   end subroutine readOptions
 

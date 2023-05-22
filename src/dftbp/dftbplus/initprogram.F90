@@ -17,7 +17,7 @@ module dftbp_dftbplus_initprogram
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, setDefaultFileAccess, clearFile
+  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, clearFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -1300,8 +1300,8 @@ contains
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
-    call setDefaultFileAccess(input%ctrl%fileAccessTypes(1), input%ctrl%fileAccessTypes(2),&
-        & input%ctrl%fileAccessTypes(2))
+    call setDefaultBinaryAccess(input%ctrl%binaryAccessTypes(1), input%ctrl%binaryAccessTypes(2),&
+        & input%ctrl%binaryAccessTypes(2))
 
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
@@ -2283,7 +2283,10 @@ contains
       end if
       allocate(this%electrostatPot)
       call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
-          & allocated(this%eField) .or. this%tExtChrg)
+          & allocated(this%eField) .or. this%tExtChrg, this%hamiltonianType, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
