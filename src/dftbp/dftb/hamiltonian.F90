@@ -374,18 +374,20 @@ contains
       ham(:,:) = 0.0_dp
     end if
 
-    call addShift(env, ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
-        & nAtom, img2CentCell, potential%intBlock, .not. isREKS)
+    call addShift(env, ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+        & iSparseStart, nAtom, img2CentCell, potential%intBlock, .not. isREKS)
 
     if (.not. isREKS) then
       ham(:,1) = ham(:,1) + h0
     end if
 
     if (allocated(potential%intOnSiteAtom)) then
-      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom,&
+          & potential%intOnSiteAtom)
     end if
     if (allocated(potential%extOnSiteAtom)) then
-      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%extOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom,&
+          & potential%extOnSiteAtom)
     end if
 
     if (allocated(potential%dipoleAtom)) then
