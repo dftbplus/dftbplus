@@ -18,6 +18,9 @@ Added
 - Non-adiabatic coupling vectors for linear response calculations
 >>>>>>> a44dd472 (Suggestions for NACV changes)
 
+- Hellmann-Feynman testing for the xTB hamiltonian dipoles
+
+
 Changed
 -------
 

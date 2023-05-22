@@ -47,7 +47,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : addShift
+  use dftbp_dftb_shift, only : addShift, addAtomicMultipoleShift
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, blockSymmetrizeHS, packHS,&
       & blockSymmetrizeHS, packHS, SymmetrizeHS, unpackHelicalHS, packerho, blockHermitianHS,&
@@ -1452,11 +1452,9 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      if (this%hamiltonianType == hamiltonianTypes%dftb) then
-        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
-            & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%eFieldScaling)
-      end if
+      call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
+          & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+          & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
     #:endblock DEBUG_CODE
     end if
 
@@ -4710,7 +4708,7 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(env, rhoPrim, q0, coord0, ints, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling, iHamiltonianType, nDipole)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4748,7 +4746,14 @@ contains
     !> Instance of electric/dipole scaling due to any dielectric media effects
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
+    !> Hamiltonian type
+    integer, intent(in) :: iHamiltonianType
+
+    !> Number of atomic dipole moment components
+    integer, intent(in) :: nDipole
+
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
+    real(dp), allocatable :: potentialGradDeriv(:,:)
     integer :: nAtom, sparseSize, iAt, iCart
 
     sparseSize = size(ints%overlap)
@@ -4759,16 +4764,33 @@ contains
     write(stdOut,*)
     write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
 
+  #:block DEBUG_CODE
+    if (nDipole > 0) then
+      @:ASSERT(iHamiltonianType == hamiltonianTypes%xtb)
+      allocate(potentialGradDeriv(nDipole, nAtom))
+    end if
+  #:endblock DEBUG_CODE
+
     ! loop over directions
     do iCart = 1, 3
       potentialDerivative(:,:) = 0.0_dp
       ! Potential from dH/dE
       potentialDerivative(:,1) = -eFieldScaling%scaledExtEField(coord0(iCart,:))
       hprime(:,:) = 0.0_dp
-      dipole(:,:) = 0.0_dp
+
       call addShift(env, hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species,&
           & orb, iSparseStart, nAtom, img2CentCell, potentialDerivative, .true.)
 
+      if (nDipole > 0) then
+        potentialGradDeriv(:,:) = 0.0_dp
+        potentialGradDeriv(iCart,:) = -eFieldScaling%scaledExtEField(1.0_dp)
+
+        call addAtomicMultipoleShift(hPrime, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
+            & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+            & potentialGradDeriv)
+      end if
+
+      dipole(:,:) = 0.0_dp
       ! evaluate <psi| dH/dE | psi> = Tr_part rho dH/dE
       call mulliken(env, dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour,&
           & nNeighbourSK, img2CentCell, iSparseStart)
