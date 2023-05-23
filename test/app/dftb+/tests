@@ -375,6 +375,9 @@ timedep/OCH2-md                        #? WITH_ARPACK and not WITH_MPI
 timedep/Furan-NACV                     #? WITH_ARPACK and not WITH_MPI
 timedep/Furan-NACV-LC                  #? not WITH_MPI
 
+timedep/Furan-CIopt                    #? WITH_ARPACK and not WITH_MPI
+timedep/Furan-CIopt-LC                 #? not WITH_MPI
+
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces_eq               #? MPI_PROCS <= 2

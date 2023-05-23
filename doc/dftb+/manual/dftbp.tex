@@ -5173,6 +5173,7 @@ available for range separated calculations.
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
     \kw{StateCouplings}         & 2i & \is{CalculateForces} = Yes & - & \\
+    \kw{OptimiserCI}            & m & \is{StateCouplings} non-zero & \{\} & \pref{sec:dftbp.ciopt}\\
   \end{ptable}
 
   \begin{description}
@@ -5317,6 +5318,38 @@ available for range separated calculations.
     restarted with an increased value of \is{SubSpaceFactor}.
   \end{description}
 
+\subsubsection{OptimizerCI}
+\label{sec:dftbp.ciopt}
+
+Invokes search for conical intersections (CI) between the two states indicated
+by the \is{StateCouplings} keyword. Note that the two states must be
+direct neighbours (i.e., $n = m + 1$). There is currently one
+optimizer available.
+
+The \iscb{Bearpark} optimizer (see \cite{Bearpark1994}) minimizes a gradient that
+is based on the non-adiabatic coupling vector and the difference
+gradient of the two potential energy surfaces in question. The
+information on forces in the output (\is{Maximal force component} and
+\is{Averaged force norm}) refers to this quantity. The parameters given
+in the \is{GeometryOptimisation} block control the optimization as
+usual. Since the CI optimization is numerically challenging, we recommend
+the \is{SteepestDescent} driver. The energy gap between the two states
+in question is written as entry \is{Energy gap CI} to the output.
+
+\iscb{Bearpark} has one option, which is relevant for the CI between the
+ground and first excited state: 
+  \begin{ptable}
+    \kw{EnergyShift}     & r & & 0.0 & \\
+  \end{ptable}
+  \begin{description}
+  \item[\is{EnergyShift}] Shift of the excited state PES during
+    optimization. Should be brought to zero. 
+  \end{description}
+As discussed by Harabuchi et al.~\cite{Harabuchi2019}, \is{EnergyShift} helps to avoid
+SCC convergence issues close to a ground-to-excited CI. It is
+recommended to first approach the CI with a larger value of
+\is{EnergyShift}, stop the optimization before the loss of convergence,
+and then restart the optimization with successively smaller values of \is{EnergyShift}.   
 
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}

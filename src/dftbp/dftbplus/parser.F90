@@ -4866,9 +4866,9 @@ contains
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
-      call getChildValue(child, "OptimizeCI", ctrl%lrespini%tCIopt, default=.false.)
-      call getChildValue(child, "EnergyShiftCI", ctrl%lrespini%energyShiftCI,  modifier=modifier,&
-          & default=0.0_dp)
+      !!call getChildValue(child, "OptimizeCI", ctrl%lrespini%tCIopt, default=.false.)
+      !!call getChildValue(child, "EnergyShiftCI", ctrl%lrespini%energyShiftCI,  modifier=modifier,&
+      !!    & default=0.0_dp)
       call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
@@ -4895,6 +4895,20 @@ contains
         call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
+      end select
+
+      call getChildValue(child, "OptimiserCI", child2, default="goo")
+      call getNodeName(child2, buffer)
+      select case(char(buffer))
+      case ("bearpark")
+        ctrl%lrespini%tCIopt = .true. 
+        call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,  modifier=modifier,&
+          & default=0.0_dp)
+        call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+      case ("goo")
+        ctrl%lrespini%tCIopt = .false.  
+      case default
+        call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
       end select
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
