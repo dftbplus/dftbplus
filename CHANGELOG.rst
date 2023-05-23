@@ -12,7 +12,9 @@ Added
 -----
 
 - Non-adiabatic coupling vectors for linear response calculations
-
+  
+- Geometry optimizer to locate conical intersection
+  
 Changed
 -------
 
