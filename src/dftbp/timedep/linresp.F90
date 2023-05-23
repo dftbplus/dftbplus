@@ -128,7 +128,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
 
     !> data structure for linear response
     type(TLinResp), intent(out) :: this
@@ -141,6 +141,9 @@ contains
 
     !> number of electrons in total
     real(dp), intent(in) :: nEl
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
@@ -175,6 +178,14 @@ contains
 
     this%tWriteDensityMatrix = ini%tWriteDensityMatrix
 
+    if (nSpin == 1) then
+      this%tSpin = .false.
+    else if (nSpin == 2) then
+      this%tSpin = .true.
+    else
+      call error("Unknown number of spin channels for excited state")
+    end if
+
     if (this%tOscillatorWindow .and. this%OscillatorWindow <= 0.0_dp) then
       call error("Excited Oscillator window should be non-zero if used")
     end if
@@ -184,11 +195,18 @@ contains
 
     if(all(ini%indNACouplings == 0)) then
       this%tNaCoupling = .false.
-    else if (any(ini%indNACouplings < 0)) then
-      call error("Couplings: Indices must be positive.")
-    else 
+    else
+      if (any(ini%indNACouplings < 0)) then
+        call error("StateCouplings: Indices must be positive.")
+      end if
       if (ini%indNACouplings(1) >=  ini%indNACouplings(2)) then
-        call error("Couplings: Second index must be larger than first one.")
+        call error("StateCouplings: Second index must be larger than first one.")
+      end if
+      if (ini%nExc < ini%indNACouplings(2)) then
+        call error('StateCouplings: Index must not exceed number of states to calculate.')
+      end if
+      if (this%tSpin) then
+        call error('StateCouplings: Spin-polarized systems currently not available.')
       end if
       if (ini%tCIopt .and. ini%indNACouplings(2)-ini%indNACouplings(1) > 1) then
         call error("CI optimization: States must be neighbouring.")
@@ -302,9 +320,9 @@ contains
 
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
-      call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
-          & taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
+      call LinRespGrad_old(this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
+          & rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -416,12 +434,12 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       if (allocated(occNatural)) then
-        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
             & skOverCont, excgradient, nacv, derivator, rhoSqr, occNatural, naturalOrbs)
       else
-        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
             & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
             & skOverCont, excgradient, nacv, derivator, rhoSqr)

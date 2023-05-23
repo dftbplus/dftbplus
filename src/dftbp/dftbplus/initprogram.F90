@@ -2436,7 +2436,7 @@ contains
       end if
 
       call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
-          & this%onSiteElements)
+          & this%nSpin, this%onSiteElements)
 
     end if
 
@@ -5446,6 +5446,7 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
+
 
   end subroutine ensureLinRespConditions
 

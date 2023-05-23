@@ -65,6 +65,9 @@ module dftbp_timedep_linresptypes
     !> symmetry required singlet ('S'), triplet ("T") or both ("B")
     character :: symmetry
 
+    !> Is the ground state spin polarized
+    logical :: tSpin
+
     !> ground state spin constants for each species
     real(dp), allocatable :: spinW(:)
 
