@@ -437,8 +437,11 @@ contains
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
 
-    !> Multipole integrals
-    real(dp), intent(in) :: mpintBra(:, :), mpintKet(:, :)
+    !> Multipole integrals <|
+    real(dp), intent(in) :: mpintBra(:, :)
+
+    !> Multipole integrals |>
+    real(dp), intent(in) :: mpintKet(:, :)
 
     !> Number of neighbours surrounding each atom.
     integer, intent(in) :: nNeighbour(:)
@@ -455,12 +458,13 @@ contains
     !> Indexing array for the Hamiltonian.
     integer, intent(in) :: iPair(0:,:)
 
-    !> Index mapping atoms onto the central cell atoms.
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites, listed as (,1:nAtom)
     real(dp), intent(in) :: shift(:,:)
 
     integer :: iAt1, iAt2, img, ind, nBlk, iBlk, iSp1, iSp2, iOrb1, iOrb2, iNeigh
