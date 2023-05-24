@@ -1606,34 +1606,59 @@ contains
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
     this%tExtChrg = .false.
-    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
-      call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
-      if (this%tPoisson) then
-        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
-          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
-              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
-        #:endblock
-      else
-        call initShortGammaInput_(input%ctrl, this%speciesMass, this%uniqHubbU, shortGammaDamp,&
-            & shortGammaInput)
-        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
-            & this%boundaryCond%iBoundaryCondition, coulombInput)
-      end if
-      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
-          & coulombInput, shortGammaInput, poissonInput, this%scc)
+    if (this%tSccCalc) then
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
       this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
 
-      ! Longest cut-off including the softening part of gamma
-      this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
+      if (allocated(this%tblite)) then
 
+        if (this%tExtChrg) then
+
+          call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+              & this%boundaryCond%iBoundaryCondition, coulombInput)
+
+          !sccInput%extCharges = ctrl%extChrg
+          !if (allocated(ctrl%extChrgBlurWidth)) then
+          !  sccInput%blurWidths = ctrl%extChrgblurWidth
+          !  if (any(sccInput%blurWidths < 0.0_dp)) then
+          !    call error("Gaussian blur widths for charges may not be negative")
+          !  end if
+          !end if
+          !call initSccCalculator_(env, this%orb, input%ctrl,&
+          !    & this%boundaryCond%iBoundaryCondition, coulombInput, shortGammaInput,&
+          !    & poissonInput, this%scc)
+
+        end if
+
+      else
+        call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
+        if (this%tPoisson) then
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
+        else
+          call initShortGammaInput_(input%ctrl, this%speciesMass, this%uniqHubbU, shortGammaDamp,&
+              & shortGammaInput)
+          call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+              & this%boundaryCond%iBoundaryCondition, coulombInput)
+        end if
+        call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+            & coulombInput, shortGammaInput, poissonInput, this%scc)
+
+        ! Longest cut-off including the softening part of gamma
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
+
+      end if
+    end if
+
+    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
       if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
         call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
       end if
-
       ! Initialize full 3rd order module
       this%t3rd = input%ctrl%t3rd
       this%t3rdFull = input%ctrl%t3rdFull
