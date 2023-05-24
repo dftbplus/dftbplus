@@ -1576,7 +1576,7 @@ contains
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
         & nIndepHam, this%tempElec)
-    call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
+    nBufferedCholesky = getBufferedCholesky_(this%nKPoint, this%parallelKS%nLocalKS)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
   #:if WITH_TRANSPORT
@@ -6174,18 +6174,18 @@ contains
 
 
   ! Decides how many Cholesky-decompositions should be buffered
-  subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
-    logical, intent(in) :: tRealHS
+  pure function getBufferedCholesky_(nKPoints, nLocalKS) result(nBufferedCholesky)
+    integer, intent(in) :: nKPoints
     integer, intent(in) :: nLocalKS
-    integer, intent(out) :: nBufferedCholesky
+    integer :: nBufferedCholesky
 
-    if (tRealHS) then
+    if (nKPoints == 1) then
       nBufferedCholesky = 1
     else
       nBufferedCholesky = nLocalKS
     end if
 
-  end subroutine getBufferedCholesky_
+  end function getBufferedCholesky_
 
 
   #:if WITH_TRANSPORT
