@@ -1678,7 +1678,7 @@ contains
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
         & this%nIndepSpin, this%tempElec)
-    call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
+    nBufferedCholesky = countBufferedCholesky_(this%nKPoint, this%parallelKS%nLocalKS)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
     if (input%ctrl%isNonAufbau) then
@@ -7203,25 +7203,25 @@ contains
   end subroutine initRepulsive_
 
 
-  !> Decides how many Cholesky-decompositions should be buffered
-  subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
+  ! Decides how many Cholesky-decompositions should be buffered
+  pure function countBufferedCholesky_(nKPoints, nLocalKS) result(nBufferedCholesky)
 
-    !> Is this a real valued (in real space) calculation
-    logical, intent(in) :: tRealHS
+    !> Total number of k-points
+    integer, intent(in) :: nKPoints
 
     !> Number of locally stored spin/k-points
     integer, intent(in) :: nLocalKS
 
     !> Resulting number of Cholesky-factored overlap matrices to be stored
-    integer, intent(out) :: nBufferedCholesky
+    integer :: nBufferedCholesky
 
-    if (tRealHS) then
+    if (nKPoints == 1) then
       nBufferedCholesky = 1
     else
       nBufferedCholesky = nLocalKS
     end if
 
-  end subroutine getBufferedCholesky_
+  end function countBufferedCholesky_
 
 
   #:if WITH_TRANSPORT
