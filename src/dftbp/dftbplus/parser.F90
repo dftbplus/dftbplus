@@ -4866,10 +4866,6 @@ contains
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
-      !!call getChildValue(child, "OptimizeCI", ctrl%lrespini%tCIopt, default=.false.)
-      !!call getChildValue(child, "EnergyShiftCI", ctrl%lrespini%energyShiftCI,  modifier=modifier,&
-      !!    & default=0.0_dp)
-      call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
