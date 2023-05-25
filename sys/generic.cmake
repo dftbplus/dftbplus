@@ -28,7 +28,7 @@ set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
 set(Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_RELWITHDEBINFO "${Fortran_FLAGS_RELWITHDEBINFO}"
+set(Fortran_FLAGS_RELWITHDEBINFO "${CMAKE_Fortran_FLAGS_RELWITHDEBINFO}"
   CACHE STRING "Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG}"
