@@ -288,7 +288,7 @@ Enabling optional code functionality
 |                 |         |be available for MD calculations.               |
 +-----------------+---------+------------------------------------------------+
 |-DWITH_POISSON   |N        |Required for Poisson solver (also enabled for   |
-|                 |         |transport builds).                              | 
+|                 |         |transport builds).                              |
 +-----------------+---------+------------------------------------------------+
 |-DWITH_SDFTD3    |N        |Required for 'simple' DFT-D3 dispersion to be   |
 |                 |         |enabled.                                        |
@@ -359,7 +359,7 @@ Testing DFTB+
     cmake -B _build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 .
     pushd _build; ctest; popd
 
-    
+
 Testing related cmake options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -450,14 +450,14 @@ Note, that this will link all libraries in the correct order, which were
 compiled during the DFTB+ build (e.g. libs-dftd3, libnegf, etc.). It will
 additionally contain target dependencies for the external libraries needed to
 create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
-``Scalapack::Scalapack``, ``Arpack::Arpack``, ``Plumed::Plumed``,
-``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
-the DFTB+ source to find those libraries (and to define the corresponding
-targets) or create your own, provided they define the appropriate CMake
-targets. The ELSI library offers a CMake export file providing the
-``elsi::elsi`` target. Make sure, that CMake can find this export file if the
-DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
-variable ``CMAKE_PREFIX_PATH`` correctly).
+``Scalapack::Scalapack``, ``Plumed::Plumed``, ``Magma::Magma``, etc.). You can
+either use the CMake find-modules shipped with the DFTB+ source to find those
+libraries (and to define the corresponding targets) or create your own, provided
+they define the appropriate CMake targets. The arpack-ng and the ELSI libraries
+offer CMake export files providing the ``ARPACK::ARPACK`` and ``elsi::elsi``
+targets, respectively. Make sure, that CMake can find those export files if the
+DFTB+ library was compiled with ARPACK or ELSI support (e.g., by setting up the
+environment variable ``CMAKE_PREFIX_PATH`` correctly).
 
 
 Linking the library in non-CMake based builds

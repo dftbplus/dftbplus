@@ -53,8 +53,8 @@ if(NOT TARGET DftbPlus::DftbPlus)
     find_dependency(CustomMagma)
   endif()
 
-  if(DftbPlus_WITH_ARPACK AND NOT TARGET Arpack::Arpack)
-    find_dependency(CustomArpack)
+  if(DftbPlus_WITH_ARPACK AND NOT TARGET ARPACK::ARPACK)
+    find_dependency(arpackng)
   endif()
 
   if(DftbPlus_WITH_PLUMED AND NOT TARGET Plumed::Plumed)

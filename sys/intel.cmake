@@ -94,10 +94,6 @@ endif()
 #    "Directories where LAPACK libraries can be found")
 set(LAPACK_LIBRARY "NONE")
 
-# ARPACK -- only needed when built with ARPACK support
-#set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack library")
-#set(ARPACK_LIBRARY_DIR "" CACHE STRING "Directories where Arpack library can be found")
-
 # ScaLAPACK -- only needed for MPI-parallel build
 set(SCALAPACK_LIBRARY "mkl_scalapack_lp64;mkl_blacs_intelmpi_lp64" CACHE STRING
   "Scalapack libraries to link")

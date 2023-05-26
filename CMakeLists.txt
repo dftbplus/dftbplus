@@ -120,8 +120,14 @@ find_package(CustomLapack REQUIRED)
 list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
-  find_package(CustomArpack REQUIRED)
-  list(APPEND PKG_CONFIG_LIBS_PRIVATE ${ARPACK_LIBRARY})
+  if(NOT TARGET ARPACK::ARPACK)
+    find_package(arpackng REQUIRED)
+  endif()
+  if(WITH_MPI AND NOT TARGET PARPACK::PARPACK)
+    message(
+      FATAL_ERROR "Could not find target PARPACK (needed when ARPACK and MPI are both turned on)"
+    )
+  endif()
 endif()
 
 if(WITH_MAGMA)
