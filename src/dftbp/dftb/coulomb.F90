@@ -38,6 +38,7 @@ module dftbp_dftb_coulomb
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
+  public :: addInvRPrimePrimeClusterAsymm
 
 
   !> Input data for coulombic interaction container
@@ -170,6 +171,14 @@ module dftbp_dftb_coulomb
     procedure :: addExternalPotGrad
 
   end type TCoulomb
+
+
+  !> Type for external charge evaluation
+  type TCoulomb2
+
+    ! quadrupole(6) storage convention xx, xy, yy, xz, yz, zz
+
+  end type TCoulomb2
 
 
   !> 1/r interaction for all atoms with another group
@@ -1772,6 +1781,94 @@ contains
     end if
 
   end subroutine addInvRPrimePeriodicAsymm
+
+
+  !> Calculates the 2/R**3 deriv contribution for charged atoms interacting with a group of charged
+  !> objects (like point charges) for the non-periodic case, without storing anything.
+  subroutine addInvRPrimePrimeClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
+      & deriv0, deriv1, blurWidths1)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Number of atoms in the first group
+    integer, intent(in) :: nAtom0
+
+    !> Number of atoms in the second group
+    integer, intent(in) :: nAtom1
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> List of the point charge coordinates
+    real(dp), intent(in) :: coord1(:,:)
+
+    !> Charge of the atoms.
+    real(dp), intent(in) :: charge0(:)
+
+    !> Charge of the point charges.
+    real(dp), intent(in) :: charge1(:)
+
+    !> Contains the derivative for the first group
+    real(dp), intent(inout) :: deriv0(:,:,:)
+
+    !> Contains the derivative for the second group
+    real(dp), intent(inout), optional :: deriv1(:,:,:)
+
+    !> if gaussian distribution for the charge
+    real(dp), intent(in), optional :: blurWidths1(:)
+
+    integer :: iAt0, iAt1
+    real(dp) :: dist, vect(3), fTmp, sigma, rs, mat(3,3)
+    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
+    real(dp), allocatable :: localDeriv0(:,:,:), localDeriv1(:,:,:)
+    integer :: ii, jj
+
+    allocate(localDeriv0(3, 3, nAtom0))
+    localDeriv0(:,:,:) = 0.0_dp
+
+    if (present(deriv1)) then
+      allocate(localDeriv1(3,3, nAtom1))
+      localDeriv1(:,:,:) = 0.0_dp
+    end if
+
+    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
+        & iAtLast1)
+
+    ! Doing blured and unblured cases separately to avoid ifs in the loop
+    if (present(blurWidths1)) then
+    else
+      if (.not.present(deriv1)) then
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, mat, dist, ftmp)&
+        !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            dist = sqrt(sum(vect(:)**2))
+            fTmp = charge1(iAt1) / (dist**5)
+            mat(:,:) = spread(vect, 2, 3)
+            mat(:,:) = -3.0_dp * mat * transpose(mat)
+            do ii = 1, 3
+              mat(ii,ii) = mat(ii,ii) + dist**2
+            end do
+            localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * fTmp
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+      end if
+    end if
+
+    call assembleChunks(env, localDeriv0)
+    deriv0(:,:,:) = deriv0 + localDeriv0
+
+    if (present(deriv1)) then
+      call assembleChunks(env, localDeriv1)
+      deriv1(:,:,:) = deriv1 + localDeriv1
+    end if
+
+  end subroutine addInvRPrimePrimeClusterAsymm
 
 
   !> Get optimal alpha-parameter for the Ewald summation by finding alpha, where decline of real and

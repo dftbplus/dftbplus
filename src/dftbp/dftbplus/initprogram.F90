@@ -1620,6 +1620,9 @@ contains
           call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
               & this%boundaryCond%iBoundaryCondition, coulombInput)
 
+          !call TCoulomb_init(coulomb, coulombInput, env, this%nExtChrg)
+          !sumInvR
+
           !sccInput%extCharges = ctrl%extChrg
           !if (allocated(ctrl%extChrgBlurWidth)) then
           !  sccInput%blurWidths = ctrl%extChrgblurWidth
