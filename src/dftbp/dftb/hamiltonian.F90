@@ -97,6 +97,9 @@ contains
     if (allocated(potential%extDipoleAtom)) then
       potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad
     end if
+    if (allocated(potential%extQuadrupoleAtom)) then
+      potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad2
+    end if
 
   end subroutine mergeExternalPotentials
 

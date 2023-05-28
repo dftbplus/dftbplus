@@ -45,8 +45,12 @@ module dftbp_dftb_potentials
     !> external block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
 
-    !> gradient of the external potential with respect of nucleus coordinates
+    !> gradient of the external potential with respect to nuclear coordinates
     real(dp), allocatable :: extGrad(:,:)
+
+    !> Second derivative of external potential with respect to nuclear coordinates, stored as
+    !> components xx, xy, yy, xz, yz, zz
+    real(dp), allocatable :: extGrad2(:,:)
 
     !> pSIC/DFTB+U etc. potential
     real(dp), allocatable :: orbitalBlock(:,:,:,:)
@@ -70,11 +74,14 @@ module dftbp_dftb_potentials
     !> Atomic dipolar contribution to the Hamiltonian
     real(dp), allocatable :: dipoleAtom(:,:)
 
-    !> Atomic quadrupolar contribution to the Hamiltonian
+    !> Atomic quadrupolar contribution to the Hamiltonian, stored as xx, xy, yy, xz, yz, zz
     real(dp), allocatable :: quadrupoleAtom(:,:)
 
     !> External dipolar contribution to the Hamiltonian
     real(dp), allocatable :: extDipoleAtom(:,:)
+
+    !> External quadrupolar contribution to the Hamiltonian, stored as xx, xy, yy, xz, yz, zz
+    real(dp), allocatable :: extQuadrupoleAtom(:,:)
 
   end type TPotentials
 
@@ -137,7 +144,8 @@ contains
     allocate(this%extAtom(nAtom,nSpin))
     allocate(this%extShell(orb%mShell,nAtom,nSpin))
     allocate(this%extBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
-    allocate(this%extGrad(3, nAtom))
+    allocate(this%extGrad(3, nAtom), source=0.0_dp)
+    allocate(this%extGrad2(6, nAtom), source=0.0_dp)
     allocate(this%orbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     allocate(this%iorbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     this%intAtom = 0.0_dp
@@ -146,7 +154,6 @@ contains
     this%extAtom = 0.0_dp
     this%extShell = 0.0_dp
     this%extBlock = 0.0_dp
-    this%extGrad(:,:) = 0.0_dp
     this%orbitalBlock = 0.0_dp
     this%iorbitalBlock = 0.0_dp
     if (nDipole > 0) then
@@ -156,8 +163,8 @@ contains
       this%extDipoleAtom(:,:) = 0.0_dp
     end if
     if (nQuadrupole > 0) then
-      allocate(this%quadrupoleAtom(nQuadrupole, nAtom))
-      this%quadrupoleAtom(:,:) = 0.0_dp
+      allocate(this%quadrupoleAtom(nQuadrupole, nAtom), source=0.0_dp)
+      allocate(this%extQuadrupoleAtom(nQuadrupole, nAtom), source=0.0_dp)
     end if
 
     if (present(extAtPotentials)) then

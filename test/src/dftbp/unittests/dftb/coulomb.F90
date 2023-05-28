@@ -20,7 +20,7 @@
   #:block TEST_FIXTURE("firstDerivative")
 
     real(dp) :: r0(3,1), r0d(3,1), r1(3,1), q0(1), q1(1), pot(1), e0(3,1), e1(3,1), eNum(3)
-    real(dp) :: eGrad(3,3,1), eGradNum(3,3,1)
+    real(dp) :: eGrad(6,1), eGradNum(3,3)
     real(dp), parameter :: delta = sqrt(epsilon(0.0d0))
     integer :: ii, jj
     type(TEnvironment) :: env
@@ -70,7 +70,7 @@
       r1(:,:) = reshape(real([1,2,3],dp), [3,1])
       q0(:) = -1.0_dp
       q1(:) = 1.0_dp
-      eGradNum(:,:,:) = 0.0_dp
+      eGradNum(:,:) = 0.0_dp
       do ii = 1, 3
         do jj = -1, 1, 2
           r0d(:,:) = r0
@@ -78,13 +78,12 @@
           e0(:,:) = 0.0_dp
           e1(:,:) = 0.0_dp
           call addInvRPrime(env, 1, 1, r0d, r1, q0, q1, e0, e1, .false.)
-          eGradNum(:,ii,1) = eGradNum(:,ii,1) + jj * e0(:,1)
+          eGradNum(:,ii) = eGradNum(:,ii) + jj * e0(:,1)
         end do
       end do
-      eGradNum(:,:,:) = eGradNum / (2.0_dp * delta)
-
+      eGradNum(:,:) = eGradNum / (2.0_dp * delta)
       call addInvRPrimePrimeClusterAsymm(env, 1, 1, r0, r1, q0, q1, eGrad)
-      @:ASSERT(all(abs(eGradNum - eGrad) <= epsilon(1.0_rsp)))
+      @:ASSERT(all(abs([(eGradNum(4-ii,:4-ii), ii = 3, 1, -1)] - eGrad(:,1)) <= epsilon(1.0_rsp)))
     #:endblock
 
   #:endblock TEST_FIXTURE

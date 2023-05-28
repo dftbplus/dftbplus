@@ -1103,6 +1103,7 @@ contains
         & this%iCellVec, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold, this%coord,&
         & this%potential)
 
+
     call mergeExternalPotentials(this%orb, this%species, this%potential)
 
     ! For non-scc calculations with transport only, jump out of geometry loop
