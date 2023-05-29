@@ -1823,7 +1823,7 @@ contains
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
-    real(dp) :: dist, vect(3), fTmp, sigma, rs, mat(3,3)
+    real(dp) :: r, vect(3), sigma, rs, mat(3,3), erfrs, gaussian, sqPiSr2
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
     real(dp), allocatable :: localDeriv0(:,:,:), localDeriv1(:,:,:)
     integer :: ii
@@ -1839,45 +1839,97 @@ contains
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
       if (.not.present(deriv1)) then
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            r = sqrt(sum(vect(:)**2))
+            mat(:,:) = spread(vect, 2, 3)
+            mat(:,:) = mat * transpose(mat)
+            sigma = blurWidths1(iAt1)
+            if (r < erfArgLimit_ * sigma) then
+              erfrs = erfwrap(r/sigma)
+              gaussian = exp(-r**2/sigma**2)/sqPiSr2
+              sqPiSr2 = sqrt(pi)*sigma*r**2
+              mat(:,:) = mat*(3.0_dp*erfrs/r**5 -6.0_dp*gaussian/r**2 -4.0_dp*gaussian/sigma**2)
+              do ii = 1, 3
+                mat(ii,ii) = mat(ii,ii) -erfrs/r**3 +2.0_dp*gaussian
+              end do
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + charge1(iAt1) * mat
+            else
+              mat(:,:) = -3.0_dp * mat
+              do ii = 1, 3
+                mat(ii,ii) = mat(ii,ii) + r**2
+              end do
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * charge1(iAt1) / r**5
+            end if
+          end do
+        end do
 
       else
+
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            r = sqrt(sum(vect(:)**2))
+            mat(:,:) = spread(vect, 2, 3)
+            mat(:,:) = mat * transpose(mat)
+            sigma = blurWidths1(iAt1)
+            if (r < erfArgLimit_ * sigma) then
+              erfrs = erfwrap(r/sigma)
+              gaussian = exp(-r**2/sigma**2)/sqPiSr2
+              sqPiSr2 = sqrt(pi)*sigma*r**2
+              mat(:,:) = mat*(3.0_dp*erfrs/r**5 -6.0_dp*gaussian/r**2 -4.0_dp*gaussian/sigma**2)
+              do ii = 1, 3
+                mat(ii,ii) = mat(ii,ii) -erfrs/r**3 +2.0_dp*gaussian
+              end do
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + charge1(iAt1) * mat
+              localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) - charge1(iAt0) * mat
+            else
+              mat(:,:) = -3.0_dp * mat
+              do ii = 1, 3
+                mat(ii,ii) = mat(ii,ii) + r**2
+              end do
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * charge1(iAt1) / r**5
+              localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) - mat * charge0(iAt0) / r**5
+            end if
+          end do
+        end do
 
       end if
     else
       if (.not.present(deriv1)) then
         !$OMP PARALLEL DO&
-        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, mat, dist, ftmp)&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, mat, r)&
         !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            fTmp = charge1(iAt1) / (dist**5)
+            r = sqrt(sum(vect(:)**2))
             mat(:,:) = spread(vect, 2, 3)
-            mat(:,:) = -3.0_dp * mat * transpose(mat)
+            mat(:,:) = mat * transpose(mat)
+            mat(:,:) = -3.0_dp * mat
             do ii = 1, 3
-              mat(ii,ii) = mat(ii,ii) + dist**2
+              mat(ii,ii) = mat(ii,ii) + r**2
             end do
-            localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * fTmp
+            localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * charge1(iAt1) / r**5
           end do
         end do
         !$OMP END PARALLEL DO
       else
         !$OMP PARALLEL DO&
-        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, mat, dist, ftmp)&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, mat, r)&
         !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
             vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            dist = sqrt(sum(vect(:)**2))
-            fTmp = 1.0_dp / (dist**5)
+            r = sqrt(sum(vect(:)**2))
             mat(:,:) = spread(vect, 2, 3)
             mat(:,:) = -3.0_dp * mat * transpose(mat)
             do ii = 1, 3
-              mat(ii,ii) = mat(ii,ii) + dist**2
+              mat(ii,ii) = mat(ii,ii) + r**2
             end do
-            localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * charge1(iAt1) * fTmp
-            localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) - mat * charge0(iAt0) * fTmp
+            localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + mat * charge1(iAt1) / r**5
+            localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) - mat * charge0(iAt0) / r**5
           end do
         end do
         !$OMP END PARALLEL DO
