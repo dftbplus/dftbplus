@@ -1848,13 +1848,13 @@ contains
             sigma = blurWidths1(iAt1)
             if (r < erfArgLimit_ * sigma) then
               erfrs = erfwrap(r/sigma)
-              gaussian = exp(-r**2/sigma**2)/sqPiSr2
               sqPiSr2 = sqrt(pi)*sigma*r**2
+              gaussian = exp(-r**2/sigma**2)/sqPiSr2
               mat(:,:) = mat*(3.0_dp*erfrs/r**5 -6.0_dp*gaussian/r**2 -4.0_dp*gaussian/sigma**2)
               do ii = 1, 3
                 mat(ii,ii) = mat(ii,ii) -erfrs/r**3 +2.0_dp*gaussian
               end do
-              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + charge1(iAt1) * mat
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) - charge1(iAt1) * mat
             else
               mat(:,:) = -3.0_dp * mat
               do ii = 1, 3
@@ -1876,14 +1876,14 @@ contains
             sigma = blurWidths1(iAt1)
             if (r < erfArgLimit_ * sigma) then
               erfrs = erfwrap(r/sigma)
-              gaussian = exp(-r**2/sigma**2)/sqPiSr2
               sqPiSr2 = sqrt(pi)*sigma*r**2
+              gaussian = exp(-r**2/sigma**2)/sqPiSr2
               mat(:,:) = mat*(3.0_dp*erfrs/r**5 -6.0_dp*gaussian/r**2 -4.0_dp*gaussian/sigma**2)
               do ii = 1, 3
                 mat(ii,ii) = mat(ii,ii) -erfrs/r**3 +2.0_dp*gaussian
               end do
-              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) + charge1(iAt1) * mat
-              localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) - charge1(iAt0) * mat
+              localDeriv0(:,:,iAt0) = localDeriv0(:,:,iAt0) - charge1(iAt1) * mat
+              localDeriv1(:,:,iAt1) = localDeriv1(:,:,iAt1) + charge1(iAt0) * mat
             else
               mat(:,:) = -3.0_dp * mat
               do ii = 1, 3
