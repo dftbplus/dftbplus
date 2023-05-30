@@ -1727,7 +1727,7 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
@@ -1738,7 +1738,7 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, &
+    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam,&
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 

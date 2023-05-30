@@ -5714,7 +5714,7 @@ contains
 
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dQ(:,:,:)
-    real(dp), allocatable :: dipoleAtom(:,:)
+    real(dp), allocatable :: dipoleAtom(:,:), quadrupoleAtom(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
 
@@ -5728,6 +5728,10 @@ contains
       if (allocated(potential%extDipoleAtom)) then
         dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
       end if
+      quadrupoleAtom = potential%quadrupoleAtom
+      if (allocated(potential%extQuadrupoleAtom)) then
+        quadrupoleAtom(:, :) = quadrupoleAtom + potential%extQuadrupoleAtom
+      end if
     end if
 
     allocate(tmpDerivs(3, nAtom))
@@ -5738,7 +5742,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
+          & potential%intBlock, dipoleAtom, quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
@@ -5755,7 +5759,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
+          & potential%intBlock, dipoleAtom, quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
