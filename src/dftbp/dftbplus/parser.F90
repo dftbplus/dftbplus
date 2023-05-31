@@ -2361,6 +2361,10 @@ contains
     call getChildren(child, "PointCharges", children)
     if (getLength(children) > 0) then
 
+      if (ctrl%hamiltonian == hamiltonianTypes%xtb .and. (geo%tPeriodic .or. geo%tHelical)) then
+        call detailedError(child,"External charges only yet implemented for molecular xTB models")
+      end if
+
       if (.not.ctrl%tSCC) then
         call error("External charges can only be used in an SCC calculation")
       end if

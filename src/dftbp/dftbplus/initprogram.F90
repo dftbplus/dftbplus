@@ -1620,6 +1620,11 @@ contains
 
         if (this%tExtChrg) then
 
+          if (this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster) then
+            call error("External charges for the xTB model are currently only implemented for&
+                & molecular systems")
+          end if
+
           call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
               & this%boundaryCond%iBoundaryCondition, coulombInput)
 
