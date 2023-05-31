@@ -3,6 +3,10 @@ set(unit-test-prefix "${unit-test-prefix}/dftb")
 set(tests
   period)
 
+if(NOT WITH_MPI)
+  list(APPEND tests coulomb)
+endif()
+
 foreach(test IN LISTS tests)
   fytest_fypp_preprocess("${FYPP_FLAGS}" ${test}.F90 sources-f90)
   add_executable(${test} ${sources-f90})

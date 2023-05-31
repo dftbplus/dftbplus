@@ -945,6 +945,9 @@ module dftbp_dftbplus_initprogram
     !> Additional dipole moment related message to write out
     character(lc) :: dipoleMessage
 
+    !> Quadrupole moments, when available, for whichever determinants are present
+    real(dp), allocatable :: quadrupoleMoment(:, :)
+
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
 
@@ -1606,34 +1609,67 @@ contains
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
     this%tExtChrg = .false.
-    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
-      call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
-      if (this%tPoisson) then
-        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
-          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
-              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
-        #:endblock
-      else
-        call initShortGammaInput_(input%ctrl, this%speciesMass, this%uniqHubbU, shortGammaDamp,&
-            & shortGammaInput)
-        call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
-            & this%boundaryCond%iBoundaryCondition, coulombInput)
-      end if
-      call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
-          & coulombInput, shortGammaInput, poissonInput, this%scc)
+    if (this%tSccCalc) then
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
       this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
 
-      ! Longest cut-off including the softening part of gamma
-      this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
+      if (allocated(this%tblite)) then
 
+        if (this%tExtChrg) then
+
+          if (this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster) then
+            call error("External charges for the xTB model are currently only implemented for&
+                & molecular systems")
+          end if
+
+          call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+              & this%boundaryCond%iBoundaryCondition, coulombInput)
+
+          !call TCoulomb_init(coulomb, coulombInput, env, this%nExtChrg)
+          !sumInvR
+
+          !sccInput%extCharges = ctrl%extChrg
+          !if (allocated(ctrl%extChrgBlurWidth)) then
+          !  sccInput%blurWidths = ctrl%extChrgblurWidth
+          !  if (any(sccInput%blurWidths < 0.0_dp)) then
+          !    call error("Gaussian blur widths for charges may not be negative")
+          !  end if
+          !end if
+          !call initSccCalculator_(env, this%orb, input%ctrl,&
+          !    & this%boundaryCond%iBoundaryCondition, coulombInput, shortGammaInput,&
+          !    & poissonInput, this%scc)
+
+        end if
+
+      else
+        call initShortGammaDamping_(input%ctrl, this%speciesMass, shortGammaDamp)
+        if (this%tPoisson) then
+        #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
+          call initPoissonInput_(input, this%nAtom, this%nType, this%species0, this%coord0,&
+              & this%tPeriodic, this%latVec, this%orb, hubbU, poissonInput, this%shiftPerLUp)
+        #:endblock
+        else
+          call initShortGammaInput_(input%ctrl, this%speciesMass, this%uniqHubbU, shortGammaDamp,&
+              & shortGammaInput)
+          call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
+              & this%boundaryCond%iBoundaryCondition, coulombInput)
+        end if
+        call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
+            & coulombInput, shortGammaInput, poissonInput, this%scc)
+
+        ! Longest cut-off including the softening part of gamma
+        this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
+
+      end if
+    end if
+
+    if (this%tSccCalc .and. .not.allocated(this%tblite)) then
       if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
         call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
       end if
-
       ! Initialize full 3rd order module
       this%t3rd = input%ctrl%t3rd
       this%t3rdFull = input%ctrl%t3rdFull
@@ -1699,7 +1735,7 @@ contains
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
@@ -1710,7 +1746,7 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, &
+    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam,&
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 
@@ -3185,6 +3221,12 @@ contains
 
     if (allocated(this%tblite)) then
       call writeTBLiteInfo(stdOut, this%tblite)
+      if (this%nDipole > 0) then
+        write(stdOut, "(A,I0)")'   -> dipole components:     ',this%nDipole
+      end if
+      if (this%nQuadrupole > 0) then
+        write(stdOut, "(A,I0)")'   -> quadrupole components: ',this%nQuadrupole
+      end if
     end if
 
     if (.not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
@@ -4790,6 +4832,13 @@ contains
         allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()+1))
       else
         allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()))
+      end if
+    end if
+    if (this%tDipole .and. .not.(this%deltaDftb%nDeterminant()>1 .or. allocated(this%reks))) then
+      if (this%deltaDftb%isSpinPurify) then
+        allocate(this%quadrupoleMoment(6, this%deltaDftb%nDeterminant()+1), source=0.0_dp)
+      else
+        allocate(this%quadrupoleMoment(6, this%deltaDftb%nDeterminant()), source=0.0_dp)
       end if
     end if
 

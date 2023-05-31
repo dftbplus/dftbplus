@@ -356,8 +356,8 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling,&
-            & this%dipoleMessage)
+            & this%eField, this%dipoleMoment, this%quadrupoleMoment, this%deltaDftb,&
+            & this%eFieldScaling, this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -1445,6 +1445,11 @@ contains
     if (this%tDipole .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
+      if (allocated(this%quadrupoleMoment)) then
+        call getQuadrupoleMoment(this%qOutput, this%q0, this%multipoleOut%quadrupoleAtom,&
+            & this%coord0, this%quadrupoleMoment(:,this%deltaDftb%iDeterminant),&
+            & this%iAtInCentralRegion)
+      end if
     #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
           & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
@@ -4679,10 +4684,9 @@ contains
     if (present(dipAtom)) then
       do ii = 1, size(iAtInCentralRegion)
         iAtom = iAtInCentralRegion(ii)
-        dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom, 1)
+        dipoleMoment(:) = dipoleMoment - dipAtom(:, iAtom, 1)
       end do
     end if
-
 
   end subroutine getDipoleMoment
 
@@ -4786,6 +4790,53 @@ contains
     write(stdOut, *) " au"
 
   end subroutine checkDipoleViaHellmannFeynman
+
+
+  !> Calculates quadrupole moment.
+  subroutine getQuadrupoleMoment(qOutput, q0, quadAtom, coord, quadrupoleMoment, iAtInCentralRegion)
+
+    !> electrons in orbitals
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Quadrupole populations for each atom
+    real(dp), intent(in), optional :: quadAtom(:,:,:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> resulting quadrupole moment (upper triangle)
+    real(dp), intent(out) :: quadrupoleMoment(:)
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    integer :: nAtom, ii, jj, iAtom
+    real(dp) :: tmp(3,3), quad(3,3)
+
+    nAtom = size(qOutput, dim=2)
+    quad(:,:) = 0.0_dp
+    do ii = 1, size(iAtInCentralRegion)
+      iAtom = iAtInCentralRegion(ii)
+      tmp(:,:) = spread(coord(:,iAtom), 2, 3)
+      tmp(:,:) = 3.0_dp * tmp * transpose(tmp)
+      do jj = 1, 3
+        tmp(jj,jj) = tmp(jj,jj) - sum(coord(:,iAtom)**2)
+      end do
+      quad(:,:) = quad - sum(q0(:, iAtom, 1) - qOutput(:, iAtom, 1)) * tmp
+    end do
+    quadrupoleMoment(:) = [(quad(4-ii,:4-ii), ii = 3, 1, -1)]
+
+    if (present(quadAtom)) then
+      do ii = 1, size(iAtInCentralRegion)
+        iAtom = iAtInCentralRegion(ii)
+        quadrupoleMoment(:) = quadrupoleMoment - quadAtom(:, iAtom, 1)
+      end do
+    end if
+
+  end subroutine getQuadrupoleMoment
 
 
   !> Calculate the energy weighted density matrix
@@ -5713,7 +5764,7 @@ contains
 
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dQ(:,:,:)
-    real(dp), allocatable :: dipoleAtom(:,:)
+    real(dp), allocatable :: dipoleAtom(:,:), quadrupoleAtom(:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
 
@@ -5727,6 +5778,10 @@ contains
       if (allocated(potential%extDipoleAtom)) then
         dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
       end if
+      quadrupoleAtom = potential%quadrupoleAtom
+      if (allocated(potential%extQuadrupoleAtom)) then
+        quadrupoleAtom(:, :) = quadrupoleAtom + potential%extQuadrupoleAtom
+      end if
     end if
 
     allocate(tmpDerivs(3, nAtom))
@@ -5737,7 +5792,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
+          & potential%intBlock, dipoleAtom, quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then
@@ -5754,7 +5809,7 @@ contains
       if (allocated(tblite)) then
         call tblite%buildDerivativeShift(env, rhoPrim, ERhoPrim, coord, species, &
           & nNeighbourSK, neighbourList%iNeighbour, img2CentCell, iSparseStart, orb, &
-          & potential%intBlock, dipoleAtom, potential%quadrupoleAtom)
+          & potential%intBlock, dipoleAtom, quadrupoleAtom)
         call tblite%addGradients(env, neighbourList, species, coord, img2centCell, derivs)
       else
         if (tImHam) then

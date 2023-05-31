@@ -16,7 +16,7 @@
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, mc, sc, lc
   use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
-      & Boltzmann, gfac, spinName, quaternionName
+      & Boltzmann, gfac, spinName, quaternionName, au__Buckingham
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
@@ -3670,7 +3670,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, eFieldScaling, dipoleMessage)
+      & quadrupoleMoment, deltaDftb, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3693,6 +3693,9 @@ contains
     !> dipole moment
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
+    !> quadrupole moment
+    real(dp), intent(inout), allocatable :: quadrupoleMoment(:,:)
+
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
@@ -3706,6 +3709,9 @@ contains
       if (len(trim(dipoleMessage))>0) then
         write(fd, "(A)")trim(dipoleMessage)
       end if
+    end if
+
+    if (allocated(dipoleMoment)) then
       if (deltaDftb%isNonAufbau) then
         if (deltaDftb%iGround > 0) then
           write(fd, "(A, 3F14.8, A)")'S0 Dipole moment:',&
@@ -3750,6 +3756,56 @@ contains
             & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)) * au__Debye,&
             & ' Debye'
         write(fd, *)
+      end if
+    end if
+
+    if (allocated(quadrupoleMoment)) then
+      if (size(quadrupoleMoment) == 6) then
+        if (deltaDftb%isNonAufbau) then
+          if (deltaDftb%iGround > 0) then
+            write(fd, "(A, 6F14.8, A)")'S0 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iGround)), ' au'
+            write(fd, "(A, 6F14.8, A)")'S0 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iGround))&
+                & * au__Buckingham, ' Buckingham'
+            write(fd, *)
+          end if
+          if (deltaDftb%iTriplet > 0) then
+            write(fd, "(A, 6F14.8, A)")'T1 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iTriplet)), ' au'
+            write(fd, "(A, 6F14.8, A)")'T1 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iTriplet))&
+                & * au__Buckingham, ' Buckingham'
+            write(fd, *)
+          end if
+          if (deltaDftb%isSpinPurify) then
+            write(fd, "(A, 6F14.8, A)")'S1 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iFinal)), ' au'
+            write(fd, "(A, 6F14.8, A)")'S1 Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iFinal))&
+                & * au__Buckingham, ' Buckingham'
+            write(fd, *)
+            if (deltaDftb%isSpinPurify .and. deltaDftb%iGround > 0) then
+              write(fd, "(A, 6F14.8, A)")'S0 -> S1 transition dipole:',&
+                  & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iFinal))&
+                  & -eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iGround)), ' au'
+            end if
+          else
+            write(fd, "(A, 6F14.8, A)")'Mixed state Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iMixed)), ' au'
+            write(fd, "(A, 6F14.8, A)")'Mixed state Quadrupole moment:',&
+                & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iMixed))&
+                & * au__Buckingham, ' Buckingham'
+            write(fd, *)
+          end if
+        else
+          write(fd, "(A, 6F14.8, A)")'Quadrupole moment:',&
+              & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iGround)), ' au'
+          write(fd, "(A, 6F14.8, A)")'Quadrupole moment:',&
+              & eFieldScaling%scaledSoluteDipole(quadrupoleMoment(:,deltaDftb%iGround))&
+              & * au__Buckingham, ' Buckingham'
+          write(fd, *)
+        end if
       end if
     end if
 

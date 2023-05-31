@@ -94,9 +94,6 @@ contains
 
     call totalShift(potential%extShell, potential%extAtom, orb, species)
     call totalShift(potential%extBlock, potential%extShell, orb, species)
-    if (allocated(potential%extDipoleAtom)) then
-      potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad
-    end if
 
   end subroutine mergeExternalPotentials
 
