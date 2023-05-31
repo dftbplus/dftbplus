@@ -8,7 +8,6 @@
 #:include "fytest.fypp"
 
 #:block TEST_SUITE("schedule")
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : getChunkRanges, getIndicesWithWorkload
   implicit none
 
