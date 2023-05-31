@@ -81,8 +81,8 @@ module dftbp_dftb_extfields
 contains
 
   !> Sets up external electric or other fields
-  subroutine addUpExternalField(eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
-      & cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
+  subroutine addUpExternalField(eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec, cellVec,&
+      & deltaT, iGeoStep, coord0Fold, coord, potential)
 
     !> Whether an external field is present
     type(TEfield), intent(inout), allocatable :: eField
@@ -176,6 +176,13 @@ contains
 
       end if
 
+    end if
+
+    if (allocated(potential%extDipoleAtom)) then
+      potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad
+    end if
+    if (allocated(potential%extQuadrupoleAtom)) then
+      potential%extQuadrupoleAtom(:,:) = potential%extQuadrupoleAtom + potential%extGrad2
     end if
 
   end subroutine addUpExternalField

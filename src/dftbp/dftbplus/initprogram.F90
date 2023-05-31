@@ -945,6 +945,9 @@ module dftbp_dftbplus_initprogram
     !> Additional dipole moment related message to write out
     character(lc) :: dipoleMessage
 
+    !> Quadrupole moments, when available, for whichever determinants are present
+    real(dp), allocatable :: quadrupoleMoment(:, :)
+
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
 
@@ -3213,6 +3216,12 @@ contains
 
     if (allocated(this%tblite)) then
       call writeTBLiteInfo(stdOut, this%tblite)
+      if (this%nDipole > 0) then
+        write(stdOut, "(A,I0)")'   -> dipole components:     ',this%nDipole
+      end if
+      if (this%nQuadrupole > 0) then
+        write(stdOut, "(A,I0)")'   -> quadrupole components: ',this%nQuadrupole
+      end if
     end if
 
     if (.not. allocated(this%reks) .and. .not.this%tRestartNoSC) then
@@ -4818,6 +4827,13 @@ contains
         allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()+1))
       else
         allocate(this%dipoleMoment(3, this%deltaDftb%nDeterminant()))
+      end if
+    end if
+    if (this%tDipole .and. .not.(this%deltaDftb%nDeterminant()>1 .or. allocated(this%reks))) then
+      if (this%deltaDftb%isSpinPurify) then
+        allocate(this%quadrupoleMoment(6, this%deltaDftb%nDeterminant()+1), source=0.0_dp)
+      else
+        allocate(this%quadrupoleMoment(6, this%deltaDftb%nDeterminant()), source=0.0_dp)
       end if
     end if
 

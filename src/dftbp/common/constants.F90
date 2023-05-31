@@ -14,10 +14,10 @@ module dftbp_common_constants
   public :: pi, Bohr__AA, AA__Bohr, Hartree__eV, eV__Hartree, Boltzmann, au__kg, kg__au, e__amu
   public :: amu__au, au__fs, fs__au, alpha_fs, c, au__Coulomb, Coulomb__au, Hartree__J, J__Hartree
   public :: hbar, gfac, mu_B, kcal_mol__eV, kcal_mol__Hartree, Hartree__kcal_mol, Rydberg__m
-  public :: Hartree__cm, Debye__au, au__Debye, pascal__au, au__pascal, V_m__au, au__V_m, nm__Bohr
-  public :: avogadConst, Hartree__kJ_mol, Bohr__nm, au__ps, goldenMeanP1, maxL, nShellName
-  public :: shellNames, spinName, quaternionName, imag, elementSymbol
-  public :: symbolToNumber, cExchange
+  public :: Hartree__cm, Debye__au, au__Debye, Buckingham__au, au__Buckingham, pascal__au
+  public :: au__pascal, V_m__au, au__V_m, nm__Bohr, avogadConst, Hartree__kJ_mol, Bohr__nm, au__ps
+  public :: goldenMeanP1, maxL, nShellName, shellNames, spinName, quaternionName, imag
+  public :: elementSymbol, symbolToNumber, cExchange
 
   !! Natural constants
 
@@ -111,6 +111,11 @@ module dftbp_common_constants
   !> a.u. -> Debye
   real(dp), parameter :: au__Debye = 1.0_dp / Debye__au
 
+  !> Buckingham -> a.u.
+  real(dp), parameter :: Buckingham__au = Debye__au * AA__Bohr
+
+  !> a.u. -> Buckingham
+  real(dp), parameter :: au__Buckingham = 1.0_dp / Buckingham__au
 
   !> Conversion factors for Pascals to a.u.
   real(dp), parameter :: pascal__au = J__Hartree / (1e10_dp * AA__Bohr)**3
