@@ -8,6 +8,12 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+- Real-valued density matrix construction on GPU using MAGMA BLAS routines
+
+
 Changed
 -------
 

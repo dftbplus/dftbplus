@@ -132,7 +132,7 @@ module dftbp_dftbplus_main
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
 #:if WITH_MAGMA
-  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealGPU, makeDensityMtxCmplxGPU
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealGPU
 #:endif
 
   implicit none
@@ -3450,11 +3450,7 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:else
-      if (withMAGMA) then
-        call makeDensityMtxCmplxGPU(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
-      else
-        call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
-      end if
+      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK,iSpin))
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       if (tHelical) then
         call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
@@ -3589,14 +3585,8 @@ contains
     #:if WITH_SCALAPACK
       call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
           & eigvecs(:,:,iKS), work)
-    #:else
-       
-      if (withMAGMA) then
-           call makeDensityMtxCmplxGPU(work, eigvecs(:,:,iKS), filling(:,iK))
-      else
-           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
-      end if
-        
+    #:else 
+      call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK))
     #:endif
       if (tSpinOrbit .and. .not. tDualSpinOrbit) then
         call getOnsiteSpinOrbitEnergy(env, rVecTemp, work, denseDesc, xi, orb, species)
@@ -5389,16 +5379,12 @@ contains
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
             & eigvecsCplx(:,:,iKS), work2)
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
+                E
             & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
       #:else
-        if (withMAGMA) then
-          call makeDensityMtxCmplxGPU(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
-        else
-          call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
-        end if
-
+        call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
           call unpackHelicalHS(work, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&
@@ -5444,12 +5430,7 @@ contains
         call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
       #:else
-        if (withMAGMA) then
-          call makeDensityMtxCmplxGPU(work,eigvecsCplx(:,:,iKS), filling(:,iK,iS))
-        else
-          call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
-        end if
-
+        call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
           call unpackHelicalHS(work2, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart,&

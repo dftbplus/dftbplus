@@ -464,7 +464,6 @@ contains
   !> Make a regular density matrix for the real wave-function case in the GPU
   !> Note: In order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
-
   subroutine makeDensityMtxRealGPU(dm, eigenvecs, filling)
 
     !> the resulting nOrb*nOrb density matrix
@@ -593,10 +592,10 @@ contains
 
   end subroutine makeDensityMtxRealGPU
 
+
   !> Make a regular density matrix for the complex wave-function case in the GPU
   !> Note: In order to save memory, the eigenvectors (which should be intent(in) parameters) are
   !> overwritten and then restored again
-
   subroutine makeDensityMtxCmplxGPU(dm, eigenvecs, filling)
 
     !> the resulting nOrb*nOrb density matrix
