@@ -2357,83 +2357,90 @@ contains
       end if
     end if
 
-    ! Point charges present
-    call getChildren(child, "PointCharges", children)
-    if (getLength(children) > 0) then
+    ctrl%nExtChrg = 0
+    if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
 
-      if (.not.ctrl%tSCC) then
-        call error("External charges can only be used in an SCC calculation")
-      end if
-      call init(lCharges)
-      call init(lBlurs)
-      ctrl%nExtChrg = 0
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child2)
-        call getChildValue(child2, "CoordsAndCharges", value1, &
-            &modifier=modifier, child=child3)
-        call getNodeName(value1, buffer)
-        select case(char(buffer))
-        case (textNodeName)
-          call init(lr1)
-          call getChildValue(child3, "", 4, lr1, modifier=modifier)
-          allocate(tmpR2(4, len(lr1)))
-          call asArray(lr1, tmpR2)
-          ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
-          call destruct(lr1)
-        case ("directread")
-          call getChildValue(value1, "Records", ind)
-          call getChildValue(value1, "File", buffer2)
-          allocate(tmpR2(4, ind))
-          call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
-          if (iErr /= 0) then
-            call detailedError(value1, "Could not open file '" &
-                &// trim(unquote(char(buffer2))) // "' for direct reading" )
-          end if
-          read(file%unit, *, iostat=iErr) tmpR2
-          if (iErr /= 0) then
-            call detailedError(value1, "Error during direct reading '" &
-                &// trim(unquote(char(buffer2))) // "'")
-          end if
-          call closeFile(file)
-          ctrl%nExtChrg = ctrl%nExtChrg + ind
-        case default
-          call detailedError(value1, "Invalid block name")
-        end select
-        call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
-        call append(lCharges, tmpR2)
-        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-            &modifier=modifier, child=child3)
-        if (rTmp < 0.0_dp) then
-          call detailedError(child3, "Gaussian blur width may not be &
-              &negative")
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        ! Point charges present
+        if (.not.ctrl%tSCC) then
+          call error("External charges can only be used in an SCC calculation")
         end if
-        call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
-        allocate(tmpR1(size(tmpR2, dim=2)))
-        tmpR1(:) = rTmp
-        call append(lBlurs, tmpR1)
-        deallocate(tmpR1)
-        deallocate(tmpR2)
-      end do
+        call init(lCharges)
+        call init(lBlurs)
+        ctrl%nExtChrg = 0
+        do ii = 1, getLength(children)
+          call getItem1(children, ii, child2)
+          call getChildValue(child2, "CoordsAndCharges", value1, modifier=modifier, child=child3)
+          call getNodeName(value1, buffer)
+          select case(char(buffer))
+          case (textNodeName)
+            call init(lr1)
+            call getChildValue(child3, "", 4, lr1, modifier=modifier)
+            allocate(tmpR2(4, len(lr1)))
+            call asArray(lr1, tmpR2)
+            ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
+            call destruct(lr1)
+          case ("directread")
+            call getChildValue(value1, "Records", ind)
+            call getChildValue(value1, "File", buffer2)
+            allocate(tmpR2(4, ind))
+            call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
+            if (iErr /= 0) then
+              call detailedError(value1, "Could not open file '"&
+                  & // trim(unquote(char(buffer2))) // "' for direct reading" )
+            end if
+            read(file%unit, *, iostat=iErr) tmpR2
+            if (iErr /= 0) then
+              call detailedError(value1, "Error during direct reading '"&
+                  & // trim(unquote(char(buffer2))) // "'")
+            end if
+            call closeFile(file)
+            ctrl%nExtChrg = ctrl%nExtChrg + ind
+          case default
+            call detailedError(value1, "Invalid block name")
+          end select
+          call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
+          call append(lCharges, tmpR2)
+          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, modifier=modifier,&
+              & child=child3)
+          if (rTmp < 0.0_dp) then
+            call detailedError(child3, "Gaussian blur width may not be negative")
+          end if
+          call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
+          allocate(tmpR1(size(tmpR2, dim=2)))
+          tmpR1(:) = rTmp
+          call append(lBlurs, tmpR1)
+          deallocate(tmpR1)
+          deallocate(tmpR2)
+        end do
 
-      allocate(ctrl%extChrg(4, ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lCharges)
-        call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lCharges)
+        allocate(ctrl%extChrg(4, ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lCharges)
+          call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lCharges)
 
-      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lBlurs)
-        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lBlurs)
+        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lBlurs)
+          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lBlurs)
+        call destroyNodeList(children)
+      end if
+
     else
-      ctrl%nExtChrg = 0
+
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        call detailedError(child, "External charges are not currently supported for this model")
+      end if
+
     end if
-    call destroyNodeList(children)
 
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
