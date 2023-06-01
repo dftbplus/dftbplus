@@ -3756,7 +3756,6 @@ contains
 
 
   !> Create equivalency relations
-  ! Note, this routine should not be called
   subroutine setEquivalencyRelations(this)
 
     !> Instance
