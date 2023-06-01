@@ -1627,6 +1627,10 @@ contains
       this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
 
+      if (this%tExtChrg .and. this%hamiltonianType == hamiltonianTypes%xtb) then
+        call error("External charges not currently supported for xTB hamiltonians")
+      end if
+
       ! Longest cut-off including the softening part of gamma
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
 
