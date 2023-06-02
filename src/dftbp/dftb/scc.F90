@@ -15,6 +15,7 @@ module dftbp_dftb_scc
   use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
+  use dftbp_dftb_dipolecorr, only : TDipoleCorr, TDipoleCorr_init, TDipoleCorrInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
@@ -128,6 +129,9 @@ module dftbp_dftb_scc
 
     !> Which electrostatic solver should be used?
     integer :: elstatType
+
+    !> Dipole correction calculator
+    type(TDipoleCorr), allocatable :: dipoleCorr
 
   contains
 
@@ -275,6 +279,14 @@ contains
     allocate(this%deltaQShell(this%mShell, this%nAtom))
     allocate(this%deltaQAtom(this%nAtom))
 
+    if (.true.) then
+      allocate(this%dipoleCorr)
+      block
+        use dftbp_common_constants, only : AA__Bohr
+        call TDipoleCorr_init(this%dipoleCorr, TDipoleCorrInput(z0=-20.0_dp * AA__Bohr))
+      end block
+    end if
+
     this%tInitialised = .true.
 
   end subroutine TScc_init
@@ -344,6 +356,10 @@ contains
       call this%extCharges%setCoordinates(env, coord(:, 1:this%nAtom), this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCoords(coord0)
+    end if
+
   end subroutine updateCoords
 
 
@@ -381,6 +397,10 @@ contains
 
     if (allocated(this%extCharges)) then
       call this%extCharges%setLatticeVectors(latVec, boundaryConds)
+    end if
+
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateLatVecs(latVec)
     end if
 
   end subroutine updateLatVecs
@@ -422,6 +442,10 @@ contains
         call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
       #:endblock
     end select
+
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCharges(this%deltaQAtom)
+    end if
 
   end subroutine updateCharges
 
@@ -784,6 +808,8 @@ contains
     !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:)
 
+    real(dp), allocatable :: tmpShift(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
@@ -799,6 +825,11 @@ contains
     end if
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
+    end if
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpShift(size(shift)))
+      call this%dipoleCorr%getShiftPerAtom(tmpShift)
+      shift(:) = shift + tmpShift
     end if
 
   end subroutine getShiftPerAtom
@@ -905,6 +936,8 @@ contains
     !> optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
+    real(dp), allocatable :: tmpPot(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(pot)]))
 
@@ -915,6 +948,11 @@ contains
     pot(:) = 0.0_dp
     call this%coulomb%getPotential(env, locations, this%coord, this%deltaQAtom, pot,&
         & epsSoften=epsSoften)
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpPot(size(pot)))
+      call this%dipoleCorr%getPotential(locations, tmpPot)
+      pot(:) = pot + tmpPot
+    end if
 
   end subroutine getInternalElStatPotential
 
