@@ -14,6 +14,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
+  use dftbp_common_clang, only : fortranChar
   use dftbp_mmapi, only :&
       & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
@@ -539,42 +540,10 @@ contains
   end subroutine c_DftbPlus_getCM5Charges
 
 
-  !> Converts a 0-char terminated C-type string into a Fortran string.
-  function fortranChar(cstring, maxlen)
-
-    !> C-type string as array
-    character(kind=c_char), intent(in) :: cstring(*)
-
-    !> Maximal string length. If C-string is longer, it will be chopped.
-    integer, intent(in), optional  :: maxlen
-
-    !> Resulting Fortran string
-    character(:, kind=c_char), allocatable :: fortranChar
-
-    integer :: ii, maxlen0
-
-    if (present(maxlen)) then
-      maxlen0 = maxlen
-    else
-      maxlen0 = huge(maxlen0) - 1
-    end if
-
-    do ii = 1, maxlen0
-      if (cstring(ii) == c_null_char) then
-        exit
-      end if
-    end do
-    allocate(character(ii - 1) :: fortranChar)
-    fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
-
-  end function fortranChar
-
-
-  ! Returns a unit for an opened output file.
-  !
-  ! If outputFileName is associated, a file with that name will be created (and returned), otherwise
-  ! the output_unit is returned (and no file is created)
-  !
+  !> Returns a unit for an opened output file.
+  !>
+  !> If outputFileName is associated, a file with that name will be created (and returned),
+  !> otherwise the output_unit is returned (and no file is created)
   subroutine handleOutputFile_(outputFileName, outputFile)
     type(c_ptr), intent(in) :: outputFileName
     type(TFileDescr), intent(out) :: outputFile

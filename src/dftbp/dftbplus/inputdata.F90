@@ -25,6 +25,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
+  use dftbp_extlibs_externalmodel, only : TExtModelProvides
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_io_message, only : error, warning
@@ -124,8 +125,11 @@ module dftbp_dftbplus_inputdata
     !> Choice of electronic hamiltonian
     integer :: hamiltonian = hamiltonianTypes%none
 
+    !> External model to the main code (if used)
+    type(TExtModelProvides), allocatable :: extModel
+
     !> Random number generator seed
-    integer :: iSeed = 0
+    integer :: iSeed       = 0
 
     !> Maximum force for geometry convergence
     real(dp) :: maxForce = 0.0_dp

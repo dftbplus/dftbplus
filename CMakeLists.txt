@@ -159,6 +159,17 @@ else()
   option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
+#
+# Add external model from a library
+#
+if (NOT EXTERNAL_MODEL_LIBRARY)
+  message("EXTERNAL_MODEL_LIBRARIES not defined, falling back to internal toy model")
+  # TO DO!
+endif()
+
+find_package(CustomExternalModel REQUIRED)
+list(APPEND PKG_CONFIG_REQUIRES externalmodel)
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 
