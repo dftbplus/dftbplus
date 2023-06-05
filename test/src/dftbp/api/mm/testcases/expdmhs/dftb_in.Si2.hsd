@@ -10,6 +10,7 @@ Geometry = GenFormat {
 }
 Driver = {}
 Hamiltonian = DFTB {
+  ASI = Yes
   Scc = Yes
   MaxAngularMomentum = {
     Si = "p"

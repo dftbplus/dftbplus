@@ -75,7 +75,7 @@ contains
     else
       blacsDescrPtr = c_null_ptr
     endif
-    
+
     if (present(dataBufReal)) then
       dataPtr = c_loc(dataBufReal(1,1))
     else
@@ -88,6 +88,6 @@ contains
     end select
 
   end subroutine dmhs_callback_c_wrapper
-  
+
 
 end module dftbp_apicallbackc

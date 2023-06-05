@@ -1303,7 +1303,9 @@ contains
         & input%ctrl%binaryAccessTypes(2))
 
   #:if WITH_API
-    allocate(this%apiCallBack)
+    if (input%ctrl%isASICallbackEnabled) then
+      allocate(this%apiCallBack)
+    end if
   #:endif
 
     ! Basic variables
