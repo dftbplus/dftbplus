@@ -40,6 +40,7 @@ module dftbp_dftb_dipolecorr
     procedure :: updateCharges => TDipoleCorr_updateCharges
     procedure :: getShiftPerAtom => TDipoleCorr_getShiftPerAtom
     procedure :: getPotential => TDipoleCorr_getPotential
+    procedure :: addEnergyPerAtom => TDipoleCorr_addEnergyPerAtom
   end type
 
 
@@ -107,6 +108,18 @@ contains
         & this%cellHeight_)
 
   end subroutine TDipoleCorr_getPotential
+
+
+  subroutine TDipoleCorr_addEnergyPerAtom(this, deltaQAtom, energyPerAtom)
+    class(TDipoleCorr), intent(in) :: this
+    real(dp), intent(in) :: deltaQAtom(:)
+    real(dp), intent(inout) :: energyPerAtom(:)
+
+    energyPerAtom(:) = energyPerAtom &
+        & + 0.5_dp * deltaQAtom * dipoleCorrectionPot_(this%zCoords_, this%z0_, this%dipoleZ_,&
+        & this%cellVol_, this%cellHeight_)
+
+  end subroutine TDipoleCorr_addEnergyPerAtom
 
 
   pure function foldedZCoords_(coords, z0, cellHeight) result(zCoords)

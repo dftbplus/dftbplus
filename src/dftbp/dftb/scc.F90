@@ -640,6 +640,10 @@ contains
       call this%thirdOrder%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addEnergyPerAtom(this%deltaQAtom, eScc)
+    end if
+
   end subroutine getEnergyPerAtom
 
 
