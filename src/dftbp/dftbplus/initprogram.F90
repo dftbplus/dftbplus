@@ -1113,7 +1113,7 @@ module dftbp_dftbplus_initprogram
 
     !> This object encapsulates subroutines and variables that are used for registering and
     !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
-    type(TAPICallback) :: apiCallBack
+    type(TAPICallback), allocatable :: apiCallBack
 
   #:if WITH_SCALAPACK
 
@@ -1301,6 +1301,10 @@ contains
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
     call setDefaultBinaryAccess(input%ctrl%binaryAccessTypes(1), input%ctrl%binaryAccessTypes(2),&
         & input%ctrl%binaryAccessTypes(2))
+
+  #:if WITH_API
+    allocate(this%apiCallBack)
+  #:endif
 
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
