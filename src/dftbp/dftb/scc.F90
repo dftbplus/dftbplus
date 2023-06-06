@@ -758,6 +758,10 @@ contains
           & this%deltaQAtom, this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addForceDc(force, this%deltaQAtom)
+    end if
+
   end subroutine addForceDc
 
 

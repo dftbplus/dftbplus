@@ -41,6 +41,7 @@ module dftbp_dftb_dipolecorr
     procedure :: getShiftPerAtom => TDipoleCorr_getShiftPerAtom
     procedure :: getPotential => TDipoleCorr_getPotential
     procedure :: addEnergyPerAtom => TDipoleCorr_addEnergyPerAtom
+    procedure :: addForceDc => TDipoleCorr_addForceDc
   end type
 
 
@@ -81,7 +82,7 @@ contains
     integer :: nAtom
 
     nAtom = size(dQAtom)
-    this%dipoleZ_ = sum(this%zCoords_ * dQAtom)
+    this%dipoleZ_ = sum((this%zCoords_ - (this%z0_ + this%cellHeight_ / 2.0_dp)) * dQAtom)
 
   end subroutine TDipoleCorr_updateCharges
 
@@ -122,6 +123,16 @@ contains
   end subroutine TDipoleCorr_addEnergyPerAtom
 
 
+  subroutine TDipoleCorr_addForceDc(this, forces, deltaQAtom)
+    class(TDipoleCorr), intent(in) :: this
+    real(dp), intent(inout) :: forces(:,:)
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    forces(3, :) = forces(3, :) + 4.0_dp * pi / this%cellVol_ * this%dipoleZ_ * deltaQAtom
+
+  end subroutine TDipoleCorr_addForceDc
+
+
   pure function foldedZCoords_(coords, z0, cellHeight) result(zCoords)
     real(dp), intent(in) :: coords(:,:)
     real(dp), intent(in) :: z0, cellHeight
@@ -137,7 +148,7 @@ contains
     real(dp), intent(in) :: z0, dipoleZ, cellVol, cellHeight
     real(dp) :: pot(size(zCoords))
 
-    pot(:) = 4.0_dp * pi / cellVol * dipoleZ * (zCoords - z0 - cellHeight / 2.0_dp)
+    pot(:) = 4.0_dp * pi / cellVol * dipoleZ * (zCoords - (z0 + cellHeight / 2.0_dp))
 
   end function dipoleCorrectionPot_
 
