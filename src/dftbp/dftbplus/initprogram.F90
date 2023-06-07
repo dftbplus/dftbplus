@@ -26,7 +26,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
-  use dftbp_dftb_coulomb, only : TCoulombInput
+  use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
   use dftbp_dftb_dense, only :buildSquaredAtomIndex
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
@@ -36,6 +36,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_etemp, only : fillingTypes
+  use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
@@ -183,6 +184,12 @@ module dftbp_dftbplus_initprogram
 
     !> SCC module internal variables
     type(TScc), allocatable :: scc
+
+    !> Coulombic electrostatics module (for use with xTB, not DFTB)
+    type(TCoulomb), allocatable :: coulomb
+
+    !> External charges (for use with xTB, not DFTB)
+    type(TExtCharges), allocatable :: extCharges
 
     !> Nr. of atoms
     integer :: nAtom
@@ -1628,7 +1635,14 @@ contains
           call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
               & this%boundaryCond%iBoundaryCondition, coulombInput)
 
-          !call TCoulomb_init(coulomb, coulombInput, env, this%nExtChrg)
+          allocate(this%coulomb)
+          allocate(this%extCharges)
+
+          call TCoulomb_init(this%coulomb, coulombInput, env, this%nExtChrg)
+          call TExtCharges_init(this%extCharges, this%nAtom, this%nExtChrg, this%tPeriodic)
+          call this%extCharges%setExternalCharges(input%ctrl%extChrg(:3,:),&
+              & input%ctrl%extChrg(4,:),input%ctrl%extChrgBlurWidth)
+
           !sumInvR
 
           !sccInput%extCharges = ctrl%extChrg
@@ -1838,7 +1852,8 @@ contains
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
 
-    if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential)) then
+    if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential) .or.&
+        & input%ctrl%nExtChrg > 0) then
       allocate(this%eField)
     end if
     this%isExtField = allocated(this%eField)
@@ -2748,8 +2763,8 @@ contains
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & allocated(this%dftbU), allocated(input%ctrl%electricField), this%isLinResp,&
+          & this%tPeriodic, this%tLatOpt, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&

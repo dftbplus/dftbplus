@@ -38,7 +38,7 @@ module dftbp_dftb_coulomb
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
-  public :: addInvRPrimePrimeClusterAsymm
+  public :: addInvRPrimePrimeClusterAsymm, addInvRPrimeClusterAsymm
 
 
   !> Input data for coulombic interaction container
@@ -171,14 +171,6 @@ module dftbp_dftb_coulomb
     procedure :: addExternalPotGrad
 
   end type TCoulomb
-
-
-  !> Type for external charge evaluation
-  type TCoulomb2
-
-    ! quadrupole(6) storage convention xx, xy, yy, xz, yz, zz
-
-  end type TCoulomb2
 
 
   !> 1/r interaction for all atoms with another group

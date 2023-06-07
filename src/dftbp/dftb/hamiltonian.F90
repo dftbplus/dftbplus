@@ -76,6 +76,9 @@ contains
     if (allocated(potential%extDipoleAtom)) then
       potential%extDipoleAtom(:, :) = 0.0_dp
     end if
+    if (allocated(potential%extQuadrupoleAtom)) then
+      potential%extQuadrupoleAtom(:, :) = 0.0_dp
+    end if
 
   end subroutine resetExternalPotentials
 
@@ -363,7 +366,7 @@ contains
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom
-    real(dp), allocatable :: dipoleAtom(:, :)
+    real(dp), allocatable :: dipoleAtom(:, :), quadrupoleAtom(:, :)
 
     nAtom = size(orb%nOrbAtom)
 
@@ -398,9 +401,13 @@ contains
     end if
 
     if (allocated(potential%quadrupoleAtom)) then
+      quadrupoleAtom = potential%quadrupoleAtom
+      if (allocated(potential%extQuadrupoleAtom)) then
+        quadrupoleAtom(:, :) = quadrupoleAtom + potential%extQuadrupoleAtom
+      end if
       call addAtomicMultipoleShift(ham, ints%quadrupoleBra, ints%quadrupoleKet, nNeighbourSK, &
           & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
-          & potential%quadrupoleAtom)
+          & quadrupoleAtom)
     end if
 
     if (allocated(iHam)) then

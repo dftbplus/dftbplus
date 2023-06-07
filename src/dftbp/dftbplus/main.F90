@@ -20,7 +20,8 @@ module dftbp_dftbplus_main
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd, polAdd
   use dftbp_derivs_perturb, only : TResponse
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions, boundaryConditions
+  use dftbp_dftb_coulomb, only : TCoulomb, sumInvR, addInvRPrime, addInvRPrimePrimeClusterAsymm
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -28,6 +29,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : electronFill, Efilling
   use dftbp_dftb_extfields, only : addUpExternalField
+  use dftbp_dftb_extcharges, only : TExtCharges
   use dftbp_dftb_forces, only : derivative_shift
   use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_dftb_halogenx, only : THalogenX
@@ -998,6 +1000,7 @@ contains
     integer :: iSpin, iKS
 
     real(dp), allocatable :: dipoleTmp(:)
+    real(dp), allocatable :: dummy(:,:)
 
     if (this%tDipole) then
       allocate(dipoleTmp(3))
@@ -1023,7 +1026,7 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec, this%boundaryCond)
+          & this%cellVec, this%rCellVec, this%boundaryCond, this%coulomb, this%extCharges)
     end if
 
     if (this%tCoordsChanged) then
@@ -1033,7 +1036,7 @@ contains
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%nAllAtom, this%coord0Fold,&
           & this%coord,this%species, this%rCellVec, this%nNeighbourSk, this%nNeighbourLC,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
-          & this%cm5Cont, errStatus)
+          & this%cm5Cont, this%coulomb, this%extCharges, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -1094,6 +1097,24 @@ contains
     end if
 
     call resetExternalPotentials(this%refExtPot, this%potential)
+
+    if (this%hamiltonianType == hamiltonianTypes%xtb) then
+      if (allocated(this%extCharges)) then
+        call sumInvR(env, this%nAtom, this%nExtChrg, this%coord0, this%extCharges%coords,&
+            & this%extCharges%charges, this%potential%extAtom(:,1),&
+            & blurWidths1=this%extCharges%blurWidths)
+        if (allocated(this%potential%dipoleAtom)) then
+          call addInvRPrime(env, this%nAtom, this%nExtChrg, this%coord0, this%extCharges%coords,&
+              & sum(this%qInput(:,:,1),dim=1), this%extCharges%charges,&
+              & this%potential%extDipoleAtom, dummy, .true., blurWidths1=this%extCharges%blurWidths)
+        end if
+        if (allocated(this%potential%quadrupoleAtom)) then
+          call addInvRPrimePrimeClusterAsymm(env, this%nAtom, this%nExtChrg, this%coord0,&
+              & this%extCharges%coords, sum(this%qInput(:,:,1),dim=1), this%extCharges%charges,&
+              & this%potential%extQuadrupoleAtom, blurWidths1=this%extCharges%blurWidths)
+        end if
+      end if
+    end if
 
     if (this%tReadShifts) then
       call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
@@ -1885,7 +1906,7 @@ contains
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond, coulomb, extCharges)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1941,6 +1962,12 @@ contains
     !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
+    !> Coulombic electrostatics module (for use with xTB, not DFTB)
+    type(TCoulomb), intent(inout), allocatable :: coulomb
+
+    !> External charges (for use with xTB, not DFTB)
+    type(TExtCharges), intent(inout), allocatable :: extCharges
+
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
     call matinv(recVecs2p)
@@ -1958,6 +1985,12 @@ contains
     if (allocated(tblite)) then
       call tblite%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, tblite%getRCutOff())
+      if (allocated(coulomb)) then
+        call coulomb%updateLatVecs(latVecs, recVecs, cellVol)
+      end if
+      if (allocated(extCharges)) then
+        call extCharges%setLatticeVectors(latVecs, boundaryCond)
+      end if
     end if
     if (allocated(repulsive)) then
       call repulsive%updateLatVecs(latVecs)
@@ -1984,7 +2017,7 @@ contains
       & tHelical, sccCalc, tblite, repulsive, dispersion, solvation, thirdOrd, rangeSep, reks,&
       & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourLC, ints, H0, rhoPrim, iRhoPrim, ERhoPrim, iSparseStart, cm5Cont,&
-      & errStatus)
+      & coulomb, extCharges, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2086,6 +2119,12 @@ contains
     !> Charge model 5
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
+    !> Coulombic electrostatics module (for use with xTB, not DFTB)
+    type(TCoulomb), intent(inout), allocatable :: coulomb
+
+    !> External charges (for use with xTB, not DFTB)
+    type(TExtCharges), intent(inout), allocatable :: extCharges
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
@@ -2123,6 +2162,9 @@ contains
 
     if (allocated(tblite)) then
       call tblite%updateCoords(env, neighbourList, img2CentCell, coord, species)
+      if (allocated(extCharges)) then
+        call extCharges%setCoordinates(env, coord0, coulomb)
+      end if
     end if
 
     if (allocated(repulsive)) then
@@ -5828,8 +5870,16 @@ contains
         if (isXlbomd) then
           call error("XLBOMD does not work with external charges yet!")
         else
-          call sccCalc%addForceDc(env, derivs, species, neighbourList%iNeighbour, img2CentCell,&
-              & chrgForces)
+          if (allocated(tblite)) then
+            if (boundaryConds%iBoundaryCondition == boundaryConditions%cluster) then
+
+            else
+              call error("xTB periodic external charges not implemented yet.")
+            end if
+          else
+            call sccCalc%addForceDc(env, derivs, species, neighbourList%iNeighbour, img2CentCell,&
+                & chrgForces)
+          end if
         end if
       else if (tSccCalc) then
         if (isXlbomd) then

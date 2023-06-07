@@ -31,10 +31,10 @@ module dftbp_dftb_extcharges
     integer :: nAtom
 
     !> Coordinates of the point charges
-    real(dp), allocatable :: coords(:,:)
+    real(dp), allocatable, public :: coords(:,:)
 
     !> Charge of the point charges
-    real(dp), allocatable :: charges(:)
+    real(dp), allocatable, public :: charges(:)
 
     !> Shift vector
     real(dp), allocatable :: shift(:)
@@ -43,13 +43,13 @@ module dftbp_dftb_extcharges
     logical :: tBlur
 
     !> Blur width for the charges.
-    real(dp), allocatable :: blurWidths(:)
+    real(dp), allocatable, public :: blurWidths(:)
 
     !> System periodic?
     logical :: tPeriodic
 
     !> Calculator initialised?
-    logical :: tInitialized = .false.
+    logical, public :: tInitialized = .false.
 
     !> First coordinates received?
     logical :: tUpdated = .false.
