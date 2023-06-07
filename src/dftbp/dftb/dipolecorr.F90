@@ -21,6 +21,7 @@ module dftbp_dftb_dipolecorr
   use dftbp_math_simplealgebra, only : determinant33
   implicit none
 
+
   type :: TDipoleCorrInput
     real(dp) :: z0
   end type

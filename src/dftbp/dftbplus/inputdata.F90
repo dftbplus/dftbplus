@@ -13,6 +13,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
   use dftbp_dftb_dftbplusu, only : TDftbUInp
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
   use dftbp_dftb_etemp, only : fillingTypes
@@ -502,6 +503,8 @@ module dftbp_dftbplus_inputdata
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
+
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
 
   #:if WITH_SOCKETS
     !> Socket communication

@@ -53,6 +53,9 @@ module dftbp_dftb_scc
     !> Poisson solver for calculating electrostatics (instead of shortGamma + coulombCalc)
     type(TPoissonInput), allocatable :: poissonInput
 
+    !> Input for the slab dipole correction
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
+
     !> Boundary condition of the system
     integer :: boundaryCond = boundaryConditions%unknown
 
@@ -279,12 +282,9 @@ contains
     allocate(this%deltaQShell(this%mShell, this%nAtom))
     allocate(this%deltaQAtom(this%nAtom))
 
-    if (.true.) then
+    if (allocated(input%dipoleCorrInput)) then
       allocate(this%dipoleCorr)
-      block
-        use dftbp_common_constants, only : AA__Bohr
-        call TDipoleCorr_init(this%dipoleCorr, TDipoleCorrInput(z0=-20.0_dp * AA__Bohr))
-      end block
+      call TDipoleCorr_init(this%dipoleCorr, input%dipoleCorrInput)
     end if
 
     this%tInitialised = .true.
