@@ -871,39 +871,38 @@ contains
        else
          vTmp(myia) = vin(ia) * sqrt(wij(ia))
       endif
-   enddo
+    enddo
+    ! do myia = 1, nLocRow
+    !   call l2g(myia, myRow, nmat, npRow, nb, ia)
+    !   print *,'vtmp',iam,myia,ia,vTmp(myia)
+    ! enddo
 
    ! product charges with the v*wn product, i.e. Q * v*wn
-   if(nProcs==1) then
-         oTmp(:) = 0.0_dp
-         do myia = 1, 545
-            call l2g(myia, myRow, nmat, npRow, nb, ia)
-            ii = getIA(win(ia), 1)
-            aa = getIA(win(ia), 2)
-            qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-            print *,'The indexes',iam,'-----',myia,ia,ii,aa,'=====',qij(:),vTmp(myia)
-            otmp(:) = otmp(:) + qij(:)*vTmp(myia)
-         enddo
-         print *,'good single',iam,otmp
-   else
-   oTmp(:) = 0.0_dp
-   do myia = 1, nLocRow
+   ! if(nProcs==1) then
+   !       oTmp(:) = 0.0_dp
+   !       do myia = 1, 545
+   !          call l2g(myia, myRow, nmat, npRow, nb, ia)
+   !          ii = getIA(win(ia), 1)
+   !          aa = getIA(win(ia), 2)
+   !          qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+   !          print *,'The indexes',iam,'-----',myia,ia,ii,aa,'=====',qij(:),vTmp(myia)
+   !          otmp(:) = otmp(:) + qij(:)*vTmp(myia)
+   !       enddo
+   !       print *,'good single',iam,otmp
+   ! else
+    oTmp(:) = 0.0_dp
+    do myia = 1, nLocRow
       call l2g(myia, myRow, nmat, npRow, nb, ia)
-      ii = getIA(win(ia), 1)
-      aa = getIA(win(ia), 2)
-      
       qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-      print *,'The indexes',iam,'-----',myia,ia,ii,aa,'=====',qij(:),vTmp(myia)
       otmp(:) = otmp(:) + qij(:)*vTmp(myia)
-   enddo
-   print *,'good',iam,nLocRow,otmp
-   endif
-   stop
-!!$    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
-!!$        & vTmp * sqrOccIA(iInd:fInd), oTmp, disp(iam+1))
+      !!otmp(:) = otmp(:) + (qij(:)**2)*vTmp(myia)
+      !!print *,'otmp', iam, ia,otmp(1),qij(1),vTmp(myia)
+    enddo
+!!   endif
 
     call MPI_ALLREDUCE(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     if(iam==0) print *,'This is otmp',otmp
+    !!stop
     
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -913,8 +912,13 @@ contains
 
         ! 4 * wn * (g * Q)
         vLoc(:) = 0.0_dp
-        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vLoc, disp(iam+1))
-        vLoc(:) = 4.0_dp * sqrOccIA(iInd:fInd) * vLoc
+        do myia = 1, nLocRow
+          call l2g(myia, myRow, nmat, npRow, nb, ia)
+          qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          vLoc(myia) = 4.0_dp * sqrOccIA(ia) * dot_product(qij, gTmp)
+        enddo  
+        !!call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vLoc, disp(iam+1))
+        !!vLoc(:) = 4.0_dp * sqrOccIA(iInd:fInd) * vLoc
 
       else
 
@@ -970,11 +974,21 @@ contains
 
     end if
     
-    do myia = 1, nLocRow
-      call l2g(myia, myRow, nmat, npRow, nb, ia)
-      vOut(ia) = vLoc(myia)
-    enddo
-
+    ! do myia = 1, nLocRow
+    !   call l2g(myia, myRow, nmat, npRow, nb, ia)
+    !   vOut(ia) = vLoc(myia)
+    ! enddo
+    !!call MPI_ALLREDUCE(MPI_IN_PLACE, vOut, nmat, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    if(iam==0) print *,'the disp',scnt,disp
+    ! do myia = 1, nLocRow
+    !   if(dabs(vLoc(myia))>0.00000001) print *,'iam,',iam,myia+disp(iam+1),vLoc(myia)
+    ! enddo
+  
+    ! do ia = 1, size(vOut)
+    !   if(iam==0 .and. dabs(vOut(ia))>0.00000001) print *,'after,',iam,ia,vOut(ia)
+    ! enddo    
+    ! stop
+    
     if (tRangeSep) then
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
       nxvv_a = sum(nvir_ud**2)
@@ -1063,15 +1077,30 @@ contains
      
    #:endif
 
-    vout(:) = vout + wij * vTmp
-
+    !!vout(:) = vout + wij * vTmp
+    do myia = 1, nLocRow
+      call l2g(myia, myRow, nmat, npRow, nb, ia)
+      vLoc(myia) = vLoc(myia) + wij(ia) * vTmp(myia)
+    enddo
+    
     if(.not. tAplusB) then
-       vout(:) = vout * sqrt(wij)
+      do myia = 1, nLocRow
+        call l2g(myia, myRow, nmat, npRow, nb, ia)
+        !!vout(:) = vout * sqrt(wij)
+        vLoc(myia) = vLoc(myia) * sqrt(wij(ia))
+      enddo
     endif
+
+    call MPI_Allgatherv(vLoc, nLocRow, MPI_DOUBLE_PRECISION, vOut, scnt, disp, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
     
     print *,'up to this point'
     !! Destroy BLACS context
     call blacs_gridexit(iContxt)
+    print *,'after this point'
+    do ii = 1,size(vOut)
+      if(iam==0 .and. dabs(vOut(ia))>0.00000001) print *,'vout',ii,vOut(ii)
+    enddo
+    !!stop
     !!call blacs_exit(0)
   end subroutine actionAplusB_Blacs
 

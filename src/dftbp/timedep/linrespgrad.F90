@@ -534,7 +534,6 @@ contains
 !!$        if(iam == 0) print *,'AB',i, qTr(1:3)
 !!$    enddo     
  
-    stop
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
     end if
