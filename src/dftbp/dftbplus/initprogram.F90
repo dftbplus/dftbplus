@@ -4766,9 +4766,10 @@ contains
 
     if (this%isLinResp) then
       if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+        !!call error("Linear response calc. does not work with MPI yet")
       end if
       if (this%tLinRespZVect) then
+        call error("Excited state gradients do not work with MPI yet")
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
       end if
     end if
@@ -4878,7 +4879,14 @@ contains
     nLocalKS = size(this%parallelKS%localKS, dim=2)
   #:if WITH_SCALAPACK
     call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
-        & nLocalCols)
+         & nLocalCols)
+    !TN
+!!$    if (this%isLinResp) then
+!!$      print *,'allocateDenseMatrices: before',nLocalRows,nLocalCols
+!!$      nLocalRows = this%denseDesc%fullSize
+!!$      nLocalCols = this%denseDesc%fullSize
+!!$      print *,'allocateDenseMatrices: after',nLocalRows,nLocalCols
+!!$    endif
   #:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
@@ -5344,7 +5352,7 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      call error("Linear response calc. does not work with MPI yet")
+      !!call error("Linear response calc. does not work with MPI yet")
     end if
 
     if (.not. tSccCalc) then

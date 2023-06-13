@@ -32,11 +32,14 @@ module dftbp_timedep_linrespgrad
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
       & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array, &
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
-      & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
-      & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
+      & getExcSpin, writeExcMulliken, actionAplusB, actionAplusB_Blacs, actionAminusB, &
+      & initialSubSpaceMatrixApmB, calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
+  use dftbp_common_environment, only : TEnvironment
 
   implicit none
 
@@ -74,15 +77,18 @@ contains
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
-  subroutine LinRespGrad_old(this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0, SSqr,&
+  subroutine LinRespGrad_old(env, this, denseDesc, grndEigVecs, grndEigVal, sccCalc, dq, coord0, SSqr,&
       & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep, omega,&
       & allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
       & naturalOrbs)
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     type(TLinResp), intent(inout) :: this
 
-    !> index vector for S and H matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> ground state MO-coefficients
     real(dp), intent(in) :: grndEigVecs(:,:,:)
@@ -167,7 +173,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:), qTr(:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -184,6 +190,8 @@ contains
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
+    !TN
+    integer :: iam, nprocs
     character :: sym
     character(lc) :: tmpStr
 
@@ -214,6 +222,8 @@ contains
         &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
         &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
         &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
+
+    call blacs_pinfo(iam, nprocs)
 
     if (withArpack) then
 
@@ -391,7 +401,7 @@ contains
     ! Allocation for general arrays
     allocate(gammaMat(this%nAtom, this%nAtom))
     allocate(snglPartTransDip(nxov, 3))
-    allocate(ovrXev(norb, norb, nSpin))
+    allocate(ovrXev(size(grndEigVecs,dim=1), size(grndEigVecs,dim=2), nSpin))
     allocate(wij(nxov))
     allocate(win(nxov))
     allocate(sqrOccIA(nxov))
@@ -405,12 +415,24 @@ contains
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
     ! remove the need to symmetrize the overlap and ground state density matrix in the main code if
     ! this could be used everywhere in these routines)
+  #:if WITH_SCALAPACK
+
+    do iSpin = 1, nSpin
+      call pblasfx_psymm(SSqr, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr,&
+           & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
+    end do
+   
+  #:else
+    
     do iSpin = 1, nSpin
       call symm(ovrXev(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
-
+   
+  #:endif
+    
     ! ground state Hubbard U softened coulombic interactions
-    call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
+    !!call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
+    read(12,*) gammaMat
 
     ! Oscillator strengths for exited states, when needed.
     allocate(osz(this%nExc))
@@ -435,7 +457,7 @@ contains
     call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, this%tSpin, sqrOccIA)
 
     ! dipole strength of transitions between K-S states
-    call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, iAtomStart, ovrXev, grndEigVecs,&
+    call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, env, denseDesc, ovrXev, grndEigVecs,&
         & snglPartTransDip)
 
     ! single particle excitation oscillator strengths
@@ -490,10 +512,29 @@ contains
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
     end if
 
-    call TTransCharges_init(transChrg, iAtomStart, ovrXev, grndEigVecs, nxov_rd, nxov_ud(1), &
-        & nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,             &
+    call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov_rd,&
+        & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
         & this%tCacheChargesSame)
-
+    
+!!$    allocate(qTr(this%nAtom))
+!!$ 
+!!$    do i = 1, nxov_ud(1)
+!!$        qTr(:) = transChrg%qTransIA(i, env, denseDesc, ovrXev, grndEigVecs, getIA, win)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) print *,'IA',i, qTr(1:3)
+!!$    enddo
+!!$    do i = 1, nxoo_ud(1)
+!!$        qTr(:) = transChrg%qTransIJ(i, env, denseDesc, ovrXev, grndEigVecs, getIJ)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) print *,'IJ',i, qTr(1:3)
+!!$    enddo
+!!$    do i = 1, nxvv_ud(1)
+!!$        qTr(:) = transChrg%qTransAB(i, env, denseDesc, ovrXev, grndEigVecs, getAB)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) print *,'AB',i, qTr(1:3)
+!!$    enddo     
+ 
+    stop
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
     end if
@@ -528,6 +569,7 @@ contains
     write(fdExc%unit, '(1x,80("="))')
     write(fdExc%unit, *)
 
+    print *,'Before spe exc'
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
     call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd,&
@@ -551,15 +593,17 @@ contains
       sym = symmetries(isym)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
+        print *,'Do it arpack'
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
-            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart,&
-            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW,&
-            & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements, orb,&
-            & tRangeSep, tZVector)
+            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
+            & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements,&
+            & orb, tRangeSep, tZVector)
       case (linrespSolverTypes%stratmann)
+        print *,'Do it stratmann'
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-            & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+            & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, eval, xpy, xmy,&
             & this%onSiteMatrixElements, orb, tRangeSep, lrGamma, tZVector)
       end select
@@ -654,17 +698,17 @@ contains
         omega = sqrt(eval(iLev))
 
         ! solve for Z and W to get excited state density matrix
-        call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
-            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
+        call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, env, denseDesc,&
+            & nocc_ud, transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
             & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
 
         call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
+            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, env, denseDesc,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-         call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
+         call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, env, denseDesc,&
             & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
             & this%spinW, tRangeSep, lrGamma)
 
@@ -676,7 +720,7 @@ contains
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
           call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-          call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
         end do
 
         if (this%tWriteDensityMatrix) then
@@ -689,7 +733,7 @@ contains
         end if
 
         if (tForces) then
-          call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+          call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb, nocc_ud,&
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
@@ -726,7 +770,7 @@ contains
               xpym(:) = xpy(:,mCoupLev)
               xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
-              call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, iAtomStart, nocc_ud,& 
+              call grndToExcDensityMatrices(tRangeSep, xpym, xmym, win, env, denseDesc, nocc_ud,& 
                  & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
                  & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
                  & woo)
@@ -734,7 +778,7 @@ contains
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
               end do
 
               !> For 0-n couplings, the standard force routine can be used, where
@@ -744,8 +788,8 @@ contains
               xmym(:) = 0.0_dp
               xpyn(:) = 0.0_dp
               xmyn(:) = 0.0_dp
-              call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
+              call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb,&
+                & nocc_ud, getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym,&
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,&
                 & tRangeSep, rangeSep, nacv(:,:,iNac))
@@ -762,31 +806,31 @@ contains
               ! compute + component of RHS for Z-vector eq. in the NaCoupling case
               ! also computes the + components of W and T
               call getNadiaZvectorEqRHS(tRangeSep, xpy(:,nCoupLev), xmy(:,nCoupLev),& 
-                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, iAtomStart, nocc_ud, transChrg,&
+                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, env, denseDesc, nocc_ud, transChrg,&
                  & getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev,&
                  & grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t,&
                  & wov, woo, wvv)
 
               call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud,&
                   & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,&
-                  & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
+                  & env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
                   & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,&
                   & lrGamma)
 
-              call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
-                 & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,&
-                 & species0, this%spinW, tRangeSep, lrGamma)
+              call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans,&
+                 & env, denseDesc, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,&
+                 & transChrg, species0, this%spinW, tRangeSep, lrGamma)
 
               call calcPMatrix(t, rhs, win, getIA, pc)
 
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
               end do
 
-              call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,&
+              call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb,&
+                & nocc_ud, getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,&
                 & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym,&
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tRangeSep,&
                 & rangeSep, nacv(:,:,iNac))
@@ -833,7 +877,7 @@ contains
   !> See Dominguez JCTC 9 4901 (2013)
   !>
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, testArnoldi,&
       & eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector)
 
@@ -879,8 +923,11 @@ contains
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getAB(:,:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -943,6 +990,7 @@ contains
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
+    print *,'Enetering build'
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
@@ -996,11 +1044,17 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-      call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-          & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+#:if WITH_SCALAPACK     
+      call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
           & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
-
+#:else
+       call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
+          & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
+          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)     
+#:endif      
     end do
 
     ! check returned info flag for errors
@@ -1040,10 +1094,17 @@ contains
       write(fdArnoldiTest%unit,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
-        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-            & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+#:if WITH_SCALAPACK          
+        call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
             & Hv, .false.)
+#:else        
+        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
+            & Hv, .false.)
+#:endif        
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
             & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
@@ -1083,7 +1144,7 @@ contains
   !> Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !>
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, eval, xpy, xmy,&
       & onsMEs, orb, tRangeSep, lrGamma, tZVector)
 
@@ -1132,8 +1193,11 @@ contains
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getAB(:,:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -1260,12 +1324,19 @@ contains
 
         ! Extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
-          call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-            & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
+#:if WITH_SCALAPACK            
+          call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
             & vP(:,ii), tRangeSep, lrGamma)
+#:else         
+           call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
+            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
+            & vP(:,ii), tRangeSep, lrGamma)
+#:endif            
           call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-            & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA,&
+            & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA,&
             & transChrg, vecB(:,ii), vM(:,ii), tRangeSep, lrGamma)
         end do
 
@@ -1282,7 +1353,7 @@ contains
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
         call initialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
-            & nxov_ud(1), iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ, getAB,&
+            & nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ, getAB,&
             & iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
       end if
 
@@ -1492,7 +1563,7 @@ contains
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z.
-   subroutine getZVectorEqRHS(tRangeSep, xpy, xmy, win, iAtomStart, homo, transChrg, getIA, getIJ,&
+   subroutine getZVectorEqRHS(tRangeSep, xpy, xmy, win, env, denseDesc, homo, transChrg, getIA, getIJ,&
       & getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma,&
       & spinW, omega, sym, rhs, t, wov, woo, wvv)
 
@@ -1508,8 +1579,11 @@ contains
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
 
-    !> index vector for S and H matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
@@ -1667,19 +1741,19 @@ contains
 
     ! xpyq = Q * xpy
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
 
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
       ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
       if (sym == "S") then
         call hemv(gamxpyq, gammaMat,  xpyq)
         do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else ! triplet case
         do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
         end do
       end if
@@ -1687,7 +1761,7 @@ contains
     else  ! ---- spin-polarized case -----
 
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
 
       call hemv(gamxpyq, gammaMat,  xpyq)
       do s = 1, 2
@@ -1697,7 +1771,7 @@ contains
           fact = -1.0_dp
         end if
         do ab = 1, nxvv(s)
-          qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, s) = sum(qTr * gamxpyq)
           !magnetization part
           qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -1727,14 +1801,14 @@ contains
       if (sym == "S") then
         do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
           ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
           qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else
         do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
           qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
         end do
       end if
@@ -1749,7 +1823,7 @@ contains
         end if
         do ij = 1, nxoo(s)
           qgamxpyq(ij, s) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
           qgamxpyq(ij, s) = sum(qTr * gamxpyq)
           !magnetization part
           qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -1791,7 +1865,7 @@ contains
       do ij = 1, nxoo(s)
         i = getIJ(ij + soo(s), 1)
         j = getIJ(ij + soo(s), 2)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qTr(:)
           if (tSpin) then
@@ -1810,7 +1884,7 @@ contains
       do ab = 1, nxvv(s)
         a = getAB(ab + svv(s), 1)
         b = getAB(ab + svv(s), 2)
-        qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qTr(:)
           if (tSpin) then
@@ -1832,10 +1906,10 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     if (.not. tSpin) then
-      call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhs)
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhs)
     else
-      call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhs)
-      call transChrg%qVecMatDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhs)
+      call transChrg%qVecMatDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, &
            & -2.0_dp*gamxpyqds*spinW(species0), rhs)
     end if
 
@@ -1847,7 +1921,7 @@ contains
         fact = -1.0_dp
       end if
       do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
         if (.not. tSpin) then
           woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qTr * gamqt)
         else
@@ -1867,20 +1941,20 @@ contains
       allocate(vecHovT(nxov))
       allocate(vecHooT(sum(nxoo)))
 
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHvvXpY)
+      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, env,&
+          & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHvvXpY)
 
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHvvXmY)
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, env,&
+          & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHvvXmY)
 
-      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHooXpY)
+      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env,&
+          & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHooXpY)
 
-      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHooXmY)
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env,&
+          & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHooXmY)
 
-      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
-        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
+      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win, env,&
+        & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
       do ias = 1, nxov
 
@@ -1913,8 +1987,8 @@ contains
 
       end do
 
-      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart, &
-       & ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
+      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, &
+       & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
       !! woo should be made 1D
       do s = 1, nSpin
@@ -1933,7 +2007,7 @@ contains
 
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
   subroutine solveZVectorPrecond(rhs, tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud,&
-      & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, iAtomStart, ovrXev, grndEigVecs, &
+      & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, env, denseDesc, ovrXev, grndEigVecs,&
       & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, lrGamma)
 
     !> on entry -R, on exit Z
@@ -1981,8 +2055,11 @@ contains
     !> number of atoms
     integer, intent(in) :: natom
 
-    !> starting position of each atom in the list of orbitals.
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> overlap times eigenvector. (nOrb, nOrb)
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -2033,7 +2110,7 @@ contains
     ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     allocate(P(nxov))
     do ia = 1, nxov
-      qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      qTr = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call hemv(qTmp, gammaMat, qTr)
       if (.not. tSpin) then
         rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
@@ -2048,10 +2125,10 @@ contains
         rs = rs - cExchange * dot_product(qTr, qTmp)
         call indXov(win, ia, getIA, i, a, s)
         iis = iaTrans(i, i, s)
-        qTr = transChrg%qTransIJ(iis, iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qTr = transChrg%qTransIJ(iis, env, denseDesc, ovrXev, grndEigVecs, getIJ)
         call hemv(qTmp, lrGamma, qTr)
         aas = iaTrans(a, a, s)
-        qTr = transChrg%qTransAB(aas, iAtomStart, ovrXev, grndEigVecs, getAB)
+        qTr = transChrg%qTransAB(aas, env, denseDesc, ovrXev, grndEigVecs, getAB)
         rs = rs - cExchange * dot_product(qTr, qTmp)
       end if
 
@@ -2066,10 +2143,15 @@ contains
 
     ! action of matrix on vector
     ! we need the singlet action even for triplet excitations!
-    call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-      & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+#:if WITH_SCALAPACK    
+    call actionAplusB_Blacs(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+      & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
       & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)
-
+#:else     
+    call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+      & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)    
+#:endif 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
     pkm1(:) = zkm1
@@ -2077,11 +2159,16 @@ contains
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
     do kk = 1, nxov**2
 
-      ! action of matrix on vector
-      call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-         & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+       ! action of matrix on vector
+#:if WITH_SCALAPACK         
+      call actionAplusB_Blacs(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+         & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
          & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)
-
+#:else        
+      call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+         & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
+         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)
+#:endif
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
@@ -2119,7 +2206,7 @@ contains
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
-  subroutine calcWvectorZ(zz, win, homo, getIA, getIJ, getAB, iaTrans, iAtomStart, ovrXev,&
+  subroutine calcWvectorZ(zz, win, homo, getIA, getIJ, getAB, iaTrans, env, denseDesc, ovrXev,&
       & grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, spinW,&
       & tRangeSep, lrGamma)
 
@@ -2144,8 +2231,11 @@ contains
     !> array from pairs of single particles states to compound index
     integer, intent(in) :: iaTrans(:,:,:)
 
-    !> index array for S and H0 ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -2223,12 +2313,12 @@ contains
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
     zq(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, zz, zq)
+    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zq)
     call hemv(gamxpyq, gammaMat, zq)
 
     if (tSpin) then
       zqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, zz, zqds)
+      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zqds)
     end if
 
     ! sum_iAt1 qTr(iAt1) gamxpyq(iAt1)
@@ -2239,7 +2329,7 @@ contains
         fact = -1.0_dp
       end if
       do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
         ! W contains 1/2 for i == j.
         if (.not. tSpin) then
           woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qTr * gamxpyq)
@@ -2254,7 +2344,7 @@ contains
 
       allocate(vecHooZ(sum(nxoo)))
       call getHooXY(1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zz, vecHooZ)
+      & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, zz, vecHooZ)
 
       !! woo should be made 1D
       do s = 1, nSpin
@@ -2338,11 +2428,14 @@ contains
 
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
-  subroutine getExcMulliken(iAtomStart, pc, s, dqex)
+  subroutine getExcMulliken(env, denseDesc, pc, s, dqex)
 
-    !> indexing array for atoms
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> density matrix
     real(dp), intent(in) :: pc(:,:)
 
@@ -2360,7 +2453,7 @@ contains
     tmp = sum(pc * s,dim=2)
     dqex(:) = 0.0_dp
     do iAt1 = 1, size(dqex)
-      dqex(iAt1) = sum(tmp(iAtomStart(iAt1):iAtomStart(iAt1 + 1) -1))
+      dqex(iAt1) = sum(tmp(denseDesc%iAtomStart(iAt1):denseDesc%iAtomStart(iAt1 + 1) -1))
     end do
 
   end subroutine getExcMulliken
@@ -2371,7 +2464,7 @@ contains
   !> 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,&
+  subroutine addGradients(sym, nxov, natom, species0, env, denseDesc, norb, homo, getIA,&
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
       & spinW, shift, woo, wov, wvv, transChrg, xpy, xmy, coord0, orb, skHamCont, skOverCont, &
       & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad)
@@ -2388,9 +2481,12 @@ contains
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
-    !> index array for S and H0 ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> number of orbitals for ground state system
     integer, intent(in) :: norb
 
@@ -2598,8 +2694,8 @@ contains
       end do
 
       ! Symmetrize S (can't we get S from caller?)
-      call getSqrS(coord0, nAtom, skOverCont, orb, iAtomStart, species0, overlap)
-      call getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
+      call getSqrS(coord0, nAtom, skOverCont, orb, denseDesc%iAtomStart, species0, overlap)
+      call getSqrGamma(nAtom, lrGamma, denseDesc%iAtomStart, lrGammaOrb)
 
     end if
 
@@ -2613,7 +2709,7 @@ contains
     ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
     ! complexity norb * norb * norb
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
 
     ! complexity norb * norb
     shxpyq(:,:) = 0.0_dp
@@ -2625,7 +2721,7 @@ contains
       end if
     else
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
       do iSpin = 1, nSpin
         call hemv(shxpyq(:,iSpin), gammaMat, xpyq)
         shxpyq(:,iSpin) = shxpyq(:,iSpin) + dsigma(iSpin) * spinW(species0) * xpyqds
@@ -2758,13 +2854,13 @@ contains
 
     ! BA: only for non-periodic systems!
     do iAt1 = 1, nAtom
-      indalpha = iAtomStart(iAt1)
-      indalpha1 = iAtomStart(iAt1 + 1) -1
+      indalpha = denseDesc%iAtomStart(iAt1)
+      indalpha1 = denseDesc%iAtomStart(iAt1 + 1) -1
       iSp1 = species0(iAt1)
 
       do iAt2 = 1, iAt1 - 1
-        indbeta = iAtomStart(iAt2)
-        indbeta1 = iAtomStart(iAt2 + 1) -1
+        indbeta = denseDesc%iAtomStart(iAt2)
+        indbeta1 = denseDesc%iAtomStart(iAt2 + 1) -1
         iSp2 = species0(iAt2)
 
         diffvec = coord0(:,iAt1) - coord0(:,iAt2)
@@ -3308,7 +3404,7 @@ contains
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(ipm, nXvv, homo, nAtom, iaTrans, getIA, getAB, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHvv)
+      & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHvv)
 
     !> sign s of H in H^(s)[V]
     integer, intent(in) :: ipm
@@ -3334,9 +3430,12 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
 
@@ -3372,14 +3471,14 @@ contains
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
         abs = iaTrans(a, b, s)
-        qIJ = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
+        qIJ = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
         qX(:,ias) = qX(:,ias) + qIJ * XorY(ibs)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
-      qIJ = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ(:)
     end do
@@ -3403,7 +3502,7 @@ contains
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied orbitals and V is either X+Y or X-Y
   subroutine getHooXY(ipm, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHoo)
+      & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHoo)
 
     !> sign s of H in H^(s)[V]
     integer, intent(in) :: ipm
@@ -3429,9 +3528,12 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
 
@@ -3467,7 +3569,7 @@ contains
       do j = 1, homo(s)
         jas = iaTrans(j, a, s)
         ijs = iaTrans(i, j, s)
-        qIJ = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
         qX(:,ias) = qX(:,ias) + qIJ * XorY(jas)
       end do
     end do
@@ -3475,7 +3577,7 @@ contains
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
-      qIJ = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ
     end do
@@ -3499,7 +3601,7 @@ contains
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p is an occupied MO and q is a virtual one, T is the relaxed difference density
   subroutine getHovT(nXoo, nXvv, homo, nAtom, iaTrans, getIA, getIJ, getAB, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
+      & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
     !> number of occ-occ transitions per spin channel
     integer, intent(in) :: nXoo(:)
@@ -3528,8 +3630,11 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -3566,14 +3671,14 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
-        qIJ = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(a,b,s)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do abs = 1, sum(nXvv)
-      qIJ = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
+      qIJ = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,abs) = gqIJ
     end do
@@ -3593,7 +3698,7 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do j = 1, homo(s)
         jas = iaTrans(j, a, s)
-        qIJ = transChrg%qTransIA(jas, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(i,j,s)
       end do
     end do
@@ -3603,7 +3708,7 @@ contains
       i = getIJ(ijs, 1)
       j = getIJ(ijs, 2)
       s = getIJ(ijs, 3)
-      qIJ = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+      qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ijs) = gqIJ
     end do
@@ -3623,7 +3728,7 @@ contains
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied MO, T is the relaxed difference density
   subroutine getHooT(nXov, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
+      & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
     !> number of occ-vir transitions per spin channel
     integer, intent(in) :: nXov
@@ -3649,8 +3754,11 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> overlap times ground state eigenvectors
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -3689,14 +3797,14 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
-        qIJ = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(a,b,s)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
-      qIJ = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ
     end do
@@ -3717,7 +3825,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ijs = 1, sum(nXoo)
-      qIJ = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+      qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ijs) = gqIJ(:)
     end do
@@ -3731,7 +3839,7 @@ contains
       do i = 1, homo(iSpin)
         do k = 1, homo(iSpin)
           iks = iaTrans(i, k, iSpin)
-          qIJ = transChrg%qTransIJ(iks, iAtomStart, ovrXev, grndEigVecs, getIJ)
+          qIJ = transChrg%qTransIJ(iks, env, denseDesc, ovrXev, grndEigVecs, getIJ)
           do j = 1, homo(iSpin)
             qXa(:,i,j) = qXa(:,i,j) + qIJ * t(j,k,iSpin)
           end do
@@ -3846,8 +3954,8 @@ contains
   !> See TCA 140 34 (2020) and JCP 132 044107 (2010)
   !> Actually omega * W is computed
   !> TODO: Spin-polarized systems 
-  subroutine grndToExcDensityMatrices(tRangeSep, xpy, xmy, win, iAtomStart, homo, transChrg,      & 
-      & getIA, getIJ, getAB, iaTrans, nAtom, species0, grndEigVal, ovrXev, grndEigVecs, frGamma,  &
+  subroutine grndToExcDensityMatrices(tRangeSep, xpy, xmy, win, env, denseDesc, homo, transChrg,& 
+      & getIA, getIJ, getAB, iaTrans, nAtom, species0, grndEigVal, ovrXev, grndEigVecs, frGamma,&
       & lrGamma, spinW, omega, sym, pc, wov, woo)
 
     !> is calculation range-separated?
@@ -3861,9 +3969,12 @@ contains
 
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
+    
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
-    !> index vector for S and H matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
@@ -3964,7 +4075,7 @@ contains
       pc(a,i,s) = 0.5_dp * p(ias)
     end do
     
-    call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart,&
+    call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo=vecHoo)
 
     do s = 1, nSpin
@@ -3978,7 +4089,7 @@ contains
     end do
 
     if (tRangeSep) then
-      call getHooXY(1, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win, iAtomStart,&
+      call getHooXY(1, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win, env, denseDesc,&
        & ovrXev, grndEigVecs, lrGamma, transChrg, p, vecHoo)
       do s = 1, nSpin
         do ij = 1, nXoo(s)
@@ -4007,7 +4118,7 @@ contains
   !> do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
   !> Furche PCCP 21 18999 (2019)
   !> Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed. 
-  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, iAtomStart, homo,& 
+  subroutine getNadiaZvectorEqRHS(tRangeSep, xpyn, xmyn, xpym, xmym, win, env, denseDesc, homo,& 
       & transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs,&
       &  gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
 
@@ -4029,8 +4140,11 @@ contains
     !> index array for single particle transitions
     integer, intent(in) :: win(:)
 
-    !> index vector for S and H matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> highest occupied level
     integer, intent(in) :: homo(:)
@@ -4208,8 +4322,8 @@ contains
     end do
 
     ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0,&
-      & ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHoo=vecHooXorY,&
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, env, denseDesc, &
+      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpyn, vecHoo=vecHooXorY,&
       & vecHvv=vecHvvXorY)
 
     do ias = 1, nxov
@@ -4242,8 +4356,8 @@ contains
     end do
 
     ! Now m <-> n
-    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, species0,&
-      & ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHoo=vecHooXorY,&
+    call getHplusXYfr(sym, nxoo, nxvv, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
+      & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, xpym, vecHoo=vecHooXorY,&
       & vecHvv=vecHvvXorY)
 
     do ias = 1, nxov
@@ -4280,13 +4394,13 @@ contains
     allocate(vecHvvT(sum(nxvv)))
 
     !!> -RHS^+ += - H^+_ia[T^+]
-    call getHplusMfr(3, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, iAtomStart,&
+    call getHplusMfr(3, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHovT)
 
     rhs = rhs - vecHovT
 
     !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
-    call getHplusMfr(1, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, iAtomStart,&
+    call getHplusMfr(1, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       &  species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHooT)
 
     do s = 1, nSpin
@@ -4304,16 +4418,16 @@ contains
       allocate(vecHooXmY(sum(nxoo)))
 
       !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
 
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
 
-      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY)
 
-      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
 
       do ias = 1, nxov
@@ -4350,16 +4464,16 @@ contains
       !!> Now n <-> m 
 
       !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpym, vecHvvXpY)
 
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xmym, vecHvvXmY)
 
-      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpym, vecHooXpY)
 
-      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xmym, vecHooXmY)
 
       do ias = 1, nxov
@@ -4395,12 +4509,12 @@ contains
 
       !!> -RHS^+ += - H^+_ia[T^+]
       call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
-        & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
+        & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
       rhs = rhs - cExchange * vecHovT
 
       !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
-      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, denseDesc,&
        & ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
       do s = 1, nSpin
@@ -4461,7 +4575,7 @@ contains
 
 
   !> Calculation of nacv using gradient routine
-  subroutine addNadiaGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,       &
+  subroutine addNadiaGradients(sym, nxov, natom, species0, env, denseDesc, norb, homo, getIA,       &
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU,   &
       & spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym, xmym, coord0, orb, skHamCont, &
       & skOverCont, derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, nacv)
@@ -4478,9 +4592,12 @@ contains
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
-    !> index array for S and H0 ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> number of orbitals for ground state system
     integer, intent(in) :: norb
 
@@ -4703,8 +4820,8 @@ contains
       end do
 
       ! Symmetrize S (can't we get S from caller?)
-      call getSqrS(coord0, nAtom, skOverCont, orb, iAtomStart, species0, overlap)
-      call getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
+      call getSqrS(coord0, nAtom, skOverCont, orb, denseDesc%iAtomStart, species0, overlap)
+      call getSqrGamma(nAtom, lrGamma, denseDesc%iAtomStart, lrGammaOrb)
 
     end if
 
@@ -4719,7 +4836,7 @@ contains
     ! complexity norb * norb * norb
     xpyq = 0.0_dp
     do iState = 1, 2
-      call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win,&
+      call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win,&
            & xpy(:,iState), xpyq(:,iState))
       
       ! complexity norb * norb
@@ -4731,7 +4848,7 @@ contains
           shxpyq(:,1,iState) = xpyq(:,iState) * spinW(species0)
         end if
       else
-        call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win,&
+        call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win,&
              & xpy(:,iState), xpyqds(:,iState))
         do iSpin = 1, nSpin
           call hemv(shxpyq(:,iSpin,iState), gammaMat, xpyq(:,iState))
@@ -4871,13 +4988,13 @@ contains
 
     ! BA: only for non-periodic systems!
     do iAt1 = 1, nAtom
-      indalpha = iAtomStart(iAt1)
-      indalpha1 = iAtomStart(iAt1 + 1) -1
+      indalpha = denseDesc%iAtomStart(iAt1)
+      indalpha1 = denseDesc%iAtomStart(iAt1 + 1) -1
       iSp1 = species0(iAt1)
 
       do iAt2 = 1, iAt1 - 1
-        indbeta = iAtomStart(iAt2)
-        indbeta1 = iAtomStart(iAt2 + 1) -1
+        indbeta = denseDesc%iAtomStart(iAt2)
+        indbeta1 = denseDesc%iAtomStart(iAt2 + 1) -1
         iSp2 = species0(iAt2)
 
         diffvec = coord0(:,iAt1) - coord0(:,iAt2)
@@ -5075,7 +5192,7 @@ contains
   !> Here p/q are both virtual or both occupied orbitals and V is either X+Y or X-Y
   !> Note: The full range part of H^- is zero! 
   !> Note: This routine is specific for X+Y, for other quantities factors of 2 arise
-  subroutine getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+  subroutine getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, env, denseDesc, &
       & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, XorY, vecHoo, vecHvv)
 
     !> symmetry of the transition
@@ -5102,8 +5219,11 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
 
     !> central cell chemical species
     integer, intent(in) :: species0(:)
@@ -5153,7 +5273,7 @@ contains
     end if 
 
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
+    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
 
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
       ! vecHvv(ab) = sum_jc K_ab,jc (X+Y)_jc
@@ -5161,13 +5281,13 @@ contains
         call hemv(gamxpyq, frGamma,  xpyq)
         if(present(vecHvv)) then
           do ab = 1, nXvv(1)
-            qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
           end do
         end if
         if(present(vecHoo)) then
           do ij = 1, nXoo(1)
-            qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
             ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
             vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
           end do
@@ -5175,13 +5295,13 @@ contains
       else ! triplet case
         if(present(vecHvv)) then
           do ab = 1, nXvv(1)
-            qTr(:) = transChrg%qTransAB(ab, iAtomStart, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
           end do
         end if
         if(present(vecHoo)) then
           do ij = 1, nXoo(1)
-            qTr(:) = transChrg%qTransIJ(ij, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
             vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
           end do
         end if
@@ -5192,7 +5312,7 @@ contains
       allocate(xpyqds(nAtom))
       allocate(gamxpyqds(nAtom))
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(iAtomStart, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
+      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
 
       call hemv(gamxpyq, frGamma,  xpyq)
       do s = 1, 2
@@ -5204,7 +5324,7 @@ contains
         if(present(vecHvv)) then
           do ab = 1, nXvv(s)
             abs = ab + svv(s)
-            qTr(:) = transChrg%qTransAB(abs, iAtomStart, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(abs) = sum(qTr * gamxpyq)
             !magnetization part
             vecHvv(abs) = vecHvv(abs) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -5213,7 +5333,7 @@ contains
         if(present(vecHoo)) then
           do ij = 1, nXoo(s)
             ijs = ij + soo(s)
-            qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
             vecHoo(ijs) = sum(qTr * gamxpyq)
             !magnetization part
             vecHoo(ijs) = vecHoo(ijs) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -5232,7 +5352,7 @@ contains
   !> iMode = 3: returns ov components of H
   !> Note: The full range part of H^- is zero! 
   !> Routine currently does not work for M_ia /= 0 on entry!
-  subroutine getHplusMfr(iMode, nXoo, nXvv, nXov, nAtom, getIA, getIJ, getAB, win, iAtomStart, &
+  subroutine getHplusMfr(iMode, nXoo, nXvv, nXov, nAtom, getIA, getIJ, getAB, win, env, denseDesc, &
       & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, matM, vecH)
 
     !> type of return vector (oo, vv, ov)
@@ -5262,9 +5382,12 @@ contains
     !> index array for single particle excitations
     integer, intent(in) :: win(:)
 
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+    
     !> central cell chemical species
     integer, intent(in) :: species0(:)
 
@@ -5327,7 +5450,7 @@ contains
       do ij = 1, nxoo(s)
         i = getIJ(ij + soo(s), 1)
         j = getIJ(ij + soo(s), 2)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + matM(i,j,s) * qTr(:)
           if (tSpin) then
@@ -5345,7 +5468,7 @@ contains
       do ab = 1, nxvv(s)
         a = getAB(ab + svv(s), 1)
         b = getAB(ab + svv(s), 2)
-        qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + matM(a,b,s) * qTr(:)
           if (tSpin) then
@@ -5368,7 +5491,7 @@ contains
       i = getIA(ias, 1)
       a = getIA(ias, 2)
       s = getIA(ias, 3)
-      qTr(:) = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+      qTr(:) = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       gamxpyq(:) = gamxpyq(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:)
       if (tSpin) then
          gamxpyqds(:) = gamxpyqds(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:) * spinFactor(s)
@@ -5383,7 +5506,7 @@ contains
         do ij = 1, nxoo(s)
           i = getIJ(ij + soo(s), 1)
           j = getIJ(ij + soo(s), 2)
-          qTr(:) = transChrg%qTransIJ(ij + soo(s), iAtomStart, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
           if (.not. tSpin) then
             vecH(ij + soo(s)) = 4.0_dp * dot_product(gamqt,qTr)
           else 
@@ -5398,7 +5521,7 @@ contains
         do ab = 1, nxvv(s)
           a = getAB(ab + svv(s), 1)
           b = getAB(ab + svv(s), 2)
-          qTr(:) = transChrg%qTransAB(ab + svv(s), iAtomStart, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
           if (.not. tSpin) then
             vecH(ab + svv(s)) = 4.0_dp * dot_product(gamqt,qTr)
           else 
@@ -5413,7 +5536,7 @@ contains
         i = getIA(ias, 1)
         a = getIA(ias, 2)
         s = getIA(ias, 3)
-        qTr(:) = transChrg%qTransIA(ias, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+        qTr(:) = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
         if (.not. tSpin) then
            vecH(ias) = 4.0_dp * dot_product(gamqt,qTr)
         else 

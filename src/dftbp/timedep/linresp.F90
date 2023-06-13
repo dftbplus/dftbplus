@@ -30,6 +30,7 @@ module dftbp_timedep_linresp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private
@@ -241,10 +242,13 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
+  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
       & taggedWriter, rangeSep, excEnergy, allExcEnergies)
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
 
@@ -309,7 +313,7 @@ contains
 
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
-      call LinRespGrad_old(this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+      call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
           & rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
@@ -320,19 +324,22 @@ contains
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
-  subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
+  subroutine LinResp_addGradients(env, tSpin, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
       & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
     !> data for the actual calculation
     type(TLinResp), intent(inout) :: this
 
-    !> indexing array for ground state square matrices
-    integer, intent(in) :: iAtomStart(:)
+    !> Indexing array for dense H and S
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> ground state eigenvectors
     real(dp), intent(in) :: eigVec(:,:,:)
@@ -420,12 +427,12 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       if (allocated(occNatural)) then
-        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
             & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
             & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
-        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
             & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
             & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr)
