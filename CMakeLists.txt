@@ -127,6 +127,11 @@ endif()
 if(WITH_MAGMA)
   find_package(CustomMagma REQUIRED)
   list(APPEND PKG_CONFIG_REQUIRES magma)
+  if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DADD_ -Dmagma_devptr_t=\"integer(kind=8)\" -fpp")
+  elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -DADD_ -Dmagma_devptr_t=\"integer(kind=8)\" -cpp")
+  endif()
 endif()
 
 

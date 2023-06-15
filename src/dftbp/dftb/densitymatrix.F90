@@ -23,14 +23,23 @@ module dftbp_dftb_densitymatrix
   use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptran,&
       & pblasfx_ptranc
 #:endif
+
+#:if WITH_MAGMA
+  use magma
+#:endif
+
   implicit none
 
   private
   public :: makeDensityMatrix
+
 #:if WITH_SCALAPACK
   public :: makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
 #:endif
 
+#:if WITH_MAGMA
+  public :: makeDensityMtxRealGPU, makeDensityMtxCmplxGPU
+#:endif
 
   !> Provides an interface to calculate the two types of dm - regular and
   !> weighted and put them into packed storage
@@ -445,5 +454,277 @@ contains
   end subroutine makeDensityMtxCplxBlacs
 
 #:endif
+
+
+#:if WITH_MAGMA
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!  MAGMA GPU routines    !!!!!                                                   
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !> Make a regular density matrix for the real wave-function case in the GPU
+  !> Note: In order to save memory, the eigenvectors (which should be intent(in) parameters) are
+  !> overwritten and then restored again
+  subroutine makeDensityMtxRealGPU(dm, eigenvecs, filling)
+
+    !> the resulting nOrb*nOrb density matrix
+    real(dp), intent(out) :: dm(:,:)
+
+    !> the eigenvectors of the system
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> the occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    integer :: ii, nLevels
+    real(dp) :: shift
+
+    !> GPU specific variables
+    character :: uplo
+    character :: trans
+    integer :: n 
+    integer :: k 
+    real(dp) :: alpha 
+    integer :: ldda 
+    real(dp) :: beta 
+    integer :: lddc 
+    integer :: device =0
+    integer :: info
+    magma_devptr_t :: queue
+    magma_devptr_t :: dC ! dm
+    magma_devptr_t :: dA ! eigenvecs
+
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs, dim=1) == size(eigenvecs, dim=2))
+    @:ASSERT(size(eigenvecs, dim=1) == size(filling))
+
+    !Declare starting values 
+    dm(:,:) = 0.0_dp
+
+    uplo = 'L'
+    trans = 'N'
+    n = size(dm, dim=2)
+    k = size(eigenvecs, dim=2)
+    alpha = 1.0_dp
+    beta = 0.0_dp
+    lddc = size(dm, dim=1)
+    ldda = size(eigenvecs, dim=1)
+
+    !Allocate GPU memory
+    info = magmaf_dmalloc(dA, ldda*k)
+    info = magmaf_dmalloc(dC, lddc*n)
+
+    call magmaf_queue_create(0, queue)
+
+    do ii = size(filling), 1, -1
+      nLevels = ii 
+      if (abs(filling(ii)) >= epsilon(1.0_dp)) then
+        exit
+      end if
+    end do
+
+    shift = minval(filling(1:nLevels))
+
+    if (shift > epsilon(1.0_dp)) then 
+      !All fillings are definitely positive
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = sqrt(filling(ii)) * eigenvecs(:,ii)
+      end do
+      !$OMP  END PARALLEL DO
+
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_dsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
+      end do
+      !$OMP  END PARALLEL DO
+
+    else
+
+      !shift matrix so that filling operations are positive
+      
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_dsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      shift = shift - arbitraryConstant
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = sqrt(filling(ii)-shift) * eigenvecs(:,ii)
+      end do
+      !$OMP  END PARALLEL DO
+
+      call magmaf_dsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+
+      call magmaf_dsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii)-shift)
+      end do
+      !$OMP  END PARALLEL DO
+
+    end if
+
+    !Get dC (density matrix)
+    call magmaf_dgetmatrix( n, n, dC, lddc, dm, lddc, queue )
+
+    !Free GPU memory
+    info = magmaf_free( dA )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dA ) failed, info = ', info
+        stop
+    endif
+
+    info = magmaf_free( dC )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dC ) failed, info = ', info
+        stop
+    endif
+
+    call magmaf_queue_destroy( queue );
+
+  end subroutine makeDensityMtxRealGPU
+
+
+  !> Make a regular density matrix for the complex wave-function case in the GPU
+  !> Note: In order to save memory, the eigenvectors (which should be intent(in) parameters) are
+  !> overwritten and then restored again
+  subroutine makeDensityMtxCmplxGPU(dm, eigenvecs, filling)
+
+    !> the resulting nOrb*nOrb density matrix
+    complex(dp), intent(out) :: dm(:,:)
+
+    !> the eigenvectors of the system
+    complex(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> the occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    integer :: ii, nLevels
+    real(dp) :: shift
+
+    !> GPU specific variables
+    character :: uplo
+    character :: trans
+    integer :: n 
+    integer :: k 
+    complex(dp) :: alpha 
+    integer :: ldda 
+    complex(dp) :: beta 
+    integer :: lddc 
+    integer :: device =0
+    integer :: info
+    magma_devptr_t :: queue
+    magma_devptr_t :: dC ! dm
+    magma_devptr_t :: dA ! eigenvecs
+
+    @:ASSERT(all(shape(eigenvecs) == shape(dm)))
+    @:ASSERT(size(eigenvecs, dim=1) == size(eigenvecs, dim=2))
+    @:ASSERT(size(eigenvecs, dim=1) == size(filling))
+
+    !Declare starting values 
+    dm(:,:) = cmplx(0.0_dp, 0.0_dp, dp)
+
+    uplo = 'L'
+    trans = 'N'
+    n = size(dm, dim=2)
+    k = size(eigenvecs, dim=2)
+    alpha = 1.0_dp
+    beta = 0.0_dp
+    lddc = size(dm, dim=1)
+    ldda = size(eigenvecs, dim=1)
+
+    !Allocate GPU memory
+    info = magmaf_zmalloc(dA, ldda*k)
+    info = magmaf_zmalloc(dC, lddc*n)
+
+    call magmaf_queue_create(0, queue)
+
+    do ii = size(filling), 1, -1
+      nLevels = ii 
+      if (abs(filling(ii)) >= epsilon(1.0_dp)) then
+        exit
+      end if
+    end do
+
+    shift = minval(filling(1:nLevels))
+
+    if (shift > epsilon(1.0_dp)) then 
+      !All fillings are definitely positive
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = sqrt(filling(ii)) * eigenvecs(:,ii)
+      end do
+      !$OMP  END PARALLEL DO
+
+      call magmaf_zsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_zsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+
+      call magmaf_zsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
+      end do
+      !$OMP  END PARALLEL DO
+
+    else
+
+      !shift matrix so that filling operations are positive
+      
+      call magmaf_zsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+      call magmaf_zsetmatrix( n, n, dm, lddc, dC, lddc, queue )
+
+      call magmaf_zsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      shift = shift - arbitraryConstant
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = sqrt(filling(ii)-shift) * eigenvecs(:,ii)
+      end do
+      !$OMP  END PARALLEL DO
+
+      call magmaf_zsetmatrix( n, nLevels, eigenvecs(:, 1:nLevels), ldda, dA, ldda, queue )
+
+      call magmaf_zsyrk( uplo, trans, n, nLevels, alpha, dA, ldda, beta, dC, lddc, queue )
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
+      do ii = 1, nLevels
+        eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii)-shift)
+      end do
+      !$OMP  END PARALLEL DO
+
+    end if
+
+    !Get dC (density matrix)
+    call magmaf_zgetmatrix( n, n, dC, lddc, dm, lddc, queue )
+
+    !Free GPU memory
+    info = magmaf_free( dA )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dA ) failed, info = ', info
+        stop
+    endif
+
+    info = magmaf_free( dC )
+    if (info .ne. 0) then
+        print *, 'Error: magmaf_free( dC ) failed, info = ', info
+        stop
+    endif
+
+    call magmaf_queue_destroy( queue );
+
+  end subroutine makeDensityMtxCmplxGPU
+
+#:endif
+
 
 end module dftbp_dftb_densitymatrix
