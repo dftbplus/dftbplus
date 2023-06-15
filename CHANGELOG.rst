@@ -15,6 +15,7 @@ Added
 
 - Hellmann-Feynman testing for the xTB hamiltonian dipoles
 
+- Real-valued Density Matrix construction on GPU using MAGMA-BLAS routines
 
 Changed
 -------
