@@ -398,7 +398,9 @@ Hamiltonian = DFTB {
   MaxAngularMomentum = {
     Si = "p"
   }
-  Eigensolver = MAGMA {}
+  Eigensolver = MAGMA {
+    DensityMatrixGPU = Yes
+  }
   Filling = Fermi {
     Temperature [Kelvin] = 0.000000000000000E+000
   }

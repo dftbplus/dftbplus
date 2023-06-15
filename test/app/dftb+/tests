@@ -72,6 +72,8 @@ chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
 non-scc/Si_384_GPU                     #? WITH_MAGMA
 scc/SiC_512_GPU                        #? WITH_MAGMA
+solvers/SiC64+V_GPU_MP                 #? WITH_MAGMA
+solvers/SiC64+V_GPU_MP_k               #? WITH_MAGMA
 
 xtb/gfn1_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1

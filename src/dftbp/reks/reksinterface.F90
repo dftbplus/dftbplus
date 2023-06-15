@@ -22,6 +22,7 @@ module dftbp_reks_reksinterface
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
@@ -135,7 +136,7 @@ module dftbp_reks_reksinterface
   !> get the energy-related properties; unrelaxed density matrix,
   !> dipole integral, transition dipole, oscillator strength
   subroutine getReksEnProperties(env, denseDesc, neighbourList, nNeighbourSK,&
-      & img2CentCell, iSparseStart, eigenvecs, coord0, this)
+      & img2CentCell, iSparseStart, eigenvecs, coord0, this, densityMatrix, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -163,6 +164,12 @@ module dftbp_reks_reksinterface
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
+
+    !> Holds density matrix settings and pointers
+    type(TDensityMatrix), intent(inout) :: densityMatrix
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
 
     real(dp), allocatable :: rhoL(:,:)
     real(dp), allocatable :: dipoleInt(:,:,:)
@@ -213,7 +220,8 @@ module dftbp_reks_reksinterface
       call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
           & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
-          & this%unrelRhoSqr, this%unrelTdm)
+          & this%unrelRhoSqr, this%unrelTdm, densityMatrix, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       if (this%tTDP) then
         call getDipoleIntegral(coord0, this%overSqr, this%getAtomIndex, dipoleInt)

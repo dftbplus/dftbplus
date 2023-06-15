@@ -664,9 +664,10 @@ contains
           & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
           & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
           & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%hybridXc,&
-          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
-          & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
-          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, errStatus)
+          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%densityMatrix,&
+          & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf,&
+          & main%Ef, main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec,&
+          & main%species, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
