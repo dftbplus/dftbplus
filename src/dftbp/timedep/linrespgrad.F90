@@ -224,6 +224,7 @@ contains
         &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
     call blacs_pinfo(iam, nprocs)
+    print *,'entering grad',iam
 
     if (withArpack) then
 
@@ -421,18 +422,16 @@ contains
       call pblasfx_psymm(SSqr, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr,&
            & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
     end do
-   
+    call sccCalc%getAtomicGammaMatrixBlacs(gammaMat, iNeighbour, img2CentCell, env)
+    
   #:else
     
     do iSpin = 1, nSpin
       call symm(ovrXev(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
+    call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
    
   #:endif
-    
-    ! ground state Hubbard U softened coulombic interactions
-    !!call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
-    read(12,*) gammaMat
 
     ! Oscillator strengths for exited states, when needed.
     allocate(osz(this%nExc))
@@ -568,7 +567,6 @@ contains
     write(fdExc%unit, '(1x,80("="))')
     write(fdExc%unit, *)
 
-    print *,'Before spe exc'
     ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
     ! size(wij), but now for just states that are actually included in the excitation calculation.
     call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd,&
@@ -592,14 +590,12 @@ contains
       sym = symmetries(isym)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
-        print *,'Do it arpack'
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements,&
             & orb, tRangeSep, tZVector)
       case (linrespSolverTypes%stratmann)
-        print *,'Do it stratmann'
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
             & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
@@ -977,19 +973,18 @@ contains
     logical, intent(in) :: tZVector
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
-    real(dp) :: sigma, omega
+    real(dp) :: sigma, omega, tt1,tt2
     integer :: iparam(11), ipntr(11)
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
     logical :: rvec
-    integer :: nexc, natom
+    integer :: nexc, natom,ii,iam,nProcs
 
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
-    print *,'Enetering build'
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
@@ -1043,11 +1038,18 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-#:if WITH_SCALAPACK     
+#:if WITH_SCALAPACK
+      ! call blacs_pinfo(iam, nProcs)
+      ! if(iam==0) CALL CPU_TIME(tt1)
+      ! do ii = 1,100
       call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
           & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+      ! enddo
+      ! if(iam==0) CALL CPU_TIME(tt2)
+      ! if(iam==0)print *,'Elapsed time', tt2-tt1
+      
 #:else
        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&

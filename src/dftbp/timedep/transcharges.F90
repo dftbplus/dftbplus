@@ -14,7 +14,7 @@ module dftbp_timedep_transcharges
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, scalafx_infog2l
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_barrier
   implicit none
 
   private
@@ -122,6 +122,8 @@ contains
     integer, intent(in) :: win(:)
 
     integer :: ia, ij, ii, jj, kk, ab, aa, bb
+    integer :: ss, mm, desc(DLEN_), iLoc, aLoc, mLoc, rSrc, cSrc, iErr
+    real(dp), allocatable :: aIbJ(:,:), aJbI(:,:)
     logical :: updwn
 
     this%nTransitions = nTrans
@@ -135,6 +137,50 @@ contains
       @:ASSERT(.not.allocated(this%qCacheOccVir))
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
 
+   #:if WITH_SCALAPACK
+      desc(:) = denseDesc%blacsOrbSqr
+      allocate(aIbJ(desc(M_), nTrans), source=1.0_dp)
+      allocate(aJbI(desc(M_), nTrans), source=1.0_dp)
+
+      do ia = 1, nTrans
+        kk = win(ia)
+        ii = getia(kk,1)
+        aa = getia(kk,2)
+        
+        if(kk <= this%nMatUp) then
+          ss = 1
+        else
+          ss = 2
+        endif
+          
+        do mm = 1, desc(M_)
+          call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
+          if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+            aIbJ(mm, ia) = aIbJ(mm, ia) * grndEigVecs(mLoc, iLoc, ss)
+            aJbI(mm, ia) = aJbI(mm, ia) * sTimesGrndEigVecs(mLoc, iLoc, ss)
+          end if
+          call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, aa, mLoc, aLoc, rSrc, cSrc)
+          if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+            aIbJ(mm, ia) = aIbJ(mm, ia) * sTimesGrndEigVecs(mLoc,aLoc,ss)
+            aJbI(mm, ia) = aJbI(mm, ia) * grndEigVecs(mLoc, aLoc, ss)
+          endif
+        end do
+      end do
+   
+      ! I think, this shold be actually the group communicator mpiGroupComm
+      ! For the moment, we should ensure, that only one group is used, and later check carefully...
+      call mpifx_allreduceip(env%mpi%globalComm, aIbJ, MPI_PROD)
+      call mpifx_allreduceip(env%mpi%globalComm, aJbI, MPI_PROD)
+      do ia = 1, nTrans
+        do kk = 1, this%nAtom
+          aa = denseDesc%iAtomStart(kk)
+          bb = denseDesc%iAtomStart(kk + 1) -1
+          this%qCacheOccVir(kk, ia) =  0.5_dp * sum(aIbJ(aa:bb, ia) + aJbI(aa:bb, ia))      
+        end do
+      end do
+      
+   #:else
+
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
       do ia = 1, nTrans
         kk = win(ia)
@@ -146,6 +192,8 @@ contains
       end do
       !!$OMP  END PARALLEL DO
 
+   #:endif
+      
     else
 
       this%tCacheChargesOccVir = .false.
@@ -321,7 +369,7 @@ contains
 
 
   !> Transition charges left produced with a vector Q * v
-  !> Reminder: Check when dimension of qProduct can be larger than this%nTransitions
+  !> qProduct has dimension nAtom
   subroutine TTransCharges_qMatVec(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
@@ -356,36 +404,35 @@ contains
     integer, intent(in), optional :: indexOffSet
 
     real(dp), allocatable :: qij(:)
-    integer :: ii, jj, ij, kk, iOff, iInd, fInd
+    integer :: ii, jj, ij, kk, iOff, iGlb, fGlb
     logical :: updwn
 
+    ! RPA vectors are distributed for MPI: size(vector) < nOcc*nVir
     if (present(indexOffSet)) then
       iOff = indexOffSet
     else
       iOff = 0
     end if
-    iInd = iOff + 1
-    fInd = iOff + size(qProduct) 
+    iGlb = iOff + 1
+    fGlb = iOff + size(vector)
 
     if (this%tCacheChargesOccVir) then
 
-      qProduct(:) = qProduct + matmul(this%qCacheOccVir(:,iInd:fInd), vector)
+      qProduct(:) = qProduct + matmul(this%qCacheOccVir(:,iGlb:fGlb), vector)
 
     else
-
+      
       allocate(qij(this%nAtom))
 
-      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
-      !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
-      do ij = 1, size(qProduct) 
+      do ij = 1, size(vector)
         kk = win(iOff+ij)
         ii = getia(kk,1)
         jj = getia(kk,2)
+        
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(:) = qProduct + qij * vector(ij)
       end do
-      !!$OMP  END PARALLEL DO
 
       deallocate(qij)
 
@@ -395,6 +442,7 @@ contains
 
 
   !> Transition charges right produced with a vector v * Q
+  !> qProduct has dimension nOcc*nVir
   subroutine TTransCharges_qVecMat(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
@@ -429,25 +477,25 @@ contains
     integer, intent(in), optional :: indexOffSet
 
     real(dp), allocatable :: qij(:)
-    integer :: ii, jj, ij, kk, iOff, iInd, fInd
+    integer :: ii, jj, ij, kk, iOff, iGlb, fGlb
     logical :: updwn
 
+    ! RPA vectors are distributed for MPI: size(vector) < nOcc*nVir
     if (present(indexOffSet)) then
       iOff = indexOffSet
     else
       iOff = 0
     end if
-    iInd = iOff + 1
-    fInd = iOff + size(qProduct)
+    iGlb = iOff + 1
+    fGlb = iOff + size(qProduct)
     
     if (this%tCacheChargesOccVir) then
 
-      qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir(:,iInd:fInd))
+      qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir(:,iGlb:fGlb))
 
     else
-
+      
       allocate(qij(this%nAtom))
-
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
       !!$OMP& SCHEDULE(RUNTIME)
       do ij = 1, size(qProduct)
@@ -623,7 +671,8 @@ contains
 
    #:if WITH_SCALAPACK
     ! BLACS matrix descriptor
-    integer :: desc(DLEN_), iLoc, jLoc, mLoc, rSrc, cSrc, ierr
+    integer iam, nProcs
+    integer :: desc(DLEN_), iLoc, jLoc, mLoc, rSrc, cSrc, iErr
     real(dp), allocatable :: aIbJ(:), aJbI(:)
 
     desc(:) = denseDesc%blacsOrbSqr
@@ -635,23 +684,23 @@ contains
     end if
 
     ! Dimension of qTmp is nOrb also for MPI 
-  #:if WITH_SCALAPACK
+   #:if WITH_SCALAPACK
     
     allocate(qTmp(desc(M_)))
     allocate(aIbJ(desc(M_)), source=1.0_dp)
     allocate(aJbI(desc(M_)), source=1.0_dp)
-    
+
     do mm = 1, desc(M_)
       call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
       if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
         aIbJ(mm) = aIbJ(mm) * grndEigVecs(mLoc, iLoc, ss)
         aJbI(mm) = aJbI(mm) * sTimesGrndEigVecs(mLoc, iLoc, ss)
-     end if
-     call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, jj, mLoc, jLoc, rSrc, cSrc)
-     if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
-       aIbJ(mm) = aIbJ(mm) * sTimesGrndEigVecs(mLoc,jLoc,ss)
-       aJbI(mm) = aJbI(mm) * grndEigVecs(mLoc, jLoc, ss)
-     endif
+      end if
+      call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, jj, mLoc, jLoc, rSrc, cSrc)
+      if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+        aIbJ(mm) = aIbJ(mm) * sTimesGrndEigVecs(mLoc,jLoc,ss)
+        aJbI(mm) = aJbI(mm) * grndEigVecs(mLoc, jLoc, ss)
+      endif
    end do
    
    ! I think, this shold be actually the group communicator mpiGroupComm

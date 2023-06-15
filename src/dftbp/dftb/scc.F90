@@ -9,6 +9,7 @@
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_dftb_scc
+  use mpi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
@@ -22,6 +23,8 @@ module dftbp_dftb_scc
   use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_extlibs_scalapackfx, only : DLEN_, M_, N_, scalafx_infog2l
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
   implicit none
 
   private
@@ -151,6 +154,9 @@ module dftbp_dftb_scc
 
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
+
+     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+    procedure :: getAtomicGammaMatrixBlacs   
 
     !> Routine for returning lower triangle of atomic resolved gamma for specified U values
     procedure :: getAtomicGammaMatU
@@ -526,19 +532,60 @@ contains
     !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
+    integer :: iam, nprocs
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
+    
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
+    
   #:endif
-
+    
     gammamat(:,:) = this%coulomb%invRMat
     call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
   end subroutine getAtomicGammaMatrix
 
+  
+  subroutine getAtomicGammaMatrixBlacs(this, gammamat, iNeighbour, img2CentCell, env)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atom resolved gamma
+    real(dp), intent(out) :: gammamat(:,:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> index array between images and central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
+
+    gammamat(:,:) = 0.0_dp
+    do ii = 1, this%coulomb%descInvRMat_(M_)
+      do jj = 1, this%coulomb%descInvRMat_(N_)
+        call scalafx_infog2l(env%blacs%atomGrid, this%coulomb%descInvRMat_, ii, jj, iLoc, jLoc, rSrc, cSrc)
+        if(env%blacs%atomGrid%myrow == rSrc .and. env%blacs%atomGrid%mycol == cSrc) then
+          gammamat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
+        endif
+      enddo
+    enddo
+    call mpifx_allreduceip(env%mpi%globalComm, gammamat, MPI_SUM)
+    call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
+
+  end subroutine getAtomicGammaMatrixBlacs
 
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
   !>
