@@ -10,15 +10,13 @@
 program dftbplus
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
+  use dftbp_common_release, only : releaseName, releaseYear
   use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : runDftbPlus
   use dftbp_io_formatout, only : printDftbHeader
   implicit none
-
-  character(len=*), parameter :: releaseName = '${RELEASE}$'
-  integer, parameter :: releaseYear = 2023
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input

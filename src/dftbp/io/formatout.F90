@@ -350,13 +350,13 @@ contains
   end subroutine writeXYZFormat_fid
 
 
-  !> Writes the greeting message of dftb+ on stdout
-  subroutine printDFTBHeader(release, year)
+  !> Writes the greeting message of dftb+ code(s) on stdout
+  subroutine printDFTBHeader(text, year)
 
-    !> release version of the code
-    character(len=*), intent(in) :: release
+    !> Additional text to print next to project name
+    character(len=*), intent(in) :: text
 
-    !> release year
+    !> Release year
     integer, intent(in) :: year
 
     character, parameter :: verticalBar = '|'
@@ -364,7 +364,7 @@ contains
     integer, parameter :: headerWidth = 80
 
     write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
-    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
+    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(text)
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
         & '  DFTB+ developers group'
