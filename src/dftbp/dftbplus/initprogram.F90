@@ -417,6 +417,9 @@ module dftbp_dftbplus_initprogram
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer :: nSpin
 
+    !> Nr. of independent spin cases to diagonalise/solve independently (nSpin {1,4}:1, 2:2)
+    integer :: nIndepSpin
+
     !> Is there spin-orbit coupling
     logical :: tSpinOrbit
 
@@ -1273,9 +1276,6 @@ contains
     !> Flag to check for first cycle through a loop
     logical :: tFirst
 
-    !> Nr. of Hamiltonians to diagonalise independently
-    integer :: nIndepHam
-
     real(dp) :: rTmp
 
     !> Flag if some files do exist or not
@@ -1347,7 +1347,7 @@ contains
       ! unrestricted spin polarisation
       this%nSpin = 2
     end if
-    nIndepHam = this%nSpin
+    this%nIndepSpin = this%nSpin
 
     this%tSpinSharedEf = input%ctrl%tSpinSharedEf
     this%tSpinOrbit = input%ctrl%tSpinOrbit
@@ -1360,7 +1360,7 @@ contains
 
     if (this%t2Component) then
       this%nSpin = 4
-      nIndepHam = 1
+      this%nIndepSpin = 1
     end if
 
     if (this%nSpin /= 2 .and. this%tSpinSharedEf) then
@@ -1460,12 +1460,12 @@ contains
     end if
 
   #:if WITH_MPI
-    if (input%ctrl%parallelOpts%nGroup > nIndepHam * this%nKPoint&
+    if (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint&
         & .and. (.not. (this%isHybridXc .and. (.not. this%tRealHS)))) then
       write(stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins and/or&
           & k-points"
       write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
-          & input%ctrl%parallelOpts%nGroup, nIndepHam * this%nKPoint
+          & input%ctrl%parallelOpts%nGroup, this%nIndepSpin * this%nKPoint
       call error(trim(tmpStr))
     end if
 
@@ -1492,7 +1492,7 @@ contains
       call error(errStatus%message)
     end if
   #:endif
-    call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
+    call TParallelKS_init(this%parallelKS, env, this%nKPoint, this%nIndepSpin)
 
     this%sccTol = input%ctrl%sccTol
     this%tShowFoldedCoord = input%ctrl%tShowFoldedCoord
@@ -1619,7 +1619,7 @@ contains
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
-        & nIndepHam, this%tempElec)
+        & this%nIndepSpin, this%tempElec)
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
@@ -1940,15 +1940,15 @@ contains
     if (this%electronicSolver%isElsiSolver) then
       @:ASSERT(this%parallelKS%nLocalKS == 1)
 
-      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * this%nKPoint) then
+      if (input%ctrl%parallelOpts%nGroup /= this%nIndepSpin * this%nKPoint) then
         if (this%nSpin == 2) then
           write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
-              & combinations. There are ", nIndepHam * this%nKPoint, " spin times k-point&
+              & combinations. There are ", this%nIndepSpin * this%nKPoint, " spin times k-point&
               & combinations and ", input%ctrl%parallelOpts%nGroup, " groups"
         else
           write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as k-points. There&
-              & are ", nIndepHam * this%nKPoint, " k-points and ", input%ctrl%parallelOpts%nGroup,&
-              & " groups"
+              & are ", this%nIndepSpin * this%nKPoint, " k-points and ",&
+              & input%ctrl%parallelOpts%nGroup, " groups"
         end if
         call error(tmpStr)
       end if
@@ -2424,7 +2424,7 @@ contains
         this%polarisability(:,:,:) = 0.0_dp
         if (input%ctrl%tWriteBandDat) then
           ! only one frequency at the moment if dynamic!
-          allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+          allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, this%nIndepSpin, 3))
           this%dEidE(:,:,:,:) = 0.0_dp
         end if
         ! only one frequency at the moment if dynamic!
@@ -2732,7 +2732,7 @@ contains
       nLocalCols = this%denseDesc%fullSize
     #:endif
 
-      ! allocation is nessecary to hint "initializeCharges" what information to extract
+      ! allocation is necessary to hint "initializeCharges" what information to extract
       call this%reallocateHybridXc(nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
     end if
 
@@ -2786,7 +2786,7 @@ contains
           & gSummationCutoff=this%cutOff%gSummationCutoff,&
           & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
           & latVecs=input%geom%latVecs)
-      ! now all information are present to properly allocate density matrices and associate pointers
+      ! now all information is present to properly allocate density matrices and associate pointers
       call this%reallocateHybridXc(nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
       if (this%tRealHS) then
@@ -2878,7 +2878,7 @@ contains
           & this%tPeriodic, this%tStress, this%tDipole)
     end if
 
-    call this%initDetArrays()
+    call this%initDetArrays(nLocalRows, nLocalCols)
     call this%initArrays(env, input)
 
   #:if WITH_TRANSPORT
@@ -5079,11 +5079,13 @@ contains
 
 
   !> Initialize storage for multi-determinantal calculations
-  subroutine initDetArrays(this)
+  subroutine initDetArrays(this, nLocalRows, nLocalCols)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols
 
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
@@ -5096,7 +5098,7 @@ contains
         this%qBlockDets(:,:,:,:,:) = 0.0_dp
       end if
       if (this%isHybridXc) then
-        allocate(this%deltaRhoDets(this%nOrb, this%nOrb, this%nSpin, this%nDets))
+        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets))
         this%deltaRhoDets(:,:,:,:) = 0.0_dp
       end if
     end if
@@ -5354,7 +5356,7 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5366,7 +5368,7 @@ contains
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
 
     !> Number of indepdent hamiltonian matrices at a given k-value
-    integer, intent(in) :: nIndepHam
+    integer, intent(in) :: nIndepSpin
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
@@ -5389,7 +5391,7 @@ contains
 
     nKPoint = size(kPoints, dim=2)
     if (withMpi) then
-      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepSpin * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
       end if
@@ -5979,12 +5981,12 @@ contains
       if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
         allocate(this%densityMatrix%deltaRhoInCplxHS(this%nOrb, this%nOrb,&
             & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
-            & this%supercellFoldingDiag(3), this%nSpin))
+            & this%supercellFoldingDiag(3), this%nIndepSpin))
         this%densityMatrix%deltaRhoInCplxHS(:,:,:,:,:,:) = 0.0_dp
       end if
         allocate(this%densityMatrix%deltaRhoOutCplxHS(this%nOrb, this%nOrb,&
             & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
-            & this%supercellFoldingDiag(3), this%nSpin))
+            & this%supercellFoldingDiag(3), this%nIndepSpin))
         this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
     end if
 
