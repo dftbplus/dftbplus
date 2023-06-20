@@ -5871,9 +5871,7 @@ contains
           call error("XLBOMD does not work with external charges yet!")
         else
           if (allocated(tblite)) then
-            if (boundaryConds%iBoundaryCondition == boundaryConditions%cluster) then
-
-            else
+            if (boundaryConds%iBoundaryCondition /= boundaryConditions%cluster) then
               call error("xTB periodic external charges not implemented yet.")
             end if
           else
@@ -5906,10 +5904,20 @@ contains
       end if
 
       if (isExtField) then
-        do iAt = 1, nAtom
-          derivs(:, iAt) = derivs(:, iAt)&
-              & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
-        end do
+
+        if (allocated(tblite)) then
+          if (allocated(potential%dipoleAtom)) then
+            do iAt = 1, nAtom
+              derivs(:, iAt) = derivs(:, iAt)&
+                  & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extDipoleAtom(:, iAt)
+            end do
+          end if
+        else
+          do iAt = 1, nAtom
+            derivs(:, iAt) = derivs(:, iAt)&
+                & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
+          end do
+        end if
       end if
 
     end if
