@@ -191,7 +191,9 @@ contains
     integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
     !TN
-    integer :: iam, nprocs
+    integer :: iam, nprocs, w1, w2
+    real(16) :: cr
+    real(dp) :: c1, c2
     character :: sym
     character(lc) :: tmpStr
 
@@ -511,9 +513,19 @@ contains
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
     end if
 
+    call SYSTEM_CLOCK(count_rate=cr)
+    call CPU_TIME(c1)
+    call SYSTEM_CLOCK(w1)
     call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov_rd,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
         & this%tCacheChargesSame)
+    call CPU_TIME(c2)
+    call SYSTEM_CLOCK(w2)
+    if(iam==0) then 
+      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
+      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
+    end if 
+    stop
     
 !!$    allocate(qTr(this%nAtom))
 !!$ 
