@@ -1,0 +1,19 @@
+name: Documentation
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build-manual:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/islandoftex/images/texlive:TL2023-2023-06-18-full
+    steps:
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+      - name: Build DFTB+ manual
+        run: make -C doc/dftb+/manual
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: DFTB+ Manual
+          path: doc/dftb+/manual/manual.pdf
