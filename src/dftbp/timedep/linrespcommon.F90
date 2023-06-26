@@ -1758,8 +1758,8 @@ contains
 
   !> Calculate transition moments for transitions between Kohn-Sham states, including spin-flipping
   !> transitions
-  subroutine calcTransitionDipoles(coord0, win, nmatup, getIA, env, denseDesc, ovrXev, grndEigVecs,&
-      & snglPartTransDip)
+  subroutine calcTransitionDipoles(coord0, win, nmatup, getIA, transChrg, env, denseDesc, ovrXev, &
+      & grndEigVecs, snglPartTransDip)
 
     !> Atomic positions
     real(dp), intent(in) :: coord0(:,:)
@@ -1778,6 +1778,9 @@ contains
 
     !> index array for excitation pairs
     integer, intent(in) :: getIA(:,:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
 
     !> overlap times ground state wavefunctions
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -1800,9 +1803,7 @@ contains
 
     ! Calculate transition dipole elements
     do indm = 1, nxov
-      call indxov(win, indm, getIA, ii, jj, ss)
-      updwn = (win(indm) <= nmatup)
-      qij(:) = transq(ii, jj, env, denseDesc, updwn, ovrXev, grndEigVecs)
+      qij(:) = transChrg%qTransIA(indm, env, denseDesc, ovrXev, grndEigVecs, getIA, win) 
       snglPartTransDip(indm, :) = matmul(coord0, qij)
     end do
 

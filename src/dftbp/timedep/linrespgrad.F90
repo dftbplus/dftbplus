@@ -191,9 +191,9 @@ contains
     integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
     !TN
-    integer :: iam, nprocs, w1, w2
+    integer :: iam, nprocs, w1, w2, w3, w4
     real(16) :: cr
-    real(dp) :: c1, c2
+    real(dp) :: c1, c2, c3, c4
     character :: sym
     character(lc) :: tmpStr
 
@@ -224,9 +224,6 @@ contains
         &    msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,&
         &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
         &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
-
-    call blacs_pinfo(iam, nprocs)
-    print *,'entering grad',iam
 
     if (withArpack) then
 
@@ -420,6 +417,7 @@ contains
     ! this could be used everywhere in these routines)
   #:if WITH_SCALAPACK
 
+    call blacs_pinfo(iam, nprocs)
     do iSpin = 1, nSpin
       call pblasfx_psymm(SSqr, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr,&
            & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
@@ -457,9 +455,46 @@ contains
     ! Build square root of occupation difference between virtual and occupied states
     call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, this%tSpin, sqrOccIA)
 
+    ! set up transition indexing
+    allocate(iatrans(norb, norb, nSpin))
+    call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
+    
+    call SYSTEM_CLOCK(count_rate=cr)
+    call CPU_TIME(c1)
+    call SYSTEM_CLOCK(w1)
+!!$    print *,'tot',nxov
+    call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov,&
+        & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, iatrans, win, &
+        & this%tCacheChargesOccVir, this%tCacheChargesSame)
+    call CPU_TIME(c2)
+    call SYSTEM_CLOCK(w2)
+    if(iam==0) then 
+      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
+      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
+    end if 
+!!$ 
+    
+!!$    allocate(qTr(this%nAtom))
+!!$ 
+!!$    do i = 1, nxov_ud(1)
+!!$        qTr(:) = transChrg%qTransIA(i, env, denseDesc, ovrXev, grndEigVecs, getIA, win)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) write(*,'(2x,a,x,i5,2x,f10.6,2x,f10.6,2x,f10.6)') 'IA',i, qTr(1:3)
+!!$    enddo
+!!$    do i = 1, nxoo_ud(1)
+!!$        qTr(:) = transChrg%qTransIJ(i, env, denseDesc, ovrXev, grndEigVecs, getIJ)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) print *,'IJ',i, qTr(1:3)
+!!$    enddo
+!!$    do i = 1, nxvv_ud(1)
+!!$        qTr(:) = transChrg%qTransAB(i, env, denseDesc, ovrXev, grndEigVecs, getAB)   
+!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
+!!$        if(iam == 0) print *,'AB',i, qTr(1:3)
+!!$    enddo        
+!!$    stop
     ! dipole strength of transitions between K-S states
-    call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, env, denseDesc, ovrXev, grndEigVecs,&
-        & snglPartTransDip)
+    call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, transChrg, env, denseDesc, ovrXev, &
+        & grndEigVecs, snglPartTransDip)
 
     ! single particle excitation oscillator strengths
     sposz(:) = twothird * wij(:) * sum(snglPartTransDip**2, dim=2)
@@ -511,39 +546,7 @@ contains
       nxov_rd = max(nxov_rd,min(this%nExc+1,nxov))
     else
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
-    end if
-
-    call SYSTEM_CLOCK(count_rate=cr)
-    call CPU_TIME(c1)
-    call SYSTEM_CLOCK(w1)
-    call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov_rd,&
-        & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
-        & this%tCacheChargesSame)
-    call CPU_TIME(c2)
-    call SYSTEM_CLOCK(w2)
-    if(iam==0) then 
-      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
-      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
     end if 
-    stop
-    
-!!$    allocate(qTr(this%nAtom))
-!!$ 
-!!$    do i = 1, nxov_ud(1)
-!!$        qTr(:) = transChrg%qTransIA(i, env, denseDesc, ovrXev, grndEigVecs, getIA, win)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) print *,'IA',i, qTr(1:3)
-!!$    enddo
-!!$    do i = 1, nxoo_ud(1)
-!!$        qTr(:) = transChrg%qTransIJ(i, env, denseDesc, ovrXev, grndEigVecs, getIJ)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) print *,'IJ',i, qTr(1:3)
-!!$    enddo
-!!$    do i = 1, nxvv_ud(1)
-!!$        qTr(:) = transChrg%qTransAB(i, env, denseDesc, ovrXev, grndEigVecs, getAB)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) print *,'AB',i, qTr(1:3)
-!!$    enddo     
  
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
@@ -589,9 +592,9 @@ contains
       allocate(xmy(nxov_rd, this%nExc))
     end if
 
-    ! set up transition indexing
-    allocate(iatrans(norb, norb, nSpin))
-    call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
+    ! ! set up transition indexing
+    ! allocate(iatrans(norb, norb, nSpin))
+    ! call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
 
     if (this%iLinRespSolver /= linrespSolverTypes%stratmann .and. tRangeSep) then
       call error("Range separation requires the Stratmann solver for excitations")
@@ -602,11 +605,20 @@ contains
       sym = symmetries(isym)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
+        call SYSTEM_CLOCK(count_rate=cr)
+        call CPU_TIME(c3)
+        call SYSTEM_CLOCK(w3)
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements,&
             & orb, tRangeSep, tZVector)
+        call CPU_TIME(c4)
+        call SYSTEM_CLOCK(w4)
+        if(iam==0) then 
+          write(*,'(2x,a,f20.16)') 'BD wall clock   : ', (w4 - w3)/cr
+          write(*,'(2x,a,f20.16)') 'BD cpu_time     : ', (c4-c3)
+        end if
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
@@ -997,6 +1009,15 @@ contains
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
+    integer :: w(50), wAr, wDi
+    real(16) :: cr
+    real(dp) :: c(50), cAr, cDi   
+    call SYSTEM_CLOCK(count_rate=cr)
+    call blacs_pinfo(iam, nprocs)
+    wAr = 0
+    wDi = 0
+    cAr = 0
+    cDi = 0
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
@@ -1033,9 +1054,15 @@ contains
     ! loop until exit
     do
 
+      call CPU_TIME(c(1))
+      call SYSTEM_CLOCK(w(1))    
       ! call the reverse communication interface from arpack
       call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr,&
           & workd, workl, lworkl, info)
+      call CPU_TIME(c(2))
+      call SYSTEM_CLOCK(w(2))
+      wAr = wAr + w(2)-w(1)
+      cAr = cAr + c(2)-c(1)
 
       if (ido == 99) then
         ! has terminated normally, exit loop
@@ -1051,24 +1078,32 @@ contains
 
       ! Action of excitation supermatrix on supervector
 #:if WITH_SCALAPACK
-      ! call blacs_pinfo(iam, nProcs)
-      ! if(iam==0) CALL CPU_TIME(tt1)
-      ! do ii = 1,100
+      call CPU_TIME(c(3))
+      call SYSTEM_CLOCK(w(3))    
       call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
           & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
-      ! enddo
-      ! if(iam==0) CALL CPU_TIME(tt2)
-      ! if(iam==0)print *,'Elapsed time', tt2-tt1
-      
+      call CPU_TIME(c(4))
+      call SYSTEM_CLOCK(w(4))
+      wDi = wDi + w(4)-w(3)
+      cDi = cDi + c(4)-c(3)
 #:else
        call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
           & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)     
 #:endif      
-    end do
+     end do
+    if(iam==0) then 
+      write(*,'(2x,a,f20.16)') 'Ar wall clock   : ', wAr/cr
+      write(*,'(2x,a,f20.16)') 'Ar cpu_time     : ', cAr
+      write(*,'(2x,a,f20.16)') 'Di wall clock   : ', wDi/cr
+      write(*,'(2x,a,f20.16)') 'Di cpu_time     : ', cDi      
+    end if
+
+    call CPU_TIME(c(5))
+    call SYSTEM_CLOCK(w(5))
 
     ! check returned info flag for errors
     if (info < 0) then
@@ -1138,6 +1173,13 @@ contains
         xmy(:nxov_rd,iState) = xpy(:nxov_rd,iState) * omega / wij(:nxov_rd)
       end if
     end do
+
+    call CPU_TIME(c(6))
+    call SYSTEM_CLOCK(w(6))
+    if(iam==0) then 
+      write(*,'(2x,a,f20.16)') 'Rest wall clock   : ', (w(6) - w(5))/cr
+      write(*,'(2x,a,f20.16)') 'Rest cpu_time     : ', (c(6)-c(5))
+    end if     
 
   end subroutine buildAndDiagExcMatrixArpack
 

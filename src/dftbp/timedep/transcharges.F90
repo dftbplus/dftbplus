@@ -13,8 +13,10 @@ module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_extlibs_scalapackfx, only : DLEN_, M_, scalafx_infog2l
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_barrier
+  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_io_message, only : error
+  use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
   implicit none
 
   private
@@ -72,7 +74,7 @@ contains
 
   !> initialise the cache/on-the fly transition charge evaluator
   subroutine TTransCharges_init(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
-      & nXooUD, nXvvUD, getia, getij, getab, win, tStoreOccVir, tStoreSame)
+      & nXooUD, nXvvUD, getia, getij, getab, iatrans, win, tStoreOccVir, tStoreSame)
 
     !> Instance
     type(TTransCharges), intent(out) :: this
@@ -117,13 +119,18 @@ contains
 
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getab(:,:)
+    
+    !> array from pairs of single particles states to compound index 
+    integer, intent(in) :: iatrans(:,:,:)
 
     !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    integer :: ia, ij, ii, jj, kk, ab, aa, bb
-    integer :: ss, mm, desc(DLEN_), iLoc, aLoc, mLoc, rSrc, cSrc, iErr
-    real(dp), allocatable :: aIbJ(:,:), aJbI(:,:)
+    integer :: ia, ij, ii, jj, kk, ab, aa, bb, iam, nProc, iSpin, iAtom, nSpin
+    integer :: ss, mm, desc(DLEN_), iLoc, aLoc, mLoc, iGlb, aGlb, mGlb, jLoc, jGlb, nOrbs
+    integer :: nLocRow, nLocCol
+     real(dp) :: rSum
+    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:,:)
     logical :: updwn
 
     this%nTransitions = nTrans
@@ -131,54 +138,132 @@ contains
     this%nMatUp = nMatUp
     this%nMatUpOccOcc = nXooUD(1)
     this%nMatUpVirVir = nXvvUD(1)
+    nSpin = size(grndEigVecs, dim=3)
+    nOrbs = size(iatrans, dim=1)
 
     if (tStoreOccVir) then
 
       @:ASSERT(.not.allocated(this%qCacheOccVir))
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
 
-   #:if WITH_SCALAPACK
+    #:if WITH_SCALAPACK
+      call blacs_pinfo(iam, nProc)
       desc(:) = denseDesc%blacsOrbSqr
-      allocate(aIbJ(desc(M_), nTrans), source=1.0_dp)
-      allocate(aJbI(desc(M_), nTrans), source=1.0_dp)
+      allocate(workGlobal(nOrbs,nOrbs,nSpin))
+      nLocRow = size(grndEigVecs,dim=1)
+      nLocCol = size(grndEigVecs,dim=2)
+      allocate(workLocal(nLocRow,nLocCol))
+      allocate(maskMat(nLocRow,nLocCol))
 
-      do ia = 1, nTrans
-        kk = win(ia)
-        ii = getia(kk,1)
-        aa = getia(kk,2)
-        
-        if(kk <= this%nMatUp) then
-          ss = 1
-        else
-          ss = 2
-        endif
+      do iSpin = 1, nSpin
+        do iAtom = 1, this%nAtom
+          workGlobal = 0.0_dp
+          workLocal = 0.0_dp
+          maskMat = 0.0_dp
+          do mLoc = 1, size(grndEigVecs, dim=1)
+            mGlb = scalafx_indxl2g(mLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
+                & env%blacs%orbitalGrid%nrow)
+            if (mGlb >= denseDesc%iAtomStart(iAtom) .and. mGlb < denseDesc%iAtomStart(iAtom + 1)) then
+              maskMat(mLoc,:) = sTimesGrndEigVecs(mLoc,:,iSpin)
+            end if
+          end do
+          call pblasfx_pgemm(grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr, maskMat, &
+              & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="T")
+          do jLoc = 1, size(grndEigVecs, dim=2)
+             jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
+                 & env%blacs%orbitalGrid%ncol)
+            do iLoc = 1, size(grndEigVecs, dim=1)
+             iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
+                 & env%blacs%orbitalGrid%nrow)
+              workGlobal(iGlb,jGlb,iSpin) =  workLocal(iLoc,jLoc)
+            enddo
+          enddo
+          call mpifx_allreduceip(env%mpi%groupComm, workGlobal, MPI_SUM)
+          do ia = 1, nTrans
+            kk = win(ia)
+            ii = getia(kk,1)
+            aa = getia(kk,2)
+            if(kk <= nMatUp) then
+              this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,1) + workGlobal(aa,ii,1))
+            else
+              this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,2) + workGlobal(aa,ii,2))
+            end if
+          enddo
+        enddo
+      enddo
+                       
+!!$      this%qCacheOccVir = 0.0_dp
+!!$      do ss = 1, size(grndEigVecs, dim=3)
+!!$        do iLoc = 1, size(grndEigVecs, dim=2)
+!!$          iGlb = scalafx_indxl2g(iLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
+!!$              & env%blacs%orbitalGrid%ncol)
+!!$          do aLoc = 1, size(grndEigVecs, dim=2)
+!!$            aGlb = scalafx_indxl2g(aLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
+!!$                & env%blacs%orbitalGrid%ncol)
+!!$            iasGlb = iaTrans(iGlb, aGlb, ss)
+!!$            print *,'the prev',iGlb,aGlb,iasGlb
+!!$            qTmp(:) =  0.5_dp * (grndEigVecs(:,iLoc,ss) * sTimesGrndEigVecs(:,aLoc,ss)&
+!!$                & + grndEigVecs(:,aLoc,ss) * sTimesGrndEigVecs(:,iLoc,ss))
+!!$            do kk = 1, this%nAtom
+!!$              rSum = 0.0_dp
+!!$              do mLoc = 1, size(grndEigVecs, dim=1)
+!!$                mGlb = scalafx_indxl2g(mLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
+!!$                    & env%blacs%orbitalGrid%nrow)
+!!$                if(iasGlb == 1081) then
+!!$                  print *,'indixes',mGlb,mLoc,denseDesc%iAtomStart(kk),denseDesc%iAtomStart(kk + 1)
+!!$                endif
+!!$                if (mGlb >= denseDesc%iAtomStart(kk) .and. mGlb < denseDesc%iAtomStart(kk + 1)) then
+!!$                  rSum = rSum + qTmp(mLoc)
+!!$                end if
+!!$              end do
+!!$              this%qCacheOccVir(kk, iasGlb) = rSum
+!!$            end do
+!!$          end do
+!!$        end do
+!!$      end do
+!!$      call mpifx_allreduceip(env%mpi%groupComm, this%qCacheOccVir, MPI_SUM)
+!!$      print *,'afterwards'
           
-        do mm = 1, desc(M_)
-          call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
-          if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
-            aIbJ(mm, ia) = aIbJ(mm, ia) * grndEigVecs(mLoc, iLoc, ss)
-            aJbI(mm, ia) = aJbI(mm, ia) * sTimesGrndEigVecs(mLoc, iLoc, ss)
-          end if
-          call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, aa, mLoc, aLoc, rSrc, cSrc)
-          if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
-            aIbJ(mm, ia) = aIbJ(mm, ia) * sTimesGrndEigVecs(mLoc,aLoc,ss)
-            aJbI(mm, ia) = aJbI(mm, ia) * grndEigVecs(mLoc, aLoc, ss)
-          endif
-        end do
-      end do
+      ! allocate(aIbJ(desc(M_), nTrans), source=1.0_dp)
+      ! allocate(aJbI(desc(M_), nTrans), source=1.0_dp)
+
+      ! do ia = 1, nTrans
+      !   kk = win(ia)
+      !   ii = getia(kk,1)
+      !   aa = getia(kk,2)
+        
+      !   if(kk <= this%nMatUp) then
+      !     ss = 1
+      !   else
+      !     ss = 2
+      !   endif
+          
+      !   do mm = 1, desc(M_)
+      !     call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
+      !     if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+      !       aIbJ(mm, ia) = aIbJ(mm, ia) * grndEigVecs(mLoc, iLoc, ss)
+      !       aJbI(mm, ia) = aJbI(mm, ia) * sTimesGrndEigVecs(mLoc, iLoc, ss)
+      !     end if
+      !     call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, aa, mLoc, aLoc, rSrc, cSrc)
+      !     if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+      !       aIbJ(mm, ia) = aIbJ(mm, ia) * sTimesGrndEigVecs(mLoc,aLoc,ss)
+      !       aJbI(mm, ia) = aJbI(mm, ia) * grndEigVecs(mLoc, aLoc, ss)
+      !     endif
+      !   end do
+      ! end do
    
-      ! I think, this shold be actually the group communicator mpiGroupComm
-      ! For the moment, we should ensure, that only one group is used, and later check carefully...
-      call mpifx_allreduceip(env%mpi%globalComm, aIbJ, MPI_PROD)
-      call mpifx_allreduceip(env%mpi%globalComm, aJbI, MPI_PROD)
-      do ia = 1, nTrans
-        do kk = 1, this%nAtom
-          aa = denseDesc%iAtomStart(kk)
-          bb = denseDesc%iAtomStart(kk + 1) -1
-          this%qCacheOccVir(kk, ia) =  0.5_dp * sum(aIbJ(aa:bb, ia) + aJbI(aa:bb, ia))      
-        end do
-      end do
-      
+      ! ! I think, this shold be actually the group communicator mpiGroupComm
+      ! ! For the moment, we should ensure, that only one group is used, and later check carefully...
+      ! call mpifx_allreduceip(env%mpi%globalComm, aIbJ, MPI_PROD)
+      ! call mpifx_allreduceip(env%mpi%globalComm, aJbI, MPI_PROD)
+      ! do ia = 1, nTrans
+      !   do kk = 1, this%nAtom
+      !     aa = denseDesc%iAtomStart(kk)
+      !     bb = denseDesc%iAtomStart(kk + 1) -1
+      !     this%qCacheOccVir(kk, ia) =  0.5_dp * sum(aIbJ(aa:bb, ia) + aJbI(aa:bb, ia))      
+      !   end do
+      ! end do
+
    #:else
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
@@ -201,7 +286,6 @@ contains
     end if
 
     if (tStoreSame) then
-
       @:ASSERT(.not.allocated(this%qCacheOccOcc))
       allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
       @:ASSERT(.not.allocated(this%qCacheVirVir))
@@ -669,45 +753,38 @@ contains
     integer :: kk, aa, bb, ss, mm
     real(dp), allocatable :: qTmp(:)
 
-   #:if WITH_SCALAPACK
-    ! BLACS matrix descriptor
-    integer iam, nProcs
-    integer :: desc(DLEN_), iLoc, jLoc, mLoc, rSrc, cSrc, iErr
-    real(dp), allocatable :: aIbJ(:), aJbI(:)
-
-    desc(:) = denseDesc%blacsOrbSqr
-   #:endif
-
     ss = 1
     if (.not. updwn) then
       ss = 2
     end if
 
-    ! Dimension of qTmp is nOrb also for MPI 
-   #:if WITH_SCALAPACK
-    
-    allocate(qTmp(desc(M_)))
-    allocate(aIbJ(desc(M_)), source=1.0_dp)
-    allocate(aJbI(desc(M_)), source=1.0_dp)
+  #:if WITH_SCALAPACK
 
-    do mm = 1, desc(M_)
-      call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
-      if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
-        aIbJ(mm) = aIbJ(mm) * grndEigVecs(mLoc, iLoc, ss)
-        aJbI(mm) = aJbI(mm) * sTimesGrndEigVecs(mLoc, iLoc, ss)
-      end if
-      call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, jj, mLoc, jLoc, rSrc, cSrc)
-      if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
-        aIbJ(mm) = aIbJ(mm) * sTimesGrndEigVecs(mLoc,jLoc,ss)
-        aJbI(mm) = aJbI(mm) * grndEigVecs(mLoc, jLoc, ss)
-      endif
-   end do
+    call error('Direct call to transq not possible with MPI.')
+    
+   ! Dimension of qTmp is nOrb also for MPI 
+   !  allocate(qTmp(desc(M_)))
+   !  allocate(aIbJ(desc(M_)), source=1.0_dp)
+   !  allocate(aJbI(desc(M_)), source=1.0_dp)
+
+   !  do mm = 1, desc(M_)
+   !    call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, ii, mLoc, iLoc, rSrc, cSrc)
+   !    if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+   !      aIbJ(mm) = aIbJ(mm) * grndEigVecs(mLoc, iLoc, ss)
+   !      aJbI(mm) = aJbI(mm) * sTimesGrndEigVecs(mLoc, iLoc, ss)
+   !    end if
+   !    call scalafx_infog2l(env%blacs%orbitalGrid, desc, mm, jj, mLoc, jLoc, rSrc, cSrc)
+   !    if(env%blacs%orbitalGrid%myrow == rSrc .and. env%blacs%orbitalGrid%mycol == cSrc) then
+   !      aIbJ(mm) = aIbJ(mm) * sTimesGrndEigVecs(mLoc,jLoc,ss)
+   !      aJbI(mm) = aJbI(mm) * grndEigVecs(mLoc, jLoc, ss)
+   !    endif
+   ! end do
    
-   ! I think, this shold be actually the group communicator mpiGroupComm
-   ! For the moment, we should ensure, that only one group is used, and later check carefully...
-   call mpifx_allreduceip(env%mpi%globalComm, aIbJ, MPI_PROD)
-   call mpifx_allreduceip(env%mpi%globalComm, aJbI, MPI_PROD)
-   qTmp = aIbJ + aJbI
+   ! ! I think, this shold be actually the group communicator mpiGroupComm
+   ! ! For the moment, we should ensure, that only one group is used, and later check carefully...
+   ! call mpifx_allreduceip(env%mpi%globalComm, aIbJ, MPI_PROD)
+   ! call mpifx_allreduceip(env%mpi%globalComm, aJbI, MPI_PROD)
+   ! qTmp = aIbJ + aJbI
    
    #:else
     
