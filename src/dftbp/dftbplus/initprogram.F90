@@ -17,7 +17,7 @@ module dftbp_dftbplus_initprogram
       & Bohr__nm, Hartree__kJ_mol, Boltzmann
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, setDefaultFileAccess, clearFile
+  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, clearFile
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -84,7 +84,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
   use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
-  use dftbp_geoopt_steepdesc, only : TSteepDesc
+  use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr
   use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -1113,7 +1113,7 @@ module dftbp_dftbplus_initprogram
 
     !> This object encapsulates subroutines and variables that are used for registering and
     !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
-    type(TAPICallback) :: apiCallBack
+    type(TAPICallback), allocatable :: apiCallBack
 
   #:if WITH_SCALAPACK
 
@@ -1188,13 +1188,13 @@ contains
     type(TConjGrad), allocatable :: pConjGrad
 
     !> Steepest descent driver
-    type(TSteepDesc), allocatable :: pSteepDesc
+    type(TSteepDescDepr), allocatable :: pSteepDesc
 
     !> Conjugate gradient driver
     type(TConjGrad), allocatable :: pConjGradLat
 
     !> Steepest descent driver
-    type(TSteepDesc), allocatable :: pSteepDescLat
+    type(TSteepDescDepr), allocatable :: pSteepDescLat
 
     !> Gradient DIIS driver
     type(TDIIS), allocatable :: pDIIS
@@ -1299,8 +1299,14 @@ contains
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
-    call setDefaultFileAccess(input%ctrl%fileAccessTypes(1), input%ctrl%fileAccessTypes(2),&
-        & input%ctrl%fileAccessTypes(2))
+    call setDefaultBinaryAccess(input%ctrl%binaryAccessTypes(1), input%ctrl%binaryAccessTypes(2),&
+        & input%ctrl%binaryAccessTypes(2))
+
+  #:if WITH_API
+    if (input%ctrl%isASICallbackEnabled) then
+      allocate(this%apiCallBack)
+    end if
+  #:endif
 
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
@@ -1631,6 +1637,10 @@ contains
       this%nExtChrg = input%ctrl%nExtChrg
       this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
+
+      if (this%tExtChrg .and. this%hamiltonianType == hamiltonianTypes%xtb) then
+        call error("External charges not currently supported for xTB hamiltonians")
+      end if
 
       ! Longest cut-off including the softening part of gamma
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
@@ -1983,8 +1993,7 @@ contains
 
       allocate(this%filter)
       call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
-      call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(),&
-          & this%geoOpt)
+      call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(), this%geoOpt)
       this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
       allocate(this%displ(this%filter%getDimension()))
@@ -2283,7 +2292,10 @@ contains
       end if
       allocate(this%electrostatPot)
       call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
-          & allocated(this%eField) .or. this%tExtChrg)
+          & allocated(this%eField) .or. this%tExtChrg, this%hamiltonianType, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2433,7 +2445,7 @@ contains
       end if
 
       call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
-          & this%onSiteElements)
+          & this%nSpin, this%onSiteElements)
 
     end if
 
@@ -3759,7 +3771,6 @@ contains
 
 
   !> Create equivalency relations
-  ! Note, this routine should not be called
   subroutine setEquivalencyRelations(this)
 
     !> Instance
@@ -5427,6 +5438,7 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
+
 
   end subroutine ensureLinRespConditions
 

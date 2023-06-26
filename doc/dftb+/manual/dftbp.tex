@@ -458,6 +458,28 @@ Driver = GeometryOptimisation {
 \end{verbatim}
 
 
+\subsubsection{Optimiser: SteepestDescent}
+\label{sec:dftbp.Optimiser.SteepestDescent}
+
+Steepest descent optimiser, that proposes displacements according to the (scaled) gradient value.
+
+\begin{ptable}
+  \kw{ScalingFactor} & r &  & 1.0 & \\
+\end{ptable}
+\begin{description}
+\item[\is{ScalingFactor}]
+  Scaling factor to displace downwards according to the directional derivative.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = SteepestDescent {
+    ScalingFactor = 1.0
+  }
+}
+\end{verbatim}
+
+
 \subsubsection{Convergence}
 \label{sec:dftbp.Convergence}
 
@@ -1327,7 +1349,8 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \label{sec:dftbp.Hamiltonian}
 
 Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Hamiltonians are
-implemented.
+implemented, with an optional interface (ASI) to externally managed
+models.
 
 \subsection{Density Functional based Tight Binding}
 \label{sec:dftbp.DFTB}
@@ -1821,6 +1844,23 @@ Hamiltonian = xTB {
 }
 \end{verbatim}
 
+\subsection{External Hamiltonian models}
+\label{sec:dftbp.ASI}
+
+For \dftbp{} binaries compiled with the API included, the interface to
+Atomic Simulation Interface (ASI~\cite{Stishenko2023}) can be enabled
+inside the \iscb{Hamiltonian} input block:
+
+\begin{ptable}
+  \kw{ASI} & l &  & No & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{ASI}] Allow an external code to read or replace the
+  hamiltonian, overlap or density matrix during the calculation. Note,
+  not all functionality of the code will be available if the interface
+  is active.
+\end{description}
 
 \subsection{Mixer}
 \label{sec:dftbp.Mixer}
@@ -2930,6 +2970,11 @@ The specification for \kw{PointCharges} has the following properties:
     }
   }
 \end{verbatim}
+
+\textbf{Note:} External charges are currently only available for the
+DFTB (section \ref{sec:dftbp.DFTB}) hamiltonian, and not for the xTB
+model (section \ref{sec:dftbp.XTB}).
+
 \end{description}
 
 \subsubsection{External}
@@ -4580,7 +4625,6 @@ Example:
 ForceEvaluation = 'dynamics'
 \end{verbatim}
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Options
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -4605,7 +4649,7 @@ This block collects some global options for the run.
   \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
-  \kw{FileAccessTypes} & s | 2s & & "stream"  & \\
+  \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
 \end{ptable}
 \begin{description}
 
@@ -4708,29 +4752,28 @@ This block collects some global options for the run.
   section~\ref{sec:charges.bin}), the check-sum this option removed the
   requirement that the checksum values in the file match the charges.
 
-\item[\is{FileAccessTypes}\label{sec:dftbp.Options.FileAccessTypes}] Specifies
-  the default file access types. It contains either one string specifying the
-  same access type for both reading and writing files, or two strings specifying
-  the access type separately for reading and writing. Each value must be either
-  \is{"sequential"} or \is{"stream"}. The default is \is{"stream"} for both
-  actions. It only affects the I/O of binary files.
+\item[\is{BinaryAccessTypes}\label{sec:dftbp.Options.BinaryAccessTypes}]
+  Specifies the default access format for binary (non-human-readable) files. It
+  contains either one string specifying the same type for both reading and
+  writing those files, or two strings separately specifying the types for
+  reading and writing. Each value must be either \is{"stream"} or
+  \is{"sequential"}. The default is \is{"stream"} for both actions.
 
-  Starting with version 23.1, \dftbp{} consistently uses stream-I/O in order to
-  procude binary files (e.g.\ \verb|eigenvec.bin|, \verb|charges.bin|, etc.),
-  which can be processed by programs written in other languages (Python, C). In
-  earlier versions most binary files were written using sequential I/O, which
-  were not transferable between languages or even between Fortran compilers. You
-  can read in or write out files in this old format by setting the appropriate
-  action to \is{"sequential"}.
+  Starting with version 23.1, \dftbp{} consistently uses stream-I/O for binary
+  files in order to produce files (e.g.\ \verb|eigenvec.bin|,
+  \verb|charges.bin|, etc.), which can be processed by programs written in other
+  languages (Python, C). In earlier versions most binary files were written
+  using sequential I/O, which were not transferable between languages or even
+  between Fortran compilers. You can read in or write out files in this old
+  format by setting the appropriate action to \is{"sequential"}.
 
   Example:
 \begin{verbatim}
   # Use old sequential I/O for input and output of binary files
-  FileAccessTypes = "sequential"
+  BinaryAccessTypes = "sequential"
 
   # Use the old format when reading and the new format when writing binary files
-  FileAccessTypes = "sequential"  "stream"
-
+  BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
 
@@ -5151,6 +5194,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
+    \kw{StateCouplings}         & 2i & \is{CalculateForces} = Yes & - & \\
   \end{ptable}
 
   \begin{description}
@@ -5244,6 +5288,15 @@ available for range separated calculations.
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
 
+  \item[\is{StateCouplings}] Evaluates non-adiabatic coupling vectors
+    between specified many-body states of your system. This keyword
+    requires two values, $m$ and $n$, with $m < n$ and state 0 being
+    defined as the ground state. The couplings are computed according
+    to the method described
+    in~\cite{niehaus2021ground,niehaus2023exact}.\\ Example:
+    \is{Couplings = \{0 2\}} would generate the the couplings between
+    states $0\to 1$, $0\to 2$ and $1\to 2$. The results are written to
+    the file NACV.DAT (See p.~\pref{subsec:nacv.dat}).
   \end{description}
 
   \subsubsection{Diagonaliser / Diagonalizer}
@@ -6456,6 +6509,22 @@ to excited states.
 Decomposition of the transition from the ground state to the excited states. The
 energy and spin symmetry are given together with the contributions from each of
 the single particle transitions.
+
+\subsection{NACV.DAT}
+\label{subsec:nacv.dat}
+\index{NACV.DAT}
+
+Contains the TD-(LC)-DFTB non-adiabatic coupling vectors between
+many-body states, $$d^\xi_{mn} = \mel{\Psi_m}{\dv{\xi}}{\Psi_n}.$$
+The file is written as blocks, one for each requested electronic
+transition combination.
+
+Each block starts with the indices of the two states being coupled,
+$m$ and $n$ (counting from 0 for the ground state), then the coupling
+vector in atomic units. Each line contains the coupling contribution
+associated with the three Cartesian displacements an atom in the
+geometry (combined index $\xi$), with one atom per line and ordered as
+in the geometry.
 
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}

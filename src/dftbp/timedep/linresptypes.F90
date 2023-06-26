@@ -65,6 +65,9 @@ module dftbp_timedep_linresptypes
     !> symmetry required singlet ('S'), triplet ("T") or both ("B")
     character :: symmetry
 
+    !> Is the ground state spin polarized
+    logical :: tSpin
+
     !> ground state spin constants for each species
     real(dp), allocatable :: spinW(:)
 
@@ -73,6 +76,12 @@ module dftbp_timedep_linresptypes
 
     !> whether X+Y data should be written
     logical :: writeXplusY = .false.
+
+    !> Should non-adiabatic couplings be computed?
+    logical :: tNaCoupling = .false.
+
+    !> Initial and final state for non-adiabatic coupling evaluation
+    integer :: indNACouplings(2)
 
     !> whether coefficients for the excited states should be written to disc
     logical :: writeCoeffs = .false.

@@ -13,10 +13,12 @@ module dftbp_geoopt_package
   use dftbp_geoopt_lbfgs2, only : TLbfgsInput, TLbfgs, TLbfgs_init
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
   use dftbp_geoopt_rationalfunc, only : TRationalFuncInput, TRationalFunc, TRationalFunc_init
+  use dftbp_geoopt_steepdesc, only : TSteepdescInput, TSteepdesc, TSteepdesc_init
   implicit none
 
   private
   public :: TOptimizer, TOptimizerInput
+  public :: TSteepdescInput, TSteepdesc, TSteepdesc_init
   public :: TFireInput, TFire, TFire_init
   public :: TLbfgsInput, TLbfgs, TLbfgs_init
   public :: TRationalFuncInput, TRationalFunc, TRationalFunc_init
@@ -85,6 +87,15 @@ contains
         type(TFire), allocatable :: tmp
         allocate(tmp)
         call TFire_init(tmp, input, nVar)
+        call move_alloc(tmp, optimizer)
+      end block
+      return
+
+    type is (TSteepdescInput)
+      block
+        type(TSteepdesc), allocatable :: tmp
+        allocate(tmp)
+        call TSteepdesc_init(tmp, input, nVar)
         call move_alloc(tmp, optimizer)
       end block
       return

@@ -2198,7 +2198,7 @@ contains
         call taggedWriter%write(fd%unit, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
       end if
       if (allocated(cm5Cont)) then
-        call taggedWriter%write(fd%unit, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
+        call taggedWriter%write(fd%unit, tagLabels%qOutAtCM5, cm5Cont%cm5 - sum(qDiff(:,:,1),dim=1))
       end if
     end if
 

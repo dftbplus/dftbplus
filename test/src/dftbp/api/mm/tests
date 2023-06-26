@@ -19,8 +19,7 @@ resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
 mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)
-expdmhs-h2o         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
-expdmhs-si2         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
+expdmhs             #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 imp_ham             #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 mpiexpdmhs          #? WITH_MPI and (MPI_PROCS % 2 == 0) and defined('WITH_C_EXECUTABLES')
 mpiexpdmhs-si2      #? WITH_MPI and (MPI_PROCS % 4 == 0) and defined('WITH_C_EXECUTABLES')

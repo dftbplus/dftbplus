@@ -77,6 +77,9 @@ module dftbp_io_taggedoutput
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
 
+    !> nonadiabatic coupling vector TD-DFTB
+    character(lenLabel) :: nacv = 'nac_vectors'
+
     !> ground state total forces
     character(lenLabel) :: forceTot = 'forces'
 

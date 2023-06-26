@@ -8,11 +8,19 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+- Non-adiabatic coupling vectors for linear response calculations
+
+- Hellmann-Feynman testing for the xTB hamiltonian dipoles
+
+
 Changed
 -------
 
 - Binary output is done using stream I/O to enable processing of those files in
-  Python or C. The FileAccessTypes option can be used to restore the old
+  Python or C. The BinaryAccessTypes option can be used to restore the old
   (compiler dependent) sequential I/O.
 
 

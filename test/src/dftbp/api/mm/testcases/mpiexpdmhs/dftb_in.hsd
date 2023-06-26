@@ -8,6 +8,7 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
+  ASI = Yes
   SCC = Yes
   SCCTolerance = 1.000000000000000E-010   # Extremely small!
   MaxSCCIterations = 1000
