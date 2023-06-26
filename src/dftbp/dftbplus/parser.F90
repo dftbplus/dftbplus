@@ -29,14 +29,14 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
       & getCellTranslations, updateNeighbourList
-  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes
+  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes, rangeSepFunc
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
   use dftbp_dftb_slakocont, only : init, addTable
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_dftbplus_input_fileaccess, only : readFileAccessTypes
+  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
@@ -73,7 +73,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
       & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireRangeSepTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
@@ -1276,6 +1276,10 @@ contains
       call detailedError(node, "Invalid Hamiltonian")
     end select
 
+  #:if WITH_API
+    call getChildValue(node, 'ASI', ctrl%isASICallbackEnabled, .false.)
+  #:endif
+
   end subroutine readHamiltonian
 
 
@@ -1459,7 +1463,7 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call parseRangeSeparated(node, ctrl%rangeSepInp)
+    call parseRangeSeparated(node, ctrl%rangeSepInp, skFiles)
 
     if (.not. allocated(ctrl%rangeSepInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
@@ -2357,83 +2361,90 @@ contains
       end if
     end if
 
-    ! Point charges present
-    call getChildren(child, "PointCharges", children)
-    if (getLength(children) > 0) then
+    ctrl%nExtChrg = 0
+    if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
 
-      if (.not.ctrl%tSCC) then
-        call error("External charges can only be used in an SCC calculation")
-      end if
-      call init(lCharges)
-      call init(lBlurs)
-      ctrl%nExtChrg = 0
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child2)
-        call getChildValue(child2, "CoordsAndCharges", value1, &
-            &modifier=modifier, child=child3)
-        call getNodeName(value1, buffer)
-        select case(char(buffer))
-        case (textNodeName)
-          call init(lr1)
-          call getChildValue(child3, "", 4, lr1, modifier=modifier)
-          allocate(tmpR2(4, len(lr1)))
-          call asArray(lr1, tmpR2)
-          ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
-          call destruct(lr1)
-        case ("directread")
-          call getChildValue(value1, "Records", ind)
-          call getChildValue(value1, "File", buffer2)
-          allocate(tmpR2(4, ind))
-          call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
-          if (iErr /= 0) then
-            call detailedError(value1, "Could not open file '" &
-                &// trim(unquote(char(buffer2))) // "' for direct reading" )
-          end if
-          read(file%unit, *, iostat=iErr) tmpR2
-          if (iErr /= 0) then
-            call detailedError(value1, "Error during direct reading '" &
-                &// trim(unquote(char(buffer2))) // "'")
-          end if
-          call closeFile(file)
-          ctrl%nExtChrg = ctrl%nExtChrg + ind
-        case default
-          call detailedError(value1, "Invalid block name")
-        end select
-        call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
-        call append(lCharges, tmpR2)
-        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-            &modifier=modifier, child=child3)
-        if (rTmp < 0.0_dp) then
-          call detailedError(child3, "Gaussian blur width may not be &
-              &negative")
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        ! Point charges present
+        if (.not.ctrl%tSCC) then
+          call error("External charges can only be used in an SCC calculation")
         end if
-        call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
-        allocate(tmpR1(size(tmpR2, dim=2)))
-        tmpR1(:) = rTmp
-        call append(lBlurs, tmpR1)
-        deallocate(tmpR1)
-        deallocate(tmpR2)
-      end do
+        call init(lCharges)
+        call init(lBlurs)
+        ctrl%nExtChrg = 0
+        do ii = 1, getLength(children)
+          call getItem1(children, ii, child2)
+          call getChildValue(child2, "CoordsAndCharges", value1, modifier=modifier, child=child3)
+          call getNodeName(value1, buffer)
+          select case(char(buffer))
+          case (textNodeName)
+            call init(lr1)
+            call getChildValue(child3, "", 4, lr1, modifier=modifier)
+            allocate(tmpR2(4, len(lr1)))
+            call asArray(lr1, tmpR2)
+            ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
+            call destruct(lr1)
+          case ("directread")
+            call getChildValue(value1, "Records", ind)
+            call getChildValue(value1, "File", buffer2)
+            allocate(tmpR2(4, ind))
+            call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
+            if (iErr /= 0) then
+              call detailedError(value1, "Could not open file '"&
+                  & // trim(unquote(char(buffer2))) // "' for direct reading" )
+            end if
+            read(file%unit, *, iostat=iErr) tmpR2
+            if (iErr /= 0) then
+              call detailedError(value1, "Error during direct reading '"&
+                  & // trim(unquote(char(buffer2))) // "'")
+            end if
+            call closeFile(file)
+            ctrl%nExtChrg = ctrl%nExtChrg + ind
+          case default
+            call detailedError(value1, "Invalid block name")
+          end select
+          call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
+          call append(lCharges, tmpR2)
+          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, modifier=modifier,&
+              & child=child3)
+          if (rTmp < 0.0_dp) then
+            call detailedError(child3, "Gaussian blur width may not be negative")
+          end if
+          call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
+          allocate(tmpR1(size(tmpR2, dim=2)))
+          tmpR1(:) = rTmp
+          call append(lBlurs, tmpR1)
+          deallocate(tmpR1)
+          deallocate(tmpR2)
+        end do
 
-      allocate(ctrl%extChrg(4, ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lCharges)
-        call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lCharges)
+        allocate(ctrl%extChrg(4, ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lCharges)
+          call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lCharges)
 
-      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lBlurs)
-        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lBlurs)
+        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lBlurs)
+          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lBlurs)
+        call destroyNodeList(children)
+      end if
+
     else
-      ctrl%nExtChrg = 0
+
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        call detailedError(child, "External charges are not currently supported for this model")
+      end if
+
     end if
-    call destroyNodeList(children)
 
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
@@ -3963,7 +3974,7 @@ contains
       call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
     end if
 
-    call readFileAccessTypes(node, ctrl%fileAccessTypes)
+    call readBinaryAccessTypes(node, ctrl%binaryAccessTypes)
 
   end subroutine readOptions
 
@@ -4865,6 +4876,7 @@ contains
       call getChildValue(child, "WriteEigenvectors", ctrl%lrespini%tPrintEigVecs, .false.)
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
+      call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -7707,50 +7719,105 @@ contains
 
 
   !> Parse range separation input
-  subroutine parseRangeSeparated(node, input)
-    type(fnode), pointer, intent(in) :: node
-    type(TRangeSepInp), allocatable, intent(out) :: input
+  subroutine parseRangeSeparated(node, input, skFiles)
+    !> Node to parse
+    type(fnode), intent(in), pointer :: node
 
-    type(fnode), pointer :: child1, value1, child2, value2, child3
+    !> Range separated data structure to fill
+    type(TRangeSepInp), intent(inout), allocatable :: input
+
+    !> List of SK file names to read in for every interaction
+    type(TListCharLc), intent(inout) :: skFiles(:,:)
+
+    !! File name of representative SK-file to read
+    character(lc) :: fileName
+
+    !! Range-separated extra tag in SK-files, if allocated
+    integer :: rangeSepSkTag
+
+    !! Range-separated functional type of user input
+    integer :: rangeSepInputTag
+
+    !! Auxiliary node pointers
+    type(fnode), pointer :: hybridChild, hybridValue, screeningChild, screeningValue, child1
+
+    !! True, if RangeSeparated input block present
+    logical :: isHybridInp
+
+    !! True, if range-separated extra tag found in SK-file(s)
+    logical :: isHybridSk
+
+    !! Temporary string buffers
     type(string) :: buffer, modifier
 
-    call getChildValue(node, "RangeSeparated", value1, "None", child=child1)
-    call getNodeName(value1, buffer)
+    @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
+    @:ASSERT((size(skFiles, dim=1) > 0))
 
-    select case (char(buffer))
+    ! Extracting range-separated tag from first SK-file only is a workaround and assumes that a set
+    ! of given SK-files uses the same parameters (which should always be the case)!
+    call get(skFiles(1, 1), fileName, 1)
 
-    case ("none")
-      continue
+    ! Check if SK-files contain extra tag for range-separated functionals
+    call inquireRangeSepTag(fileName, rangeSepSkTag)
+    isHybridSk = rangeSepSkTag /= rangeSepFunc%none
 
-    case ("lc")
-      allocate(input)
-      call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
-      call getNodeName(value2, buffer)
-      select case(char(buffer))
-      case ("neighbourbased")
-        input%rangeSepAlg = rangeSepTypes%neighbour
-        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-            & modifier=modifier, child=child3)
-        call convertUnitHsd(char(modifier), lengthUnits, child3, input%cutoffRed)
-      case ("thresholded")
-        input%rangeSepAlg = rangeSepTypes%threshold
-        call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
-        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-            & modifier=modifier, child=child3)
-        call convertUnitHsd(char(modifier), lengthUnits, child3, input%cutoffRed)
-      case ("matrixbased")
-        input%rangeSepAlg = rangeSepTypes%matrixBased
-        ! In this case, CutoffRedunction is not used so it should be set to zero.
-        input%cutoffRed = 0.0_dp
+    call getChild(node, "RangeSeparated", child=hybridChild, requested=.false.)
+    isHybridInp = associated(hybridChild)
+
+    if (isHybridInp .and. .not. isHybridSk) then
+      call error("RangeSeparated input block present, but SK-file '" // trim(fileName)&
+          & // "' seems to be (semi-)local.")
+    elseif (isHybridSk .and. .not. isHybridInp) then
+      call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
+    end if
+
+    if (isHybridInp) then
+      call getChildValue(node, "RangeSeparated", hybridValue, "None", child=hybridChild)
+      call getNodeName(hybridValue, buffer)
+      ! Convert hybrid functional type of user input to enumerator
+      select case(tolower(char(buffer)))
+      case ("lc")
+        rangeSepInputTag = rangeSepFunc%lc
       case default
-        call getNodeHSdName(value2, buffer)
-        call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
+        call detailedError(hybridChild, "Unknown hybrid xc-functional type '" // char(buffer)&
+            & // "' in input.")
       end select
-
-    case default
-      call getNodeHSDName(value1, buffer)
-      call detailedError(child1, "Invalid Algorithm '" // char(buffer) // "'")
-    end select
+      if (.not. rangeSepInputTag == rangeSepSkTag) then
+        ! Check if hybrid functional type is in line with SK-files
+        call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
+      end if
+      select case (tolower(char(buffer)))
+      case ("none")
+        rangeSepInputTag = rangeSepFunc%none
+        continue
+      case ("lc")
+        allocate(input)
+        call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
+            & child=screeningChild)
+        call getNodeName(screeningValue, buffer)
+        select case(char(buffer))
+        case ("neighbourbased")
+          input%rangeSepAlg = rangeSepTypes%neighbour
+          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+              & modifier=modifier, child=child1)
+          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+        case ("thresholded")
+          input%rangeSepAlg = rangeSepTypes%threshold
+          call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
+          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+              & modifier=modifier, child=child1)
+          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+        case ("matrixbased")
+          input%rangeSepAlg = rangeSepTypes%matrixBased
+          ! In this case, CutoffRedunction is not used so it should be set to zero.
+          input%cutoffRed = 0.0_dp
+        case default
+          call getNodeHSdName(screeningValue, buffer)
+          call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'.")
+        end select
+      end select
+      input%rangeSepType = rangeSepInputTag
+    end if
 
   end subroutine parseRangeSeparated
 

@@ -9,7 +9,7 @@
 
 #:block TEST_SUITE("file")
   use dftbp_common_file, only : TFileDescr, TOpenOptions, fileExists, openFile, closeFile,&
-      & clearFile, defaultFileAccess
+      & clearFile, defaultBinaryAccess, defaultTextAccess
   use dftbp_io_charmanip, only : tolower
   implicit none
 
@@ -476,19 +476,35 @@
 
   #:contains
 
-    #:block TEST("default_access")
-      character(*), parameter :: fname = "default_access"
+    #:block TEST("default_text_access")
+      character(*), parameter :: fname = "default_text_access"
 
       ! Note: openFile() closes the file connected to the descriptor (if any)
       call openFile(fd, fname, mode="w", ioStat=ioStat)
       @:ASSERT(ioStat == 0)
-      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultFileAccess(2)))
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultTextAccess(2)))
       call openFile(fd, fname, mode="r", ioStat=ioStat)
       @:ASSERT(ioStat == 0)
-      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultFileAccess(1)))
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultTextAccess(1)))
       call openFile(fd, fname, mode="r+", ioStat=ioStat)
       @:ASSERT(ioStat == 0)
-      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultFileAccess(3)))
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultTextAccess(3)))
+    #:endblock
+
+
+    #:block TEST("default_binary_access")
+      character(*), parameter :: fname = "default_binary_access"
+
+      ! Note: openFile() closes the file connected to the descriptor (if any)
+      call openFile(fd, fname, mode="wb", ioStat=ioStat)
+      @:ASSERT(ioStat == 0)
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultBinaryAccess(2)))
+      call openFile(fd, fname, mode="rb", ioStat=ioStat)
+      @:ASSERT(ioStat == 0)
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultBinaryAccess(1)))
+      call openFile(fd, fname, mode="r+b", ioStat=ioStat)
+      @:ASSERT(ioStat == 0)
+      @:ASSERT(checkUnitProperties_(fd%unit, access=defaultBinaryAccess(3)))
     #:endblock
 
 

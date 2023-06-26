@@ -14,4 +14,6 @@ set(sources-fpp
   ${curdir}/rationalfunc.F90
   ${curdir}/steepdesc.F90)
 
+add_subdirectory(deprecated)
+
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

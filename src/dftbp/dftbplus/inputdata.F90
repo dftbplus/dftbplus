@@ -112,6 +112,9 @@ module dftbp_dftbplus_inputdata
     !> Choice of range separation method
     integer :: rangeSepAlg
 
+    !> Hybrid xc-functional type, as extracted from SK-file(s)
+    integer :: rangeSepType
+
   end type TRangeSepInp
 
 
@@ -120,6 +123,12 @@ module dftbp_dftbplus_inputdata
 
     !> Choice of electronic hamiltonian
     integer :: hamiltonian = hamiltonianTypes%none
+
+  #:if WITH_API
+    !> Is this ASI callback interface for H,S,P enabled (Stishenko et al.,
+    !> https://doi.org/10.21105/joss.05186)
+    logical :: isASICallbackEnabled = .false.
+  #:endif
 
     !> Random number generator seed
     integer :: iSeed = 0
@@ -538,8 +547,8 @@ module dftbp_dftbplus_inputdata
     !> Whether ChIMES correction for repulsives should be applied.
     type(TChimesRepInp), allocatable :: chimesRepInput
 
-    !> File access type to use when opening files for reading and writing
-    character(20) :: fileAccessTypes(2)
+    !> File access type to use when opening binary files for reading and writing
+    character(20) :: binaryAccessTypes(2)
 
   end type TControl
 

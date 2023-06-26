@@ -1409,7 +1409,7 @@ contains
     nxov = size(win)
     natom = size(coord0, dim=2)
 
-    ALLOCATE(qij(natom))
+    allocate(qij(natom))
 
     ! Calculate transition dipole elements
     do indm = 1, nxov
@@ -1465,9 +1465,9 @@ contains
     nexc = size(Ssq)
     nup = ceiling(sum(filling(:,1)))
     ndwn = ceiling(sum(filling(:,2)))
-    ALLOCATE(TDvec(nmat))
-    ALLOCATE(TDvec_sq(nmat))
-    ALLOCATE(TDvin(nmat))
+    allocate(TDvec(nmat))
+    allocate(TDvec_sq(nmat))
+    allocate(TDvin(nmat))
 
     do i = 1, nexc
       TDvec(:) = xpy(:,i)

@@ -21,6 +21,9 @@ module dftbp_geoopt_optimizer
     !> Calculate displacement from gradient
     procedure(step), deferred :: step
 
+    !> Reset optimizer
+    procedure(reset), deferred :: reset
+
   end type TOptimizer
 
 
@@ -43,6 +46,16 @@ module dftbp_geoopt_optimizer
       real(dp), intent(out) :: displ(:)
 
     end subroutine step
+
+    !> Reset optimizer
+    subroutine reset(this)
+      import :: TOptimizer
+      implicit none
+
+      !> Instance of geometry optimization driver
+      class(TOptimizer), intent(inout) :: this
+
+    end subroutine reset
   end interface
 
 
