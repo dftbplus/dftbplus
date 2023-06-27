@@ -5617,7 +5617,7 @@ contains
     end if
     allocate(input)
     defaultZ = -geo%latVecs(3, iNormalVec) / 2.0_dp
-    call getChildValue(node, "DipoleLayerZ", input%z0, default=defaultZ, modifier=modifier,&
+    call getChildValue(node, "DipoleLayerPos", input%z0, default=defaultZ, modifier=modifier,&
         & child=child)
     call convertUnitHsd(char(modifier), lengthUnits, child, input%z0)
 
