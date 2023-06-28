@@ -709,9 +709,19 @@ contains
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
-  subroutine actionAplusB_Blacs(spin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-      & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg, vin, vout, tRangeSep, lrGamma)
+  subroutine actionAplusB_Blacs(comm, locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud,&
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
+      & grndEigVecs, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg, vin,&
+      & vout, tRangeSep, lrGamma)
+
+    !> MPI communicator
+    integer, intent(in) :: comm
+
+    !> Size of local vectors for each rank
+    integer, intent(in) :: locSize(:)
+
+    !> Vector offset for each rank
+    integer, intent(in) :: vOffset(:)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -808,7 +818,7 @@ contains
 
     integer :: nmat, natom, norb, ia, nxvv_a
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
-    integer :: iam, nProcs, iContxt, npRow, npCol, myRow, myCol, nLocRow
+    integer :: iam, nProcs, iContxt, npRow, npCol, myRow, myCol, nLocRow, nLoc
     integer :: nb, myia, ierr, iGlb, fGlb
     integer, allocatable :: scnt(:), disp(:)
     integer, external :: numroc
@@ -823,6 +833,7 @@ contains
     ! for later use to change HFX contribution
     real(dp), allocatable :: qv(:,:)
 
+
     @:ASSERT(size(vin) == size(vout))
 
     !! dimension guessed from input vector
@@ -834,44 +845,49 @@ contains
     norb = nocc_ud(1)+nvir_ud(1)
     !!@:ASSERT(norb == nocc_ud(1)+nvir_ud(1))
 
-    !! Initialize BLACS context
-    call blacs_pinfo(iam, nProcs)
-    npRow = nProcs
-    npCol = 1
-    call blacs_get(0, 0, iContxt)
-    call blacs_gridinit(iContxt, 'R', npRow, npCol)
-    call blacs_gridinfo(iContxt, npRow, npCol, myRow, myCol)
-    ! Number of blocks equals number of processors to have contiguous indices
-    nb = ceiling(nmat/dble(nProcs))
-    ! Dimension of local vector
-    nLocRow = numroc(nmat, nb, myRow, 0, npRow)
-
-    ! Testing only (can be in debug mode)
-    allocate(scnt(nprow))
-    allocate(disp(nprow))
-    jj = 0
-    do ii = 1, npRow
-      scnt(ii) = numroc(nmat, nb, ii-1, 0, npRow)
-      disp(ii) = jj
-      jj = jj + scnt(ii)    
-    enddo
-    call l2g(1, myRow, nmat, npRow, nb, ia)
-    @:ASSERT(disp(iam+1) + 1 == ia)
-    call l2g(nLocRow, myRow, nmat, npRow, nb, ia)
-    @:ASSERT(disp(iam+1) + nLocRow == ia)
-    allocate(vTmp(nLocRow))
-    allocate(vLoc(nLocRow))
+    call MPI_COMM_RANK(comm, iam, ierr)
+    nLoc = locSize(iam+1)
+    iGlb = vOffset(iam+1) + 1 
+    fGlb = vOffset(iam+1) + nLoc
+!!$    call blacs_gridinfo(comm, npRow, npCol, myRow, myCol)
+!!$    call blacs_pinfo(iam, nProcs)
+!!$    nLocRow = size(vin)
+!!$    npRow = nProcs
+!!$    npCol = 1
+!!$    call blacs_get(0, 0, iContxt)
+!!$    call blacs_gridinit(iContxt, 'R', npRow, npCol)
+!!$    call blacs_gridinfo(iContxt, npRow, npCol, myRow, myCol)
+!!$    ! Number of blocks equals number of processors to have contiguous indices
+!!$    nb = ceiling(nmat/dble(nProcs))
+!!$    ! Dimension of local vector
+!!$    nLocRow = numroc(nmat, nb, myRow, 0, npRow)
+!!$
+!!$    ! Testing only (can be in debug mode)
+!!$    allocate(scnt(nprow))
+!!$    allocate(disp(nprow))
+!!$    jj = 0
+!!$    do ii = 1, npRow
+!!$      scnt(ii) = numroc(nmat, nb, ii-1, 0, npRow)
+!!$      disp(ii) = jj
+!!$      jj = jj + scnt(ii)    
+!!$    enddo
+!!$    call l2g(1, myRow, nmat, npRow, nb, ia)
+!!$    @:ASSERT(disp(iam+1) + 1 == ia)
+!!$    call l2g(nLocRow, myRow, nmat, npRow, nb, ia)
+!!$    @:ASSERT(disp(iam+1) + nLocRow == ia)
+    allocate(vTmp, mold=vin)
+    allocate(vLoc, mold=vin)
     vTmp = 0.0_dp
     vLoc = 0.0_dp
-    iGlb = disp(iam+1) + 1
-    fGlb = disp(iam+1) + nLocRow
+!!$    iGlb = disp(iam+1) + 1
+!!$    fGlb = disp(iam+1) + nLocRow
 
     vout = 0.0_dp
 
     if(tAplusB) then
-      vTmp(:) = vin(iGlb:fGlb)
+      vTmp = vin
     else
-      vTmp(:) = vin(iGlb:fGlb) * sqrt(wij(iGlb:fGlb))
+      vTmp = vin * sqrt(wij(iGlb:fGlb))
     endif
 
     vLoc(:) =  vTmp * sqrOccIA(iGlb:fGlb)
@@ -881,13 +897,14 @@ contains
     !     &  vLoc, oTmp, disp(iam+1))
 
     oTmp(:) = 0.0_dp
-    do myia = 1, nLocRow
-      call l2g(myia, myRow, nmat, npRow, nb, ia)
+    do myia = 1, nLoc
+!!$      call l2g(myia, myRow, nmat, npRow, blockSize, ia)
+      ia = vOffset(iam+1) + myia
       qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
       otmp(:) = otmp(:) + qij(:)*vLoc(myia)
     enddo
 
-    call MPI_ALLREDUCE(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -897,12 +914,13 @@ contains
 
         ! 4 * wn * (g * Q)
         vLoc(:) = 0.0_dp
-        do myia = 1, nLocRow
-          call l2g(myia, myRow, nmat, npRow, nb, ia)
+        do myia = 1, nLoc
+!!$          call l2g(myia, myRow, nmat, npRow, blockSize, ia)
+          ia = vOffset(iam+1) + myia
           qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
           vLoc(myia) = 4.0_dp * sqrOccIA(ia) * dot_product(qij, gTmp)
         enddo  
-        !!call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vLoc, disp(iam+1))
+        !!call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vLoc, vOffset(iam+1))
         !!vLoc(:) = 4.0_dp * sqrOccIA(iInd:fInd) * vLoc
 
       else
@@ -911,7 +929,7 @@ contains
 
         ! 4 * wn * (o * Q)
         vLoc = 0.0_dp
-        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vLoc, disp(iam+1))
+        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vLoc, vOffset(iam+1))
         vLoc(:) = 4.0_dp * sqrOccIA(iGlb:fGlb) * vLoc
 
 
@@ -925,9 +943,10 @@ contains
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
-      do myia = 1, nLocRow
+      do myia = 1, nLoc
          
-        call l2g(myia, myRow, nmat, npRow, nb, ia)
+!!$        call l2g(myia, myRow, nmat, npRow, blockSize, ia)
+        ia = vOffset(iam+1) + myia
         qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ! singlet gamma part (S)
@@ -945,9 +964,10 @@ contains
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
       !$OMP& SCHEDULE(RUNTIME)
-      do myia = 1, nLocRow
+      do myia = 1, nLoc
 
-        call l2g(myia, myRow, nmat, npRow, nb, ia)
+!!$        call l2g(myia, myRow, nmat, npRow, blockSize, ia)
+        ia = vOffset(iam+1) + myia        
         qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ss = getIA(win(ia), 3)
@@ -1048,23 +1068,26 @@ contains
    #:endif
 
     !!vout(:) = vout + wij * vTmp
-    do myia = 1, nLocRow
-      call l2g(myia, myRow, nmat, npRow, nb, ia)
+    do myia = 1, nLoc
+      ia = vOffset(iam+1) + myia
+      !!call l2g(myia, myRow, nmat, npRow, blockSize, ia)
       vLoc(myia) = vLoc(myia) + wij(ia) * vTmp(myia)
     enddo
     
     if(.not. tAplusB) then
-      do myia = 1, nLocRow
-        call l2g(myia, myRow, nmat, npRow, nb, ia)
+      do myia = 1, nLoc
+        !!call l2g(myia, myRow, nmat, npRow, blockSize, ia)
+        ia = vOffset(iam+1) + myia
         !!vout(:) = vout * sqrt(wij)
         vLoc(myia) = vLoc(myia) * sqrt(wij(ia))
       enddo
     endif
 
-    call MPI_Allgatherv(vLoc, nLocRow, MPI_DOUBLE_PRECISION, vOut, scnt, disp, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
-
+    
+    !!call MPI_Allgatherv(vLoc, nLocRow, MPI_DOUBLE_PRECISION, vOut, scnt, disp, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
+    vOut = vLoc 
     !! Destroy BLACS context
-    call blacs_gridexit(iContxt)
+    !!call blacs_gridexit(iContxt)
 
   end subroutine actionAplusB_Blacs
 
@@ -1791,10 +1814,8 @@ contains
     !> resulting transition dipoles
     real(dp), intent(out) :: snglPartTransDip(:,:)
 
-    integer :: nxov, natom
-    integer :: indm, ii, jj, ss
+    integer :: nxov, natom, indm
     real(dp), allocatable :: qij(:)
-    logical :: updwn
 
     nxov = size(win)
     natom = size(coord0, dim=2)
@@ -2326,42 +2347,42 @@ contains
 
   end subroutine incMemStratmann
 
- ! convert global index to local index in block-cyclic distribution
-
-   subroutine g2l(i,n,np,nb,p,il)
-
-   implicit none
-   integer, intent(in) :: i    ! global array index, input
-   integer, intent(in) :: n    ! global array dimension, input
-   integer, intent(in) :: np   ! processor array dimension, input
-   integer, intent(in) :: nb   ! block size, input
-   integer, intent(out):: p    ! processor array index, output
-   integer, intent(out):: il   ! local array index, output
-   integer :: im1   
-
-   im1 = i-1
-   p   = mod((im1/nb),np)
-   il  = (im1/(np*nb))*nb + mod(im1,nb) + 1
-
-   return
-   end subroutine g2l
-
-! convert local index to global index in block-cyclic distribution
-
-   subroutine l2g(il,p,n,np,nb,i)
-
-   implicit none
-   integer :: il   ! local array index, input
-   integer :: p    ! processor array index, input
-   integer :: n    ! global array dimension, input
-   integer :: np   ! processor array dimension, input
-   integer :: nb   ! block size, input
-   integer :: i    ! global array index, output
-   integer :: ilm1   
-
-   ilm1 = il-1
-   i    = (((ilm1/nb) * np) + p)*nb + mod(ilm1,nb) + 1
-
-   return
-   end subroutine l2g 
+!!$ ! convert global index to local index in block-cyclic distribution
+!!$
+!!$   subroutine g2l(i,n,np,nb,p,il)
+!!$
+!!$   implicit none
+!!$   integer, intent(in) :: i    ! global array index, input
+!!$   integer, intent(in) :: n    ! global array dimension, input
+!!$   integer, intent(in) :: np   ! processor array dimension, input
+!!$   integer, intent(in) :: nb   ! block size, input
+!!$   integer, intent(out):: p    ! processor array index, output
+!!$   integer, intent(out):: il   ! local array index, output
+!!$   integer :: im1   
+!!$
+!!$   im1 = i-1
+!!$   p   = mod((im1/nb),np)
+!!$   il  = (im1/(np*nb))*nb + mod(im1,nb) + 1
+!!$
+!!$   return
+!!$   end subroutine g2l
+!!$
+!!$! convert local index to global index in block-cyclic distribution
+!!$
+!!$   subroutine l2g(il,p,n,np,nb,i)
+!!$
+!!$   implicit none
+!!$   integer :: il   ! local array index, input
+!!$   integer :: p    ! processor array index, input
+!!$   integer :: n    ! global array dimension, input
+!!$   integer :: np   ! processor array dimension, input
+!!$   integer :: nb   ! block size, input
+!!$   integer :: i    ! global array index, output
+!!$   integer :: ilm1   
+!!$
+!!$   ilm1 = il-1
+!!$   i    = (((ilm1/nb) * np) + p)*nb + mod(ilm1,nb) + 1
+!!$
+!!$   return
+!!$   end subroutine l2g 
 end module dftbp_timedep_linrespcommon

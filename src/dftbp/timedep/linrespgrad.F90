@@ -12,6 +12,7 @@
 !> Note: This module is NOT instance safe it uses a common block to communicate with ARPACK
 !>
 module dftbp_timedep_linrespgrad
+  use mpi
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
@@ -38,9 +39,11 @@ module dftbp_timedep_linrespgrad
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
   use dftbp_common_environment, only : TEnvironment
-
+#:if WITH_SCALAPACK  
+  use dftbp_extlibs_scalapackfx, only : DLEN_, MB_, RSRC_, scalafx_getdescriptor, scalafx_getlocalshape,&
+      & scalafx_indxl2g, pblasfx_psymm
+#:endif
   implicit none
 
   private
@@ -459,19 +462,19 @@ contains
     allocate(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
     
-    call SYSTEM_CLOCK(count_rate=cr)
-    call CPU_TIME(c1)
-    call SYSTEM_CLOCK(w1)
+!!$    call SYSTEM_CLOCK(count_rate=cr)
+!!$    call CPU_TIME(c1)
+!!$    call SYSTEM_CLOCK(w1)
 !!$    print *,'tot',nxov
     call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, iatrans, win, &
         & this%tCacheChargesOccVir, this%tCacheChargesSame)
-    call CPU_TIME(c2)
-    call SYSTEM_CLOCK(w2)
-    if(iam==0) then 
-      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
-      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
-    end if 
+!!$    call CPU_TIME(c2)
+!!$    call SYSTEM_CLOCK(w2)
+!!$    if(iam==0) then 
+!!$      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
+!!$      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
+!!$    end if 
 !!$ 
     
 !!$    allocate(qTr(this%nAtom))
@@ -874,7 +877,7 @@ contains
       end if
 
     end if
-
+    print *,'leaving the old horse'
   end subroutine LinRespGrad_old
 
 
@@ -1002,18 +1005,71 @@ contains
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
     logical :: rvec
-    integer :: nexc, natom,ii,iam,nProcs
+    integer :: nexc, natom
 
     integer :: iState
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
+  #:if WITH_SCALAPACK
     integer :: w(50), wAr, wDi
     real(16) :: cr
-    real(dp) :: c(50), cAr, cDi   
+    real(dp) :: c(50), cAr, cDi
+    
+    integer :: iam, nProcs, comm, blockSize, npRow, npCol, myRow, myCol
+    integer :: iProc,  nLoc, ii, jj, ierr, iGlb, fGlb
+    integer, allocatable :: locSize(:), vOffset(:)
+    integer, external :: numroc
+    external blacs_pinfo, blacs_get, blacs_gridinit, blacs_gridinfo
+
+    !> Initialize BLACS context
+!!$    call blacs_pinfo(iam, nProcs)
+!!$    npRow = nProcs
+!!$    npCol = 1
+!!$    blockSize = nxov_rd / nProcs
+!!$    if (blockSize * nProcs < nxov_rd) blockSize = blockSize + 1
+!!$    call blacs_get(0, 0, comm)
+!!$    call blacs_gridinit(comm, 'Row', npRow, npCol)
+!!$    allocate(disp(npRow))
+!!$    jj = 0
+!!$    do ii = 1, npRow
+!!$      disp(ii) = jj
+!!$      jj = jj + numroc(nxov_rd, blockSize, ii-1, 0, npRow)
+!!$    enddo
+!!$    call blacs_gridinfo(comm, npRow, npCol, myRow, myCol)
+!!$    nLoc = numroc(nxov_rd, blockSize, myRow, 0, npRow)
+!!$    vecOffset =  (/ disp(iam+1)+1, disp(iam+1)+nLoc /)
+!!$    !!print *,'iam, off',iam,vecOffset
+    comm = MPI_COMM_WORLD
+    
+    call MPI_COMM_RANK(comm, iam, ierr)
+    call MPI_COMM_SIZE(comm, nProcs, ierr)
+    allocate(locSize(nProcs))
+    allocate(vOffSet(nProcs))
+    ii = 0
+    do iProc = 0, nProcs-1
+      nLoc = nxov_rd / nProcs
+      if(mod(nxov_rd, nProcs) > iProc) then
+        nLoc = nLoc + 1
+      end if
+      locSize(iProc+1) = nLoc
+      vOffset(iProc+1) = ii
+      ii = ii + nLoc
+    enddo
+    
+    nLoc = locSize(iam+1)
+    iGlb = vOffset(iam+1) + 1 
+    fGlb = vOffset(iam+1) + nLoc
+      
+    blockSize = 0  
+    !!call MPI_Barrier(comm, ierr)
+    print *,'the data',iam,nxov_rd,'#',locSize,'#',vOffset,'#',iGlb,fGlb
+
+  #:endif  
+    
     call SYSTEM_CLOCK(count_rate=cr)
-    call blacs_pinfo(iam, nprocs)
+ 
     wAr = 0
     wDi = 0
     cAr = 0
@@ -1030,11 +1086,22 @@ contains
     lworkl = ncv * (ncv + 8)
 
     allocate(workl(lworkl))
+    allocate(qij(natom))
+    allocate(selection(ncv))
+    
+  #:if WITH_SCALAPACK
+    
+    allocate(workd(3 * nLoc))
+    allocate(resid(nLoc))
+    allocate(vv(nLoc, ncv))
+    
+  #:else
+    
     allocate(workd(3 * nxov_rd))
     allocate(resid(nxov_rd))
-    allocate(selection(ncv))
     allocate(vv(nxov_rd, ncv))
-    allocate(qij(natom))
+    
+  #:endif  
 
     resid(:) = 0.0_dp
     workd(:) = 0.0_dp
@@ -1050,19 +1117,23 @@ contains
     iparam(3) = MAX_AR_ITER
     ! solve A*x = lambda*x, with A symmetric
     iparam(7) = 1
-
-    ! loop until exit
+    
     do
 
-      call CPU_TIME(c(1))
-      call SYSTEM_CLOCK(w(1))    
       ! call the reverse communication interface from arpack
-      call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr,&
-          & workd, workl, lworkl, info)
+    #:if WITH_SCALAPACK
+      call CPU_TIME(c(1))
+      call SYSTEM_CLOCK(w(1))
+      call pdsaupd (comm, ido, "I", nLoc, "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam,&
+          & ipntr, workd, workl, lworkl, info)
       call CPU_TIME(c(2))
       call SYSTEM_CLOCK(w(2))
       wAr = wAr + w(2)-w(1)
       cAr = cAr + c(2)-c(1)
+    #:else
+      call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam,&
+          & ipntr, workd, workl, lworkl, info)
+    #:endif
 
       if (ido == 99) then
         ! has terminated normally, exit loop
@@ -1077,29 +1148,32 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-#:if WITH_SCALAPACK
+    #:if WITH_SCALAPACK
       call CPU_TIME(c(3))
-      call SYSTEM_CLOCK(w(3))    
-      call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
-          & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
-          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+      call SYSTEM_CLOCK(w(3))
+      call MPI_BARRIER(comm,ierr)
+      call actionAplusB_Blacs(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
+          & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+          & ovrXev, grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb,&
+          & .false., transChrg, workd(ipntr(1):ipntr(1)+nLoc-1), workd(ipntr(2):ipntr(2)+nLoc-1),& 
+          & tRangeSep)
       call CPU_TIME(c(4))
       call SYSTEM_CLOCK(w(4))
       wDi = wDi + w(4)-w(3)
       cDi = cDi + c(4)-c(3)
-#:else
-       call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+    #:else
+      call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
           & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)     
-#:endif      
-     end do
+    #:endif
+      
+    end do
     if(iam==0) then 
-      write(*,'(2x,a,f20.16)') 'Ar wall clock   : ', wAr/cr
-      write(*,'(2x,a,f20.16)') 'Ar cpu_time     : ', cAr
-      write(*,'(2x,a,f20.16)') 'Di wall clock   : ', wDi/cr
-      write(*,'(2x,a,f20.16)') 'Di cpu_time     : ', cDi      
+       write(*,'(2x,a,f20.16)') 'Ar wall clock   : ', wAr/cr
+       write(*,'(2x,a,f20.16)') 'Ar cpu_time     : ', cAr
+       write(*,'(2x,a,f20.16)') 'Di wall clock   : ', wDi/cr
+       write(*,'(2x,a,f20.16)') 'Di cpu_time     : ', cDi      
     end if
 
     call CPU_TIME(c(5))
@@ -1121,9 +1195,21 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.
       ! Note: At this point xpy holds the hermitian eigenvectors F
-      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM", nexc,&
-          & ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
+     #:if WITH_SCALAPACK
+      print *,'enter pdseupd'
+      call pdseupd (comm, rvec, "All", selection, eval, xpy(iGlb:fGlb,:),nLoc, sigma, "I", nLoc,& 
+          & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
+      print *,'leave pdseupd'
+      call MPI_ALLREDUCE(MPI_IN_PLACE, xpy, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM,& 
+           & MPI_COMM_WORLD, ierr)
+      print *,'leave allred'
+     #:else
+       
+       call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
+          & nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
+    #:endif
+            
       ! check for error on return
       if (info  /=  0) then
         write(tmpStr,"(' Error with ARPACK routine seupd, info = ',I0)")info
@@ -1142,17 +1228,19 @@ contains
       write(fdArnoldiTest%unit,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
-#:if WITH_SCALAPACK          
-        call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
-            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
-            & Hv, .false.)
-#:else        
+    #:if WITH_SCALAPACK
+        call actionAplusB_Blacs(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
+            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+            & ovrXev, grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb,&
+            & .false., transChrg, xpy(iGlb:fGlb,iState), Hv(iGlb:fGlb), .false.)
+        call MPI_ALLREDUCE(MPI_IN_PLACE, Hv, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM,& 
+            & MPI_COMM_WORLD, ierr)       
+      #:else        
         call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
             & Hv, .false.)
-#:endif        
+      #:endif        
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
             & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
@@ -1378,18 +1466,11 @@ contains
       if (prevSubSpaceDim > 0) then
 
         ! Extend subspace matrices:
-        do ii = prevSubSpaceDim + 1, subSpaceDim
-#:if WITH_SCALAPACK            
-          call actionAplusB_Blacs(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
-            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
-            & vP(:,ii), tRangeSep, lrGamma)
-#:else         
+        do ii = prevSubSpaceDim + 1, subSpaceDim      
            call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
-            & vP(:,ii), tRangeSep, lrGamma)
-#:endif            
+            & vP(:,ii), tRangeSep, lrGamma)          
           call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
             & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA,&
             & transChrg, vecB(:,ii), vM(:,ii), tRangeSep, lrGamma)
@@ -2197,16 +2278,11 @@ contains
     rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
-    ! we need the singlet action even for triplet excitations!
-#:if WITH_SCALAPACK    
-    call actionAplusB_Blacs(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-      & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)
-#:else     
+    ! we need the singlet action even for triplet excitations!  
     call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)    
-#:endif 
+      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)
+    
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
     pkm1(:) = zkm1
@@ -2214,16 +2290,11 @@ contains
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
     do kk = 1, nxov**2
 
-       ! action of matrix on vector
-#:if WITH_SCALAPACK         
-      call actionAplusB_Blacs(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-         & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)
-#:else        
+       ! action of matrix on vector      
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
          & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)
-#:endif
+      
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
@@ -5629,6 +5700,5 @@ contains
     end do
     
   end subroutine fixNACVPhase
-
 
 end module dftbp_timedep_linrespgrad
