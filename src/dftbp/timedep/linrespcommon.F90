@@ -544,7 +544,7 @@ contains
 
     ! product charges with the v*wn product, i.e. Q * v*wn
     oTmp(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, &
+    call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win, &
         & vTmp * sqrOccIA, oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
@@ -555,7 +555,7 @@ contains
 
         ! 4 * wn * (g * Q)
         vOut(:) = 0.0_dp
-        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vOut)
+        call transChrg%qVecMat(denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vOut)
         vOut(:) = 4.0_dp * sqrOccIA * vOut
 
       else
@@ -564,7 +564,7 @@ contains
 
         ! 4 * wn * (o * Q)
         vOut = 0.0_dp
-        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vOut)
+        call transChrg%qVecMat(denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vOut)
         vOut(:) = 4.0_dp * sqrOccIA * vOut
 
 
@@ -580,7 +580,7 @@ contains
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
 
-        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ! singlet gamma part (S)
         vout(ia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
@@ -599,7 +599,7 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
-        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ss = getIA(win(ia), 3)
 
@@ -621,7 +621,7 @@ contains
         ss = getIA(win(jbs), 3)
         do aa = nocc_ud(ss) + 1, norb
           abs = iaTrans(aa, bb, ss)
-          qij(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qij(:) = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
           jas = iaTrans(jj, aa, ss)
           qv(:,jas) = qv(:,jas) + qij * vTmp(jbs) * sqrOccIA(jbs)
         end do
@@ -638,7 +638,7 @@ contains
         do jj = 1, nocc_ud(ss)
           ijs = iaTrans(ii, jj, ss)
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qij(:) = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
           vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas))
         end do
       end do
@@ -651,7 +651,7 @@ contains
         !! Here, index abs is different for a,b and b,a.
         do aa = nocc_ud(ss) + 1, norb
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(jas, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -672,7 +672,7 @@ contains
         ss = getIA(win(ias), 3)
         do bb = nocc_ud(ss) + 1, norb
           ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -709,7 +709,7 @@ contains
   !>
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
-  subroutine actionAplusB_Blacs(comm, locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud,&
+  subroutine actionAplusB_MPI(comm, locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
       & grndEigVecs, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg, vin,&
       & vout, tRangeSep, lrGamma)
@@ -818,20 +818,18 @@ contains
 
     integer :: nmat, natom, norb, ia, nxvv_a
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
-    integer :: iam, nProcs, iContxt, npRow, npCol, myRow, myCol, nLocRow, nLoc
-    integer :: nb, myia, ierr, iGlb, fGlb
-    integer, allocatable :: scnt(:), disp(:)
-    integer, external :: numroc
+    integer :: iam, nLoc, myia, ierr, iGlb, fGlb
 
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
     real(dp) :: vout_ons(size(vin))
     !!real(dp) :: vTmp(size(vin))
-    real(dp), allocatable :: vTmp(:), vLoc(:)
+    real(dp), allocatable :: vTmp(:)
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
     ! for later use to change HFX contribution
     real(dp), allocatable :: qv(:,:)
+    external mpi_comm_rank, mpi_allreduce
 
 
     @:ASSERT(size(vin) == size(vout))
@@ -840,71 +838,31 @@ contains
     nmat = size(vin)
     @:ASSERT(nmat <= nxov_rd)
     natom = size(gamma, dim=1)
-    !!norb = size(ovrXev, dim=1)
-    !! MPI is different 
     norb = nocc_ud(1)+nvir_ud(1)
-    !!@:ASSERT(norb == nocc_ud(1)+nvir_ud(1))
-
-    call MPI_COMM_RANK(comm, iam, ierr)
+    call mpi_comm_rank(comm, iam, ierr)
     nLoc = locSize(iam+1)
+    @:ASSERT(nmat == nLoc)
     iGlb = vOffset(iam+1) + 1 
     fGlb = vOffset(iam+1) + nLoc
-!!$    call blacs_gridinfo(comm, npRow, npCol, myRow, myCol)
-!!$    call blacs_pinfo(iam, nProcs)
-!!$    nLocRow = size(vin)
-!!$    npRow = nProcs
-!!$    npCol = 1
-!!$    call blacs_get(0, 0, iContxt)
-!!$    call blacs_gridinit(iContxt, 'R', npRow, npCol)
-!!$    call blacs_gridinfo(iContxt, npRow, npCol, myRow, myCol)
-!!$    ! Number of blocks equals number of processors to have contiguous indices
-!!$    nb = ceiling(nmat/dble(nProcs))
-!!$    ! Dimension of local vector
-!!$    nLocRow = numroc(nmat, nb, myRow, 0, npRow)
-!!$
-!!$    ! Testing only (can be in debug mode)
-!!$    allocate(scnt(nprow))
-!!$    allocate(disp(nprow))
-!!$    jj = 0
-!!$    do ii = 1, npRow
-!!$      scnt(ii) = numroc(nmat, nb, ii-1, 0, npRow)
-!!$      disp(ii) = jj
-!!$      jj = jj + scnt(ii)    
-!!$    enddo
-!!$    call l2g(1, myRow, nmat, npRow, nb, ia)
-!!$    @:ASSERT(disp(iam+1) + 1 == ia)
-!!$    call l2g(nLocRow, myRow, nmat, npRow, nb, ia)
-!!$    @:ASSERT(disp(iam+1) + nLocRow == ia)
     allocate(vTmp, mold=vin)
-    allocate(vLoc, mold=vin)
     vTmp = 0.0_dp
-    vLoc = 0.0_dp
-!!$    iGlb = disp(iam+1) + 1
-!!$    fGlb = disp(iam+1) + nLocRow
-
     vout = 0.0_dp
 
     if(tAplusB) then
-      vTmp = vin
+      vTmp(:) = vin
     else
-      vTmp = vin * sqrt(wij(iGlb:fGlb))
+      vTmp(:) = vin * sqrt(wij(iGlb:fGlb))
     endif
 
-    vLoc(:) =  vTmp * sqrOccIA(iGlb:fGlb)
-    oTmp(:) = 0.0_dp
-      
-    ! call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, &
-    !     &  vLoc, oTmp, disp(iam+1))
-
-    oTmp(:) = 0.0_dp
+    vTmp(:) =  vTmp * sqrOccIA(iGlb:fGlb)
+    oTmp(:) = 0.0_dp    
     do myia = 1, nLoc
-!!$      call l2g(myia, myRow, nmat, npRow, blockSize, ia)
       ia = vOffset(iam+1) + myia
-      qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-      otmp(:) = otmp(:) + qij(:)*vLoc(myia)
+      qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      otmp(:) = otmp(:) + qij(:)*vTmp(myia)
     enddo
 
-    call MPI_ALLREDUCE(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+    call mpi_allreduce(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -913,24 +871,21 @@ contains
         call hemv(gtmp, gamma, otmp)
 
         ! 4 * wn * (g * Q)
-        vLoc(:) = 0.0_dp
+        vOut(:) = 0.0_dp
         do myia = 1, nLoc
-!!$          call l2g(myia, myRow, nmat, npRow, blockSize, ia)
           ia = vOffset(iam+1) + myia
-          qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-          vLoc(myia) = 4.0_dp * sqrOccIA(ia) * dot_product(qij, gTmp)
+          qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          vOut(myia) = 4.0_dp * sqrOccIA(ia) * dot_product(qij, gTmp)
         enddo  
-        !!call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, gTmp, vLoc, vOffset(iam+1))
-        !!vLoc(:) = 4.0_dp * sqrOccIA(iInd:fInd) * vLoc
 
       else
 
         otmp = otmp * spinW(species0)
 
         ! 4 * wn * (o * Q)
-        vLoc = 0.0_dp
-        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vLoc, vOffset(iam+1))
-        vLoc(:) = 4.0_dp * sqrOccIA(iGlb:fGlb) * vLoc
+        vOut = 0.0_dp
+        call transChrg%qVecMat(denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vOut, vOffset(iam+1))
+        vOut(:) = 4.0_dp * sqrOccIA(iGlb:fGlb) * vOut
 
 
       end if
@@ -945,17 +900,16 @@ contains
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do myia = 1, nLoc
          
-!!$        call l2g(myia, myRow, nmat, npRow, blockSize, ia)
         ia = vOffset(iam+1) + myia
-        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ! singlet gamma part (S)
-        vLoc(myia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
+        vOut(myia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
 
         ! magnetization part (T1)
         ss = getIA(win(ia), 3)
 
-        otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vLoc(myia) * qij
+        otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vOut(myia) * qij
 
       end do
       !$OMP  END PARALLEL DO
@@ -966,13 +920,12 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do myia = 1, nLoc
 
-!!$        call l2g(myia, myRow, nmat, npRow, blockSize, ia)
         ia = vOffset(iam+1) + myia        
-        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qij(:) = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
 
         ss = getIA(win(ia), 3)
 
-        vLoc(myia) = vLoc(myia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
+        vOut(myia) = vOut(myia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
 
       end do
       !$OMP  END PARALLEL DO
@@ -990,7 +943,7 @@ contains
         ss = getIA(win(jbs), 3)
         do aa = nocc_ud(ss) + 1, norb
           abs = iaTrans(aa, bb, ss)
-          qij(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qij(:) = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
           jas = iaTrans(jj, aa, ss)
           qv(:,jas) = qv(:,jas) + qij * vTmp(jbs) * sqrOccIA(jbs)
         end do
@@ -1007,7 +960,7 @@ contains
         do jj = 1, nocc_ud(ss)
           ijs = iaTrans(ii, jj, ss)
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qij(:) = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
           vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas))
         end do
       end do
@@ -1020,7 +973,7 @@ contains
         !! Here, index abs is different for a,b and b,a.
         do aa = nocc_ud(ss) + 1, norb
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(jas, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -1041,7 +994,7 @@ contains
         ss = getIA(win(ias), 3)
         do bb = nocc_ud(ss) + 1, norb
           ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -1058,7 +1011,7 @@ contains
     end if
     
    #:else
-    
+   
     if (allocated(onsMEs)) then
       call onsiteEner(spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA, species0, &
           & ovrXev, grndEigVecs, onsMEs, orb, vTmp, vout_ons)      
@@ -1066,30 +1019,14 @@ contains
     end if
      
    #:endif
-
-    !!vout(:) = vout + wij * vTmp
-    do myia = 1, nLoc
-      ia = vOffset(iam+1) + myia
-      !!call l2g(myia, myRow, nmat, npRow, blockSize, ia)
-      vLoc(myia) = vLoc(myia) + wij(ia) * vTmp(myia)
-    enddo
+    
+    vOut(:) = vOut + wij(iGlb:fGlb) * vTmp
     
     if(.not. tAplusB) then
-      do myia = 1, nLoc
-        !!call l2g(myia, myRow, nmat, npRow, blockSize, ia)
-        ia = vOffset(iam+1) + myia
-        !!vout(:) = vout * sqrt(wij)
-        vLoc(myia) = vLoc(myia) * sqrt(wij(ia))
-      enddo
+      vOut(:) = vOut * sqrt(wij(iGlb:fGlb))
     endif
 
-    
-    !!call MPI_Allgatherv(vLoc, nLocRow, MPI_DOUBLE_PRECISION, vOut, scnt, disp, MPI_DOUBLE_PRECISION, MPI_COMM_WORLD, ierr)
-    vOut = vLoc 
-    !! Destroy BLACS context
-    !!call blacs_gridexit(iContxt)
-
-  end subroutine actionAplusB_Blacs
+  end subroutine actionAplusB_MPI
 
 
   !> Multiplies the excitation supermatrix with a supervector.
@@ -1197,7 +1134,7 @@ contains
         ss = getIA(win(jbs), 3)
         do aa = nocc_ud(ss) + 1, norb
           abs = iaTrans(aa, bb, ss)
-          qij(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qij(:) = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
           jas = iaTrans(jj, aa, ss)
           qv(:,jas) = qv(:,jas) + qij * vin(jbs) * sqrOccIA(jbs)
         end do
@@ -1216,7 +1153,7 @@ contains
         do jj = 1, nocc_ud(ss)
           ijs = iaTrans(ii, jj, ss)
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qij(:) = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
           vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, jas))
         end do
       end do
@@ -1229,7 +1166,7 @@ contains
         !! Here, index abs is different for a,b and b,a.
         do aa = nocc_ud(ss) + 1, norb
           jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(jas, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -1250,7 +1187,7 @@ contains
         ss = getIA(win(ias), 3)
         do bb = nocc_ud(ss) + 1, norb
           ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qij(:) = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
           if (ss==2) then
             abs = abs + nvir_ud(1)**2
@@ -1383,13 +1320,13 @@ contains
 
         ! full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
         do jb = 1, initDim
-          qTr(:) = transChrg%qTransIA(jb, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(jb, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           qTr(:) = qTr * sqrOccIA(jb)
 
           call hemv(oTmp, gamma, qTr)
 
           do ia = 1, nMat
-            qTr(:) = transChrg%qTransIA(ia, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+            qTr(:) = transChrg%qTransIA(ia, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
             vP(ia,jb) = 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
 
@@ -1399,11 +1336,11 @@ contains
 
         ! full range triplets contribution: 2 * sum_A q^ia_A M_A q^jb_A
         do jb = 1, initDim
-          qTr(:) = transChrg%qTransIA(jb, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(jb, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           oTmp(:) = qTr * sqrOccIA(jb) * spinW(species0)
 
           do ia = 1, nMat
-            qTr(:) = transChrg%qTransIA(ia, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+            qTr(:) = transChrg%qTransIA(ia, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
             vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
 
@@ -1414,7 +1351,7 @@ contains
     else
 
       do jb = 1, initDim
-        qTr(:) = transChrg%qTransIA(jb, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+        qTr(:) = transChrg%qTransIA(jb, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
         qTr(:) = qTr * sqrOccIA(jb)
 
         call hemv(gTmp, gamma, qTr)
@@ -1422,7 +1359,7 @@ contains
         oTmp(:) = qTr
 
         do ia = 1, nMat
-          qTr(:) = transChrg%qTransIA(ia, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(ia, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           vP(ia,jb) = 2.0_dp * sqrOccIA(ia) * dot_product(qTr, gTmp)
         end do
 
@@ -1431,7 +1368,7 @@ contains
         oTmp(:)  =  spinFactor(ss) * 2.0_dp * spinW(species0) * oTmp
 
         do ia = 1, nMat
-          qTr(:) = transChrg%qTransIA(ia, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(ia, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           tt = getIA(win(ia), 3)
           vP(ia,jb) = vP(ia,jb) + spinFactor(tt) * sqrOccIA(ia) * dot_product(qTr, oTmp)
         end do
@@ -1455,23 +1392,23 @@ contains
           if (ss /= tt) cycle
 
           abs = iaTrans(aa, bb, ss)
-          qTr(:) = transChrg%qTransAB(abs, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(abs, denseDesc, sTimesGrndEigVecs, grndEigVecs, getAB)
           oTmp(:) = 0.0_dp
           call hemv(oTmp, lrGamma, qTr)
 
           ijs = iaTrans(ii, jj, ss)
-          qTr(:) = transChrg%qTransIJ(ijs, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ijs, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIJ)
           rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(iat,jbs) = vP(iat,jbs) - rTmp
           vM(iat,jbs) = vM(iat,jbs) - rTmp
 
           ibs = iaTrans(ii, bb, ss)
-          qTr(:) = transChrg%qTransIA(ibs, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(ibs, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           oTmp(:) = 0.0_dp
           call hemv(oTmp, lrGamma, qTr)
 
           jas = iaTrans(jj, aa, ss)
-          qTr(:) = transChrg%qTransIA(jas, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+          qTr(:) = transChrg%qTransIA(jas, denseDesc, sTimesGrndEigVecs, grndEigVecs, getIA, win)
           rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(iat,jbs) = vP(iat,jbs) - rTmp
           vM(iat,jbs) = vM(iat,jbs) + rTmp
@@ -1824,7 +1761,7 @@ contains
 
     ! Calculate transition dipole elements
     do indm = 1, nxov
-      qij(:) = transChrg%qTransIA(indm, env, denseDesc, ovrXev, grndEigVecs, getIA, win) 
+      qij(:) = transChrg%qTransIA(indm, denseDesc, ovrXev, grndEigVecs, getIA, win) 
       snglPartTransDip(indm, :) = matmul(coord0, qij)
     end do
 
@@ -2227,6 +2164,7 @@ contains
     real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
     integer :: info
     integer :: ii
+    external dsyev, dgemm
 
     dummyM(:,:) = matIn(1:spaceDim,1:spaceDim)
 
@@ -2347,42 +2285,4 @@ contains
 
   end subroutine incMemStratmann
 
-!!$ ! convert global index to local index in block-cyclic distribution
-!!$
-!!$   subroutine g2l(i,n,np,nb,p,il)
-!!$
-!!$   implicit none
-!!$   integer, intent(in) :: i    ! global array index, input
-!!$   integer, intent(in) :: n    ! global array dimension, input
-!!$   integer, intent(in) :: np   ! processor array dimension, input
-!!$   integer, intent(in) :: nb   ! block size, input
-!!$   integer, intent(out):: p    ! processor array index, output
-!!$   integer, intent(out):: il   ! local array index, output
-!!$   integer :: im1   
-!!$
-!!$   im1 = i-1
-!!$   p   = mod((im1/nb),np)
-!!$   il  = (im1/(np*nb))*nb + mod(im1,nb) + 1
-!!$
-!!$   return
-!!$   end subroutine g2l
-!!$
-!!$! convert local index to global index in block-cyclic distribution
-!!$
-!!$   subroutine l2g(il,p,n,np,nb,i)
-!!$
-!!$   implicit none
-!!$   integer :: il   ! local array index, input
-!!$   integer :: p    ! processor array index, input
-!!$   integer :: n    ! global array dimension, input
-!!$   integer :: np   ! processor array dimension, input
-!!$   integer :: nb   ! block size, input
-!!$   integer :: i    ! global array index, output
-!!$   integer :: ilm1   
-!!$
-!!$   ilm1 = il-1
-!!$   i    = (((ilm1/nb) * np) + p)*nb + mod(ilm1,nb) + 1
-!!$
-!!$   return
-!!$   end subroutine l2g 
 end module dftbp_timedep_linrespcommon

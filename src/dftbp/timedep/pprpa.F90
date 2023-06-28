@@ -24,7 +24,6 @@ module dftbp_timedep_pprpa
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private
@@ -62,14 +61,11 @@ contains
 
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
-  subroutine ppRPAenergies(RPA, env, denseDesc, grndEigVecs, grndEigVal, sccCalc, SSqr, species0, &
+  subroutine ppRPAenergies(RPA, denseDesc, grndEigVecs, grndEigVal, sccCalc, SSqr, species0, &
       & rnel, iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, err)
 
     !> Container for RPA calculation data
     type(TppRPAcal), allocatable, intent(in) :: RPA
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -240,7 +236,7 @@ contains
       allocate(vr(dim_rpa, dim_rpa))
 
       call buildAndDiagppRPAmatrix(RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo,&
-          & env, denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
+          & denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
       call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
           & nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
@@ -256,7 +252,7 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
+  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
 
     !> Tamm-Dancoff approximation?
@@ -280,9 +276,6 @@ contains
     !> number of occupied-occupied transitions
     integer, intent(in)  :: nxoo
     
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env    
-
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
@@ -364,10 +357,10 @@ contains
             factor2 = sqrtFact
           end if
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
 
           !A_s(ab,cd) = A_s(ab,cd) + factor1 * factor2 * (&
@@ -406,10 +399,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
 
             do at1 = 1, natom
@@ -441,10 +434,10 @@ contains
               factor2 = sqrtFact
             end if
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -492,10 +485,10 @@ contains
           end if
           cd_r = cd_r + 1
 
-          q_1(:) = transq(a, c, env, denseDesc, updwn, stimc, cc)
-          q_2(:) = transq(b, d, env, denseDesc, updwn, stimc, cc)
-          q_3(:) = transq(a, d, env, denseDesc, updwn, stimc, cc)
-          q_4(:) = transq(b, c, env, denseDesc, updwn, stimc, cc)
+          q_1(:) = transq(a, c, denseDesc, updwn, stimc, cc)
+          q_2(:) = transq(b, d, denseDesc, updwn, stimc, cc)
+          q_3(:) = transq(a, d, denseDesc, updwn, stimc, cc)
+          q_4(:) = transq(b, c, denseDesc, updwn, stimc, cc)
 
           do at1 = 1, natom
             do at2 = 1, natom
@@ -531,10 +524,10 @@ contains
             end if
             kl_r = kl_r + 1
 
-            q_1(:) = transq(k, a, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(l, b, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(l, a, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(k, b, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(k, a, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(l, b, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(l, a, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(k, b, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom
@@ -567,10 +560,10 @@ contains
             end if
             kl_r = kl_r + 1
 
-            q_1(:) = transq(i, k, env, denseDesc, updwn, stimc, cc)
-            q_2(:) = transq(j, l, env, denseDesc, updwn, stimc, cc)
-            q_3(:) = transq(i, l, env, denseDesc, updwn, stimc, cc)
-            q_4(:) = transq(j, k, env, denseDesc, updwn, stimc, cc)
+            q_1(:) = transq(i, k, denseDesc, updwn, stimc, cc)
+            q_2(:) = transq(j, l, denseDesc, updwn, stimc, cc)
+            q_3(:) = transq(i, l, denseDesc, updwn, stimc, cc)
+            q_4(:) = transq(j, k, denseDesc, updwn, stimc, cc)
 
             do at1 = 1, natom
               do at2 = 1, natom

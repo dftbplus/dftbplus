@@ -33,17 +33,20 @@ module dftbp_timedep_linrespgrad
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
       & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array, &
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
-      & getExcSpin, writeExcMulliken, actionAplusB, actionAplusB_Blacs, actionAminusB, &
+      & getExcSpin, writeExcMulliken, actionAplusB, actionAplusB_MPI, actionAminusB, &
       & initialSubSpaceMatrixApmB, calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
-#:if WITH_SCALAPACK  
-  use dftbp_extlibs_scalapackfx, only : DLEN_, MB_, RSRC_, scalafx_getdescriptor, scalafx_getlocalshape,&
-      & scalafx_indxl2g, pblasfx_psymm
+  
+#:if WITH_SCALAPACK
+  
+  use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
+  
 #:endif
+  
   implicit none
 
   private
@@ -193,10 +196,6 @@ contains
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
-    !TN
-    integer :: iam, nprocs, w1, w2, w3, w4
-    real(16) :: cr
-    real(dp) :: c1, c2, c3, c4
     character :: sym
     character(lc) :: tmpStr
 
@@ -214,7 +213,7 @@ contains
     !> transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
 
-    type(TFileDescr) :: fdMulliken, fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
+    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -420,7 +419,6 @@ contains
     ! this could be used everywhere in these routines)
   #:if WITH_SCALAPACK
 
-    call blacs_pinfo(iam, nprocs)
     do iSpin = 1, nSpin
       call pblasfx_psymm(SSqr, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr,&
            & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
@@ -462,39 +460,10 @@ contains
     allocate(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
     
-!!$    call SYSTEM_CLOCK(count_rate=cr)
-!!$    call CPU_TIME(c1)
-!!$    call SYSTEM_CLOCK(w1)
-!!$    print *,'tot',nxov
     call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, nxov,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, iatrans, win, &
         & this%tCacheChargesOccVir, this%tCacheChargesSame)
-!!$    call CPU_TIME(c2)
-!!$    call SYSTEM_CLOCK(w2)
-!!$    if(iam==0) then 
-!!$      write(*,'(2x,a,f20.16)') 'wall clock   : ', (w2 - w1)/cr
-!!$      write(*,'(2x,a,f20.16)') 'cpu_time     : ', (c2-c1)
-!!$    end if 
-!!$ 
     
-!!$    allocate(qTr(this%nAtom))
-!!$ 
-!!$    do i = 1, nxov_ud(1)
-!!$        qTr(:) = transChrg%qTransIA(i, env, denseDesc, ovrXev, grndEigVecs, getIA, win)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) write(*,'(2x,a,x,i5,2x,f10.6,2x,f10.6,2x,f10.6)') 'IA',i, qTr(1:3)
-!!$    enddo
-!!$    do i = 1, nxoo_ud(1)
-!!$        qTr(:) = transChrg%qTransIJ(i, env, denseDesc, ovrXev, grndEigVecs, getIJ)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) print *,'IJ',i, qTr(1:3)
-!!$    enddo
-!!$    do i = 1, nxvv_ud(1)
-!!$        qTr(:) = transChrg%qTransAB(i, env, denseDesc, ovrXev, grndEigVecs, getAB)   
-!!$        !!if(iam == 0) write(14,'(1X,2I,1(1x,f10.6))') i, qTr(1)
-!!$        if(iam == 0) print *,'AB',i, qTr(1:3)
-!!$    enddo        
-!!$    stop
     ! dipole strength of transitions between K-S states
     call calcTransitionDipoles(coord0, win, nxov_ud(1), getIA, transChrg, env, denseDesc, ovrXev, &
         & grndEigVecs, snglPartTransDip)
@@ -595,10 +564,6 @@ contains
       allocate(xmy(nxov_rd, this%nExc))
     end if
 
-    ! ! set up transition indexing
-    ! allocate(iatrans(norb, norb, nSpin))
-    ! call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
-
     if (this%iLinRespSolver /= linrespSolverTypes%stratmann .and. tRangeSep) then
       call error("Range separation requires the Stratmann solver for excitations")
     end if
@@ -608,20 +573,11 @@ contains
       sym = symmetries(isym)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
-        call SYSTEM_CLOCK(count_rate=cr)
-        call CPU_TIME(c3)
-        call SYSTEM_CLOCK(w3)
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
             & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
             & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements,&
             & orb, tRangeSep, tZVector)
-        call CPU_TIME(c4)
-        call SYSTEM_CLOCK(w4)
-        if(iam==0) then 
-          write(*,'(2x,a,f20.16)') 'BD wall clock   : ', (w4 - w3)/cr
-          write(*,'(2x,a,f20.16)') 'BD cpu_time     : ', (c4-c3)
-        end if
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
@@ -877,7 +833,7 @@ contains
       end if
 
     end if
-    print *,'leaving the old horse'
+
   end subroutine LinRespGrad_old
 
 
@@ -1000,7 +956,7 @@ contains
     logical, intent(in) :: tZVector
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
-    real(dp) :: sigma, omega, tt1,tt2
+    real(dp) :: sigma, omega
     integer :: iparam(11), ipntr(11)
     integer :: ido, ncv, lworkl, info
     logical, allocatable :: selection(:)
@@ -1013,40 +969,18 @@ contains
     type(TFileDescr) :: fdArnoldiTest
 
   #:if WITH_SCALAPACK
-    integer :: w(50), wAr, wDi
-    real(16) :: cr
-    real(dp) :: c(50), cAr, cDi
     
-    integer :: iam, nProcs, comm, blockSize, npRow, npCol, myRow, myCol
-    integer :: iProc,  nLoc, ii, jj, ierr, iGlb, fGlb
+    integer :: iam, nProcs, comm
+    integer :: iProc,  nLoc, ii, ierr, iGlb, fGlb
     integer, allocatable :: locSize(:), vOffset(:)
-    integer, external :: numroc
-    external blacs_pinfo, blacs_get, blacs_gridinit, blacs_gridinfo
+    external mpi_comm_rank, mpi_comm_size, mpi_allreduce, pdsaupd, pdseupd 
 
-    !> Initialize BLACS context
-!!$    call blacs_pinfo(iam, nProcs)
-!!$    npRow = nProcs
-!!$    npCol = 1
-!!$    blockSize = nxov_rd / nProcs
-!!$    if (blockSize * nProcs < nxov_rd) blockSize = blockSize + 1
-!!$    call blacs_get(0, 0, comm)
-!!$    call blacs_gridinit(comm, 'Row', npRow, npCol)
-!!$    allocate(disp(npRow))
-!!$    jj = 0
-!!$    do ii = 1, npRow
-!!$      disp(ii) = jj
-!!$      jj = jj + numroc(nxov_rd, blockSize, ii-1, 0, npRow)
-!!$    enddo
-!!$    call blacs_gridinfo(comm, npRow, npCol, myRow, myCol)
-!!$    nLoc = numroc(nxov_rd, blockSize, myRow, 0, npRow)
-!!$    vecOffset =  (/ disp(iam+1)+1, disp(iam+1)+nLoc /)
-!!$    !!print *,'iam, off',iam,vecOffset
-    comm = MPI_COMM_WORLD
-    
-    call MPI_COMM_RANK(comm, iam, ierr)
-    call MPI_COMM_SIZE(comm, nProcs, ierr)
+    comm = MPI_COMM_WORLD    
+    call mpi_comm_rank(comm, iam, ierr)
+    call mpi_comm_size(comm, nProcs, ierr)
     allocate(locSize(nProcs))
     allocate(vOffSet(nProcs))
+    
     ii = 0
     do iProc = 0, nProcs-1
       nLoc = nxov_rd / nProcs
@@ -1061,19 +995,9 @@ contains
     nLoc = locSize(iam+1)
     iGlb = vOffset(iam+1) + 1 
     fGlb = vOffset(iam+1) + nLoc
-      
-    blockSize = 0  
-    !!call MPI_Barrier(comm, ierr)
-    print *,'the data',iam,nxov_rd,'#',locSize,'#',vOffset,'#',iGlb,fGlb
 
   #:endif  
     
-    call SYSTEM_CLOCK(count_rate=cr)
- 
-    wAr = 0
-    wDi = 0
-    cAr = 0
-    cDi = 0
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
@@ -1122,17 +1046,15 @@ contains
 
       ! call the reverse communication interface from arpack
     #:if WITH_SCALAPACK
-      call CPU_TIME(c(1))
-      call SYSTEM_CLOCK(w(1))
+
       call pdsaupd (comm, ido, "I", nLoc, "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam,&
           & ipntr, workd, workl, lworkl, info)
-      call CPU_TIME(c(2))
-      call SYSTEM_CLOCK(w(2))
-      wAr = wAr + w(2)-w(1)
-      cAr = cAr + c(2)-c(1)
+ 
     #:else
+      
       call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam,&
           & ipntr, workd, workl, lworkl, info)
+      
     #:endif
 
       if (ido == 99) then
@@ -1149,35 +1071,23 @@ contains
 
       ! Action of excitation supermatrix on supervector
     #:if WITH_SCALAPACK
-      call CPU_TIME(c(3))
-      call SYSTEM_CLOCK(w(3))
-      call MPI_BARRIER(comm,ierr)
-      call actionAplusB_Blacs(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
+
+      call actionAplusB_MPI(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
           & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
           & ovrXev, grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb,&
           & .false., transChrg, workd(ipntr(1):ipntr(1)+nLoc-1), workd(ipntr(2):ipntr(2)+nLoc-1),& 
           & tRangeSep)
-      call CPU_TIME(c(4))
-      call SYSTEM_CLOCK(w(4))
-      wDi = wDi + w(4)-w(3)
-      cDi = cDi + c(4)-c(3)
+
     #:else
+      
       call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
-          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)     
+          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+      
     #:endif
       
     end do
-    if(iam==0) then 
-       write(*,'(2x,a,f20.16)') 'Ar wall clock   : ', wAr/cr
-       write(*,'(2x,a,f20.16)') 'Ar cpu_time     : ', cAr
-       write(*,'(2x,a,f20.16)') 'Di wall clock   : ', wDi/cr
-       write(*,'(2x,a,f20.16)') 'Di cpu_time     : ', cDi      
-    end if
-
-    call CPU_TIME(c(5))
-    call SYSTEM_CLOCK(w(5))
 
     ! check returned info flag for errors
     if (info < 0) then
@@ -1195,17 +1105,16 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.
       ! Note: At this point xpy holds the hermitian eigenvectors F
-     #:if WITH_SCALAPACK
-      print *,'enter pdseupd'
-      call pdseupd (comm, rvec, "All", selection, eval, xpy(iGlb:fGlb,:),nLoc, sigma, "I", nLoc,& 
-          & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
-      print *,'leave pdseupd'
-      call MPI_ALLREDUCE(MPI_IN_PLACE, xpy, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM,& 
-           & MPI_COMM_WORLD, ierr)
-      print *,'leave allred'
+    #:if WITH_SCALAPACK
+
+      call pdseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,& 
+           & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
+      xpy(iGlb:fGlb,:nexc) = vv(:,:nexc)
+      call mpi_allreduce(MPI_IN_PLACE, xpy, nxov_rd*nexc, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+
      #:else
        
-       call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
+      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
           & nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
     #:endif
@@ -1228,19 +1137,25 @@ contains
       write(fdArnoldiTest%unit,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
-    #:if WITH_SCALAPACK
-        call actionAplusB_Blacs(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
+        
+      #:if WITH_SCALAPACK
+        
+        
+        call actionAplusB_MPI(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
             & ovrXev, grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb,&
             & .false., transChrg, xpy(iGlb:fGlb,iState), Hv(iGlb:fGlb), .false.)
-        call MPI_ALLREDUCE(MPI_IN_PLACE, Hv, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM,& 
-            & MPI_COMM_WORLD, ierr)       
-      #:else        
+        call mpi_allreduce(MPI_IN_PLACE, Hv, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+        
+      #:else
+        
         call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
             & Hv, .false.)
-      #:endif        
+        
+      #:endif
+        
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
             & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
@@ -1261,13 +1176,6 @@ contains
         xmy(:nxov_rd,iState) = xpy(:nxov_rd,iState) * omega / wij(:nxov_rd)
       end if
     end do
-
-    call CPU_TIME(c(6))
-    call SYSTEM_CLOCK(w(6))
-    if(iam==0) then 
-      write(*,'(2x,a,f20.16)') 'Rest wall clock   : ', (w(6) - w(5))/cr
-      write(*,'(2x,a,f20.16)') 'Rest cpu_time     : ', (c(6)-c(5))
-    end if     
 
   end subroutine buildAndDiagExcMatrixArpack
 
@@ -1406,6 +1314,7 @@ contains
     character(lc) :: tmpStr
 
     logical :: didConverge
+    external dsymm, dsyev, dgemm
 
     if (allocated(onsMEs)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
@@ -1877,19 +1786,19 @@ contains
 
     ! xpyq = Q * xpy
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+    call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
 
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
       ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
       if (sym == "S") then
         call hemv(gamxpyq, gammaMat,  xpyq)
         do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab, denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else ! triplet case
         do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab, denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
         end do
       end if
@@ -1897,7 +1806,7 @@ contains
     else  ! ---- spin-polarized case -----
 
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      call transChrg%qMatVecDs(denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
 
       call hemv(gamxpyq, gammaMat,  xpyq)
       do s = 1, 2
@@ -1907,7 +1816,7 @@ contains
           fact = -1.0_dp
         end if
         do ab = 1, nxvv(s)
-          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), denseDesc, ovrXev, grndEigVecs, getAB)
           qgamxpyq(ab, s) = sum(qTr * gamxpyq)
           !magnetization part
           qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -1937,14 +1846,14 @@ contains
       if (sym == "S") then
         do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij, denseDesc, ovrXev, grndEigVecs, getIJ)
           ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
           qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else
         do ij = 1, nxoo(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij, denseDesc, ovrXev, grndEigVecs, getIJ)
           qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
         end do
       end if
@@ -1959,7 +1868,7 @@ contains
         end if
         do ij = 1, nxoo(s)
           qgamxpyq(ij, s) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
           qgamxpyq(ij, s) = sum(qTr * gamxpyq)
           !magnetization part
           qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -2001,7 +1910,7 @@ contains
       do ij = 1, nxoo(s)
         i = getIJ(ij + soo(s), 1)
         j = getIJ(ij + soo(s), 2)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qTr(:)
           if (tSpin) then
@@ -2020,7 +1929,7 @@ contains
       do ab = 1, nxvv(s)
         a = getAB(ab + svv(s), 1)
         b = getAB(ab + svv(s), 2)
-        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), denseDesc, ovrXev, grndEigVecs, getAB)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qTr(:)
           if (tSpin) then
@@ -2042,10 +1951,10 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     if (.not. tSpin) then
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhs)
+      call transChrg%qVecMat(denseDesc, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhs)
     else
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhs)
-      call transChrg%qVecMatDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, &
+      call transChrg%qVecMat(denseDesc, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhs)
+      call transChrg%qVecMatDs(denseDesc, ovrXev, grndEigVecs, getIA, win, &
            & -2.0_dp*gamxpyqds*spinW(species0), rhs)
     end if
 
@@ -2057,7 +1966,7 @@ contains
         fact = -1.0_dp
       end if
       do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
         if (.not. tSpin) then
           woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qTr * gamqt)
         else
@@ -2246,7 +2155,7 @@ contains
     ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     allocate(P(nxov))
     do ia = 1, nxov
-      qTr = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      qTr = transChrg%qTransIA(ia, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call hemv(qTmp, gammaMat, qTr)
       if (.not. tSpin) then
         rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
@@ -2261,10 +2170,10 @@ contains
         rs = rs - cExchange * dot_product(qTr, qTmp)
         call indXov(win, ia, getIA, i, a, s)
         iis = iaTrans(i, i, s)
-        qTr = transChrg%qTransIJ(iis, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qTr = transChrg%qTransIJ(iis, denseDesc, ovrXev, grndEigVecs, getIJ)
         call hemv(qTmp, lrGamma, qTr)
         aas = iaTrans(a, a, s)
-        qTr = transChrg%qTransAB(aas, env, denseDesc, ovrXev, grndEigVecs, getAB)
+        qTr = transChrg%qTransAB(aas, denseDesc, ovrXev, grndEigVecs, getAB)
         rs = rs - cExchange * dot_product(qTr, qTmp)
       end if
 
@@ -2439,12 +2348,12 @@ contains
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
     zq(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zq)
+    call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zq)
     call hemv(gamxpyq, gammaMat, zq)
 
     if (tSpin) then
       zqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zqds)
+      call transChrg%qMatVecDs(denseDesc, ovrXev, grndEigVecs, getIA, win, zz, zqds)
     end if
 
     ! sum_iAt1 qTr(iAt1) gamxpyq(iAt1)
@@ -2455,7 +2364,7 @@ contains
         fact = -1.0_dp
       end if
       do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
         ! W contains 1/2 for i == j.
         if (.not. tSpin) then
           woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qTr * gamxpyq)
@@ -2835,7 +2744,7 @@ contains
     ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
     ! complexity norb * norb * norb
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+    call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
 
     ! complexity norb * norb
     shxpyq(:,:) = 0.0_dp
@@ -2847,7 +2756,7 @@ contains
       end if
     else
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      call transChrg%qMatVecDs(denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
       do iSpin = 1, nSpin
         call hemv(shxpyq(:,iSpin), gammaMat, xpyq)
         shxpyq(:,iSpin) = shxpyq(:,iSpin) + dsigma(iSpin) * spinW(species0) * xpyqds
@@ -3582,7 +3491,8 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, a, b, s, ias, ibs, abs, nOrb, nXov
-
+    external dsymv
+    
     nOrb = size(ovrXev, dim=1)
     nXov = size(XorY)
 
@@ -3597,14 +3507,14 @@ contains
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
         abs = iaTrans(a, b, s)
-        qIJ = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+        qIJ = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
         qX(:,ias) = qX(:,ias) + qIJ * XorY(ibs)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
-      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ(:)
     end do
@@ -3680,6 +3590,7 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, j, a, s, ias, jas, ijs, nOrb, nXov
+    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nXov = size(XorY)
@@ -3695,7 +3606,7 @@ contains
       do j = 1, homo(s)
         jas = iaTrans(j, a, s)
         ijs = iaTrans(i, j, s)
-        qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qIJ = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
         qX(:,ias) = qX(:,ias) + qIJ * XorY(jas)
       end do
     end do
@@ -3703,7 +3614,7 @@ contains
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
-      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ
     end do
@@ -3782,6 +3693,7 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, j, a, b, s, ias, ibs, abs, ijs, jas, nOrb, nXov, iMx
+    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nXov = size(vecHovT)
@@ -3797,14 +3709,14 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
-        qIJ = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(a,b,s)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do abs = 1, sum(nXvv)
-      qIJ = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+      qIJ = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,abs) = gqIJ
     end do
@@ -3824,7 +3736,7 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do j = 1, homo(s)
         jas = iaTrans(j, a, s)
-        qIJ = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(jas, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(i,j,s)
       end do
     end do
@@ -3834,7 +3746,7 @@ contains
       i = getIJ(ijs, 1)
       j = getIJ(ijs, 2)
       s = getIJ(ijs, 3)
-      qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+      qIJ = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ijs) = gqIJ
     end do
@@ -3907,6 +3819,7 @@ contains
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:), qXa(:,:,:)
     integer :: nOrb, iSpin, nSpin, iMx, soo(2)
     integer :: i, j, k, a, b, s, ij, ias, ibs, ijs, jas, iks, jks
+    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nSpin = size(t, dim=3)
@@ -3923,14 +3836,14 @@ contains
       call indXov(win, ias, getIA, i, a, s)
       do b = homo(s) + 1, nOrb
         ibs = iaTrans(i, b, s)
-        qIJ = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qIJ = transChrg%qTransIA(ibs, denseDesc, ovrXev, grndEigVecs, getIA, win)
         qX(:,ias) = qX(:,ias) + qIJ * t(a,b,s)
       end do
     end do
 
     Gq(:,:)  = 0.0_dp
     do ias = 1, nXov
-      qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      qIJ = transChrg%qTransIA(ias, denseDesc, ovrXev, grndEigVecs, getIA, win)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ias) = gqIJ
     end do
@@ -3951,7 +3864,7 @@ contains
 
     Gq(:,:)  = 0.0_dp
     do ijs = 1, sum(nXoo)
-      qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+      qIJ = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
       call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
       Gq(:,ijs) = gqIJ(:)
     end do
@@ -3965,7 +3878,7 @@ contains
       do i = 1, homo(iSpin)
         do k = 1, homo(iSpin)
           iks = iaTrans(i, k, iSpin)
-          qIJ = transChrg%qTransIJ(iks, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qIJ = transChrg%qTransIJ(iks, denseDesc, ovrXev, grndEigVecs, getIJ)
           do j = 1, homo(iSpin)
             qXa(:,i,j) = qXa(:,i,j) + qIJ * t(j,k,iSpin)
           end do
@@ -4674,9 +4587,7 @@ contains
     real(dp), intent(in) :: nacv(:,:,:)
 
     type(TFileDescr) :: fdNaCoupl
-    integer :: iErr, ii, iNac, nCoupLev, mCoupLev
-    character(lc) :: error_string
-
+    integer :: ii, iNac, nCoupLev, mCoupLev
 
     call openFile(fdNaCoupl, naCouplingOut, mode="w")
 
@@ -4962,7 +4873,7 @@ contains
     ! complexity norb * norb * norb
     xpyq = 0.0_dp
     do iState = 1, 2
-      call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win,&
+      call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win,&
            & xpy(:,iState), xpyq(:,iState))
       
       ! complexity norb * norb
@@ -4974,7 +4885,7 @@ contains
           shxpyq(:,1,iState) = xpyq(:,iState) * spinW(species0)
         end if
       else
-        call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win,&
+        call transChrg%qMatVecDs(denseDesc, ovrXev, grndEigVecs, getIA, win,&
              & xpy(:,iState), xpyqds(:,iState))
         do iSpin = 1, nSpin
           call hemv(shxpyq(:,iSpin,iState), gammaMat, xpyq(:,iState))
@@ -5399,7 +5310,7 @@ contains
     end if 
 
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
+    call transChrg%qMatVec(denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyq)
 
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
       ! vecHvv(ab) = sum_jc K_ab,jc (X+Y)_jc
@@ -5407,13 +5318,13 @@ contains
         call hemv(gamxpyq, frGamma,  xpyq)
         if(present(vecHvv)) then
           do ab = 1, nXvv(1)
-            qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(ab, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
           end do
         end if
         if(present(vecHoo)) then
           do ij = 1, nXoo(1)
-            qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ij, denseDesc, ovrXev, grndEigVecs, getIJ)
             ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
             vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
           end do
@@ -5421,13 +5332,13 @@ contains
       else ! triplet case
         if(present(vecHvv)) then
           do ab = 1, nXvv(1)
-            qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(ab, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
           end do
         end if
         if(present(vecHoo)) then
           do ij = 1, nXoo(1)
-            qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ij, denseDesc, ovrXev, grndEigVecs, getIJ)
             vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
           end do
         end if
@@ -5438,7 +5349,7 @@ contains
       allocate(xpyqds(nAtom))
       allocate(gamxpyqds(nAtom))
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
+      call transChrg%qMatVecDs(denseDesc, ovrXev, grndEigVecs, getIA, win, XorY, xpyqds)
 
       call hemv(gamxpyq, frGamma,  xpyq)
       do s = 1, 2
@@ -5450,7 +5361,7 @@ contains
         if(present(vecHvv)) then
           do ab = 1, nXvv(s)
             abs = ab + svv(s)
-            qTr(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+            qTr(:) = transChrg%qTransAB(abs, denseDesc, ovrXev, grndEigVecs, getAB)
             vecHvv(abs) = sum(qTr * gamxpyq)
             !magnetization part
             vecHvv(abs) = vecHvv(abs) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -5459,7 +5370,7 @@ contains
         if(present(vecHoo)) then
           do ij = 1, nXoo(s)
             ijs = ij + soo(s)
-            qTr(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+            qTr(:) = transChrg%qTransIJ(ijs, denseDesc, ovrXev, grndEigVecs, getIJ)
             vecHoo(ijs) = sum(qTr * gamxpyq)
             !magnetization part
             vecHoo(ijs) = vecHoo(ijs) + fact * sum(qTr * xpyqds * spinW(species0))
@@ -5576,7 +5487,7 @@ contains
       do ij = 1, nxoo(s)
         i = getIJ(ij + soo(s), 1)
         j = getIJ(ij + soo(s), 2)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + matM(i,j,s) * qTr(:)
           if (tSpin) then
@@ -5594,7 +5505,7 @@ contains
       do ab = 1, nxvv(s)
         a = getAB(ab + svv(s), 1)
         b = getAB(ab + svv(s), 2)
-        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), denseDesc, ovrXev, grndEigVecs, getAB)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + matM(a,b,s) * qTr(:)
           if (tSpin) then
@@ -5617,7 +5528,7 @@ contains
       i = getIA(ias, 1)
       a = getIA(ias, 2)
       s = getIA(ias, 3)
-      qTr(:) = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      qTr(:) = transChrg%qTransIA(ias, denseDesc, ovrXev, grndEigVecs, getIA, win)
       gamxpyq(:) = gamxpyq(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:)
       if (tSpin) then
          gamxpyqds(:) = gamxpyqds(:) + (matM(i,a,s) + matM(a,i,s)) * qTr(:) * spinFactor(s)
@@ -5632,7 +5543,7 @@ contains
         do ij = 1, nxoo(s)
           i = getIJ(ij + soo(s), 1)
           j = getIJ(ij + soo(s), 2)
-          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), denseDesc, ovrXev, grndEigVecs, getIJ)
           if (.not. tSpin) then
             vecH(ij + soo(s)) = 4.0_dp * dot_product(gamqt,qTr)
           else 
@@ -5647,7 +5558,7 @@ contains
         do ab = 1, nxvv(s)
           a = getAB(ab + svv(s), 1)
           b = getAB(ab + svv(s), 2)
-          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), denseDesc, ovrXev, grndEigVecs, getAB)
           if (.not. tSpin) then
             vecH(ab + svv(s)) = 4.0_dp * dot_product(gamqt,qTr)
           else 
@@ -5662,7 +5573,7 @@ contains
         i = getIA(ias, 1)
         a = getIA(ias, 2)
         s = getIA(ias, 3)
-        qTr(:) = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+        qTr(:) = transChrg%qTransIA(ias, denseDesc, ovrXev, grndEigVecs, getIA, win)
         if (.not. tSpin) then
            vecH(ias) = 4.0_dp * dot_product(gamqt,qTr)
         else 
