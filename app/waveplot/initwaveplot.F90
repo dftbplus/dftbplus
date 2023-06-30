@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains the routines for initialising waveplot.
+!> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
@@ -18,7 +18,7 @@ module waveplot_initwaveplot
       & TBoundaryConditions_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName,destroyNode
+      & getNodeName, destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
@@ -29,15 +29,17 @@ module waveplot_initwaveplot
   use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
       & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
-  use waveplot_gridcache, only : TGridCache, init
-  use waveplot_molorb, only : TMolecularOrbital, TSpeciesBasis
+  use dftbp_math_simplealgebra, only : determinant33
+  use waveplot_gridcache, only : TGridCache, TGridCache_init
+  use waveplot_molorb, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
+  use waveplot_slater, only : TSlaterOrbital_init
   implicit none
 
   private
   public :: TProgramVariables, TProgramVariables_init
 
 
-  !> Data type containing variables from detailed.xml
+  !> Data type containing variables from detailed.xml.
   type TInput
 
     !> Geometry instance
@@ -58,10 +60,10 @@ module waveplot_initwaveplot
   end type TInput
 
 
-  !> Data type containing variables from the Option block
+  !> Data type containing variables from the Option block.
   type TOption
 
-    !> Nr of grid points along 3 directions
+    !> Nr. of grid points along 3 directions
     integer :: nPoints(3)
 
     !> Repeat box along 3 directions
@@ -133,7 +135,7 @@ module waveplot_initwaveplot
   end type TOption
 
 
-  !> Data type containing variables from the Basis block
+  !> Data type containing variables from the Basis block.
   type TBasis
 
     !> Definition of the wfcs
@@ -145,7 +147,7 @@ module waveplot_initwaveplot
   end type TBasis
 
 
-  !> Data type containing variables from eigenvec.bin
+  !> Data type containing variables from eigenvec.bin.
   type TEig
 
     !> Nr. of states
@@ -160,7 +162,7 @@ module waveplot_initwaveplot
   end type TEig
 
 
-  !> Data type containing variables from the AtomicNumbers block
+  !> Data type containing variables from the AtomicNumbers block.
   type TAtomicNumber
 
     !> Species-atomic nr. corresp.
@@ -169,7 +171,7 @@ module waveplot_initwaveplot
   end type TAtomicNumber
 
 
-  !> Data type containing locally created variables
+  !> Data type containing locally created variables.
   type TInternal
 
     !> Molecular orbital
@@ -193,7 +195,7 @@ module waveplot_initwaveplot
   end type TInternal
 
 
-  !> Data type containing program variables
+  !> Data type containing program variables.
   type TProgramVariables
 
     !> Data of detailed.xml
@@ -220,78 +222,78 @@ module waveplot_initwaveplot
   end type TProgramVariables
 
 
-  !> program version
-  character(len=*), parameter :: version =  "0.3"
+  !> Program version
+  character(len=*), parameter :: version = "0.3"
 
-  !> root node name of the input tree
+  !> Root node name of the input tree
   character(len=*), parameter :: rootTag = "waveplot"
 
-  !> input file name
+  !> Input file name
   character(len=*), parameter :: hsdInput = "waveplot_in.hsd"
 
-  !> parsed output name
+  !> Parsed output name
   character(len=*), parameter :: hsdParsedInput = "waveplot_pin.hsd"
 
-  !> version of the input document
+  !> Version of the input document
   integer, parameter :: parserVersion = 3
 
 contains
 
 
-  !> Initialise program variables
+  !> Initialises the program variables.
   subroutine TProgramVariables_init(this)
 
     !> Container of program variables
     type(TProgramVariables), intent(out), target :: this
 
-    !> Pointers to input nodes
+    !! Pointers to input nodes
     type(fnode), pointer :: root, tmp, detailed, hsdTree
 
-    !> String buffer instance
+    !! String buffer instance
     type(string) :: strBuffer
 
-    !> Id of input/parser version
+    !! Id of input/parser version
     integer :: inputVersion
 
-    !> Nr. of cached grids
+    !! Nr. of cached grids
     integer :: nCached
 
-    !> Nr. of K-points
+    !! Nr. of K-points
     integer :: nKPoint
 
-    !> Nr. of spins
+    !! Nr. of spins
     integer :: nSpin
 
-    !> Wether to look for ground state occupations (True) or excited (False)
+    !! Wether to look for ground state occupations (True) or excited (False)
     logical :: tGroundState
 
-    !> If grid should shifted by a half cell
+    !! If grid should shifted by a half cell
     logical :: tShiftGrid
 
-    !> K-points and weights
+    !! K-points and weights
     real(dp), allocatable :: kPointsWeights(:,:)
 
-    !> File with binary eigenvectors
+    !! File with binary eigenvectors
     character(len=1024) :: eigVecBin
 
-    !> Auxiliary variable
+    !! Auxiliary variable
     integer :: ii
 
-    !> Operation status, if an error needs to be returned
+    !! Operation status, if an error needs to be returned
     type(TStatus) :: errStatus
 
-    !! Write header
+    ! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     WAVEPLOT  " // version
     write(stdout, "(A,/)") repeat("=", 80)
 
-    !! Read in input file as HSD
+    ! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
     write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
 
-    !! Check if input version is the one, which we can handle
+    ! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
     if (inputVersion /= parserVersion) then
       call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
@@ -300,7 +302,7 @@ contains
 
     call getChildValue(root, "GroundState", tGroundState, .true.)
 
-    !! Read data from detailed.xml
+    ! Read data from detailed.xml
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
@@ -311,20 +313,20 @@ contains
     nSpin = size(this%input%occupations, dim=3)
     this%eig%nState = size(this%input%occupations, dim=1)
 
-    !! Read basis
+    ! Read basis
     call getChild(root, "Basis", tmp)
     call readBasis(this, tmp, this%input%geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
 
-    !! Read options
+    ! Read options
     call getChild(root, "Options", tmp)
     call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
 
-    !! Issue warning about unprocessed nodes
+    ! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
 
-    !! Finish parsing, dump parsed and processed input
+    ! Finish parsing, dump parsed and processed input
     call dumpHSD(hsdTree, hsdParsedInput)
     write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
@@ -338,11 +340,9 @@ contains
     else
       call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
     end if
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    if (errStatus%hasError()) call error(errStatus%message)
 
-    !! Create grid vectors, shift them if necessary
+    ! Create grid vectors, shift them if necessary
     do ii = 1, 3
       this%loc%gridVec(:, ii) = this%opt%boxVecs(:, ii) / real(this%opt%nPoints(ii), dp)
     end do
@@ -351,7 +351,7 @@ contains
     else
       this%opt%gridOrigin(:) = this%opt%origin(:)
     end if
-    this%loc%gridVol = determinant(this%loc%gridVec)
+    this%loc%gridVol = abs(determinant33(this%loc%gridVec))
 
     write(stdout, "(A)") "Doing initialisation"
 
@@ -362,12 +362,13 @@ contains
     ! Check eigenvector id
     call checkEigenvecs(eigVecBin, this%input%identity)
 
-    !! Initialize necessary (molecular orbital, grid) objects
+    ! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
-    call init(this%loc%molOrb, this%input%geo, this%boundaryCond, this%basis%basis)
+    call TMolecularOrbital_init(this%loc%molOrb, this%input%geo, this%boundaryCond,&
+        & this%basis%basis)
 
-    call init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
+    call TGridCache_init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
         & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&
         & nPoints=this%opt%nPoints, tVerbose=this%opt%tVerbose, eigVecBin=eigVecBin,&
         & gridVec=this%loc%gridVec, origin=this%opt%gridOrigin,&
@@ -376,7 +377,7 @@ contains
   end subroutine TProgramVariables_init
 
 
-  !> Interpret the information stored in detailed.xml
+  !> Interprets the information stored in detailed.xml.
   subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
 
     !> Container of program variables
@@ -391,19 +392,19 @@ contains
     !> K-points and weights
     real(dp), intent(out), allocatable :: kPointsWeights(:,:)
 
-    !> Pointers to input nodes
+    !! Pointers to input nodes
     type(fnode), pointer :: tmp, occ, spin
 
-    !> Nr. of K-points
+    !! Nr. of K-points
     integer :: nKPoint
 
-    !> Nr. of spins
+    !! Nr. of spins
     integer :: nSpin
 
-    !> Nr. of states
+    !! Nr. of states
     integer :: nState
 
-    !> Auxiliary variables
+    !! Auxiliary variables
     integer :: iSpin, iKpoint
 
     call getChildValue(detailed, "Identity", this%input%identity)
@@ -450,7 +451,7 @@ contains
   end subroutine readDetailed
 
 
-  !> Read in the geometry stored as xml in internal or gen format.
+  !> Reads in the geometry stored as .xml in internal or .gen format.
   subroutine readGeometry(geo, geonode)
 
     !> Geometry instance
@@ -459,10 +460,10 @@ contains
     !> Node containing the geometry
     type(fnode), pointer :: geonode
 
-    !> Pointers to input nodes
+    !! Pointers to input nodes
     type(fnode), pointer :: child
 
-    !> String buffer instance
+    !! String buffer instance
     type(string) :: buffer
 
     call getChildValue(geonode, "", child)
@@ -488,7 +489,7 @@ contains
   end subroutine readGeometry
 
 
-  !> Interpret the options.
+  !> Interprets the options.
   subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
 
     !> Container of program variables
@@ -512,34 +513,34 @@ contains
     !> If grid should be shifted by half a cell
     logical, intent(out) :: tShiftGrid
 
-    !> Pointer to the nodes, containing the information
+    !! Pointer to the nodes, containing the information
     type(fnode), pointer :: subnode, field, value
 
-    !> String buffer instances
+    !! String buffer instances
     type(string) :: buffer, modifier
 
-    !> Onedimensional integer-valued index list
+    !! Onedimensional integer-valued index list
     type(TListIntR1) :: indexBuffer
 
-    !> Id of calculation at hand
+    !! Id of calculation at hand
     integer :: curId
 
-    !> If current level is found be calculated explicitely
+    !! If current level is found be calculated explicitely
     logical :: tFound
 
-    !> Warning issued, if the detailed.xml id does not match the eigenvector id
+    !! Warning issued, if the detailed.xml id does not match the eigenvector id
     character(len=63) :: warnId(3) = [&
         & "The external files you are providing differ from those provided", &
         & "when this input file was generated. The results you obtain with", &
         & "the current files could therefore be different.                "]
 
-    !> Auxiliary variables
+    !! Auxiliary variables
     integer :: ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
     real(dp), allocatable :: mcutoffs(:)
     real(dp) :: minEdge
 
-    !! Warning, if processed input is read in, but eigenvectors are different
+    ! Warning, if processed input is read in, but eigenvectors are different
     call getChildValue(node, "Identity", curId, this%input%identity)
     if (curId /= this%input%identity) then
       call warning(warnId)
@@ -586,7 +587,7 @@ contains
     call getChildValue(node, "PlottedSpins", buffer, child=field, multiple=.true.)
     call getSelectedIndices(node, char(buffer), [1, nSpin], this%opt%plottedSpins)
 
-    !! Create the list of the levels, which must be calculated explicitely
+    ! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)
     do iSpin = 1, nSpin
       do iKPoint = 1, nKPoint
@@ -622,8 +623,8 @@ contains
       nCached = size(this%loc%levelIndex, dim=2)
     end if
 
-    !! Plotted region: if last (and hopefully only) childnode is not an allowed method -> assume
-    !! explicit setting, parse the node "PlottedRegion" for the appropriate children.
+    ! Plotted region: if last (and hopefully only) childnode is not an allowed method -> assume
+    ! explicit setting, parse the node "PlottedRegion" for the appropriate children.
     call getChildValue(node, "PlottedRegion", value, child=subnode)
     call getNodeName(value, buffer)
 
@@ -653,7 +654,7 @@ contains
       end if
 
     case ("optimalcuboid")
-      !! Determine optimal cuboid, so that no basis function leaks out
+      ! Determine optimal cuboid, so that no basis function leaks out
       call getChildValue(value, "MinEdgeLength", minEdge, child=field, default=1.0_dp)
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
@@ -683,21 +684,21 @@ contains
       end do
 
     case ("origin","box")
-      !! Those nodes are part of an explicit specification -> explitic specif
+      ! Those nodes are part of an explicit specification -> explitic specif
       call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs)
-      if (abs(determinant(this%opt%boxVecs)) < 1e-08_dp) then
+      if (abs(determinant33(this%opt%boxVecs)) < 1e-08_dp) then
         call detailedError(field, "Vectors are linearly dependent")
       end if
       call getChildValue(subnode, "Origin", this%opt%origin, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%origin)
 
     case default
-      !! Object with unknown name passed
+      ! Object with unknown name passed
       call detailedError(value, "Invalid element name")
     end select
 
-    !! Replace existing PlottedRegion definition
+    ! Replace existing PlottedRegion definition
     call setChild(node, "PlottedRegion", field, replace=.true.)
     call setChildValue(field, "Origin", this%opt%origin, replace=.true.)
     call setChildValue(field, "Box", this%opt%boxVecs, replace=.true.)
@@ -732,7 +733,7 @@ contains
   end subroutine readOptions
 
 
-  !> Read in the basis related informations
+  !> Reads in the basis related informations.
   subroutine readBasis(this, node, speciesNames)
 
     !> Container of program variables
@@ -744,16 +745,16 @@ contains
     !> Names of the species for which the basis should be read in
     character(len=*), intent(in) :: speciesNames(:)
 
-    !> Name of current species
+    !! Name of current species
     character(len=len(speciesNames)) :: speciesName
 
-    !> Input node instance, containing the information
+    !! Input node instance, containing the information
     type(fnode), pointer :: speciesNode
 
-    !> Total number of species in the system
+    !! Total number of species in the system
     integer :: nSpecies
 
-    !> Auxiliary variable
+    !! Auxiliary variable
     integer :: ii
 
     nSpecies = size(speciesNames)
@@ -775,7 +776,7 @@ contains
   end subroutine readBasis
 
 
-  !> Read in basis function for a species.
+  !> Reads in basis function for a species.
   subroutine readSpeciesBasis(node, basisResolution, spBasis)
 
     !> Node containing the basis definition for a species
@@ -787,19 +788,19 @@ contains
     !> Contains the basis on return
     type(TSpeciesBasis), intent(out) :: spBasis
 
-    !> Input node instances, containing the information
+    !! Input node instances, containing the information
     type(fnode), pointer :: tmpNode, child
 
-    !> Node list instance
+    !! Node list instance
     type(fnodeList), pointer :: children
 
-    !> Real-valued buffer lists
+    !! Real-valued buffer lists
     type(TListReal) :: bufferExps, bufferCoeffs
 
-    !> Basis coefficients and exponents
+    !! Basis coefficients and exponents
     real(dp), allocatable :: coeffs(:), exps(:)
 
-    !> Auxiliary variable
+    !! Auxiliary variable
     integer :: ii
 
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
@@ -840,10 +841,9 @@ contains
       allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
       call destruct(bufferCoeffs)
-      call init(spBasis%stos(ii), reshape(coeffs, [size(coeffs) / size(exps), size(exps)]),&
-          & exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
-      deallocate(exps)
-      deallocate(coeffs)
+      call TSlaterOrbital_init(spBasis%stos(ii), reshape(coeffs, [size(coeffs) / size(exps),&
+          & size(exps)]), exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
+      deallocate(exps, coeffs)
     end do
 
   end subroutine readSpeciesBasis
@@ -867,7 +867,7 @@ contains
       call error("Can't open file '" // trim(fileName) // "'.")
     end if
 
-    read (fd%unit) id
+    read(fd%unit) id
 
     if (id /= identity) then
       call error("Ids for eigenvectors ("// i2c(id) //") and xml-input ("// i2c(identity) // &
@@ -877,31 +877,5 @@ contains
     call closeFile(fd)
 
   end subroutine checkEigenvecs
-
-
-  !> Determinant of a 3x3 matrix (only temporary!)
-  function determinant(matrix)
-
-    !> Matrix to calculate the determinant for
-    real(dp), intent(in) :: matrix(:,:)
-
-    !> Calculated determinant
-    real(dp) :: determinant
-
-    !> Auxiliary variable
-    real(dp) :: tmp
-
-    @:ASSERT(all(shape(matrix) == [3, 3]))
-
-    tmp = matrix(1, 1)&
-        & * (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
-    tmp = tmp - matrix(1, 2)&
-        & * (matrix(2, 1) * matrix(3, 3) - matrix(3, 1) * matrix(2, 3))
-    tmp = tmp + matrix(1, 3)&
-        & * (matrix(2, 1) * matrix(3, 2) - matrix(3, 1) * matrix(2, 2))
-
-    determinant = abs(tmp)
-
-  end function determinant
 
 end module waveplot_initwaveplot
