@@ -20,7 +20,7 @@ module dftbp_transport_negfint
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, unpackHS
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_extlibs_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units,&
-      & z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF, associate_lead_currents, associate_ldos,&
+      & z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF, associate_lead_currents, associate_ldos,&
       & associate_transmission, associate_current, compute_current, compute_density_dft,&
       & compute_ldos, create, create_scratch, destroy, set_readoldDMsgf, destroy_matrices,&
       & destroy_negf, get_params, init_contacts, init_ldos, init_negf, init_structure, pass_hs,&
@@ -517,7 +517,7 @@ contains
 
 
   !> Initialise compressed sparse row matrices
-  subroutine setup_csr(this, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+  subroutine setup_csr(this, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb, tDualSO)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
@@ -537,10 +537,17 @@ contains
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> Is this a Pauli matrix
+    logical, intent(in), optional :: tDualSO
+
     if (allocated(this%csrHam%nzval)) then
       call destroy(this%csrHam)
     end if
-    call init(this%csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+    if (present(tDualSO)) then
+      call init(this%csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb, tDualSO)
+    else
+      call init(this%csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+    end if
     if (allocated(this%csrOver%nzval)) then
       call destroy(this%csrOver)
     end if
@@ -566,7 +573,7 @@ contains
 
 
   !> Initialise the structures for the libNEGF library
-  subroutine setup_str(this, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
+  subroutine setup_str(this, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell, tSOC)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
@@ -588,6 +595,9 @@ contains
 
     !> neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
+
+    !> Is this a Pauli matrix
+    logical, intent(in) :: tSOC
 
     integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:)
     integer, allocatable :: ind(:), atomst(:), plcont(:)
@@ -623,7 +633,12 @@ contains
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
-    ind(:) = DenseDescr%iatomstart(:) - 1
+    if (tSOC) then
+      ind(:) = 2*DenseDescr%iatomstart(:) - 2
+    else
+      ind(:) = DenseDescr%iatomstart(:) - 1
+    end if
+
     minv = 0
     cblk = 0
 
@@ -1059,7 +1074,7 @@ contains
   !> Calculates density matrix with Green's functions
   subroutine calcdensity_green(this, iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-      & Ef, E0, TS)
+      & Ef, E0, TS, tSpinOrbit, iHam, iRho)
 
     !> Instance
     class(TNegfInt), target, intent(inout) :: this
@@ -1127,7 +1142,16 @@ contains
     !> Electron entropy
     real(dp), intent(out) :: TS(:)
 
-    integer :: nSpin, nKS, iK, iS, iKS
+    !> Imaginary part of the hamiltonian
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
+    !> Is spin orbit present
+    logical, intent(in) :: tSpinOrbit
+
+    !> Imaginary part of the density matrix
+    real(dp), intent(inout), allocatable :: iRho(:,:)
+
+    integer :: nSpin, nKS, iK, iS, iKS, nComp
     type(z_CSR), target :: csrDens
     type(z_CSR), pointer :: pCsrHam, pCsrOver
 
@@ -1153,7 +1177,15 @@ contains
     ! built-int potentials (the unpolarized does) in the poisson
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
-    rho = 0.0_dp
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if
+    rho(:,:) = 0.0_dp
+    if (allocated(iRho)) then
+      iRho(:,:) = 0.0_dp
+    end if
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -1164,26 +1196,39 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-    #:if WITH_MPI
-      if (env%mpi%nGroup == 1) then
+      if (this%negf%verbose > 10) then
+      #:if WITH_MPI
+        if (env%mpi%nGroup == 1) then
+          write(stdOut,*) 'k-point',iK,'Spin',iS
+        end if
+      #:else
         write(stdOut,*) 'k-point',iK,'Spin',iS
+      #:endif
       end if
-    #:else
-      write(stdOut,*) 'k-point',iK,'Spin',iS
-    #:endif
 
-      call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
-          & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)
+        call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
+            & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(this%csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
       call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+          & img2CentCell, iCellVec, cellVec, orb, nComp)
 
-      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS),&
-          & DensMat=csrDens)
+      call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), DensMat=csrDens)
 
       ! NOTE:
       ! unfold adds up to rho the csrDens(k) contribution
-      call unfoldFromCSR(rho(:,iS), csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
-          & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)
+        call unfoldFromCSR(rho(:,iS), csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
+            & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call unfoldFromCSR(rho, csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
+            & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb, iRho)
+      end select
 
       call destruct(csrDens)
 
@@ -1216,7 +1261,8 @@ contains
 
   !> Calculates energy-weighted density matrix with Green's functions
   subroutine calcEdensity_green(this, iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE,&
+      & tSpinOrbit, iHam)
 
     !> Instance.
     class(TNegfInt), target, intent(inout) :: this
@@ -1272,7 +1318,13 @@ contains
     !> Energy weighted density matrix
     real(dp), intent(out) :: rhoE(:)
 
-    integer :: nSpin, nKS, iK, iS, iKS
+    !> Imaginary part of the hamiltonian
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
+    !> Is this with spin orbit present (Pauli matrices)
+    logical, intent(in) :: tSpinOrbit
+
+    integer :: nSpin, nComp, nKS, iK, iS, iKS
     type(z_CSR), target :: csrEDens
     type(z_CSR), pointer :: pCsrEDens, pCsrHam, pCsrOver
 
@@ -1304,7 +1356,12 @@ contains
 
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
-    rhoE = 0.0_dp
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if
+    rhoE(:) = 0.0_dp
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -1315,12 +1372,20 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (this%negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
-      call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
-          & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)
+        call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
+            & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(this%csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
       call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+          & img2CentCell, iCellVec, cellVec, orb, nComp)
 
       call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
@@ -1328,7 +1393,7 @@ contains
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
       !
       call unfoldFromCSR(rhoE, csrEDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair, iNeighbor,&
-          & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+          & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
 
       call destruct(csrEDens)
 
@@ -1354,7 +1419,7 @@ contains
   !> Calculate the current and optionally density of states
   subroutine calc_current(this, env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, tWriteTunn, tWriteLDOS, regionLabelLDOS, mu)
+      & currLead, tWriteTunn, tWriteLDOS, regionLabelLDOS, mu, tSpinOrbit, iHam)
 
     !> Instance.
     class(TNegfInt), target, intent(inout) :: this
@@ -1429,17 +1494,23 @@ contains
     !> not really needed
     real(dp), intent(in) :: mu(:,:)
 
+    !> Is spin-orbit enabled
+    logical, intent(in) :: tSpinOrbit
+
+    !> Imaginary part of hamiltonian, if required
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
+
     real(dp), allocatable :: tunnSKRes(:,:,:), currSKRes(:,:,:), ldosSKRes(:,:,:)
     real(dp), pointer    :: tunnPMat(:,:)=>null()
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
+    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup, nComp
     type(units) :: unitsOfEnergy        ! Set the units of H
     type(units) :: unitsOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
-    integer :: NumStates
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
     type(z_CSR), pointer :: pCsrHam, pCsrOver
@@ -1465,6 +1536,11 @@ contains
     end if
     nTotKS = nS * size(kpoints, dim=2)
     ncont = size(mu,1)
+    if (size(ham,2)==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if
 
     if (params%verbose.gt.30) then
       write(stdOut, *)
@@ -1478,7 +1554,9 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
+      if (params%verbose > 10) then
+        write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
+      end if
 
       params%mu(1:ncont) = mu(1:ncont,iS)
 
@@ -1493,13 +1571,11 @@ contains
       if (all(kPoints(:,iK) == 0.0_dp)&
           & .and. (this%negf%tOrthonormal .or. this%negf%tOrthonormalDevice)) then
 
-        NumStates = this%negf%NumStates
-
         if (.not.allocated(H_all)) then
-          allocate(H_all(NumStates,NumStates))
+          allocate(H_all(this%negf%NumStates,this%negf%NumStates))
         end if
         if (.not.allocated(S_all)) then
-          allocate(S_all(NumStates,NumStates))
+          allocate(S_all(this%negf%NumStates,this%negf%NumStates))
         end if
 
         call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
@@ -1512,11 +1588,17 @@ contains
 
       else
 
-        call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
-            & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+        select case (nComp)
+        case(1)
+          call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
+              & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
+        case(2)
+          call foldToCSR(this%csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+              & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+        end select
 
         call foldToCSR(this%csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-            & img2CentCell, iCellVec, cellVec, orb)
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
 
       end if
 
@@ -1882,7 +1964,7 @@ contains
   ! NOTE: Limited to non-periodic systems
   subroutine local_currents(this, env, groupKS, ham, over, neighbourList, nNeighbour, skCutoff,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoints, kWeights,&
-      & coord0, species0, speciesName, chempot, testArray, errStatus)
+      & coord0, species0, speciesName, chempot, testArray, errStatus, tSpinOrbit, iHam)
 
     !> Instance.
     class(TNegfInt), target, intent(inout) :: this
@@ -1945,9 +2027,15 @@ contains
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(out) :: errStatus
 
+    !> Is spin orbit included
+    logical, intent(in) :: tSpinOrbit
+
+    !> Imaginary part of the hamiltonian, if needed
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow
-    integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
+    integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb, nComp
     real(dp), dimension(:,:,:), allocatable :: lcurr
     real(dp) :: Im
     type(TNeighbourList) :: lc_neigh
@@ -1997,6 +2085,11 @@ contains
     nKS = size(groupKS, dim=2)
     nK = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if
     nAtom = size(orb%nOrbAtom)
     call get_fmtstring(nK, skp, fmtstring)
 
@@ -2023,13 +2116,24 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (this%negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
       ! We need to recompute Rho and RhoE .....
-      call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair,&
-          & neighbourList%iNeighbour, nNeighbour, img2CentCell, iCellVec, CellVec, orb)
+      select case (nComp)
+      case(1)
+        call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair,&
+            & neighbourList%iNeighbour, neighbourList%nNeighbour, img2CentCell, iCellVec, cellVec,&
+            & orb, nComp)
+      case(2)
+        call foldToCSR(this%csrHam, ham, kPoints(:,iK), iAtomStart, iPair,&
+            & neighbourList%iNeighbour, neighbourList%nNeighbour, img2CentCell, iCellVec, cellVec,&
+            & orb, tSpinOrbit, iHam)
+      end select
       call foldToCSR(this%csrOver, over, kPoints(:,iK), iAtomStart, iPair,&
-          & neighbourList%iNeighbour, nNeighbour, img2CentCell, iCellVec, CellVec, orb)
+          & neighbourList%iNeighbour, neighbourList%nNeighbour, img2CentCell, iCellVec, CellVec,&
+          & orb, nComp)
 
       call negf_density(this%negf, iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS),&
           & DensMat=pCsrDens)

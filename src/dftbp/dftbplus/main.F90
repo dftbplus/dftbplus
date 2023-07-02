@@ -450,7 +450,8 @@ contains
           & this%ints%overlap, this%neighbourList, this%nNeighbourSK, this%cutOff%skCutoff,&
           & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%iCellVec,&
           & this%cellVec, this%rCellVec, this%orb, this%kPoint, this%kWeight, this%coord0Fold,&
-          & this%species0, this%speciesName, this%mu, this%lCurrArray, errStatus)
+          & this%species0, this%speciesName, this%mu, this%lCurrArray, errStatus, this%tSpinOrbit,&
+          & this%ints%iHamiltonian)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -462,7 +463,7 @@ contains
           & this%densedesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%iCellVec,&
           & this%cellVec, this%orb, this%kPoint, this%kWeight, this%tunneling, this%current,&
           & this%ldos, this%leadCurrents, this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS,&
-          & this%mu)
+          & this%mu, this%tSpinOrbit, this%ints%iHamiltonian)
     end if
 
   #:endif
@@ -1040,7 +1041,8 @@ contains
     #:if WITH_TRANSPORT
       if (this%tNegf) then
         call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
-            & this%neighbourList, this%nNeighbourSK, this%img2CentCell, this%orb)
+            & this%neighbourList, this%nNeighbourSK, this%img2CentCell, this%orb, this%nSpin,&
+            & this%tDualSpinOrbit)
       end if
     #:endif
 
@@ -1110,7 +1112,7 @@ contains
       if (this%tWriteDetailedOut) then
         call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       end if
-      ! We need to define hamiltonian by adding the potential
+      ! We need to define the hamiltonian by adding the potential
       call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
           & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
           & allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
@@ -1504,7 +1506,7 @@ contains
             & this%img2CentCell, this%iCellVec, this%cellVec, this%tRealHS, this%ints,&
             & this%parallelKS, this%tHelical, this%species, this%coord, iSccIter, this%mu,&
             & this%ERhoPrim, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx,&
-            & errStatus)
+            & errStatus, this%tSpinOrbit, this%ints%iHamiltonian)
         @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, this%boundaryCond, this%scc, this%tblite, this%isExtField,&
@@ -2148,7 +2150,7 @@ contains
 
   !> Initialise transport
   subroutine setupNegfStuff(negfInt, denseDescr, transpar, ginfo, neighbourList, nNeighbourSK,&
-      & img2CentCell, orb)
+      & img2CentCell, orb, nSpin, tDualSpinOrbit)
 
     !> NEGF interface
     type(TNegfInt), intent(inout) :: negfInt
@@ -2174,14 +2176,27 @@ contains
     !> Number of neighbours of each real atom
     integer, intent(in) :: nNeighbourSK(:)
 
+    !> signal the hamiltonian size (1, 2, 4), needed for SOC
+    integer, intent(in) :: nSpin
+
+    !> dual spin orbit hamiltonian
+    logical, intent(in) :: tDualSpinOrbit
+
     ! known issue about the PLs: We need an automatic partitioning
-    call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
-        & img2CentCell, orb)
+    select case(nSpin)
+    case(1, 2)
+      call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
+          & img2CentCell, orb)
+      call negfInt%setup_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
+          & nNeighbourSK, img2CentCell, tDualSpinOrbit)
+      call negfInt%setup_dephasing(ginfo%tundos)  !? why tundos
+    case(4)
+      call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
+          & img2CentCell, orb, tDualSpinOrbit)
+      call negfInt%setup_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
+          & nNeighbourSK, img2CentCell, .true.)
+    end select
 
-    call negfInt%setup_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour,&
-        & nNeighbourSK, img2CentCell)
-
-    call negfInt%setup_dephasing(ginfo%tundos)  !? why tundos
 
   end subroutine setupNegfStuff
 
@@ -2379,7 +2394,8 @@ contains
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
   !> (Vq, uB*Bz*\sigma_z) -> (Vq + uB*Bz*\sigma_z, Vq - uB*Bz*\sigma_z)
-  !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
+  !> For non-collinear spin-orbit, all blocks are multiplied by 1/2  according to the algebra
+  !> [I/2, σx/2, σy/2, σz/2], resulting in:
   !> (Vq/2, uL* Lx*\sigma_x/2, uL* Ly*\sigma_y/2, uL* Lz*\sigma_z/2)
   subroutine convertToUpDownRepr(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
@@ -2592,7 +2608,7 @@ contains
       call negfInt%calcdensity_green(iSCC, env, parallelKS%localKS, ints%hamiltonian, ints%overlap,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, energy%Eband, Ef,&
-          & energy%E0, energy%TS)
+          & energy%E0, energy%TS, tSpinOrbit, ints%iHamiltonian, irhoPrim)
     #:else
       call error("Internal error: getDensity : GF solver called although code compiled without&
           & transport")
@@ -4795,7 +4811,7 @@ contains
   subroutine getEnergyWeightedDensity(env, negfInt, electronicSolver, denseDesc, forceType,&
       & filling, eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart,&
       & img2CentCell, iCellVEc, cellVec, tRealHS, ints, parallelKS, tHelical, species, coord,&
-      & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, errStatus)
+      & iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, errStatus, tSpinOrbit, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4887,6 +4903,12 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
+    !> Is spin orbit present (needed for negf)
+    logical, intent(in), optional :: tSpinOrbit
+
+    !> Imaginary part of the hamiltonian (needed for negf)
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
     integer :: nSpin
 
     nSpin = size(ints%hamiltonian, dim=2)
@@ -4906,7 +4928,8 @@ contains
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
         call negfInt%calcEdensity_green(iSCC, env, parallelKS%localKS, ints%hamiltonian,&
             & ints%overlap, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+            & iSparseStart, img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim,&
+            & tSpinOrbit, iHam)
       end if
     #:endif
 

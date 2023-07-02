@@ -287,9 +287,9 @@ contains
     tmpShift(:,:,:,:) = 0.0_dp
     do iSp = 1, nSpecies
       call getLSOperatorsForSpecies(orb, xi, iSp, speciesZ, speciesPlus)
-      tmpShift(:, :, iSp, 4) = aimag(speciesZ)
       tmpShift(:, :, iSp, 2) = aimag(speciesPlus)
       tmpShift(:, :, iSp, 3) = -real(speciesPlus)
+      tmpShift(:, :, iSp, 4) = aimag(speciesZ)
     end do
 
     shift(:,:,:,:) = 0.0_dp

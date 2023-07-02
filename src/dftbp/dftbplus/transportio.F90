@@ -507,12 +507,14 @@ contains
 
     real(dp), allocatable :: chargesSt(:,:,:), blockChargeBuffer(:,:,:,:)
     integer, allocatable :: nOrbAtom(:)
-    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpinChannel
     integer :: iStart, iEnd, iSpin, nSpin, iAt, ii
     character(lc) :: strTmp
     logical :: tAsciiFile, hasBlockCharges
 
     nSpin = size(charges, dim=3)
+
+    nSpinChannel = mod(nSpin, 3)
 
     tAsciiFile = .not.tp%tReadBinShift
 
@@ -585,11 +587,11 @@ contains
 
     if (.not. tp%contacts(iCont)%tFermiSet) then
       if (tAsciiFile) then
-        do iSpin = 1, nSpin
+        do iSpin = 1, nSpinChannel
           read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
         end do
       else
-        read(fdH) tp%contacts(iCont)%eFermi(:nSpin)
+        read(fdH) tp%contacts(iCont)%eFermi(:nSpinChannel)
       end if
       tp%contacts(iCont)%tFermiSet = .true.
     end if
