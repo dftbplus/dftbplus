@@ -377,7 +377,7 @@ contains
   end subroutine TProgramVariables_init
 
 
-  !> Interprets the information stored in detailed.xml.
+  !> Interpret the information stored in detailed.xml.
   subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
 
     !> Container of program variables
@@ -451,7 +451,7 @@ contains
   end subroutine readDetailed
 
 
-  !> Reads in the geometry stored as .xml in internal or .gen format.
+  !> Read in the geometry stored as .xml in internal or .gen format.
   subroutine readGeometry(geo, geonode)
 
     !> Geometry instance
@@ -489,7 +489,7 @@ contains
   end subroutine readGeometry
 
 
-  !> Interprets the options.
+  !> Interpret the options.
   subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
 
     !> Container of program variables
@@ -776,7 +776,7 @@ contains
   end subroutine readBasis
 
 
-  !> Reads in basis function for a species.
+  !> Read in basis function for a species.
   subroutine readSpeciesBasis(node, basisResolution, spBasis)
 
     !> Node containing the basis definition for a species

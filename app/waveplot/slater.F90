@@ -16,7 +16,7 @@ module waveplot_slater
   save
 
   public :: realTessY
-  public :: TSlaterOrbital, TSlaterOrbital_init, getValue, assignment(=)
+  public :: TSlaterOrbital, TSlaterOrbital_init, getValue
 
 
   !> Data type for STOs.
@@ -56,13 +56,7 @@ module waveplot_slater
   end interface
 
 
-  !> Assignment operator for SlaterOrbital to assure proper allocation.
-  interface assignment(=)
-    module procedure TSlaterOrbital_assign
-  end interface
-
 contains
-
 
   !> Returns the real tesseral spherical harmonics in a given point.
   !! This function only work for angular momenta between 0 and 3 (s-f).
@@ -304,34 +298,5 @@ contains
     end do
 
   end subroutine TSlaterOrbital_getValue_explicit
-
-
-  !> An STO assignment with proper memory allocation (deep copy).
-  elemental subroutine TSlaterOrbital_assign(left, right)
-
-    !> Left value of the assignment
-    type(TSlaterOrbital), intent(inout) :: left
-
-    !> Right value of the assignment
-    type(TSlaterOrbital), intent(in) :: right
-
-    if (allocated(left%aa)) then
-      deallocate(left%aa, left%alpha)
-    end if
-
-    allocate(left%aa(size(right%aa, dim=1), size(right%aa, dim=2)))
-    allocate(left%alpha(size(right%alpha)))
-    allocate(left%gridValue(size(right%gridValue)))
-
-    left%nPow = right%nPow
-    left%nAlpha = right%nAlpha
-    left%ll = right%ll
-    left%aa(:,:) = right%aa
-    left%alpha(:) = right%alpha
-    left%gridValue(:) = right%gridValue
-    left%gridDist = right%gridDist
-    left%nGrid = right%nGrid
-
-  end subroutine TSlaterOrbital_assign
 
 end module waveplot_slater
