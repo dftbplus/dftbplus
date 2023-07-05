@@ -5,8 +5,8 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+23.1
+====
 
 Added
 -----
@@ -14,6 +14,9 @@ Added
 - Non-adiabatic coupling vectors for linear response calculations
 
 - Hellmann-Feynman testing for the xTB hamiltonian dipoles
+
+- Born charges and derivatives can now be calculated for a subset of the desired
+  atoms (similar to the Hessian).
 
 
 Changed
@@ -29,9 +32,6 @@ Fixed
 
 - Tool dp_dos produced obviously incorrect results for Pauli-Hamiltonians (e.g.
   when using spin-orbit coupling). Other Hamiltonians were not affected.
-
-- Born charges and derivatives can now be calculated for a subset of the desired
-  atoms (similar to the Hessian).
 
 
 22.2 (2022-12-20)
