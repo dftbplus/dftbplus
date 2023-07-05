@@ -23,8 +23,14 @@ module dftbp_dftb_scc
   use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
+  
+#:if WITH_SCALAPACK
+  
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, N_, scalafx_infog2l
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+
+#:endif
+  
   implicit none
 
   private
@@ -155,8 +161,12 @@ module dftbp_dftb_scc
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
 
-     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
-    procedure :: getAtomicGammaMatrixBlacs   
+  #:if WITH_SCALAPACK
+    
+    !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+    procedure :: getAtomicGammaMatrixBlacs
+
+  #:endif 
 
     !> Routine for returning lower triangle of atomic resolved gamma for specified U values
     procedure :: getAtomicGammaMatU
@@ -549,6 +559,7 @@ contains
 
   end subroutine getAtomicGammaMatrix
 
+#:if WITH_SCALAPACK
   
   subroutine getAtomicGammaMatrixBlacs(this, gammamat, iNeighbour, img2CentCell, env)
 
@@ -587,6 +598,8 @@ contains
 
   end subroutine getAtomicGammaMatrixBlacs
 
+#:endif
+  
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
   !>
   !> Works only, if SCC-instance uses Gamma-electrostatics.

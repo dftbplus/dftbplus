@@ -13,10 +13,16 @@ module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
   use dftbp_io_message, only : error
+
+#:if WITH_SCALAPACK
+  
+  use dftbp_extlibs_scalapackfx, only : DLEN_, M_, NB_, N_, CSRC_, MB_, RSRC_, scalafx_indxl2g
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
+  
+#:endif  
+  
   implicit none
 
   private
@@ -73,8 +79,8 @@ module dftbp_timedep_transcharges
 contains
 
   !> initialise the cache/on-the fly transition charge evaluator
-  subroutine TTransCharges_init(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
-      & nXooUD, nXvvUD, getia, getij, getab, iatrans, win, tStoreOccVir, tStoreSame)
+  subroutine TTransCharges_init(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, nOrb, nTrans,&
+      & nMatUp, nXooUD, nXvvUD, getia, getij, getab, win, tStoreOccVir, tStoreSame, tFirstCall)
 
     !> Instance
     type(TTransCharges), intent(out) :: this
@@ -90,6 +96,9 @@ contains
 
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> number of orbitals
+    integer, intent(in) :: nOrb   
 
     !> number of transitions in the system
     integer, intent(in) :: nTrans
@@ -111,6 +120,10 @@ contains
     !> required for excited state forces and TD-LC-DFTB
     logical, intent(in) :: tStoreSame
 
+    !> If tFirstCall = .false. recompute only occ-vir charges for
+    !> new transition list with different size
+    logical, intent(in) :: tFirstCall
+
     !> index array for occ-vir single particle excitations
     integer, intent(in) :: getia(:,:)
 
@@ -119,36 +132,60 @@ contains
 
     !> index array for vir-vir single particle excitations
     integer, intent(in) :: getab(:,:)
-    
-    !> array from pairs of single particles states to compound index 
-    integer, intent(in) :: iatrans(:,:,:)
 
     !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    integer :: ia, ii, jj, ij, kk, ab, aa, bb, iSpin, iAtom, nSpin
-    integer :: desc(DLEN_), iLoc, mLoc, iGlb, mGlb, jLoc, jGlb, nOrbs
-    integer :: nLocRow, nLocCol
-    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:,:)
+    integer :: ia, ii, jj, ij, kk, ab, aa, bb, ss, iam,ierr
     logical :: updwn
 
-    this%nTransitions = nTrans
+  #:if WITH_SCALAPACK
+    
+    integer :: iSpin, iAtom, nSpin, nOrbs, nLocRow, nLocCol
+    integer :: desc(DLEN_), iLoc, mLoc, iGlb, mGlb, jLoc, jGlb
+    real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:,:)
+
+  #:endif
+    
+    this%nTransitions = nTrans  
     this%nAtom = size(denseDesc%iAtomStart) - 1
     this%nMatUp = nMatUp
     this%nMatUpOccOcc = nXooUD(1)
     this%nMatUpVirVir = nXvvUD(1)
+
+  #:if WITH_SCALAPACK
+    call mpi_comm_rank(MPI_COMM_WORLD, iam, ierr)
     nSpin = size(grndEigVecs, dim=3)
-    nOrbs = size(iatrans, dim=1)
+     
+    if (tStoreSame) then
 
-    if (tStoreOccVir) then
-
-      @:ASSERT(.not.allocated(this%qCacheOccVir))
-      allocate(this%qCacheOccVir(this%nAtom, nTrans))
-
-    #:if WITH_SCALAPACK
+      @:ASSERT(tStoreOccVir)
+      if (tFirstCall) then
+        @:ASSERT(.not.allocated(this%qCacheOccOcc))
+        allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
+        @:ASSERT(.not.allocated(this%qCacheVirVir))
+        allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
+      end if
       
+    else
+      
+      this%tCacheChargesSame = .false.
+      
+    end if
+    
+    if (tStoreOccVir) then
+      
+      if (tFirstCall) then
+        @:ASSERT(.not.allocated(this%qCacheOccVir))
+      else
+        ! A simple deallocate gives me an error, why is this%qCacheOccVir
+        ! deallocated if routine is re-entered?
+        if(allocated(this%qCacheOccVir)) deallocate(this%qCacheOccVir)
+      end if
+
+      allocate(this%qCacheOccVir(this%nAtom, nTrans))
       desc(:) = denseDesc%blacsOrbSqr
-      allocate(workGlobal(nOrbs,nOrbs,nSpin))
+      allocate(workGlobal(nOrb,nOrb,nSpin))
       nLocRow = size(grndEigVecs,dim=1)
       nLocCol = size(grndEigVecs,dim=2)
       allocate(workLocal(nLocRow,nLocCol))
@@ -188,16 +225,68 @@ contains
             kk = win(ia)
             ii = getia(kk,1)
             aa = getia(kk,2)
-            if(kk <= nMatUp) then
-              this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,1) + workGlobal(aa,ii,1))
-            else
-              this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,2) + workGlobal(aa,ii,2))
-            end if
+            ss = getia(kk,3)
+   
+            if (ss == iSpin) then
+              if (kk <= nMatUp) then
+                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,1)+workGlobal(aa,ii,1))
+              else
+                this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,2)+workGlobal(aa,ii,2))
+              end if
+            end if 
           enddo
+
+          if (tStoreSame .and. tFirstCall) then
+            
+            do ij = 1, sum(nXooUD)
+              ii = getij(ij,1)
+              jj = getij(ij,2)
+              ss = getij(ij,3)
+              if (ss == iSpin) then
+                if(ij <= nXooUD(1)) then
+                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj,1)+workGlobal(jj,ii,1))
+                else
+                  this%qCacheOccOcc(iAtom,ij) =  0.5_dp * (workGlobal(ii,jj,2)+workGlobal(jj,ii,2))
+                end if
+              end if
+            enddo
+
+            do ab = 1, sum(nXvvUD)
+              aa = getab(ab,1)
+              bb = getab(ab,2)
+              ss = getab(ab,3)
+              if (ss == iSpin) then
+                if(ab <= nXvvUD(1)) then
+                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb,1)+workGlobal(bb,aa,1))
+                else
+                  this%qCacheVirVir(iAtom,ab) = 0.5_dp * (workGlobal(aa,bb,2)+workGlobal(bb,aa,2))
+                end if
+              end if
+            end do
+            
+          endif
+          
         enddo
       enddo
+      
+      this%tCacheChargesOccVir = .true.
+ 
+    else
+ 
+      this%tCacheChargesOccVir = .false.
+      
+    end if
                        
-   #:else
+  #:else
+
+    if (tStoreOccVir) then
+
+      if (tFirstCall) then
+        @:ASSERT(.not.allocated(this%qCacheOccVir))
+      else
+        deallocate(this%qCacheOccVir)
+      end if
+      allocate(this%qCacheOccVir(this%nAtom, nTrans))
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
       do ia = 1, nTrans
@@ -205,20 +294,21 @@ contains
         ii = getia(kk,1)
         aa = getia(kk,2)
         updwn = (kk <= this%nMatUp)
-        this%qCacheOccVir(:,ia) = transq(ii, aa, denseDesc, updwn,  sTimesGrndEigVecs,&
+        this%qCacheOccVir(:,ia) = transq(ii, aa, env, denseDesc, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
       !!$OMP  END PARALLEL DO
 
-   #:endif
-      
+      this%tCacheChargesOccVir = .true.
+
     else
 
       this%tCacheChargesOccVir = .false.
 
     end if
 
-    if (tStoreSame) then
+    if (tStoreSame .and. tFirstCall) then
+
       @:ASSERT(.not.allocated(this%qCacheOccOcc))
       allocate(this%qCacheOccOcc(this%nAtom, sum(nXooUD)))
       @:ASSERT(.not.allocated(this%qCacheVirVir))
@@ -229,7 +319,7 @@ contains
         ii = getij(ij,1)
         jj = getij(ij,2)
         updwn = (ij <= nXooUD(1))
-        this%qCacheOccOcc(:,ij) = transq(ii, jj, denseDesc, updwn,  sTimesGrndEigVecs,&
+        this%qCacheOccOcc(:,ij) = transq(ii, jj, env, denseDesc, updwn,  sTimesGrndEigVecs,&
              & grndEigVecs)
       enddo
       !!$OMP  END PARALLEL DO
@@ -239,7 +329,7 @@ contains
         aa = getab(ab,1)
         bb = getab(ab,2)
         updwn = (ab <= nXvvUD(1))
-        this%qCacheVirVir(:,ab) = transq(aa, bb, denseDesc, updwn,  sTimesGrndEigVecs,&
+        this%qCacheVirVir(:,ab) = transq(aa, bb, env, denseDesc, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
       !!$OMP  END PARALLEL DO
@@ -251,12 +341,15 @@ contains
       this%tCacheChargesSame = .false.
 
     end if
+    
+  #:endif
+      
 
   end subroutine TTransCharges_init
 
 
   !> returns transition charges between occ-vir single particle levels
-  function TTransCharges_qTransIA(this, ij, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
+  function TTransCharges_qTransIA(this, ij, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win) result(q)
 
     !> instance of the transition charge object
@@ -264,6 +357,9 @@ contains
 
     !> Index of transition
     integer, intent(in) :: ij
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -292,13 +388,13 @@ contains
       ii = getia(kk,1)
       jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
-      q(:) = transq(ii, jj, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
+      q(:) = transq(ii, jj, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
 
   end function TTransCharges_qTransIA
 
   !> returns transition charges between occ-occ single particle levels
-  function TTransCharges_qTransIJ(this, ij, denseDesc, sTimesGrndEigVecs, grndEigVecs, getij)&
+  function TTransCharges_qTransIJ(this, ij, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getij)&
       & result(q)
 
     !> instance of the transition charge object
@@ -306,6 +402,9 @@ contains
 
     !> Index of transition
     integer, intent(in) :: ij
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -331,13 +430,14 @@ contains
       ii = getij(ij,1)
       jj = getij(ij,2)
       updwn = (ij <= this%nMatUpOccOcc)
-      q(:) = transq(ii, jj, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
+      q(:) = transq(ii, jj, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
+      
     end if
 
   end function TTransCharges_qTransIJ
 
   !> returns transition charges between vir-vir single particle levels
-  function TTransCharges_qTransAB(this, ab, denseDesc, sTimesGrndEigVecs, grndEigVecs, getab)&
+  function TTransCharges_qTransAB(this, ab, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getab)&
       & result(q)
 
     !> instance of the transition charge object
@@ -345,6 +445,9 @@ contains
 
     !> Index of transition
     integer, intent(in) :: ab
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -370,7 +473,7 @@ contains
       aa = getab(ab,1)
       bb = getab(ab,2)
       updwn = (ab <= this%nMatUpVirVir)
-      q(:) = transq(aa, bb, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
+      q(:) = transq(aa, bb, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
 
   end function TTransCharges_qTransAB
@@ -378,12 +481,15 @@ contains
 
   !> Transition charges left produced with a vector Q * v
   !> qProduct has dimension nAtom
-  subroutine TTransCharges_qMatVec(this, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
+  subroutine TTransCharges_qMatVec(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
     !> instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
@@ -435,7 +541,7 @@ contains
         jj = getia(kk,2)
         
         updwn = (kk <= this%nMatUp)
-        qij(:) = transq(ii, jj, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+        qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(:) = qProduct + qij * vector(ij)
       end do
 
@@ -448,11 +554,14 @@ contains
 
   !> Transition charges right produced with a vector v * Q
   !> qProduct has dimension nOcc*nVir
-  subroutine TTransCharges_qVecMat(this, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
+  subroutine TTransCharges_qVecMat(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
     !> instance of the transition charge object
     class(TTransCharges), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
     
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -490,7 +599,7 @@ contains
     end if
     iGlb = iOff + 1
     fGlb = iOff + size(qProduct)
-    
+
     if (this%tCacheChargesOccVir) then
 
       qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir(:,iGlb:fGlb))
@@ -505,7 +614,7 @@ contains
         ii = getia(kk,1)
         jj = getia(kk,2)
         updwn = (kk <= this%nMatUp)
-        qij(:) = transq(ii, jj, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+        qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
       end do
       !!$OMP  END PARALLEL DO
@@ -520,12 +629,15 @@ contains
   !> Transition charges left produced with a vector Q * v for spin up
   !> minus Transition charges left produced with a vector Q * v for spin down
   !> sum_ias q_ias V_ias delta_s,  where delta_s = 1 for spin up and delta_s = -1 for spin down
-  subroutine TTransCharges_qMatVecDs(this, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
+  subroutine TTransCharges_qMatVecDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
@@ -560,7 +672,7 @@ contains
       ii = getia(kk,1)
       jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
-      qij(:) = transq(ii, jj, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+      qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
         qProduct(:) = qProduct + qij * vector(ij)
       else
@@ -577,12 +689,15 @@ contains
   !> Transition charges right produced with a vector v * Q for spin up
   !> and negative transition charges right produced with a vector v * Q for spin down
   !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
-  subroutine TTransCharges_qVecMatDs(this, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
+  subroutine TTransCharges_qVecMatDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
     !> instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
@@ -617,7 +732,7 @@ contains
       ii = getia(kk,1)
       jj = getia(kk,2)
       updwn = (kk <= this%nMatUp)
-      qij(:) = transq(ii, jj, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+      qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
         qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
       else
@@ -636,13 +751,16 @@ contains
   !> S the overlap matrix.
   !> Since qij is atomic quantity (so far) the corresponding values for the atom are summed up.
   !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
-  function transq(ii, jj, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
+  function transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
 
     !> Index of initial state.
     integer, intent(in) :: ii
 
     !> Index of final state.
     integer, intent(in) :: jj
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -662,22 +780,20 @@ contains
     integer :: kk, aa, bb, ss
     real(dp), allocatable :: qTmp(:)
 
+  #:if WITH_SCALAPACK
+    
+    call error('Direct call to transq not allowed under MPI.')
+    
+  #:endif 
+    
     ss = 1
     if (.not. updwn) then
       ss = 2
     end if
 
-  #:if WITH_SCALAPACK
-
-    call error('Direct call to transq not possible with MPI.')
-   
-  #:else
-    
-    allocate(qTmp, size(grndEigVecs,dim=1))
+    allocate(qTmp(size(grndEigVecs,dim=1)))
     qTmp(:) =  grndEigVecs(:,ii,ss) * sTimesGrndEigVecs(:,jj,ss)&
           & + grndEigVecs(:,jj,ss) * sTimesGrndEigVecs(:,ii,ss)
-
-   #:endif
     
     do kk = 1, size(qij)
       aa = denseDesc%iAtomStart(kk)
@@ -686,6 +802,5 @@ contains
     end do
 
   end function transq
-
 
 end module dftbp_timedep_transcharges
