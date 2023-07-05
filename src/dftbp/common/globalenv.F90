@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,7 +26,7 @@ module dftbp_common_globalenv
   private
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
-  public :: stdOut, stdErr, tIoProc
+  public :: stdOut, stdOut0, stdErr, stdErr0, tIoProc
   public :: withScalapack, withMpi
   public :: instanceSafeBuild
   #:if WITH_MPI

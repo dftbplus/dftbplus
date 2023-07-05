@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_derivs_perturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFile
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
@@ -42,6 +42,7 @@ module dftbp_derivs_perturb
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
+  use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
 #:endif
@@ -51,7 +52,50 @@ module dftbp_derivs_perturb
   implicit none
 
   private
-  public :: TResponse, TResponse_init, responseSolverTypes
+  public :: TPerturbInp, TResponse, TResponse_init, responseSolverTypes
+
+
+  !> Input type for perturbation calculations
+  type :: TPerturbInp
+
+    !> Is a perturbation expression in use
+    logical :: doPerturbation = .false.
+
+    !> Is a perturbation expression in use for each geometry step
+    logical :: doPerturbEachGeom = .false.
+
+    !> Tolerance for idenfifying need for degenerate perturbation theory
+    real(dp) :: tolDegenDFTBPT = 128.0_dp
+
+    !> Is this is a static electric field perturbation calculation
+    logical :: isEPerturb = .false.
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynEFreq(:)
+
+    !> Frequency dependent perturbation eta
+    real(dp), allocatable :: etaFreq
+
+    !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
+    logical :: isRespKernelPert = .false.
+
+    !> Is the response kernel evaluated at the RPA level, or (if SCC) self-consistent
+    logical :: isRespKernelRPA
+
+    !> Frequencies for perturbation (0 being static case)
+    real(dp), allocatable :: dynKernelFreq(:)
+
+    !> Self-consistency tolerance for perturbation (if SCC)
+    real(dp) :: perturbSccTol = 0.0_dp
+
+    !> Maximum iterations for perturbation theory
+    integer :: maxPerturbIter = 1
+
+    !> Require converged perturbation (if true, terminate on failure, otherwise return NaN for
+    !> non-converged)
+    logical :: isPerturbConvRequired = .true.
+
+  end type TPerturbInp
 
 
   !> Namespace for possible perturbation solver methods
@@ -269,7 +313,7 @@ contains
     real(dp), allocatable, intent(inout) :: neFermi(:)
 
     !> Derivative of the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: dEfdE(:,:)
+    real(dp), allocatable, intent(out) :: dEfdE(:,:)
 
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
@@ -477,7 +521,7 @@ contains
     logical, intent(in) :: isBandWritten
 
     !> File descriptor for the human readable output
-    type(TFile), allocatable, intent(in) :: fdDetailedOut
+    type(TFileDescr), intent(in) :: fdDetailedOut
 
     !> Filling
     real(dp), intent(in) :: filling(:,:,:)
@@ -645,10 +689,12 @@ contains
 
     real(dp), allocatable :: dEf(:), dqOut(:,:,:), dqOutTmp(:,:,:,:,:)
 
-    integer :: nIter, fd, iOmega
+    integer :: nIter, iOmega
     character(mc) :: atLabel
 
     logical :: isSccRequired
+
+    type(TFileDescr) :: fd
 
     if (isRespKernelRPA) then
       nIter = 1
@@ -773,7 +819,7 @@ contains
           end if
         end if
 
-        if (allocated(fdDetailedOut)) then
+        if (fdDetailedOut%isConnected()) then
           if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
             write(fdDetailedOut%unit, format2U)"Response at omega = ", omega(iOmega), ' H ',&
                 & omega(iOmega) * Hartree__eV, ' eV'
@@ -802,17 +848,17 @@ contains
     end do lpAtom
 
     if (isAutotestWritten) then
-      open(newunit=fd, file=autotestTagFile, action="write", status="old", position="append")
-      call taggedWriter%write(fd, tagLabels%dqdV, dqOutTmp)
-      call taggedWriter%write(fd, tagLabels%dqnetdV, dqNetAtomTmp)
-      close(fd)
+      call openFile(fd, autotestTagFile, mode="a")
+      call taggedWriter%write(fd%unit, tagLabels%dqdV, dqOutTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqnetdV, dqNetAtomTmp)
+      call closeFile(fd)
     end if
     if (isTagResultsWritten) then
-      open(newunit=fd, file=resultsTagFile, action="write", status="old", position="append")
-      call taggedWriter%write(fd, tagLabels%dEigenDV, dEiTmp)
-      call taggedWriter%write(fd, tagLabels%dqdV, dqOutTmp)
-      call taggedWriter%write(fd, tagLabels%dqnetdV, dqNetAtomTmp)
-      close(fd)
+      call openFile(fd, resultsTagFile, mode="a")
+      call taggedWriter%write(fd%unit, tagLabels%dEigenDV, dEiTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqdV, dqOutTmp)
+      call taggedWriter%write(fd%unit, tagLabels%dqnetdV, dqNetAtomTmp)
+      call closeFile(fd)
     end if
 
   end subroutine wrtVAtom
@@ -905,7 +951,7 @@ contains
     logical, intent(in) :: tMetallic(:,:)
 
     !> Number of electrons at the Fermi energy (if metallic)
-    real(dp), allocatable, intent(inout) :: neFermi(:)
+    real(dp), allocatable, intent(in) :: neFermi(:)
 
     !> Tolerance for SCC convergence
     real(dp), intent(in) :: sccTol
@@ -931,8 +977,11 @@ contains
     !> Derivative of density matrix
     real(dp), target, allocatable, intent(inout) :: dRhoOut(:)
 
-    !> delta density matrix for rangeseparated calculations
-    real(dp), pointer :: dRhoOutSqr(:,:,:), dRhoInSqr(:,:,:)
+    !> delta density matrix response for range separated calculations
+    real(dp), pointer :: dRhoOutSqr(:,:,:)
+
+    !> delta density matrix input for range separated calculations
+    real(dp), pointer :: dRhoInSqr(:,:,:)
 
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
@@ -1033,7 +1082,6 @@ contains
     !> Small complex value for frequency dependent
     complex(dp), intent(in), optional :: eta
 
-
     logical :: tSccCalc, tConverged
     integer :: iSccIter
     real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
@@ -1046,9 +1094,23 @@ contains
     real(dp), allocatable :: dRhoExtra(:,:), idRhoExtra(:,:)
     real(dp) :: dqDiffRed(nMixElements)
 
+    real(dp), allocatable :: dqInBackup(:,:,:), dqBlockInBackup(:,:,:,:), dRhoInBackup(:)
+    real(dp) :: qnan
+
     tSccCalc = allocated(sccCalc)
 
     @:ASSERT(abs(omega) <= epsilon(0.0_dp) .or. present(eta))
+
+    if (tSccCalc.and..not.isSccConvRequired) then
+      ! store back-ups of the input charges/density matrix in case the iteration fails
+      dqInBackup = dqIn
+      if (allocated(dqBlockIn)) then
+        dqBlockInBackup = dqBlockIn
+      end if
+      if (allocated(dRhoIn)) then
+        dRhoInBackup = dRhoIn
+      end if
+    end if
 
     if (allocated(spinW) .or. allocated(thirdOrd)) then
       allocate(shellPot(orb%mShell, nAtom, nSpin))
@@ -1146,8 +1208,8 @@ contains
       dPotential%intBlock(:,:,:,:) = dPotential%intBlock + dPotential%extBlock
 
       dHam(:,:) = 0.0_dp
-      call addShift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
+      call addShift(env, dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, dPotential%intBlock, .true.)
 
       if (nSpin > 1) then
         dHam(:,:) = 2.0_dp * dHam
@@ -1252,7 +1314,7 @@ contains
           end if
 
           dqOut(:,:,iS) = 0.0_dp
-          call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+          call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
           dEf(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
@@ -1320,11 +1382,11 @@ contains
 
       dqOut(:,:,:) = 0.0_dp
       do iS = 1, nSpin
-        call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+        call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
         if (allocated(dftbU) .or. allocated(onsMEs)) then
           dqBlockOut(:,:,:,iS) = 0.0_dp
-          call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
+          call mulliken(env, dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
               & nNeighbourSK, img2CentCell, iSparseStart)
         end if
       end do
@@ -1425,6 +1487,23 @@ contains
         @:RAISE_ERROR(errStatus, -1, "SCC in perturbation is NOT converged, maximal SCC&
             & iterations exceeded")
       else
+        qnan = ieee_value(1.0_dp, ieee_quiet_nan)
+        dRho(:,:) = qnan
+        dqOut(:,:,:) = qnan
+        if (allocated(idRho)) idRho(:,:) = qnan
+        if (allocated(dEi)) dEi(:,:,:) = qnan
+        if (allocated(dEf)) dEf(:) = qnan
+        if (allocated(dqBlockOut)) dqBlockOut(:,:,:,:) = qnan
+        if (allocated(dPsiReal)) dPsiReal(:,:,:) = qnan
+        if (allocated(dPsiCmplx)) dPsiCmplx(:,:,:,:) = qnan
+        ! restore back-ups of the input charges/density matrix in case the iteration fails
+        dqIn(:,:,:) = dqInBackup
+        if (allocated(dqBlockIn)) then
+          dqBlockInBackup(:,:,:,:) = dqBlockIn
+        end if
+        if (allocated(dRhoIn)) then
+          dRhoInBackup(:) = dRhoIn
+        end if
         call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
       end if
     end if

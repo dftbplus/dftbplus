@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,7 +23,8 @@ module dftbp_dftb_rangeseparated
   implicit none
 
   private
-  public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue, rangeSepTypes
+  public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue
+  public :: rangeSepTypes, rangeSepFunc
 
 
   type :: TRangeSepTypesEnum
@@ -40,8 +41,24 @@ module dftbp_dftb_rangeseparated
   end type TRangeSepTypesEnum
 
 
+  !> Enumerator for type of hybrid functional used.
+  !! (limited to purely long-range corrected for now)
+  type :: TRangeSepFuncEnum
+
+    !> (semi-)local
+    integer :: none = 0
+
+    !> Long-range corrected
+    integer :: lc = 1
+
+  end type TRangeSepFuncEnum
+
+
   !> Container for enumerated range separation types
   type(TRangeSepTypesEnum), parameter :: rangeSepTypes = TRangeSepTypesEnum()
+
+  !> Container for enumerated types of hybrid functionals.
+  type(TRangeSepFuncEnum), parameter :: rangeSepFunc = TRangeSepFuncEnum()
 
 
   !> Slater-Koster file RangeSep tag structure

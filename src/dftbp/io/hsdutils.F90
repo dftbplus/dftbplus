@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_io_hsdutils
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string,&
       & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&
       & assignment(=),getNodeType, replaceChild, createTextNode, createElement, removeChild, trim,&
-      & getAttribute, setAttribute, append_to_string, resize_string, xml_NewElement,&
+      & getAttribute, setAttribute, append_to_string, resize_string, len, xml_NewElement,&
       & xml_AddPCData, xml_EndElement, getItem1, prepend_to_string, getAttribute, getNodeName,&
       & getNodeValue, destroyNode, setAttribute, getAttribute, normalize
   use dftbp_io_charmanip, only : newline, whiteSpaces, space, tolower, unquote, complementaryScan
@@ -27,8 +27,8 @@ module dftbp_io_hsdutils
   use dftbp_io_tokenreader, only : TOKEN_EOS, TOKEN_ERROR, LOGICAL_TRUE, LOGICAL_FALSE, TOKEN_OK,&
       & getNextToken
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
-  use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListInt,&
-      & TlistIntR1, append, init, asArray, destruct
+  use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListComplex,&
+      & TListComplexR1, TListInt, TlistIntR1, append, init, asArray, destruct
   implicit none
 
   private
@@ -63,11 +63,15 @@ module dftbp_io_hsdutils
     module procedure getChVal_lString
     module procedure getChVal_lReal
     module procedure getChVal_lRealR1
+    module procedure getChVal_lComplex
+    module procedure getChVal_lComplexR1
     module procedure getChVal_lInt
     module procedure getChVal_lIntR1
     module procedure getChVal_real
     module procedure getChVal_realR1
     module procedure getChVal_realR2
+    module procedure getChVal_complex
+    module procedure getChVal_complexR1
     module procedure getChVal_int
     module procedure getChVal_intR1
     module procedure getChVal_intR2
@@ -94,6 +98,8 @@ module dftbp_io_hsdutils
     module procedure setChVal_real
     module procedure setChVal_realR1
     module procedure setChVal_realR2
+    module procedure setChVal_complex
+    module procedure setChVal_complexR1
     module procedure setChVal_int
     module procedure setChVal_intR1
     module procedure setChVal_intR2
@@ -109,6 +115,8 @@ module dftbp_io_hsdutils
     module procedure writeChVal_real
     module procedure writeChVal_realR1
     module procedure writeChVal_realR2
+    module procedure writeChVal_complex
+    module procedure writeChVal_complexR1
     module procedure writeChVal_int
     module procedure writeChVal_intR1
     module procedure writeChVal_intR2
@@ -125,6 +133,8 @@ module dftbp_io_hsdutils
     module procedure getAsString_real
     module procedure getAsString_realR1
     module procedure getAsString_realR2
+    module procedure getAsString_complex
+    module procedure getAsString_complexR1
     module procedure getAsString_int
     module procedure getAsString_intR1
     module procedure getAsString_intR2
@@ -137,10 +147,8 @@ module dftbp_io_hsdutils
   !> Error messages
   character(len=*), parameter :: MSG_MISSING_FIELD = "Missing child: "
   character(len=*), parameter :: MSG_EXISTING_CHILD = "Already existing child: "
-  character(len=*), parameter :: MSG_NOMODIFIER = "Entity is not allowed to &
-      &have a modifier"
-  character(len=*), parameter :: MSG_MISSING_VALUES = "Not enough values &
-      &provided."
+  character(len=*), parameter :: MSG_NOMODIFIER = "Entity is not allowed to have a modifier"
+  character(len=*), parameter :: MSG_MISSING_VALUES = "Not enough values provided."
 
 
   !> Length of a line (for wrapping long lines when writing values)
@@ -580,6 +588,142 @@ contains
   end subroutine getChVal_realR2
 
 
+  !> Returns the value (the child) of a child node as complex.
+  subroutine getChVal_complex(node, name, variableValue, default, modifier, child)
+
+    !> The node to investigate.
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Value on return
+    complex(dp), intent(out) :: variableValue
+
+    !> Default value for the child, if child is not found
+    complex(dp), intent(in), optional :: default
+
+    !> Modifier of the child on return
+    type(string), intent(inout), optional :: modifier
+
+    !> Pointer to the child node (with the spec. name) on return
+    type(fnode), pointer, optional :: child
+
+    type(string) :: text, modif
+    integer :: iStart, iErr
+    type(fnode), pointer :: child2
+
+    @:ASSERT(associated(node))
+
+    child2 => getFirstChildByName(node, tolower(name))
+    if (associated(child2)) then
+      call getAttribute(child2, attrModifier, modif)
+      if (present(modifier)) then
+        modifier = modif
+      elseif (len(modif) > 0) then
+        call detailedError(child2, MSG_NOMODIFIER)
+      end if
+      iStart = 1
+      call getFirstTextChild(child2, text)
+      call getNextToken(char(text), variableValue, iStart, iErr)
+      call checkError(child2, iErr, "Invalid real value")
+      call checkNoData(child2, char(text), iStart)
+      call setAttribute(child2, attrProcessed, "")
+    elseif (present(default)) then
+      variableValue = default
+      if (present(modifier)) then
+        modifier = ""
+      end if
+      call setChildValue(node, name, variableValue, .false., child=child2)
+    else
+      call detailedError(node, MSG_MISSING_FIELD // name)
+    end if
+    call setAttribute(child2, attrProcessed, "")
+    if (present(child)) then
+      child => child2
+    end if
+
+  end subroutine getChVal_complex
+
+
+  !> Returns the value (the child) of a child node as a rank one complex array.
+  subroutine getChVal_complexR1(node, name, variableValue, default, nItem, modifier, child)
+
+    !> The node to investigate.
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Value on return
+    complex(dp), intent(out) :: variableValue(:)
+
+    !> Default value for the child, if child is not found
+    complex(dp), intent(in), optional :: default(:)
+
+    !> Nr. of read items. If this argument is not passed, and the nr. of read items is less than the
+    !> size of the array, the subroutine raises an error.
+    integer, intent(out), optional :: nItem
+
+    !> Modifier of the child on return
+    type(string), intent(inout), optional :: modifier
+
+    !> Pointer to the child node (with the spec. name) on return
+    type(fnode), pointer, optional :: child
+
+    type(string) :: text, modif
+    integer :: iStart, iErr, nReadItem
+    type(fnode), pointer :: child2
+
+    @:ASSERT(associated(node))
+  #:block DEBUG_CODE
+    if (present(default)) then
+      @:ASSERT(all(shape(default) == shape(variableValue)))
+    end if
+  #:endblock DEBUG_CODE
+
+    if (present(nItem)) then
+      nItem = 0
+    end if
+    child2 => getFirstChildByName(node, tolower(name))
+    if (associated(child2)) then
+      call getAttribute(child2, attrModifier, modif)
+      if (present(modifier)) then
+        modifier = modif
+      elseif (len(modif) > 0) then
+        call detailedError(child2, MSG_NOMODIFIER)
+      end if
+      iStart = 1
+      call getFirstTextChild(child2, text)
+      call getNextToken(char(text), variableValue, iStart, iErr, nReadItem)
+      call checkError(child2, iErr, "Invalid complex value '" // trim(char(text)) // "'")
+      call checkNoData(child2, char(text), iStart)
+      if (present(nItem)) then
+        nItem = nReadItem
+      elseif (nReadItem /= size(variableValue)) then
+        call detailedError(node, MSG_MISSING_VALUES)
+      end if
+      call setAttribute(child2, attrProcessed, "")
+    elseif (present(default)) then
+      variableValue = default
+      if (present(nItem)) then
+        nItem = size(default)
+      end if
+      if (present(modifier)) then
+        modifier = ""
+      end if
+      call setChildValue(node, name, variableValue, .false., child=child2)
+    else
+      call detailedError(node, MSG_MISSING_FIELD // name)
+    end if
+    call setAttribute(child2, attrProcessed, "")
+    if (present(child)) then
+      child => child2
+    end if
+
+  end subroutine getChVal_complexR1
+
+
   !> Returns the value (the child) of a child node as integer.
   subroutine getChVal_int(node, name, variableValue, default, modifier, child)
 
@@ -1016,6 +1160,167 @@ contains
     end if
 
   end subroutine getChVal_lRealR1_h
+
+
+  !> Returns the value (the child) of a child node as a linked list of complex numbers.
+  !>
+  !> In order to prevent a double packaging (from array to linked list and then from linked list to
+  !> array), the setting of defaults for list types is not allowed. The presence of the child must
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
+  !> an explicit setChildValue call.
+  subroutine getChVal_lComplex(node, name, variableValue, modifier, child)
+
+    !> The node to investigate.
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Value on return
+    type(TListComplex), intent(inout) :: variableValue
+
+    !> Modifier of the child on return
+    type(string), intent(inout), optional :: modifier
+
+    !> Pointer to the child node (with the spec. name) on return
+    type(fnode), pointer, optional :: child
+
+    type(string) :: text, modif
+    type(fnode), pointer :: child2
+
+    @:ASSERT(associated(node))
+
+    child2 => getFirstChildByName(node, tolower(name))
+    if (associated(child2)) then
+      call getAttribute(child2, attrModifier, modif)
+      if (present(modifier)) then
+        modifier = modif
+      elseif (len(modif) > 0) then
+        call detailedError(child2, MSG_NOMODIFIER)
+      end if
+      call getFirstTextChild(child2, text)
+      call getChVal_lComplex_h(char(text), variableValue, child2)
+      call setAttribute(child2, attrProcessed, "")
+    else
+      call detailedError(node, MSG_MISSING_FIELD // name)
+    end if
+    if (present(child)) then
+      child => child2
+    end if
+
+  end subroutine getChVal_lComplex
+
+
+  !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
+  subroutine getChVal_lComplex_h(text, variableValue, node)
+
+    !> text  Text to parse
+    character(len=*), intent(in) :: text
+
+    !> value Contains the value of the parsed text
+    type(TListComplex), intent(inout) :: variableValue
+    type(fnode), pointer :: node
+
+    integer :: iStart, iErr
+    complex(dp) :: buffer
+
+    iStart = 1
+    call getNextToken(text, buffer, iStart, iErr)
+    do while (iErr == TOKEN_OK)
+      call append(variableValue, buffer)
+      call getNextToken(text, buffer, iStart, iErr)
+    end do
+    if (iErr == TOKEN_ERROR) then
+      call detailedError(node, "Invalid complex value")
+    end if
+
+  end subroutine getChVal_lComplex_h
+
+
+  !> Returns the value (the child) of a child node as a linked list of rank one real arrays.
+  !>
+  !> In order to prevent a double packaging (from array to linked list and then from linked list to
+  !> array), the setting of defaults for list types is not allowed. The presence of the child must
+  !> be explicitly queried in the caller routine and an eventual default setting must be set with
+  !> an explicit setChildValue call.
+  subroutine getChVal_lComplexR1(node, name, dim, variableValue, modifier, child)
+
+    !> The node to investigate.
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Dimension of the arrays
+    integer, intent(in) :: dim
+
+    !> Value on return
+    type(TListComplexR1), intent(inout) :: variableValue
+
+    !> Modifier of the child on return
+    type(string), intent(inout), optional :: modifier
+
+    !> Pointer to the child node (with the spec. name) on return
+    type(fnode), pointer, optional :: child
+
+    type(string) :: text, modif
+    type(fnode), pointer :: child2
+
+    @:ASSERT(associated(node))
+
+    child2 => getFirstChildByName(node, tolower(name))
+    if (associated(child2)) then
+      call getAttribute(child2, attrModifier, modif)
+      if (present(modifier)) then
+        modifier = modif
+      elseif (len(modif) > 0) then
+        call detailedError(child2, MSG_NOMODIFIER)
+      end if
+      call getFirstTextChild(child2, text)
+      call getChVal_lComplexR1_h(char(text), dim, variableValue, child2)
+      call setAttribute(child2, attrProcessed, "")
+    else
+      call detailedError(node, MSG_MISSING_FIELD // name)
+    end if
+    if (present(child)) then
+      child => child2
+    end if
+
+  end subroutine getChVal_lComplexR1
+
+
+  !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
+  subroutine getChVal_lComplexR1_h(text, dim, variableValue, node)
+
+    !> Text to parse
+    character(len=*), intent(in) :: text
+
+    !> buffer sizing
+    integer, intent(in) :: dim
+
+    !> Contains the value of the parsed text
+    type(TListComplexR1), intent(inout) :: variableValue
+
+    !> nodes for error handling
+    type(fnode), pointer :: node
+
+    integer :: iStart, iErr
+    complex(dp) :: buffer(dim)
+    integer :: nItem
+
+    iStart = 1
+    call getNextToken(text, buffer, iStart, iErr, nItem)
+    do while (iErr == TOKEN_OK)
+      call append(variableValue, buffer)
+      call getNextToken(text, buffer, iStart, iErr, nItem)
+    end do
+    if (iErr == TOKEN_ERROR) then
+      call detailedError(node, "Invalid real value")
+    elseif (iErr == TOKEN_EOS .and. nItem /= 0) then
+      call detailedError(node, "Unexpected end of data")
+    end if
+
+  end subroutine getChVal_lComplexR1_h
 
 
   !> Returns the value (the child) of a child node as linked list of integers.
@@ -2141,6 +2446,192 @@ contains
     end do
 
   end subroutine getAsString_realR2
+
+
+  !> Sets the value (child) of a child with given name.
+  !>
+  !> Caveat: This subroutines assumes, that a real can be represented as text with less than
+  !> nCharReal characters.
+  subroutine setChVal_complex(node, name, variableValue, replace, child, modifier)
+
+    !> The node to investigate
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Value to set
+    complex(dp), intent(in) :: variableValue
+
+    !> Replace if child with same name already exists
+    logical, intent(in), optional :: replace
+
+    !> Pointer to the child node (with the provided name)
+    type(fnode), pointer, optional :: child
+
+    !> Optional modifier for the child
+    character(len=*), optional, intent(in) :: modifier
+
+    type(string) :: strBuffer
+    type(fnode), pointer :: child2
+    logical :: tReplace
+
+    if (present(replace)) then
+      tReplace = replace
+    else
+      tReplace = .false.
+    end if
+
+    call getAsString(variableValue, strBuffer)
+    call createChild_local(node, name, .false., tReplace, child2, variableValue=char(strBuffer))
+    if (present(child)) then
+      child => child2
+    end if
+    if (present(modifier)) then
+      call setAttribute(child2, attrModifier, modifier)
+    end if
+
+  end subroutine setChVal_complex
+
+
+  !> Writes the text representation of a node and its value to an xmlwriter.
+  subroutine writeChVal_complex(xf, name, variableValue)
+
+    !> Xmlwriter stream
+    type(xmlf_t), intent(inout) :: xf
+
+    !> Name of the node
+    character(len=*), intent(in) :: name
+
+    !> Value of the node
+    complex(dp), intent(in) :: variableValue
+
+    type(string) :: strBuffer
+
+    call getAsString(variableValue, strBuffer)
+    call writeChild_local(xf, name, char(strBuffer))
+
+  end subroutine writeChVal_complex
+
+
+  !> Returns the text representation of the passed object
+  subroutine getAsString_complex(variableValue, strBuffer)
+
+    !> Value to represent
+    complex(dp), intent(in) :: variableValue
+
+    !> Text representation on exit
+    type(string), intent(inout) :: strBuffer
+
+    character(nCharReal) :: buffer1, buffer2
+    character :: sep
+
+    write(buffer1, *) variableValue%re
+    write(buffer2, *) abs(variableValue%im)
+    if (variableValue%im < 0.0_dp) then
+      sep = "-"
+    else
+      sep = "+"
+    end if
+    strBuffer = trim(adjustl(buffer1)) // sep // trim(adjustl(buffer2)) // "i"
+
+  end subroutine getAsString_complex
+
+
+  !> Sets the value (child) of a child with given name.
+  !>
+  !> Caveat: This subroutines assumes, that a real can be represented as text with less than
+  !> nCharReal characters.
+  subroutine setChVal_complexR1(node, name, variableValue, replace, child, modifier)
+
+    !> The node to investigate
+    type(fnode), pointer :: node
+
+    !> Name of the child to look for
+    character(len=*), intent(in) :: name
+
+    !> Value to set
+    complex(dp), intent(in) :: variableValue(:)
+
+    !> Replace if child with same name already exists
+    logical, intent(in), optional :: replace
+
+    !> Pointer to the child node (with the provided name)
+    type(fnode), pointer, optional :: child
+
+    !> Optional modifier for the child
+    character(len=*), optional, intent(in) :: modifier
+
+    type(string) :: strBuffer
+    type(fnode), pointer :: child2
+    logical :: tReplace
+
+    if (present(replace)) then
+      tReplace = replace
+    else
+      tReplace = .false.
+    end if
+    call getAsString(variableValue, strBuffer)
+    call createChild_local(node, name, .true., tReplace, child2, variableValue=char(strBuffer))
+    if (present(child)) then
+      child => child2
+    end if
+    if (present(modifier)) then
+      call setAttribute(child2, attrModifier, modifier)
+    end if
+
+  end subroutine setChVal_complexR1
+
+
+  !> Writes the text representation of a node and its value to an xmlwriter.
+  subroutine writeChVal_complexR1(xf, name, variableValue)
+
+    !> Xmlwriter stream
+    type(xmlf_t), intent(inout) :: xf
+
+    !> Name of the node
+    character(len=*), intent(in) :: name
+
+    !> Value of the node
+    complex(dp), intent(in) :: variableValue(:)
+
+    type(string) :: strBuffer
+
+    call getAsString(variableValue, strBuffer)
+    call writeChild_local(xf, name, char(strBuffer))
+
+  end subroutine writeChVal_complexR1
+
+
+  !> Returns the text representation of the passed object
+  subroutine getAsString_complexR1(variableValue, strBuffer)
+
+    !> Value to represent
+    complex(dp), intent(in) :: variableValue(:)
+
+    !> Text representation on exit
+    type(string), intent(inout) :: strBuffer
+
+    type(string) :: buffer
+    integer :: buffLen, totalLen
+    integer :: ii
+
+    call resize_string(strBuffer, preAllocSize)
+    totalLen = 0
+    do ii = 1, size(variableValue)
+      call getAsString(variableValue(ii), buffer)
+      buffLen = len(buffer)
+      totalLen = totalLen + buffLen
+      if (totalLen > lineLength) then
+        call append_to_string(strBuffer, newline // char(buffer))
+        totalLen = buffLen
+      else
+        call append_to_string(strBuffer, space // char(buffer))
+        totalLen = totalLen + 1
+      end if
+    end do
+
+  end subroutine getAsString_complexR1
 
 
   !> Sets the value (child) of a child with given name.

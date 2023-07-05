@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -11,28 +11,21 @@ Fourier transform of DFTB+ TD data
 '''
 
 import sys
-import optparse
+import argparse
 import numpy as np
 from scipy import constants
 
-USAGE = """usage: %prog -d xx
-
-Reads output from TD calculation (after kick) and produces absorption spectra.
-
+DESCRIPTION = """Reads output from TD calculation (after kick) and produces absorption spectra.
 Needs mux.dat, muy.dat and muz.dat files in working directory."""
 
 def main():
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-d", "--damping", action="store", dest="tau",
-                      help="damping constant in fs")
-    parser.add_option("-f", "--field", action="store", dest="field",
-                      help="field intensity in volts/angstrom")
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument("-d", "--damping", dest="tau", required=True,
+                        type=float, help="damping constant in fs")
+    parser.add_argument("-f", "--field", dest="field", required=True,
+                        type=float, help="field intensity in volts/angstrom")
 
-    (options, args) = parser.parse_args()
-
-    if len(args) != 0:
-        parser.error("You must specify exactly two argument, the damping constant in fs and \
-                     the field intensity in volts/angstrom")
+    args = parser.parse_args()
 
     mux = np.loadtxt('mux.dat') # response to excitation in x direction
     muy = np.loadtxt('muy.dat') # response to excitation in y direction
@@ -45,7 +38,7 @@ def main():
     else:
         spinpol = False
 
-    damp = np.exp(-mux[:,0]/float(options.tau))
+    damp = np.exp(-mux[:,0]/ args.tau)
     if not spinpol:
         average = ((mux[:,1]-mux[0,1]) + (muy[:,2]-muy[0,2]) + (muz[:,3]-muz[0,3]))/3.0
     elif (spintype == 's'):
@@ -61,7 +54,7 @@ def main():
     cspeednm = constants.speed_of_light * 1.0e9 / 1.0e15
     energsev = np.fft.rfftfreq(10*mux.shape[0], mux[1,0]-mux[0,0]) * hplanck
     frec = np.fft.rfftfreq(10*mux.shape[0], (mux[1,0] - mux[0,0]) * 1.0E-15 )
-    absorption = -2.0 * energsev * spec.imag / np.pi / float(options.field)
+    absorption = -2.0 * energsev * spec.imag / np.pi / args.field
     energsnm = constants.nu2lambda(frec[1:]) * 1.0E9
 
     emin = 0.5

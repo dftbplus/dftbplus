@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,6 +18,7 @@
 module dftbp_poisson_bulkpot
  use dftbp_common_accuracy, only : dp
  use dftbp_common_constants, only : Bohr__AA
+ use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
  use dftbp_common_globalenv, only : stdOut
  use dftbp_io_message, only : warning
  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
@@ -318,8 +319,9 @@ Subroutine readbulk_pot(phi_bulk, iErr)
   character(2) :: m_id
   real(dp) :: tmp_dbl
 
-  integer :: a,b,c, fp
-  logical :: lex
+  integer :: a,b,c
+  type(TFileDescr) :: fp
+  character(:), allocatable :: fileName
 
   if (present(iErr)) then
     iErr = 0
@@ -328,21 +330,21 @@ Subroutine readbulk_pot(phi_bulk, iErr)
   do m = 1, ncont
 
     write(m_id,'(i2.2)') m
-    inquire(file='contacts/BulkPot_'//m_id//'.dat',exist=lex)
-    if (.not.lex) then
+    fileName = 'contacts/BulkPot_' // m_id //'.dat'
+    if (.not. fileExists(fileName)) then
       @:ERROR_HANDLING(iErr, -1, 'File contacts/BulkPot_'//m_id//'.dat not found')
     else
-      open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
+      call openFile(fp, fileName, mode="r")
     endif
 
-    read(fp,*) a,b,c
+    read(fp%unit, *) a,b,c
 
     if (a.ne.phi_bulk(m)%iparm(14) .or. &
       b.ne.phi_bulk(m)%iparm(15) .or. &
       c.ne.phi_bulk(m)%iparm(16)) then
       call warning('incompatible BulkPot: will be recomputed')
       ReadBulk = .false.
-      close(fp)
+      call closeFile(fp)
       return
     endif
 
@@ -350,14 +352,14 @@ Subroutine readbulk_pot(phi_bulk, iErr)
        do j = 1,phi_bulk(m)%iparm(15)
           do k = 1,phi_bulk(m)%iparm(16)
 
-             read(fp,*) tmp_dbl
+             read(fp%unit ,*) tmp_dbl
              phi_bulk(m)%val(i,j,k) = tmp_dbl
 
           end do
        end do
     end do
 
-    close(fp)
+    call closeFile(fp)
 
   enddo
 
@@ -494,49 +496,54 @@ end subroutine  compbulk_pot_ewald
 subroutine save_bulkpot(phi_bulk,m)
 
   type(super_array) :: phi_bulk(:)
-  integer :: m, i, j, k, fp
+  integer :: m, i, j, k
   character(2) :: m_id
   real(dp) :: xk
+  type(TFileDescr) :: fp
+
 
   write(m_id,'(i2.2)') m
 
-  open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
+  call openFile(fp, 'contacts/BulkPot_'//m_id//'.dat', mode="w")
 
-  write(fp,'(3(i5))') phi_bulk(m)%iparm(14), &
+  write(fp%unit,'(3(i5))') phi_bulk(m)%iparm(14), &
                       phi_bulk(m)%iparm(15), &
                       phi_bulk(m)%iparm(16)
 
   do i = 1,phi_bulk(m)%iparm(14)
      do j = 1,phi_bulk(m)%iparm(15)
         do k = 1,phi_bulk(m)%iparm(16)
-           write(fp,*) phi_bulk(m)%val(i,j,k)
+           write(fp%unit,*) phi_bulk(m)%val(i,j,k)
         end do
      end do
   end do
 
-  close(fp)
+  call closeFile(fp)
 
-  open(newunit=fp,file='contacts/Xvector_'//m_id//'.dat')
+  call openFile(fp, 'contacts/Xvector_'//m_id//'.dat', mode="w")
   do k = 1,phi_bulk(m)%iparm(14)
      xk = phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
+     write(fp%unit, '(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
-  close(fp)
-  open(newunit=fp,file='contacts/Yvector_'//m_id//'.dat')
+  call closeFile(fp)
+
+  call openFile(fp, 'contacts/Yvector_'//m_id//'.dat', mode="w")
   do k = 1,phi_bulk(m)%iparm(15)
      xk = phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
+     write(fp%unit,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
-  close(fp)
-  open(newunit=fp,file='contacts/Zvector_'//m_id//'.dat')
+  call closeFile(fp)
+
+  call openFile(fp, 'contacts/Zvector_'//m_id//'.dat', mode="w")
   do k = 1,phi_bulk(m)%iparm(16)
      xk = phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
+     write(fp%unit,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
-  close(fp)
-  open(newunit=fp,file='contacts/box3d_'//m_id//'.dat')
-  write(fp,*) phi_bulk(m)%iparm(14),phi_bulk(m)%iparm(15),phi_bulk(m)%iparm(16)
-  close(fp)
+  call closeFile(fp)
+
+  call openFile(fp, 'contacts/box3d_'//m_id//'.dat', mode="w")
+  write(fp%unit,*) phi_bulk(m)%iparm(14),phi_bulk(m)%iparm(15),phi_bulk(m)%iparm(16)
+  call closeFile(fp)
 
 end subroutine save_bulkpot
 

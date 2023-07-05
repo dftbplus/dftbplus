@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,21 +18,23 @@ program dftbplus
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
-  integer, parameter :: releaseYear = 2022
+  integer, parameter :: releaseYear = 2023
 
   type(TEnvironment) :: env
   type(TInputData), allocatable :: input
-  type(TDftbPlusMain) :: main
+  type(TDftbPlusMain), allocatable, target :: main
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
   allocate(input)
   call parseHsdInput(input)
   call TEnvironment_init(env)
+  allocate(main)
   call main%initProgramVariables(input, env)
   deallocate(input)
   call runDftbPlus(main, env)
   call main%destructProgramVariables()
+  deallocate(main)
 #:if WITH_MAGMA
   call magmaf_finalize()
 #:endif

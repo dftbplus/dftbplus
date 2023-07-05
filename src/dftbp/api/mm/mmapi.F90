@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,17 @@ module dftbp_mmapi
   use iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
-      & initializeTimeProp, updateDataDependentOnSpeciesOrdering, getAtomicMasses,&
-      & getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients, getStressTensor,&
-      & getGradients, getEnergy, setQDepExtPotProxy, setExternalCharges, setGeometry
+      & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
+      & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
+      & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
+      & setExternalCharges, setGeometry, setNeighbourList
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -82,6 +84,8 @@ module dftbp_mmapi
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     !> set/replace the geometry of a calculator
     procedure :: setGeometry => TDftbPlus_setGeometry
+    !> set/replace the neighbour list
+    procedure :: setNeighbourList => TDftbPlus_setNeighbourList
     !> add an external potential to a calculator
     procedure :: setExternalPotential => TDftbPlus_setExternalPotential
     !> add external charges to a calculator
@@ -112,6 +116,8 @@ module dftbp_mmapi
     procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
     !> Initialise electron and nuclear Ehrenfest dynamics
     procedure :: initializeTimeProp => TDftbPlus_initializeTimeProp
+    !> Finalizes electron and nuclear Ehrenfest dynamics
+    procedure :: finalizeTimeProp => TDftbPlus_finalizeTimeProp
     !> Do one propagator step for electrons and, if enabled, nuclei
     procedure :: doOneTdStep => TDftbPlus_doOneTdStep
     !> Set electric field for current propagation step of electrons and nuclei
@@ -126,6 +132,8 @@ module dftbp_mmapi
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
     !> Return the number of basis functions for each atom in the system
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
+    !> get the maximum cutoff distance
+    procedure :: getCutOff => TDftbPlus_getCutOff
   end type TDftbPlus
 
 
@@ -375,7 +383,7 @@ contains
   subroutine TDftbPlus_setupCalculator(this, input)
 
     !> Instance.
-    class(TDftbPlus), intent(inout) :: this
+    class(TDftbPlus), target, intent(inout) :: this
 
     !> Representation of the DFTB+ input.
     type(TDftbPlusInput), intent(inout) :: input
@@ -412,6 +420,39 @@ contains
     call setGeometry(this%env, this%main, coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
+
+
+  !> Sets the neighbour list and skips the neighbour list creation in DFTB+
+  subroutine TDftbPlus_setNeighbourList(this, nNeighbour, iNeighbour, neighDist, cutOff,&
+      & coordNeighbours, neighbour2CentCell)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> number of neighbours of an atom in the central cell
+    integer, intent(in) :: nNeighbour(:)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer, intent(in) :: iNeighbour(:,:)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(dp), intent(in) :: neighDist(:,:)
+
+    !> cutoff distance used for this neighbour list
+    real(dp), intent(in) :: cutOff
+
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
+
+    call this%checkInit()
+
+    call setNeighbourList(this%env, this%main, nNeighbour, iNeighbour, neighDist, cutOff,&
+        & coordNeighbours, neighbour2CentCell)
+
+  end subroutine TDftbPlus_setNeighbourList
 
 
   !> Sets an external potential.
@@ -674,6 +715,22 @@ contains
   end subroutine TDftbPlus_getNOrbAtoms
 
 
+  !> Gets the cutoff distance used for interactions
+  function TDftbPlus_getCutOff(this) result(cutOff)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Cutoff distance
+    real(dp) :: cutOff
+
+    call this%checkInit()
+
+    cutOff = getCutOff(this%main)
+
+  end function TDftbPlus_getCutOff
+
+
   !> Checks whether the type is already initialized and stops the code if not.
   subroutine TDftbPlus_checkInit(this)
 
@@ -702,11 +759,11 @@ contains
 
     real(dp) :: dr
     integer :: nGridPoints, nShells
-    integer :: fd
+    type(TFileDescr) :: fd
 
-    open(newunit=fd, file=slakoFile, status="old", action="read")
-    read(fd, *) dr, nGridPoints, nShells
-    close(fd)
+    call openFile(fd, slakoFile, mode="r")
+    read(fd%unit, *) dr, nGridPoints, nShells
+    call closeFile(fd)
     maxAng = nShells - 1
 
   end function getMaxAngFromSlakoFile
@@ -785,6 +842,7 @@ contains
 
   !> Set species and all variables/data dependent on it
   subroutine TDftbPlus_setSpeciesAndDependents(this, inputSpeciesNames, inputSpecies)
+
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
@@ -803,6 +861,7 @@ contains
 
   !> Initialise propagators for electron and nuclei dynamics
   subroutine TDftbPlus_initializeTimeProp(this, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
+
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
@@ -818,6 +877,17 @@ contains
     call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
   end subroutine TDftbPlus_initializeTimeProp
+
+
+  !> Initialise propagators for electron and nuclei dynamics
+  subroutine TDftbPlus_finalizeTimeProp(this)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    call finalizeTimeProp(this%main)
+
+  end subroutine TDftbPlus_finalizeTimeProp
 
 
   !> Propagate one time step for electron and nuclei dynamics

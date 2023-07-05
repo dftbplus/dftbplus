@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,6 +11,7 @@
 program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -35,7 +36,7 @@ program modes
   real(dp) :: Zstar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
   character(lc) :: lcTmp, lcTmp2
-  integer :: fdUnit
+  type(TFileDescr) :: fd
   logical :: isAppend
 
 #:if WITH_MPI
@@ -85,7 +86,7 @@ program modes
   eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
 
   call TTaggedWriter_init(taggedWriter)
-  open(newunit=fdUnit, file="vibrations.tag", form="formatted", status="replace")
+  call openFile(fd, "vibrations.tag", mode="w")
 
   ! scale mode components on each atom by mass and then normalise total mode
   do ii = 1, nDerivs
@@ -164,13 +165,12 @@ program modes
   end if
 
   if (tPlotModes) then
-    call taggedWriter%write(fdUnit, "saved_modes", modesToPlot)
+    call taggedWriter%write(fd%unit, "saved_modes", modesToPlot)
     write(stdout, *) "Writing eigenmodes to vibrations.tag"
-    call taggedWriter%write(fdUnit, "eigenmodes", dynMatrix(:,ModesToPlot))
+    call taggedWriter%write(fd%unit, "eigenmodes", dynMatrix(:,ModesToPlot))
     write(stdout, *)'Plotting eigenmodes:'
     write(stdout, "(16I5)")ModesToPlot(:)
-    call taggedWriter%write(fdUnit, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
-    close(fdUnit)
+    call taggedWriter%write(fd%unit, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
     if (tAnimateModes) then
       do ii = 1, nModesToPlot
         iMode = ModesToPlot(ii)
@@ -230,19 +230,21 @@ program modes
   end if
   write(stdout, *)
 
-  call taggedWriter%write(fdUnit, "frequencies", eigenValues)
+  call taggedWriter%write(fd%unit, "frequencies", eigenValues)
 
   if (allocated(bornMatrix)) then
-    call taggedWriter%write(fdUnit, "intensities", degenTransDip(:nTrans))
+    call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))
   end if
 
   if (allocated(bornDerivsMatrix)) then
     if (tRemoveTranslate .or. tRemoveRotate) then
-      call taggedWriter%write(fdUnit, "scattering", degenTransPol(2:nTrans))
+      call taggedWriter%write(fd%unit, "scattering", degenTransPol(2:nTrans))
     else
-      call taggedWriter%write(fdUnit, "scattering", degenTransPol(:nTrans))
+      call taggedWriter%write(fd%unit, "scattering", degenTransPol(:nTrans))
     end if
   end if
+
+  call closeFile(fd)
 
 #:if WITH_MPI
   call mpifx_finalize()

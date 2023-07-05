@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -86,6 +86,15 @@ class DpdosTest(common.TestWithWorkDir):
         infile = self.get_input('dos_ti.1.out')
         reffile = self.get_input('band_ti1pdos.dat')
         outfile = self.get_output('band_ti1pdos.dat')
+        cmdargs = ['-w', infile, outfile]
+        dp_dos.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
+    def test_pdos_noncollinear(self):
+        '''PDOS with broadening-function gauss'''
+        infile = self.get_input('pdos_c.1.out')
+        reffile = self.get_input('pdos_c.1.dat')
+        outfile = self.get_output('pdos_c.1.dat')
         cmdargs = ['-w', infile, outfile]
         dp_dos.main(cmdargs)
         self.assertTrue(common.nxy_file_equals(outfile, reffile))

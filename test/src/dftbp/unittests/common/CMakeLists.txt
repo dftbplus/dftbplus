@@ -1,6 +1,9 @@
 set(unit-test-prefix "${unit-test-prefix}/common")
 
 set(tests
+  atomicmass
+  memman
+  file
   schedule)
 
 foreach(test IN LISTS tests)

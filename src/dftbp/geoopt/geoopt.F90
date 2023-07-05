@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_geoopt_geoopt
   use dftbp_geoopt_fire, only : TFire
   use dftbp_geoopt_gdiis, only : TDIIS, reset, next, init
   use dftbp_geoopt_lbfgs, only : TLbfgs
-  use dftbp_geoopt_steepdesc, only : TSteepDesc, next, reset, init
+  use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr, next, reset, init
   implicit none
 
   private
@@ -25,7 +25,7 @@ module dftbp_geoopt_geoopt
     private
     integer :: iGeoOpt
     type(TConjGrad), allocatable :: pConjGrad
-    type(TSteepDesc), allocatable :: pSteepDesc
+    type(TSteepDescDepr), allocatable :: pSteepDesc
     type(TDIIS), allocatable :: pDiis
     type(TLbfgs), allocatable :: pLbfgs
     type(TFire), allocatable :: pFire
@@ -35,7 +35,7 @@ module dftbp_geoopt_geoopt
   !> Creates a geometry optimizer
   interface init
     module procedure GeoOpt_iniTConjGrad
-    module procedure GeoOpt_iniTSteepDesc
+    module procedure GeoOpt_iniTSteepDescDepr
     module procedure GeoOpt_iniTDIIS
     module procedure GeoOpt_initLbfgs
     module procedure GeoOpt_initFire
@@ -85,18 +85,18 @@ contains
 
 
   !> Creates a general geometry optimizier with a steepest descent instance
-  subroutine GeoOpt_iniTSteepDesc(this, pSteepDesc)
+  subroutine GeoOpt_iniTSteepDescDepr(this, pSteepDesc)
 
     !> GeoOpt instance
     type(Tgeoopt), intent(out) :: this
 
     !> An already initialized steepest descent instance
-    type(TSteepDesc), allocatable, intent(inout) :: pSteepDesc
+    type(TSteepDescDepr), allocatable, intent(inout) :: pSteepDesc
 
     this%iGeoOpt = geoOptTypes%steepestDesc
     call move_alloc(pSteepDesc, this%pSteepDesc)
 
-  end subroutine GeoOpt_iniTSteepDesc
+  end subroutine GeoOpt_iniTSteepDescDepr
 
 
   !> Creates a general geometry optimizier with a steepest descent instance
@@ -162,7 +162,7 @@ contains
     case (geoOptTypes%lbfgs)
       call this%pLbfgs%reset(x0)
     case (geoOptTypes%fire)
-      call this%pFire%reset(x0)
+      call this%pFire%reset_old(x0)
     end select
 
   end subroutine GeoOpt_reset

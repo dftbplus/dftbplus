@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2021  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -18,7 +18,8 @@ do
     if [ -f "$FILE" ]
     then
         if grep -iw NaN $FILE; then
-            echo "Error: NaN in file: $FILE"
+            echo "Error: NaN in file: $FILE" >&2
+            echo "Deleting autest.tag" >&2
             rm autotest.tag
             exit 1
         fi

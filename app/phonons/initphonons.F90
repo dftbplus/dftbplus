@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,6 +12,7 @@ module phonons_initphonons
   use dftbp_common_atomicmass
   use dftbp_common_constants
   use dftbp_common_environment
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion
@@ -978,7 +979,8 @@ contains
     integer :: iCount, jCount, ii, kk, jj, ll
     integer :: nDerivs
 
-    integer ::  n, j1, j2, fu
+    type(TFileDescr) :: fd
+    integer ::  n, j1, j2
     type(fnode), pointer :: child2
     type(string) :: filename
     logical :: texist
@@ -995,10 +997,11 @@ contains
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
-    open(newunit=fu, file=trim(char(filename)), action='read')
+    call openFile(fd, trim(char(filename)))
     do ii = 1,  nDerivs
-        read(fu,'(4f16.10)') dynMatrix(1:nDerivs,ii)
+        read(fd%unit,'(4f16.10)') dynMatrix(1:nDerivs,ii)
     end do
+    call closeFile(fd)
 
     ! Note: we read the transpose matrix to avoid temporary arrays (ifort warnings).
     ! It should be symmetric or could be symmetrized here
@@ -1018,9 +1021,6 @@ contains
         end do
       end do
     end do
-
-
-  close(fu)
 
   end subroutine readDftbHessian
 
@@ -1062,8 +1062,9 @@ contains
     integer :: iCount, jCount, ii, kk, jj, ll
     integer :: nDerivs, nBlocks
 
+    type(TFileDescr) :: fd
     real, dimension(:,:), allocatable :: HessCp2k
-    integer ::  n, j1, j2,  p,  q, fu
+    integer ::  n, j1, j2,  p,  q
     type(string) :: filename
     logical :: texist
 
@@ -1085,14 +1086,14 @@ contains
     ! ---------- + --------- + --------- + ---------- + ---------- +...
     ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
 
-    open(newunit=fu, file=trim(char(filename)), action='read')
     nBlocks = nDerivs/5.0
-
     allocate(HessCp2k(nDerivs*nBlocks,5))
 
+    call openFile(fd, trim(char(filename)))
     do  ii  = 1,  nDerivs*nBlocks
-        read(fu,*) HessCp2k(ii,1:5)
+      read(fd%unit, *) HessCp2k(ii,1:5)
     end do
+    call closeFile(fd)
 
     do ii = 1,  nBlocks
         do  jj  = 1, nDerivs
@@ -1118,8 +1119,6 @@ contains
       end do
     end do
 
-
-  close(fu)
 
   end subroutine readCp2kHessian
 

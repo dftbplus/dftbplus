@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,6 +11,8 @@
 !> generalisations of H_mu,nu = 0.5*S_mu,nu*(V_mu + V_nu)
 module dftbp_dftb_shift
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
 
   implicit none
@@ -37,8 +39,11 @@ contains
 
 
   !> Regular atomic shift (potential is only dependent on number of atom)
-  subroutine add_shift_atom(ham,over,nNeighbour,iNeighbour,species,orb,iPair, nAtom,img2CentCell, &
-      & shift)
+  subroutine add_shift_atom(env,ham,over,nNeighbour,iNeighbour,species,orb,iPair, nAtom,img2CentCell, &
+      & shift,isInputZero)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
@@ -64,13 +69,18 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites
+    !> Mapping from image atom to central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites
     real(dp), intent(in) :: shift(:,:)
 
+    !> Whether array 'ham' is zero everywhere on input
+    logical, intent(in) :: isInputZero
+
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iNeigh, iSpin, nSpin
+    integer :: iIter, iNeigh, iSpin, nSpin
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(ham,dim=2)==size(shift,dim=2))
@@ -81,12 +91,16 @@ contains
     @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==nAtom)
+    @:ASSERT(isInputZero)
 
     nSpin = size(ham,dim=2)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
+
     do iSpin = 1, nSpin
-      do iAt1 = 1, nAtom
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)
@@ -103,12 +117,17 @@ contains
       end do
     end do
 
+    call assembleChunks(env, ham)
+
   end subroutine add_shift_atom
 
 
   !> l-dependent shift (potential is dependent on number of atom and l-shell)
-  subroutine add_shift_lshell( ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell,&
-      & shift )
+  subroutine add_shift_lshell(env,ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell,&
+      & shift,isInputZero)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
@@ -134,14 +153,19 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
+    !> Mapping from image atom to central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
     real(dp), intent(in) :: shift(:,:,:)
 
+    !> Whether array 'ham' is zero everywhere on input
+    logical, intent(in) :: isInputZero
+
     integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iSh1, iSh2, iNeigh, iSpin, nSpin
+    integer :: iSh1, iSh2, iIter, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(nNeighbour)==nAtom)
@@ -152,11 +176,15 @@ contains
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==orb%mShell)
     @:ASSERT(size(shift,dim=2)==nAtom)
+    @:ASSERT(isInputZero)
 
     nSpin = size(ham,dim=2)
 
+    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
+
     do iSpin = 1, nSpin
-      do iAt1= 1, nAtom
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)
@@ -180,13 +208,18 @@ contains
       end do
     end do
 
+    call assembleChunks(env, ham)
+
   end subroutine add_shift_lshell
 
 
   !> shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
   !> use a diagonal shift matrix
-  subroutine add_shift_block( ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell, &
-      & shift )
+  subroutine add_shift_block(env,ham,over,nNeighbour,iNeighbour,species,orb,iPair,nAtom,img2CentCell, &
+      & shift,isInputZero)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
@@ -212,14 +245,19 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Mapping from image atom to central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
     real(dp), intent(in) :: shift(:,:,:,:)
 
+    !> Whether array 'ham' is zero everywhere on input
+    logical, intent(in) :: isInputZero
+
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iNeigh, iSpin, nSpin
+    integer :: iIter, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), tmpS(orb%mOrb,orb%mOrb)
+    integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(nNeighbour)==nAtom)
@@ -234,8 +272,18 @@ contains
 
     nSpin = size(ham,dim=2)
 
+    if (isInputZero) then
+      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
+    else
+      !> If input is not zero everywhere, we have to compute in serial here, otherwise
+      !> the call of 'assembleChunks' will mess up the array.
+      allocate(iterIndices(nAtom))
+      iterIndices(:) = [(iIter, iIter = 1, nAtom)]
+    end if
+
     do iSpin = 1, nSpin
-      do iAt1 = 1, nAtom
+      do iIter = 1, size(iterIndices)
+        iAt1 = iterIndices(iIter)
         iSp1 = species(iAt1)
         nOrb1 = orb%nOrbSpecies(iSp1)
         do iNeigh = 0, nNeighbour(iAt1)
@@ -257,6 +305,10 @@ contains
         end do
       end do
     end do
+
+    if (isInputZero) then
+      call assembleChunks(env, ham)
+    end if
 
   end subroutine add_shift_block
 
@@ -385,8 +437,11 @@ contains
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
 
-    !> Multipole integrals
-    real(dp), intent(in) :: mpintBra(:, :), mpintKet(:, :)
+    !> Multipole integrals <|
+    real(dp), intent(in) :: mpintBra(:, :)
+
+    !> Multipole integrals |>
+    real(dp), intent(in) :: mpintKet(:, :)
 
     !> Number of neighbours surrounding each atom.
     integer, intent(in) :: nNeighbour(:)
@@ -403,12 +458,13 @@ contains
     !> Indexing array for the Hamiltonian.
     integer, intent(in) :: iPair(0:,:)
 
-    !> Index mapping atoms onto the central cell atoms.
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
+    !> Shift to add at atom sites, listed as (,1:nAtom)
     real(dp), intent(in) :: shift(:,:)
 
     integer :: iAt1, iAt2, img, ind, nBlk, iBlk, iSp1, iSp2, iOrb1, iOrb2, iNeigh

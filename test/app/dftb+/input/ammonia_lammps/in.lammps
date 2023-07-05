@@ -1,0 +1,4 @@
+units       metal
+boundary    p p p
+atom_style  atomic
+pair_style  dftbplus

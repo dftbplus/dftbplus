@@ -1,7 +1,8 @@
 set(unit-test-prefix "${unit-test-prefix}/io")
 
 set(tests
-  indexselection)
+  indexselection
+  tokenreader)
 
 foreach(test IN LISTS tests)
   fytest_fypp_preprocess("${FYPP_FLAGS}" ${test}.F90 sources-f90)

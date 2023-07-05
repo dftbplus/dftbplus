@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,6 +10,7 @@
 !> Module for initializing SCC part of the calculation
 module dftbp_dftb_sccinit
   use dftbp_common_accuracy, only : dp, elecTolMax
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
@@ -128,6 +129,7 @@ contains
 
   end subroutine initQFromShellChrg
 
+
   !> Initialise charge vector from user-defined reference atomic-charges.
   subroutine initQFromUsrChrg(qq, qAtShell, species, orb)
 
@@ -210,17 +212,16 @@ contains
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(inout), optional :: multipoles
 
-    !> nr. of orbitals / atoms / spin channels
+    ! nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
 
-    !> error returned by the io commands
+    ! error returned by the io commands
     integer :: iErr
 
-    !> file unit number
-    integer :: file
-
-    !> total charge is present at the top of the file
+        ! total charge is present at the top of the file
     real(dp) :: CheckSum(size(qq, dim=3))
+
+    type(TFileDescr) :: file
 
     integer :: iOrb, iAtom, iSpin, ii, nAtomInFile, nDipole, nQuadrupole
     integer :: fileFormat
@@ -266,21 +267,20 @@ contains
   #:endblock DEBUG_CODE
 
     if (tReadAscii) then
-      open(newunit=file, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
+      call openFile(file, trim(fileName) // '.dat', mode="r", iostat=iErr)
     else
-      open(newunit=file, file=trim(fileName)//'.bin', status='old', action='READ',&
-          & form='unformatted',iostat=iErr)
+      call openFile(file, file=trim(fileName) // '.bin', mode="rb", iostat=iErr)
     end if
     if (iErr /= 0) then
       write(error_string, *) "Failure to open external file of charge data"
       call error(error_string)
     end if
-    rewind(file)
+    rewind(file%unit)
 
     if (tReadAscii) then
-      read(file, *, iostat=iErr)fileFormat
+      read(file%unit, *, iostat=iErr) fileFormat
     else
-      read(file, iostat=iErr)fileFormat
+      read(file%unit, iostat=iErr) fileFormat
     end if
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
@@ -289,25 +289,25 @@ contains
     select case(fileFormat)
     case(4)
       if (tReadAscii) then
-        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+        read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
       else
-        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
+        read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, iSpin, CheckSum
       end if
       nAtomInFile = nAtom
     case(5)
       if (tReadAscii) then
-        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
-            & CheckSum
+        read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile,&
+            & iSpin, CheckSum
       else
-        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
+        read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, nAtomInFile, iSpin,&
             & CheckSum
       end if
     case(6)
       if (tReadAscii) then
-        read(file, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
+        read(file%unit, *, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
             & nAtomInFile, iSpin, CheckSum
       else
-        read(file, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
+        read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
             & nAtomInFile, iSpin, CheckSum
       end if
     case default
@@ -331,9 +331,9 @@ contains
       do iAtom = 1, nAtomInFile
         nOrb = orb%nOrbAtom(iAtom)
         if (tReadAscii) then
-          read (file, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          read (file%unit, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
         else
-          read (file, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
+          read (file%unit, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1,nOrb)
         end if
         if (iErr /= 0) then
           write (error_string, *) "Failure to read file of external charges"
@@ -366,9 +366,9 @@ contains
     if (isMultipolar) then
 
       if (tReadAscii) then
-        read(file, "(2I2)", iostat=iErr) nDipole, nQuadrupole
+        read(file%unit, "(2I2)", iostat=iErr) nDipole, nQuadrupole
       else
-        read(file, iostat=iErr)  nDipole, nQuadrupole
+        read(file%unit, iostat=iErr)  nDipole, nQuadrupole
       end if
       if (allocated(multipoles%dipoleAtom)) then
         if (nDipole /= size(multipoles%dipoleAtom, dim=1)) then
@@ -398,7 +398,7 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nDipole
-              read (file, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom,iSpin)
+              read (file%unit, *, iostat=iErr) multipoles%dipoleAtom(ii,iAtom,iSpin)
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for atomic dipoles"
                 call error(error_string)
@@ -409,7 +409,7 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nQuadrupole
-              read (file, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom,iSpin)
+              read (file%unit, *, iostat=iErr) multipoles%quadrupoleAtom(ii,iAtom,iSpin)
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for atomic quadrupoles"
                 call error(error_string)
@@ -419,14 +419,15 @@ contains
         end do
       else
         if (nDipole > 0) then
-          read(file, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
+          read(file%unit, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
           if (iErr /= 0) then
-            write(error_string, *)"Failure to read external dipoles from file for atomic multipoles"
+            write(error_string, *)&
+                & "Failure to read external dipoles from file for atomic multipoles"
             call error(error_string)
           end if
         end if
         if (nQuadrupole > 0) then
-          read(file, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
+          read(file%unit, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to read external quadrupoles from file for atomic&
                 & multipoles"
@@ -444,9 +445,9 @@ contains
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
-                read (file, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+                read (file%unit, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
               else
-                read (file, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+                read (file%unit, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for external block charges"
@@ -474,9 +475,9 @@ contains
             nOrb = orb%nOrbAtom(iAtom)
             do ii = 1, nOrb
               if (tReadAscii) then
-                read (file, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+                read (file%unit, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
               else
-                read (file, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+                read (file%unit, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
               end if
               if (iErr /= 0) then
                 write (error_string, *) "Failure to read file for external imaginary block charges"
@@ -494,9 +495,9 @@ contains
       if (tRhoPresent) then
         do ii = 1, size(deltaRho)
           if (tReadAscii) then
-            read (file, *, iostat=iErr) deltaRho(ii)
+            read (file%unit, *, iostat=iErr) deltaRho(ii)
           else
-            read (file, iostat=iErr) deltaRho(ii)
+            read (file%unit, iostat=iErr) deltaRho(ii)
           end if
           if (iErr /= 0) then
             write (error_string, *) "Failure to read file for external imaginary block charges"
@@ -506,7 +507,7 @@ contains
       end if
     end if
 
-    close(file)
+    call closeFile(file)
 
   end subroutine initQFromFile
 
@@ -547,8 +548,9 @@ contains
 
     integer :: nAtom, nOrb, nSpin, nDipole, nQuadrupole
     integer :: iAtom, iOrb, iSpin, ii
-    integer :: iErr, fd
+    integer :: iErr
     logical :: tqBlock, tqiBlock, tRho
+    type(TFileDescr) :: fd
 
     nAtom = nAtInCentralRegion
     nSpin = size(qq, dim=3)
@@ -579,12 +581,11 @@ contains
   #:endblock DEBUG_CODE
 
     if (tWriteAscii) then
-      open(newunit=fd, file=trim(fileName)//'.dat', position="rewind", status="replace")
-      write(fd, *, iostat=iErr) restartFormat
+      call openFile(fd, trim(fileName) // '.dat', mode="w")
+      write(fd%unit, *, iostat=iErr) restartFormat
     else
-      open(newunit=fd, file=trim(fileName)//'.bin', position="rewind", status="replace",&
-          & form="unformatted")
-      write(fd, iostat=iErr) restartFormat
+      call openFile(fd, trim(fileName) // '.bin', mode="wb")
+      write(fd%unit, iostat=iErr) restartFormat
     end if
 
     if (iErr /= 0) then
@@ -593,10 +594,10 @@ contains
     end if
 
     if (tWriteAscii) then
-      write(fd, *, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom, nSpin,&
+      write(fd%unit, *, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom, nSpin,&
           & sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     else
-      write(fd, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom,&
+      write(fd%unit, iostat=iErr) tqBlock, tqiBlock, tRho, present(multipoles), nAtom,&
           & nSpin, sum(sum(qq(:,:nAtom,:), dim=1), dim=1)
     end if
 
@@ -609,9 +610,9 @@ contains
       do iAtom = 1, nAtom
         nOrb = orb%nOrbAtom(iAtom)
         if (tWriteAscii) then
-          write(fd, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
+          write(fd%unit, *, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
         else
-          write(fd, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
+          write(fd%unit, iostat=iErr) (qq(iOrb, iAtom, iSpin), iOrb = 1, nOrb)
         end if
         if (iErr /= 0) then
           write(error_string, *) "Failure to write file for external charges"
@@ -636,9 +637,9 @@ contains
         nQuadrupole =  0
       end if
       if (tWriteAscii) then
-        write(fd, "(2I2)", iostat=iErr) nDipole, nQuadrupole
+        write(fd%unit, "(2I2)", iostat=iErr) nDipole, nQuadrupole
       else
-        write(fd, iostat=iErr) nDipole, nQuadrupole
+        write(fd%unit, iostat=iErr) nDipole, nQuadrupole
       end if
       if (iErr /= 0) then
         write(error_string, *) "Failure to write file for number of atomic multipoles"
@@ -648,7 +649,7 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nDipole
-              write(fd, *, iostat=iErr) multipoles%dipoleAtom(ii, iAtom, iSpin)
+              write(fd%unit, *, iostat=iErr) multipoles%dipoleAtom(ii, iAtom, iSpin)
               if (iErr /= 0) then
                 write(error_string, "(A,I0)") "Failure to write dipole for atom ",iAtom
                 call error(error_string)
@@ -659,7 +660,7 @@ contains
         do iSpin = 1, nSpin
           do iAtom = 1, nAtom
             do ii = 1, nQuadrupole
-              write(fd, "(3E20.12)", iostat=iErr) multipoles%quadrupoleAtom(ii, iAtom, iSpin)
+              write(fd%unit, "(3E20.12)", iostat=iErr) multipoles%quadrupoleAtom(ii, iAtom, iSpin)
               if (iErr /= 0) then
                 write(error_string, "(A,I0)") "Failure to write quadrupole for atom ",iAtom
                 call error(error_string)
@@ -669,14 +670,14 @@ contains
         end do
       else
         if (nDipole > 0) then
-          write(fd, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
+          write(fd%unit, iostat=iErr)multipoles%dipoleAtom(:nDipole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to write atom dipoles"
             call error(error_string)
           end if
         end if
         if (nQuadrupole > 0) then
-          write(fd, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
+          write(fd%unit, iostat=iErr)multipoles%quadrupoleAtom(:nQuadrupole,:nAtom,:nSpin)
           if (iErr /= 0) then
             write(error_string, *) "Failure to write atom quadrupoles"
             call error(error_string)
@@ -691,9 +692,9 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteAscii) then
-              write(fd, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, *, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             else
-              write(fd, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, iostat=iErr) qBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block charges"
@@ -710,9 +711,9 @@ contains
           nOrb = orb%nOrbAtom(iAtom)
           do ii = 1, nOrb
             if (tWriteAscii) then
-              write(fd, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, *, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
             else
-              write(fd, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
+              write(fd%unit, iostat=iErr) qiBlock(1:nOrb, ii ,iAtom, iSpin)
             end if
             if (iErr /= 0) then
               write(error_string, *) "Failure to write file for external block imaginary charges"
@@ -726,9 +727,9 @@ contains
     if (tRho) then
       do ii = 1, size(deltaRhoIn)
         if (tWriteAscii) then
-          write(fd, *, iostat=iErr) deltaRhoIn(ii)
+          write(fd%unit, *, iostat=iErr) deltaRhoIn(ii)
         else
-          write(fd, iostat=iErr) deltaRhoIn(ii)
+          write(fd%unit, iostat=iErr) deltaRhoIn(ii)
         end if
         if (iErr /= 0) then
           write(error_string, *) "Failure to write file for external density matrix"
@@ -737,7 +738,7 @@ contains
       end do
     end if
 
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeQToFile
 

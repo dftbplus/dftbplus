@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,6 +10,7 @@
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
@@ -398,12 +399,13 @@ contains
     !> How often the grid should be repeated along the direction of the grid vectors
     integer, intent(in), optional :: repeatBox(:)
 
+
     integer, parameter :: bufferSize = 6
     real(dp) :: buffer(bufferSize)
     character(len=*), parameter :: formBuffer = "(6E16.8)"
     integer :: rep(3)
-    integer, save :: fd = -1
     integer :: ii, i1, i2, i3, ir1, ir2, ir3
+    type(TFileDescr) :: fd
 
     @:ASSERT(size(atomicNumbers) == size(geo%speciesNames))
     @:ASSERT(all(shape(gridVecs) == [3, 3]))
@@ -426,20 +428,20 @@ contains
       rep(:) = [1, 1, 1]
     end if
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+    call openFile(fd, fileName, mode="w")
     if (present(comments)) then
-      write (fd, "(A)") trim(comments(1))
-      write (fd, "(A)") trim(comments(2))
+      write (fd%unit, "(A)") trim(comments(1))
+      write (fd%unit, "(A)") trim(comments(2))
     else
-      write (fd, "(A)") "Made by waveplot"
-      write (fd, *)
+      write (fd%unit, "(A)") "Made by waveplot"
+      write (fd%unit, *)
     end if
-    write (fd,"(I5,3F12.6)") geo%nAtom, origin(:)
-    write (fd,"(I5,3F12.6)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
-    write (fd,"(I5,3F12.6)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
-    write (fd,"(I5,3F12.6)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
+    write (fd%unit,"(I5,3F12.6)") geo%nAtom, origin(:)
+    write (fd%unit,"(I5,3F12.6)") rep(1) * size(gridVal, dim=1), gridVecs(:,1)
+    write (fd%unit,"(I5,3F12.6)") rep(2) * size(gridVal, dim=2), gridVecs(:,2)
+    write (fd%unit,"(I5,3F12.6)") rep(3) * size(gridVal, dim=3), gridVecs(:,3)
     do ii = 1, geo%nAtom
-      write (fd, "(I5,4F12.6)") atomicNumbers(geo%species(ii)), 0.0_dp, &
+      write (fd%unit, "(I5,4F12.6)") atomicNumbers(geo%species(ii)), 0.0_dp, &
           &geo%coords(:, ii)
     end do
 
@@ -452,18 +454,18 @@ contains
                 ii = mod(i3 - 1, bufferSize) + 1
                 buffer(ii) = gridVal(i1, i2, i3)
                 if (ii == bufferSize) then
-                  write (fd,formBuffer) real(buffer)
+                  write (fd%unit,formBuffer) real(buffer)
                 end if
               end do
               if (ii /= bufferSize) then
-                write (fd, "(" // i2c(ii) // "E16.8)") real(buffer(:ii))
+                write (fd%unit, "(" // i2c(ii) // "E16.8)") real(buffer(:ii))
               end if
             end do
           end do
         end do
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeCubeFile
 

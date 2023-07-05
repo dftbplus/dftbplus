@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,13 @@
 !> Contains the routines for initialising waveplot.
 module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
+  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName,destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
@@ -124,6 +126,9 @@ module waveplot_initwaveplot
 
     !> List of levels to plot, whereby insignificant occupations were filtered out
     integer, allocatable :: levelIndex(:,:)
+
+    !> File access types
+    character(20) :: binaryAccessTypes(2)
 
   end type TOption
 
@@ -311,7 +316,6 @@ contains
     call readBasis(this, tmp, this%input%geo%speciesNames)
     call getChildValue(root, "EigenvecBin", strBuffer)
     eigVecBin = unquote(char(strBuffer))
-    call checkEigenvecs(eigVecBin, this%input%identity)
 
     !! Read options
     call getChild(root, "Options", tmp)
@@ -350,6 +354,13 @@ contains
     this%loc%gridVol = determinant(this%loc%gridVec)
 
     write(stdout, "(A)") "Doing initialisation"
+
+    ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
+    call setDefaultBinaryAccess(this%opt%binaryAccessTypes(1), this%opt%binaryAccessTypes(2),&
+        & this%opt%binaryAccessTypes(2))
+
+    ! Check eigenvector id
+    call checkEigenvecs(eigVecBin, this%input%identity)
 
     !! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
@@ -716,6 +727,8 @@ contains
 
     call getChildValue(node, "Verbose", this%opt%tVerbose, default=.false.)
 
+    call readBinaryAccessTypes(node, this%opt%binaryAccessTypes)
+
   end subroutine readOptions
 
 
@@ -845,22 +858,23 @@ contains
     !> Identity number
     integer, intent(in) :: identity
 
-    integer :: fd, id, iostat
+    type(TFileDescr) :: fd
+    integer :: id, iostat
 
-    open(newunit=fd, file=fileName, action="read", position="rewind", form="unformatted", iostat=iostat)
+    call openFile(fd, fileName, mode="rb", iostat=iostat)
 
     if (iostat /= 0) then
       call error("Can't open file '" // trim(fileName) // "'.")
     end if
 
-    read (fd) id
+    read (fd%unit) id
 
     if (id /= identity) then
       call error("Ids for eigenvectors ("// i2c(id) //") and xml-input ("// i2c(identity) // &
           & ") don't match.")
     end if
 
-    close(fd)
+    call closeFile(fd)
 
   end subroutine checkEigenvecs
 

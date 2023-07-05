@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,6 +18,7 @@
 !> * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -87,6 +88,9 @@ module dftbp_timedep_linresp
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
 
+    !> Initial and final state for non-adiabatic coupling evaluation
+    integer :: indNACouplings(2)
+
     !> write single particle transitions
     logical :: tSPTrans
 
@@ -118,7 +122,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
 
     !> data structure for linear response
     type(TLinResp), intent(out) :: this
@@ -132,8 +136,13 @@ contains
     !> number of electrons in total
     real(dp), intent(in) :: nEl
 
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
+    integer :: dLev
 
     this%tinit = .false.
 
@@ -163,12 +172,40 @@ contains
 
     this%tWriteDensityMatrix = ini%tWriteDensityMatrix
 
+    if (nSpin == 1) then
+      this%tSpin = .false.
+    else if (nSpin == 2) then
+      this%tSpin = .true.
+    else
+      call error("Unknown number of spin channels for excited state")
+    end if
+
     if (this%tOscillatorWindow .and. this%OscillatorWindow <= 0.0_dp) then
       call error("Excited Oscillator window should be non-zero if used")
     end if
     if (this%tEnergyWindow .and. this%energyWindow <= 0.0_dp) then
       call error("Excited energy window should be non-zero if used")
     end if
+
+    if(all(ini%indNACouplings == 0)) then
+      this%tNaCoupling = .false.
+    else
+      if (any(ini%indNACouplings < 0)) then
+        call error("StateCouplings: Indices must be positive.")
+      end if
+      if (ini%indNACouplings(1) >=  ini%indNACouplings(2)) then
+        call error("StateCouplings: Second index must be larger than first one.")
+      end if
+      if (ini%nExc < ini%indNACouplings(2)) then
+        call error('StateCouplings: Index must not exceed number of states to calculate.')
+      end if
+      if (this%tSpin) then
+        call error('StateCouplings: Spin-polarized systems currently not available.')
+      end if
+      this%tNaCoupling = .true.
+      this%indNACouplings = ini%indNACouplings
+      dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
+    endif
 
     this%writeMulliken = ini%tMulliken
     this%writeCoeffs = ini%tCoeffs
@@ -254,7 +291,7 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file id for tagging information
-    integer, intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdTagged
 
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -272,9 +309,9 @@ contains
 
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
-      call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, dummyPtr)
+      call LinRespGrad_old(this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+          & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
+          & rangeSep, excEnergy, allExcEnergies, dummyPtr)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -285,7 +322,7 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
+      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
       & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
@@ -345,11 +382,8 @@ contains
     !> difference density matrix (vs. uncharged atoms)
     real(dp), intent(inout), pointer :: deltaRho(:,:,:)
 
-    !> print tag information
-    logical, intent(in) :: tWriteTagged
-
     !> file descriptor for tagged data
-    integer, intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdTagged
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -386,15 +420,15 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       if (allocated(occNatural)) then
-        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
-            & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
+            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
+            & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
+            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
-        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont,&
-            & skOverCont, excgradient, derivator, rhoSqr)
+        call LinRespGrad_old(this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
+            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
+            & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
+            & excgradient, derivator, rhoSqr)
       end if
 
     else

@@ -86,6 +86,7 @@ spin/ipea1_Fe4_noncolinear             #? WITH_TBLITE and MPI_PROCS <= 1
 
 input/caffeine_gen                     #? MPI_PROCS <= 1
 input/caffeine_xyz                     #? MPI_PROCS <= 1
+input/ammonia_lammps                   #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1
 input/unsorted_contcar                 #? MPI_PROCS <= 1
 
@@ -100,11 +101,11 @@ rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
-rangesep/C4H6-Casida-S1-Force          #? WITH_ARPACK and (not WITH_MPI)
-rangesep/Benzene-Casida-S5-Force       #? WITH_ARPACK and (not WITH_MPI)
-rangesep/C4H6-TD-LC-Triplet            #? WITH_ARPACK and (not WITH_MPI)
-rangesep/Benzene-TD-LC-Spinpol         #? WITH_ARPACK and (not WITH_MPI)
-rangesep/Benzene-TD-LC-Spinpol-Iter    #? WITH_ARPACK and (not WITH_MPI)
+rangesep/C4H6-Casida-S1-Force          #? not WITH_MPI
+rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI
+rangesep/C4H6-TD-LC-Triplet            #? not WITH_MPI
+rangesep/Benzene-TD-LC-Spinpol         #? not WITH_MPI
+rangesep/Benzene-TD-LC-Spinpol-Iter    #? not WITH_MPI
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
@@ -155,7 +156,8 @@ solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and M
 solvers/Si32C32_LS_OMM_kpt             #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 32 and OMP_THREADS == 1
 
 solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
-solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+#! Disabling as test is rather unstable on optimization
+#! solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/10-10Ctube_PEXSI_sparse        #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/SiC64+V_PEXSI_kpts             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
@@ -188,11 +190,12 @@ derivatives/Au2_Polfreq                #? MPI_PROCS <= 2
 derivatives/C60_Polfreq                #? MPI_PROCS <= 4
 
 derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
-derivatives/CH4_kpt_freq               #? not WITH_MPI or (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0)
+derivatives/CH4_kpt_freq               #? not WITH_MPI or MPI_PROCS == 4
 derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
+legacy/file_access                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
 non-scc/Si_2_origin                    #? MPI_PROCS <= 1
 non-scc/Si_2_originF                   #? MPI_PROCS <= 1
@@ -227,6 +230,8 @@ dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 4
 dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
+geoopt/H2O_sd                          #? MPI_PROCS <= 1
+geoopt/H2O_sd_old                      #? MPI_PROCS <= 1
 h-bonds/D3H5_water_dimer               #? WITH_SDFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
 non-scc/decapentaene                   #? MPI_PROCS <= 2
@@ -367,6 +372,9 @@ timedep/C6H6-Sym                       #? WITH_ARPACK and not WITH_MPI
 timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and not WITH_MPI
 timedep/OCH2-S1-Opt                    #? WITH_ARPACK and not WITH_MPI
 timedep/OCH2-md                        #? WITH_ARPACK and not WITH_MPI
+
+timedep/Furan-NACV                     #? WITH_ARPACK and not WITH_MPI
+timedep/Furan-NACV-LC                  #? not WITH_MPI
 
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2

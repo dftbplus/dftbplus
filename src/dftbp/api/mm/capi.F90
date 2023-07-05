@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,6 +10,7 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
@@ -35,8 +36,7 @@ module dftbp_capi
   !> Simple extension around the TDftbPlus with some additional variables for the C-API.
   type, extends(TDftbPlus) :: TDftbPlusC
     private
-    integer :: outputUnit
-    logical :: tOutputOpened
+    type(TFileDescr) :: outputFile
   end type TDftbPlusC
 
 
@@ -79,8 +79,8 @@ contains
     type(TDftbPlusC), pointer :: instance
 
     allocate(instance)
-    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
-    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit)
+    call handleOutputFile_(outputFileName, instance%outputFile)
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputFile%unit)
     handler%instance = c_loc(instance)
 
   end subroutine c_DftbPlus_init
@@ -101,8 +101,8 @@ contains
     type(TDftbPlusC), pointer :: instance
 
     allocate(instance)
-    call handleOutputFileName(outputFileName, instance%outputUnit, instance%tOutputOpened)
-    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputUnit, mpiComm=mpiComm)
+    call handleOutputFile_(outputFileName, instance%outputFile)
+    call TDftbPlus_init(instance%TDftbPlus, outputUnit=instance%outputFile%unit, mpiComm=mpiComm)
     handler%instance = c_loc(instance)
 
   end subroutine c_DftbPlus_init_mpi
@@ -119,9 +119,6 @@ contains
 
     call c_f_pointer(handler%instance, instance)
     call TDftbPlus_destruct(instance%TDftbPlus)
-    if (instance%tOutputOpened) then
-      close(instance%outputUnit)
-    end if
     deallocate(instance)
     handler%instance = c_null_ptr
 
@@ -326,6 +323,50 @@ contains
   end subroutine c_DftbPlus_setCoordsLatticeVecsOrigin
 
 
+  !> Set the neighbour list instead of computing it in DFTB+
+  subroutine c_DftbPlus_setNeighbourList(handler, nAllAtom, nMaxNeighbours, nNeighbour,&
+      & iNeighbour, neighDist, cutOff, coordNeighbours, neighbour2CentCell)&
+      & bind(C, name='dftbp_set_neighbour_list')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> total number of neighbour atoms
+    integer(c_int), value, intent(in) :: nAllAtom
+
+    !> maximum number of neighbours an atom in the central cell can have
+    integer(c_int), value, intent(in) :: nMaxNeighbours
+
+    !> number of neighbours for each atom in the central cell
+    integer(c_int), intent(in) :: nNeighbour(*)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer(c_int), intent(in) :: iNeighbour(nMaxNeighbours, *)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(c_double), intent(in) :: neighDist(nMaxNeighbours, *)
+
+    !> cutoff distance used for this neighbour list
+    real(c_double), value, intent(in) :: cutOff
+
+    !> coordinates of all neighbours
+    real(c_double), intent(in) :: coordNeighbours(3, *)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer(c_int), intent(in) :: neighbour2CentCell(*)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setNeighbourList(nNeighbour(1:nAtom), iNeighbour(:,1:nAtom),&
+        & neighDist(:,1:nAtom), cutOff, coordNeighbours(:,1:nAllAtom),&
+        & neighbour2CentCell(1:nAllAtom))
+
+  end subroutine c_DftbPlus_setNeighbourList
+
+
   !> Obtain nr. of atoms.
   function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
     type(c_DftbPlus), intent(inout) :: handler
@@ -380,6 +421,23 @@ contains
     call instance%getNOrbitalsOnAtoms(nOrbitals(:nAtom))
 
   end subroutine c_DftbPlus_get_atom_nr_basis
+
+
+  !> Retrieve the cutoff distance that is being used for interactions
+  function c_DftbPlus_getCutOff(handler) result(cutOff) bind(C, name='dftbp_get_cutoff')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> cutoff distance
+    real(dp) :: cutOff
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    cutOff = instance%getCutOff()
+
+  end function c_DftbPlus_getCutOff
 
 
   !> Obtain the DFTB+ energy
@@ -512,11 +570,14 @@ contains
   end function fortranChar
 
 
-  !> Handles the optional output file name (which should be a NULL-ptr if not present)
-  subroutine handleOutputFileName(outputFileName, outputUnit, tOutputOpened)
+  ! Returns a unit for an opened output file.
+  !
+  ! If outputFileName is associated, a file with that name will be created (and returned), otherwise
+  ! the output_unit is returned (and no file is created)
+  !
+  subroutine handleOutputFile_(outputFileName, outputFile)
     type(c_ptr), intent(in) :: outputFileName
-    integer, intent(out) :: outputUnit
-    logical, intent(out) :: tOutputOpened
+    type(TFileDescr), intent(out) :: outputFile
 
     character(c_char), pointer :: pOutputFileName
     character(:), allocatable :: fortranFileName
@@ -524,14 +585,12 @@ contains
     if (c_associated(outputFileName)) then
       call c_f_pointer(outputFileName, pOutputFileName)
       fortranFileName = fortranChar(pOutputFileName)
-      open(newunit=outputUnit, file=fortranFileName, action="write")
-      tOutputOpened = .true.
+      call openFile(outputFile, fortranFileName, mode="w")
     else
-      outputUnit = output_unit
-      tOutputOpened = .false.
+      call outputFile%connectToUnit(output_unit)
     end if
 
-  end subroutine handleOutputFileName
+  end subroutine handleOutputFile_
 
 
 end module dftbp_capi

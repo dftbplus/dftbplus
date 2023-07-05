@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,6 +17,7 @@ module dftbp_timedep_timeprop
   use dftbp_common_accuracy, only : dp, sc, lc, mc
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -75,7 +76,7 @@ module dftbp_timedep_timeprop
 
   private
   public :: runDynamics, TElecDynamics_init
-  public :: initializeDynamics, doTdStep
+  public :: initializeDynamics, finalizeDynamics, doTdStep
   public :: TElecDynamicsInp, TElecDynamics
   public :: pertTypes, envTypes, tdSpinTypes
 
@@ -278,9 +279,9 @@ module dftbp_timedep_timeprop
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp), allocatable :: bondWork(:, :)
     real(dp) :: time, startTime, timeElec, energyKin, lastBondPopul
-    integer, allocatable :: populDat(:)
-    integer :: dipoleDat, qDat, energyDat, atomEnergyDat
-    integer :: forceDat, coorDat, fdBondPopul, fdBondEnergy
+    type(TFileDescr), allocatable :: populDat(:)
+    type(TFileDescr) :: dipoleDat, qDat, energyDat, atomEnergyDat
+    type(TFileDescr) :: forceDat, coorDat, fdBondPopul, fdBondEnergy
     type(TPotentials) :: potential
 
     !> count of the number of times dynamics has been initialised
@@ -1008,7 +1009,12 @@ contains
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
-    call finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
+    if (tWriteAutotest) then
+      call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
+          & this%occ, this%lastBondPopul, taggedWriter)
+    end if
+
+    call finalizeDynamics(this)
 
   end subroutine doDynamics
 
@@ -1174,7 +1180,7 @@ contains
     potential%intBlock = potential%intBlock + potential%extBlock
     potential%intShell = potential%intShell + potential%extShell
 
-    call getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, speciesAll, orb,&
+    call getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, speciesAll, orb,&
         & iSparseStart, img2CentCell, potential, .false., ints%hamiltonian, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
@@ -1310,7 +1316,8 @@ contains
 
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
     real(dp) :: tdfun(3)
-    integer :: iStep, laserDat
+    integer :: iStep
+    type(TFileDescr) :: laserDat
 
     allocate(this%tdFunction(3, 0:this%nSteps))
     this%tdFunction(:,:) = 0.0_dp
@@ -1326,9 +1333,14 @@ contains
       E0 = 0.0_dp !this is to make sure we never sum the current field with the read from file
     end if
 
-    call openFile(this, laserDat, 'laser.dat')
+    if (this%tEnvFromFile) then
+      call openFile(laserDat, "laser.dat", mode="r")
+    else
+      call openOutputFile(this, laserDat, 'laser.dat')
+    end if
+
     if (.not. this%tEnvFromFile) then
-      write(laserDat, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+      write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
     end if
 
     do iStep = 0,this%nSteps
@@ -1345,18 +1357,18 @@ contains
       end if
 
       if (this%tEnvFromFile) then
-        read(laserDat, *)time, tdfun(1), tdfun(2), tdfun(3)
+        read(laserDat%unit, *)time, tdfun(1), tdfun(2), tdfun(3)
         this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
       else
         this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
             & * this%fieldDir)
-        write(laserDat, "(5F15.8)") time * au__fs,&
+        write(laserDat%unit, "(5F15.8)") time * au__fs,&
             & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
       end if
 
     end do
 
-    close(laserDat)
+    call closeFile(laserDat)
 
   end subroutine getTDFunction
 
@@ -1560,13 +1572,16 @@ contains
 
   !> Calculate energy - modify to include new way to calculate energy
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
-  subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
+  subroutine getTDEnergy(this, env, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
       & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
       & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, dftbU, xi,&
       & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> data type for energy components and total
     type(TEnergies), intent(inout) :: energy
@@ -1675,7 +1690,7 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
-    call calcEnergies(this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
+    call calcEnergies(env, this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
         & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
         & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
@@ -1801,17 +1816,18 @@ contains
     real(dp), intent(inout) :: lastBondPopul
 
     !> Pairwise bond population output file ID
-    integer, intent(inout) :: fdBondPopul
+    type(TFileDescr), intent(out) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
-    integer, intent(inout) :: fdBondEnergy
+    type(TFileDescr), intent(out) :: fdBondEnergy
 
     !> simulation time (in atomic units)
     real(dp), intent(in) :: time
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
     complex(dp), allocatable :: T4(:,:)
-    integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK
+    integer :: iSpin, iOrb, iOrb2, iKS, iK
+    type(TFileDescr) :: fillingsIn
 
     allocate(rhoPrim(size(ints%hamiltonian, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ints%hamiltonian, dim=1)))
@@ -1893,12 +1909,13 @@ contains
 
     if (this%tFillingsFromFile) then
       filling(:,:,:) = 0.0_dp
-      open(newunit=fillingsIn, file='fillings.in')
+      call openFile(fillingsIn, "fillings.in", mode="r")
       do iSpin=1,this%nSpin
         do iOrb=1,this%nOrbs
-          read(fillingsIn, *) filling(iOrb,1,iSpin)
+          read(fillingsIn%unit, *) filling(iOrb,1,iSpin)
         end do
       end do
+      call closeFile(fillingsIn)
     end if
 
     if (.not.this%tReadRestart) then
@@ -1941,10 +1958,10 @@ contains
       allocate(bondWork(this%nAtom, this%nAtom))
     end if
     if (this%tBondE) then
-      call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
+      call openOutputFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
     end if
     if (this%tBondP) then
-      call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
+      call openOutputFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
     end if
     call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, ints, iNeighbour,&
         & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, time)
@@ -2127,25 +2144,25 @@ contains
     type(TElecDynamics), intent(in) :: this
 
     !> Dipole output file ID
-    integer, intent(out) :: dipoleDat
+    type(TFileDescr), intent(out) :: dipoleDat
 
     !> Charge output file ID
-    integer, intent(out) :: qDat
+    type(TFileDescr), intent(out) :: qDat
 
     !> Energy output file ID
-    integer, intent(out) :: energyDat
+    type(TFileDescr), intent(out) :: energyDat
 
     !> Populations  output file ID
-    integer, intent(out) :: populDat(:)
+    type(TFileDescr), intent(out) :: populDat(:)
 
     !> Forces output file ID
-    integer, intent(out) :: forceDat
+    type(TFileDescr), intent(out) :: forceDat
 
     !> Coords  output file ID
-    integer, intent(out) :: coorDat
+    type(TFileDescr), intent(out) :: coorDat
 
     !> Atom-resolved energy output file ID
-    integer, intent(out) :: atomEnergyDat
+    type(TFileDescr), intent(out) :: atomEnergyDat
 
     character(20) :: dipoleFileName
     character(1) :: strSpin
@@ -2163,56 +2180,56 @@ contains
     else
       dipoleFileName = 'mu.dat'
     end if
-    call openFile(this, dipoleDat, dipoleFileName)
+    call openOutputFile(this, dipoleDat, dipoleFileName)
 
-    write(dipoleDat, "(A)", advance = "NO")"#           time (fs)    |"
+    write(dipoleDat%unit, "(A)", advance = "NO")"#           time (fs)    |"
     select case(this%nSpin)
     case(1)
-      write(dipoleDat, "(A)", advance = "NO")"     mu_x (e.angstrom)   |"
-      write(dipoleDat, "(A)", advance = "NO")"     mu_y (e.angstrom)   |"
-      write(dipoleDat, "(A)", advance = "NO")"     mu_z (e.angstrom)   |"
+      write(dipoleDat%unit, "(A)", advance = "NO")"     mu_x (e.angstrom)   |"
+      write(dipoleDat%unit, "(A)", advance = "NO")"     mu_y (e.angstrom)   |"
+      write(dipoleDat%unit, "(A)", advance = "NO")"     mu_z (e.angstrom)   |"
     case(2)
-      write(dipoleDat, "(A)", advance = "NO")"  mu_x (up) (e.angstrom) |"
-      write(dipoleDat, "(A)", advance = "NO")"  mu_y (up) (e.angstrom) |"
-      write(dipoleDat, "(A)", advance = "NO")"  mu_z (up) (e.angstrom) |"
-      write(dipoleDat, "(A)", advance = "NO")" mu_x (down) (e.angstrom)|"
-      write(dipoleDat, "(A)", advance = "NO")" mu_y (down) (e.angstrom)|"
-      write(dipoleDat, "(A)", advance = "NO")" mu_z (down) (e.angstrom)|"
+      write(dipoleDat%unit, "(A)", advance = "NO")"  mu_x (up) (e.angstrom) |"
+      write(dipoleDat%unit, "(A)", advance = "NO")"  mu_y (up) (e.angstrom) |"
+      write(dipoleDat%unit, "(A)", advance = "NO")"  mu_z (up) (e.angstrom) |"
+      write(dipoleDat%unit, "(A)", advance = "NO")" mu_x (down) (e.angstrom)|"
+      write(dipoleDat%unit, "(A)", advance = "NO")" mu_y (down) (e.angstrom)|"
+      write(dipoleDat%unit, "(A)", advance = "NO")" mu_z (down) (e.angstrom)|"
     end select
-    write(dipoleDat, "(A)")
+    write(dipoleDat%unit, "(A)")
 
     if (this%tdWriteExtras) then
-      call openFile(this, qDat, 'qsvst.dat')
-      write(qDat, "(A)", advance = "NO")"#             time (fs)      |"
-      write(qDat, "(A)", advance = "NO")"   total net charge (e)  |"
-      write(qDat, "(A)", advance = "NO")"   charge (atom_1) (e)   |"
-      write(qDat, "(A)", advance = "NO")"   charge (atom_2) (e)   |"
-      write(qDat, "(A)", advance = "NO")"        ...        |"
-      write(qDat, "(A)", advance = "NO")"   charge (atom_N) (e)   |"
-      write(qDat, "(A)")
+      call openOutputFile(this, qDat, 'qsvst.dat')
+      write(qDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
+      write(qDat%unit, "(A)", advance = "NO")"   total net charge (e)  |"
+      write(qDat%unit, "(A)", advance = "NO")"   charge (atom_1) (e)   |"
+      write(qDat%unit, "(A)", advance = "NO")"   charge (atom_2) (e)   |"
+      write(qDat%unit, "(A)", advance = "NO")"        ...        |"
+      write(qDat%unit, "(A)", advance = "NO")"   charge (atom_N) (e)   |"
+      write(qDat%unit, "(A)")
 
-      call openFile(this, energyDat, 'energyvst.dat')
-      write(energyDat, "(A)", advance = "NO")"#                  time (fs)         |"
-      write(energyDat, "(A)", advance = "NO")"        E total (H)         |"
-      write(energyDat, "(A)", advance = "NO")"        E non-SCC (H)       |"
-      write(energyDat, "(A)", advance = "NO")"            E SCC (H)       |"
-      write(energyDat, "(A)", advance = "NO")"           E spin (H)       |"
-      write(energyDat, "(A)", advance = "NO")"       E external (H)       |"
-      write(energyDat, "(A)", advance = "NO")"            E rep (H)       |"
-      write(energyDat, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
-      write(energyDat, "(A)", advance = "NO")"     E dispersion (H)       |"
-      write(energyDat, "(A)")
+      call openOutputFile(this, energyDat, 'energyvst.dat')
+      write(energyDat%unit, "(A)", advance = "NO")"#                  time (fs)         |"
+      write(energyDat%unit, "(A)", advance = "NO")"        E total (H)         |"
+      write(energyDat%unit, "(A)", advance = "NO")"        E non-SCC (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"            E SCC (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"           E spin (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"       E external (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"            E rep (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
+      write(energyDat%unit, "(A)", advance = "NO")"     E dispersion (H)       |"
+      write(energyDat%unit, "(A)")
 
       if (this%tForces) then
-        call openFile(this, forceDat, 'forcesvst.dat')
-        write(forceDat, "(A)", advance = "NO")"#           time (fs)       |"
-        write(forceDat, "(A)", advance = "NO")" force (atom_1) (H/b)   |  force (atom_2) (H/b)  |"
-        write(forceDat, "(A)", advance = "NO")"           ...          |  force (atom_N) (H/b)  |"
-        write(forceDat, "(A)")
+        call openOutputFile(this, forceDat, 'forcesvst.dat')
+        write(forceDat%unit, "(A)", advance = "NO")"#           time (fs)       |"
+        write(forceDat%unit, "(A)", advance = "NO")" force (atom_1) (H/b)   |  force (atom_2) (H/b)  |"
+        write(forceDat%unit, "(A)", advance = "NO")"           ...          |  force (atom_N) (H/b)  |"
+        write(forceDat%unit, "(A)")
       end if
 
       if (this%tIons) then
-        call openFile(this, coorDat, 'tdcoords.xyz')
+        call openOutputFile(this, coorDat, 'tdcoords.xyz')
       end if
     end if
 
@@ -2221,23 +2238,23 @@ contains
         iSpin = this%parallelKS%localKS(2, iKS)
         write(strSpin,'(i1)')iSpin
         if (this%tRealHS) then
-          call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
-          write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : ",&
+          call openOutputFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
+          write(populDat(iKS)%unit, "(A,A)") "#  GS molecular orbital populations, spin channel : ",&
               & trim(strSpin)
         else
           iK = this%parallelKS%localKS(1, iKS)
           write(strK,'(i0.3)')iK
-          call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
+          call openOutputFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
               & '.dat')
-          write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : ",&
+          write(populDat(iKS)%unit, "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : ",&
               & trim(strSpin), ", k-point number: ", trim(strK)
         end if
-        write(populDat(iKS), "(A)", advance = "NO")"#          time (fs)            |"
-        write(populDat(iKS), "(A)", advance = "NO")"   population (orb 1)       |"
-        write(populDat(iKS), "(A)", advance = "NO")"    population (orb 2)      |"
-        write(populDat(iKS), "(A)", advance = "NO")"           ...              |"
-        write(populDat(iKS), "(A)", advance = "NO")"    population (orb N)      |"
-        write(populDat(iKS), "(A)")
+        write(populDat(iKS)%unit, "(A)", advance = "NO")"#          time (fs)            |"
+        write(populDat(iKS)%unit, "(A)", advance = "NO")"   population (orb 1)       |"
+        write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb 2)      |"
+        write(populDat(iKS)%unit, "(A)", advance = "NO")"           ...              |"
+        write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb N)      |"
+        write(populDat(iKS)%unit, "(A)")
       end do
     end if
 
@@ -2250,14 +2267,14 @@ contains
     end if
 
     if (this%tWriteAtomEnergies) then
-      call openFile(this, atomEnergyDat, 'atomenergies.dat')
-      write(atomEnergyDat, "(A)", advance = "NO")"#             time (fs)      |"
-      write(atomEnergyDat, "(A)", advance = "NO")"   E total (H)  |"
-      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_1) (H)   |"
-      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_2) (H)   |"
-      write(atomEnergyDat, "(A)", advance = "NO")"        ...        |"
-      write(atomEnergyDat, "(A)", advance = "NO")"   E (atom_N) (H)   |"
-      write(atomEnergyDat, "(A)")
+      call openOutputFile(this, atomEnergyDat, 'atomenergies.dat')
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"   E total (H)  |"
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"   E (atom_1) (H)   |"
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"   E (atom_2) (H)   |"
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"        ...        |"
+      write(atomEnergyDat%unit, "(A)", advance = "NO")"   E (atom_N) (H)   |"
+      write(atomEnergyDat%unit, "(A)")
     end if
 
   end subroutine initTDOutput
@@ -2271,79 +2288,53 @@ contains
     type(TElecDynamics), intent(in) :: this
 
     !> Dipole output file ID
-    integer, intent(in) :: dipoleDat
+    type(TFileDescr), intent(inout) :: dipoleDat
 
     !> Charge output file ID
-    integer, intent(in) :: qDat
+    type(TFileDescr), intent(inout) :: qDat
 
     !> Energy output file ID
-    integer, intent(in) :: energyDat
+    type(TFileDescr), intent(inout) :: energyDat
 
     !> Populations output file ID
-    integer, intent(in) :: populDat(:)
+    type(TFileDescr), intent(inout) :: populDat(:)
 
     !> Forces output file ID
-    integer, intent(in) :: forceDat
+    type(TFileDescr), intent(inout) :: forceDat
 
     !> Coords output file ID
-    integer, intent(in) :: coorDat
+    type(TFileDescr), intent(inout) :: coorDat
 
     !> Pairwise bond population output file ID
-    integer, intent(in) :: fdBondPopul
+    type(TFileDescr), intent(inout) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
-    integer, intent(in) :: fdBondEnergy
+    type(TFileDescr), intent(inout) :: fdBondEnergy
 
     !> Atom-resolved energy output file ID
-    integer, intent(in) :: atomEnergyDat
+    type(TFileDescr), intent(inout) :: atomEnergyDat
 
-    integer :: iKS
-
-    close(dipoleDat)
-
-    if (this%tdWriteExtras) then
-      close(qDat)
-      close(energyDat)
-
-      if (this%tPopulations) then
-        do iKS = 1, this%parallelKS%nLocalKS
-          close(populDat(iKS))
-        end do
-      end if
-
-      if (this%tIons) then
-        close(coorDat)
-      end if
-
-      if (this%tForces) then
-        close(forceDat)
-      end if
-
-    end if
-
-    if (this%tBondP) then
-      close(fdBondPopul)
-    end if
-
-    if (this%tBondE) then
-      close(fdBondEnergy)
-    end if
-
-    if (this%tWriteAtomEnergies) then
-      close(atomEnergyDat)
-    end if
+    call closeFile(dipoleDat)
+    call closeFile(qDat)
+    call closeFile(energyDat)
+    call closeFile(forceDat)
+    call closeFile(coorDat)
+    call closeFile(populDat)
+    call closeFile(fdBondPopul)
+    call closeFile(fdBondEnergy)
+    call closeFile(atomEnergyDat)
 
   end subroutine closeTDOutputs
 
 
   !> Open files in different ways depending on their previous existence
-  subroutine openFile(this, unitName, fileName, isBinary)
+  subroutine openOutputFile(this, fileDescr, fileName, isBinary)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
-    !> File ID
-    integer, intent(out) :: unitName
+    !> File descriptor
+    type(TFileDescr), intent(out) :: fileDescr
 
     !> Name of the file to open
     character(*), intent(in) :: fileName
@@ -2381,12 +2372,13 @@ contains
     end if
 
     if (isBinary_) then
-      open(newunit=unitName, file=newName, form='unformatted', access='stream')
+      call openFile(fileDescr, newName,&
+          & options=TOpenOptions(form="unformatted", access="stream", action="write"))
     else
-      open(newunit=unitName, file=newName, action="write")
+      call openFile(fileDescr, newName, mode="w")
     end if
 
-  end subroutine openFile
+  end subroutine openOutputFile
 
 
   !> Write results to file
@@ -2400,13 +2392,13 @@ contains
     type(TEnergies), intent(in) :: energy
 
     !> Dipole output file ID
-    integer, intent(in) :: dipoleDat
+    type(TFileDescr), intent(in) :: dipoleDat
 
     !> Charge output file ID
-    integer, intent(in) :: qDat
+    type(TFileDescr), intent(in) :: qDat
 
     !> Energy output file ID
-    integer, intent(in) :: energyDat
+    type(TFileDescr), intent(in) :: energyDat
 
     !> Elapsed simulation time
     real(dp), intent(in) :: time
@@ -2421,16 +2413,16 @@ contains
     integer, intent(in) :: iStep
 
     !> Forces output file ID
-    integer, intent(in) :: forceDat
+    type(TFileDescr), intent(in) :: forceDat
 
     !> Coords output file ID
-    integer, intent(in) :: coorDat
+    type(TFileDescr), intent(in) :: coorDat
 
     !> Pairwise bond population output file ID
-    integer, intent(in) :: fdBondPopul
+    type(TFileDescr), intent(in) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
-    integer, intent(in) :: fdBondEnergy
+    type(TFileDescr), intent(in) :: fdBondEnergy
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2442,26 +2434,26 @@ contains
     real(dp), intent(in) :: totalForce(:,:)
 
     !> Atom-resolved energy output file ID
-    integer, intent(in) :: atomEnergyDat
+    type(TFileDescr), intent(in) :: atomEnergyDat
 
     real(dp) :: auxVeloc(3, this%nAtom)
     integer :: iAtom, iSpin, iDir
 
-    write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
+    write(dipoleDat%unit, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
 
     if (this%tdWriteExtras) then
-      write(energydat, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
+      write(energydat%unit, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
           & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
     end if
 
     if (mod(iStep, this%writeFreq) == 0) then
       if (this%tdWriteExtras) then
-        write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
+        write(qDat%unit, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
         do iAtom = 1, this%nAtom
-          write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
+          write(qDat%unit, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
         end do
-        write(qDat,*)
+        write(qDat%unit,*)
       end if
     end if
 
@@ -2469,10 +2461,10 @@ contains
       if (this%tdWriteExtras) then
         auxVeloc = 0.0_dp
         auxVeloc(:, this%indMovedAtom) = this%movedVelo
-        write(coorDat,'(I5)')this%nAtom
-        write(coorDat,*) 'MD step:', iStep, 'time', time * au__fs
+        write(coorDat%unit,'(I5)')this%nAtom
+        write(coorDat%unit,*) 'MD step:', iStep, 'time', time * au__fs
         do iAtom=1,this%nAtom
-          write(coorDat, '(A2, 6F16.8)') trim(this%speciesName(this%species(iAtom))), &
+          write(coorDat%unit, '(A2, 6F16.8)') trim(this%speciesName(this%species(iAtom))), &
               &coord(:, iAtom) * Bohr__AA, auxVeloc(:, iAtom) * Bohr__AA / au__fs
         end do
       endif
@@ -2480,41 +2472,41 @@ contains
 
     if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
       if (this%tdWriteExtras) then
-        write(forceDat, "(F25.15)", advance="no") time * au__fs
+        write(forceDat%unit, "(F25.15)", advance="no") time * au__fs
         do iAtom = 1, this%nAtom
-          write(forceDat, "(3F25.15)", advance="no") totalForce(:,iAtom)
+          write(forceDat%unit, "(3F25.15)", advance="no") totalForce(:,iAtom)
         end do
-        write(forceDat,*)
+        write(forceDat%unit,*)
       end if
     end if
 
     if (this%tWriteAtomEnergies) then
-        write(atomEnergyDat, "(2X,2F25.15)", advance="no") time * au__fs, energy%Etotal
+        write(atomEnergyDat%unit, "(2X,2F25.15)", advance="no") time * au__fs, energy%Etotal
         do iAtom = 1, this%nAtom
-          write(atomEnergyDat, "(F25.15)", advance="no")this%energy%atomTotal(iAtom)
+          write(atomEnergyDat%unit, "(F25.15)", advance="no")this%energy%atomTotal(iAtom)
         end do
-      write(atomEnergyDat, *)
+      write(atomEnergyDat%unit, *)
     end if
 
     ! Flush output every 5% of the simulation
     if (mod(iStep, max(this%nSteps / 20, 1)) == 0 .and. iStep > this%writeFreq) then
       if (this%tdWriteExtras) then
-        flush(qDat)
-        flush(energyDat)
+        flush(qDat%unit)
+        flush(energyDat%unit)
         if (this%tIons) then
-          flush(coorDat)
+          flush(coorDat%unit)
         end if
         if (this%tForces) then
-          flush(forceDat)
+          flush(forceDat%unit)
         end if
         if (this%tBondP) then
-          flush(fdBondPopul)
+          flush(fdBondPopul%unit)
         end if
         if (this%tBondE) then
-          flush(fdBondEnergy)
+          flush(fdBondEnergy%unit)
         end if
         if (this%tWriteAtomEnergies) then
-          flush(atomEnergyDat)
+          flush(atomEnergyDat%unit)
         end if
       end if
     end if
@@ -2655,7 +2647,7 @@ contains
     real(dp), intent(in) :: time
 
     !> Populations output file ID
-    integer, intent(in) :: populDat(:)
+    type(TFileDescr), intent(in) :: populDat(:)
 
     !> K-Spin mixed index
     integer, intent(in) :: iKS
@@ -2672,11 +2664,11 @@ contains
     T1 = transpose(Eiginv(:,:,iKS)) * T1
 
     occ = real(sum(T1,dim=1), dp)
-    write(populDat(iKS),'(*(2x,F25.15))', advance='no') time * au__fs
+    write(populDat(iKS)%unit,'(*(2x,F25.15))', advance='no') time * au__fs
     do ii = 1, size(occ)
-      write(populDat(iKS),'(*(2x,F25.15))', advance='no')occ(ii)
+      write(populDat(iKS)%unit,'(*(2x,F25.15))', advance='no')occ(ii)
     end do
-    write(populDat(iKS),*)
+    write(populDat(iKS)%unit,*)
 
   end subroutine getTDPopulations
 
@@ -2712,30 +2704,29 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    integer :: fdAutotest
+    type(TFileDescr) :: fdAutotest
 
-    open(newunit=fdAutotest, file=trim(this%autotestTag), position="append")
-
-    call taggedWriter%write(fdAutotest, tagLabels%tdenergy, energy%eSCC)
-    call taggedWriter%write(fdAutotest, tagLabels%tddipole, dipole)
-    call taggedWriter%write(fdAutotest, tagLabels%tdcharges, deltaQ)
+    call openFile(fdAutotest, trim(this%autotestTag), mode="a")
+    call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC)
+    call taggedWriter%write(fdAutotest%unit, tagLabels%tddipole, dipole)
+    call taggedWriter%write(fdAutotest%unit, tagLabels%tdcharges, deltaQ)
     if (this%tIons) then
-      call taggedWriter%write(fdAutotest, tagLabels%ehrencoords, coord)
-      call taggedWriter%write(fdAutotest, tagLabels%ehrenvelos, this%movedVelo)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%ehrencoords, coord)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%ehrenvelos, this%movedVelo)
     end if
     if (this%tForces) then
-      call taggedWriter%write(fdAutotest, tagLabels%ehrenforces, totalForce)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%ehrenforces, totalForce)
     end if
     if (this%tPopulations) then
-      call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdprojocc, occ)
     end if
     if (this%tBondP) then
-      call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, lastBondPopul)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%sumBondPopul, lastBondPopul)
     end if
     if (this%tWriteAtomEnergies) then
-      call taggedWriter%write(fdAutotest, tagLabels%atomenergies, energy%atomTotal)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%atomenergies, energy%atomTotal)
     end if
-    close(fdAutotest)
+    call closeFile(fdAutotest)
 
   end subroutine writeTDAutotest
 
@@ -3494,10 +3485,10 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> File descriptor for bond energy
-    integer, intent(in) :: fdBondEnergy
+    type(TFileDescr), intent(in) :: fdBondEnergy
 
     !> File descriptor for bond populations
-    integer, intent(in) :: fdBondPopul
+    type(TFileDescr), intent(in) :: fdBondPopul
 
     !> Elapsed simulation time
     real(dp), intent(in) :: time
@@ -3510,7 +3501,7 @@ contains
         call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
             & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
-      write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
+      write(fdBondEnergy%unit) time * au__fs, sum(bondWork), bondWork
     end if
     if (this%tBondP) then
       bondWork(:,:) = 0.0_dp
@@ -3518,7 +3509,7 @@ contains
         call addPairWiseBondInfo(bondWork, rhoPrim(:,1), ints%overlap, iSquare,&
             & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
-      write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
+      write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
       if (this%tWriteAutotest) then
         lastBondPopul = sum(bondWork)
       end if
@@ -3854,7 +3845,7 @@ contains
     call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, nNeighbourSK,&
         & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
 
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
+    call getTDEnergy(this, env, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
         & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
         & qDepExtPot, this%qBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -4072,7 +4063,7 @@ contains
           & neighbourList, repulsive, iAtInCentralRegion, rangeSep)
     end if
 
-    call getTDEnergy(this, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
+    call getTDEnergy(this, env, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
         & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
         & qDepExtPot, this%qBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -4198,24 +4189,10 @@ contains
 
 
   !> Handles deallocation, closing outputs and autotest writing
-  subroutine finalizeDynamics(this, coord, tWriteAutotest, taggedWriter)
+  subroutine finalizeDynamics(this)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
-
-    !> atomic coordinates
-    real(dp), allocatable, intent(inout) :: coord(:,:)
-
-    !> Should autotest data be written?
-    logical, intent(in) :: tWriteAutotest
-
-    !> Tagged writer object
-    type(TTaggedWriter), intent(inout) :: taggedWriter
-
-    if (tWriteAutotest) then
-      call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
-          & this%occ, this%lastBondPopul, taggedWriter)
-    end if
 
     call closeTDOutputs(this, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
         & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat)

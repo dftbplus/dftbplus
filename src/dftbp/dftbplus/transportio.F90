@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,6 +10,7 @@
 module dftbp_dftbplus_transportio
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_orbitals, only : TOrbitals
@@ -41,7 +42,8 @@ contains
     !> shifts organized per (shell , atom,  spin)
     real(dp), intent(in) :: shiftPerL(:,:,:)
 
-    integer :: fdHS, nSpin, nAtom, ii, jj
+    type(TFileDescr) :: fdHS
+    integer :: nSpin, nAtom, ii, jj
 
     nSpin = size(shiftPerL, dim=3)
     nAtom = size(shiftPerL, dim=2)
@@ -54,13 +56,12 @@ contains
       call error("Internal error in writeshift size(shiftPerL,2)")
     endif
 
-    open(newunit=fdHS, file=fShifts, form="formatted")
-    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    call openFile(fdHS, fShifts, mode="w")
+    write(fdHS%unit, *) nAtom, orb%mShell, orb%mOrb, nSpin
     do ii = 1, nAtom
-      write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+      write(fdHS%unit, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
     end do
-
-    close(fdHS)
+    call closeFile(fdHS)
 
     write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
 
@@ -82,13 +83,14 @@ contains
     !> potential shifts (shell,atom,spin) charge/mag is used
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
+    type(TFileDescr) :: fdH
+    integer :: nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
     integer, allocatable :: nOrbAtom(:)
 
     shiftPerL(:,:,:) = 0.0_dp
 
-    open(newunit=fdH, file=fShifts, form="formatted")
-    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+    call openFile(fdH, fShifts, mode="r")
+    read(fdH%unit, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
 
     if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
       call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
@@ -99,10 +101,10 @@ contains
 
     allocate(nOrbAtom(nAtomSt))
     do ii = 1, nAtom
-      read(fdH, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+      read(fdH%unit, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
     end do
 
-    close(fdH)
+    call closeFile(fdH)
 
     if (any(nOrbAtom /= orb%nOrbAtom)) then
       call error("Incompatible orbitals in the upload file!")
@@ -135,7 +137,8 @@ contains
     !> Should a text or binary file be saved
     logical, intent(in), optional :: tWriteAscii
 
-    integer :: fdHS, nAtom, nSpin, iAt, iSp
+    type(TFileDescr) :: fdHS
+    integer :: nAtom, nSpin, iAt, iSp
     logical :: tAsciiFile
 
     nSpin = size(charges, dim=3)
@@ -148,60 +151,62 @@ contains
 
     if (tAsciiFile) then
 
-      open(newunit=fdHS, file="shiftcont_" // trim(filename) // ".dat", form="formatted")
+      call openFile(fdHS, file="shiftcont_" // trim(filename) // ".dat", mode="w")
 
       ! now with a version number on the top of the file:
-      write(fdHS, *) contactFormatVersion
+      write(fdHS%unit, *) contactFormatVersion
 
-      write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS, *) orb%nOrbAtom
-      write(fdHS, *) shiftPerL(:,:,1)
-      write(fdHS, *) charges
+      write(fdHS%unit, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS%unit, *) orb%nOrbAtom
+      write(fdHS%unit, *) shiftPerL(:,:,1)
+      write(fdHS%unit, *) charges
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
           do iAt = 1, nAtom
-            write(fdHS, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            write(fdHS%unit, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
           end do
         end do
       end if
 
       if (nSpin == 2) then
-        write(fdHS, formatFermiWrite) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
-        write(fdHS, formatFermiWrite) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
+        write(fdHS%unit, formatFermiWrite) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1),&
+            & 'eV'
+        write(fdHS%unit, formatFermiWrite) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2),&
+            & 'eV'
       else
-        write(fdHS, formatFermiWrite) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+        write(fdHS%unit, formatFermiWrite) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       end if
 
       write(stdOut,*) 'shiftcont_' // trim(filename) // '.dat written to file'
 
     else
 
-      open(newunit=fdHS, file="shiftcont_" // trim(filename) // ".bin", form="unformatted")
+      call openFile(fdHS, "shiftcont_" // trim(filename) // ".bin", mode="wb")
 
       ! now with a version number on the top of the file:
-      write(fdHS) contactFormatVersion
+      write(fdHS%unit) contactFormatVersion
 
-      write(fdHS) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS) orb%nOrbAtom
-      write(fdHS) shiftPerL(:,:,1)
-      write(fdHS) charges
+      write(fdHS%unit) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS%unit) orb%nOrbAtom
+      write(fdHS%unit) shiftPerL(:,:,1)
+      write(fdHS%unit) charges
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
           do iAt = 1, nAtom
-            write(fdHS) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            write(fdHS%unit) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
           end do
         end do
       end if
 
-      write(fdHS) Ef(:)
+      write(fdHS%unit) Ef(:)
 
       write(stdOut,*) 'shiftcont_' // trim(filename) // '.bin written to file'
 
     end if
 
-    close(fdHS)
+    call closeFile(fdHS)
 
 
   end subroutine writeContactShifts
@@ -227,9 +232,10 @@ contains
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    integer :: fdH
+    type(TFileDescr) :: fdH
+    character(:), allocatable :: fileName
     integer :: iCont
-    logical :: tExist, tBlock, tAsciiFile
+    logical :: tBlock, tAsciiFile
     character(lc) :: buffer
     integer :: iBuffer(5), fileVersion
     integer :: ii, iErr
@@ -248,21 +254,17 @@ contains
     do iCont = 1, tp%ncont
 
       if (tAsciiFile) then
-
-        inquire(file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat", exist=tExist)
-        if (.not. tExist) then
-          call error("Contact shift file shiftcont_" // trim(tp%contacts(iCont)%name) &
-              &  // ".dat is missing"// new_line('a') // "Run ContactHamiltonian calculations&
-              & first.")
+        fileName = "shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat"
+        if (.not. fileExists(fileName)) then
+          call error("Contact shift file " // fileName // " is missing" // new_line('a')&
+              & // "Run ContactHamiltonian calculations first.")
         end if
 
-        open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
-            & form="formatted", status="old", action="read")
+        call openFile(fdH, fileName, mode="r")
 
-        read(fdH, '(A)', iostat=iErr) buffer
+        read(fdH%unit, '(A)', iostat=iErr) buffer
         if (iErr /= 0) then
-          call error("Error reading file contact file shiftcont_" // trim(tp%contacts(iCont)%name)&
-              & // ".dat")
+          call error("Error reading file contact file " // fileName)
         endif
 
         ! count the integers in the first line and store them
@@ -282,14 +284,14 @@ contains
           select case (fileVersion)
           case (1)
             ! Same format as old version (apart from the version number)
-            call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+            call readContactShiftData1(fdH%unit, orb, tp, iCont, shiftPerL, charges, blockUp)
           case(2)
             ! Format removes the block shifts, as these are re-generated from block charges
-            call readContactShiftData2(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+            call readContactShiftData2(fdH%unit, orb, tp, iCont, shiftPerL, charges, blockUp)
           case default
             write(buffer, "(I0)") fileVersion
-            call error("Unknown contact version number in file shiftcont_" //&
-                & trim(tp%contacts(iCont)%name) // ".dat : " // trim(buffer))
+            call error("Unknown contact version number in file " // fileName // " : "&
+                & // trim(buffer))
           end select
 
         case (4)
@@ -307,38 +309,35 @@ contains
                 & " contact is too early to read the Fermi energy")
           end if
 
-          rewind(fdH)
-          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+          rewind(fdH%unit)
+          call readContactShiftData1(fdH%unit, orb, tp, iCont, shiftPerL, charges, blockUp)
 
         case default
 
-          write(stdOut,*) "Error reading file contact file shiftcont_" //&
-              & trim(tp%contacts(iCont)%name) // ".dat"
+          write(stdOut,*) "Error reading file contact file " // fileName
           call error(trim(buffer))
 
         end select
 
       else
 
-        inquire(file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".bin", exist=tExist)
-        if (.not. tExist) then
-          call error("Contact shift file shiftcont_" // trim(tp%contacts(iCont)%name) &
-              &  // ".bin is missing"// new_line('a') // "Run ContactHamiltonian calculations&
-              & first.")
+        fileName = "shiftcont_" // trim(tp%contacts(iCont)%name) // ".bin"
+        if (.not. fileExists(fileName)) then
+          call error("Contact shift file " // fileName // " is missing" // new_line('a')&
+              & // "Run ContactHamiltonian calculations first.")
         end if
 
-        open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".bin",&
-            & form="unformatted", status="old", action="read")
+        call openFile(fdH, fileName, mode="rb")
 
-        read(fdH) fileVersion
+        read(fdH%unit) fileVersion
 
         select case (fileVersion)
         case (1)
           ! From version 1, binary format supported, no need to check for earlier versions
-          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+          call readContactShiftData1(fdH%unit, orb, tp, iCont, shiftPerL, charges, blockUp)
         case (2)
           ! Format removes the block shifts, as these are re-generated from block charges
-          call readContactShiftData2(fdH, orb, tp, iCont, shiftPerL, charges, blockUp)
+          call readContactShiftData2(fdH%unit, orb, tp, iCont, shiftPerL, charges, blockUp)
         case default
           write(buffer, "(I0)") fileVersion
           call error("Unknown contact version number in file shiftcont_" //&
@@ -347,7 +346,7 @@ contains
 
       end if
 
-      close(fdH)
+      call closeFile(fdH)
 
     end do
 
@@ -506,21 +505,21 @@ contains
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    real(dp), allocatable :: chargesSt(:,:,:)
+    real(dp), allocatable :: chargesSt(:,:,:), blockChargeBuffer(:,:,:,:)
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt
     integer :: iStart, iEnd, iSpin, nSpin, iAt, ii
     character(lc) :: strTmp
-    logical :: tAsciiFile
+    logical :: tAsciiFile, hasBlockCharges
 
     nSpin = size(charges, dim=3)
 
     tAsciiFile = .not.tp%tReadBinShift
 
     if (tAsciiFile) then
-      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt, hasBlockCharges
     else
-      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt
+      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt, hasBlockCharges
     end if
     iStart = tp%contacts(iCont)%idxrange(1)
     iEnd = tp%contacts(iCont)%idxrange(2)
@@ -556,13 +555,14 @@ contains
       call error("Incompatible orbitals in the upload file!")
     end if
 
-    if (allocated(blockUp)) then
+    if (hasBlockCharges) then
+      allocate(blockChargeBuffer(orb%mOrb, orb%mOrb, iStart:iEnd, nSpin))
       if (tAsciiFile) then
         ! read the block charges that we need
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH, *) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH, *) blockChargeBuffer(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       else
@@ -570,10 +570,17 @@ contains
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH) blockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH) blockChargeBuffer(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       end if
+    end if
+
+    if (allocated(blockUp)) then
+      if (.not. hasBlockCharges) then
+        call error("Upload file does not contain necessary block charge information")
+      end if
+      blockUp(:,:,iStart:iEnd,:) = blockChargeBuffer(:,:,iStart:iEnd,:)
     end if
 
     if (.not. tp%contacts(iCont)%tFermiSet) then

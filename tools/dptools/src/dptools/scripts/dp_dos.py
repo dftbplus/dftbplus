@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -157,7 +157,9 @@ def dp_dos(args, broadening, sigma, sigmarange, infile, outfile):
         bandout = BandOut.fromfile(infile)
     except OSError:
         raise ScriptError('You must enter a valid path to the input file.')
-    eigvals = bandout.eigvalarray
+    # For spin. unpol. and collinear spin, take energy and occ, for
+    # non-collinear spin take energy and occ_q (and ignore occ_m{x,y,z})
+    eigvals = np.array(bandout.eigvalarray[:, :, :, 0:2])
     if not args.occweight:
         eigvals[:, :, :, 1] = 1.0
 

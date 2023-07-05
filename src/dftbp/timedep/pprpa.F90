@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,6 +13,7 @@
 module dftbp_timedep_pprpa
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_scc, only : TScc
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
@@ -115,15 +116,12 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    !> file handle for excitation energies
-    integer:: fdExc
-
+    type(TFileDescr) :: fdExc, fdTagged
     integer, allocatable :: iAtomStart(:)
     integer :: nocc, nvir, nxoo, nxvv, dim_rpa
     integer :: norb, natom
     integer :: iSpin, isym
     integer :: nSpin
-    integer :: fdTagged
     character :: sym
 
     integer :: homo = 0
@@ -175,7 +173,7 @@ contains
     allocate(stimc(norb, norb, nSpin))
 
     if (tWriteTagged) then
-      open(newUnit=fdTagged, file=autotestTag, position="append")
+      call openFile(fdTagged, autotestTag, mode="a")
     end if
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
@@ -208,13 +206,13 @@ contains
     call sccCalc%getAtomicGammaMatU(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
 
     ! excitation energies  output file
-    open(newUnit=fdExc, file=excitationsOut, position="rewind", status="replace")
-    write(fdExc,*)
-    write(fdExc,'(5x,a,6x,a,14x,a,6x,a,12x,a)') 'w [eV]', 'Transitions', 'Weight', 'KS [eV]',&
+    call openFile(fdExc, excitationsOut, mode="w")
+    write(fdExc%unit, *)
+    write(fdExc%unit, '(5x,a,6x,a,14x,a,6x,a,12x,a)') 'w [eV]', 'Transitions', 'Weight', 'KS [eV]',&
         & 'Symm.'
-    write(fdExc,*)
-    write(fdExc,'(1x,80("="))')
-    write(fdExc,*)
+    write(fdExc%unit, *)
+    write(fdExc%unit, '(1x,80("="))')
+    write(fdExc%unit, *)
 
     do isym = 1, size(symmetries)
 
@@ -241,17 +239,14 @@ contains
           & iAtomStart, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
       call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
-          & nxvv, nxoo, fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
+          & nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)
     end do
 
-    close(fdExc)
-
-    if (tWriteTagged) then
-      close(fdTagged)
-    end if
+    call closeFile(fdExc)
+    call closeFile(fdTagged)
 
   end subroutine ppRPAenergies
 
@@ -607,7 +602,7 @@ contains
 
   !> write pp-RPA excitation energies in output file
   subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
-      & fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
+      & fdExc, fdTagged, taggedWriter, eval_0, homo)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -640,13 +635,10 @@ contains
     integer, intent(in)  :: nxoo
 
     !> file unit for excitation energies
-    integer, intent(in) :: fdExc
-
-    !> print tag information
-    logical, intent(in) :: tWriteTagged
+    type(TFileDescr), intent(in) :: fdExc
 
     !> file unit for tagged output (> -1 for write out)
-    integer, intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdTagged
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -728,11 +720,11 @@ contains
 
       !> double excitations
       if (diff_b /= -1) then
-        write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)')&
+        write(fdExc%unit, '(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)')&
             & Hartree__eV * (pp_eval(i) - eval_0),&
             & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
       else
-        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)')&
+        write(fdExc%unit, '(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)')&
             & Hartree__eV * (pp_eval(i) - eval_0),&
             & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
       endif
@@ -743,8 +735,8 @@ contains
 
     end do RPA
 
-    if (tWriteTagged) then
-      call taggedWriter%write(fdTagged, tagLabels%egyppRPA, pp_eval(:nRPA))
+    if (fdTagged%isConnected()) then
+      call taggedWriter%write(fdTagged%unit, tagLabels%egyppRPA, pp_eval(:nRPA))
     end if
 
   end subroutine writeppRPAExcitations

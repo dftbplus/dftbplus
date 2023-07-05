@@ -458,6 +458,28 @@ Driver = GeometryOptimisation {
 \end{verbatim}
 
 
+\subsubsection{Optimiser: SteepestDescent}
+\label{sec:dftbp.Optimiser.SteepestDescent}
+
+Steepest descent optimiser, that proposes displacements according to the (scaled) gradient value.
+
+\begin{ptable}
+  \kw{ScalingFactor} & r &  & 1.0 & \\
+\end{ptable}
+\begin{description}
+\item[\is{ScalingFactor}]
+  Scaling factor to displace downwards according to the directional derivative.
+\end{description}
+
+\begin{verbatim}
+Driver = GeometryOptimization {
+  Optimizer = SteepestDescent {
+    ScalingFactor = 1.0
+  }
+}
+\end{verbatim}
+
+
 \subsubsection{Convergence}
 \label{sec:dftbp.Convergence}
 
@@ -1397,7 +1419,10 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   number of steps, the program stops. However in cases where the
   calculation is not for a static structure (so \is{Driver} $\neq$
   \cb), this behaviour can be overridden using
-  \kw{ConvergentSccOnly}.
+  \kw{ConvergentSccOnly}. {\bf Note:} For calculations using
+  $k$-points, the default number of SCC iterations will default to 1
+  in cases where a band structure is being plotted (see \iscb{KLines}
+  in section \ref{sec:dftbp.KLines}).
 
 \item[\is{ConvergentSccOnly}] If true, requires that the SCC cycle converges
   before proceeding to subsequent stages of the calculation (forces, analysis,
@@ -2927,6 +2952,11 @@ The specification for \kw{PointCharges} has the following properties:
     }
   }
 \end{verbatim}
+
+\textbf{Note:} External charges are currently only available for the
+DFTB (section \ref{sec:dftbp.DFTB}) hamiltonian, and not for the xTB
+model (section \ref{sec:dftbp.XTB}).
+
 \end{description}
 
 \subsubsection{External}
@@ -4599,8 +4629,10 @@ This block collects some global options for the run.
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
+  \kw{WriteCharges} &l & & Yes & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
+  \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
 \end{ptable}
 \begin{description}
 
@@ -4683,6 +4715,11 @@ This block collects some global options for the run.
   then \verb|charges.dat| should contain a text file of this data. See section
   \ref{sec:charges.bin}.
 
+\item[\is{WriteCharges}] Turns the creation of the
+  \verb|charges.bin| (or \verb|charges.dat|) file on and off. (This might e.g.\
+  prove to be useful to avoid unnecessary I/O load during geometry optimization or MD,
+  if a later restart of the calculation is not needed.)
+
 \item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
   contains text of this data. See section \ref{sec:charges.bin}.
@@ -4697,6 +4734,31 @@ This block collects some global options for the run.
   re-start. Finally, in the case of user edited \verb|charges.dat| file (see
   section~\ref{sec:charges.bin}), the check-sum this option removed the
   requirement that the checksum values in the file match the charges.
+
+\item[\is{BinaryAccessTypes}\label{sec:dftbp.Options.BinaryAccessTypes}]
+  Specifies the default access format for binary (non-human-readable) files. It
+  contains either one string specifying the same type for both reading and
+  writing those files, or two strings separately specifying the types for
+  reading and writing. Each value must be either \is{"stream"} or
+  \is{"sequential"}. The default is \is{"stream"} for both actions.
+
+  Starting with version 23.1, \dftbp{} consistently uses stream-I/O for binary
+  files in order to produce files (e.g.\ \verb|eigenvec.bin|,
+  \verb|charges.bin|, etc.), which can be processed by programs written in other
+  languages (Python, C). In earlier versions most binary files were written
+  using sequential I/O, which were not transferable between languages or even
+  between Fortran compilers. You can read in or write out files in this old
+  format by setting the appropriate action to \is{"sequential"}.
+
+  Example:
+\begin{verbatim}
+  # Use old sequential I/O for input and output of binary files
+  BinaryAccessTypes = "sequential"
+
+  # Use the old format when reading and the new format when writing binary files
+  BinaryAccessTypes = "sequential"  "stream"
+\end{verbatim}
+
 
 \end{description}
 
@@ -4926,16 +4988,35 @@ section~\ref{sec:dftbp.dEbandout}.
 There are common options for the perturbations, which appear outside
 their respective blocks in the \is{Analysis} environment:
 \begin{ptable}
-\kw{DegeneracyTolerance} & r & & 128\\
-\kw{eta} & r & & 1E-8\\
+  \kw{ConvergedPerturb} & l & SCC = Yes & Yes\\
+  \kw{MaxPerturbIter} & i & SCC = Yes & 100\\
+  \kw{PerturbDegenTol} & r & & 128\\
+  \kw{PerturbEta} & r & Dynamic Polarisation& 1E-8\\
+  \kw{PerturbSccTol} & r & SCC = Yes & 1e-5\\
 \end{ptable}
 \begin{description}
-\item[\is{DegeneracyTolerance}] In the case of degenerate systems,
+\item[\is{ConvergedPerturb}] If true, requires that the
+  perturbation self-consistently converges. If false, the code can
+  continue with a warning, but will return NaN for properties
+  evaluated at that stage.
+\item[\is{MaxPerturbIter}] Maximal number of self-consistent
+  cycles to reach convergence for perturbation evaluation of
+  properties. If convergence is not reached after the specified number
+  of steps, the program stops. This behaviour can be overridden using
+  \kw{ConvergedPerturb}, but will then produce Not a Number
+  (NaN) for non-convergent properties. {\bf Note:} For calculations
+  using $k$-points, the default number of self-consistent iterations
+  will default to 1 in cases where a band structure is being plotted
+  (see \iscb{KLines} in section \ref{sec:dftbp.KLines}).
+\item[\is{PerturbDegenTol}] In the case of degenerate systems,
   determines the number of times machine epsilon that separated
   eigenvalues are considered non-degenerate.
-\item[\is{eta}] In the case of finite frequency perturbations, a small
-  imaginary constant, of magnitude \is{eta} is used in the expression
+\item[\is{PerturbEta}] In the case of finite frequency perturbations, a small
+  imaginary constant, of magnitude \is{PerturbEta} is used in the expression
   to avoid divergences at resonant conditions.
+\item[\is{PerturbSccTol}] Stopping criteria for the perturbation
+  self-consistency.  Specifies the tolerance for the maximum
+  difference in any charge derivatives between two cycles.
 \end{description}
 
 
@@ -4975,7 +5056,7 @@ Static polarisability, with an adjusted degeneracy tolerance:
 \begin{verbatim}
 Analysis {
   Polarisability = {} # static enabled by default
-  DegeneracyTolerance = 1024 # levels within 1024 x machine tolerance
+  PerturbDegenTol = 1024 # levels within 1024 x machine tolerance
 }
 \end{verbatim}
 
@@ -5096,6 +5177,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
+    \kw{StateCouplings}         & 2i & \is{CalculateForces} = Yes & - & \\
   \end{ptable}
 
   \begin{description}
@@ -5189,6 +5271,16 @@ available for range separated calculations.
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
 
+  \item[\is{StateCouplings}] Evaluates non-adiabatic coupling vectors
+    between specified many-body states of your system. This keyword
+    requires two values, $m$ and $n$, with $m < n$ and state 0 being
+    defined as the ground state. The couplings are computed according
+    to the method described
+    in~\cite{niehaus2021ground,niehaus2023exact}. The results are written to
+    the file NACV.DAT (See p.~\pref{subsec:nacv.dat})
+
+    Example: \is{StateCouplings = 0 2} would generate the couplings
+    between states $0\to 1$, $0\to 2$ and $1\to 2$.
   \end{description}
 
   \subsubsection{Diagonaliser / Diagonalizer}
@@ -6401,6 +6493,22 @@ to excited states.
 Decomposition of the transition from the ground state to the excited states. The
 energy and spin symmetry are given together with the contributions from each of
 the single particle transitions.
+
+\subsection{NACV.DAT}
+\label{subsec:nacv.dat}
+\index{NACV.DAT}
+
+Contains the TD-(LC)-DFTB non-adiabatic coupling vectors between
+many-body states, $$d^\xi_{mn} = \mel{\Psi_m}{\dv{\xi}}{\Psi_n}.$$
+The file is written as blocks, one for each requested electronic
+transition combination.
+
+Each block starts with the indices of the two states being coupled,
+$m$ and $n$ (counting from 0 for the ground state), then the coupling
+vector in atomic units. Each line contains the coupling contribution
+associated with the three Cartesian displacements an atom in the
+geometry (combined index $\xi$), with one atom per line and ordered as
+in the geometry.
 
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}
