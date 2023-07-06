@@ -333,6 +333,16 @@ timedep/NH-Force-spinpol-Stratmann     #? not WITH_MPI
 timedep/NO-Stratmann                   #? not WITH_MPI
 timedep/propadiene_OscWindow-Stratmann #? not WITH_MPI
 
+timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/2CH3-Temp-Stratmann            #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C6H6-Sym_Arnoldi               #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C66O10N4H44_Ewindow            #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 2
+timedep/C60_EandOsc                    #? WITH_ARPACK and MPI_PROCS <= 2 
+
 dftb+u/Fe4                             #? MPI_PROCS <= 2
 dftb+u/Fe4_read                        #? MPI_PROCS <= 2
 geoopt/Cchain_lattice_lbfgs            #? MPI_PROCS <= 1

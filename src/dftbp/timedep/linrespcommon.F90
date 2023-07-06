@@ -9,7 +9,6 @@
 
 !> Helper routines for the linear response modules.
 module dftbp_timedep_linrespcommon
-  use mpi
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_constants, only: Hartree__eV, au__Debye, cExchange
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
@@ -26,7 +25,7 @@ module dftbp_timedep_linrespcommon
   
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, N_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g,&
        & scalafx_getlocalshape
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
   
 #:endif
   
@@ -692,7 +691,7 @@ contains
     endif
 
     if (allocated(onsMEs)) then
-      call onsiteEner(spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
+      call onsiteEner(env, spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
           & species0, ovrXev, grndEigVecs, onsMEs, orb, vTmp, vout_ons)
       vout(:) = vout + vout_ons
     end if
@@ -721,13 +720,10 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   !> Note MPI: The supervector is distributed, locSize gives the local size. 
-  subroutine actionAplusB_MPI(comm, locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-      & ovrXevGlb, grndEigVecs, eigVecGlb, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb,&
-      & tAplusB, transChrg, vin, vout, tRangeSep, lrGamma)
-
-    !> MPI communicator
-    integer, intent(in) :: comm
+  subroutine actionAplusB_MPI(locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud,&
+      & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, ovrXevGlb,&
+      & grndEigVecs, eigVecGlb, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb, tAplusB,&
+      & transChrg, vin, vout, tRangeSep, lrGamma)
 
     !> Size of local vectors for each rank
     integer, intent(in) :: locSize(:)
@@ -836,7 +832,7 @@ contains
 
     integer :: nmat, natom, norb, ia, nxvv_a, nSpin
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
-    integer :: iam, nLoc, myia, myab, myja, ierr, iGlb, fGlb, iProc, nProcs, nLocAB
+    integer :: iam, nLoc, myia, myab, myja, ierr, iGlb, fGlb, nProcs, nLocAB
     integer, allocatable ::  getABasym(:,:), locSizeAB(:), vOffsetAB(:)
 
     ! somewhat ugly, but fast small arrays on stack:
@@ -847,7 +843,6 @@ contains
     real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
     ! for later use to change HFX contribution
     real(dp), allocatable :: qv(:,:)
-    external mpi_comm_rank, mpi_allreduce
 
     @:ASSERT(size(vin) == size(vout))
 
@@ -856,7 +851,8 @@ contains
     @:ASSERT(nmat <= nxov_rd)
     natom = size(gamma, dim=1)
     norb = nocc_ud(1)+nvir_ud(1)
-    call mpi_comm_rank(comm, iam, ierr)
+    
+    iam = env%mpi%globalComm%rank
     nLoc = locSize(iam+1)
     @:ASSERT(nmat == nLoc)
     iGlb = vOffset(iam+1) + 1 
@@ -880,7 +876,7 @@ contains
       otmp(:) = otmp(:) + qij(:) * vLoc(myia) * sqrOccIA(ia)
     enddo
 
-    call mpi_allreduce(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+    call mpifx_allreduceip(env%mpi%globalComm, otmp, MPI_SUM)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -932,7 +928,7 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
-      call mpi_allreduce(MPI_IN_PLACE, otmp, natom, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+      call mpifx_allreduceip(env%mpi%globalComm, otmp, MPI_SUM)
 
       otmp = otmp * spinW(species0)
 
@@ -952,10 +948,9 @@ contains
 
     end if
     
-    !> The largest matrices in this part are of dim nAtoms*nVir*nVir, seems logical to distribute them
-    !> The local dimensions are different from the case of nOcc*nVir, we require new offsets
-    !> This could go into a seperate routine (will also be used in Stratmann)
-    !> A new index array is required because the abs index is symmetrical in a and b  
+    !> The largest matrices in this part are of dim nAtoms*nVir*nVir, seems logical to distribute 
+    !> them. The local dimensions are different from the case of nOcc*nVir, we require new offsets.
+    !> A new index array is required because the standard abs index is symmetrical in a and b  
     if (tRangeSep) then
       
       !> This part is already fully coded for MPI, but was never tested.
@@ -979,21 +974,13 @@ contains
         end do
       end do
             
-      call mpi_comm_size(comm, nProcs, ierr)
+      nProcs = env%mpi%globalComm%size
       
       allocate(locSizeAB(nProcs))
       allocate(vOffSetAB(nProcs))
+
+      call localSizeCasidaVectors(nProcs, nxvv_a, locSizeAB, vOffSetAB)
       
-      ii = 0
-      do iProc = 0, nProcs-1
-        nLocAB = nxvv_a / nProcs
-        if(mod(nxvv_a, nProcs) > iProc) then
-          nLocAB = nLocAB + 1
-        end if
-        locSizeAB(iProc+1) = nLocAB
-        vOffsetAB(iProc+1) = ii
-        ii = ii + nLocAB
-      enddo
       nLocAB = locSizeAB(iam+1)
 
       allocate(qv(natom, max(nLoc, nLocAB)))
@@ -1006,7 +993,7 @@ contains
       vGlb2(:) = 0.0_dp
 
       !> Gather local arrays in corresponding global array  
-      call mpi_allgatherv(vLoc, nLoc, MPI_DOUBLE_PRECISION, vGlb, locSize, vOffset, MPI_DOUBLE_PRECISION, comm, ierr)
+      call mpifx_allgatherv(env%mpi%globalComm, vLoc, vGlb, locSize, vOffset)
 
       !> Compute w_ia = q^ij_A GLR_AB q^ab v_jb 
       do myja = 1, nLoc
@@ -1057,7 +1044,7 @@ contains
       end do
 
       !> Get contribution of all ranks to global array
-      call mpi_allreduce(MPI_IN_PLACE, vGlb2, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+      call mpifx_allreduceip(env%mpi%globalComm, vGlb2, MPI_SUM)
       
       do myja = 1, nLoc
         jas = vOffset(iam+1) + myja
@@ -1069,7 +1056,7 @@ contains
     if (allocated(onsMEs)) then
       !> Parallelizing this routine is difficult. Calls transdens which refers to individual
       !> global indices. Input vector is still distributed. 
-      call onsiteEner(spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
+      call onsiteEner(env, spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
           & species0, ovrXevGlb, eigVecGlb, onsMEs, orb, vLoc, vout_ons, vOffset(iam+1))      
       vout(:) = vout + vout_ons
     end if
@@ -1492,9 +1479,12 @@ contains
   !> Onsite energy corrections
   !> Routine also works for MPI if optional index offset is provided. The arrays ovrXev and
   !> grndEigVecs still need to be global!
-  subroutine onsiteEner(spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getIA, species0, ovrXev,&
-      & grndEigVecs, ons_en, orb, vin, vout, indexOffSet)
+  subroutine onsiteEner(env, spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getIA, species0,&
+      & ovrXev, grndEigVecs, ons_en, orb, vin, vout, indexOffSet)
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
     !> logical spin polarization
     logical, intent(in) :: spin
 
@@ -1616,7 +1606,7 @@ contains
 
   #:if WITH_SCALAPACK
     
-    call mpi_allreduce(MPI_IN_PLACE, otmp, (nOrb**2)*nAtom*nSpin, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    call mpifx_allreduceip(env%mpi%globalComm, otmp, MPI_SUM)
 
   #:endif
     
@@ -2577,6 +2567,39 @@ contains
     call mpifx_allreduceip(env%mpi%groupComm, glbArray, MPI_SUM)
     
   end subroutine local2GlobalBlacsArray
+
+
+  !> Determine size and offsets for distributed RPA/Casida vectors
+  subroutine localSizeCasidaVectors(nProcs, nDim, locSize, vOffSet)
+    
+    !> Number of processors
+    integer, intent(in) :: nProcs
+
+    !> Dimension of vector to distribute
+    integer, intent(in) :: nDim
+
+    !> Chunk size per rank
+    integer, intent(out) :: locSize(:)
+
+    !> Index offset per rank
+    integer, intent(out) :: vOffSet(:)
+
+    integer :: ii, iProc, nLoc
+    
+    locSize = 0
+    vOffSet = 0
+    ii = 0
+    do iProc = 0, nProcs-1
+      nLoc = nDim / nProcs
+      if(mod(nDim, nProcs) > iProc) then
+        nLoc = nLoc + 1
+      end if
+      locSize(iProc+1) = nLoc
+      vOffset(iProc+1) = ii
+      ii = ii + nLoc
+    enddo
+
+  end subroutine localSizeCasidaVectors
   
 #:endif
   

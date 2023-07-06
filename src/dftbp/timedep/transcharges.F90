@@ -9,7 +9,6 @@
 
 !> Helper routines for transition charges between levels.
 module dftbp_timedep_transcharges
-  use mpi
   use dftbp_common_accuracy, only : dp
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
@@ -18,7 +17,7 @@ module dftbp_timedep_transcharges
 #:if WITH_SCALAPACK
   
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, NB_, N_, CSRC_, MB_, RSRC_, scalafx_indxl2g
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
   
 #:endif  
@@ -136,7 +135,7 @@ contains
     !> index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    integer :: ia, ii, jj, ij, kk, ab, aa, bb, ss, iam,ierr
+    integer :: ia, ii, jj, ij, kk, ab, aa, bb, ss
     logical :: updwn
 
   #:if WITH_SCALAPACK
@@ -154,7 +153,7 @@ contains
     this%nMatUpVirVir = nXvvUD(1)
 
   #:if WITH_SCALAPACK
-    call mpi_comm_rank(MPI_COMM_WORLD, iam, ierr)
+
     nSpin = size(grndEigVecs, dim=3)
      
     if (tStoreSame) then

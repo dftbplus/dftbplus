@@ -12,7 +12,6 @@
 !> Note: This module is NOT instance safe it uses a common block to communicate with ARPACK
 !>
 module dftbp_timedep_linrespgrad
-  use mpi
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
@@ -43,8 +42,10 @@ module dftbp_timedep_linrespgrad
   
 #:if WITH_SCALAPACK
   
-  use dftbp_timedep_linrespcommon, only :  actionAplusB_MPI, getExcSpin_MPI, local2GlobalBlacsArray
+  use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, getExcSpin_MPI, local2GlobalBlacsArray, &
+      & localSizeCasidaVectors
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   
 #:endif
   
@@ -180,7 +181,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:), qTr(:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -194,7 +195,7 @@ contains
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
-    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
+    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev, ss
     integer :: nCoupLev, mCoupLev, numNAC, iNac
     integer :: nSpin
     character :: sym
@@ -221,6 +222,14 @@ contains
     integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
     integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
     integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
+
+  #:if WITH_SCALAPACK
+    
+    integer :: iam, nProcs
+    integer, allocatable :: locSize(:), vOffset(:)
+    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
+
+  #:endif      
 
     !> Common block of ARPACK variables
     common /debug/ logfil, ndigit, mgetv0,&
@@ -424,6 +433,18 @@ contains
       call pblasfx_psymm(SSqr, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr,&
            & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
     end do
+
+    !> The routines getExcSpin and the onsite corrections can not easily be parallelized. Global
+    !> versions of the BLACS distributed arrays are required.
+    if (this%tSpin .or. allocated(this%onSiteMatrixElements)) then
+      allocate(eigVecGlb(norb,norb,nSpin))
+      allocate(ovrXevGlb(norb,norb,nSpin))
+      do ss = 1, nSpin
+        call local2GlobalBlacsArray(env, denseDesc, grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
+        call local2GlobalBlacsArray(env, denseDesc, ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
+      end do
+    end if
+
     call sccCalc%getAtomicGammaMatrixBlacs(gammaMat, iNeighbour, img2CentCell, env)
     
   #:else
@@ -519,13 +540,23 @@ contains
     else
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
     end if
-
+    
     ! Recompute occ-vir transition charges, since win/wij and number has changed
     if (nxov_rd /= nxov .or. this%tOscillatorWindow .or. this%tEnergyWindow) then
       call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, norb, nxov_rd,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
         & this%tCacheChargesSame, .false.)
     end if
+
+  #:if WITH_SCALAPACK
+
+    iam = env%mpi%globalComm%rank
+    nProcs = env%mpi%globalComm%size
+    allocate(locSize(nProcs))
+    allocate(vOffSet(nProcs))
+    call localSizeCasidaVectors(nProcs, nxov_rd, locSize, vOffSet)
+
+  #:endif   
 
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
@@ -585,10 +616,10 @@ contains
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
-            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
-            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
-            & transChrg, this%testArnoldi, eval, xpy, xmy, this%onSiteMatrixElements,&
-            & orb, tRangeSep, tZVector)
+            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, locSize, vOffSet, iaTrans, getIA, getIJ,&
+            & getAB, env, denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling,&
+            & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, this%testArnoldi,&
+            & eval, xpy, xmy, this%onSiteMatrixElements, orb, tRangeSep, tZVector)
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
@@ -605,9 +636,7 @@ contains
 
       #:if WITH_SCALAPACK
 
-        !!call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXevGlb, eigVecsGlb)
-        call getExcSpin_MPI(env, denseDesc, Ssq, norb, nxov_ud(1), nxov_rd, getIA, win, eval, & 
-           & xpy, filling, ovrXev, grndEigVecs)
+        call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXevGlb, eigVecGlb)
 
       #:else
         
@@ -721,7 +750,7 @@ contains
         do iSpin = 1, nSpin
           ! Make MO to AO transformation of the excited density matrix
           call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-          call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          call getExcMulliken(denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
         end do
 
         if (this%tWriteDensityMatrix) then
@@ -779,7 +808,7 @@ contains
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                call getExcMulliken(denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
               end do
 
               !> For 0-n couplings, the standard force routine can be used, where
@@ -827,7 +856,7 @@ contains
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(env, denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                call getExcMulliken(denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
               end do
 
               call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb,&
@@ -878,9 +907,9 @@ contains
   !> See Dominguez JCTC 9 4901 (2013)
   !>
   subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-      & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, testArnoldi,&
-      & eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector)
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, locSize, vOffSet, iaTrans, getIA, getIJ, getAB,&
+      & env, denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat,&
+      & species0, spinW, transChrg, testArnoldi, eval, xpy, xmy, onsMEs, orb, tRangeSep, tZVector)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -912,6 +941,12 @@ contains
     !> number of occupied-virtual transitions (possibly reduced by windowing)
     integer, intent(in) :: nxov_rd
 
+    !> Local dimensions of RPA/Casida vectors under MPI per rank
+    integer, intent(in) :: locSize(:)
+
+    !> Rank dependent offset of RPA/Casida vectors under MPI
+    integer, intent(in) :: vOffSet(:)
+
     !> array from pairs of single particles states to compound index
     integer, intent(in) :: iaTrans(:,:,:)
 
@@ -930,12 +965,18 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> overlap times ground state eigenvectors
+    !> overlap times ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: ovrXev(:,:,:)
 
-    !> ground state eigenvectors
+    !> overlap times ground state eigenvectors (global in case of MPI)  
+    real(dp), intent(in) :: ovrXevGlb(:,:,:)
+
+    !> ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
+    !> ground state eigenvectors (global in case of MPI)
+    real(dp), intent(in) :: eigVecGlb(:,:,:)
+    
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
 
@@ -993,42 +1034,15 @@ contains
 
   #:if WITH_SCALAPACK
     
-    integer :: iam, nProcs, comm
-    integer :: iProc,  nLoc, nOrb, nSpin, ii, ss, ierr, iGlb, fGlb
-    integer, allocatable :: locSize(:), vOffset(:)
-    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
-    external mpi_comm_rank, mpi_comm_size, mpi_allreduce, pdsaupd, pdseupd 
+    integer :: iGlb, fGlb, nLoc, iam, comm
+    external mpi_allreduce, pdsaupd, pdseupd 
 
-    comm = MPI_COMM_WORLD    
-    call mpi_comm_rank(comm, iam, ierr)
-    call mpi_comm_size(comm, nProcs, ierr)
-    allocate(locSize(nProcs))
-    allocate(vOffSet(nProcs))
-    
-    ii = 0
-    do iProc = 0, nProcs-1
-      nLoc = nxov_rd / nProcs
-      if(mod(nxov_rd, nProcs) > iProc) then
-        nLoc = nLoc + 1
-      end if
-      locSize(iProc+1) = nLoc
-      vOffset(iProc+1) = ii
-      ii = ii + nLoc
-    enddo
-    
+    iam = env%mpi%globalComm%rank
+    comm = env%mpi%globalComm%id 
     nLoc = locSize(iam+1)
     iGlb = vOffset(iam+1) + 1 
     fGlb = vOffset(iam+1) + nLoc
     
-    nOrb = nocc_ud(1) + nvir_ud(1)
-    nSpin = size(grndEigVecs, dim=3)
-    allocate(eigVecGlb(nOrb,nOrb,nSpin), source=0.0_dp)
-    allocate(ovrXevGlb(nOrb,nOrb,nSpin), source=0.0_dp)
-    do ss = 1, nSpin
-      call local2GlobalBlacsArray(env, denseDesc, grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
-      call local2GlobalBlacsArray(env, denseDesc, ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
-    end do
-
   #:endif  
     
     nexc = size(eval)
@@ -1105,7 +1119,7 @@ contains
       ! Action of excitation supermatrix on supervector
     #:if WITH_SCALAPACK
 
-      call actionAplusB_MPI(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
+      call actionAplusB_MPI(locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
           & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
           & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
           & spinW, onsMEs, orb, .false., transChrg, workd(ipntr(1):ipntr(1)+nLoc-1),& 
@@ -1143,7 +1157,7 @@ contains
       call pdseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,& 
            & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
       xpy(iGlb:fGlb,:nexc) = vv(:,:nexc)
-      call mpi_allreduce(MPI_IN_PLACE, xpy, nxov_rd*nexc, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+      call mpifx_allreduceip(env%mpi%globalComm, xpy, MPI_SUM)
 
      #:else
        
@@ -1173,13 +1187,11 @@ contains
         
       #:if WITH_SCALAPACK
         
-        
-        call actionAplusB_MPI(comm, locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
-            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
-            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
-            & spinW, onsMEs, orb, .false., transChrg, xpy(iGlb:fGlb,iState), Hv(iGlb:fGlb),&
-            & .false.)
-        call mpi_allreduce(MPI_IN_PLACE, Hv, nxov_rd, MPI_DOUBLE_PRECISION, MPI_SUM, comm, ierr)
+        call actionAplusB_MPI(locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud,&
+            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
+            & ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0, spinW,&
+            & onsMEs, orb, .false., transChrg, xpy(iGlb:fGlb,iState), Hv(iGlb:fGlb), .false.)
+        call mpifx_allreduceip(env%mpi%globalComm, Hv, MPI_SUM)
         
       #:else
         
@@ -1341,7 +1353,6 @@ contains
     real(dp), allocatable :: dummyM(:,:), workArray(:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal 
-    real(dp), allocatable :: qTr(:)
 
     integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
@@ -2498,10 +2509,7 @@ contains
 
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
-  subroutine getExcMulliken(env, denseDesc, pc, s, dqex)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
+  subroutine getExcMulliken(denseDesc, pc, s, dqex)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
