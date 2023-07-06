@@ -61,7 +61,7 @@ contains
   end function determinant33
 
 
-  !> Derivative of determinant of a 3x3 matrix
+  !> Derivative of determinant of a 3x3 matrix with respect to the values of the matrix elements
   subroutine  derivDeterminant33(deriv,matrix)
 
     !> derivative of the determinant
