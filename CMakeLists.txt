@@ -38,6 +38,7 @@ if(WITH_MPI)
   endif()
   list(FILTER MPI_Fortran_COMPILE_OPTIONS EXCLUDE REGEX  "-fallow-argument-mismatch")
   message(STATUS "MPI_Fortran_COMPILE_OPTIONS: ${MPI_Fortran_COMPILE_OPTIONS}")
+  message(STATUS "MPI_C_COMPILE_OPTIONS: ${MPI_C_COMPILE_OPTIONS}")
 endif()
 
 if(WITH_OMP)
@@ -311,6 +312,10 @@ endif()
 enable_testing()
 if(NOT BUILD_EXPORTED_TARGETS_ONLY)
   add_subdirectory(test)
+  if(WITH_MPI AND NOT MPI_C_FOUND)
+    message(FATAL_ERROR "Compiler ${CMAKE_C_COMPILER} is not MPI capable but is specified "
+      "for a WITH_MPI=TRUE build of API testing")
+  endif()
 endif()
 
 

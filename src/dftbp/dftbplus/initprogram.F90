@@ -147,7 +147,7 @@ module dftbp_dftbplus_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: initReferenceCharges, initElectronNumbers
+  public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
 #:endif
@@ -360,10 +360,10 @@ module dftbp_dftbplus_initprogram
     !> Fix Fermi energy at specified value
     logical :: tFixEf
 
-    !> Fermi energy per spin
+    !> Fermi energy for each spin
     real(dp), allocatable :: Ef(:)
 
-    !> Filling temp updated by MD.
+    !> Filling temp, as updated by MD.
     logical :: tSetFillingTemp
 
     !> Choice of electron distribution function, defaults to Fermi
@@ -1569,7 +1569,7 @@ contains
 
     this%nrChrg = input%ctrl%nrChrg
     this%nrSpinPol = input%ctrl%nrSpinPol
-    call initElectronNumbers(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
+    call initElectronNumber(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
         & this%nEl0, this%nEl)
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
@@ -4150,16 +4150,32 @@ contains
   ! Assign reference charge arrays, q0 and qShell0
   subroutine initReferenceCharges(species0, orb, referenceN0, nSpin, q0, qShell0, customOccAtoms,&
       & customOccFillings)
+
+    !> Species of central cell atoms
     integer, intent(in) :: species0(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference neutral atom charges for each species
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
-    real(dp), allocatable, intent(out) :: q0(:,:,:), qShell0(:,:)
+
+    !> Reference 'neutral' charges for each atom orbital
+    real(dp), allocatable, intent(out) :: q0(:,:,:)
+
+    !> Shell resolved neutral reference
+    real(dp), allocatable, intent(out) :: qShell0(:,:)
+
+    !> Array of lists of atoms where the 'neutral' shell occupation is modified
     type(TWrappedInt1), optional, intent(in) :: customOccAtoms(:)
+
+    !> Modified occupations for shells of the groups atoms in customOccAtoms
     real(dp), optional, intent(in) :: customOccFillings(:,:)
 
     integer :: nAtom
-    integer :: iAt, iSp, iSh
 
     @:ASSERT(present(customOccAtoms) .eqv. present(customOccFillings))
 
@@ -4174,6 +4190,31 @@ contains
     end if
 
     allocate(qShell0(orb%mShell, nAtom))
+    call updateReferenceShellCharges(qShell0, q0, orb, nAtom, species0)
+
+  end subroutine initReferenceCharges
+
+
+  !> Updates the reference shell charges
+  subroutine updateReferenceShellCharges(qShell0, q0, orb, nAtom, species0)
+
+    !> Shell resolved neutral reference
+    real(dp), intent(out) :: qShell0(:,:)
+
+    !> Reference 'neutral' charges for each atom's orbitals
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atomic orbital data
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Species of central cell atoms
+    integer, intent(in) :: species0(:)
+
+    integer :: iAt, iSp, iSh
+
     do iAt = 1, nAtom
       iSp = species0(iAt)
       do iSh = 1, orb%nShell(iSp)
@@ -4181,16 +4222,31 @@ contains
       end do
     end do
 
-  end subroutine initReferenceCharges
+  end subroutine updateReferenceShellCharges
 
 
-  ! Set number of electrons
-  subroutine initElectronNumbers(q0, nChrg, nSpinPol, nSpin, orb, nEl0, nEl)
+  !> Set number of electrons
+  subroutine initElectronNumber(q0, nrChrg, nSpinPol, nSpin, orb, nEl0, nEl)
+
+    !> Reference 'neutral' charges for each atom's orbitals
     real(dp), intent(in) :: q0(:,:,:)
-    real(dp), intent(in) :: nChrg, nSpinPol
+
+    !> Total charge
+    real(dp), intent(in) :: nrChrg
+
+    !> Spin polarisation
+    real(dp), intent(in) :: nSpinPol
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Nr. of all electrons if neutral
     real(dp), intent(out) :: nEl0
+
+    !> Nr. of electrons
     real(dp), allocatable, intent(out) :: nEl(:)
 
     nEl0 = sum(q0(:,:,1))
@@ -4205,13 +4261,13 @@ contains
     end if
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
-      nEl(1) = nEl0 - nChrg
+      nEl(1) = nEl0 - nrChrg
       if(ceiling(nEl(1)) > 2.0_dp * orb%nOrb) then
         call error("More electrons than basis functions!")
       end if
     else
-      nEl(1) = 0.5_dp * (nEl0 - nChrg + nSpinPol)
-      nEl(2) = 0.5_dp * (nEl0 - nChrg - nSpinPol)
+      nEl(1) = 0.5_dp * (nEl0 - nrChrg + nSpinPol)
+      nEl(2) = 0.5_dp * (nEl0 - nrChrg - nSpinPol)
       if (any(ceiling(nEl) > orb%nOrb)) then
         call error("More electrons than basis functions!")
       end if
@@ -4221,7 +4277,7 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-  end subroutine initElectronNumbers
+  end subroutine initElectronNumber
 
 
   ! Set up reference population
@@ -4251,12 +4307,30 @@ contains
   !> Initializes electron filling related variables
   subroutine initElectronFilling_(input, nSpin, Ef, iDistribFn, tempElec, tFixEf, tSetFillingTemp,&
       & tFillKSep)
+
+    !> Holds the parsed input data.
     type(TInputData), intent(in) :: input
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
+
+    !> Fermi energy for each spin
     real(dp), allocatable, intent(out) :: Ef(:)
+
+    !> Choice of electron distribution function, defaults to Fermi
     integer, intent(out) :: iDistribFn
+
+    !> Electron temperature
     real(dp), intent(out) :: tempElec
-    logical, intent(out) :: tFixEf, tSetFillingTemp, tFillKSep
+
+    !> Fix Fermi energy at specified value
+    logical, intent(out) :: tFixEf
+
+    !> Filling temp, as updated by MD.
+    logical, intent(out) :: tSetFillingTemp
+
+    !> If K points should filled separately
+    logical, intent(out) :: tFillKSep
 
     if (nSpin == 4) then
       allocate(Ef(1))
