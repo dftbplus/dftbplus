@@ -23,6 +23,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_dftb_elecconstraints, only: TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_extfields, only : TEField
@@ -86,7 +87,8 @@ module dftbp_dftbplus_mainio
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
-  public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
+  public :: printSccHeader, printElecConstrHeader
+  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printForceNorm, printLatticeForceNorm
   public :: printMdInfo, printBlankLine
@@ -3432,9 +3434,9 @@ contains
 
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
-      & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
-      & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
+  subroutine writeDetailedOut4(fd, tScc, tConstr, tConverged, constrConverged, tXlbomd, isLinResp,&
+      & tGeoOpt, tMd, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs,&
+      & chrgForces, indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3442,8 +3444,14 @@ contains
     !> Charge self consistent?
     logical, intent(in) :: tScc
 
+    !> Electronic constraints?
+    logical, intent(in) :: tConstr
+
     !> Has the SCC cycle converged?
     logical, intent(in) :: tConverged
+
+    !> Have all constraint cycles converged?
+    logical, intent(in) :: constrConverged
 
     !> Is the extended Lagrangian in use for MD
     logical, intent(in) :: tXlbomd
@@ -3497,6 +3505,19 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     integer :: iAt, ii
+
+    if (tConstr) then
+      if (constrConverged) then
+        write(fd, "(A)") "Constraints converged"
+        write(fd, *)
+      else
+        write(fd, "(A)") "Constraints did NOT converge, maximal micro-iterations exceeded"
+        write(fd, *)
+      end if
+    else
+      write(fd, "(A)") "Non-constrained calculation"
+      write(fd, *)
+    end if
 
     if (tScc) then
       if (tConverged) then
@@ -4442,6 +4463,16 @@ contains
 
   end subroutine printSccHeader
 
+
+  !> Prints the line above the start of the electronic constraints cycle data
+  subroutine printElecConstrHeader()
+
+    write(stdOut, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
+        & "     max(dW/dVc)  ", "     dW           "
+
+  end subroutine printElecConstrHeader
+
+
   !> Prints the line above the start of the REKS SCC cycle data
   subroutine printReksSccHeader(reks)
 
@@ -4459,9 +4490,11 @@ contains
 
   end subroutine printReksSccHeader
 
+
   subroutine printBlankLine()
-    write(stdOut,*)
+    write(stdOut, *)
   end subroutine printBlankLine
+
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
@@ -4488,6 +4521,35 @@ contains
     end if
 
   end subroutine printSccInfo
+
+
+  !> Prints info about electronic constraint convergence.
+  subroutine printElecConstrInfo(elecConstraint, iConstrIter, Eelec)
+
+    !> Represents electronic contraints
+    type(TElecConstraint), intent(in) :: elecConstraint
+
+    !> Iteration count
+    integer, intent(in) :: iConstrIter
+
+    !> Electronic energy
+    real(dp), intent(in) :: Eelec
+
+    !> Total contribution to free energy functional from constraint(s)
+    real(dp) :: deltaWTotal
+
+    !> Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    ! Sum up all free energy contributions
+    deltaWTotal = elecConstraint%getFreeEnergy()
+
+    ! Get maximum derivative of energy functional with respect to Vc
+    dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
+
+    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
+
+  end subroutine printElecConstrInfo
 
 
   !> Prints info about scc convergence.

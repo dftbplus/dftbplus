@@ -11,6 +11,10 @@ Unreleased
 Added
 -----
 
+- Electronic constraints on arbitrary regions, targeting the electronic ground
+  state by determining a self-consistent constraint potential
+  (restricted to Mulliken populations at the moment)
+
 
 Changed
 -------

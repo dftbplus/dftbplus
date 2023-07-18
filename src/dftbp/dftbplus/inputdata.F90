@@ -12,6 +12,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
+  use dftbp_dftb_elecconstraints, only : TElecConstraintInput
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -463,6 +464,9 @@ module dftbp_dftbplus_inputdata
 
     !> Solvation
     class(TSolvationInp), allocatable :: solvInp
+
+    !> Electronic constraints
+    type(TElecConstraintInput), allocatable :: elecConstraintInp
 
     !> Rescaling of electric fields (applied or dipole) if the system is solvated
     logical :: isSolvatedFieldRescaled = .false.
