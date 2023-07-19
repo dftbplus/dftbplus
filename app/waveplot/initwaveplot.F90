@@ -12,6 +12,7 @@ module waveplot_initwaveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
@@ -20,6 +21,7 @@ module waveplot_initwaveplot
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName, destroyNode
   use dftbp_io_charmanip, only : i2c, unquote
+  use dftbp_io_formatout, only : printDftbHeader
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
       & getSelectedIndices, detailedError, detailedWarning
@@ -283,9 +285,7 @@ contains
     type(TStatus) :: errStatus
 
     ! Write header
-    write(stdout, "(A)") repeat("=", 80)
-    write(stdout, "(A)") "     WAVEPLOT  " // version
-    write(stdout, "(A,/)") repeat("=", 80)
+    call printDftbHeader('(WAVEPLOT '// version //')', releaseYear)
 
     ! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
