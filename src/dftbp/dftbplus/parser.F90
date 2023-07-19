@@ -15,6 +15,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
@@ -114,15 +115,6 @@ module dftbp_dftbplus_parser
     !> HSD output?
     logical :: tWriteHSD
   end type TParserFlags
-
-
-  !> Mapping between input version and parser version
-  type :: TVersionMap
-    !> named version of parser input
-    character(10) :: inputVersion
-    !> Corresponding numerical version of parser input
-    integer :: parserVersion
-  end type TVersionMap
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
