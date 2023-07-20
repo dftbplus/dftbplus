@@ -898,16 +898,6 @@ contains
       call neigh%neighDist2Win_%unlock()
     #:endif
     else
-      if (associated(neigh%iNeighbourMem_)) then
-        deallocate(neigh%iNeighbourMem_)
-      end if
-      if (associated(neigh%neighDist2Mem_)) then
-        deallocate(neigh%neighDist2Mem_)
-      end if
-
-      allocate(neigh%iNeighbour(0:maxNeighbour, 1:nAtom))
-      allocate(neigh%neighDist2(0:maxNeighbour, 1:nAtom))
-
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
       neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
     end if
