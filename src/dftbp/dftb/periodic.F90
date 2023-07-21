@@ -891,6 +891,11 @@ contains
         neigh%neighDist2(maxNeighbourLocal + 1 : maxNeighbour, startAtom:endAtom) = 0.0_dp
       end if
 
+      do ii = 1, nAtom
+        neigh%iNeighbour(0, ii) = ii
+        neigh%neighDist2(0, ii) = 0.0_dp
+      end do
+
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
@@ -900,12 +905,13 @@ contains
     else
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
       neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
-    end if
 
-    do ii = 1, nAtom
-      neigh%iNeighbour(0, ii) = ii
-      neigh%neighDist2(0, ii) = 0.0_dp
-    end do
+      do ii = 1, nAtom
+        neigh%iNeighbour(0, ii) = ii
+        neigh%neighDist2(0, ii) = 0.0_dp
+      end do
+
+    end if
 
   end subroutine fillNeighbourArrays
 
