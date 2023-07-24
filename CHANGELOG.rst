@@ -23,6 +23,8 @@ Changed
 Fixed
 -----
 
+- Memory leak for MPI enabled code with many geometric steps.
+
 
 23.1 (2023-07-05)
 =================
