@@ -13,10 +13,12 @@ module modes_initmodes
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName, destroyNode, destroyNodeList
   use dftbp_io_charmanip, only : i2c, tolower, unquote
+  use dftbp_io_formatout, only : printDftbHeader
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
       & getSelectedIndices, detailedError, detailedWarning
@@ -133,9 +135,7 @@ contains
     character(len=:), allocatable :: strOut
 
     !! Write header
-    write(stdout, "(A)") repeat("=", 80)
-    write(stdout, "(A)") "     MODES  " // version
-    write(stdout, "(A,/)") repeat("=", 80)
+    call printDftbHeader('(MODES '// version //')', releaseYear)
 
     !! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
