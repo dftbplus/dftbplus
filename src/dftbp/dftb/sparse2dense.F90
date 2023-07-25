@@ -29,7 +29,6 @@ module dftbp_dftb_sparse2dense
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
-  public :: lowerTriangleSquareMatrix
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -818,7 +817,7 @@ contains
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
     @:ASSERT(all(shape(kPoint) == [3]))
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
-    ! @:ASSERT(kWeight > 0.0_dp)
+    @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     kPoint2p(:) = 2.0_dp * pi * kPoint
@@ -2007,7 +2006,7 @@ contains
   end subroutine symmetrizeHS_real
 
 
-  !> copy lower triangle to upper for a square matrix
+  !> Copy lower triangle to upper for a square matrix.
   subroutine hermitianSquareMatrix(matrix)
 
     !> matrix to symmetrize
@@ -2020,21 +2019,6 @@ contains
     end do
 
   end subroutine hermitianSquareMatrix
-
-
-  !> copy lower triangle to upper for a square matrix
-  subroutine lowerTriangleSquareMatrix(matrix)
-
-    !> matrix to de-symmetrize (is that even a word?)
-    complex(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = (0.0_dp, 0.0_dp)
-    end do
-
-  end subroutine lowerTriangleSquareMatrix
 
 
 #:if WITH_SCALAPACK

@@ -301,6 +301,10 @@ contains
     else
       read(file%unit, iostat=iErr) fileFormat
     end if
+    if (fileFormat < 7 .and. (.not. tRealHS) .and. tRho) then
+      call error("Restart file belongs to a version that does not support general hybrid&
+          & xc-functionals.")
+    end if
     if (iErr /= 0) then
       call error("Error during reading external file of charge data")
     end if
@@ -525,8 +529,6 @@ contains
     if (allocated(densityMatrix%deltaRhoInCplxHS) .and. tKpointInfo .and. tKpointInfoPresent) then
       deallocate(densityMatrix%deltaRhoInCplxHS)
     end if
-
-    ! tKpointInfo = present(coeffsAndShifts)
 
     if (tRho) then
       if (tKpointInfo) then

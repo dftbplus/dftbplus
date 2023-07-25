@@ -1,19 +1,21 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 
 !> Contains workhorse routines for range-separated gamma functions.
 module dftbp_dftb_rshgamma
 
   use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
-  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
+  use dftbp_math_simplealgebra, only : cross3
 
   implicit none
   private
@@ -28,16 +30,19 @@ module dftbp_dftb_rshgamma
 contains
 
   !> Workhorse for calculating the general CAM gamma integral.
-  function getCoulombTruncationCutoff(latVecs, nK) result(cutoff)
+  subroutine getCoulombTruncationCutoff(latVecs, cutoff, errStatus, nK)
 
     !> Real-space lattice vectors of unit cell
     real(dp), intent(in) :: latVecs(:,:)
 
+    !> Coulomb truncation cutoff
+    real(dp), intent(out) :: cutoff
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Number of k-points along each direction
     integer, intent(in), optional :: nK(:)
-
-    !> Coulomb truncation cutoff
-    real(dp) :: cutoff
 
     !! Actual number of k-points along each direction
     integer :: nK_(3)
@@ -83,8 +88,9 @@ contains
     diag2(:) = bvkLatVecs(:, 1) - bvkLatVecs(:, 2) + bvkLatVecs(:, 3)
     diag3(:) = bvkLatVecs(:, 2) - bvkLatVecs(:, 1) + bvkLatVecs(:, 3)
 
-    intersect = getDiagIntersectionPoint(bvkLatVecs(:, 2), bvkLatVecs(:, 2) + diag2, origin,&
-        & origin + diag1)
+    call getDiagIntersectionPoint(bvkLatVecs(:, 2), bvkLatVecs(:, 2) + diag2, origin,&
+        & origin + diag1, intersect, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! calculate normal vectors of three planes
     n1 = cross3(bvkLatVecs(:, 1), bvkLatVecs(:, 2))
@@ -105,8 +111,8 @@ contains
   contains
 
     !> Returns intersection point of two diagonals in a triclinic cell.
-    function getDiagIntersectionPoint(startDiag1, endDiag1, startDiag2, endDiag2)&
-        & result(intersect1)
+    subroutine getDiagIntersectionPoint(startDiag1, endDiag1, startDiag2, endDiag2, intersect1,&
+        & errStatus)
 
       !> Start and end point of first diagonal
       real(dp), intent(in) :: startDiag1(:), endDiag1(:)
@@ -115,7 +121,13 @@ contains
       real(dp), intent(in) :: startDiag2(:), endDiag2(:)
 
       !> Points of intersection in absolute coordinates
-      real(dp) :: intersect1(3), intersect2(3)
+      real(dp), intent(out) :: intersect1(3)
+
+      !> Error status
+      type(TStatus), intent(out) :: errStatus
+
+      !> Points of intersection in absolute coordinates
+      real(dp) :: intersect2(3)
 
       !! Deviation between to calculated intersection points
       real(dp) :: deviation
@@ -133,7 +145,8 @@ contains
           & / ((endDiag1(2) - startDiag1(2)) * (startDiag2(1) - endDiag2(1))&
           & - (endDiag1(1) - startDiag1(1)) * (startDiag2(2) - endDiag2(2)))
 
-      ! check if third eq. also satisfied (3 equations but 2 variables)
+      ! check if third equation (z-component) is also satisfied
+      ! (3 equations for x,y,z but only 2 variables ss and tt to determine)
       if ((tt * (endDiag1(3) - startDiag1(3)) + ss * (startDiag2(3) - endDiag2(3)))&
           & - (startDiag2(3) - startDiag1(3)) < 1.0e-10_dp) then
         if ((abs(tt) >= 0.0_dp .and. abs(tt) <= 1.0_dp)&
@@ -142,16 +155,18 @@ contains
           intersect2 = startDiag2 + ss * (endDiag2 - startDiag2)
           deviation = norm2(intersect2 - intersect1)
           if (deviation > 1.0e-10_dp) then
-            call error("Error while calculating Coulomb truncation cutoff for given cell geometry.")
+            @:RAISE_ERROR(errStatus, -1, "Error while calculating Coulomb truncation cutoff for&
+                & given cell geometry.")
           end if
         else
-          call error("Error while calculating Coulomb truncation cutoff for given cell geometry.")
+          @:RAISE_ERROR(errStatus, -1, "Error while calculating Coulomb truncation cutoff for given&
+              & cell geometry.")
         end if
       end if
 
-    end function getDiagIntersectionPoint
+    end subroutine getDiagIntersectionPoint
 
-  end function getCoulombTruncationCutoff
+  end subroutine getCoulombTruncationCutoff
 
 
   !> Workhorse for calculating the general CAM gamma integral.
@@ -173,15 +188,26 @@ contains
     !> Resulting CAM gamma
     real(dp) :: gamma
 
-    gamma =&
-        & camAlpha * getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist)&
-        & + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    real(dp) :: gammaHf, gammaLr
+
+    call getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, gammaHf, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    call getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, gammaLr, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
+
+    gamma = camAlpha * gammaHf + camBeta * gammaLr
 
   end function getCamAnalyticalGammaValue_workhorse
 
 
   !> Workhorse for getHfAnalyticalGammaValue wrapper in hybrid module.
-  function getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(gamma)
+  subroutine getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, gamma, errStatus)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -190,7 +216,10 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting gamma
-    real(dp) :: gamma
+    real(dp), intent(out) :: gamma
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: tauA, tauB
     real(dp) :: tmp, tau
@@ -204,7 +233,7 @@ contains
         tau = 0.5_dp * (tauA + tauB)
         gamma = tau * 0.3125_dp
       else
-        call error("Error(RSH-Gamma): R = 0, Ua != Ub")
+        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
       end if
     else
       ! off-site case, Ua == Ub
@@ -221,11 +250,11 @@ contains
       end if
     end if
 
-  end function getHfAnalyticalGammaValue_workhorse
+  end subroutine getHfAnalyticalGammaValue_workhorse
 
 
   !> Workhorse for getLrAnalyticalGammaValue wrapper in hybrid module.
-  function getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(gamma)
+  subroutine getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, gamma, errStatus)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -237,7 +266,10 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting gamma
-    real(dp) :: gamma
+    real(dp), intent(out) :: gamma
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: tauA, tauB
     real(dp) :: prefac, tmp, tmp2, tau
@@ -254,7 +286,7 @@ contains
         tmp = tmp * tau**8 / (tau**2 - omega**2)**4
         gamma = tau * 0.3125_dp - tmp
       else
-        call error("Error(RSH-Gamma): R = 0, Ua != Ub")
+        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
       end if
     else
       ! off-site case, Ua == Ub
@@ -286,11 +318,11 @@ contains
       end if
     end if
 
-  end function getLrAnalyticalGammaValue_workhorse
+  end subroutine getLrAnalyticalGammaValue_workhorse
 
 
   !> Returns analytical derivative of full-range Hartree-Fock gamma.
-  function getdHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(dGamma)
+  subroutine getdHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, dGamma, errStatus)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -299,7 +331,10 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting d gamma / d dist
-    real(dp) :: dGamma
+    real(dp), intent(out) :: dGamma
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: tauA, tauB
     real(dp) :: dTmp
@@ -312,7 +347,7 @@ contains
       if (abs(tauA - tauB) < MinHubDiff) then
         dGamma = 0.0_dp
       else
-        call error("Error(RSH-Gamma): R = 0, Ua != Ub")
+        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
       end if
     else
       ! off-site case, Ua == Ub
@@ -334,11 +369,11 @@ contains
       end if
     end if
 
-  end function getdHfAnalyticalGammaValue_workhorse
+  end subroutine getdHfAnalyticalGammaValue_workhorse
 
 
   !> Returns 1st analytical derivative of long-range gamma.
-  function getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(dGamma)
+  subroutine getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, dGamma, errStatus)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -350,7 +385,10 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting d gamma / d dist
-    real(dp) :: dGamma
+    real(dp), intent(out) :: dGamma
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: tauA, tauB
     real(dp) :: prefac, tmp, tmp2, dTmp, dTmp2
@@ -363,7 +401,7 @@ contains
       if (abs(tauA - tauB) < MinHubDiff) then
         dGamma = 0.0_dp
       else
-        call error("Error(RSH-Gamma): R = 0, Ua != Ub")
+        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
       end if
     else
       ! off-site case, Ua == Ub
@@ -404,7 +442,7 @@ contains
       end if
     end if
 
-  end function getdLrAnalyticalGammaValue_workhorse
+  end subroutine getdLrAnalyticalGammaValue_workhorse
 
 
   !> Workhorse routine for getddLrNumericalGammaValue in hybrid module.
@@ -425,9 +463,21 @@ contains
     !> Numerical gamma derivative
     real(dp) :: ddGamma
 
-    ddGamma = (getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist + delta)&
-        & - getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist - delta))&
-        & / (2.0_dp * delta)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    real(dp) :: dGamma1, dGamma2
+
+    call getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist - delta, dGamma1,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist + delta, dGamma2,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
+
+    ddGamma = (dGamma2 - dGamma1) / (2.0_dp * delta)
 
   end function getddLrNumericalGammaValue_workhorse
 

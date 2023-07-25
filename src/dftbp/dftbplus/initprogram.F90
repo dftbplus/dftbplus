@@ -172,8 +172,8 @@ module dftbp_dftbplus_initprogram
     !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
     real(dp), allocatable :: gSummationCutoff
 
-    !> Number of unitcells along each supercell folding direction to substract from MIC Wigner-Seitz
-    !! cell construction
+    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !! Wigner-Seitz cell construction
     integer, allocatable :: wignerSeitzReduction
 
     !> Cutoff for truncated long-range Gamma integral
@@ -291,7 +291,7 @@ module dftbp_dftbplus_initprogram
     type(TNeighbourList), allocatable :: neighbourList
 
     !> ADT for neighbour parameters, symmetric version for CAM calculations
-    type(TSymNeighbourList) :: symNeighbourList
+    type(TSymNeighbourList), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
@@ -350,9 +350,13 @@ module dftbp_dftbplus_initprogram
     !> Weight of the K-Points
     real(dp), allocatable :: kWeight(:)
 
-    !> Supercell folding coefficients and shifts
-    integer, allocatable :: supercellFoldingDiag(:)
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
     real(dp), allocatable :: supercellFoldingMatrix(:,:)
+
+    !> Three diagonal elements of supercell folding coefficient matrix
+    integer, allocatable :: supercellFoldingDiag(:)
 
     !> External pressure if periodic
     real(dp) :: extPressure
@@ -918,9 +922,6 @@ module dftbp_dftbplus_initprogram
     !> Square dense overlap storage for cases with k-points
     complex(dp), allocatable :: SSqrCplx(:,:)
 
-    !> Square dense overlap that actually stores all k-points
-    complex(dp), allocatable :: SSqrCplxKpts(:,:,:)
-
     !> Complex eigenvectors
     complex(dp), allocatable :: eigvecsCplx(:,:,:)
 
@@ -1171,8 +1172,6 @@ module dftbp_dftbplus_initprogram
     procedure :: allocateDenseMatrices
     procedure :: getDenseDescCommon
     procedure :: ensureConstrainedDftbReqs
-    procedure :: ensureHybridXcReqs
-    procedure :: reallocateHybridXc
     procedure :: initPlumed
 
   end type TDftbPlusMain
@@ -1743,11 +1742,14 @@ contains
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
 
-    ! Copy symmetry-specific entries into symmetric neighbour list
-    allocate(this%symNeighbourList%coord(3, this%nAllAtom))
-    allocate(this%symNeighbourList%species(this%nAllAtom))
-    allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
-    allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
+    if (this%isHybridXc) then
+      allocate(this%symNeighbourList)
+      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
+      allocate(this%symNeighbourList%species(this%nAllAtom))
+      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
+      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
+      allocate(this%symNeighbourList%iPair(0, this%nAtom))
+    end if
 
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
@@ -1767,7 +1769,6 @@ contains
     call TIntegral_init(this%ints, this%nSpin, .not. allocated(this%reks), this%tImHam,&
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
-    allocate(this%symNeighbourList%iPair(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom
     this%deltaT = input%ctrl%deltaT
@@ -2701,7 +2702,7 @@ contains
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
         this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
       end if
-      call this%ensureHybridXcReqs(input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
+      call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
       if (.not. this%tReadChrg) then
         if (this%tPeriodic .and. this%tRealHS) then
           ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
@@ -2733,7 +2734,7 @@ contains
     #:endif
 
       ! allocation is necessary to hint "initializeCharges" what information to extract
-      call this%reallocateHybridXc(nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+      call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
     end if
 
     call this%initializeCharges(input%ctrl%initialSpins, input%ctrl%initialCharges)
@@ -2787,7 +2788,7 @@ contains
           & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
           & latVecs=input%geom%latVecs)
       ! now all information is present to properly allocate density matrices and associate pointers
-      call this%reallocateHybridXc(nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+      call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
       if (this%tRealHS) then
         this%nMixElements = size(this%densityMatrix%deltaRhoIn)
@@ -3566,7 +3567,7 @@ contains
     if (this%isHybridXc) then
       if (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
         write(stdOut, "(A,':',T30,A)") "Global hybrid", "Yes"
-        write(stdOut, "(2X,A,':',T30,E14.6)") "Fraction of HF",&
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Fraction of exchange",&
             & input%ctrl%hybridXcInp%camAlpha
       elseif (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%lc) then
         write(stdOut, "(A,':',T30,A)") "Long-range corrected hybrid", "Yes"
@@ -4085,7 +4086,7 @@ contains
   subroutine initializeCharges(this, initialSpins, initialCharges)
 
     !> Instance
-    class(TDftbPlusMain), intent(inout), target :: this
+    class(TDftbPlusMain), intent(inout) :: this
 
     !> Initial spins
     real(dp), optional, intent(in) :: initialSpins(:,:)
@@ -4099,9 +4100,6 @@ contains
     integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
-
-    !! Supercell folding coefficients
-    real(dp), pointer :: coeffs(:,:)
 
     ! Charge arrays may have already been initialised
     @:ASSERT(size(this%species0) == this%nAtom)
@@ -5566,11 +5564,11 @@ contains
   end subroutine ensureConstrainedDftbReqs
 
 
-  !> Stop if any hybrid xc-functional incompatible setting is found.
+  !> Stop if any setting incompatible with using hybrid xc-functionals are found.
   subroutine ensureHybridXcReqs(this, tShellResolved, hybridXcInp)
 
     !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
+    type(TDftbPlusMain), intent(inout) :: this
 
     !> True, if this is a shell resolved calculation
     logical, intent(in) :: tShellResolved
@@ -5846,6 +5844,9 @@ contains
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
     end if
@@ -5861,13 +5862,16 @@ contains
     if (present(gammaCutoff)) then
       cutOff%gammaCutoff = gammaCutoff
     else
-      cutOff%gammaCutoff = getCoulombTruncationCutoff(latVecs)
+      allocate(cutOff%gammaCutoff)
+      call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
       cutOff%gSummationCutoff = gSummationCutoff
     else
-      ! This would correspond to "the savest option"
+      ! This would correspond to "the safest option"
       cutOff%gSummationCutoff = 2.0_dp * cutOff%gammaCutoff
     end if
 
@@ -5893,12 +5897,15 @@ contains
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
-    !> Number of unitcells along each supercell folding direction to substract from MIC Wigner-Seitz
-    !! cell construction
+    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !! Wigner-Seitz cell construction
     integer, intent(in), optional :: wignerSeitzReduction
 
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
+
+    !! Error status
+    type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
@@ -5915,13 +5922,17 @@ contains
     if (present(gammaCutoff)) then
       cutOff%gammaCutoff = gammaCutoff
     else
-      cutOff%gammaCutoff = getCoulombTruncationCutoff(latVecs, nK=supercellFoldingDiag)
+      allocate(cutOff%gammaCutoff)
+      call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus,&
+          & nK=supercellFoldingDiag)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
       cutOff%gSummationCutoff = gSummationCutoff
     else
-      ! This would correspond to "the savest option"
+      ! This would correspond to "the safest option"
       cutOff%gSummationCutoff = 2.0_dp * cutOff%gammaCutoff
     end if
 
@@ -5938,7 +5949,7 @@ contains
   subroutine reallocateHybridXc(this, nLocalRows, nLocalCols, nLocalKS)
 
     !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
+    type(TDftbPlusMain), intent(inout) :: this
 
     !> Size descriptors for MPI parallel execution
     integer, intent(in) :: nLocalRows, nLocalCols, nLocalKS
@@ -5951,7 +5962,6 @@ contains
 
     ! deallocate arrays, if already allocated
     if (allocated(this%densityMatrix%deltaRhoOut)) deallocate(this%densityMatrix%deltaRhoOut)
-    if (allocated(this%SSqrCplxKpts)) deallocate(this%SSqrCplxKpts)
     if (allocated(this%densityMatrix%deltaRhoOutCplx))&
         & deallocate(this%densityMatrix%deltaRhoOutCplx)
     if (allocated(this%densityMatrix%iKiSToiGlobalKS))&
@@ -5961,7 +5971,6 @@ contains
 
     if (this%tRealHS) then
       ! Prevent for deleting charges read in from file
-      print *, 'nLocalKS', nLocalKS
       if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
         allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS))
         this%densityMatrix%deltaRhoIn(:,:,:) = 0.0_dp
@@ -5991,8 +6000,6 @@ contains
     end if
 
     if (.not. this%tRealHS) then
-      allocate(this%SSqrCplxKpts(this%nOrb, this%nOrb, this%nKpoint))
-      this%SSqrCplxKpts(:,:,:) = 0.0_dp
 
       allocate(this%densityMatrix%deltaRhoOutCplx(this%nOrb, this%nOrb,&
           & size(this%parallelKS%localKS, dim=2)))

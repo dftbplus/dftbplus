@@ -15,7 +15,6 @@
 !> Caveat: The routines create the transposed and complex conjugated of the density matrices! (cc*
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
-
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_math_blasroutines, only : herk
@@ -47,7 +46,7 @@ module dftbp_dftb_densitymatrix
   end interface makeDensityMatrix
 
 
-  !> Holds real and complex delta density matrices and pointers.
+  !> Holds real and complex delta (change between cycles) density matrices.
   type :: TDensityMatrix
 
     !> DeltaRho input for range separation in matrix form
@@ -67,11 +66,6 @@ module dftbp_dftb_densitymatrix
 
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
     integer, allocatable :: iKiSToiGlobalKS(:,:)
-
-  ! #:if WITH_SCALAPACK
-  !   !> DeltaRho diff from calculation of range separated Hamiltonian
-  !   real(dp), allocatable :: deltaRhoDiff(:)
-  ! #:endif
 
   end type TDensityMatrix
 

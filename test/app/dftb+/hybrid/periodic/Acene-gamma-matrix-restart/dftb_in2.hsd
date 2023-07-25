@@ -29,8 +29,8 @@ Hamiltonian = DFTB {
 
   Hybrid = LC {
     CoulombMatrix = Truncated {
-      CoulombCutoff = 0.930123E+01
-      GSummationCutoff = 0.186025E+02
+      CoulombCutoff [au] = 0.930123E+01
+      GSummationCutoff [au] = 0.186025E+02
     }
     Screening = MatrixBased {}
   }
@@ -53,5 +53,5 @@ Options {
 }
 
 ParserOptions {
-  ParserVersion = 13
+  ParserVersion = 14
 }

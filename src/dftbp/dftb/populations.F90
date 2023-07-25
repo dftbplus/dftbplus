@@ -15,15 +15,18 @@ module dftbp_dftb_populations
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_sparse2dense, only : symmetrizeHS
-  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_integral, only : TIntegral
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, MB_, CSRC_, RSRC_, scalafx_indxl2g,&
       & scalafx_getdescriptor, scalafx_addl2g, scalafx_addg2l
   use dftbp_math_bisect, only : bisection
-  use dftbp_type_densedescr, only : TDenseDescr
 #:endif
   implicit none
 
@@ -572,6 +575,26 @@ contains
   end subroutine denseMulliken_real
 
 
+  !> Returns pre-factor of Mulliken populations, depending on the number of spin-channels.
+  pure function populationScalingFactor(nSpin) result(scale)
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> Pre-factor of Mulliken populations
+    real(dp) :: scale
+
+    ! distinguish cases: spin-unpolarized, colinear-spin
+    select case(nSpin)
+    case(1)
+      scale = 1.0_dp
+    case(2)
+      scale = 0.5_dp
+    end select
+
+  end function populationScalingFactor
+
+
   !> Subtracts superposition of atomic densities from dense density matrix.
   !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
   subroutine denseSubtractDensityOfAtoms_real_nonperiodic(q0, iSquare, rho)
@@ -591,13 +614,7 @@ contains
     nAtom = size(iSquare) - 1
     nSpin = size(q0, dim=3)
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
-    select case(nSpin)
-    case(1)
-      scale = 1.0_dp
-    case(2)
-      scale = 0.5_dp
-    end select
+    scale = populationScalingFactor(nSpin)
 
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
@@ -636,13 +653,7 @@ contains
     nAtom = size(iSquare) - 1
     nSpin = size(q0, dim=3)
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
-    select case(nSpin)
-    case(1)
-      scale = 1.0_dp
-    case(2)
-      scale = 0.5_dp
-    end select
+    scale = populationScalingFactor(nSpin)
 
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
@@ -801,46 +812,75 @@ contains
   !> Subtracts superposition of atomic densities from dense density matrix.
   !> For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
   !> Note: q0 is normalized by the overlap that includes periodic images.
-  subroutine denseSubtractDensityOfAtoms_cmplx_periodic(q0, iSquare, parallelKS, overSqr, rho)
+  subroutine denseSubtractDensityOfAtoms_cmplx_periodic(env, ints, denseDesc, parallelKS,&
+      & neighbourList, kPoint, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, q0, rho)
 
-    !> Reference atom populations
-    real(dp), intent(in) :: q0(:,:,:)
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
-    !> Atom positions in the row/column of square matrices
-    integer, intent(in) :: iSquare(:)
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Square overlap matrix for all k-points
-    complex(dp), intent(in) :: overSqr(:,:,:)
+    !> List of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
 
     !> Spin polarized density matrix for all k-points/spins
     complex(dp), intent(inout) :: rho(:,:,:)
 
+    !! Temporarily stores square overlap matrix of current k-point
+    complex(dp), allocatable :: SSqrCplx(:,:)
+
     integer :: nAtom, iAtom, iStart, iEnd, iOrb, iSpin, nSpin, iK, iKS
     real(dp) :: scale
 
-    nAtom = size(iSquare) - 1
+    nAtom = size(denseDesc%iAtomStart) - 1
     nSpin = size(q0, dim=3)
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
-    select case(nSpin)
-    case(1)
-      scale = 1.0_dp
-    case(2)
-      scale = 0.5_dp
-    end select
+    allocate(SSqrCplx(denseDesc%fullSize, denseDesc%fullSize))
+
+    scale = populationScalingFactor(nSpin)
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
+      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       do iAtom = 1, nAtom
-        iStart = iSquare(iAtom)
-        iEnd = iSquare(iAtom + 1) - 1
+        iStart = denseDesc%iAtomStart(iAtom)
+        iEnd = denseDesc%iAtomStart(iAtom + 1) - 1
         do iOrb = 1, iEnd - iStart + 1
           rho(iStart+iOrb-1, iStart+iOrb-1, iKS) = rho(iStart+iOrb-1, iStart+iOrb-1, iKS)&
-              & - scale * q0(iOrb, iAtom, 1) / overSqr(iStart+iOrb-1, iStart+iOrb-1, iK)
+              & - scale * q0(iOrb, iAtom, 1) / SSqrCplx(iStart+iOrb-1, iStart+iOrb-1)
         end do
       end do
     end do
@@ -974,13 +1014,7 @@ contains
 
     nAtom = size(q0, dim=2)
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
-    select case(size(q0, dim=3))
-    case(1)
-      scale = 1.0_dp
-    case(2)
-      scale = 0.5_dp
-    end select
+    scale = populationScalingFactor(size(q0, dim=3))
 
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)
@@ -1029,13 +1063,7 @@ contains
 
     nAtom = size(q0, dim=2)
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
-    select case(size(q0, dim=3))
-    case(1)
-      scale = 1.0_dp
-    case(2)
-      scale = 0.5_dp
-    end select
+    scale = populationScalingFactor(size(q0, dim=3))
 
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)

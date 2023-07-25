@@ -53,7 +53,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : matinv, gesv
@@ -3212,8 +3212,8 @@ contains
 
     if (this%isHybridXc) then
     #:if WITH_SCALAPACK
-      call error("Timeprop: MPI-parallel hybrid-DFTB matrix-based force evaluation not&
-          & implemented.")
+      @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
+          & implemented for rTD-DFTB.")
     #:else
       call hybridXc%addCamGradients_real(real(deltaRho), real(sSqr(:,:,1)), skOverCont, orb,&
           & iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator, img2CentCell,&

@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
@@ -20,6 +21,7 @@ module dftbp_reks_reksinterface
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
@@ -233,7 +235,8 @@ module dftbp_reks_reksinterface
   subroutine getReksGradients(env, denseDesc, sccCalc, hybridXc, dispersion, neighbourList,&
       & nNeighbourSK, iSparseStart, img2CentCell, orb, nonSccDeriv, skHamCont, skOverCont,&
       & repulsive, coord, coord0, species, q0, eigenvecs, chrgForces, over, spinW, derivs,&
-      & tWriteTagged, autotestTag, taggedWriter, this, symNeighbourList, nNeighbourCamSym)
+      & tWriteTagged, autotestTag, taggedWriter, this, errStatus, symNeighbourList,&
+      & nNeighbourCamSym)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -316,8 +319,11 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable, optional :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -337,7 +343,8 @@ module dftbp_reks_reksinterface
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, nNeighbourSK,&
         & iSparseStart, img2CentCell, orb, nonSccDeriv, skHamCont, skOverCont, repulsive, coord,&
         & species, q0, dispersion, hybridXc, chrgForces, eigenvecs, derivs, this,&
-        & symNeighbourList=symNeighbourList, nNeighbourCamSym=nNeighbourCamSym)
+        & errStatus, symNeighbourList=symNeighbourList, nNeighbourCamSym=nNeighbourCamSym)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (this%Efunction == 1) then
       call weightGradient(this%gradL, this%weight, derivs)
@@ -787,8 +794,8 @@ module dftbp_reks_reksinterface
   !> Calculate Hellmann-Feynman gradient term of each microstate in REKS
   subroutine getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, nonSccDeriv, skHamCont, skOverCont, repulsive, coord,&
-      & species, q0, dispersion, hybridXc, chrgForces, eigenvecs, derivs, this, symNeighbourList,&
-      & nNeighbourCamSym)
+      & species, q0, dispersion, hybridXc, chrgForces, eigenvecs, derivs, this, errStatus,&
+      & symNeighbourList, nNeighbourCamSym)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -853,8 +860,11 @@ module dftbp_reks_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable, optional :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -918,8 +928,8 @@ module dftbp_reks_reksinterface
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
       #:if WITH_SCALAPACK
-        call error("Reksinterface: MPI-parallel hybrid-DFTB matrix-based force evaluation not&
-            & implemented.")
+        @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
+            & implemented for REKS.")
       #:else
         call hybridXc%addCamGradients_real(this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
             & skOverCont, orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&

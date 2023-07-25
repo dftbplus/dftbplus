@@ -81,6 +81,9 @@ contains
       case (12)
         call convert_12_13(root)
         version = 13
+      case (13)
+        call convert_13_14(root)
+        version = 14
       end select
     end do
 
@@ -770,7 +773,7 @@ contains
   end subroutine convert_11_12
 
 
-  !> Converts input from version 12 to 13. (Version 13 introduced in October 2022)
+  !> Converts input from version 12 to 13. (Version 13 introduced in February 2023)
   subroutine convert_12_13(root)
 
     !> Root tag of the HSD-tree
@@ -828,6 +831,17 @@ contains
 
     end if
 
+  end subroutine convert_12_13
+
+
+  !> Converts input from version 13 to 14. (Version 14 introduced in July 2023)
+  subroutine convert_13_14(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1
+
     call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
@@ -835,7 +849,7 @@ contains
       call setNodeName(ch1, "Hybrid")
     end if
 
-  end subroutine convert_12_13
+  end subroutine convert_13_14
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

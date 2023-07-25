@@ -790,11 +790,11 @@ contains
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
 
-    ! Square dense overlap storage for calculating delta Rho in Gamma-point case with
+    ! Square dense overlap storage for calculating delta rho in Gamma-point case with
     ! range-separated hybrid functionals
     real(dp), allocatable :: SSqrReal(:,:)
 
-    ! CAM calculations deduct atomic charges from delta density matrix
+    ! CAM calculations need to deduct atomic charges from delta density matrix
     if (this%isHybridXc) then
 
       if (this%nSpin > 2) call error("HybridXc: Not implemented for non-colinear spin.")
@@ -847,8 +847,9 @@ contains
 
       if (.not. this%tRealHS) then
         ! denseSubtractDensityOfAtoms_cmplx_periodic()
-        call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart,&
-            & this%parallelKS, this%SSqrCplxKpts, this%densityMatrix%deltaRhoOutCplx)
+        call denseSubtractDensityOfAtoms(env, this%ints, this%denseDesc, this%parallelKS,&
+            & this%neighbourList, this%kPoint, this%nNeighbourSK, this%iCellVec, this%cellVec,&
+            & this%iSparseStart, this%img2CentCell, this%q0, this%densityMatrix%deltaRhoOutCplx)
         ! Build real-space delta rho from k-space density matrix:
         ! Also, zero-out deltaRhoOutCplxHS, because of internal summation.
         this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
@@ -1390,9 +1391,8 @@ contains
               & this%parallelKS, this%Ef, this%mu, this%dftbEnergy(this%deltaDftb%iDeterminant),&
               & this%hybridXc, this%eigen, this%filling, this%rhoPrim, this%xi, this%orbitalL,&
               & this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx,&
-              & this%SSqrCplx, this%SSqrCplxKpts, this%eigvecsCplx, this%rhoSqrReal,&
-              & this%densityMatrix, this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb,&
-              & errStatus)
+              & this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%densityMatrix,&
+              & this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
           if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
@@ -1635,8 +1635,9 @@ contains
             & this%orb, this%nonSccDeriv, this%skHamCont, this%skOverCont, this%repulsive,&
             & this%coord, this%coord0, this%species, this%q0, this%eigvecsReal,&
             & this%chrgForces, this%ints%overlap, this%spinW, this%derivs, this%tWriteAutotest,&
-            & autotestTag, this%taggedWriter, this%reks, symNeighbourList=this%symNeighbourList,&
-            & nNeighbourCamSym=this%nNeighbourCamSym)
+            & autotestTag, this%taggedWriter, this%reks, errStatus,&
+            & symNeighbourList=this%symNeighbourList, nNeighbourCamSym=this%nNeighbourCamSym)
+        @:PROPAGATE_ERROR(errStatus)
         call getReksGradProperties(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%orb,&
             & this%iAtInCentralRegion, this%coord, this%coord0, this%ints%overlap, this%rhoPrim,&
@@ -2200,7 +2201,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout) :: symNeighbourList
+    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Total number of atoms including images
     integer, intent(out) :: nAllAtom
@@ -2288,7 +2289,7 @@ contains
       call getNrOfNeighboursForAll(nNeighbourCam, neighbourList, cutoff%camCutOff)
     end if
 
-    if (allocated(nNeighbourCamSym)) then
+    if (allocated(symNeighbourList)) then
       call updateNeighbourListAndSpecies(env, symNeighbourList%coord, symNeighbourList%species,&
           & symNeighbourList%img2CentCell, symNeighbourList%iCellVec,&
           & symNeighbourList%neighbourList, symNeighbourList%nAllAtom, coord0Fold, species0,&
@@ -2613,9 +2614,8 @@ contains
       & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, eigen, filling, rhoPrim,&
-      & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, SSqrCplxKpts,&
-      & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym,&
-      & deltaDftb, errStatus)
+      & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
+      & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2636,7 +2636,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> list of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -2764,9 +2764,6 @@ contains
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
-    !> Dense overlap matrix for all k-points, needed for range-separated case
-    complex(dp), intent(inout), allocatable :: SSqrCplxKpts(:,:,:)
-
     !> complex eigenvectors on exit
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
@@ -2819,8 +2816,8 @@ contains
           & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
           & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim,&
           & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-          & SSqrCplxKpts, eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym,&
-          & deltaDftb, errStatus)
+          & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb,&
+          & errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
@@ -2846,9 +2843,8 @@ contains
       & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
       & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim, xi,&
-      & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, SSqrCplxKpts,&
-      & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb,&
-      & errStatus)
+      & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
+      & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2863,7 +2859,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> list of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -2988,9 +2984,6 @@ contains
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
-    !> Dense overlap matrix for all k-points, needed for range-separated case
-    complex(dp), intent(inout), allocatable :: SSqrCplxKpts(:,:,:)
-
     !> complex eigenvectors on exit
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
@@ -3028,8 +3021,8 @@ contains
         call buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, kWeight, neighbourList,&
             & symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, rCellVecs, iCellVec,&
             & recVecs2p, cellVec, electronicSolver, parallelKS, tHelical, orb, species, coord,&
-            & hybridXc, densityMatrix, nNeighbourCamSym, HSqrCplx, SSqrCplx, SSqrCplxKpts,&
-            & eigVecsCplx, eigen, errStatus)
+            & hybridXc, densityMatrix, nNeighbourCamSym, HSqrCplx, SSqrCplx, eigVecsCplx, eigen,&
+            & errStatus)
         @:PROPAGATE_ERROR(errStatus)
       end if
     else
@@ -3090,7 +3083,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> list of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -3114,7 +3107,7 @@ contains
     logical, intent(in) :: tHelical
 
     !> Coordinates of all atoms including images
-    real(dp), intent(inout), allocatable :: coord(:,:)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -3223,8 +3216,7 @@ contains
   subroutine buildAndDiagDenseCplxHam(env, denseDesc, ints, kPoint, kWeight, neighbourList,&
       & symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, rCellVecs, iCellVec, recVecs2p,&
       & cellVec, electronicSolver, parallelKS, tHelical, orb, species, coord, hybridXc,&
-      & densityMatrix, nNeighbourCamSym, HSqrCplx, SSqrCplx, SSqrCplxKpts, eigvecsCplx, eigen,&
-      & errStatus)
+      & densityMatrix, nNeighbourCamSym, HSqrCplx, SSqrCplx, eigvecsCplx, eigen, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3245,7 +3237,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -3301,9 +3293,6 @@ contains
     !> Dense overlap matrix
     complex(dp), intent(out) :: SSqrCplx(:,:)
 
-    !> Dense overlap matrix for all k-points, needed for range-separated case
-    complex(dp), intent(inout), allocatable :: SSqrCplxKpts(:,:,:)
-
     !> Complex eigenvectors
     complex(dp), intent(out) :: eigvecsCplx(:,:,:)
 
@@ -3322,27 +3311,12 @@ contains
     eigen(:,:,:) = 0.0_dp
 
     if (allocated(hybridXc)) then
-      if (.not. allocated(SSqrCplxKpts)) then
-        call error("Hybrid xc-functional calculation expected SSqrCplxKpts to be allocated.")
-      end if
-      SSqrCplxKpts(:,:,:) = (0.0_dp, 0.0_dp)
 
       ! Pre-calculate CAM-Hamiltonian and overlap
       ! Get CAM-Hamiltonian contribution for all spins/k-points
       call hybridXc%getCamHamiltonian_kpts(env, densityMatrix%deltaRhoInCplxHS,&
           & symNeighbourList, nNeighbourCamSym, rCellVecs, cellVec, denseDesc%iAtomStart, orb,&
           & kPoint, densityMatrix%iKiSToiGlobalKS, HSqrCplxCam)
-
-      do iKS = 1, parallelKS%nLocalKS
-        iK = parallelKS%localKS(1, iKS)
-
-        ! Get full complex, square, k-space overlap and store for later q0 substraction
-        call env%globalTimer%startTimer(globalTimers%sparseToDense)
-        call unpackHS(SSqrCplxKpts(:,:, iK), ints%overlap, kPoint(:,iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
-      end do
     end if
 
     ! Loop over all spins/k-points associated with MPI group
@@ -3415,13 +3389,6 @@ contains
   #:if WITH_SCALAPACK
     ! Distribute all eigenvalues to all nodes via global summation
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
-  #:endif
-
-  #:if WITH_MPI
-    if (allocated(hybridXc)) then
-      ! Distribute all complex, square, k-space overlaps to all nodes via global summation
-      call mpifx_allreduceip(env%mpi%interGroupComm, SSqrCplxKpts, MPI_SUM)
-    end if
   #:endif
 
   end subroutine buildAndDiagDenseCplxHam
@@ -6207,7 +6174,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -7781,7 +7748,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)

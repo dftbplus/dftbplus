@@ -177,7 +177,7 @@ contains
   end subroutine TMixer_reset
 
 
-  !> Mixes vectors together
+  !> Mixes two vectors.
   subroutine TMixer_mix1D(this, qInpRes, qDiff)
 
     !> Mixer instance.
@@ -203,7 +203,7 @@ contains
   end subroutine TMixer_mix1D
 
 
-  !> Mixes vectors together
+  !> Mixes two 3D matrices.
   subroutine TMixer_mix3D(this, qInpResSqr, qDiffSqr)
 
     !> Mixer instance.
@@ -229,7 +229,7 @@ contains
   end subroutine TMixer_mix3D
 
 
-  !> Mixes vectors together
+  !> Mixes two 6D matrices.
   subroutine TMixer_mix6D(this, qInpResSqr, qDiffSqr)
 
     !> Mixer instance.

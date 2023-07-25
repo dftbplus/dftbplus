@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 
 !> Contains hybrid xc-functional related routines.
@@ -14,6 +15,7 @@ module dftbp_dftb_hybridxc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
@@ -25,7 +27,7 @@ module dftbp_dftb_hybridxc
   use dftbp_dftb_nonscc, only : buildS
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_common_parallel, only : getStartAndEndIndex
-  use dftbp_math_wigner, only : generateWignerSeitzGrid
+  use dftbp_math_wignerseitz, only : generateWignerSeitzGrid
   use dftbp_dftb_rshgamma, only : getCamAnalyticalGammaValue_workhorse,&
       & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
@@ -60,7 +62,7 @@ module dftbp_dftb_hybridxc
 
   type :: TIntArray1D
 
-    !> Onedimensional, integer data storage
+    !> One dimensional, integer data storage
     integer, allocatable :: array(:)
 
   end type TIntArray1D
@@ -68,7 +70,7 @@ module dftbp_dftb_hybridxc
 
   type :: TRealArray1D
 
-    !> Onedimensional, real data storage
+    !> One dimensional, real data storage
     real(dp), allocatable :: array(:)
 
   end type TRealArray1D
@@ -76,14 +78,14 @@ module dftbp_dftb_hybridxc
 
   type :: TRealArray2D
 
-    !> Twodimensional, real data storage
+    !> Two dimensional, real data storage
     real(dp), allocatable :: array(:,:)
 
   end type TRealArray2D
 
 
   !> Enumerator for type of hybrid functional used.
-  !! (global hybrid, purely long-range corrected, general CAM range-separated form)
+  !! (no hybrid, global hybrid, purely long-range corrected, general CAM range-separated form)
   type :: THybridXcFuncEnum
 
     !> (semi-)local
@@ -463,6 +465,9 @@ contains
     !! Number of unique species in system
     integer :: nUniqueSpecies
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     ! Perform basic consistency checks for optional arguments
     if (tPeriodic .and. (.not. present(gSummationCutoff))) then
       call error('Range-separated Module: Periodic systems require g-summation cutoff, which is not&
@@ -471,6 +476,11 @@ contains
     if ((.not. tRealHS) .and. (.not. present(coeffsDiag))) then
       call error('Range-separated Module: General k-point case requires supercell folding&
           & coefficients, which are not present.')
+    end if
+    if ((.not. tRealHS) .and. gammaType == hybridXcGammaTypes%mic&
+        & .and. (.not. present(wignerSeitzReduction))) then
+      call error('Range-separated Module: General k-point case with MIC algorithm requires&
+          & Wigner-Seitz reduction parameter, which is not present.')
     end if
 
     ! Allocate selected gamma function types
@@ -532,11 +542,10 @@ contains
       allocate(this%lrddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
-          this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
-              & this%hubbu(iSp2), this%omega, this%gammaDamping)
-          this%lrdGammaAtDamping(iSp1, iSp2)&
-              & = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping)
+          call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+              & this%gammaDamping, this%lrGammaAtDamping(iSp1, iSp2), errStatus)
+          call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+              & this%gammaDamping, this%lrdGammaAtDamping(iSp1, iSp2), errStatus)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%omega, this%gammaDamping, 1e-08_dp)
@@ -549,11 +558,10 @@ contains
       allocate(this%hfddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
-          this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
-              & this%hubbu(iSp2), this%gammaDamping)
-          this%hfdGammaAtDamping(iSp1, iSp2)&
-              & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%gammaDamping)
+          call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & this%gammaDamping, this%hfGammaAtDamping(iSp1, iSp2), errStatus)
+          call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & this%gammaDamping, this%hfdGammaAtDamping(iSp1, iSp2), errStatus)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
               & this%gammaDamping, 1e-08_dp)
         end do
@@ -822,7 +830,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -912,7 +920,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -974,7 +982,7 @@ contains
     this%rCoords = symNeighbourList%coord
     allocate(this%coords(size(this%rCoords, dim=1), size(this%rCoords, dim=2)))
 
-    ! Calculate neighbour list coordinates in relative units
+    ! calculate neighbour list coordinates in relative units
     this%coords(:,:) = this%rCoords
     call cart2frac(this%coords, latVecs)
 
@@ -1000,13 +1008,13 @@ contains
       call calculateOverlapEstimates(this, symNeighbourList, nNeighbourCamSym, iSquare)
     end if
 
-    ! ##################### Beginning of \gamma(\bm{g}) pre-tabulation #############################
+    ! beginning of \gamma(\bm{g}) pre-tabulation
 
     if (this%gammaType == hybridXcGammaTypes%mic) then
       if (allocated(this%wsVectors)) deallocate(this%wsVectors)
       ! Generate "save" Wigner-Seitz vectors for density matrix arguments
       call generateWignerSeitzGrid(max(this%coeffsDiag - this%wignerSeitzReduction, 1), latVecs,&
-          & this%wsVectors, tExcludeSurface=.false.)
+          & this%wsVectors)
 
       ! The Wigner-Seitz grid actually defines all the relevant g-vectors, therefore copy over
       this%cellVecsG = this%wsVectors
@@ -1094,7 +1102,7 @@ contains
     class(THybridXcFunc), intent(inout), target :: this
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -1437,7 +1445,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:,:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -2406,7 +2414,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:,:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -2727,7 +2735,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:,:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -3319,10 +3327,22 @@ contains
     !> Numerical gamma derivative
     real(dp) :: ddGamma
 
-    ddGamma = (&
-        & getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist + delta)&
-        & - getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist - delta))&
-        & / (2.0_dp * delta)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    real(dp) :: dGamma1, dGamma2
+
+    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist + delta,&
+        & dGamma2, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist - delta,&
+        & dGamma1, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
+
+    ddGamma = (dGamma2 - dGamma1) / (2.0_dp * delta)
 
   end function getddHfNumericalGammaDeriv
 
@@ -3345,11 +3365,16 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist)
+      call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist, gamma, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getLrTruncatedGammaValue
@@ -3373,8 +3398,14 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist, gamma, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getLrMicGammaValue
 
@@ -3397,6 +3428,9 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       gamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3404,8 +3438,10 @@ contains
     elseif (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist)
+      call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist, gamma, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getLrTruncatedAndDampedGammaValue
@@ -3429,10 +3465,16 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+      call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getHfTruncatedGammaValue
@@ -3456,7 +3498,14 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getHfMicGammaValue
 
@@ -3479,6 +3528,9 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       gamma = poly5zero(this%hfGammaAtDamping(iSp1, iSp2), this%hfdGammaAtDamping(iSp1, iSp2),&
           & this%hfddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3486,7 +3538,10 @@ contains
     elseif (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+      call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getHfTruncatedAndDampedGammaValue
@@ -3605,8 +3660,13 @@ contains
     !> Resulting gamma derivative
     real(dp) :: dGamma
 
-    dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega, dist,&
+        & dGamma, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getdLrAnalyticalGammaValue
 
@@ -3629,7 +3689,13 @@ contains
     !> Resulting gamma derivative
     real(dp) :: dGamma
 
-    dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getdHfAnalyticalGammaValue
 
@@ -3652,11 +3718,16 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist)
+      call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist, dGamma, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getdLrTruncatedGammaValue
@@ -3680,8 +3751,13 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist, dGamma, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getdLrMicGammaValue
 
@@ -3704,10 +3780,16 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+      call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getdHfTruncatedGammaValue
@@ -3731,7 +3813,13 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getdHfMicGammaValue
 
@@ -3754,6 +3842,9 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       dGamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3761,8 +3852,10 @@ contains
     elseif (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist)
+      call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist, dGamma, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getdLrTruncatedAndDampedGammaValue
@@ -3787,6 +3880,9 @@ contains
     !> Resulting truncated gamma derivative (1st)
     real(dp) :: dGamma
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       dGamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3794,7 +3890,10 @@ contains
     elseif (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+      call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
   end function getdHfTruncatedAndDampedGammaValue
@@ -3920,8 +4019,14 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega, dist,&
+        & gamma, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getLrAnalyticalGammaValue
 
@@ -4037,7 +4142,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -4130,7 +4235,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable, optional :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -4357,7 +4462,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -4687,7 +4792,6 @@ contains
 
   end subroutine tabulateCamdGammaEval0_gamma
 
-
 #:if WITH_SCALAPACK
 
   !> Collects full local matrix from distributed, global contributions.
@@ -4825,7 +4929,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5051,7 +5155,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5120,7 +5224,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5319,7 +5423,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5388,7 +5492,7 @@ contains
     complex(dp), intent(in) :: deltaRhoOutSqrCplx(:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -6137,7 +6241,14 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
+    !! Error status
+    type(TStatus) :: errStatus
+
+    call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end function getHfAnalyticalGammaValue
 

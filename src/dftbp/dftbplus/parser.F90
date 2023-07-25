@@ -119,7 +119,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("23.2", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -2770,15 +2770,22 @@ contains
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
 
+    !! Should an additional check be performed if more than one SCC step is requested
+    logical :: checkStopHybridCalc
+
     integer :: ii
     character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
     poorKSampling = .false.
 
+    ! We can omit any hybrid xc-functional related checks for helical boundary conditions, since
+    ! such a calculation will nevertheless be stopped due to the incompatibility of these features
+    checkStopHybridCalc = .false.
+
     ! K-Points
     if (geo%tPeriodic) then
-      call getEuclideanKSampling(poorKSampling, ctrl, node, geo)
+      call getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo)
     elseif (geo%tHelical) then
       call getHelicalKSampling(poorKSampling, ctrl, node, geo)
     end if
@@ -2787,6 +2794,19 @@ contains
     ! Eventually, perturbation routines should also have restart reads:
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
+    end if
+
+    ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
+    if (checkStopHybridCalc) then
+      if (ctrl%maxSccIter == 1) then
+        call warning("Restarting a hybrid xc-functional run with what appears to be&
+            & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
+            & original sampling (however fine for bandstructure calculations).")
+      else
+        call error("Error while parsing k-point sampling for a hybrid xc-functional&
+            & run." // NEW_LINE('A') // "   Only allowed for bandstructure calculations,&
+            & i.e. a single SCC iteration.")
+      end if
     end if
 
   end subroutine readKPoints
@@ -2832,11 +2852,39 @@ contains
   end subroutine maxSelfConsIterations
 
 
+  !> Tries to infer whether the k-point sampling is restricted to the Gamma-point.
+  pure function isGammaOnly(nKPoint, kPoint, kWeight)
+
+    !> Number of k-points for the calculation
+    integer, intent(in) :: nKPoint
+
+    !> K-points for the system
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> True, if this appears to be a Gamma-only calculation
+    logical :: isGammaOnly
+
+    if (.not. nKPoint == 1) then
+      isGammaOnly = .false.
+    else
+      isGammaOnly = .not. ((.not. all(abs(kPoint(:, 1)) < 1.0e-08_dp))&
+          & .or. (.not. abs(kWeight(1)) - 1.0_dp < 1.0e-08_dp))
+    end if
+
+  end function isGammaOnly
+
+
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(poorKSampling, ctrl, node, geo)
+  subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
+
+    !> Should an additional check be performed if more than one SCC step is requested
+    logical, intent(out) :: checkStopHybridCalc
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2860,21 +2908,11 @@ contains
     !! True, if k-points should be reduced by inversion
     logical :: tReduceByInversion
 
+    !! True, if a Gamma-only k-point sampling is requested
+    logical :: tGammaOnly
+
     call getChildValue(node, "KPointsAndWeights", value1, child=child, modifier=modifier)
     call getNodeName(value1, buffer)
-
-    ! Check for range-separated requirement
-    if (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic .and. (char(buffer) /= "supercellfolding")&
-        & .and. (.not. ctrl%tReadChrg)) then
-      call detailedError(value1, "Error while parsing k-point sampling for range-separated run.&
-          & Currently only" // NEW_LINE('A') // "   the supercell folding technique is supported&
-          & (obtained: '" // trim(char(buffer)) // "').")
-      elseif (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic .and. (char(buffer) == "klines")&
-          & .and. ctrl%tReadChrg) then
-        call detailedWarning(value1, "Restarting a range-separated run with bad k-point sampling&
-            & that does probably" // NEW_LINE('A') // "   not match the original sampling (however&
-            & fine for bandstructure calculations).")
-    end if
 
     select case(char(buffer))
 
@@ -2992,6 +3030,33 @@ contains
     case default
       call detailedError(value1, "Invalid K-point scheme")
     end select
+
+    ! Catch problematic k-point sampling in case this is a hybrid calculation
+    checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+        & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
+
+    ! Check for hybrid xc-functional requirements
+    tGammaOnly = isGammaOnly(ctrl%nKPoint, ctrl%kPoint, ctrl%kWeight)
+    if (.not. tGammaOnly) then
+      if (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+          & .and. (char(buffer) /= "supercellfolding") .and. (.not. ctrl%tReadChrg)) then
+        call detailedError(child, "Error while parsing k-point sampling for a hybrid xc-functional&
+            & run. Currently only" // NEW_LINE('A') // "   the supercell folding technique (or any&
+            & format specifying the Gamma-point only)" // NEW_LINE('A') // "   is supported.")
+      end if
+    end if
+
+    ! Hybrid calculations expect the supercell folding coefficients/shifts to be present
+    if (allocated(ctrl%hybridXcInp) .and. tGammaOnly&
+        & .and. (char(buffer) /= "supercellfolding")) then
+      coeffsAndShifts(:,:) = 0.0_dp
+      allocate(ctrl%supercellFoldingDiag(3))
+      do ii = 1, 3
+        coeffsAndShifts(ii, ii) = 1.0_dp
+        ctrl%supercellFoldingDiag(ii) = coeffsAndShifts(ii, ii)
+      end do
+      ctrl%supercellFoldingMatrix = coeffsAndShifts
+    end if
 
   end subroutine getEuclideanKSampling
 
@@ -7858,7 +7923,7 @@ contains
         select case(char(buffer))
         case ("full")
           input%gammaType = hybridXcGammaTypes%full
-        case ("mic")
+        case ("minimumimage")
           input%gammaType = hybridXcGammaTypes%mic
         case ("truncated")
           input%gammaType = hybridXcGammaTypes%truncated
@@ -7898,11 +7963,8 @@ contains
 
       ! Number of primitive cells regarded in MIC, along each supercell folding direction
       if (input%gammaType == hybridXcGammaTypes%mic) then
-        call getChild(cmValue, "WignerSeitzReduction", child=child1, requested=.false.)
-        if (associated(child1)) then
-          allocate(input%wignerSeitzReduction)
-          call getChildValue(child1, "", input%wignerSeitzReduction)
-        end if
+        allocate(input%wignerSeitzReduction)
+        call getChildValue(cmValue, "WignerSeitzReduction", input%wignerSeitzReduction, default=0)
       end if
 
     else

@@ -25,18 +25,13 @@ Hamiltonian = DFTB {
 
   Hybrid = CAM {
     CoulombMatrix = Truncated {
-      CoulombCutoff = 2.885010
-      GSummationCutoff = 50.985000
+      CoulombCutoff [au] = 2.885010
+      GSummationCutoff [au] = 50.985000
     }
     Screening = MatrixBased {}
   }
 
-  KPointsAndWeights = SupercellFolding {
-     1   0   0
-     0   1   0
-     0   0   1
-    0.0 0.0 0.0
-  }
+  KPointsAndWeights {0.0 0.0 0.0 1.0}
 
 }
 
@@ -50,7 +45,7 @@ Options {
 }
 
 ParserOptions {
-  ParserVersion = 13
+  ParserVersion = 14
 }
 
 Parallel {

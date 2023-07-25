@@ -128,8 +128,8 @@ module dftbp_dftbplus_inputdata
     !> Cutoff for real-space g-summation
     real(dp), allocatable :: gSummationCutoff
 
-    !> Number of unitcells along each supercell folding direction to substract from MIC Wigner-Seitz
-    !! cell construction
+    !> Number of unit cells along each supercell folding direction to subtract from minimum image
+    !! convention (MIC) Wigner-Seitz cell construction
     integer, allocatable :: wignerSeitzReduction
 
     !> Coulomb truncation cutoff of Gamma electrostatics
@@ -382,9 +382,13 @@ module dftbp_dftbplus_inputdata
     !> Are the k-points not suitable for integrals over the Brillouin zone
     logical :: poorKSampling = .false.
 
-    !> Diagonal entries of supercell folding matrix
-    integer, allocatable :: supercellFoldingDiag(:)
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
     real(dp), allocatable :: supercellFoldingMatrix(:,:)
+
+    !> Three diagonal elements of supercell folding coefficient matrix
+    integer, allocatable :: supercellFoldingDiag(:)
 
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp

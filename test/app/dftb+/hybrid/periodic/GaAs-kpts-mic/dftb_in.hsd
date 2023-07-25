@@ -24,7 +24,7 @@ Hamiltonian = DFTB {
   }
 
   Hybrid = LC {
-    CoulombMatrix = MIC {
+    CoulombMatrix = MinimumImage {
       WignerSeitzReduction = 1
     }
     Screening = NeighbourBased {
@@ -51,7 +51,7 @@ Options {
 }
 
 ParserOptions {
-  ParserVersion = 11
+  ParserVersion = 14
 }
 
 Parallel {
