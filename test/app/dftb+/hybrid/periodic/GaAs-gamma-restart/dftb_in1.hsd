@@ -5,7 +5,7 @@ Geometry = VaspFormat {
 Hamiltonian = DFTB {
 
   SCC = Yes
-  MaxSccIterations = 100
+  MaxSccIterations = 50
   SccTolerance = 1e-08
 
   Filling = Fermi {

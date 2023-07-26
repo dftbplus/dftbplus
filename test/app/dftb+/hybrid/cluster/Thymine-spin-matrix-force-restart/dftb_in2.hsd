@@ -5,12 +5,9 @@ Geometry = GenFormat {
 Hamiltonian = DFTB {
 
   SCC = Yes
-  MaxSccIterations = 4
+  MaxSccIterations = 1
   ReadInitialCharges = Yes
   SccTolerance = 1e-10
-  ConvergentSCCOnly = No
-
-  Mixer = Simple {}
 
   MaxAngularMomentum = {
    H = "s"
