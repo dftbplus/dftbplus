@@ -501,3 +501,5 @@ transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 pp-RPA/ethene                          #? not WITH_MPI
 pp-RPA/benzene_TammDancoff             #? not WITH_MPI
 pp-RPA/furan_OrbConst                  #? not WITH_MPI
+
+memory/Si8_dftb1_mdleak                #? not WITH_MPI
