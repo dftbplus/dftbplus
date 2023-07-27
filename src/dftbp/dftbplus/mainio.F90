@@ -3356,7 +3356,7 @@ contains
         write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
       end if
       if (tOnSite) then
-        write (fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
+        write(fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
       end if
     end if
 
@@ -3947,42 +3947,48 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
-      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
+  subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, isLinResp, eField, fixEf,&
+      & printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol, cellPressure,&
+      & pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
 
+    !> Is this a periodic geometry?
+    logical, intent(in) :: isPeriodic
+
     !> Is the stress tensor to be printed?
-    logical, intent(in) :: tStress
+    logical, intent(in) :: printForces
 
-    !> Is this a periodic geometry
-    logical, intent(in) :: tPeriodic
+    !> Is the stress tensor to be printed?
+    logical, intent(in) :: hasStress
 
-    !> Is a barostat in use
-    logical, intent(in) :: tBarostat
-
-    !> Is linear response excitation being used
+    !> Is linear response excitation being used?
     logical, intent(in) :: isLinResp
 
     !> External electric field (if allocated)
     type(TEField), intent(in), allocatable :: eField
 
-    !> Is the  Fermi level fixed
-    logical, intent(in) :: tFixEf
+    !> Is the Fermi level fixed?
+    logical, intent(in) :: fixEf
 
-    !> Should Mulliken charges be printed, hence total charge here
-    logical, intent(in) :: tPrintMulliken
+    !> Should Mulliken charges be printed?
+    logical, intent(in) :: printMulliken
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(in) :: energy
 
-    !> excitation energies, if allocated
-    real(dp), allocatable, intent(inout) :: energiesCasida(:)
+    !> Excitation energies, if allocated
+    real(dp), intent(inout), allocatable :: energiesCasida(:)
 
     !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Derivatives of energy wrt to atomic positions
+    real(dp), intent(in) :: derivs(:,:)
+
+    !> Stress tensor if periodic
+    real(dp), intent(in) :: totalStress(:,:)
 
     !> Unit cell volume
     real(dp), intent(in) :: cellVol
@@ -4002,7 +4008,7 @@ contains
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> dipole moment if available
+    !> Dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
     !> Any dielectric environment scaling
@@ -4014,24 +4020,33 @@ contains
     integer :: ii
     character(lc) :: strTmp
 
-    if (tStress) then
-      if (tBarostat) then
-        write(fd, "(A)") 'Lattice vectors (A)'
-        do ii = 1, 3
-          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+    if (isPeriodic) then
+      write(fd, "(A)") "Lattice vectors (A)"
+      do ii = 1, 3
+        write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+      end do
+      if (printForces) then
+        write(fd, "(A)") "Forces (au)"
+        do ii = 1, size(derivs, dim=2)
+          write(fd, "(3E24.8)") -derivs(:, ii)
         end do
-        write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
-      if (tPeriodic) then
-        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-        if (pressure /= 0.0_dp) then
-          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-              & Hartree__eV * energy%EGibbs,'eV'
-          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-              & Hartree__eV * energy%EGibbsKin, 'eV'
-        end if
+      if (hasStress) then
+        write(fd, "(A)") "Total stress (au)"
+        do ii = 1, 3
+          write(fd, "(3E24.8)") totalStress(:,ii)
+        end do
+      end if
+      write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
+      write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
+      if (abs(pressure) < 1.0e-16_dp) then
+        write(fd, format2U) "Gibbs free energy", energy%EGibbs, "H",&
+            & Hartree__eV * energy%EGibbs, "eV"
+        write(fd, format2U) "Gibbs free energy including KE", energy%EGibbsKin, "H",&
+            & Hartree__eV * energy%EGibbsKin, "eV"
       end if
     end if
+
     if (isLinResp) then
       if (energy%Eexcited /= 0.0_dp) then
         write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
@@ -4039,35 +4054,39 @@ contains
       end if
       if (allocated(energiesCasida)) then
         do ii = 1, size(energiesCasida)
-          write(strTmp,"('Excitation ',I0)")ii
+          write(strTmp, "('Excitation ',I0)") ii
           write(fd, format2U) trim(strTmp), energiesCasida(ii), "H",&
               & Hartree__eV * energiesCasida(ii), "eV"
         end do
       end if
     end if
-    write(fd, format2U) 'Potential Energy', energy%EMermin,'H', energy%EMermin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total MD Energy', energy%EMerminKin, 'H',&
-        & energy%EMerminKin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K'
+
+    write(fd, format2U) "Potential Energy", energy%EMermin, "H", energy%EMermin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Kinetic Energy", energy%Ekin, "H", energy%Ekin * Hartree__eV, "eV"
+    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+        & energy%EMerminKin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Temperature", tempIon, "au", tempIon / Boltzmann, "K"
+
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
-        write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
-            & eField%absEField * au__V_m, 'V/m'
+        write(fd, format1U1e) "External E field", eField%absEField, "au",&
+            & eField%absEField * au__V_m, "V/m"
       end if
     end if
-    if (tFixEf .and. tPrintMulliken) then
-      write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
+
+    if (fixEf .and. printMulliken) then
+      write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
+
     if (allocated(dipoleMoment)) then
-      if (len(trim(dipoleMessage))>0) then
-        write(fd, "(A)")trim(dipoleMessage)
+      if (len(trim(dipoleMessage)) > 0) then
+        write(fd, "(A)") trim(dipoleMessage)
       end if
       ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, 1X,A)") 'Dipole moment:',&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)),  'au'
-      write(fd, "(A, 3F14.8, 1X, A)") 'Dipole moment:',&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye,  'Debye'
+      write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
+      write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
     end if
 
   end subroutine writeMdOut2
@@ -5743,7 +5762,7 @@ contains
       write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
       write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
       if (t3rd) then
-        write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
+        write(fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
       if (isRangeSep) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
