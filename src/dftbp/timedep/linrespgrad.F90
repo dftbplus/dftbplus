@@ -4577,7 +4577,7 @@ contains
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout) :: deltaRho(:,:,:)
+    real(dp), intent(inout), optional :: deltaRho(:,:,:)
 
     !> is calculation range-separated?
     logical, intent(in) :: tHybridXc
