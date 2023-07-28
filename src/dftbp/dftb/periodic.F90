@@ -672,7 +672,9 @@ contains
     nAtom = size(nNeighbour)
 
     neigh%setExternally = .true.
+  #:if WITH_MPI
     neigh%useMpiWindows_ = .true.
+  #:endif
 
     call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, env)
 
