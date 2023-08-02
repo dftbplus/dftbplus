@@ -1811,7 +1811,7 @@ contains
               & + this%extPressure * this%cellVol
         end if
         call writeMdOut2(this%fdMd%unit, this%tPeriodic, this%tPrintForces, this%tStress,&
-            & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
+            & this%tBarostat, this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
             & this%derivs, this%totalStress, this%cellVol, this%intPressure, this%extPressure,&
             & tempIon, this%qOutput, this%q0, this%dipoleMoment, this%eFieldScaling,&

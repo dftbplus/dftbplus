@@ -3947,9 +3947,9 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, isLinResp, eField, fixEf,&
-      & printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol, cellPressure,&
-      & pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
+  subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
+      & fixEf, printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol,&
+      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3962,6 +3962,9 @@ contains
 
     !> Is the stress tensor to be printed?
     logical, intent(in) :: hasStress
+
+    !> Is a barostat in use?
+    logical, intent(in) :: withBarostat
 
     !> Is linear response excitation being used?
     logical, intent(in) :: isLinResp
@@ -4021,10 +4024,12 @@ contains
     character(lc) :: strTmp
 
     if (isPeriodic) then
-      write(fd, "(A)") "Lattice vectors (A)"
-      do ii = 1, 3
-        write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
-      end do
+      if (withBarostat) then
+        write(fd, "(A)") "Lattice vectors (A)"
+        do ii = 1, 3
+          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+        end do
+      end if
       if (printForces) then
         write(fd, "(A)") "Forces (au)"
         do ii = 1, size(derivs, dim=2)
