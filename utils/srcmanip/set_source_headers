@@ -43,6 +43,8 @@ FILE_TYPES = [
     ('src/**/*.h', 'c'),
     ('src/**/*.fypp', 'fypp'),
     ('src/**/make.*', 'makefile'),
+    ('test/app/dftb+/*/*.sh', 'shell'),
+    ('test/app/dftb+/*/*/*.sh', 'shell'),
     ('test/app/dftb+/bin/*', 'shell'),
     ('test/app/modes+/bin/*', 'shell'),
     ('test/app/phonons/bin/*', 'shell'),
