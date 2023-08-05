@@ -4023,25 +4023,25 @@ contains
     integer :: ii
     character(lc) :: strTmp
 
+    if (printForces) then
+      write(fd, "(A)") "Forces (au)"
+      do ii = 1, size(derivs, dim=2)
+        write(fd, "(3E24.8)") -derivs(:, ii)
+      end do
+    end if
+    if (withBarostat) then
+      write(fd, "(A)") "Lattice vectors (A)"
+      do ii = 1, size(latVec, dim=2)
+        write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+      end do
+    end if
+    if (hasStress) then
+      write(fd, "(A)") "Total stress (au)"
+      do ii = 1, size(totalStress, dim=2)
+        write(fd, "(3E24.8)") totalStress(:,ii)
+      end do
+    end if
     if (isPeriodic) then
-      if (withBarostat) then
-        write(fd, "(A)") "Lattice vectors (A)"
-        do ii = 1, 3
-          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
-        end do
-      end if
-      if (printForces) then
-        write(fd, "(A)") "Forces (au)"
-        do ii = 1, size(derivs, dim=2)
-          write(fd, "(3E24.8)") -derivs(:, ii)
-        end do
-      end if
-      if (hasStress) then
-        write(fd, "(A)") "Total stress (au)"
-        do ii = 1, 3
-          write(fd, "(3E24.8)") totalStress(:,ii)
-        end do
-      end if
       write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
       write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
       if (abs(pressure) < 1.0e-16_dp) then
