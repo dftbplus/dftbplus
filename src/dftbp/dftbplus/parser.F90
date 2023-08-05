@@ -118,7 +118,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("23.2", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -5203,7 +5203,7 @@ contains
         end if
       end if
 
-      call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+      call getChildValue(node, "PrintForces", ctrl%tPrintForces, .false.)
 
     else
 
