@@ -73,13 +73,13 @@ module dftbp_dftb_periodic
     !! the shared window in that case.
     logical, private :: useMpiWindows_ = .false.
 
-  #:if WITH_MPI
-
     !> memory allocated for the iNeighbour array
     integer, pointer, private :: iNeighbourMem_(:) => null()
 
     !> memory allocated for the neighDist2 array
     real(dp), pointer, private :: neighDist2Mem_(:) => null()
+
+  #:if WITH_MPI
 
     !> MPI shared memory window handler for iNeighbour
     type(mpifx_win), private :: iNeighbourWin_
@@ -87,11 +87,11 @@ module dftbp_dftb_periodic
     !> MPI shared memory window handler for neightDist2
     type(mpifx_win), private :: neighDist2Win_
 
+  #:endif
+
   contains
 
     final :: TNeighbourList_final
-
-  #:endif
 
   end type TNeighbourList
 
@@ -123,7 +123,6 @@ contains
   end subroutine TNeighbourList_init
 
 
-#:if WITH_MPI
   !> Deallocates MPI shared memory if required
   subroutine TNeighbourList_final(this)
 
@@ -131,16 +130,16 @@ contains
     type(TNeighbourList), intent(inout) :: this
 
     if (this%useMpiWindows_) then
-      if (associated(this%iNeighbourMem_)) then
-        call this%iNeighbourWin_%free()
-      end if
-      if (associated(this%neighDist2Mem_)) then
-        call this%neighDist2Win_%free()
-      end if
+  #:if WITH_MPI
+      if (associated(this%iNeighbourMem_)) call this%iNeighbourWin_%free()
+      if (associated(this%neighDist2Mem_)) call this%neighDist2Win_%free()
+  #:endif
+    else
+      if (associated(this%iNeighbourMem_)) deallocate(this%iNeighbourMem_)
+      if (associated(this%neighDist2Mem_)) deallocate(this%neighDist2Mem_)
     end if
 
   end subroutine TNeighbourList_final
-#:endif
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
@@ -806,38 +805,26 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in), optional :: env
 
-  #:if WITH_MPI
     integer :: dataLength
-  #:endif
+
+    dataLength = (maxNeighbour + 1) * nAtom
 
     if (neigh%useMpiWindows_) then
     #:if WITH_MPI
-      if (associated(neigh%iNeighbourMem_)) then
-        call neigh%iNeighbourWin_%free()
-      end if
-      if (associated(neigh%neighDist2Mem_)) then
-        call neigh%neighDist2Win_%free()
-      end if
-
-      dataLength = (maxNeighbour + 1) * nAtom
-
+      if (associated(neigh%iNeighbourMem_)) call neigh%iNeighbourWin_%free()
       call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%iNeighbourMem_)
+      if (associated(neigh%neighDist2Mem_)) call neigh%neighDist2Win_%free()
       call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%neighDist2Mem_)
-
-      neigh%iNeighbour(0:maxNeighbour, 1:nAtom) => neigh%iNeighbourMem_(1:dataLength)
-      neigh%neighDist2(0:maxNeighbour, 1:nAtom) => neigh%neighDist2Mem_(1:dataLength)
     #:endif
     else
-      if (associated(neigh%iNeighbour)) then
-        deallocate(neigh%iNeighbour)
-      end if
-      if (associated(neigh%neighDist2)) then
-        deallocate(neigh%neighDist2)
-      end if
-
-      allocate(neigh%iNeighbour(0:maxNeighbour,1:nAtom))
-      allocate(neigh%neighDist2(0:maxNeighbour,1:nAtom))
+      if (associated(neigh%iNeighbourMem_)) deallocate(neigh%iNeighbourMem_)
+      allocate(neigh%iNeighbourMem_(dataLength))
+      if (associated(neigh%neighDist2Mem_)) deallocate(neigh%neighDist2Mem_)
+      allocate(neigh%neighDist2Mem_(dataLength))
     end if
+
+    neigh%iNeighbour(0:maxNeighbour, 1:nAtom) => neigh%iNeighbourMem_(1:dataLength)
+    neigh%neighDist2(0:maxNeighbour, 1:nAtom) => neigh%neighDist2Mem_(1:dataLength)
 
   end subroutine allocateNeighbourArrays
 
