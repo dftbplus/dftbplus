@@ -11,7 +11,6 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
@@ -45,7 +44,7 @@ module dftbp_dftb_hybridxc
   private
 
   public :: THybridXcSKTag, THybridXcFunc, THybridXcFunc_init
-  public :: getDirectedCamGammaPrimeValue
+  public :: getDirectionalCamGammaPrimeValue
   public :: hybridXcFunc, hybridXcAlgo, hybridXcGammaTypes, checkSupercellFoldingMatrix
 
 #:if WITH_SCALAPACK
@@ -53,11 +52,11 @@ module dftbp_dftb_hybridxc
 #:endif
 
 
-  !> Returns the (directed) derivative of long-range + full-range Hartree-Fock gamma.
-  interface getDirectedCamGammaPrimeValue
-    module procedure getDirectedCamGammaPrimeValue_cluster
-    module procedure getDirectedCamGammaPrimeValue_periodic
-  end interface getDirectedCamGammaPrimeValue
+  !> Returns the directional derivative of long-range + full-range Hartree-Fock gamma.
+  interface getDirectionalCamGammaPrimeValue
+    module procedure getDirectionalCamGammaPrimeValue_cluster
+    module procedure getDirectionalCamGammaPrimeValue_periodic
+  end interface getDirectionalCamGammaPrimeValue
 
 
   type :: TIntArray1D
@@ -946,7 +945,7 @@ contains
     !! Index array for descending sorting of Gamma arrays
     integer, allocatable :: gammasortIdx(:)
 
-    !! Temporary storage for g-resolved gamma values (+ directed derivatives)
+    !! Temporary storage for g-resolved gamma values (+ directional derivatives)
     real(dp), allocatable :: gammaEvalGTmp(:), dGammaEvalGTmp(:,:)
 
     !! Number of non-zero entries of (sorted) array
@@ -1045,7 +1044,7 @@ contains
       allocate(dGammaEvalGTmp(3, nGShifts))
       allocate(gammaSortIdx(nGShifts))
 
-      ! Pre-tabulate CAM gamma integrals (+ directed derivatives)
+      ! Pre-tabulate CAM gamma integrals (+ directional derivatives)
       do ii = 1, nAtom0**2
         iAtM = iAtMN(1, ii)
         iAtN = iAtMN(2, ii)
@@ -4032,13 +4031,13 @@ contains
 
 
   !> Returns the derivative of CAM range-separated gamma for iAtom1, iAtom2 (non-periodic version).
-  subroutine getDirectedCamGammaPrimeValue_cluster(this, grad, iAtom1, iAtom2)
+  subroutine getDirectionalCamGammaPrimeValue_cluster(this, grad, iAtom1, iAtom2)
 
     !> Class instance
     class(THybridXcFunc), intent(in) :: this
 
     !> Gradient of gamma between atoms
-    real(dp), intent(out) :: grad(3)
+    real(dp), intent(out) :: grad(:)
 
     !> First atom
     integer, intent(in) :: iAtom1
@@ -4070,17 +4069,17 @@ contains
       grad(:) = grad + vect * this%camAlpha * this%getHfGammaPrimeValue(iSp1, iSp2, dist)
     end if
 
-  end subroutine getDirectedCamGammaPrimeValue_cluster
+  end subroutine getDirectionalCamGammaPrimeValue_cluster
 
 
   !> Returns the derivative of CAM range-separated gamma for iAtom1, iAtom2 (periodic version).
-  subroutine getDirectedCamGammaPrimeValue_periodic(this, grad, iAtom1, iAtom2, img2CentCell)
+  subroutine getDirectionalCamGammaPrimeValue_periodic(this, grad, iAtom1, iAtom2, img2CentCell)
 
     !> Class instance
     class(THybridXcFunc), intent(in) :: this
 
     !> Gradient of gamma between atoms
-    real(dp), intent(out) :: grad(3)
+    real(dp), intent(out) :: grad(:)
 
     !> First atom
     integer, intent(in) :: iAtom1
@@ -4113,7 +4112,7 @@ contains
       grad(:) = grad + vect * this%camAlpha * this%getHfGammaPrimeValue(iSp1, iSp2, dist)
     end if
 
-  end subroutine getDirectedCamGammaPrimeValue_periodic
+  end subroutine getDirectionalCamGammaPrimeValue_periodic
 
 
 #:if WITH_SCALAPACK
@@ -4751,7 +4750,7 @@ contains
     do iAt1 = 1, nAtom0
       do iAt2 = 1, nAtom0
         if (iAt1 /= iAt2) then
-          call getDirectedCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
+          call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
           this%camdGammaEval0(:, iAt1, iAt2) = tmp
         end if
       end do
@@ -5609,7 +5608,7 @@ contains
     !! Product dPkm * phase * gammaAB * Sam
     complex(dp) :: dPkmPhaseGammaABSam
 
-    !! Directed derivatives
+    !! Directional derivatives
     real(dp), allocatable :: dGammaMK(:,:), dGammaAK(:,:), dGammaKB(:,:)
 
     !! Product phase * dGammaMK(:, iG)
@@ -6214,7 +6213,7 @@ contains
     do iAt1 = 1, nAtom0
       do iAt2 = 1, nAtom0
         if (iAt1 /= iAt2) then
-          call getDirectedCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
+          call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
           camGammaDeriv0(iAt2, iAt1, :) = tmp
         end if
       end do

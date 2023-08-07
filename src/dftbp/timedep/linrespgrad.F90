@@ -16,7 +16,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_hybridxc, only : THybridXcFunc, getDirectedCamGammaPrimeValue
+  use dftbp_dftb_hybridxc, only : THybridXcFunc, getDirectionalCamGammaPrimeValue
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime
   use dftbp_dftb_sk, only : rotateH0
@@ -2596,7 +2596,7 @@ contains
       do iAt1 = 1, nAtom
         do iAt2 = 1, nAtom
           if(iAt1 /= iAt2) then
-            call getDirectedCamGammaPrimeValue(hybridXc, tmpVec, iAt1, iAt2)
+            call getDirectionalCamGammaPrimeValue(hybridXc, tmpVec, iAt1, iAt2)
             gammaLongRangePrime(:, iAt1, iAt2) = tmpVec
           end if
         end do
@@ -4701,7 +4701,7 @@ contains
       do iAt1 = 1, nAtom
         do iAt2 = 1, nAtom
           if(iAt1 /= iAt2) then
-            call getDirectedCamGammaPrimeValue(hybridXc, tmpVec, iAt1, iAt2)
+            call getDirectionalCamGammaPrimeValue(hybridXc, tmpVec, iAt1, iAt2)
             gammaLongRangePrime(:, iAt1, iAt2) = tmpVec
           end if
         end do
