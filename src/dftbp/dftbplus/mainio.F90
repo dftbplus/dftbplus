@@ -4035,13 +4035,13 @@ contains
         end do
       end if
     end if
-    if (withBarostat) then
-      write(fd, "(A)") "Lattice vectors (A)"
-      do ii = 1, size(latVec, dim=2)
-        write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
-      end do
-    end if
     if (isPeriodic) then
+      if (withBarostat) then
+        write(fd, "(A)") "Lattice vectors (A)"
+        do ii = 1, size(latVec, dim=2)
+          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+        end do
+      end if
       write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
       write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
       if (abs(pressure) < 1.0e-16_dp) then
