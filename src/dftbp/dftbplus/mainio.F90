@@ -4028,17 +4028,17 @@ contains
       do ii = 1, size(derivs, dim=2)
         write(fd, "(3E24.8)") -derivs(:, ii)
       end do
+      if (hasStress) then
+        write(fd, "(A)") "Total stress (au)"
+        do ii = 1, size(totalStress, dim=2)
+          write(fd, "(3E24.8)") totalStress(:,ii)
+        end do
+      end if
     end if
     if (withBarostat) then
       write(fd, "(A)") "Lattice vectors (A)"
       do ii = 1, size(latVec, dim=2)
         write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
-      end do
-    end if
-    if (hasStress) then
-      write(fd, "(A)") "Total stress (au)"
-      do ii = 1, size(totalStress, dim=2)
-        write(fd, "(3E24.8)") totalStress(:,ii)
       end do
     end if
     if (isPeriodic) then
