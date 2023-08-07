@@ -1810,11 +1810,12 @@ contains
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%EMermin&
               & + this%extPressure * this%cellVol
         end if
-        call writeMdOut2(this%fdMd%unit, this%tStress, this%tBarostat, this%tPeriodic,&
-            & this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
+        call writeMdOut2(this%fdMd%unit, this%tPeriodic, this%tPrintForces, this%tStress,&
+            & this%tBarostat, this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
             & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
-            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage)
+            & this%derivs, this%totalStress, this%cellVol, this%intPressure, this%extPressure,&
+            & tempIon, this%qOutput, this%q0, this%dipoleMoment, this%eFieldScaling,&
+            & this%dipoleMessage)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
