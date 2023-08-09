@@ -5598,7 +5598,7 @@ contains
     type(string) :: modifier
     real(dp) :: defaultZ
     real(dp) :: zProj(3)
-    integer :: iNormalVec
+    integer :: ii, iComp
 
     call getChild(root, "DipoleCorrection", node, requested=.false.)
     if (.not. associated(node)) return
@@ -5610,13 +5610,17 @@ contains
       call detailedError(node, "Dipole correction only applicable, if only one lattice vector&
           & (the slab normal vector) has non-zero z-component")
     end if
-    iNormalVec = maxloc(zProj, dim=1)
-    if (any(abs(geo%latVecs(1 : 2, iNormalVec)) > 1e-12_dp)) then
-      call detailedError(node, "Dipole correction only applicable if the slab normal vector has&
-          & vanishing x- and y-components")
-    end if
     allocate(input)
-    defaultZ = -geo%latVecs(3, iNormalVec) / 2.0_dp
+    input%iNormalVec = maxloc(zProj, dim=1)
+    input%iNormalComp = 3
+    do ii = 1, 2
+      iComp = modulo(input%iNormalComp + ii - 1, 3) + 1
+      if (abs(geo%latVecs(iComp, input%iNormalVec)) > 1e-12_dp) then
+        call detailedError(node, "Dipole correction only applicable if the slab normal vector has&
+            & vanishing components apart of the normal direction")
+      end if
+    end do
+    defaultZ = -geo%latVecs(input%iNormalComp, input%iNormalVec) / 2.0_dp
     call getChildValue(node, "DipoleLayerPos", input%z0, default=defaultZ, modifier=modifier,&
         & child=child)
     call convertUnitHsd(char(modifier), lengthUnits, child, input%z0)

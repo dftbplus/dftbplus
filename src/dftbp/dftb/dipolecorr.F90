@@ -23,18 +23,27 @@ module dftbp_dftb_dipolecorr
 
 
   type :: TDipoleCorrInput
-    real(dp) :: z0
+
+    !> Index of the lattice vector, which is normal to the slab
+    integer :: iNormalVec = 3
+
+    !> Index of the vector component, which represents the normal direction
+    integer :: iNormalComp = 3
+
+    !> Position of the dipole correction layer
+    real(dp) :: z0 = 0.0_dp
   end type
 
 
   type :: TDipoleCorr
-   private
-
-   real(dp) :: z0_ = 0.0_dp
-   real(dp) :: cellHeight_ = 0.0_dp
-   real(dp) :: cellVol_ = 0.0_dp
-   real(dp), allocatable :: zCoords_(:)
-   real(dp) :: dipoleZ_
+    private
+    integer :: iNormalVec_ = 3
+    integer :: iNormalComp_ = 3
+    real(dp) :: z0_ = 0.0_dp
+    real(dp) :: cellHeight_ = 0.0_dp
+    real(dp) :: cellVol_ = 0.0_dp
+    real(dp), allocatable :: zCoords_(:)
+    real(dp) :: dipoleZ_ = 0.0_dp
   contains
     procedure :: updateLatVecs => TDipoleCorr_updateLatVecs
     procedure :: updateCoords => TDipoleCorr_updateCoords
@@ -45,13 +54,15 @@ module dftbp_dftb_dipolecorr
     procedure :: addForceDc => TDipoleCorr_addForceDc
   end type
 
-
 contains
+
 
   subroutine TDipoleCorr_init(this, inp)
     type(TDipoleCorr), intent(out) :: this
     type(TDipoleCorrInput), intent(in) :: inp
 
+    this%iNormalVec_ = inp%iNormalVec
+    this%iNormalComp_ = inp%iNormalComp
     this%z0_ = inp%z0
 
   end subroutine TDipoleCorr_init
@@ -61,7 +72,7 @@ contains
     class(TDipoleCorr), intent(inout) :: this
     real(dp), intent(in) :: latVecs(:,:)
 
-    this%cellHeight_ = latVecs(3, 3)
+    this%cellHeight_ = latVecs(this%iNormalComp_, this%iNormalVec_)
     this%cellVol_ = determinant33(latVecs)
 
   end subroutine TDipoleCorr_updateLatVecs
@@ -71,7 +82,7 @@ contains
     class(TDipoleCorr), intent(inout) :: this
     real(dp), intent(in) :: coords0(:,:)
 
-    this%zCoords_ = foldedZCoords_(coords0, this%z0_, this%cellHeight_)
+    this%zCoords_ = foldedZCoords_(coords0, this%iNormalComp_, this%z0_, this%cellHeight_)
 
   end subroutine TDipoleCorr_updateCoords
 
@@ -105,7 +116,7 @@ contains
 
     real(dp), allocatable :: zCoords(:)
 
-    zCoords = foldedZCoords_(coords, this%z0_, this%cellHeight_)
+    zCoords = foldedZCoords_(coords, this%iNormalComp_, this%z0_, this%cellHeight_)
     potentials(:) = dipoleCorrectionPot_(zCoords, this%z0_, this%dipoleZ_, this%cellVol_,&
         & this%cellHeight_)
 
@@ -129,17 +140,19 @@ contains
     real(dp), intent(inout) :: forces(:,:)
     real(dp), intent(in) :: deltaQAtom(:)
 
-    forces(3, :) = forces(3, :) + 4.0_dp * pi / this%cellVol_ * this%dipoleZ_ * deltaQAtom
+    forces(this%iNormalComp_, :) = &
+        & forces(this%iNormalComp_, :) + 4.0_dp * pi / this%cellVol_ * this%dipoleZ_ * deltaQAtom
 
   end subroutine TDipoleCorr_addForceDc
 
 
-  pure function foldedZCoords_(coords, z0, cellHeight) result(zCoords)
+  pure function foldedZCoords_(coords, iNormalComp, z0, cellHeight) result(zCoords)
     real(dp), intent(in) :: coords(:,:)
+    integer, intent(in) :: iNormalComp
     real(dp), intent(in) :: z0, cellHeight
     real(dp) :: zCoords(size(coords, dim=2))
 
-    zCoords(:) = modulo(coords(3, :) - z0, cellHeight) + z0
+    zCoords(:) = modulo(coords(iNormalComp, :) - z0, cellHeight) + z0
 
   end function foldedZCoords_
 
