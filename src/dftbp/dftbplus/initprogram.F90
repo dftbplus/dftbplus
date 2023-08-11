@@ -1611,7 +1611,10 @@ contains
     end if
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
-        & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS)
+        & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS, errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
@@ -4568,7 +4571,8 @@ contains
 
   !> Initialise a transport calculation
   subroutine initTransport_(this, env, input, electronicSolver, nSpin, tempElec, tNegf,&
-      & isAContactCalc, mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
+      & isAContactCalc, mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS,&
+      & errStatus)
 
     !> Instance
     class(TDftbPlusMain), intent(in) :: this
@@ -4616,6 +4620,9 @@ contains
     !> Labels for different regions for DOS output
     character(lc), allocatable, intent(out) :: regionLabelLDOS(:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     logical :: tAtomsOutside
     integer :: iSpin
     integer :: nSpinChannels, iCont, jCont
@@ -4637,6 +4644,8 @@ contains
       ! calculation without spin (poisson does not support spin dependent
       ! built in potentials)
       if (transpar%ncont > 0) then
+        call testTransportAtoms_(transpar, this%nAtom, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         allocate(mu(transpar%ncont, nSpinChannels))
         mu(:,:) = 0.0_dp
         do iSpin = 1, nSpinChannels
@@ -4701,6 +4710,46 @@ contains
     end if
 
   end subroutine initTransport_
+
+
+  !> Checks for atoms in two regions or not in any region of a transport calculation
+  subroutine testTransportAtoms_(transpar, nAtom, errStatus)
+
+    !> Transport calculation parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> Number of atoms in the provided device + contacts
+    integer, intent(in) :: nAtom
+
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
+    logical, allocatable :: atomInRegion(:)
+    integer :: ii
+
+    allocate(atomInRegion(nAtom), source=.false.)
+
+    ! check for atoms in multiple contact ranges/device
+    atomInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .true.
+    do ii = 1, transpar%nCont
+      if (any(atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2))))&
+          & then
+        @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Contact ''', A,''' contains atom ', I0,&
+            & ' which is also in another contact or device region')",&
+            & trim(transpar%contacts(ii)%name),&
+            & findloc(atomInRegion(transpar%contacts(ii)%idxrange(1):&
+            & transpar%contacts(ii)%idxrange(2)), .true.) + transpar%contacts(ii)%idxrange(1))
+      end if
+      atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .true.
+    end do
+
+    ! Check for atoms missing from any of these regions
+    if (any(.not.atomInRegion)) then
+      @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Atom ',I0, ' not in any contact or the device')",&
+          & findloc(atomInRegion, .false.))
+    end if
+
+  end subroutine testTransportAtoms_
 
 #:endif
 
