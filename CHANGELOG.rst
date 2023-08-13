@@ -39,6 +39,12 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+Changed
+-------
+
+- Degeneracy tolerance for perturbation theory switched to absolute
+  tolerance of differences between eigenvalues.
+
 Fixed
 -----
 
@@ -71,6 +77,8 @@ Fixed
   already has linear and quadratic independence of the free energy wrt
   temperature. Default for Methfestle-Paxton smearing is now set to 1
   (matching the results from the old default value).
+
+- Geometry error for periodic structures with open boundary contacts
 
 
 24.1 (2024-02-12)
