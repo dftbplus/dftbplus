@@ -5007,7 +5007,7 @@ ForceEvaluation = 'dynamics'
 
 This block collects some global options for the run.
 \begin{ptable}
-  \kw{WriteAutotestTag} &l & & No & \\
+  \kw{WriteAutotestTag} & l & & No & \\
   \kw{WriteDetailedXML} & l & & No & \\
   \kw{WriteResultsTag} & l & & No & \\
   \kw{WriteDetailedOut} & l & & Yes & \\
@@ -5025,6 +5025,7 @@ This block collects some global options for the run.
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
   \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
   \kw{MDOutput} & p & MD = Yes & \cb & \pref{sec:dftbp.MDOutput} \\
+  \kw{WriteAllAtomGeometry} & l & & No & \\
 \end{ptable}
 \begin{description}
 
@@ -5150,6 +5151,18 @@ This block collects some global options for the run.
   # Use the old format when reading and the new format when writing binary files
   BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
+
+\item[\is{WriteAllAtomGeometry}] Writes the extended geometry,
+  expanded according to the boundary conditions to an internally
+  required cut-off, as an xyz file, based on the name of the
+  \ls{OutputPrefix}, with ``extendedGeom\_'' prepended. This is
+  primarily a debugging tool, but shows the atoms outside of the
+  central cell for calculations for structures including periodic or
+  transport calculations. The cutoff will depend on the type of
+  calculation, but will be the longest interaction distance considered
+  in real-space by the code. {\bf Note:} The structure uses the
+  internal representation of neighbouring atoms, which only includes
+  one triangle of the external replicated atoms.
 
 \end{description}
 
@@ -5411,7 +5424,7 @@ their respective blocks in the \is{Analysis} environment:
 \begin{ptable}
   \kw{ConvergedPerturb} & l & SCC = Yes & Yes\\
   \kw{MaxPerturbIter} & i & SCC = Yes & 100\\
-  \kw{PerturbDegenTol} & r & & 128\\
+  \kw{PerturbDegenTol} & r & & 1.0E-9\\
   \kw{PerturbEta} & r & Dynamic Polarisation& 1E-8\\
   \kw{PerturbSccTol} & r & SCC = Yes & 1e-5\\
 \end{ptable}
@@ -5429,8 +5442,8 @@ their respective blocks in the \is{Analysis} environment:
   using $k$-points, the default number of self-consistent iterations
   will default to 1 in cases where a band structure is being plotted
   (see \iscb{KLines} in section \ref{sec:dftbp.KLines}).
-\item[\is{PerturbDegenTol}] In the case of degenerate systems,
-  determines the number of times machine epsilon that separated
+\item[\is{PerturbDegenTol}]\modif{\modtype{energy}} In the case of
+  degenerate systems, determines the energy separation for which
   eigenvalues are considered non-degenerate.
 \item[\is{PerturbEta}] In the case of finite frequency perturbations, a small
   imaginary constant, of magnitude \is{PerturbEta} is used in the expression
@@ -5478,7 +5491,6 @@ Static polarisability, with an adjusted degeneracy tolerance:
 \begin{verbatim}
 Analysis {
   Polarisability = {} # static enabled by default
-  PerturbDegenTol = 1024 # levels within 1024 x machine tolerance
 }
 \end{verbatim}
 
