@@ -4384,24 +4384,24 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities)
+      & iLatGeoStep, nSpin, qOutput, velocities, coord, extendedGeomFile, species)
 
-    !>  file for geometry output
+    !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
     !> How central cell atoms are represented
     real(dp), intent(in) :: pCoord0Out(:,:)
 
-    !> is the lattice being optimised?
+    !> Is the lattice being optimised?
     logical, intent(in) :: tLatOpt
 
     !> Is this a molecular dynamics calculation?
     logical, intent(in) :: tMd
 
-    !> should the geometry be added to the end, or the file cleared first
+    !> Should the geometry be added to the end, or the file cleared first
     logical, intent(in) :: tAppendGeo
 
-    !> are fractional GEN files expected
+    !> Are fractional GEN files expected
     logical, intent(in) :: tFracCoord
 
     !> Is the geometry periodic?
@@ -4410,35 +4410,44 @@ contains
     !> Is the geometry helical?
     logical, intent(in) :: tHelical
 
-    !> should Mulliken charges be printed
+    !> Should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
 
-    !> species of atoms in the central cell
+    !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
-    !> label for each atomic chemical species
+    !> Label for each atomic chemical species
     character(*), intent(in) :: speciesName(:)
 
-    !> lattice vectors
+    !> Lattice vectors
     real(dp), intent(in) :: latVec(:,:)
 
     !> Origin for periodic coordinates
     real(dp), intent(in) :: origin(:)
 
-    !> current geometry step
+    !> Current geometry step
     integer, intent(in) :: iGeoStep
 
-    !> current lattice step
+    !> Current lattice step
     integer, intent(in) :: iLatGeoStep
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> charges
+    !> Charges
     real(dp), intent(in), allocatable :: qOutput(:,:,:)
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
+
+    !> Coordinates of all atoms (including images, if extended)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> If the extended structure outside of the central cell be outputed, name of file prefix
+    character(lc), intent(in) :: extendedGeomFile
+
+    !> Species for each atom (in whole structure, if extended)
+    integer, intent(in) :: species(:)
 
     integer :: nAtom
     integer :: ii, jj
@@ -4477,6 +4486,11 @@ contains
       end if
     else
       call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+          & comment=comment, append=tAppendGeo)
+    end if
+
+    if (len(trim(extendedGeomFile)) > 0) then
+      call writeXYZFormat(trim(extendedGeomFile), coord, species, speciesName,&
           & comment=comment, append=tAppendGeo)
     end if
 

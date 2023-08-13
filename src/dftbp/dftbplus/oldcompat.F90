@@ -801,7 +801,7 @@ contains
 
       call getDescendant(root, "Analysis/DegeneracyTolerance", ch1)
       if (associated(ch1)) then
-        call detailedWarning(ch1, "Keyword renamed to 'PerturbDegenTol'.")
+        call detailedWarning(ch1, "Keyword renamed to 'PertubDegenTol'.")
         call setNodeName(ch1, "PertubDegenTol")
       end if
 
@@ -845,6 +845,7 @@ contains
     logical :: isScc, isNoneAlgorithm
     integer :: iOrder
     character(lc) :: strTmp
+    real(dp) :: rTol
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
@@ -904,6 +905,18 @@ contains
         call setUnprocessed(ch1)
         call setUnprocessed(ch2)
       end if
+    end if
+
+    call getDescendant(root, "Analysis/PertubDegenTol", ch1, parent=par)
+    if (associated(ch1)) then
+      call getChildValue(par, "PertubDegenTol", rTol)
+      if (rTol < 1.0_dp) then
+        call detailedError(ch1, "Perturbation degeneracy tolerance must be above 1x")
+      end if
+      dummy => removeChild(par,ch1)
+      call destroyNode(ch1)
+      call setChildValue(par, "PerturbDegenTol", rTol * epsilon(0.0_dp), child=ch1)
+      call detailedWarning(par, "Keyword renamed to 'PerturbDegenTol'.")
     end if
 
   end subroutine convert_13_14

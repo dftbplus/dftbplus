@@ -30,7 +30,7 @@ module dftbp_math_matrixops
 
   private
   public :: adjointLowerTriangle, orthonormalizeVectors, adjugate, makeSimilarityTrans
-  public :: matinv, symmatinv, hermatinv, det, calcMatrixSqrt
+  public :: matinv, symmatinv, hermatinv, det, calcMatrixSqrt, pseudoInv
 #:if WITH_SCALAPACK
   public :: adjointLowerTriangle_BLACS
 
@@ -686,5 +686,43 @@ contains
 
   end subroutine calcMatrixSqrt
 
+
+  !> Moore-Penrose pseudo-inverse of general rectangular matrix
+  subroutine pseudoInv(A, Ainv)
+
+    !> Matrix A(m,n), overwritten on output
+    real(dp), intent(inout) :: A(:,:)
+
+    !> Pseudoinverse, returned as transpose Ainv(m,n)
+    real(dp), intent(out) :: Ainv(:,:)
+
+    real(dp), allocatable :: U(:,:), sigma(:), Vt(:,:)
+    integer :: m, n, mn, ii
+
+    m = size(A, dim=1)
+    n = size(A, dim=2)
+    mn = min(m, n)
+
+    @:ASSERT(all(shape(Ainv) == [m,n]))
+
+    allocate(U(m,mn))
+    allocate(Vt(mn,n))
+    allocate(sigma(mn))
+
+    call gesvd(A, U, sigma, Vt)
+
+    where(sigma > epsilon(0.0_dp))
+      sigma = 1.0_dp / sigma
+    elsewhere
+      sigma = 0.0_dp
+    end where
+
+    do ii = 1, mn
+      U(:, ii) = U(:, ii) * sigma(ii)
+    end do
+
+    Ainv(:,:) = matmul(U,Vt)
+
+  end subroutine pseudoInv
 
 end module dftbp_math_matrixops

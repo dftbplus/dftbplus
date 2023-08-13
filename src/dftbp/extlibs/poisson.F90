@@ -24,7 +24,7 @@ module dftbp_extlibs_poisson
   use dftbp_extlibs_mpifx, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_POISSON
-  use dftbp_poisson_parameters, only : poissonBCsEnum
+  use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
   use dftbp_poisson_poisson, only : active_id, angShells, bufferBox, check_biasdir, check_contacts,&
       & check_localbc, check_parameters, check_poisson_box, deltaR_max, DoCilGate, DoGate, dQmat,&
       & dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir, GateLength_l, GateLength_t,&

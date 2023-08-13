@@ -220,13 +220,13 @@ module dftbp_transport_negfvars
     type(ContactInfo), allocatable :: contacts(:)
 
     !> Number of contacts
-    integer :: ncont = 0
+    integer :: nCont = 0
 
     !> Start and end index of device region
     integer :: idxdevice(2)
 
     !> Number of principal layers
-    integer :: nPLs =1
+    integer :: nPLs = 1
 
     !> PL indices (starting atom)
     integer, allocatable, dimension(:) :: PL
