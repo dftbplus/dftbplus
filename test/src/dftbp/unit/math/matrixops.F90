@@ -12,7 +12,7 @@ module test_math_matrixops
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
-  use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors
+  use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors, pseudoInv
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
@@ -130,6 +130,48 @@ contains
     @:ASSERT(all(abs(matReal - CT) < 1024_dp * epsilon(0.0_dp)))
 
   $:END_TEST()
+
+
+  $:TEST("pseudoInverse")
+
+    real(dp), allocatable :: A(:,:), Ainv(:,:), work(:,:)
+    integer :: ii, m, n
+    character(10) :: formatString
+
+    ! small 1D test
+    m = 4
+    n = 1
+    allocate(A(m, n))
+    allocate(Ainv(m, n))
+
+    A(:,:) = real(reshape([1,2,3,4], [m,n]), dp)
+    work = A
+    call pseudoInv(work, Ainv)
+
+    ! check A = A.A.A^~
+    @:ASSERT(all(abs(A - matmul(A, matmul(transpose(A),Ainv))) < 256.0_dp * epsilon(1.0_dp)))
+    deallocate(A)
+    deallocate(Ainv)
+    deallocate(work)
+
+    ! small 2D test
+    m = 3
+    n = 2
+    allocate(A(m, n))
+    allocate(Ainv(m, n))
+
+    A(:,:) = real(reshape([1,2,3,4,5,6], [m,n]), dp)
+    work = A
+    call pseudoInv(work, Ainv)
+
+    ! check A = A.A.A^~
+    @:ASSERT(all(abs(A - matmul(A, matmul(transpose(A),Ainv))) < 256.0_dp * epsilon(1.0_dp)))
+    deallocate(A)
+    deallocate(Ainv)
+    deallocate(work)
+
+  $:END_TEST()
+
 
   function tests()
     type(test_list) :: tests
