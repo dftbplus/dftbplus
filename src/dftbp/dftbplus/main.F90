@@ -11,7 +11,7 @@
 !> The main routines for DFTB+
 module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, bohr__aa
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, withMpi
@@ -83,11 +83,12 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
+  use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_blasroutines, only : hemm, symm
-  use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
+  use dftbp_math_lapackroutines, only : hermatinv, symmatinv
   use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
   use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
@@ -1526,6 +1527,10 @@ contains
             & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
       endif
     end if
+    if (this%areAllAtomsPrinted) then
+      call writeXYZFormat("extendedGeom_"//trim(this%geoOutFile)//".xyz", this%coord, this%species,&
+          & this%speciesName, append=(this%tAppendGeo.and.iGeoStep>0))
+    end if
 
     if (this%tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -1929,7 +1934,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
-      & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
+      & repulsive, dispersion, solvation, cm5Cont, recVecs, invLatVecs, cellVol, recCellVol,&
       & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
 
     !> lattice vectors
@@ -1966,7 +1971,7 @@ contains
     real(dp), intent(out) :: recVecs(:,:)
 
     !> Reciprocal lattice vectors in units of 2 pi
-    real(dp), intent(out) :: recVecs2p(:,:)
+    real(dp), intent(out) :: invLatVecs(:,:)
 
     !> Unit cell volume
     real(dp), intent(out) :: cellVol
@@ -1986,12 +1991,8 @@ contains
     !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
-    cellVol = abs(determinant33(latVecs))
-    recVecs2p(:,:) = latVecs
-    call matinv(recVecs2p)
-    recVecs2p = transpose(recVecs2p)
-    recVecs = 2.0_dp * pi * recVecs2p
-    recCellVol = abs(determinant33(recVecs))
+    call boundaryCond%handleBoundaryChanges(latVecs, invLatVecs, recVecs, cellVol, recCellVol)
+
     if (tStress) then
       call derivDeterminant33(extLatDerivs, latVecs)
       extLatDerivs(:,:) = extPressure * extLatDerivs
@@ -2019,7 +2020,7 @@ contains
        call cm5Cont%updateLatVecs(latVecs)
        mCutoff = max(mCutOff, cm5Cont%getRCutOff())
     end if
-    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
+    call getCellTranslations(cellVecs, rCellVecs, latVecs, invLatVecs, mCutOff, boundaryCond)
 
   end subroutine handleLatticeChange
 
@@ -2122,7 +2123,7 @@ contains
     !> Imaginary part of sparse density matrix storage
     real(dp), allocatable, intent(inout) :: iRhoPrim(:,:)
 
-    !> energy weighted density matrix storage
+    !> energ weighted density matrix storage
     real(dp), allocatable, intent(inout) :: ERhoPrim(:)
 
     !> index array for location of atomic blocks in large sparse arrays
