@@ -61,6 +61,10 @@ Changed
 - Removes SCC keyword if using hybrid functionals (as these should always
   be SCC)
 
+- Degeneracy tolerance for perturbation theory switched to absolute
+  tolerance of differences between eigenvalues.
+
+
 Fixed
 -----
 
@@ -95,6 +99,8 @@ Fixed
   (matching the results from the old default value).
 
 - Remove duplicate printing of internal energy in results.tag
+
+- Geometry error for periodic structures with open boundary contacts
 
 
 24.1 (2024-02-12)
