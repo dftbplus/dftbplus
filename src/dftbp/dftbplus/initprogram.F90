@@ -143,7 +143,7 @@ module dftbp_dftbplus_initprogram
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
-  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
+  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init, transportPeriodicSetup
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
@@ -225,6 +225,9 @@ module dftbp_dftbplus_initprogram
     !> Are atomic coordinates fractional?
     logical :: tFracCoord
 
+    !> If the extended structure outside of the central cell be outputed, name of file
+    character(lc) :: extendedGeomFile = ""
+
     !> Tolerance for SCC cycle
     real(dp) :: sccTol
 
@@ -243,7 +246,7 @@ module dftbp_dftbplus_initprogram
     !> Normalized vectors in those directions
     real(dp) :: normOrigLatVec(3,3)
 
-    !> Reciprocal vectors in 2 pi units
+    !> Reciprocal vectors in 2 pi units / inverse of the lattice vector matrix
     real(dp), allocatable :: invLatVec(:,:)
 
     !> Cell volume
@@ -1547,6 +1550,14 @@ contains
     end if
     this%tFracCoord = input%geom%tFracCoord
 
+    if (input%ctrl%areAllAtomsPrinted .and. isIoProc) then
+      if (len(trim(this%geoOutFile)) > 0) then
+        this%extendedGeomFile = "extendedGeom_"//trim(this%geoOutFile)//".xyz"
+      else
+        this%extendedGeomFile = "extendedGeom.xyz"
+      end if
+    end if
+
     ! no point if not SCC
     this%isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc)
 
@@ -1685,6 +1696,9 @@ contains
     if (this%tUpload) then
       call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
+      if (input%transpar%ncont < 1) then
+        call error("At least one contact is required for an UploadContacts task")
+      end if
     end if
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
@@ -5135,6 +5149,9 @@ contains
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
+    if (len(trim(this%extendedGeomFile)) > 0) then
+      call clearFile(trim(this%extendedGeomFile))
+    end if
     if (allocated(this%electrostatPot)) then
       call clearFile(this%electrostatPot%espOutFile)
     end if
@@ -6751,13 +6768,13 @@ contains
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
       & recCellVol, errStatus)
 
-    !> Geometry input
+    !> Input variables to use for setput
     type(TInputData), intent(in) :: input
 
-    !> Total number of atoms, including images
+    !> Number of unique atoms in the system
     integer, intent(out) :: nAtom
 
-    !> Number of chemical types
+    !> Number of chemical types of atoms
     integer, intent(out) :: nType
 
     !> Is this a periodic geometry
@@ -6766,13 +6783,13 @@ contains
     !> Is this a helical geometry
     logical, intent(out) :: tHelical
 
-    !> Boundary conditions
+    !> Boundary conditions on the calculation
     type(TBoundaryConds), intent(out) :: boundaryCond
 
-    !> Central cell coordinates
+    !> Coordinates of the central cell atoms
     real(dp), allocatable, intent(out) :: coord0(:,:)
 
-    !> Central cell chemical species
+    !> Species of the central cell atoms
     integer, allocatable, intent(out) :: species0(:)
 
     !> Have the coordinates been updated without updating dependent variables
@@ -6817,39 +6834,36 @@ contains
     end if
     @:PROPAGATE_ERROR(errStatus)
 
+  #:if WITH_TRANSPORT
+    if (tPeriodic) then
+       call transportPeriodicSetup(input%transpar, input%geom%latVecs, boundaryCond)
+    end if
+  #:endif
+
     coord0 = input%geom%coords
     species0 = input%geom%species
     tCoordsChanged = .true.
 
-    cellVol = 0.0_dp
-    recCellVol = 0.0_dp
+    tLatticeChanged = .false.
     if (tPeriodic) then
       tLatticeChanged = .true.
       latVec = input%geom%latVecs
       origin = input%geom%origin
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
-      invLatVec(:,:) = latVec
-      call invert33(invLatVec)
-      invLatVec = reshape(invLatVec, [3, 3], order=[2, 1])
-      recVec = 2.0_dp * pi * invLatVec
-      cellVol = abs(determinant33(latVec))
-      recCellVol = abs(determinant33(recVec))
-    elseif (tHelical) then
+    else if (tHelical) then
       origin = input%geom%origin
       latVec = input%geom%latVecs
-      allocate(recVec(1, 1))
-      recVec = 1.0_dp / latVec(1,1)
+      allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
     else
       allocate(latVec(0, 0))
       allocate(origin(0))
       allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
-      cellVol = 0.0_dp
-      recCellVol = 0.0_dp
-      tLatticeChanged = .false.
     end if
+
+    call boundaryCond%handleBoundaryChanges(latVec, invLatVec, recVec, cellVol, recCellVol)
 
   end subroutine initGeometry_
 

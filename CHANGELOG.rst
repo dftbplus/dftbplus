@@ -64,6 +64,10 @@ Changed
   input
 
 
+- Degeneracy tolerance for perturbation theory switched to absolute
+  tolerance of differences between eigenvalues.
+
+
 Fixed
 -----
 
@@ -101,6 +105,9 @@ Fixed
 
 - Correct testing for incompatible Poisson boundary overrides when
   only one side of the box is marked as periodic
+
+- Geometry error for periodic structures with open boundary contacts
+
 
 24.1 (2024-02-12)
 =================

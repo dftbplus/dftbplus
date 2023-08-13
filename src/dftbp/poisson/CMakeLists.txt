@@ -1,6 +1,7 @@
 set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
+  ${curdir}/boundaryconditions.F90
   ${curdir}/bulkpot.F90
   ${curdir}/fancybc.F90
   ${curdir}/gallocation.F90

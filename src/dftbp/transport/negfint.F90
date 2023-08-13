@@ -16,8 +16,8 @@ module dftbp_transport_negfint
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init,&
-      & updateNeighbourListAndSpecies
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_extlibs_negf, only : associate_current, associate_ldos, associate_lead_currents,&
       & associate_transmission, COMP_SGF, COMPSAVE_SGF, compute_current, compute_density_dft,&
@@ -42,7 +42,7 @@ module dftbp_transport_negfint
   implicit none
 
   private
-  public :: TNegfInt, TNegfInt_init, TNegfInt_final
+  public :: TNegfInt, TNegfInt_init, TNegfInt_final, transportPeriodicSetup
 
 
   !> Contains data needed by the NEGF interface
@@ -75,6 +75,34 @@ module dftbp_transport_negfint
   character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
 
 contains
+
+
+  !> Transport geometric setup when in a periodic structure
+  subroutine transportPeriodicSetup(transpar, latVecs, boundaryCond)
+
+    !> Parameters for the transport calculation
+    Type(TTranspar), intent(in) :: transpar
+
+    !> Periodic lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConds), intent(inout) :: boundaryCond
+
+    logical :: isDir(3)
+    integer :: iCont, iDir
+
+    isDir(:) = .false.
+    do iCont = 1, transpar%nCont
+      do iDir = 1, 3
+        isDir(iDir) = isDir(iDir) .or.&
+            & abs(dot_product(transpar%contacts(iCont)%lattice, latVecs(:,iDir))) > epsilon(0.0_dp)
+      end do
+    end do
+    call boundaryCond%setTransportDirections(isDir)
+
+  end subroutine transportPeriodicSetup
+
 
   !> Init gDFTB environment and variables
   subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, coords, skCutOff,&
@@ -128,7 +156,6 @@ contains
       do iAt = transpar%contacts(i)%idxrange(1), transpar%contacts(i)%idxrange(2)
         do j = i+1, ncont
           do jAt = transpar%contacts(j)%idxrange(1), transpar%contacts(j)%idxrange(2)
-            !write(*,*)i,j,sum((coords(:,iAt)-coords(:,jAt))**2),skCutOff**2
             if (sum((coords(:,iAt)-coords(:,jAt))**2) <= skCutOff**2) then
               write(errString,"(A,I0,A,I0,A)") 'Atom ', iAt, ' in contact "'//&
                   & trim(transpar%contacts(i)%name) // '" and atom ', jAt, ' in contact "'// &
@@ -141,7 +168,8 @@ contains
     end do
 
     if (hasFullySurroundingContacts(isPeriodic, nCont, transpar)) then
-      call error('Device is fully surrounded by contacts, so should not be a periodic geometry')
+      call error('Device has contacts breaking periodicity in all three directions, so should not&
+          & be a periodic geometry')
     end if
 
     ! ------------------------------------------------------------------------------
@@ -160,7 +188,7 @@ contains
     ! This must be different for different initialisations, to be separated
     ! Higher between transport and greendens is taken, temporary
     if (tundos%defined .and. greendens%defined) then
-       if (tundos%verbose.gt.greendens%verbose) then
+       if (tundos%verbose > greendens%verbose) then
           params%verbose = tundos%verbose
        else
           params%verbose = greendens%verbose
@@ -231,11 +259,11 @@ contains
     ! Fermi level is given by the contacts. If no contacts => no transport,
     ! Then Fermi is defined by the Green solver
     if (transpar%defined) then
-      pot = transpar%contacts(1:ncont)%potential
-      eFermi = transpar%contacts(1:ncont)%eFermi(1)
+      pot = transpar%contacts(:ncont)%potential
+      eFermi = transpar%contacts(:ncont)%eFermi(1)
       do i = 1,ncont
         ! Built-in potential to equilibrate Fermi levels
-        pot(i) = pot(i) + eFermi(i) - minval(eFermi(1:ncont))
+        pot(i) = pot(i) + eFermi(i) - minval(eFermi(:ncont))
 
         ! set parameters for wide band approximations
         params%FictCont(i) = transpar%contacts(i)%wideBand
@@ -278,7 +306,7 @@ contains
     ! ------------------------------------------------------------------------------
     if (greendens%defined) then
       params%Ec = greendens%enLow           ! lowest energy
-      params%Np_n(1:2) = greendens%nP(1:2)  ! contour npoints
+      params%Np_n(:2) = greendens%nP(:2)  ! contour npoints
       params%n_kt = greendens%nkt           ! n*kT for Fermi
 
       ! Real-axis points.
@@ -321,7 +349,7 @@ contains
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
         write(stdOut,*) 'eFermi: ', params%mu(1)
       end if
-      write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
+      write(stdOut,*) 'Contour Points: ', params%Np_n(:2)
       write(stdOut,*) 'Number of poles: ', params%N_poles
       write(stdOut,*) 'Real-axis points: ', params%Np_real
       if (params%readOldDM_SGFs==0) then
@@ -351,8 +379,8 @@ contains
     if (tundos%defined) then
 
       l = size(tundos%ni)
-      params%ni(1:l) = tundos%ni(1:l)
-      params%nf(1:l) = tundos%nf(1:l)
+      params%ni(:l) = tundos%ni(:l)
+      params%nf(:l) = tundos%nf(:l)
 
       ! setting of intervals and indices for projected DOS
       if (allocated(tundos%dosOrbitals)) then
@@ -418,24 +446,19 @@ contains
     !> Is the device surrounded
     logical :: isSurrounded
 
-    real(dp), allocatable :: contVectors(:, :), sigma(:), U(:, :), Vt(:, :)
+    logical :: isDir(3)
     integer :: iCont
 
-    if (.not.isPeriodic .or. nCont < 3) then
+    if (.not.isPeriodic) then
       isSurrounded = .false.
       return
     end if
 
-    allocate(sigma(min(nCont,3)))
-    allocate(contVectors(3, nCont))
-    allocate(U(3, 3))
-    allocate(Vt(nCont, nCont))
+    isDir(:) = .false.
     do iCont = 1, nCont
-      contVectors(:, iCont) = transpar%contacts(iCont)%lattice
+      isDir(:) = isDir .or. (abs(transpar%contacts(iCont)%lattice) > epsilon(0.0_dp))
     end do
-    call gesvd(contVectors, U, sigma, Vt)
-
-    isSurrounded = all(sigma > transpar%contactLayerTol**2)
+    isSurrounded = all(isDir)
 
   end function hasFullySurroundingContacts
 
@@ -589,136 +612,138 @@ contains
     Integer, intent(in) :: iNeigh(0:,:)
 
     integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:)
-    integer, allocatable :: ind(:), atomst(:), plcont(:)
+    integer, allocatable :: ind(:), atomStart(:), plcont(:)
+
     integer, allocatable :: minv(:,:)
-    Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
-    integer :: i, m, i1, j1, info
+
+    !! Number of principle layers in the device
+    Integer :: nDevicePLs
+
+    !! Start and end range of atoms in a contact
+    Integer :: iAtContStart, iAtContEnd
+
+    Integer :: nAtom, ncont, iatm2
+    integer :: ii, m, i1, j1, info
 
     iatm2 = transpar%idxdevice(2)
     ncont = transpar%ncont
-    nbl = 0
+    nDevicePLs = 0
 
     if (transpar%defined) then
-       nbl = transpar%nPLs
+       nDevicePLs = transpar%nPLs
     else if (greendens%defined) then
-       nbl = greendens%nPLs
+       nDevicePLs = greendens%nPLs
     endif
 
-    if (nbl.eq.0) then
-      call error('Internal ERROR: nbl = 0 ?!')
+    if (nDevicePLs.eq.0) then
+      call error('Internal ERROR: nDevicePLs = 0 ?!')
     end if
 
-    natoms = size(denseDescr%iatomstart) - 1
+    nAtom = size(denseDescr%iAtomStart) - 1
 
-    call check_pls(transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
+    call check_pls(transpar, greendens, nAtom, iNeigh, nNeigh, img2CentCell, info)
 
-    allocate(PL_end(nbl))
-    allocate(atomst(nbl+1))
-    allocate(plcont(nbl))
-    allocate(cblk(ncont))
+    allocate(PL_end(nDevicePLs))
+    allocate(atomStart(nDevicePLs+1))
+    allocate(plcont(nDevicePLs))
+    allocate(cblk(ncont), source = 0)
     allocate(cont_end(ncont))
     allocate(surf_end(ncont))
     allocate(surf_start(ncont))
-    allocate(ind(natoms+1))
-    allocate(minv(nbl,ncont))
+    allocate(ind(nAtom+1))
+    allocate(minv(nDevicePLs, ncont), source = 0)
 
-    ind(:) = DenseDescr%iatomstart(:) - 1
-    minv = 0
+    ind(:) = DenseDescr%iAtomStart(:) - 1
     cblk = 0
 
-    do i = 1, ncont
-       cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
-       surf_start(i) = ind(transpar%contacts(i)%idxrange(1))+1
-       surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
+    do ii = 1, ncont
+       cont_end(ii) = ind(transpar%contacts(ii)%idxrange(2)+1)
+       surf_start(ii) = ind(transpar%contacts(ii)%idxrange(1))+1
+       surf_end(ii) = ind(transpar%contacts(ii)%idxrange(1))
     enddo
 
     if (transpar%defined) then
-      do i = 1, nbl-1
-        PL_end(i) = ind(transpar%PL(i+1))
+      do ii = 1, nDevicePLs-1
+        PL_end(ii) = ind(transpar%PL(ii+1))
       enddo
-      atomst(1:nbl) = transpar%PL(1:nbl)
-      PL_end(nbl) = ind(transpar%idxdevice(2)+1)
-      atomst(nbl+1) = iatm2 + 1
+      atomStart(:nDevicePLs) = transpar%PL(:nDevicePLs)
+      PL_end(nDevicePLs) = ind(transpar%idxdevice(2)+1)
+      atomStart(nDevicePLs+1) = iatm2 + 1
     else if (greendens%defined) then
-      do i = 1, nbl-1
-        PL_end(i) = ind(greendens%PL(i+1))
+      do ii = 1, nDevicePLs-1
+        PL_end(ii) = ind(greendens%PL(ii+1))
       enddo
-      atomst(1:nbl) = greendens%PL(1:nbl)
-      PL_end(nbl) = ind(natoms+1)
-      atomst(nbl+1) = natoms + 1
+      atomStart(:nDevicePLs) = greendens%PL(:nDevicePLs)
+      PL_end(nDevicePLs) = ind(nAtom+1)
+      atomStart(nDevicePLs+1) = nAtom + 1
     endif
 
-    if (transpar%defined .and. ncont.gt.0) then
+    if (transpar%defined .and. ncont > .0) then
 
       if(.not.transpar%tNoGeometry) then
 
-       ! For each PL finds the min atom index among the atoms in each contact
-       ! At the end the array minv(iPL,iCont) can have only one value != 0
-       ! for each contact and this is the interacting PL
-       ! NOTE: the algorithm works with the asymmetric neighbor-map of dftb+
-       !       because atoms in contacts have larger indices than in the device
-       do m = 1, transpar%nPLs
+        ! For each PL finds the min atom index among the atoms in each contact
+        ! At the end, the array minv(iPL,iCont) can have only one value != 0
+        ! for each contact and this is the interacting PL
+        ! NOTE: the algorithm works with the asymmetric neighbor-map of dftb+
+        !       because atoms in contacts have larger indices than in the device
+        do m = 1, transpar%nPLs
           ! Loop over all PL atoms
-          do i = atomst(m), atomst(m+1)-1
-
-             ! Loop over all contacts
-             do j1 = 1, ncont
-
-                iatc1 = transpar%contacts(j1)%idxrange(1)
-                iatc2 = transpar%contacts(j1)%idxrange(2)
-
-                i1 = minval(img2CentCell(iNeigh(1:nNeigh(i),i)), &
-                    & mask = (img2CentCell(iNeigh(1:nNeigh(i),i)).ge.iatc1 .and. &
-                    & img2CentCell(iNeigh(1:nNeigh(i),i)).le.iatc2) )
-
-                if (i1.ge.iatc1 .and. i1.le.iatc2) then
-                    minv(m,j1) = j1
-                endif
-
-             end do
+          do ii = atomStart(m), atomStart(m+1)-1
+            ! Loop over all contacts
+            do j1 = 1, ncont
+              iAtContStart = transpar%contacts(j1)%idxrange(1)
+              iAtContEnd = transpar%contacts(j1)%idxrange(2)
+              ! lowest numbered atom in the PL. Note, if mask is all false, minval returns huge()
+              i1 = minval(img2CentCell(iNeigh(:nNeigh(ii),ii)), &
+                  & mask = (img2CentCell(iNeigh(:nNeigh(ii),ii)) >= iAtContStart .and. &
+                  & img2CentCell(iNeigh(:nNeigh(ii),ii)) <= iAtContEnd) )
+              if (i1 >= iAtContStart .and. i1 <= iAtContEnd) then
+                minv(m, j1) = j1
+              endif
+            end do
           end do
-       end do
+        end do
 
+        do j1 = 1, ncont
 
-       do j1 = 1, ncont
+          if (all(minv(:,j1) == 0)) then
+            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            write(stdOut,"(A,I0,A)") 'WARNING: contact ',j1,' does not interact with any PL'
+            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            minv(1,j1) = j1
+          end if
 
-         if (all(minv(:,j1) == 0)) then
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'WARNING: contact',j1,' does not interact with any PL'
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           minv(1,j1) = j1
-         end if
+          if (count(minv(:,j1).eq.j1) > 1) then
+            write(stdOut,"(A)")     '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            write(stdOut,"(A,I0,A)")'ERROR: contact ',j1,' interacts with more than one PL'
+            write(stdOut,"(A)")     '       check structure and increase PL size         '
+            write(stdOut,"(A)")     '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+            call error("")
+          end if
 
-         if (count(minv(:,j1).eq.j1).gt.1) then
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
-           write(stdOut,*) '       check structure and increase PL size         '
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           call error("")
-         end if
+          do m = 1, transpar%nPLs
+            if (minv(m,j1).eq.j1) then
+              cblk(j1) = m
+            end if
+          end do
 
-         do m = 1, transpar%nPLs
-           if (minv(m,j1).eq.j1) then
-             cblk(j1) = m
-           end if
-         end do
-
-       end do
+        end do
 
       else
 
-         cblk=transpar%cblk
+        cblk=transpar%cblk
 
       end if
 
       write(stdOut,*) ' Structure info:'
-      write(stdOut,*) ' Number of PLs:',nbl
-      write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
+      write(stdOut,"(1X,A,1X,I0)") ' Number of PLs:',nDevicePLs
+      write(stdOut,*) ' PLs coupled to contacts:',cblk(:ncont)
       write(stdOut,*)
 
     end if
 
-    call init_structure(this%negf, ncont, surf_start, surf_end, cont_end, nbl, PL_end, cblk)
+    call init_structure(this%negf, ncont, surf_start, surf_end, cont_end, nDevicePLs, PL_end, cblk)
 
   end subroutine setup_str
 
@@ -772,10 +797,10 @@ contains
     allocate(atomst(nbl+1))
 
     if (transpar%defined) then
-      atomst(1:nbl) = transpar%PL(1:nbl)
+      atomst(:nbl) = transpar%PL(:nbl)
       atomst(nbl+1) = iatm2 + 1
     else if (greendens%defined) then
-      atomst(1:nbl) = greendens%PL(1:nbl)
+      atomst(:nbl) = greendens%PL(:nbl)
       atomst(nbl+1) = natoms + 1
     endif
 
@@ -785,11 +810,11 @@ contains
          iats = atomst(nn)
          iate = atomst(nn+1)-1
          do ii = atomst(mm), atomst(mm+1)-1
-            kk = maxval( img2CentCell(iNeigh(1:nNeigh(ii),ii)), &
-               mask = (img2CentCell(iNeigh(1:nNeigh(ii),ii)).ge.iats .and. &
-               img2CentCell(iNeigh(1:nNeigh(ii),ii)).le.iate) )
+            kk = maxval( img2CentCell(iNeigh(:nNeigh(ii),ii)), &
+               mask = (img2CentCell(iNeigh(:nNeigh(ii),ii)) >= iats .and. &
+               img2CentCell(iNeigh(:nNeigh(ii),ii)) <= iate) )
          end do
-         if (nn .gt. mm+1 .and. kk .ge. iats .and. kk .le. iate) then
+         if (nn > mm+1 .and. kk >= iats .and. kk <= iate) then
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            write(stdOut,*) 'WARNING: PL ',mm,' interacts with PL',nn
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
@@ -842,7 +867,7 @@ contains
     params%spin = spin
     params%DorE='N'
     nn=size(mu,1)
-    params%mu(1:nn) = mu(1:nn)
+    params%mu(:nn) = mu(:nn)
 
     if(present(DensMat)) then
        params%DorE = 'D'
@@ -1465,7 +1490,7 @@ contains
     nTotKS = nS * size(kpoints, dim=2)
     ncont = size(mu,1)
 
-    if (params%verbose.gt.30) then
+    if (params%verbose > 30) then
       write(stdOut, *)
       write(stdOut, '(80("="))')
       write(stdOut, *) '                            COMPUTATION OF CURRENT         '
@@ -1479,7 +1504,7 @@ contains
 
       write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
 
-      params%mu(1:ncont) = mu(1:ncont,iS)
+      params%mu(:ncont) = mu(:ncont,iS)
 
       call set_params(this%negf, params)
 
@@ -2193,7 +2218,7 @@ contains
     nnz=0
     do i=1,NumStates
       do j=1,NumStates
-        if ((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001_dp)) then
+        if ((i.eq.j).or.(abs(H_all(i,j)) > 0.00001_dp)) then
           nnz = nnz+1
         end if
       end do
@@ -2209,7 +2234,7 @@ contains
     do i=1,NumStates
        k=0
        do j=1,NumStates
-          if((i.eq.j).or.(abs(H_all(i,j)).gt.0.00001_dp)) then
+          if((i.eq.j).or.(abs(H_all(i,j)) > 0.00001_dp)) then
              k=k+1
              nnz=nnz+1
              if(i.eq.j) then
@@ -2369,7 +2394,7 @@ contains
     allocate(B(N2,N2), U(N2,N2))
     W(:) = 0.0_dp
 
-    A(:,:) = S(1:N2,1:N2)
+    A(:,:) = S(:N2,1:N2)
     U(:,:) = A
 
     call heev(U, W, 'L', 'V')
@@ -2410,7 +2435,7 @@ contains
     do i = N2+1, N
       C(i,i) = 1.0_dp
     end do
-    C(1:N2,1:N2) = A
+    C(:N2,1:N2) = A
 
     deallocate(A)
 

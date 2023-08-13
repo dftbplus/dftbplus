@@ -54,6 +54,9 @@ module dftbp_type_typegeometry
     !> Is this a helical geometry
     logical :: tHelical
 
+    !> Is this a transport geometry
+    logical :: areContactsPresent
+
   end type TGeometry
 
 

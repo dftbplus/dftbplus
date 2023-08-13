@@ -14,8 +14,9 @@ module dftbp_dftb_boundarycond
   use dftbp_common_constants, only : pi
   use dftbp_common_status, only : TStatus
   use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_math_matrixops, only : pseudoInv
   use dftbp_math_quaternions, only : rotate3
-  use dftbp_math_simplealgebra, only : invert33
+  use dftbp_math_simplealgebra, only : invert33, determinant33
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
@@ -50,28 +51,51 @@ module dftbp_dftb_boundarycond
   type(TBoundaryConditionEnum_), parameter :: boundaryCondsEnum = TBoundaryConditionEnum_()
 
 
+  !> Boundary condition type with information on geometry and methods for applying geometric
+  !! boundary conditions
   type TBoundaryConds
 
+    !> Which type of boundary conditions are present
     integer :: iBoundaryCondition = boundaryCondsEnum%unknown
+
+    !> Is this a transport calculation with semi-infinite contacts?
+    logical :: areSIContactsPresent
+
+    !> Cartesian/lattice vector indices unaffected by transport contacts, hence actually periodic if
+    !> suitable boundary conditions
+    integer, allocatable :: nonContactDirs(:)
 
   contains
 
+    !> Map diatomic hamiltonian/overlap block in extended structure into central cell
     procedure :: foldInDiatomicBlock_real
     procedure :: foldInDiatomicBlock_cplx
     generic :: foldInDiatomicBlock => foldInDiatomicBlock_real, foldInDiatomicBlock_cplx
 
+    !> Map diatomic hamiltonian/overlap block in central cell out into extended structure
     procedure :: foldOutDiatomicBlock_real
     procedure :: foldOutDiatomicBlock_cplx
     generic :: foldOutDiatomicBlock => foldOutDiatomicBlock_real, foldOutDiatomicBlock_cplx
 
+    !> Map vectors from alignment of central and extended coordinates in the central cell
     procedure :: alignVectorCentralCell
 
+    !> Folds geometry into central cell
     procedure :: foldCoordsToCell
+
+    !> Setup for any semi-infinite contacts that could interact with boundary conditions
+    procedure :: setTransportDirections
+
+    !> Update quantities dependent on boundary conditions, based on central cell definition
+    procedure :: handleBoundaryChanges
 
   end type TBoundaryConds
 
+
 contains
 
+
+  !> Initialize instance of the boundary conditions type
   subroutine TBoundaryConds_init(this, iBoundaryCondition, errStatus)
 
     !> Instance
@@ -90,7 +114,41 @@ contains
 
     this%iBoundaryCondition = iBoundaryCondition
 
+    this%areSIContactsPresent = .false.
+
   end subroutine TBoundaryConds_init
+
+
+  !> In the case of calculations with semi-infinite contacts, set the directions which are impacted
+  !> by contacts for things like periodic folding.
+  subroutine setTransportDirections(this, contactDirs)
+
+    !> Instance
+    class(TBoundaryConds), intent(inout) :: this
+
+    !> Which, if any, of the three directions (either cartesian, if molecular, or lattice vectors if
+    !> periodic) are impacted by presence of semi-infinite contacts. Elements are true if there is a
+    !> contact impinging on that direction.
+    logical, intent(in) :: contactDirs(:)
+
+    integer :: iCart, iDir
+
+    @:ASSERT(this%iBoundaryCondition == boundaryCondsEnum%pbc3d)
+    @:ASSERT(size(contactDirs) >= 1 .and. size(contactDirs) <= 3)
+
+    allocate(this%nonContactDirs(count(.not.contactDirs)))
+    this%areSIContactsPresent = .false.
+    iDir = 0
+    do iCart = 1, 3
+      if (.not.contactDirs(iCart)) then
+        iDir = iDir + 1
+        this%nonContactDirs(iDir) = iCart
+      else
+        this%areSIContactsPresent = .true.
+      end if
+    end do
+
+  end subroutine setTransportDirections
 
 
 #:for TYPE, LABEL in FLAVOURS
@@ -272,8 +330,9 @@ contains
     !> Lattice vectors (column format).
     real(dp), intent(in) :: latVec(:,:)
 
-    integer :: nAtom, iAt, jj
-    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3), thetaNew, thetaOld, invLatVecs(3,3)
+    integer :: nAtom, iAt, jj, nDir
+    real(dp) :: frac(3), tmp3(3), vecLen(3), thetaNew, thetaOld, invLatVecs(3,3)
+    real(dp), allocatable :: work(:,:)
 
     nAtom = size(coord, dim=2)
 
@@ -287,22 +346,44 @@ contains
 
     case(boundaryCondsEnum%pbc3d)
 
-      call invert33(invLatVecs, latVec)
-      vecLen(:) = sqrt(sum(latVec**2, dim=1))
-      do iAt = 1, nAtom
-        frac(:) = matmul(invLatVecs, coord(:,iAt))
-        tmp3(:) = coord(:,iAt)
-        frac2(:) = frac(:) - real(floor(frac(:)), dp)
-        where (abs(vecLen*(1.0_dp - frac2)) < epsilon(0.0_dp)) frac2 = 0.0_dp
-        coord(:, iAt) = matmul(latVec, frac2)
-      end do
+      if (this%areSIContactsPresent) then
+
+        nDir = size(this%nonContactDirs)
+        work = latVec(:,this%nonContactDirs)
+        vecLen(:nDir) = sqrt(sum(work**2, dim=1))
+        call pseudoInv(work, invLatVecs(:,:nDir))
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(frac, tmp3) SCHEDULE(RUNTIME)
+        do iAt = 1, nAtom
+          frac(:nDir) = matmul(transpose(invLatVecs(:,:nDir)), coord(:,iAt))
+          tmp3(:) = coord(:,iAt) - matmul(latVec(:,:nDir), frac(:nDir))
+          frac(:nDir) = frac(:nDir) - real(int(frac(:nDir)), dp)
+          where (abs(vecLen(:nDir)*(1.0_dp - frac(:nDir))) < epsilon(0.0_dp)) frac(:nDir) = 0.0_dp
+          coord(:, iAt) = tmp3 + matmul(latVec(:,:nDir), frac(:nDir))
+        end do
+        !$OMP END PARALLEL DO
+
+      else
+
+        call invert33(invLatVecs, latVec)
+        vecLen(:) = sqrt(sum(latVec**2, dim=1))
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(frac) SCHEDULE(RUNTIME)
+        do iAt = 1, nAtom
+          frac(:) = matmul(invLatVecs, coord(:,iAt))
+          frac(:) = frac - real(int(frac), dp)
+          where (abs(vecLen*(1.0_dp - frac)) < epsilon(0.0_dp)) frac = 0.0_dp
+          coord(:, iAt) = matmul(latVec, frac)
+        end do
+        !$OMP END PARALLEL DO
+
+      end if
 
     case(boundaryCondsEnum%helical)
 
       do iAt = 1, nAtom
         jj = floor(coord(3,iAt)/latVec(1,1))
         ! want coordinate in eventual range 0..latVec(1,1) hence floor
-        tmp3(:) = coord(:,iAt)
         coord(3,iAt) = coord(3,iAt) - jj * latVec(1,1)
         call rotate3(coord(:,iAt), -jj*latVec(2,1),zAxis)
         thetaOld = atan2(coord(2,iAt), coord(1,iAt))
@@ -313,5 +394,52 @@ contains
     end select
 
   end subroutine foldCoordsToCell
+
+
+  !> Updates quantities, like reciprocal lattice, that are dependant on the central cell boundary
+  !> condition definitions
+  subroutine handleBoundaryChanges(this, latVecs, invLatVecs, recVecs, cellVol, recCellVol)
+
+    !> Instance
+    class(TBoundaryConds), intent(in) :: this
+
+    !> New lattice vector data
+    real(dp), intent(in) :: latVecs(:,:)
+
+    !> Inverse of lattice vectors / reciprocal lattice vectors in units of 2 pi
+    real(dp), intent(out) :: invLatVecs(:,:)
+
+    !> Reciprocal lattice vectors
+    real(dp), intent(out) :: recVecs(:,:)
+
+    !> Unit cell volume if relevant
+    real(dp), intent(out) :: cellVol
+
+    !> Reciprocal lattice unit cell volume
+    real(dp), intent(out) :: recCellVol
+
+    cellVol = 0.0_dp
+    recCellVol = 0.0_dp
+    select case(this%iBoundaryCondition)
+    case(boundaryCondsEnum%pbc3d)
+      if (this%areSIContactsPresent) then
+        ! semi-infinite contacts block periodicity in some direction(s)
+        invLatVecs(:,:size(this%nonContactDirs)) = latVecs(:, this%nonContactDirs)
+        call pseudoInv(invLatVecs(:,:size(this%nonContactDirs)),&
+            & recVecs(:,:size(this%nonContactDirs)))
+        invLatVecs(:,:) = 0.0_dp
+        invLatVecs(:, this%nonContactDirs) = recVecs(:,:size(this%nonContactDirs))
+        recVecs(:,:) = 2.0_dp * pi * invLatVecs
+      else
+        invLatVecs(:,:) = latVecs
+        call invert33(invLatVecs)
+        invLatVecs(:,:) = transpose(invLatVecs)
+        recVecs(:,:) = 2.0_dp * pi * invLatVecs
+        cellVol = abs(determinant33(latVecs))
+        recCellVol = abs(determinant33(recVecs))
+      end if
+    end select
+
+  end subroutine handleBoundaryChanges
 
 end module dftbp_dftb_boundarycond
