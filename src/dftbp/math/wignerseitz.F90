@@ -5,12 +5,16 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Contains routines to construct Wigner-Seitz cells.
+#:include 'common.fypp'
+
+
+!> Contains routines related to Wigner-Seitz cells.
 module dftbp_math_wignerseitz
 
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
   use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_dftb_periodic, only : frac2cart
 
   implicit none
   private
@@ -22,138 +26,191 @@ module dftbp_math_wignerseitz
 contains
 
 
-  !> Calculates a grid of lattice vectors r that fall inside (and eventually on the surface of) the
-  !! Wigner-Seitz supercell centered on the origin of the Bravais superlattice with primitive
-  !! translations nk(1) * a1, nk(2) * a2 and nk(3) * a3.
+  !> Determines the lattice vectors pointing to all primitive unit cells that are either located
+  !! inside or on the surface of the Wigner-Seitz cell of the Born-von Karman supercell, defined by
+  !! an unshifted Monkhorst-Pack-type k-point grid, that is, the diagonal coefficients nKpt(i) of
+  !! the supercell folding matrix.
   !!
-  !! Adapted from the Wannier90 code: w90_postw90_common, d141f9f84dcd3ac54729b9e5874dabd451684237
-  !! https://github.com/wannier-developers/wannier90
-  !! Giovanni Pizzi et al 2020 J. Phys.: Condens. Matter 32 165902
-  !! DOI: 10.1088/1361-648X/ab51ff
-  subroutine generateWignerSeitzGrid(nk, latVecs, wsVectors, wsDistances)
+  !! The development of this routine was inspired by the pyscf code (under the Apache-2.0 License):
+  !! Sun, Q., Berkelbach, T.C., Blunt, N.S., Booth, G.H., Guo, S., Li, Z., Liu, J., McClain, J.D.,
+  !! Sayfutyarova, E.R., Sharma, S., Wouters, S. and Chan, G.K.-L. (2018),
+  !! PySCF: the Python-based simulations of chemistry framework.
+  !! WIREs Comput Mol Sci, 8: e1340.
+  !! DOI: 10.1002/wcms.1340
+  subroutine generateWignerSeitzGrid(nKpt, latVecs, wsVectors, wsSearchSize, distTol)
 
-    !> Supercell folding coefficients (diagonal elements, i.e. MP grid)
-    integer, intent(in) :: nk(:)
+    !> Supercell folding coefficients (diagonal elements, i.e. MP-type grid)
+    integer, intent(in) :: nKpt(:)
 
     !> Real-space lattice vectors of periodic geometry
     real(dp), intent(in) :: latVecs(:,:)
 
-    !> Wigner-Seitz grid points in units of lattice vectors
+    !> Lattice vectors inside/on the surface of the WS-supercell in fractional coordinates
     integer, intent(out), allocatable :: wsVectors(:,:)
 
-    !> Real-space lengths of Wigner-Seitz vectors in absolute coordinates
-    real(dp), intent(out), allocatable, optional :: wsDistances(:)
+    !> Optional index range to search for primitive unit cells inside the WS-supercell
+    integer, intent(in), optional :: wsSearchSize(:)
 
-    !! Number of Wigner-Seitz vectors
-    integer :: nWsVectors
+    !> Optional tolerance for comparing real-space distances
+    real(dp), intent(in), optional :: distTol
 
-    !! Work buffer of Wigner-Seitz grid points in units of lattice vectors
-    integer :: wsVectors_(3, 20 * nk(1) * nk(2) * nk(3))
+    !> Actual tolerance for comparing real-space distances
+    real(dp) :: distTol_
 
-    !! Work buffer of real-space lengths in absolute coordinates
-    real(dp), allocatable :: wsDistances_(:)
+    !! Actual index range to search for primitive unit cells inside the WS-supercell
+    integer :: wsSearchSize_(3)
 
-    !! Auxiliary variables
-    integer :: n1, n2, n3, i1, i2, i3, ii, icnt, ipol, jpol, ndiff(3), nind
-    real(dp) :: mindist, adot(3,3), dist(125)
-    real(dp), parameter :: eps = 1e-08_dp
+    !> Lattice vectors inside/on the surface of the WS-supercell in Cartesian coordinates
+    real(dp), allocatable :: wsVectorsCart(:,:)
+
+    !! Work buffer of real-space lengths in Cartesian coordinates
+    real(dp), allocatable :: wsLengths(:)
 
     !! Index array for sorting operations
     integer, allocatable :: ind(:)
 
-    !! True, if current point belongs to Wignez-Seitz cell
-    logical :: tFound
+    !! Temporary distance index that indicates the central cell
+    integer :: iCenter
 
-    nind = 20 * product(nk)
-    allocate(wsDistances_(nind))
-    if (nind < 125) then
-      nind = 125
+    !! Auxiliary variables
+    integer :: n1, n2, n3, i1, i2, i3, ii, jj, diff(3), tmp3Int(3)
+    real(dp) :: dotProducts(3, 3), diffMat(3, 3)
+
+    !! Temporary storage for distances
+    real(dp), allocatable :: dist(:)
+
+    @:ASSERT(all(nKpt > 0))
+    @:ASSERT(size(latVecs, dim=2) == 3)
+
+    if (present(wsSearchSize)) then
+      @:ASSERT(size(wsSearchSize, dim=1) == 3)
+      wsSearchSize_(:) = wsSearchSize
+    else
+      wsSearchSize_(:) = 2
     end if
-    allocate(ind(nind))
 
-    do ipol = 1, 3
-      do jpol = 1, 3
-        adot(ipol, jpol) = dot_product(latVecs(:, ipol), latVecs(:, jpol))
+    if (present(distTol)) then
+      @:ASSERT(distTol > 0.0_dp)
+      distTol_ = distTol
+    else
+      distTol_ = 1.0e-08_dp
+    end if
+
+    ! Cache repeatedly used dot-products
+    do jj = 1, size(latVecs, dim=2)
+      do ii = 1, size(latVecs, dim=2)
+        dotProducts(ii, jj) = dot_product(latVecs(:, ii), latVecs(:, jj))
       end do
     end do
 
-    ! Loop over grid points r on a unit cell that is 8 times larger than a primitive supercell.
-    ! On exit, nWsVectors is the total number of grids points found in the Wigner-Seitz cell.
-    nWsVectors = 0
-    do n1 = 0, 4 * nk(1)
-      do n2 = 0, 4 * nk(2)
-        do n3 = 0, 4 * nk(3)
-          ! Loop over the 5^3=125 points R. R=0 corresponds to i1=i2=i3=2 or icnt=63
-          icnt = 0
-          do i1 = 0, 4
-            do i2 = 0, 4
-              do i3 = 0, 4
-                icnt = icnt + 1
-                ! Calculate squared distance |r-R|^2
-                ndiff(1) = n1 - i1 * nk(1)
-                ndiff(2) = n2 - i2 * nk(2)
-                ndiff(3) = n3 - i3 * nk(3)
-                dist(icnt) = 0.0_dp
-                do ipol = 1, 3
-                  do jpol = 1, 3
-                    dist(icnt) = dist(icnt)&
-                        & + real(ndiff(ipol), dp) * adot(ipol, jpol) * real(ndiff(jpol), dp)
+    ! We brute-force search over a "large enough" supercell of the primitive Wigner-Seitz supercell
+    ! to find all primitive unit cells inside/on the surface of the primitive WS-supercell.
+    do n1 = -wsSearchSize_(1) * nKpt(1), wsSearchSize_(1) * nKpt(1)
+      do n2 = -wsSearchSize_(2) * nKpt(2), wsSearchSize_(2) * nKpt(2)
+        do n3 = -wsSearchSize_(3) * nKpt(3), wsSearchSize_(3) * nKpt(3)
+          if (allocated(dist)) deallocate(dist)
+          do i1 = -wsSearchSize_(1), wsSearchSize_(1)
+            do i2 = -wsSearchSize_(2), wsSearchSize_(2)
+              do i3 = -wsSearchSize_(3), wsSearchSize_(3)
+                diff(1) = n1 - i1 * nKpt(1)
+                diff(2) = n2 - i2 * nKpt(2)
+                diff(3) = n3 - i3 * nKpt(3)
+                do jj = 1, size(latVecs, dim=2)
+                  do ii = 1, size(latVecs, dim=2)
+                    diffMat(ii, jj) = real(diff(ii), dp) * real(diff(jj), dp)
                   end do
                 end do
+                call appendToArray1d(dist, sum(diffMat * dotProducts))
+                ! Remember the index that corresponds to the center, i.e. i1=i2=i3=0
+                if (i1 == 0 .and. i2 == 0 .and. i3 == 0) iCenter = size(dist, dim=1)
               end do
             end do
           end do
 
-          ! Sort the 125 vectors R by increasing value of |r-R|^2
-          call index_heap_sort(ind(1:125), dist)
-          dist(:) = dist(ind(1:125))
-
-          ! Find all the vectors R with the (same) smallest |r-R|^2.
-          ! If R=0 is one of them, the current point r belongs to the Wignez-Seitz cell.
-          tFound = .false.
-          ii = 1
-          mindist = dist(1)
-          do while (abs(dist(ii) - mindist) <= eps .and. ii < 125)
-            if (ind(ii) == 63) tFound = .true.
-            ii = ii + 1
-          end do
-
-          if (ii == 126) ii = 125
-          if (tFound) then
-            nWsVectors = nWsVectors + 1
-            wsVectors_(1, nWsVectors) = n1 - 2 * nk(1)
-            wsVectors_(2, nWsVectors) = n2 - 2 * nk(2)
-            wsVectors_(3, nWsVectors) = n3 - 2 * nk(3)
+          if (abs(dist(iCenter) - minval(dist)) <= distTol_) then
+            tmp3Int(1) = n1; tmp3Int(2) = n2; tmp3Int(3) = n3
+            call appendToArray2d(wsVectors, tmp3Int)
           end if
+
         end do
       end do
     end do
 
-    if (nWsVectors > nind) then
-      call error('Wigner-Seitz Module: Too many Wigner-Seitz points.')
-    end if
+    ! Copy over translations in fractional coordinates, convert to Cartesian units and calculate
+    ! real-space lengths of translations found
+    allocate(wsVectorsCart(3, size(wsVectors, dim=2)))
+    wsVectorsCart(:,:) = real(wsVectors, dp)
+    call frac2cart(wsVectorsCart, latVecs)
+    wsLengths = norm2(wsVectorsCart, dim=1)
 
-    !
-    do ii = 1, nWsVectors
-      wsDistances_(ii) = 0.0_dp
-      do ipol = 1, 3
-        do jpol = 1, 3
-          wsDistances_(ii) = wsDistances_(ii) + real(wsVectors_(ipol, ii), dp) * adot(ipol, jpol)&
-              & * real(wsVectors_(jpol, ii), dp)
-        end do
-      end do
-      wsDistances_(ii) = sqrt(wsDistances_(ii))
-    end do
-
-    ! Sort Wigner-Seitz vectors by increasing length
-    call index_heap_sort(ind(1:nWsVectors), wsDistances_(1:nWsVectors))
-    wsDistances_(1:nWsVectors) = wsDistances_(ind(1:nWsVectors))
-    wsVectors_(:,:nWsVectors) = wsVectors_(:, ind(:nWsVectors))
-
-    ! Hand over results
-    wsVectors = wsVectors_(:, :nWsVectors)
-    if (present(wsDistances)) wsDistances = wsDistances_(:nWsVectors)
+    ! Sort Wigner-Seitz vectors by increasing Euclidean norm
+    allocate(ind(size(wsVectors, dim=2)))
+    call index_heap_sort(ind, wsLengths)
+    wsVectors(:,:) = wsVectors(:, ind)
 
   end subroutine generateWignerSeitzGrid
+
+
+  !> Appends element to one-dimensional, double precision array.
+  subroutine appendToArray1d(array, element)
+
+    !> Element to add
+    real(dp), intent(in) :: element
+
+    !> Array to extend
+    real(dp), intent(inout), allocatable :: array(:)
+
+    ! Temporary storage
+    real(dp), allocatable :: tmp(:)
+
+    ! Original number of elements in array
+    integer :: nElem
+
+    if (allocated(array)) then
+      nElem = size(array)
+      allocate(tmp(nElem + 1))
+      tmp(1:nElem) = array
+      tmp(nElem + 1) = element
+      deallocate(array)
+      call move_alloc(tmp, array)
+    else
+      allocate(array(1))
+      array(1) = element
+    end if
+
+  end subroutine appendToArray1d
+
+
+  !> Appends element to two-dimensional, integer-valued array.
+  subroutine appendToArray2d(array, element)
+
+    !> Element to add
+    integer, intent(in) :: element(:)
+
+    !> Array to extend
+    integer, intent(inout), allocatable :: array(:,:)
+
+    !! Temporary storage
+    integer, allocatable :: tmp(:,:)
+
+    !! Original number of elements in array
+    integer :: nElem
+
+    @:ASSERT(size(element, dim=1) == 3)
+
+    if (allocated(array)) then
+      @:ASSERT(size(array, dim=1) == 3)
+      nElem = size(array, dim=2)
+      allocate(tmp(3, nElem + 1))
+      tmp(:, :nElem) = array
+      tmp(:, nElem + 1) = element
+      deallocate(array)
+      call move_alloc(tmp, array)
+    else
+      allocate(array(3, 1))
+      array(:, 1) = element
+    end if
+
+  end subroutine appendToArray2d
 
 end module dftbp_math_wignerseitz
