@@ -188,7 +188,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         fc: [ifort]
-        cc: [icc]
+        cc: [icx]
     env:
       FC: ${{ matrix.fc }}
       CC: ${{ matrix.cc }}
