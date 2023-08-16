@@ -14,7 +14,6 @@ module dftbp_common_envcheck
   use, intrinsic :: iso_c_binding, only : c_char, c_int
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : warning
   implicit none
 
@@ -53,6 +52,9 @@ contains
     !! Error status
     integer :: iErr
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     call get_stacksize(cStack, iErr)
 
     if (iErr /= 0) then
@@ -63,7 +65,7 @@ contains
       else
         write(stdOut, "(A,':',T30,I0,A)") "Current stacksize",&
             & nint(real(cStack, dp) / 1024.0_dp**2), " [Mb] (recommended: unlimited)"
-        call warning("Current stacksize not set to unlimited or hard limit, which might cause"&
+        call warning(env%stdOut, "Current stacksize not set to unlimited or hard limit, which might cause"&
             & // new_line("A") // "   random crashes (e.g. segmentation faults). It is advised to&
             & unlimit the" // new_line("A") // "   stacksize by issuing 'ulimit -s unlimited'&
             & (Linux) or setting it to the " // new_line("A") // "   hard limit by 'ulimit -s hard'&

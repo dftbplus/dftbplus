@@ -194,8 +194,11 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseRealMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
+  subroutine diagDenseRealMtxBlacs(env, electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
       & eigenVecs, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
@@ -246,7 +249,7 @@ contains
         call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqr)
         call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Sreal.bin", SSqr)
         call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
-        call cleanShutdown("Finished dense matrix write")
+        call cleanShutdown(env%stdOut, "Finished dense matrix write")
       end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
@@ -332,7 +335,7 @@ contains
         call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplx.bin", HSqr)
         call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Scmplx.bin", SSqr)
         call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
-        call cleanShutdown("Finished dense matrix write")
+        call cleanShutdown(env%stdOut, "Finished dense matrix write")
       end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent

@@ -10,6 +10,7 @@
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
 !> from doi: 10.1021/ct5009137
 module dftbp_dftb_halogenx
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -154,10 +155,13 @@ contains
 
 
   !> Get energy contributions from halogen-X correction
-  subroutine getEnergies(this, atomE, coords, species, neigh, img2CentCell)
+  subroutine getEnergies(this, env, atomE, coords, species, neigh, img2CentCell)
 
     !> Instance of the correction
     class(THalogenX), intent(in) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Resulting  energy contributions
     real(dp), intent(out) :: atomE(:)
@@ -180,7 +184,7 @@ contains
     real(dp) :: r, rvdw, eTmp
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
 
     atomE(:) = 0.0_dp
 
@@ -214,10 +218,13 @@ contains
 
 
   !> Gradient contribution from the halogen-X term
-  subroutine addGradients(this, derivs, coords, species, neigh, img2CentCell)
+  subroutine addGradients(this, env, derivs, coords, species, neigh, img2CentCell)
 
     !> Instance of the correction
     class(THalogenX), intent(in) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Derivatives to add contribution to to
     real(dp), intent(inout) :: derivs(:,:)
@@ -240,7 +247,7 @@ contains
     real(dp) :: rvdw, fTmp(3)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
 
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
@@ -298,10 +305,13 @@ contains
 
 
   !> The stress tensor contribution from the halogen-X term
-  subroutine getStress(this, st, coords, neigh, species, img2CentCell, cellVol)
+  subroutine getStress(this, env, st, coords, neigh, species, img2CentCell, cellVol)
 
     !> Instance of the correction
     class(THalogenX), intent(in) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Stress tensor
     real(dp), intent(out) :: st(:,:)
@@ -328,7 +338,7 @@ contains
     st(:,:) = 0.0_dp
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
 
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)

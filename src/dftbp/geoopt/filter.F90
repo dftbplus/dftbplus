@@ -10,6 +10,7 @@
 !> Geometry transformation filter to transform derivatives and stress tensors to
 !> a common gradient vector and the apply the resulting displacement to a geometry.
 module dftbp_geoopt_filter
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_math_simplealgebra, only : invert33, determinant33
   implicit none
@@ -76,10 +77,13 @@ contains
 
 
   !> Create new transformation filter
-  subroutine TFilter_init(this, input, coord0, latVec, stat)
+  subroutine TFilter_init(this, env, input, coord0, latVec, stat)
 
     !> Instance of the transformation filter
     type(TFilter), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input to create transformation filter
     type(TFilterInput), intent(in) :: input
@@ -114,7 +118,7 @@ contains
     this%isotropic = input%isotropic
     if (this%lattice .and. present(latVec)) then
       if (size(coord0) > this%nvar) then
-        @:ERROR_HANDLING(stat, 1, &
+        @:ERROR_HANDLING(env%stdOut, stat, 1, &
             & "Subset of optimising atoms not currently possible with lattice optimisation.")
       end if
       this%nvar = this%nvar + size(latVec)

@@ -9,6 +9,7 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
@@ -27,6 +28,8 @@ program waveplot
 #:endif
 
   implicit none
+
+  type(TEnvironment) :: env
 
   !> Container of program variables
   type(TProgramVariables), target :: wp
@@ -79,7 +82,11 @@ program waveplot
 
   ! Allocate resources
   call TProgramVariables_init(wp, env)
-  write(stdOut, "(/,A,/)") "Starting main program"
+
+  ! temporary fix
+  env%stdOut = stdOut
+
+  write(env%stdOut, "(/,A,/)") "Starting main program"
 
   ! Allocating buffer for general grid, total charge and spin up
   allocate(buffer(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3)))
@@ -126,15 +133,15 @@ program waveplot
     end do
   end if
 
-  write(stdOut, "(A)") "Origin"
-  write(stdOut, "(2X,3(F0.5,1X))") wp%opt%origin
-  write(stdOut, "(A)") "Box"
+  write(env%stdOut, "(A)") "Origin"
+  write(env%stdOut, "(2X,3(F0.5,1X))") wp%opt%origin
+  write(env%stdOut, "(A)") "Box"
   do i1 = 1, 3
-    write(stdOut, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, i1)
+    write(env%stdOut, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, i1)
   end do
-  write(stdOut, "(A)") "Spatial resolution [1/Bohr]:"
-  write(stdOut, "(2X,3(F0.5,1X))") 1.0_dp / norm2(wp%loc%gridVec, dim=1)
-  write(stdOut, *)
+  write(env%stdOut, "(A)") "Spatial resolution [1/Bohr]:"
+  write(env%stdOut, "(2X,3(F0.5,1X))") 1.0_dp / norm2(wp%loc%gridVec, dim=1)
+  write(env%stdOut, *)
 
   ! Create density superposition of the atomic orbitals. Occupation is distributed equally on
   ! orbitals with the same angular momentum.
@@ -158,7 +165,7 @@ program waveplot
       buffer(:,:,:) = atomicChrg(:,:,:, 1)
 
       if (wp%opt%tVerbose) then
-        write(stdOut, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
+        write(env%stdOut, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
       end if
       if (wp%opt%tPlotAtomDens) then
         write(comments(2), 9989) wp%input%identity
@@ -169,7 +176,7 @@ program waveplot
         if (ioStat /= 0) then
           call error("Error while writing file '" // trim(fileName) // "'.")
         else
-          write(stdOut, "(A)") "File '" // trim(fileName) // "' written"
+          write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
         end if
       end if
     end if
@@ -180,7 +187,7 @@ program waveplot
   end if
 
   if (wp%opt%tVerbose) then
-    write(stdOut, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", "State",&
+    write(env%stdOut, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", "State",&
         & "Action", "Norm", "W. Occup."
   end if
 
@@ -246,9 +253,9 @@ program waveplot
   lpStates: do while (.not. tFinished)
     ! Get the next grid and its parameters
     if (wp%input%tRealHam) then
-      call next(wp%loc%grid, gridValReal, levelIndex, tFinished)
+      call next(env, wp%loc%grid, gridValReal, levelIndex, tFinished)
     else
-      call next(wp%loc%grid, gridValCmpl, levelIndex, tFinished)
+      call next(env, wp%loc%grid, gridValCmpl, levelIndex, tFinished)
     end if
     iLevel = levelIndex(1)
     iKPoint = levelIndex(2)
@@ -269,7 +276,7 @@ program waveplot
       end if
       sumChrg = sum(buffer) * wp%loc%gridVol
       if (wp%opt%tVerbose) then
-        write(*, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
+        write(env%stdOut, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
             & wp%input%occupations(iLevel, iKPoint, iSpin)
       end if
     end if
@@ -288,7 +295,7 @@ program waveplot
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
-        if (ioStat == 0) write(*, "(A)") "File '" // trim(fileName) // "' written"
+        if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotChrgDiff) then
@@ -300,7 +307,7 @@ program waveplot
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
-        if (ioStat == 0) write(*, "(A)") "File '" // trim(fileName) // "' written"
+        if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotReal) then
@@ -315,7 +322,7 @@ program waveplot
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
-        if (ioStat == 0) write(*, "(A)") "File '" // trim(fileName) // "' written"
+        if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotImag) then
@@ -326,7 +333,7 @@ program waveplot
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments=comments, repeatBox=wp%opt%repeatBox, ioStat=ioStat)
         hasIoError = hasIoError .or. ioStat /= 0
-        if (ioStat == 0) write(*, "(A)") "File '" // trim(fileName) // "' written"
+        if (ioStat == 0) write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
     end if
   end do lpStates
@@ -355,10 +362,10 @@ program waveplot
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
-      write(stdOut, "(A)") "File '" // trim(fileName) // "' written"
+      write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
     end if
     if (wp%opt%tVerbose) then
-      write(stdOut, "(/,'Total charge:',F12.6,/)") sumTotChrg
+      write(env%stdOut, "(/,'Total charge:',F12.6,/)") sumTotChrg
     end if
   end if
 
@@ -373,7 +380,7 @@ program waveplot
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
-      write(stdOut, "(A)") "File '" // trim(fileName) // "' written"
+      write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
     end if
   end if
 
@@ -394,13 +401,15 @@ program waveplot
     if (ioStat /= 0) then
       call error("Error while writing file '" // trim(fileName) // "'.")
     else
-      write(stdOut, "(A)") "File '" // trim(fileName) // "' written"
+      write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
     end if
   end if
 
   call env%destruct()
   call destructGlobalEnv()
 
+  call env%destruct()
+  call destructGlobalEnv()
 
 contains
 

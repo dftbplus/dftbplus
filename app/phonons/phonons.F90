@@ -35,34 +35,36 @@ program phonons
   integer :: err, nProcs
 
   call initGlobalEnv()
-  call printHeader()
   call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
+  call printHeader(env)
   call initProgramVariables(env)
   call TTaggedWriter_init(taggedWriter)
 
   nProcs = 1
-  write(stdOut,*)'Computing environment'
+  write(env%stdOut,*)'Computing environment'
 #:if WITH_MPI
   write(*,*)env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
   nProcs = env%mpi%globalComm%size
 #:else
-  write(stdOut,*)'Not compiled with MPI enabled'
+  write(env%stdOut,*)'Not compiled with MPI enabled'
 #:endif
 
   if (tCompModes) then
     if (nProcs > 1) then
       call error("Mode calculation is not parallel yet. Run just on 1 node")
-      call destructProgramVariables()
+      call destructProgramVariables(env)
     end if
-    call ComputeModes()
+    call ComputeModes(env)
   end if
 
   if (tPhonDispersion) then
     if (nProcs > 1) then
       call error("Phonon dispersion is not parallel yet. Run just on 1 node")
-      call destructProgramVariables()
+      call destructProgramVariables(env)
     end if
-    call PhononDispersion(taggedWriter)
+    call PhononDispersion(env, taggedWriter)
   end if
 
   if (tTransport) then
@@ -75,7 +77,7 @@ program phonons
       call error("libnegf not initialized")
     end if
 
-    call negf_init_str(geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour, img2CentCell)
+    call negf_init_str(env, geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour, img2CentCell)
 
     call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
                         & twriteTunn, twriteLDOS)
@@ -86,32 +88,39 @@ program phonons
 
   end if
 
-  call destructProgramVariables()
+  call destructProgramVariables(env)
   call destructGlobalEnv()
 
-  write(stdOut, "(A)") "Program completed successfully"
+  write(env%stdOut, "(A)") "Program completed successfully"
 
 contains
 
-  subroutine printHeader()
-    write (stdOut, "(A)") repeat("=", 80)
-    write (stdOut, "(30X,A)") "PHONONS"
-    write (stdOut, "(A,/)") repeat("=", 80)
-    write (stdOut, "(A)") ""
-    write (stdOut, "(A)") "Version 0.1"
-    write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on&
+  subroutine printHeader(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
+    write (env%stdOut, "(A)") repeat("=", 80)
+    write (env%stdOut, "(30X,A)") "PHONONS"
+    write (env%stdOut, "(A,/)") repeat("=", 80)
+    write (env%stdOut, "(A)") ""
+    write (env%stdOut, "(A)") "Version 0.1"
+    write (env%stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on&
         & Hessians"
-    write (stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas"
-    write (stdOut, "(A)") "When using this code, please cite this work:"
-    write (stdOut, "(A)") "Leonardo Medrano Sandonas, Rafaei Gutierrez, Alessandro Pecchia,"
-    write (stdOut, "(A)") "Alexander Croy, Gianaurelio Cuniberti, Quantum phonon transport in"
-    write (stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's&
+    write (env%stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas"
+    write (env%stdOut, "(A)") "When using this code, please cite this work:"
+    write (env%stdOut, "(A)") "Leonardo Medrano Sandonas, Rafaei Gutierrez, Alessandro Pecchia,"
+    write (env%stdOut, "(A)") "Alexander Croy, Gianaurelio Cuniberti, Quantum phonon transport in"
+    write (env%stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's&
         & functions"
-    write (stdOut, "(A)") "techniques, Entropy 21, 735 (2019)"
-    write (stdOut, "(A)") ""
+    write (env%stdOut, "(A)") "techniques, Entropy 21, 735 (2019)"
+    write (env%stdOut, "(A)") ""
   end subroutine printHeader
 
-  subroutine ComputeModes()
+  subroutine ComputeModes(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     type(TFileDescr) :: fd
     integer  :: ii, jj, kk, ll, nAtom, iMode, jCount, iAt, iAtMoved
@@ -125,24 +134,24 @@ contains
 
     ! solve the eigenproblem
     if (tPlotModes) then
-      write(stdOut,*) 'Computing vibrational frequencies and modes'
+      write(env%stdOut,*) 'Computing vibrational frequencies and modes'
       call heev(dynMatrix,eigenValues,'U','V')
     else
-      write(stdOut,*) 'Computing vibrational frequencies'
+      write(env%stdOut,*) 'Computing vibrational frequencies'
       call heev(dynMatrix,eigenValues,'U','N')
     end if
 
     ! take square root of modes (allowing for imaginary modes) and print
     eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
-    write(stdOut,*)'Vibrational modes (cm-1):'
+    write(env%stdOut,*)'Vibrational modes (cm-1):'
     do ii = 1, 3 * nMovedAtom
-      write(stdOut,'(f8.2)')eigenValues(ii)*Hartree__cm
+      write(env%stdOut,'(f8.2)')eigenValues(ii)*Hartree__cm
     end do
-    write(stdOut,*)
+    write(env%stdOut,*)
 
     if (tPlotModes) then
-      write(stdOut,*)'Plotting eigenmodes:'
-      write(stdOut,*)ModesToPlot(:)
+      write(env%stdOut,*)'Plotting eigenmodes:'
+      write(env%stdOut,*)ModesToPlot(:)
       ! scale mode compoents on each atom by mass and then normalise total mode
       do ii = 1, nModesToPlot
         iMode = ModesToPlot(ii)
@@ -226,7 +235,11 @@ contains
 
   end subroutine ComputeModes
 
-  subroutine PhononDispersion(tWriter)
+  subroutine PhononDispersion(env, tWriter)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TTaggedWriter) :: tWriter
 
     type(TFileDescr) :: fu, ftag
@@ -243,24 +256,24 @@ contains
 
     call setConversionUnits(unitsConv)
 
-    write(stdOut,*) 'Supercell repetitions:'
-    write(stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3)
+    write(env%stdOut,*) 'Supercell repetitions:'
+    write(env%stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3)
 
     latVecs(1,:) = geo%latVecs(1,:)/real(nCells(1),dp)
     latVecs(2,:) = geo%latVecs(2,:)/real(nCells(2),dp)
     latVecs(3,:) = geo%latVecs(3,:)/real(nCells(3),dp)
 
     call invert33(invLatt, latVecs)
-    write(stdOut,*) 'reciprocal lattice vectors:'
-    write(stdOut,*) 'b1:',invLatt(:,1)
-    write(stdOut,*) 'b2:',invLatt(:,2)
-    write(stdOut,*) 'b3:',invLatt(:,3)
+    write(env%stdOut,*) 'reciprocal lattice vectors:'
+    write(env%stdOut,*) 'b1:',invLatt(:,1)
+    write(env%stdOut,*) 'b2:',invLatt(:,2)
+    write(env%stdOut,*) 'b3:',invLatt(:,3)
     invLatt = transpose(invLatt) * 2.0_dp * pi
 
     allocate(KdynMatrix(3*nAtomUnitCell,3*nAtomUnitCell))
     allocate(eigenValues(3*nAtomUnitCell))
 
-    write(stdOut,*) 'Computing Phonon Dispersion (units '//trim(outputUnits)//')'
+    write(env%stdOut,*) 'Computing Phonon Dispersion (units '//trim(outputUnits)//')'
     if (tIOProc) then
       call openFile(fu, 'phononDispersion.dat', mode="w")
       if (tWriteTagged) then
@@ -279,7 +292,7 @@ contains
       q(2) = dot_product(invLatt(:,2), kPoint(:,iK))
       q(3) = dot_product(invLatt(:,3), kPoint(:,iK))
 
-      write(stdOut,*) ' q:',q(:)
+      write(env%stdOut,*) ' q:',q(:)
       do  iAtom = 1,  nAtomUnitCell
         do  jAtom = 1, nAtomUnitCell
           ! This loops over all periodic copies

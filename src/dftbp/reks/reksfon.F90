@@ -14,8 +14,8 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksfon
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
@@ -35,7 +35,10 @@ module dftbp_reks_reksfon
   contains
 
   !> Optimize the fractional occupation numbers (FONs) in REKS
-  subroutine optimizeFons(this)
+  subroutine optimizeFons(env, this)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -46,7 +49,7 @@ module dftbp_reks_reksfon
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
 
-      call getFONs22_(x, this%hess, this%enLtot, this%delta, this%FonMaxIter, this%Plevel)
+      call getFONs22_(env, x, this%hess, this%enLtot, this%delta, this%FonMaxIter, this%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
       this%FONs(1,1) = 2.0_dp * x
       this%FONs(2,1) = 2.0_dp - this%FONs(1,1)
@@ -65,7 +68,10 @@ module dftbp_reks_reksfon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Optimize FONs in REKS(2,2) case with Newton-Raphson method
-  subroutine getFONs22_(x, hess0, enLtot, delta, maxIter, opt)
+  subroutine getFONs22_(env, x, hess0, enLtot, delta, maxIter, opt)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> converged x (= n_a/2)
     real(dp), intent(out) :: x
@@ -91,6 +97,9 @@ module dftbp_reks_reksfon
     real(dp) :: root, x0, x1, y, grad, hess
     real(dp) :: eps
     integer :: iter
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! Calculate Const in equation 12.c
     ! Reference : JCP, 147, 034113 (2017) and its supporting information

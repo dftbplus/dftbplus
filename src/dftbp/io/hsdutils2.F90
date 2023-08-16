@@ -12,6 +12,7 @@
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 module dftbp_io_hsdutils2
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
@@ -118,7 +119,10 @@ contains
 
 
   !> Prints a warning message about unprocessed nodes
-  subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
+  subroutine warnUnprocessedNodes(env, node, tIgnoreUnprocessed, nodeList)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Root element of the tree to investigate
     type(fnode), pointer :: node
@@ -146,7 +150,7 @@ contains
         call appendPathAndLine(child, msg)
         call append_to_string(msg, newline)
       end do
-      call warning(char(msg))
+      call warning(env%stdOut, char(msg))
     end if
     if (present(nodeList)) then
       nodeList => list

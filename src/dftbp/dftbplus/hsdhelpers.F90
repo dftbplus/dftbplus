@@ -9,7 +9,8 @@
 
 !> HSD-parsing related helper routines.
 module dftbp_dftbplus_hsdhelpers
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, readHsdFile, parseHsdTree
   use dftbp_extlibs_xmlf90, only : fnode, destroyNode
@@ -32,7 +33,10 @@ module dftbp_dftbplus_hsdhelpers
 contains
 
   !> Parses input file and returns initialised input structure
-  subroutine parseHsdInput(input)
+  subroutine parseHsdInput(env, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input data parsed from the input file
     type(TInputData), intent(out) :: input
@@ -41,10 +45,10 @@ contains
     type(TParserFlags) :: parserFlags
 
     call ensureInputFilePresence()
-    write(stdout, "(A)") "Reading input file '" // hsdFileName // "'"
+    write(env%stdout, "(A)") "Reading input file '" // hsdFileName // "'"
     call readHsdFile(hsdFileName, hsdTree)
-    call parseHsdTree(hsdTree, input, parserFlags)
-    call doPostParseJobs(hsdTree, parserFlags)
+    call parseHsdTree(env, hsdTree, input, parserFlags)
+    call doPostParseJobs(env, hsdTree, parserFlags)
     call destroyNode(hsdTree)
 
   end subroutine parseHsdInput
@@ -64,7 +68,10 @@ contains
 
 
   !> Execute parser related tasks (warning, processed input dumping) needed after parsing
-  subroutine doPostParseJobs(hsdTree, parserFlags)
+  subroutine doPostParseJobs(env, hsdTree, parserFlags)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Tree representation of the HSD input
     type(fnode), pointer, intent(in) :: hsdTree
@@ -77,12 +84,12 @@ contains
     call getChild(hsdTree, rootTag, root)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(env, root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcFileName)
-      write(stdout, '(/,/,A)') "Processed input in HSD format written to '" // hsdProcFileName&
+      write(env%stdout, '(/,/,A)') "Processed input in HSD format written to '" // hsdProcFileName&
           & // "'"
     end if
 

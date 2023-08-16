@@ -9,10 +9,11 @@
 
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
@@ -289,13 +290,13 @@ contains
     type(TStatus) :: errStatus
 
     ! Write header
-    call printDftbHeader('(WAVEPLOT '// version //')', releaseYear)
+    call printDftbHeader(env, '(WAVEPLOT '// version //')', releaseYear)
 
     ! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
-    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
+    write(env%stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
 
     ! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -310,7 +311,7 @@ contains
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
-    call readDetailed(this, detailed, tGroundState, kPointsWeights)
+    call readDetailed(this, env, detailed, tGroundState, kPointsWeights)
     call destroyNode(tmp)
 
     nKPoint = size(kPointsWeights, dim=2)
@@ -325,18 +326,18 @@ contains
 
     ! Read options
     call getChild(root, "Options", tmp)
-    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
+    call readOptions(this, env, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, .true.)
+    call warnUnprocessedNodes(env, root, .true.)
 
     ! Finish parsing, dump parsed and processed input
     if (tIoProc) then
       call dumpHSD(hsdTree, hsdParsedInput)
     end if
-    write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
+    write(env%stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
-    write(stdout, "(A,/)") repeat("-", 80)
+    write(env%stdout, "(A,/)") repeat("-", 80)
     call destroyNode(hsdTree)
 
   #:if WITH_MPI
@@ -363,7 +364,7 @@ contains
     end if
     this%loc%gridVol = abs(determinant33(this%loc%gridVec))
 
-    write(stdout, "(A)") "Doing initialisation"
+    write(env%stdout, "(A)") "Doing initialisation"
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
     call setDefaultBinaryAccess(this%opt%binaryAccessTypes(1), this%opt%binaryAccessTypes(2),&
@@ -387,10 +388,13 @@ contains
 
 
   !> Interpret the information stored in detailed.xml.
-  subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
+  subroutine readDetailed(this, env, detailed, tGroundState, kPointsWeights)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Pointer to the node, containing the information
     type(fnode), pointer :: detailed
@@ -418,7 +422,7 @@ contains
 
     call getChildValue(detailed, "Identity", this%input%identity)
     call getChild(detailed, "Geometry", tmp)
-    call readGeometry(this%input%geo, tmp)
+    call readGeometry(env, this%input%geo, tmp)
 
     call getChildValue(detailed, "Real", this%input%tRealHam)
     call getChildValue(detailed, "NrOfKPoints", nKPoint)
@@ -461,7 +465,10 @@ contains
 
 
   !> Read in the geometry stored as .xml in internal or .gen format.
-  subroutine readGeometry(geo, geonode)
+  subroutine readGeometry(env, geo, geonode)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Geometry instance
     type(TGeometry), intent(out) :: geo
@@ -480,7 +487,7 @@ contains
 
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(child, geo)
+      call readTGeometryGen(env, child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case ("xyzformat")
@@ -488,7 +495,7 @@ contains
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case ("vaspformat")
-      call readTGeometryVasp(child, geo)
+      call readTGeometryVasp(env, child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case default
@@ -499,10 +506,13 @@ contains
 
 
   !> Interpret the options.
-  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
+  subroutine readOptions(this, env, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node containing the information
     type(fnode), pointer :: node
@@ -552,7 +562,7 @@ contains
     ! Warning, if processed input is read in, but eigenvectors are different
     call getChildValue(node, "Identity", curId, this%input%identity)
     if (curId /= this%input%identity) then
-      call warning(warnId)
+      call warning(env%stdOut, warnId)
     end if
 
     call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
@@ -578,23 +588,23 @@ contains
     call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
 
     if (this%opt%tPlotImag .and. this%input%tRealHam) then
-      call detailedWarning(field, "Wave functions are real, no imaginary part will be plotted")
+      call detailedWarning(env, field, "Wave functions are real, no imaginary part will be plotted")
       this%opt%tPlotImag = .false.
     end if
 
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels)
+    call getSelectedIndices(env, node, char(buffer), [1, nLevel], this%opt%plottedLevels)
 
     if (this%input%geo%tPeriodic) then
       call getChildValue(node, "PlottedKPoints", buffer, child=field, multiple=.true.)
-      call getSelectedIndices(node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
+      call getSelectedIndices(env, node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
     else
       allocate(this%opt%plottedKPoints(1))
       this%opt%plottedKPoints(1) = 1
     end if
 
     call getChildValue(node, "PlottedSpins", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nSpin], this%opt%plottedSpins)
+    call getSelectedIndices(env, node, char(buffer), [1, nSpin], this%opt%plottedSpins)
 
     ! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)

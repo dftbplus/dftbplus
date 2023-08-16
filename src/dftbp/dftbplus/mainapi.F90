@@ -619,7 +619,7 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges(errStatus)
+    call main%initializeCharges(env, errStatus)
     if (errStatus%hasError()) then
       call error(errStatus%message)
     end if

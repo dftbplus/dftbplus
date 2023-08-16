@@ -18,7 +18,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, clearFile
-  use dftbp_common_globalenv, only : stdOut, withMpi
+  use dftbp_common_globalenv, only : withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
@@ -1314,6 +1314,9 @@ contains
     integer :: nKPrime
   #:endif
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     @:ASSERT(input%tInitialized)
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
@@ -1427,7 +1430,7 @@ contains
     ! Brillouin zone sampling
     if (this%tPeriodic .or. this%tHelical) then
       if (input%ctrl%poorKSampling) then
-        call warning("The suplied k-points are probably not accurate for properties requiring&
+        call warning(env%stdOut, "The suplied k-points are probably not accurate for properties requiring&
             & integration over the Brillouin zone")
       end if
       this%nKPoint = input%ctrl%nKPoint
@@ -1520,7 +1523,7 @@ contains
         & errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
-        call warning("Insufficient atoms for this number of MPI processors")
+        call warning(env%stdOut, "Insufficient atoms for this number of MPI processors")
       end if
       call error(errStatus%message)
     end if
@@ -1652,8 +1655,9 @@ contains
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
+    call ensureSolverCompatibility(env, input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
         & this%nIndepSpin, this%tempElec)
+
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
@@ -1671,7 +1675,7 @@ contains
         & .and. .not. (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport&
         & .and. .not. this%tSccCalc)
     if (this%tUpload) then
-      call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
+      call initUploadArrays_(env, input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
     end if
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
@@ -2045,7 +2049,7 @@ contains
       end if
 
       allocate(this%filter)
-      call TFilter_init(this%filter, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
+      call TFilter_init(this%filter, env, input%ctrl%geoOpt%filter, this%coord0, this%latVec)
       call createOptimizer(input%ctrl%geoOpt%optimiser, this%filter%getDimension(), this%geoOpt)
       this%optTol = input%ctrl%geoOpt%tolerance
       allocate(this%gcurr(this%filter%getDimension()))
@@ -2238,10 +2242,10 @@ contains
           end if
           call TDispMbd_init(mbd, inp, input%geom, isPostHoc=.true.)
         end associate
-        call mbd%checkError()
+        call mbd%checkError(env)
         call move_alloc(mbd, this%dispersion)
         if (input%ctrl%dispInp%mbd%method == 'ts' .and. this%tForces) then
-          call warning("Forces for the TS-dispersion model are calculated by finite differences&
+          call warning(env%stdOut, "Forces for the TS-dispersion model are calculated by finite differences&
               & which may result in long gradient calculation times for large systems")
         end if
     #:endif
@@ -2297,7 +2301,7 @@ contains
       areNeighboursSymmetric = areNeighboursSymmetric .or. this%areSolventNeighboursSym
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
 
-      call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
+      call init_TScaleExtEField(this%eFieldScaling, env, this%solvation,&
           & input%ctrl%isSolvatedFieldRescaled)
 
       if (allocated(this%eField)) then
@@ -2324,11 +2328,11 @@ contains
         logical :: isDipoleDefined
         isDipoleDefined = .true.
         if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
-          call warning("Dipole printed for a charged system : origin dependent quantity")
+          call warning(env%stdOut, "Dipole printed for a charged system : origin dependent quantity")
           isDipoleDefined = .false.
         end if
         if (this%tPeriodic .or. this%tHelical) then
-          call warning("Dipole printed for extended system : value printed is not well defined")
+          call warning(env%stdOut, "Dipole printed for extended system : value printed is not well defined")
           isDipoleDefined = .false.
         end if
         if (.not. isDipoleDefined) then
@@ -2475,7 +2479,7 @@ contains
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
 
-      call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
+      call ensureLinRespConditions(env, this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
           & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
           & isOnsiteCorrected, input)
@@ -2529,7 +2533,7 @@ contains
     if (allocated(input%ctrl%ppRPA)) then
 
       if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
-        call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
+        call warning(env%stdOut, "Particle-particle RPA should be for a reference system with a charge of +2.")
       end if
 
     #:for VAR, ERR in [("this%tSpinOrbit","spin orbit coupling"), &
@@ -2562,7 +2566,7 @@ contains
     #:endif
 
       if (this%isGeoOpt .or. this%tMD .or. this%tSocket) then
-        call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
+        call warning (env%stdOut, "Geometry optimisation with ppRPA is probably not what you want - forces in&
             & the (N-2) electron ground state system do not match the targeted system for the&
             & excited states")
       end if
@@ -2680,7 +2684,7 @@ contains
         call error("XLBOMD does not work with solvation models yet!")
       end if
       allocate(this%xlbomdIntegrator)
-      call Xlbomd_init(this%xlbomdIntegrator, input%ctrl%xlbomd, this%nIneqOrb)
+      call Xlbomd_init(this%xlbomdIntegrator, env, input%ctrl%xlbomd, this%nIneqOrb)
     end if
 
     this%minSccIter = getMinSccIters(this%tSccCalc, allocated(this%dftbU), this%nSpin)
@@ -2781,7 +2785,7 @@ contains
 
     end if
 
-    call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
+    call this%initializeCharges(env, errStatus, initialSpins=input%ctrl%initialSpins,&
         & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
     if (errStatus%hasError()) call error(errStatus%message)
 
@@ -3252,7 +3256,7 @@ contains
         call error("Unknown optimisation mode")
       end select
       if (tGeoOptRequiresEgy .neqv. this%electronicSolver%providesFreeEnergy) then
-        call warning("This geometry optimisation method requires force related energies for&
+        call warning(env%stdOut, "This geometry optimisation method requires force related energies for&
             & accurate minimisation.")
       end if
     elseif (this%tDerivs) then
@@ -3350,7 +3354,7 @@ contains
 
     if (this%electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       #:if WITH_MAGMA
-        call env%initGpu()
+        call env%initGpu(env%stdOut)
       #:else
         call error("Magma-solver selected, but program was compiled without MAGMA")
       #:endif
@@ -3472,7 +3476,7 @@ contains
 
     if (this%tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
-        call printCustomReferenceOccupations(this%orb, input%geom%species, &
+        call printCustomReferenceOccupations(env, this%orb, input%geom%species, &
             & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
       end if
     end if
@@ -3526,7 +3530,7 @@ contains
         call writeDftD4Info(stdOut, o)
     #:if WITH_MBD
       type is (TDispMbd)
-        call writeMbdInfo(input%ctrl%dispInp%mbd)
+        call writeMbdInfo(env, input%ctrl%dispInp%mbd)
     #:endif
       class default
         call error("Unknown dispersion model - this should not happen!")
@@ -3741,7 +3745,7 @@ contains
         write(stdOut, "(A,':',T30,E14.6)") "Field strength", this%eField%EFieldStrength
         write(stdOut, "(A,':',T30,3F9.6)") "Direction", this%eField%EfieldVector
         if (this%tPeriodic) then
-          call warning("Saw tooth potential used for periodic geometry - make sure there is a&
+          call warning(env%stdOut, "Saw tooth potential used for periodic geometry - make sure there is a&
               & vacuum region!")
         end if
       end if
@@ -3950,7 +3954,7 @@ contains
 
       allocate(this%electronDynamics)
 
-      call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
+      call TElecDynamics_init(this%electronDynamics, env, input%ctrl%elecDynInp, this%species0,&
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%cutOff,&
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
@@ -3961,7 +3965,7 @@ contains
     end if
 
     if (allocated(this%reks)) then
-      call printReksInitInfo(this%reks, this%orb, this%speciesName, this%nType)
+      call printReksInitInfo(env, this%reks, this%orb, this%speciesName, this%nType)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
@@ -4173,10 +4177,13 @@ contains
 
 
   !> Initialise partial charges
-  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges, hybridXcAlg)
+  subroutine initializeCharges(this, env, errStatus, initialSpins, initialCharges, hybridXcAlg)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Error status
     type(TStatus), intent(out) :: errStatus
@@ -4271,7 +4278,7 @@ contains
 
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
-        call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+        call initQFromFile(env, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
             & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
             & coeffsAndShifts=this%supercellFoldingMatrix)
@@ -4279,14 +4286,14 @@ contains
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
-          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+          call initQFromFile(env, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
               & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
-          call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
+          call initQFromFile(env, this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
               & hybridXcAlg=hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix)
@@ -4328,7 +4335,7 @@ contains
           write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
               & specified total charge. (", sum(initialCharges), " vs. ", this%nrChrg, ") ",&
               & "Your initial charge distribution will be rescaled."
-          call warning(message)
+          call warning(env%stdOut, message)
         end if
         call initQFromAtomChrg(this%qInput, initialCharges, this%referenceN0, this%species0,&
             & this%speciesName, this%orb)
@@ -4838,9 +4845,9 @@ contains
     logical :: tDummy
 
     if (env%tGlobalLead) then
-      write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
+      write(env%stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
-      this%socket = IpiSocketComm(socketInput)
+      this%socket = IpiSocketComm(env, socketInput)
     end if
     call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
         & this%tCoordsChanged, this%tLatticeChanged, tDummy)
@@ -4959,7 +4966,7 @@ contains
     end associate
 
     if (tNegf) then
-      write(stdOut,*) 'init negf'
+      write(env%stdOut,*) 'init negf'
 
       ! Some checks and initialization of GDFTB/NEGF
       call TNegfInt_init(negfInt, input%transpar, env, input%ginfo%greendens,&
@@ -5300,8 +5307,11 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
+  subroutine initUploadArrays_(env, transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
       & blockUp)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Transport calculation parameters
     type(TTransPar), intent(inout) :: transpar
@@ -5332,7 +5342,7 @@ contains
     if (hasBlockCharges) then
       allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
     end if
-    call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, blockUp)
+    call readContactShifts(env, shiftPerLUp, chargeUp, transpar, orb, blockUp)
 
   end subroutine initUploadArrays_
 
@@ -5508,12 +5518,18 @@ contains
 
 #:if WITH_MBD
   !> Writes MBD-related info
-  subroutine writeMbdInfo(input)
+  subroutine writeMbdInfo(env, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> MBD input parameters
     type(TDispMbdInp), intent(in) :: input
 
     character(lc) :: tmpStr
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, "(A)") ''
     select case (input%method)
@@ -5547,7 +5563,10 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
+  subroutine ensureSolverCompatibility(env, iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5569,7 +5588,7 @@ contains
 
     ! Temporary error test for PEXSI bug (July 2019)
     if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
-      call warning("A temporary PEXSI bug may prevent correct evaluation at general k-points.&
+      call warning(env%stdOut, "A temporary PEXSI bug may prevent correct evaluation at general k-points.&
           & This should be fixed soon.")
     end if
 
@@ -5644,7 +5663,10 @@ contains
 
 
   !> Print out the reference occupations for atoms
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+  subroutine printCustomReferenceOccupations(env, orb, species, customOccAtoms, customOccFillings)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5661,6 +5683,9 @@ contains
     character(lc) :: formstr, outStr
     integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom, iSh
     character(sc), allocatable :: shellnames(:)
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nCustomBlock = size(customOccFillings)
     if (nCustomBlock == 0) then
@@ -5870,8 +5895,11 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !! features.
-  subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
+  subroutine ensureLinRespConditions(env, tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5963,7 +5991,7 @@ contains
     if (tempElec > minTemp .and. tCasidaForces) then
       write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
           & occupations, kT=", tempElec/Boltzmann,"K"
-      call warning(tmpStr)
+      call warning(env%stdOut, tmpStr)
     end if
 
     if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
@@ -6007,10 +6035,10 @@ contains
         call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning("hybrid functional excited states not well tested for triplet excited states!")
+        call warning(env%stdOut, "hybrid functional excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning("hybrid functional excited states not well tested for spin-polarized systems!")
+        call warning(env%stdOut, "hybrid functional excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -6304,7 +6332,7 @@ contains
       write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
           & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
           & results carefully and consider to use a more recent PLUMED library if in doubt!"
-      call warning(strTmp)
+      call warning(env%stdOut, strTmp)
     end if
     call plumedCalc%sendCmdVal("setNatoms", this%nAtom)
     call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
@@ -6563,7 +6591,10 @@ contains
 
 
   !> Print information about a REKS calculation
-  subroutine printReksInitInfo(reks, orb, speciesName, nType)
+  subroutine printReksInitInfo(env, reks, orb, speciesName, nType)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Data type for REKS
     type(TReksCalc), intent(in) :: reks
@@ -6579,6 +6610,9 @@ contains
 
     integer :: ii, iType
     character(lc) :: strTmp
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut,*)
     write(stdOut,*)

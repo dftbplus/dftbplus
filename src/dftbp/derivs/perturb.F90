@@ -15,7 +15,6 @@ module dftbp_derivs_perturb
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
   use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
@@ -357,11 +356,14 @@ contains
     !> For transformation in the  case of degeneracies
     type(TRotateDegen), allocatable :: transform(:)
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     write(stdOut,*)
     write(stdOut,*)'Perturbation calculation of electric polarisability'
     write(stdOut,*)
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
@@ -695,6 +697,9 @@ contains
 
     type(TFileDescr) :: fd
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     if (isRespKernelRPA) then
       nIter = 1
       isSccRequired = .false.
@@ -703,7 +708,7 @@ contains
       isSccRequired = isSccConvRequired
     end if
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
@@ -1094,6 +1099,9 @@ contains
 
     real(dp), allocatable :: dqInBackup(:,:,:), dqBlockInBackup(:,:,:,:), dRhoInBackup(:)
     real(dp) :: qnan
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     tSccCalc = allocated(sccCalc)
 
@@ -1509,7 +1517,7 @@ contains
         if (allocated(dRhoIn)) then
           dRhoInBackup(:) = dRhoIn
         end if
-        call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        call warning(env%stdOut, "SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
       end if
     end if
 
@@ -1521,11 +1529,14 @@ contains
 
 
   !> Initialise variables for perturbation
-  subroutine init_perturbation(parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+  subroutine init_perturbation(env, parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
       & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
       & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn,&
       & dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef,&
       & kWeight)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1639,6 +1650,9 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     integer :: iS, iK, iLev, ii
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nOrbs = size(filling,dim=1)
     nKpts = size(filling,dim=2)

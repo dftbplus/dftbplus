@@ -9,6 +9,7 @@
 
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
@@ -116,7 +117,10 @@ contains
 
 
   !> General entry point to read the constraint(s) on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, isSpinPol, is2Component)
+  subroutine readElecConstraintInput(env, node, geo, input, isSpinPol, is2Component)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -160,7 +164,7 @@ contains
     do iConstr = 1, nConstr
       call getItem1(children, iConstr, child2)
       call getChildValue(child2, "Domain", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species,&
+      call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species,&
           & input%atomGrp(iConstr)%data)
       call getChildValue(child2, "Population", input%atomNc(iConstr))
       ! Functionality currently restricted to charges only

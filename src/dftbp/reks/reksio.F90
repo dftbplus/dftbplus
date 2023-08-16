@@ -14,10 +14,10 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksio
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : au__Debye
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only: stdOut
   use dftbp_io_message, only : error
   use dftbp_reks_rekscommon, only : getTwoIndices, getSpaceSym
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
@@ -34,7 +34,10 @@ module dftbp_reks_reksio
   contains
 
   !> Print energy contribution for each microstate in SCC iteration
-  subroutine printReksMicrostates(this, Erep)
+  subroutine printReksMicrostates(env, this, Erep)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -43,6 +46,9 @@ module dftbp_reks_reksio
     real(dp), intent(in) :: Erep
 
     integer :: iL
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,10x,A,9x,A,10x,A,8x,A)') &
         & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Disp", "Total"
@@ -72,12 +78,18 @@ module dftbp_reks_reksio
 
 
   !> Print SA-REKS energy in SCC iteration
-  subroutine printSaReksEnergy(this)
+  subroutine printSaReksEnergy(env, this)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
     integer :: ist
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut,'(1x,A)') "SA-REKS state energies"
     do ist = 1, this%nstates
@@ -92,7 +104,10 @@ module dftbp_reks_reksio
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(this, Eavg)
+  subroutine printReksSAInfo(env, this, Eavg)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -103,7 +118,7 @@ module dftbp_reks_reksio
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22_(Eavg, this%enLtot, this%energy, this%FONs, this%Efunction,&
+      call printReksSAInfo22_(env, Eavg, this%enLtot, this%energy, this%FONs, this%Efunction,&
           & this%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -113,7 +128,10 @@ module dftbp_reks_reksio
 
 
   !> print SI-SA-REKS result in standard output
-  subroutine printReksSSRInfo(this, Wab, tmpEn, StateCoup)
+  subroutine printReksSSRInfo(env, this, Wab, tmpEn, StateCoup)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -130,7 +148,7 @@ module dftbp_reks_reksio
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSSRInfo22_(Wab, tmpEn, StateCoup, this%energy, this%eigvecsSSR, &
+      call printReksSSRInfo22_(env, Wab, tmpEn, StateCoup, this%energy, this%eigvecsSSR, &
           & this%Na, this%tAllStates, this%tSSR)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -140,7 +158,10 @@ module dftbp_reks_reksio
 
 
   !> print gradient results for REKS calculation
-  subroutine printReksGradInfo(this, derivs)
+  subroutine printReksGradInfo(env, this, derivs)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -150,6 +171,9 @@ module dftbp_reks_reksio
 
     integer :: ist, ia, ib, nstHalf
     character(3), parameter :: ordinals(6) = ['1st', '2nd', '3rd', '4th', '5th', '6th']
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
@@ -244,7 +268,10 @@ module dftbp_reks_reksio
 
 
   !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
+  subroutine printUnrelaxedFONs(env, tmpRho, rstate, Lstate, Nc, Na, tSSR)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -265,6 +292,9 @@ module dftbp_reks_reksio
     logical, intent(in) :: tSSR
 
     integer :: ii
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut,*)
     if (tSSR) then
@@ -291,7 +321,10 @@ module dftbp_reks_reksio
 
 
   !> print Relaxed FONs for target state
-  subroutine printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
+  subroutine printRelaxedFONs(env, tmpRho, rstate, Nc, Na, tSSR)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -309,6 +342,9 @@ module dftbp_reks_reksio
     logical, intent(in) :: tSSR
 
     integer :: ii
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     if (tSSR) then
       write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
@@ -330,7 +366,10 @@ module dftbp_reks_reksio
 
 
   !> print Relaxed FONs for target L-th microstate
-  subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
+  subroutine printRelaxedFONsL(env, tmpRho, Lstate, Nc, Na)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
@@ -345,6 +384,9 @@ module dftbp_reks_reksio
     integer, intent(in) :: Na
 
     integer :: ii
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
         & Lstate, " microstate:"
@@ -437,7 +479,10 @@ module dftbp_reks_reksio
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> print SA-REKS(2,2) result in standard output
-  subroutine printReksSAInfo22_(Eavg, enLtot, energy, FONs, Efunction, Plevel)
+  subroutine printReksSAInfo22_(env, Eavg, enLtot, energy, FONs, Efunction, Plevel)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Total energy for averaged state in REKS
     real(dp), intent(in) :: Eavg
@@ -460,6 +505,9 @@ module dftbp_reks_reksio
     real(dp) :: n_a, n_b
     integer :: iL, Lmax, ist, nstates
     character(len=8) :: strTmp
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nstates = size(energy,dim=1)
     Lmax = size(enLtot,dim=1)
@@ -515,8 +563,11 @@ module dftbp_reks_reksio
 
 
   !> print SI-SA-REKS(2,2) result in standard output
-  subroutine printReksSSRInfo22_(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
+  subroutine printReksSSRInfo22_(env, Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
       & Na, tAllStates, tSSR)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -545,6 +596,9 @@ module dftbp_reks_reksio
     integer :: ist, jst, nstates, ia, ib, nActPair
     character(len=8) :: strTmp
     character(len=1) :: stA, stB
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nActPair = size(Wab,dim=1)
     nstates = size(energy,dim=1)

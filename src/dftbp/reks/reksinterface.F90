@@ -20,7 +20,6 @@ module dftbp_reks_reksinterface
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -217,7 +216,7 @@ module dftbp_reks_reksinterface
         end if
       end if
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
+      call getUnrelaxedDensMatAndTdp(env, eigenvecs(:,:,1), this%overSqr, rhoL, &
           & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm, densityMatrix, errStatus)
@@ -232,7 +231,7 @@ module dftbp_reks_reksinterface
           call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
         end do
         call writeReksTDP(this%tdp)
-        call getReksOsc(this%tdp, this%energy)
+        call getReksOsc(env, this%tdp, this%energy)
       end if
 
     end if
@@ -339,6 +338,9 @@ module dftbp_reks_reksinterface
 
     real(dp), allocatable :: Qmat(:,:)
     integer :: ist, ia, ib, nstHalf, fac
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nstHalf = this%nstates * (this%nstates-1) / 2
 
@@ -495,7 +497,7 @@ module dftbp_reks_reksinterface
     end if
 
     if (this%Plevel >= 1) then
-      call printReksGradInfo(this, derivs)
+      call printReksGradInfo(env, this, derivs)
     end if
 
   end subroutine getReksGradients
@@ -588,13 +590,13 @@ module dftbp_reks_reksinterface
 
         if (this%Lstate == 0) then
           ! get the relaxed density matrix for target SSR or SA-REKS state
-          call getRelaxedDensMat(eigenvecs(:,:,1), this%overSqr, this%unrelRhoSqr, &
+          call getRelaxedDensMat(env, eigenvecs(:,:,1), this%overSqr, this%unrelRhoSqr, &
               & this%ZT, this%omega, this%FONs, this%eigvecsSSR, this%SAweight, &
               & this%Rab, this%G1, this%Nc, this%Na, this%rstate, this%reksAlg, &
               & this%tSSR, this%tNAC, this%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
-          call getRelaxedDensMatL(eigenvecs(:,:,1), this%rhoSqrL, this%overSqr, &
+          call getRelaxedDensMatL(env, eigenvecs(:,:,1), this%rhoSqrL, this%overSqr, &
               & this%weight, this%SAweight, this%unrelRhoSqr, this%RmatL, &
               & this%ZT, this%omega, this%weightIL, this%G1, this%orderRmatL, &
               & this%Lpaired, this%Nc, this%Na, this%Lstate, this%reksAlg, &
@@ -1055,7 +1057,7 @@ module dftbp_reks_reksinterface
         & this%isHybridXc, this%G1, this%weightIL, this%omega, this%Rab)
 
     ! get A1e or Aall values based on GradOpt
-    call getSuperAMatrix(eigenvecs, this%HxcSqrS, this%HxcSqrD, this%fockFc, &
+    call getSuperAMatrix(env, eigenvecs, this%HxcSqrS, this%HxcSqrD, this%fockFc, &
         & this%fockFa, this%omega, this%fillingL, this%weight, this%SAweight, &
         & this%FONs, this%G1, this%Lpaired, this%Nc, this%Na, this%Glevel, &
         & this%reksAlg, this%tSaveMem, this%A1e, this%A1ePre, this%Aall)
@@ -1213,6 +1215,9 @@ module dftbp_reks_reksinterface
 
     !> option for relaxed properties (QM/MM) calculations
     logical, intent(in) :: optionQMMM
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     if (this%Glevel == 1 .or. this%Glevel == 2) then
 

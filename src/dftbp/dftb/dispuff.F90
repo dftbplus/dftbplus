@@ -234,13 +234,13 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%rCutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%rCutoff)
     if (this%tPeriodic) then
       call getDispEnergyAndGrad_cluster(env, this%nAtom, coords, species0, nNeigh,&
           & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%c6, this%c12, this%cPoly,&
           & this%r0, this%energies, this%gradients, removeR6=.true., stress=this%stress,&
           & vol=this%vol)
-      call getNrOfNeighboursForAll(nNeigh, neigh, this%ewaldRCut)
+      call getNrOfNeighboursForAll(env, nNeigh, neigh, this%ewaldRCut)
       call addDispEGr_per_species(env, this%nAtom, coords, species0, nNeigh, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, this%c6, this%eta, this%vol, this%gLatPoints,&
           & this%energies, this%gradients, this%stress)

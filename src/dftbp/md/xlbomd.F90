@@ -11,6 +11,7 @@
 !> Aradi et al. Extended lagrangian density functional tight-binding molecular dynamics for
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_md_xlbomd
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
   implicit none
@@ -70,10 +71,13 @@ contains
 
 
   !> Initializes the Xlbomd instance.
-  subroutine Xlbomd_init(this, input, nElems)
+  subroutine Xlbomd_init(this, env, input, nElems)
 
     !> Instance.
     type(TXLBOMD), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Basic input parameters.
     type(TXLBOMDInp), intent(in) :: input

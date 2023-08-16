@@ -14,7 +14,7 @@ module dftbp_transport_negfint
   use dftbp_common_constants, only : Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, tIOproc
+  use dftbp_common_globalenv, only : tIOproc
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -243,28 +243,28 @@ contains
         params%FictCont(i) = transpar%contacts(i)%wideBand
         params%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
 
-        write(stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
+        write(env%stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
             & ' "'//trim(transpar%contacts(i)%name)//'"'
 
         if (params%FictCont(i)) then
-          write(stdOut,*) 'FICTITIOUS CONTACT '
-          write(stdOut,*) 'DOS: ', params%contact_DOS(i)
+          write(env%stdOut,*) 'FICTITIOUS CONTACT '
+          write(env%stdOut,*) 'DOS: ', params%contact_DOS(i)
         end if
-        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
-        write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
+        write(env%stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
+        write(env%stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
         if (transpar%contacts(i)%tFermiSet) then
-          write(stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
-          write(stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
+          write(env%stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(env%stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
         end if
-        write(stdOut,*)
+        write(env%stdOut,*)
 
         ! Define electrochemical potentials
         params%mu(i) = eFermi(i) - pot(i)
 
         if (transpar%contacts(i)%tFermiSet) then
-          write(stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
+          write(env%stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
               & Hartree__eV*params%mu(i), 'eV'
-          write(stdOut,*)
+          write(env%stdOut,*)
         end if
 
       enddo
@@ -318,20 +318,20 @@ contains
         params%n_poles = 0
       end if
 
-      write(stdOut,*) 'Density Matrix Parameters'
+      write(env%stdOut,*) 'Density Matrix Parameters'
       if (.not.transpar%defined) then
-        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
-        write(stdOut,*) 'eFermi: ', params%mu(1)
+        write(env%stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
+        write(env%stdOut,*) 'eFermi: ', params%mu(1)
       end if
-      write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
-      write(stdOut,*) 'Number of poles: ', params%N_poles
-      write(stdOut,*) 'Real-axis points: ', params%Np_real
+      write(env%stdOut,*) 'Contour Points: ', params%Np_n(1:2)
+      write(env%stdOut,*) 'Number of poles: ', params%N_poles
+      write(env%stdOut,*) 'Real-axis points: ', params%Np_real
       if (params%readOldDM_SGFs==0) then
-        write(stdOut,*) 'Read Existing SGFs: Yes '
+        write(env%stdOut,*) 'Read Existing SGFs: Yes '
       else
-        write(stdOut,*) 'Read Existing SGFs: No, option ', params%readOldDM_SGFs
+        write(env%stdOut,*) 'Read Existing SGFs: No, option ', params%readOldDM_SGFs
       end if
-      write(stdOut,*)
+      write(env%stdOut,*)
 
     end if
 
@@ -443,27 +443,33 @@ contains
 
 
   !> Initialise dephasing effects
-  subroutine setup_dephasing(this, tundos)
+  subroutine setup_dephasing(this, env, tundos)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> density of states in tunnel region
     type(TNEGFTunDos), intent(in) :: tundos
 
     if(this%negf%tDephasingVE) then
-      call negf_setup_elph(this%negf, tundos%elph)
+      call negf_setup_elph(env, this%negf, tundos%elph)
     end if
 
     if(this%negf%tDephasingBP) then
-      call negf_setup_bp(this%negf, tundos%bp)
+      call negf_setup_bp(env, this%negf, tundos%bp)
     end if
 
   end subroutine setup_dephasing
 
 
   !> Initialise electron-phonon coupling model
-  subroutine negf_setup_elph(negf, elph)
+  subroutine negf_setup_elph(env, negf, elph)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -471,16 +477,16 @@ contains
     !> el-ph coupling structure
     type(TElPh), intent(in) :: elph
 
-    write(stdOut,*)
+    write(env%stdOut,*)
     select case(elph%model)
     case(1)
-      write(stdOut,*) 'Setting local fully diagonal (FD) elastic dephasing model'
+      write(env%stdOut,*) 'Setting local fully diagonal (FD) elastic dephasing model'
       call set_elph_dephasing(negf, elph%coupling, elph%scba_niter)
     case(2)
-      write(stdOut,*) 'Setting local block diagonal (BD) elastic dephasing model'
+      write(env%stdOut,*) 'Setting local block diagonal (BD) elastic dephasing model'
       call set_elph_block_dephasing(negf, elph%coupling, elph%orbsperatm, elph%scba_niter)
     case(3)
-      write(stdOut,*) 'Setting overlap mask (OM) block diagonal elastic dephasing model'
+      write(env%stdOut,*) 'Setting overlap mask (OM) block diagonal elastic dephasing model'
       call set_elph_s_dephasing(negf, elph%coupling, elph%orbsperatm, elph%scba_niter)
     case default
       call error("This electron-phonon model is not supported")
@@ -490,7 +496,10 @@ contains
 
 
   !> Initialise Buttiker Probe dephasing
-  subroutine negf_setup_bp(negf, elph)
+  subroutine negf_setup_bp(env, negf, elph)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -498,17 +507,17 @@ contains
     !> el-ph coupling structure
     type(TElPh), intent(in) :: elph
 
-    write(stdOut,*)
+    write(env%stdOut,*)
     select case(elph%model)
     case(1)
-      write(stdOut,*) 'Setting local fully diagonal (FD) BP dephasing model'
+      write(env%stdOut,*) 'Setting local fully diagonal (FD) BP dephasing model'
       !write(stdOut,*) 'coupling=',elph%coupling
       call set_bp_dephasing(negf, elph%coupling)
     case(2)
-      write(stdOut,*) 'Setting local block diagonal (BD) BP dephasing model'
+      write(env%stdOut,*) 'Setting local block diagonal (BD) BP dephasing model'
       call error('NOT IMPLEMENTED! INTERRUPTED!')
     case(3)
-      write(stdOut,*) 'Setting overlap mask (OM) block diagonal BP dephasing model'
+      write(env%stdOut,*) 'Setting overlap mask (OM) block diagonal BP dephasing model'
       call error('NOT IMPLEMENTED! INTERRUPTED!')
     case default
       call error("BP model is not supported")
@@ -551,26 +560,33 @@ contains
 
 
   !> Destroy CSR matrices
-  subroutine TNegfInt_final(this)
+  subroutine TNegfInt_final(env, this)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TNegfInt), intent(inout) :: this
 
-    write(stdOut, *)
-    write(stdOut, *) 'Release NEGF memory:'
+    write(env%stdOut, *)
+    write(env%stdOut, *) 'Release NEGF memory:'
     !BA: the following two/three calls are probably absolutely unnecessary
     call destruct(this%csrHam)
     call destruct(this%csrOver)
     call destroy_negf(this%negf)
-    call writePeakInfo(stdOut)
-    call writeMemInfo(stdOut)
+    call writePeakInfo(env%stdOut)
+    call writeMemInfo(env%stdOut)
 
   end subroutine TNegfInt_final
 
 
   !> Initialise the structures for the libNEGF library
-  subroutine setup_str(this, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
+  subroutine setup_str(this, env, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Dense matrix information
     Type(TDenseDescr), intent(in) :: denseDescr
@@ -612,7 +628,7 @@ contains
 
     natoms = size(denseDescr%iatomstart) - 1
 
-    call check_pls(transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
+    call check_pls(env, transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
 
     allocate(PL_end(nbl))
     allocate(atomst(nbl+1))
@@ -685,17 +701,17 @@ contains
        do j1 = 1, ncont
 
          if (all(minv(:,j1) == 0)) then
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'WARNING: contact',j1,' does not interact with any PL'
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) 'WARNING: contact',j1,' does not interact with any PL'
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            minv(1,j1) = j1
          end if
 
          if (count(minv(:,j1).eq.j1).gt.1) then
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
-           write(stdOut,*) '       check structure and increase PL size         '
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
+           write(env%stdOut,*) '       check structure and increase PL size         '
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            call error("")
          end if
 
@@ -713,10 +729,10 @@ contains
 
       end if
 
-      write(stdOut,*) ' Structure info:'
-      write(stdOut,*) ' Number of PLs:',nbl
-      write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
-      write(stdOut,*)
+      write(env%stdOut,*) ' Structure info:'
+      write(env%stdOut,*) ' Number of PLs:',nbl
+      write(env%stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
+      write(env%stdOut,*)
 
     end if
 
@@ -726,7 +742,10 @@ contains
 
 
   !> Subroutine to check the principal layer (PL) definitions
-  subroutine check_pls(transPar, greenDens, nAtoms, iNeigh, nNeigh, img2CentCell, info)
+  subroutine check_pls(env, transPar, greenDens, nAtoms, iNeigh, nNeigh, img2CentCell, info)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> transport calculation parameters
     type(TTranspar), intent(in) :: transPar
@@ -792,9 +811,9 @@ contains
                img2CentCell(iNeigh(1:nNeigh(ii),ii)).le.iate) )
          end do
          if (nn .gt. mm+1 .and. kk .ge. iats .and. kk .le. iate) then
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'WARNING: PL ',mm,' interacts with PL',nn
-           write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(env%stdOut,*) 'WARNING: PL ',mm,' interacts with PL',nn
+           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            info = mm
          end if
        end do
@@ -922,7 +941,10 @@ contains
   !>
   !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
-  subroutine negf_dumpHS(HH,SS)
+  subroutine negf_dumpHS(env, HH,SS)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> hamiltonian in CSR format
     type(z_CSR), intent(in) :: HH
@@ -932,7 +954,7 @@ contains
 
     type(TFileDescr) :: fd
 
-    write(stdOut, *) 'Dumping H and S in files...'
+    write(env%stdOut, *) 'Dumping H and S in files...'
 
     call openFile(fd, 'HH.dat', mode="w")
     write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
@@ -956,7 +978,10 @@ contains
 
 
   !> Routines to setup orthogonalised H and S have been moved here
-  subroutine prepare_HS(negf, H_dev,S_dev,HH,SS)
+  subroutine prepare_HS(env, negf, H_dev,S_dev,HH,SS)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -974,12 +999,12 @@ contains
     type(z_CSR), intent(inout) :: SS
 
     if (negf%tOrthonormal) then
-      write(stdOut, "(' Lowdin orthogonalization for the whole system ')")
+      write(env%stdOut, "(' Lowdin orthogonalization for the whole system ')")
       call Orthogonalization(negf, H_dev, S_dev)
     end if
 
     if (negf%tOrthonormalDevice) then
-      write(stdOut, "(' Lowdin orthogonalization for device-only')")
+      write(env%stdOut, "(' Lowdin orthogonalization for device-only')")
       call Orthogonalization_dev(negf, H_dev, S_dev)
     end if
 
@@ -1156,10 +1181,10 @@ contains
     nSpin = size(ham, dim=2)
     rho = 0.0_dp
 
-    write(stdOut, *)
-    write(stdOut, '(80("="))')
-    write(stdOut, *) '                         COMPUTING DENSITY MATRIX      '
-    write(stdOut, '(80("="))')
+    write(env%stdOut, *)
+    write(env%stdOut, '(80("="))')
+    write(env%stdOut, *) '                         COMPUTING DENSITY MATRIX      '
+    write(env%stdOut, '(80("="))')
 
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
@@ -1167,10 +1192,10 @@ contains
 
     #:if WITH_MPI
       if (env%mpi%nGroup == 1) then
-        write(stdOut,*) 'k-point',iK,'Spin',iS
+        write(env%stdOut,*) 'k-point',iK,'Spin',iS
       end if
     #:else
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      write(env%stdOut,*) 'k-point',iK,'Spin',iS
     #:endif
 
       call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
@@ -1209,8 +1234,8 @@ contains
       call set_readOldDMsgf(this%negf, READ_SGF)  ! read from files
     end if
 
-    write(stdOut,'(80("="))')
-    write(stdOut,*)
+    write(env%stdOut,'(80("="))')
+    write(env%stdOut,*)
 
   end subroutine calcdensity_green
 
@@ -1307,16 +1332,16 @@ contains
     nSpin = size(ham, dim=2)
     rhoE = 0.0_dp
 
-    write(stdOut, *)
-    write(stdOut, '(80("="))')
-    write(stdOut, *) '                     COMPUTING E-WEIGHTED DENSITY MATRIX '
-    write(stdOut, '(80("="))')
+    write(env%stdOut, *)
+    write(env%stdOut, '(80("="))')
+    write(env%stdOut, *) '                     COMPUTING E-WEIGHTED DENSITY MATRIX '
+    write(env%stdOut, '(80("="))')
 
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      write(env%stdOut,*) 'k-point',iK,'Spin',iS
 
       call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor,&
           & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
@@ -1346,8 +1371,8 @@ contains
       call set_readOldDMsgf(this%negf, READ_SGF)  ! read from files
     end if
 
-    write(stdOut,'(80("="))')
-    write(stdOut,*)
+    write(env%stdOut,'(80("="))')
+    write(env%stdOut,*)
 
   end subroutine calcEdensity_green
 
@@ -1468,18 +1493,18 @@ contains
     ncont = size(mu,1)
 
     if (params%verbose.gt.30) then
-      write(stdOut, *)
-      write(stdOut, '(80("="))')
-      write(stdOut, *) '                            COMPUTATION OF CURRENT         '
-      write(stdOut, '(80("="))')
-      write(stdOut, *)
+      write(env%stdOut, *)
+      write(env%stdOut, '(80("="))')
+      write(env%stdOut, *) '                            COMPUTATION OF CURRENT         '
+      write(env%stdOut, '(80("="))')
+      write(env%stdOut, *)
     end if
 
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
+      write(env%stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
 
       params%mu(1:ncont) = mu(1:ncont,iS)
 
@@ -1509,7 +1534,7 @@ contains
         call unpackHS(S_all, over, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
         call adjointLowerTriangle(S_all)
 
-        call prepare_HS(this%negf, H_all, S_all, this%csrHam, this%csrOver)
+        call prepare_HS(env, this%negf, H_all, S_all, this%csrHam, this%csrOver)
 
       else
 
@@ -1564,8 +1589,8 @@ contains
     currLead(:) = currLead * convertCurrent(unitsOfEnergy, unitsOfCurrent)
 
     do ii = 1, size(currLead)
-      write(stdOut, *)
-      write(stdOut, '(1x,a,i3,i3,a,ES14.5,a,a)') ' contacts: ',params%ni(ii),params%nf(ii),&
+      write(env%stdOut, *)
+      write(env%stdOut, '(1x,a,i3,i3,a,ES14.5,a,a)') ' contacts: ',params%ni(ii),params%nf(ii),&
           & ' current: ', currLead(ii),' ',unitsOfCurrent%name
     enddo
 
@@ -1989,11 +2014,11 @@ contains
       endif
     endif
 
-    write(stdOut, *)
-    write(stdOut, '(80("="))')
-    write(stdOut, *) '                        COMPUTING LOCAL CURRENTS          '
-    write(stdOut, '(80("="))')
-    write(stdOut, *)
+    write(env%stdOut, *)
+    write(env%stdOut, '(80("="))')
+    write(env%stdOut, *) '                        COMPUTING LOCAL CURRENTS          '
+    write(env%stdOut, '(80("="))')
+    write(env%stdOut, *)
 
     nKS = size(groupKS, dim=2)
     nK = size(kPoints, dim=2)
@@ -2024,7 +2049,7 @@ contains
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      write(env%stdOut,*) 'k-point',iK,'Spin',iS
 
       ! We need to recompute Rho and RhoE .....
       call foldToCSR(this%csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair,&
@@ -2128,9 +2153,9 @@ contains
     deallocate(lcurr)
 
     if (tIoProc) then
-      write(stdOut,*)
+      write(env%stdOut,*)
       call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
-      write(stdOut,*) " <<< supercell.xyz written on file"
+      write(env%stdOut,*) " <<< supercell.xyz written on file"
     end if
 
   contains

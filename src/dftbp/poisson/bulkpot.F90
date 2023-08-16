@@ -16,10 +16,10 @@
 #:include "error.fypp"
 
 module dftbp_poisson_bulkpot
+ use dftbp_common_environment, only : TEnvironment
  use dftbp_common_accuracy, only : dp
  use dftbp_common_constants, only : Bohr__AA
  use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
- use dftbp_common_globalenv, only : stdOut
  use dftbp_io_message, only : warning
  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
  use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
@@ -52,33 +52,45 @@ module dftbp_poisson_bulkpot
 contains
 
  !%--------------------------------------------------------------------------
- subroutine create_super_array(SA,na,nb,nc)
+ subroutine create_super_array(env, SA,na,nb,nc)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    type(super_array) :: SA
    integer :: na,nb,nc
 
-   call log_gallocate(SA%val,na,nb,nc)
+   call log_gallocate(env%stdOut, SA%val,na,nb,nc)
 
    SA%ibsize=na*nb*nc
 
  end subroutine create_super_array
 
  !%--------------------------------------------------------------------------
- subroutine destroy_super_array(SA)
+ subroutine destroy_super_array(env, SA)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    type(super_array) :: SA
 
-   call log_gdeallocate(SA%val)
+   call log_gdeallocate(env%stdOut, SA%val)
 
  end subroutine destroy_super_array
  !%--------------------------------------------------------------------------
 
 
- subroutine write_super_array(SA)
+ subroutine write_super_array(env, SA)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    type(super_array) :: SA
 
    character(*), parameter :: formatStr = '(a, ":", t30, g14.10)'
+
+   integer :: stdOut
+   stdOut = env%stdOut
 
    write(stdOut,"(I0,1X,I0,1X,I0)") SA%a,SA%b,SA%c
    write(stdOut,"(3E20.12)") SA%dla,SA%dlb,SA%dlc
@@ -94,7 +106,10 @@ contains
  end subroutine write_super_array
 
  !%--------------------------------------------------------------------------
- subroutine create_phi_bulk(phi_bulk,iparm,dlx,dly,dlz,cont_mem)
+ subroutine create_phi_bulk(env, phi_bulk,iparm,dlx,dly,dlz,cont_mem)
+
+ !> Environmet
+ type(TEnvironment), intent(in) :: env
 
  type(super_array) :: phi_bulk(:)
  integer :: iparm(23)
@@ -278,7 +293,7 @@ contains
    phi_bulk(m)%iparm(19) = 0            ! Gauss-Siedel
    phi_bulk(m)%iparm(20) = 7*(na+2)*(nb+2)*(nc+2)/2
 
-   call log_gallocate(phi_bulk(m)%rhs,na,nb,nc)
+   call log_gallocate(env%stdOut, phi_bulk(m)%rhs,na,nb,nc)
 
    cont_mem = na*nb*nc
 
@@ -286,7 +301,7 @@ contains
 
    phi_bulk(m)%ibsize = cont_mem
 
-   call log_gallocate(phi_bulk(m)%val,na,nb,nc)
+   call log_gallocate(env%stdOut, phi_bulk(m)%val,na,nb,nc)
 
    phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
 
@@ -296,21 +311,28 @@ end subroutine create_phi_bulk
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-subroutine destroy_phi_bulk(phi_bulk)
+subroutine destroy_phi_bulk(env, phi_bulk)
+
+  !> Environmet
+  type(TEnvironment), intent(in) :: env
 
   type(super_array) :: phi_bulk(:)
   integer :: m
 
   do m=1,ncont
-    call log_gdeallocate(phi_bulk(m)%val)
-    call log_gdeallocate(phi_bulk(m)%rhs)
+    call log_gdeallocate(env%stdOut, phi_bulk(m)%val)
+    call log_gdeallocate(env%stdOut, phi_bulk(m)%rhs)
   enddo
 
 end subroutine destroy_phi_bulk
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%--------------------------------------------------------------------------
-Subroutine readbulk_pot(phi_bulk, iErr)
+Subroutine readbulk_pot(env, phi_bulk, iErr)
+
+  !> Environmet
+  type(TEnvironment), intent(in) :: env
+
   type(super_array) :: phi_bulk(:)
 
   integer, intent(out), optional :: iErr
@@ -332,7 +354,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
     write(m_id,'(i2.2)') m
     fileName = 'contacts/BulkPot_' // m_id //'.dat'
     if (.not. fileExists(fileName)) then
-      @:ERROR_HANDLING(iErr, -1, 'File contacts/BulkPot_'//m_id//'.dat not found')
+      @:ERROR_HANDLING(env%stdOut, iErr, -1, 'File contacts/BulkPot_'//m_id//'.dat not found')
     else
       call openFile(fp, fileName, mode="r")
     endif
@@ -342,7 +364,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
     if (a.ne.phi_bulk(m)%iparm(14) .or. &
       b.ne.phi_bulk(m)%iparm(15) .or. &
       c.ne.phi_bulk(m)%iparm(16)) then
-      call warning('incompatible BulkPot: will be recomputed')
+      call warning(env%stdOut, 'incompatible BulkPot: will be recomputed')
       ReadBulk = .false.
       call closeFile(fp)
       return
@@ -366,17 +388,25 @@ Subroutine readbulk_pot(phi_bulk, iErr)
 end subroutine  readbulk_pot
 !%--------------------------------------------------------------------------
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine compbulk_pot(phi_bulk,iparm,fparm)
+subroutine compbulk_pot(env, phi_bulk,iparm,fparm)
+
+  !> Environmet
+  type(TEnvironment), intent(in) :: env
+
   type(super_array) :: phi_bulk(:)
   integer :: iparm(23)
   real(dp) :: fparm(8)
 
-  call compbulk_pot_mud(phi_bulk,iparm,fparm)
+  call compbulk_pot_mud(env, phi_bulk,iparm,fparm)
 
 end subroutine compbulk_pot
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine compbulk_pot_ewald(phi_bulk, m)
+Subroutine compbulk_pot_ewald(env, phi_bulk, m)
+
+  !> Environmet
+  type(TEnvironment), intent(in) :: env
+
   type(super_array) :: phi_bulk(:)
   integer :: m
 
@@ -439,7 +469,7 @@ Subroutine compbulk_pot_ewald(phi_bulk, m)
       stepb=nb-1 ! Ewalds is computed on 1 and nb
   endif
 
-  call log_gallocate( phi_bulk_PAR,na,nb,nc)
+  call log_gallocate(env%stdOut, phi_bulk_PAR,na,nb,nc)
 
   phi_bulk_PAR(:,:,:) = 0.d0
 
@@ -463,7 +493,7 @@ Subroutine compbulk_pot_ewald(phi_bulk, m)
               nsh = nshells(izp(atom))
 
               ! Compute L-independent part:
-              call long_pot(distR,basis,recbasis,alpha,vol,tol,lng_pot)
+              call long_pot(env, distR,basis,recbasis,alpha,vol,tol,lng_pot)
               ! total atomic charge
               deltaQ = sum(dQmat(1:nsh,atom))
               phi_bulk_PAR(i,j,k) = phi_bulk_PAR(i,j,k) + deltaQ*lng_pot
@@ -473,7 +503,7 @@ Subroutine compbulk_pot_ewald(phi_bulk, m)
                  deltaQ = dQmat(l,atom)
                  uhatm = uhubb(l,izp(atom))
 
-                 call short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
+                 call short_pot(env, distR,basis,uhatm,deltaQ,tol,sh_pot)
 
                  !OMP CRITICAL
                  phi_bulk_PAR(i,j,k) = phi_bulk_PAR(i,j,k) - sh_pot
@@ -487,7 +517,7 @@ Subroutine compbulk_pot_ewald(phi_bulk, m)
 
   phi_bulk(m)%val(:,:,:)=phi_bulk_PAR(:,:,:)
 
-  call log_gdeallocate(phi_bulk_PAR)
+  call log_gdeallocate(env%stdOut, phi_bulk_PAR)
 
 
 end subroutine  compbulk_pot_ewald
@@ -549,7 +579,11 @@ end subroutine save_bulkpot
 
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
+Subroutine compbulk_pot_mud(env, phi_bulk,iparm,fparm, iErr)
+
+  !> Environmet
+  type(TEnvironment), intent(in) :: env
+
   type(super_array) :: phi_bulk(:)
   integer :: iparm(23)
   real(dp) :: fparm(8)
@@ -586,7 +620,7 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
 
     ! call Ewald sums to set Dirichlet BC on two faces
     if (phi_bulk(m)%doEwald) then
-      call compbulk_pot_ewald(phi_bulk,m)
+      call compbulk_pot_ewald(env, phi_bulk,m)
     endif
 
     ! set charge density (rhs of poisson)
@@ -595,7 +629,7 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
 
     ! solve poisson for bulkpot
 
-    call log_gallocate(work,phi_bulk(m)%iparm(20))
+    call log_gallocate(env%stdOut, work,phi_bulk(m)%iparm(20))
 
     mgopt(1) = 0
 
@@ -607,18 +641,18 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
                 &  bulk_bndyc,phi_bulk(m)%rhs,phi_bulk(m)%val,mgopt,err )
 
       if (err.ne.0 .and. err.ne.9) then
-        @:FORMATTED_ERROR_HANDLING(iErr, -1, '(A,I0)', 'Poisson solver error n=', err)
+        @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -1, '(A,I0)', 'Poisson solver error n=', err)
       endif
       if(err.eq.9) then
-         call log_gdeallocate(work)
-         call log_gallocate(work,phi_bulk(m)%iparm(21))
+         call log_gdeallocate(env%stdOut, work)
+         call log_gallocate(env%stdOut, work,phi_bulk(m)%iparm(21))
       endif
     enddo
 
-    call log_gdeallocate(work)
+    call log_gdeallocate(env%stdOut, work)
 
     if (phi_bulk(m)%iparm(22).eq.phi_bulk(m)%iparm(18)) then
-      @:FORMATTED_ERROR_HANDLING(iErr, -2, '(A,E12.4)', 'Bulk potential not converged! Error:',&
+      @:FORMATTED_ERROR_HANDLING(env%stdOut, iErr, -2, '(A,E12.4)', 'Bulk potential not converged! Error:',&
           & phi_bulk(m)%fparm(8))
     endif
 

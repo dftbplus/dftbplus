@@ -278,7 +278,7 @@ contains
 
     if (allocated(this%sc)) then
       allocate(nNeighbour(this%nAtom))
-      call getNrOfNeighboursForAll(nNeighbour, neigh, this%calc%cutoffInter)
+      call getNrOfNeighboursForAll(env, nNeighbour, neigh, this%calc%cutoffInter)
       call weightDispMat(this%calc, this%ref, env, this%nAtom, nNeighbour, neigh, &
           & img2CentCell, species0, this%cnCont%cn, this%sc%scratch, this%sc%dispMat)
     end if
@@ -1054,11 +1054,11 @@ contains
     sigma(:, :) = 0.0_dp
 
     if (present(eeqCont)) then
-      call eeqCont%updateCoords(neigh, img2CentCell, coords, species, stat)
+      call eeqCont%updateCoords(env, neigh, img2CentCell, coords, species, stat)
       @:PROPAGATE_ERROR(stat)
     end if
 
-    call cnCont%updateCoords(neigh, img2CentCell, coords, species)
+    call cnCont%updateCoords(env, neigh, img2CentCell, coords, species)
 
     nRef = maxval(ref%nRef)
     allocate(nNeighbour(nAtom))
@@ -1077,7 +1077,7 @@ contains
     localSigma(:,:) = 0.0_dp
 
     if (present(eeqCont)) then
-      call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+      call getNrOfNeighboursForAll(env, nNeighbour, neigh, calc%cutoffInter)
 
       call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, &
           & eeqCont%charges, zetaVec, zetadq, zetadcn)
@@ -1091,7 +1091,7 @@ contains
     end if
 
     if (calc%s9 > 0.0_dp) then
-      call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
+      call getNrOfNeighboursForAll(env, nNeighbour, neigh, calc%cutoffThree)
 
       call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, zero, &
           & zetaVec, zetadq, zetadcn)
@@ -1543,7 +1543,7 @@ contains
     localDeriv(:,:) = 0.0_dp
     localSigma(:,:) = 0.0_dp
 
-    call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+    call getNrOfNeighboursForAll(env, nNeighbour, neigh, calc%cutoffInter)
 
     call weightReferences(calc, ref, env, nAtom, species, cnCont%cn, &
         & charges, zetaVec, zetadq, zetadcn)

@@ -11,8 +11,9 @@
 program skderivs
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : maxL, shellNames
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
   use dftbp_dftb_slakoeqgrid, only : getNIntegrals, getSKIntegrals, init, skEqGridNew, skEqGridOld,&
       & TSlakoEqGrid
   use dftbp_io_charmanip, only : i2c, unquote
@@ -28,6 +29,7 @@ program skderivs
       & string
 implicit none
 
+  type(TEnvironment) :: env
 
   !> Contains the data necessary for the main program
   type TInputData
@@ -43,24 +45,34 @@ implicit none
   !> input data for the calculation of the derivatives
   type(TInputData) :: inp
 
-#:if WITH_MPI
-  !> MPI environment, if compiled with mpifort
-  type(TMpiEnv) :: mpi
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
 
+#:if WITH_MPI
   ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
   ! build
-  call TMpiEnv_init(mpi)
-  call mpi%mpiSerialEnv()
+  call TMpiEnv_init(env%mpi)
+  if (.not. env%mpi%isSerialEnv()) then
+    call error('This is serial code, but invoked on multiple processors')
+  end if
 #:endif
 
-  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in")
-  call main(inp)
+  call parseHSDInput(env, inp, "skderivs_in.hsd", "skderivs_in")
+  call main(env, inp)
+
+  call env%destruct()
+  call destructGlobalEnv()
 
 contains
 
 
   !> Does the main job of calculating derivatives and writing them to disc
-  subroutine main(inp)
+  subroutine main(env, inp)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> instance
     type(TInputData), intent(inout) :: inp
@@ -79,18 +91,18 @@ contains
     allocate(fdHam(size(inp%iHam)))
     allocate(fdOver(size(inp%iOver)))
 
-    write(stdout, "(A)") ""
-    write(stdout, "(A)") "Following files will be created:"
+    write(env%stdout, "(A)") ""
+    write(env%stdout, "(A)") "Following files will be created:"
     call resize_string(buffer, 1024)
     do ii = 1, size(inp%iHam)
       strTmp = trim(inp%output) // ".ham." // i2c(ii)
       call openFile(fdHam(ii), strTmp, mode="w")
-      write(stdout, "(2X,A)") trim(strTmp)
+      write(env%stdout, "(2X,A)") trim(strTmp)
     end do
     do ii = 1, size(inp%iOver)
       strTmp = trim(inp%output) // ".ovr." // i2c(ii)
       call openFile(fdOver(ii), strTmp, mode="w")
-      write(stdout, "(2X,A)") trim(strTmp)
+      write(env%stdout, "(2X,A)") trim(strTmp)
     end do
 
     do ii = 1, nGrid
@@ -154,7 +166,10 @@ contains
 
 
   !> Parses the HSD input
-  subroutine parseHSDInput(inp, hsdInputName, rootTag)
+  subroutine parseHSDInput(env, inp, hsdInputName, rootTag)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> parsed data
     type(TInputData), intent(out) :: inp
@@ -183,8 +198,8 @@ contains
 
     call parseHSD(rootTag, hsdInputName, root)
 
-    write(stdout, "(A)") repeat("-", 80)
-    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
+    write(env%stdout, "(A)") repeat("-", 80)
+    write(env%stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
 
     call getChild(hsdTree, rootTag, root)
 
@@ -283,9 +298,9 @@ contains
     end if
 
     !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root)
-    write(stdout, "(A)") "Done."
-    write(stdout, "(A)") repeat("-", 80)
+    call warnUnprocessedNodes(env, root)
+    write(env%stdout, "(A)") "Done."
+    write(env%stdout, "(A)") repeat("-", 80)
 
   end subroutine parseHSDInput
 

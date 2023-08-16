@@ -305,7 +305,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%sCutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%sCutoff)
 
     call getSASA(env, nNeigh, neighList%iNeighbour, img2CentCell, species0, &
         & coords, this%tolerance, this%smoothingPar, this%probeRad, &

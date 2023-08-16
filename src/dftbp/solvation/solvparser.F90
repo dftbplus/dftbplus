@@ -10,11 +10,11 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvation_solvparser
   use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
-  use dftbp_common_filesystem, only : findFile, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, massUnits, &
       & massDensityUnits, inverseLengthUnits
   use dftbp_dftbplus_specieslist, only : readSpeciesList
@@ -49,7 +49,10 @@ contains
 
 
   !> Reads in solvation related settings
-  subroutine readSolvation(node, geo, input)
+  subroutine readSolvation(env, node, geo, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -72,19 +75,22 @@ contains
       call detailedError(node, "Invalid solvation model name.")
     case ("generalisedborn")
       allocate(input%GBInp)
-      call readSolvGB(solvModel, geo, input%GBInp)
+      call readSolvGB(env, solvModel, geo, input%GBInp)
     case ("cosmo")
       allocate(input%cosmoInp)
-      call readSolvCosmo(solvModel, geo, input%cosmoInp)
+      call readSolvCosmo(env, solvModel, geo, input%cosmoInp)
     case ("sasa")
       allocate(input%SASAInp)
-      call readSolvSASA(solvModel, geo, input%SASAInp)
+      call readSolvSASA(env, solvModel, geo, input%SASAInp)
     end select
   end subroutine readSolvation
 
 
   !> Reads in generalized Born related settings
-  subroutine readSolvGB(node, geo, input)
+  subroutine readSolvGB(env, node, geo, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -118,8 +124,8 @@ contains
       call getParamSearchPaths(searchPath)
       call findFile(searchPath, paramFile, paramTmp)
       if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-      write(stdOut, '(a)') "Reading GBSA parameter file '" // paramFile // "'"
-      call readParamGBSA(paramFile, defaults, solvent, geo%speciesNames, node=child)
+      write(env%stdOut, '(a)') "Reading GBSA parameter file '" // paramFile // "'"
+      call readParamGBSA(env, paramFile, defaults, solvent, geo%speciesNames, node=child)
     else
       call readSolvent(node, solvent)
     end if
@@ -215,10 +221,10 @@ contains
         call setChild(node, "SASA", value1)
       end if
       if (allocated(defaults)) then
-        call readSolvSASA(value1, geo, input%sasaInput, defaults%sasaInput%probeRad, &
+        call readSolvSASA(env, value1, geo, input%sasaInput, defaults%sasaInput%probeRad, &
             & defaults%sasaInput%surfaceTension)
       else
-        call readSolvSASA(value1, geo, input%sasaInput)
+        call readSolvSASA(env, value1, geo, input%sasaInput)
       end if
 
       if (allocated(defaults)) then
@@ -259,7 +265,10 @@ contains
 
 
   !> Reads in conductor like screening model settings
-  subroutine readSolvCosmo(node, geo, input)
+  subroutine readSolvCosmo(env, node, geo, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -309,7 +318,7 @@ contains
       deallocate(radScaleSpecies)
     end if
 
-    call readAngularGrid(node, input%gridSize)
+    call readAngularGrid(env, node, input%gridSize)
 
     call getChildValue(node, "Solver", value1, "DomainDecomposition", child=child)
     call getNodeName(value1, buffer)
@@ -323,7 +332,7 @@ contains
     call getChild(node, "SASA", value1, requested=.false.)
     if (associated(value1)) then
       allocate(input%sasaInput)
-      call readSolvSASA(value1, geo, input%sasaInput)
+      call readSolvSASA(env, value1, geo, input%sasaInput)
     end if
 
   end subroutine readSolvCosmo
@@ -348,7 +357,10 @@ contains
 
 
   !> Read input data for non-polar surface area solvation model.
-  subroutine readSolvSASA(node, geo, input, probeRadDefault, surfaceTensionDefault)
+  subroutine readSolvSASA(env, node, geo, input, probeRadDefault, surfaceTensionDefault)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -383,7 +395,7 @@ contains
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
 
-    call readAngularGrid(node, input%gridSize, 230)
+    call readAngularGrid(env, node, input%gridSize, 230)
 
     call readVanDerWaalsRad(node, geo, input%vdwRad)
 
@@ -594,7 +606,10 @@ contains
   end subroutine readVanDerWaalsRad
 
 
-  subroutine readAngularGrid(node, angGrid, default)
+  subroutine readAngularGrid(env, node, angGrid, default)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnode), pointer :: node
@@ -619,7 +634,7 @@ contains
       write(errorStr, '(a, *(1x, i0, 1x, a))') &
           & "No angular integration grid with", gridPoints, &
           & "points available, using",  gridSize(angGrid), "points instead"
-      call detailedWarning(child, trim(errorStr))
+      call detailedWarning(env, child, trim(errorStr))
     end if
 
   end subroutine readAngularGrid

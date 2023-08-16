@@ -13,6 +13,7 @@
 !>
 !> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_dftb_encharges
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_common_constants, only : pi
@@ -241,10 +242,13 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species, stat)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species, stat)
 
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
@@ -263,10 +267,10 @@ contains
 
     integer, allocatable :: nNeigh(:)
 
-    call this%cnCont%updateCoords(neigh, img2CentCell, coords, species)
+    call this%cnCont%updateCoords(env, neigh, img2CentCell, coords, species)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
 
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &

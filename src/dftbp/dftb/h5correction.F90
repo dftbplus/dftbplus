@@ -10,6 +10,7 @@
 !> H5 H-bond correction. Scales the gamma function at short-range for H-bond acceptor element pairs.
 !> See http://dx.doi.org/10.1021/acs.jctc.7b00629 for details.
 module dftbp_dftb_h5correction
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_io_message, only : warning
@@ -68,10 +69,13 @@ module dftbp_dftb_h5correction
 contains
 
   !> Initialization of a H5Corr instance.
-  subroutine TH5Correction_init(this, input)
+  subroutine TH5Correction_init(this, env, input)
 
     !> Initialised instance at return.
     type(TH5Correction), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input parameters
     type(TH5CorrectionInput), intent(inout) :: input
@@ -84,7 +88,7 @@ contains
     nSpecies = size(input%speciesNames)
     allocate(this%sumVdw_(nSpecies, nSpecies))
     allocate(this%h5Scaling_(nSpecies, nSpecies))
-    call getParams_(input%speciesNames, input%elementParams, this%h5Scaling_, this%sumVdw_)
+    call getParams_(env, input%speciesNames, input%elementParams, this%h5Scaling_, this%sumVdw_)
 
   end subroutine TH5Correction_init
 
@@ -165,7 +169,11 @@ contains
 
 
   ! Get H5 parameters for all species pairs.
-  subroutine getParams_(speciesNames, elementParams, h5Scaling_, sumVdw_)
+  subroutine getParams_(env, speciesNames, elementParams, h5Scaling_, sumVdw_)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     character(*), intent(in) :: speciesNames(:)
     real(dp), intent(in) :: elementParams(:)
     real(dp), intent(out) :: h5Scaling_(:,:)
@@ -201,7 +209,7 @@ contains
 
         call getVdwData(speciesNames(iSpHeavy), vdwHeavy, found=tFoundRadius)
         if (.not. tFoundRadius .and. h5Scaling_(iSp2, iSp1) > 0.0_dp) then
-          call warning("The van de  Waals radius for " // trim(speciesNames(iSpHeavy)) //&
+          call warning(env%stdOut, "The van de  Waals radius for " // trim(speciesNames(iSpHeavy)) //&
               & " is required for the H5 correction but is not available. H-" //&
               & trim(speciesNames(iSpHeavy)) // " contributions therefore neglected.")
           h5Scaling_(iSp2, iSp1) = -1.0_dp

@@ -9,6 +9,7 @@
 
 !> Read GBSA parametrisation data from file
 module dftbp_solvation_gbsafile
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
       & symbolToNumber
@@ -37,7 +38,10 @@ contains
 
 
   !> Read GBSA parameters from file
-  subroutine readParamGBSAFile(file, input, solvent, speciesNames, node)
+  subroutine readParamGBSAFile(env, file, input, solvent, speciesNames, node)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Name of the parametrisation file
     character(len=*), intent(in) :: file
@@ -77,7 +81,7 @@ contains
     lineno = 0
 
     do ii = 1, 8
-      call nextLine(lineReader, line, lineno, file, node=node)
+      call nextLine(env, lineReader, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), param(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -96,15 +100,15 @@ contains
           & trim(file), lineno, "Trailing content", newline, trim(line), newline, &
           & repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedWarning(node, trim(errorStr))
+          call detailedWarning(env, node, trim(errorStr))
         else
-          call warning(trim(errorStr))
+          call warning(env%stdOut, trim(errorStr))
         end if
       end if
     end do
 
     do ii = 1, nElem
-      call nextLine(lineReader, line, lineno, file, node=node)
+      call nextLine(env, lineReader, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), surfaceTension(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -147,9 +151,9 @@ contains
           & trim(file), lineno, "Trailing content", newline, trim(line), newline, &
           & repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedWarning(node, trim(errorStr))
+          call detailedWarning(env, node, trim(errorStr))
         else
-          call warning(trim(errorStr))
+          call warning(env%stdOut, trim(errorStr))
         end if
       end if
     end do
@@ -179,9 +183,9 @@ contains
         write(errorStr, '(3a)') trim(file), " contains no parameters for species ", &
             & trim(speciesNames(iSp))
         if (present(node)) then
-          call detailedWarning(node, trim(errorStr))
+          call detailedWarning(env, node, trim(errorStr))
         else
-          call warning(trim(errorStr))
+          call warning(env%stdOut, trim(errorStr))
         end if
         input%descreening(iSp) = 1.0_dp
         input%sasaInput%surfaceTension(iSp) = 0.0_dp
@@ -199,7 +203,10 @@ contains
 
 
   !> Read a whole line from a formatted IO unit
-  subroutine nextLine(lineReader, line, lineno, file, node)
+  subroutine nextLine(env, lineReader, line, lineno, file, node)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Line reader able to provide the next line from an open file
     type(TLineReader), intent(inout) :: lineReader

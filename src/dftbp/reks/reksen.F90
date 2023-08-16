@@ -16,7 +16,6 @@
 module dftbp_reks_reksen
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : globalTimers, TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -76,7 +75,10 @@ module dftbp_reks_reksen
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(this, eigenvecs)
+  subroutine activeOrbSwap(env, this, eigenvecs)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -87,7 +89,7 @@ module dftbp_reks_reksen
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call MOswap22_(eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+      call MOswap22_(env, eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -369,7 +371,7 @@ module dftbp_reks_reksen
     end if
 
     ! print state energies and couplings
-    call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
+    call printReksSSRInfo(env, this, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
 
@@ -559,7 +561,10 @@ module dftbp_reks_reksen
 
 
   !> Swap active orbitals when fa < fb in REKS(2,2) case
-  subroutine MOswap22_(eigenvecs, SAweight, FONs, Efunction, Nc)
+  subroutine MOswap22_(env, eigenvecs, SAweight, FONs, Efunction, Nc)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -580,6 +585,9 @@ module dftbp_reks_reksen
 
     real(dp) :: n_a, n_b, fa, fb
     integer :: nOrb
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nOrb = size(eigenvecs,dim=1)
 
