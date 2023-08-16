@@ -9,9 +9,10 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, stdOut
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
   use dftbp_math_simplealgebra, only : invert33
@@ -21,12 +22,15 @@ program waveplot
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_molorb, only : getValue
 #:if WITH_MPI
+  use dftbp_io_message, only : error
   use mpi, only : MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
   use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
 #:endif
 
   implicit none
+
+  type(TEnvironment) :: env
 
   !> Container of program variables
   type(TProgramVariables), target :: wp
@@ -71,19 +75,23 @@ program waveplot
   real(dp) :: invBoxVecs(3,3), recVecs2p(3,3)
   real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
 
-#:if WITH_MPI
-  !> MPI environment
-  type(TMpiEnv) :: mpiEnv
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
 
+#:if WITH_MPI
   ! As this is serial code, trap for run time execution on more than 1 processor with MPI enabled
   call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
-  call TMpiEnv_init(mpiEnv)
-  call mpiEnv%mpiSerialEnv()
+  call TMpiEnv_init(env%mpi)
+  if (.not. env%mpi%isSerialEnv()) then
+    call error('This is serial code, but invoked on multiple processors')
+  end if
 #:endif
 
   ! Allocate resources
-  call TProgramVariables_init(wp)
-  write(stdout, "(/,A,/)") "Starting main program"
+  call TProgramVariables_init(wp, env)
+  write(env%stdOut, "(/,A,/)") "Starting main program"
 
   ! Allocating buffer for general grid, total charge and spin up
   allocate(buffer(wp%opt%nPoints(1), wp%opt%nPoints(2), wp%opt%nPoints(3)))
@@ -131,15 +139,15 @@ program waveplot
     end do
   end if
 
-  write(stdout, "(A)") "Origin"
-  write(stdout, "(2X,3(F0.5,1X))") wp%opt%origin(:)
-  write(stdout, "(A)") "Box"
+  write(env%stdOut, "(A)") "Origin"
+  write(env%stdOut, "(2X,3(F0.5,1X))") wp%opt%origin(:)
+  write(env%stdOut, "(A)") "Box"
   do i1 = 1, 3
-    write(stdout, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, i1)
+    write(env%stdOut, "(2X,3(F0.5,1X))") wp%opt%boxVecs(:, i1)
   end do
-  write(stdout, "(A)") "Spatial resolution [1/Bohr]:"
-  write(stdout, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(wp%loc%gridVec**2, dim=1))
-  write(stdout, *)
+  write(env%stdOut, "(A)") "Spatial resolution [1/Bohr]:"
+  write(env%stdOut, "(2X,3(F0.5,1X))") 1.0_dp / sqrt(sum(wp%loc%gridVec**2, dim=1))
+  write(env%stdOut, *)
 
   ! Create density superposition of the atomic orbitals. Occupation is distributed equally on
   ! orbitals with the same angular momentum.
@@ -161,7 +169,7 @@ program waveplot
     sumAtomicChrg = sum(atomicChrg) * wp%loc%gridVol
 
     if (wp%opt%tVerbose) then
-      write(stdout, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
+      write(env%stdOut, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg
     end if
     if (wp%opt%tPlotAtomDens) then
       write (comments(2), 9989) wp%input%identity
@@ -169,12 +177,12 @@ program waveplot
       fileName = "wp-atomdens.cube"
       call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
           & buffer, fileName, comments, wp%opt%repeatBox)
-      write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+      write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
     end if
   end if
 
   if (wp%opt%tVerbose) then
-    write(stdout, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", "State",&
+    write(env%stdOut, "(/,A5,' ',A6,' ',A6,' ',A7,' ',A11,' ',A11)") "Spin", "KPoint", "State",&
         & "Action", "Norm", "W. Occup."
   end if
 
@@ -242,9 +250,9 @@ program waveplot
   lpStates: do while (.not. tFinished)
     ! Get the next grid and its parameters
     if (wp%input%tRealHam) then
-      call next(wp%loc%grid, gridValReal, levelIndex, tFinished)
+      call next(env, wp%loc%grid, gridValReal, levelIndex, tFinished)
     else
-      call next(wp%loc%grid, gridValCmpl, levelIndex, tFinished)
+      call next(env, wp%loc%grid, gridValCmpl, levelIndex, tFinished)
     end if
     iLevel = levelIndex(1)
     iKPoint = levelIndex(2)
@@ -272,7 +280,7 @@ program waveplot
       end if
       sumChrg = sum(buffer) * wp%loc%gridVol
       if (wp%opt%tVerbose) then
-        write(stdout, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
+        write(env%stdOut, "(I5,I7,I7,A8,F12.6,F12.6)") iSpin, iKPoint, iLevel, "calc", sumChrg,&
             & wp%input%occupations(iLevel, iKPoint, iSpin)
       end if
     end if
@@ -285,7 +293,7 @@ program waveplot
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-abs2.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+        write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotChrgDiff) then
@@ -296,7 +304,7 @@ program waveplot
             & "-abs2diff.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+        write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotReal) then
@@ -310,7 +318,7 @@ program waveplot
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-real.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+        write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
 
       if (wp%opt%tPlotImag) then
@@ -320,7 +328,7 @@ program waveplot
         fileName = "wp-" // i2c(iSpin) // "-" // i2c(iKPoint) // "-" // i2c(iLevel) // "-imag.cube"
         call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
             & buffer, fileName, comments, wp%opt%repeatBox)
-        write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+        write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
       end if
     end if
   end do lpStates
@@ -335,9 +343,9 @@ program waveplot
     fileName = "wp-abs2.cube"
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
         & totChrg, fileName, comments, wp%opt%repeatBox)
-    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+    write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
     if (wp%opt%tVerbose) then
-      write(stdout, "(/,'Total charge:',F12.6,/)") sumTotChrg
+      write(env%stdOut, "(/,'Total charge:',F12.6,/)") sumTotChrg
     end if
   end if
 
@@ -349,7 +357,7 @@ program waveplot
     fileName = 'wp-abs2diff.cube'
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
         & buffer, fileName, comments, wp%opt%repeatBox)
-    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+    write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
   ! Dump spin polarisation
@@ -360,13 +368,15 @@ program waveplot
     fileName = 'wp-spinpol.cube'
     call writeCubeFile(wp%input%geo, wp%aNr%atomicNumbers, wp%loc%gridVec, wp%opt%gridOrigin,&
         & buffer, fileName, comments, wp%opt%repeatBox)
-    write(stdout, "(A)") "File '" // trim(fileName) // "' written"
+    write(env%stdOut, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
 #:if WITH_MPI
   call mpifx_finalize()
 #:endif
 
+  call env%destruct()
+  call destructGlobalEnv()
 
 contains
 

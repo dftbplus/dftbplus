@@ -12,7 +12,6 @@
 module dftbp_dftb_rangeseparated
   use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix

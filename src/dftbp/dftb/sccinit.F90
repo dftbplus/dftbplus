@@ -9,9 +9,9 @@
 
 !> Module for initializing SCC part of the calculation
 module dftbp_dftb_sccinit
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
@@ -176,8 +176,11 @@ contains
   !> charge matches that expected for the calculation.
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
-  subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
+  subroutine initQFromFile(env, qq, fileName, tReadAscii, orb, qBlock, qiBlock, deltaRho,&
       & magnetisation, nEl, multipoles)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -321,7 +324,7 @@ contains
     end if
 
     if (iSpin /= nSpin) then
-      write(stdout, *) iSpin
+      write(env%stdOut, *) iSpin
       call error("Incorrect number of spins in restart file")
     end if
 

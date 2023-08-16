@@ -17,7 +17,6 @@ module dftbp_extlibs_poisson
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
@@ -68,6 +67,9 @@ module dftbp_extlibs_poisson
 
     ! Stores the shift vector to use in order to upload the shell potential
     real(dp), allocatable :: shellPotUpload_(:,:)
+
+    !> output for write processes
+    integer :: output
 
   contains
 
@@ -311,6 +313,8 @@ contains
 
     integer :: nAtom
 
+    this%output = env%stdOut
+
     if (nInstances_ > 0) then
       call error("Internal error: There exists already an instance of PoissonSolver")
     end if
@@ -344,7 +348,7 @@ contains
   subroutine finalize_(this)
     type(TPoisson), intent(inout) :: this
 
-    call poiss_destroy_()
+    call poiss_destroy_(this%output)
     nInstances_ = nInstances_ - 1
 
   end subroutine finalize_
@@ -504,6 +508,9 @@ contains
     ! local variables
     integer :: iErr
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     iErr = 0
     initinfo = .true.
 
@@ -524,7 +531,7 @@ contains
   #:if WITH_TRANSPORT
     if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
-      call create_directory_(trim(scratchfolder),iErr)
+      call create_directory_(env, trim(scratchfolder),iErr)
     end if
   #:endif
 
@@ -532,17 +539,17 @@ contains
       ! processors over which the right hand side of the Poisson equation is parallelised
 
       iErr = 0
-      call init_structure(structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
+      call init_structure(env, structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
           & structure%latVecs, structure%isperiodic)
 
-      call init_skdata(orb%nShell, orb%angShell, hubbU)
+      call init_skdata(env, orb%nShell, orb%angShell, hubbU)
 
-      call init_charges()
+      call init_charges(env)
 
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy_()
+        call poiss_destroy_(env%stdOut)
         initinfo = .false.
         return
       endif
@@ -622,7 +629,7 @@ contains
 
     #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
-        call checkDensityCutoff_(deltaR_max, transpar%contacts(:)%length)
+        call checkDensityCutoff_(env, deltaR_max, transpar%contacts(:)%length)
       end if
     #:endif
 
@@ -659,11 +666,11 @@ contains
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
-      call check_biasdir(iErr)
+      call check_biasdir(env, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      call check_poisson_box(iErr)
+      call check_poisson_box(env, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
@@ -671,9 +678,9 @@ contains
         period = .false.
       end if
       call check_parameters()
-      call check_localbc()
-      call write_parameters()
-      call check_contacts(iErr)
+      call check_localbc(env)
+      call write_parameters(env)
+      call check_contacts(env, iErr)
       if  (iErr /= 0) then
         call error("Unable to build contact potentials for Poisson solver")
       end if
@@ -692,7 +699,10 @@ contains
   end subroutine poiss_init_
 
 
-  subroutine create_directory_(dirName, iErr)
+  subroutine create_directory_(env, dirName, iErr)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     character(*), intent(in) :: dirName
 
@@ -700,6 +710,9 @@ contains
 
     integer :: cstat
     character(len=255) :: cmsg
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     iErr = -999
     cstat = -999
@@ -717,12 +730,15 @@ contains
 
 
   !> Release gDFTB varibles in Poisson library
-  subroutine poiss_destroy_()
+  subroutine poiss_destroy_(output)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     if (active_id) then
-      write(stdOut,'(A)')
-      write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson()
+      write(output,'(A)')
+      write(output,'(A)') 'Release Poisson Memory:'
+      call poiss_freepoisson(output)
     endif
 
   end subroutine poiss_destroy_
@@ -744,6 +760,9 @@ contains
 
     integer :: ierr
     integer :: PoissFlag
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! The subroutine gives the atom shifts.
 
@@ -768,7 +787,7 @@ contains
           write(stdOut,*) '                       SOLVING POISSON EQUATION         '
           write(stdOut,'(80("="))')
         end if
-        call init_PoissBox(iErr)
+        call init_PoissBox(env, iErr)
         if (iErr /= 0) then
           call error("Failure during initialisation of the Poisson box")
         end if
@@ -890,7 +909,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> Checks whether density cutoff fits into the PLs and stop if not.
-  subroutine checkDensityCutoff_(rr, pllens)
+  subroutine checkDensityCutoff_(env, rr, pllens)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Density cutoff.
     real(dp), intent(in) :: rr
@@ -899,6 +921,9 @@ contains
     real(dp), intent(in) :: pllens(:)
 
     integer :: ii
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! GP In Poisson both the contact layers are used, which is the reason why we
     ! have a factor 2 in front of pllens

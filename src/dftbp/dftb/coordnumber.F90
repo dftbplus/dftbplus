@@ -9,6 +9,7 @@
 
 !> Coordination number implementation
 module dftbp_dftb_coordnumber
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -307,10 +308,13 @@ contains
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(this, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neighList, img2CentCell, coords, species0)
 
     !> data structure
     class(TCNCont), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> list of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
@@ -327,7 +331,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%rCutoff)
     call getCoordinationNumber(this%nAtom, coords, species0, nNeigh, &
         & neighList%iNeighbour, neighList%neighDist2, img2CentCell, &
         & this%covRad, this%en, this%tENScale, this%kcn, this%countFunc, &

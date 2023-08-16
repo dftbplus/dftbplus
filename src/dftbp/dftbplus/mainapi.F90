@@ -614,7 +614,7 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(env)
 
   end subroutine updateDataDependentOnSpeciesOrdering
 

@@ -9,6 +9,7 @@
 
 !> Implements a repulsive correction using the ChIMES force field
 module dftbp_dftb_repulsive_chimesrep
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree, Hartree__kcal_mol
   use dftbp_dftb_periodic, only : TNeighbourList
@@ -149,10 +150,13 @@ contains
 
 
   !> Transmits the updated coordinates to enable for pre-calculations.
-  subroutine TChimesRep_updateCoords(this, coords, species, img2CentCell, neighbourList)
+  subroutine TChimesRep_updateCoords(this, env, coords, species, img2CentCell, neighbourList)
 
     !> Instance
     class(TChimesRep), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> New coordinates (including those in repeated cells). Shape: [3, nAllAtom]
     real(dp), intent(in) :: coords(:,:)

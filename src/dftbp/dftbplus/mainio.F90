@@ -19,7 +19,7 @@ module dftbp_dftbplus_mainio
       & Boltzmann, gfac, spinName, quaternionName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_common_globalenv, only : destructGlobalEnv, abortProgram
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -2493,7 +2493,10 @@ contains
 
 
   !> Write the energy second derivative matrix
-  subroutine writeHessianOut(fileName, pDynMatrix, indMovedAtoms, errStatus)
+  subroutine writeHessianOut(env, fileName, pDynMatrix, indMovedAtoms, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2511,6 +2514,9 @@ contains
     integer :: ii
     character(10) :: suffix1, suffix2
     logical :: tPartialHessian = .false.
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! Sanity check in case some bug is introduced
     if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
@@ -2548,7 +2554,10 @@ contains
 
 
   !> Write the dipole derivative wrt.coordinates matrix/Born charges
-  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+  subroutine writeBornChargesOut(env, fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2569,6 +2578,9 @@ contains
     integer :: ii
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! Sanity check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
@@ -2602,7 +2614,10 @@ contains
 
 
   !> Write the Derivatives of the polarizability
-  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+  subroutine writeBornDerivs(env, fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2624,6 +2639,9 @@ contains
     integer :: ii
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     ! Sanity check in case some bug is introduced
     if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
@@ -3112,9 +3130,12 @@ contains
 
   !> Wrapped call for detailedout2 and print energies, which can process multiple determinants,
   !> currently only for two spin channels
-  subroutine writeDetailedOut2Dets(fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
+  subroutine writeDetailedOut2Dets(env, fdDetailedOut, userOut, tAppendDetailedOut, dftbEnergy,&
       & electronicSolver, deltaDftb, q0, orb, qOutput, qDets, qBlockDets, species,&
       & iAtInCentralRegion, tPrintMulliken, cm5Cont)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File ID
     type(TFileDescr), intent(inout) :: fdDetailedOut
@@ -3202,7 +3223,7 @@ contains
         & .false., tPrintMulliken, orbitalL, blockTmp, 2, allocated(blockTmp), iAtInCentralRegion,&
         & cm5Cont)
 
-    call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
+    call printEnergies(env, dftbEnergy, electronicSolver, deltaDftb, fdDetailedOut%unit)
 
   end subroutine writeDetailedOut2Dets
 
@@ -4099,8 +4120,11 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
+  subroutine writeCharges(env, fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
       & nAtInCentralRegion, multipoles)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -4129,6 +4153,9 @@ contains
 
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(in), optional :: multipoles
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
         & nAtInCentralRegion, multipoles)
@@ -4192,6 +4219,9 @@ contains
 
     real(dp), allocatable :: hamUpDown(:,:)
     integer :: nSpin
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     nSpin = size(ham, dim=2)
 
@@ -4417,7 +4447,10 @@ contains
 
 
   !> Write out final status of the geometry driver.
-  subroutine writeFinalDriverStatus(tGeoOpt, tGeomEnd, tMd, tDerivs)
+  subroutine writeFinalDriverStatus(env, tGeoOpt, tGeomEnd, tMd, tDerivs)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Is the geometry being optimised?
     logical, intent(in) :: tGeoOpt
@@ -4431,23 +4464,26 @@ contains
     !> Are finite difference derivatives being calculated?
     logical, intent(in) :: tDerivs
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     if (tGeoOpt) then
       if (tGeomEnd) then
         write(stdOut, "(/, A)") "Geometry converged"
       else
-        call warning("!!! Geometry did NOT converge!")
+        call warning(env%stdOut, "!!! Geometry did NOT converge!")
       end if
     elseif (tMD) then
       if (tGeomEnd) then
         write(stdOut, "(/, A)") "Molecular dynamics completed"
       else
-        call warning("!!! Molecular dynamics terminated abnormally!")
+        call warning(env%stdOut, "!!! Molecular dynamics terminated abnormally!")
       end if
     elseif (tDerivs) then
       if (tGeomEnd) then
         write(stdOut, "(/, A)") "Second derivatives completed"
       else
-        call warning("!!! Second derivatives terminated abnormally!")
+        call warning(env%stdOut, "!!! Second derivatives terminated abnormally!")
       end if
     end if
 
@@ -4455,7 +4491,10 @@ contains
 
 
   !> Prints geometry step information to standard out
-  subroutine printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+  subroutine printGeoStepInfo(env, tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Are coordinates being optimised
     logical, intent(in) :: tCoordOpt
@@ -4469,6 +4508,9 @@ contains
     !> How many lattice optimisation steps have occurred
     integer, intent(in) :: iLatGeoStep
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     write(stdOut, '(/, A)') repeat('-', 80)
     if (tCoordOpt .and. tLatOpt) then
       write(stdOut, "(/, A, I0, A, I0,/)") '***  Geometry step: ', iGeoStep, ', Lattice step: ',&
@@ -4481,7 +4523,13 @@ contains
 
 
   !> Prints the line above the start of the SCC cycle data
-  subroutine printSccHeader()
+  subroutine printSccHeader(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, "(A5, A18, A18, A18)") "iSCC", " Total electronic ", "  Diff electronic ",&
         & "     SCC error    "
@@ -4490,7 +4538,13 @@ contains
 
 
   !> Prints the line above the start of the electronic constraints cycle data
-  subroutine printElecConstrHeader()
+  subroutine printElecConstrHeader(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
         & "     max(dW/dVc)  ", "     dW           "
@@ -4499,10 +4553,16 @@ contains
 
 
   !> Prints the line above the start of the REKS SCC cycle data
-  subroutine printReksSccHeader(reks)
+  subroutine printReksSccHeader(env, reks)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     select case (reks%reksAlg)
     case (reksTypes%noReks)
@@ -4516,13 +4576,23 @@ contains
   end subroutine printReksSccHeader
 
 
-  subroutine printBlankLine()
+  subroutine printBlankLine(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
+    integer :: stdOut
+    stdOut = env%stdOut
+
     write(stdOut, *)
   end subroutine printBlankLine
 
 
   !> Prints info about scc convergence.
-  subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+  subroutine printSccInfo(env, tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Are orbital potentials being used
     logical, intent(in) :: tDftbU
@@ -4539,6 +4609,9 @@ contains
     !> Maximum charge difference between input and output
     real(dp), intent(in) :: sccErrorQ
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     if (tDFTBU) then
       write(stdOut, "(I5,E18.8,E18.8,E18.8)") iSCCIter, Eelec, diffElec, sccErrorQ
     else
@@ -4549,7 +4622,10 @@ contains
 
 
   !> Prints info about electronic constraint convergence.
-  subroutine printElecConstrInfo(elecConstraint, iConstrIter, Eelec)
+  subroutine printElecConstrInfo(env, elecConstraint, iConstrIter, Eelec)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Represents electronic contraints
     type(TElecConstraint), intent(in) :: elecConstraint
@@ -4566,6 +4642,9 @@ contains
     !> Maximum derivative of energy functional with respect to Vc
     real(dp) :: dWdVcMax
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     ! Sum up all free energy contributions
     deltaWTotal = elecConstraint%getFreeEnergy()
 
@@ -4578,7 +4657,10 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Eavg, diffTotal, sccErrorQ, reks)
+  subroutine printReksSccInfo(env, iSccIter, Eavg, diffTotal, sccErrorQ, reks)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Iteration count
     integer, intent(in) :: iSccIter
@@ -4595,6 +4677,9 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     ! print out the iteration information
     select case (reks%reksAlg)
     case (reksTypes%noReks)
@@ -4609,7 +4694,10 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, electronicSolver, deltaDftb, outUnit)
+  subroutine printEnergies(env, energy, electronicSolver, deltaDftb, outUnit)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> energy components, potentially from multiple determinants
     type(TEnergies), intent(in) :: energy(:)
@@ -4624,6 +4712,9 @@ contains
     integer, intent(in), optional :: outUnit
 
     integer :: iUnit
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     if (present(outUnit)) then
       iUnit = outUnit
@@ -4762,10 +4853,16 @@ contains
 
 
   !> Prints cell volume.
-  subroutine printVolume(cellVol)
+  subroutine printVolume(env, cellVol)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
 
@@ -4773,7 +4870,10 @@ contains
 
 
   !> Prints pressure and free energy.
-  subroutine printPressureAndFreeEnergy(pressure, cellPressure, EGibbs)
+  subroutine printPressureAndFreeEnergy(env, pressure, cellPressure, EGibbs)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> applied external pressure
     real(dp), intent(in) :: pressure
@@ -4784,6 +4884,9 @@ contains
     !> Gibbs free energy (E -TS_elec +pV)
     real(dp), intent(in) :: EGibbs
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     write(stdOut, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
     if (abs(pressure) > epsilon(1.0_dp)) then
       write(stdOut, format2U) "Gibbs free energy", EGibbs, 'H', Hartree__eV * EGibbs, 'eV'
@@ -4793,10 +4896,16 @@ contains
 
 
   !> Writes maximal force component.
-  subroutine printMaxForce(maxForce)
+  subroutine printMaxForce(env, maxForce)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> maximum of the atomic forces
     real(dp), intent(in) :: maxForce
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, "(A, ':', T30, E20.6)") "Maximal force component", maxForce
 
@@ -4804,10 +4913,16 @@ contains
 
 
   !> Writes norm of the force
-  subroutine printForceNorm(forceNorm)
+  subroutine printForceNorm(env, forceNorm)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Norm of the force
     real(dp), intent(in) :: forceNorm
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, "(A, ':', T30, E20.6)") "Averaged force norm", forceNorm
 
@@ -4815,10 +4930,16 @@ contains
 
 
   !> Print maximal lattice force component
-  subroutine printMaxLatticeForce(maxLattForce)
+  subroutine printMaxLatticeForce(env, maxLattForce)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Maximum energy derivative with respect to lattice vectors
     real(dp), intent(in) :: maxLattForce
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, format1Ue) "Maximal Lattice force component", maxLattForce, 'au'
 
@@ -4826,10 +4947,16 @@ contains
 
 
   !> Print norm of lattice force
-  subroutine printLatticeForceNorm(lattForceNorm)
+  subroutine printLatticeForceNorm(env, lattForceNorm)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Norm of the lattice force
     real(dp), intent(in) :: lattForceNorm
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     write(stdOut, format1Ue) "Averaged lattice force norm", lattForceNorm, 'au'
 
@@ -4837,8 +4964,11 @@ contains
 
 
   !> Prints out info about current MD step.
-  subroutine printMdInfo(tSetFillingTemp, eField, tPeriodic, tempElec, tempIon, cellPressure,&
+  subroutine printMdInfo(env, tSetFillingTemp, eField, tPeriodic, tempElec, tempIon, cellPressure,&
       & pressure, energy)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Is the electronic temperature set by the thermostat method?
     logical, intent(in) :: tSetFillingTemp
@@ -4863,6 +4993,9 @@ contains
 
     !> data type for energy components and total
     type(TEnergies), intent(in) :: energy
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     if (tSetFillingTemp) then
       write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
@@ -4923,7 +5056,7 @@ contains
     @:ASSERT(env%tGlobalLead .eqv. allocated(socket))
 
     if (env%tGlobalLead) then
-      call socket%receive(coord0, tmpLatVecs, tStopDriver)
+      call socket%receive(env, coord0, tmpLatVecs, tStopDriver)
     end if
     tCoordsChanged = .true.
     if (tPeriodic .and. .not. tStopDriver) then
@@ -5839,7 +5972,10 @@ contains
 
 
   !> Write cavity information as cosmo file
-  subroutine writeCosmoFile(solvation, species0, speciesNames, coords0, energy)
+  subroutine writeCosmoFile(env, solvation, species0, speciesNames, coords0, energy)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Instance of the solvation model
     class(TSolvation), intent(in) :: solvation
@@ -5857,6 +5993,9 @@ contains
     real(dp), intent(in) :: energy
 
     type(TFileDescr) :: file
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     select type(solvation)
     class is (TCosmo)

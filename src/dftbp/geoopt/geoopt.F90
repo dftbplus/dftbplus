@@ -7,6 +7,7 @@
 
 !> General interface for the optimization algorithms
 module dftbp_geoopt_geoopt
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_geoopt_conjgrad, only : TConjGrad, next, reset, init
   use dftbp_geoopt_fire, only : TFire
@@ -170,10 +171,13 @@ contains
 
   !> Delivers the next point in the geometry optimization. When calling the first time, function
   !> value and gradient for the starting point of the minimization should be passed.
-  subroutine GeoOpt_next(this, fx, dx, xNew, tConverged)
+  subroutine GeoOpt_next(this, env, fx, dx, xNew, tConverged)
 
     !> Optimiser object
     type(Tgeoopt), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Function value for last point returned by this routine
     real(dp), intent(in) :: fx
@@ -195,7 +199,7 @@ contains
     case (geoOptTypes%diis)
       call next(this%pDiis, dx, xNew, tConverged)
     case (geoOptTypes%lbfgs)
-      call this%pLbfgs%next(fx, dx, xNew, tConverged)
+      call this%pLbfgs%next(env, fx, dx, xNew, tConverged)
     case (geoOptTypes%fire)
       call this%pFire%next(dx, xNew, tConverged)
     end select

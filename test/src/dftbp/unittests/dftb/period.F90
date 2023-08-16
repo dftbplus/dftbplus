@@ -8,6 +8,8 @@
 #:include "fytest.fypp"
 
 #:block TEST_SUITE("period")
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, stdOut
   use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
       & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
@@ -18,24 +20,37 @@
 
   #:block TEST_FIXTURE("distributeAtoms")
 
+  	type(TEnvironment) :: env
     integer :: startAtom, endAtom
     logical :: error
 
   #:contains
 
+    #:block TEST_FIXTURE_INIT()
+      call initGlobalEnv()
+      call TEnvironment_init(env)
+      ! temporary fix
+      env%stdOut = stdOut
+    #:endblock
+
+    #:block TEST_FIXTURE_FINAL()
+      call env%destruct()
+      call destructGlobalEnv()
+    #:endblock
+
     #:block TEST("singleRank")
-      call distributeAtoms(0, 1, 42, startAtom, endAtom, error)
+      call distributeAtoms(env, 0, 1, 42, startAtom, endAtom, error)
       @:ASSERT(startAtom == 1)
       @:ASSERT(endAtom == 42)
       @:ASSERT(.not. error)
     #:endblock
 
     #:block TEST("multipleRanks")
-      call distributeAtoms(0, 2, 13, startAtom, endAtom, error)
+      call distributeAtoms(env, 0, 2, 13, startAtom, endAtom, error)
       @:ASSERT(startAtom == 1)
       @:ASSERT(endAtom == 7)
       @:ASSERT(.not. error)
-      call distributeAtoms(1, 2, 13, startAtom, endAtom, error)
+      call distributeAtoms(env, 1, 2, 13, startAtom, endAtom, error)
       @:ASSERT(startAtom == 8)
       @:ASSERT(endAtom == 13)
       @:ASSERT(.not. error)
@@ -44,7 +59,7 @@
     #:block TEST("tooManyRanks")
       integer :: i
       do i = 1, 4
-        call distributeAtoms(i, 4, 2, startAtom, endAtom, error)
+        call distributeAtoms(env, i, 4, 2, startAtom, endAtom, error)
         @:ASSERT(error)
       end do
     #:endblock

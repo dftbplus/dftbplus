@@ -8,6 +8,8 @@
 #:include "fytest.fypp"
 
 #:block TEST_SUITE("typegeometryhsd")
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, stdOut
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode
@@ -19,6 +21,7 @@
 
   #:block TEST_FIXTURE("readTGeometryLammps")
 
+  	type(TEnvironment) :: env
     real(dp), parameter :: prec = 1.e-14_dp
     type(fnode), pointer :: node
     type(TGeometry) :: geo
@@ -26,6 +29,18 @@
     character(len=1), parameter :: nl = new_line('a')
 
   #:contains
+
+    #:block TEST_FIXTURE_INIT()
+      call initGlobalEnv()
+      call TEnvironment_init(env)
+      ! temporary fix
+      env%stdOut = stdOut
+    #:endblock
+
+    #:block TEST_FIXTURE_FINAL()
+      call env%destruct()
+      call destructGlobalEnv()
+    #:endblock
 
     #:block TEST("minimalCaseWithDefaultValues")
       call prepareNode(node, "units real",&
@@ -37,7 +52,7 @@
           & "1 1" // nl //&
           & "2 1" // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -66,7 +81,7 @@
           & "1 1" // nl //&
           & "2 1" // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -94,7 +109,7 @@
           & "3 1" // nl //&
           & "Masses" // nl //&
           & "1 1.0")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -118,7 +133,7 @@
           & "1 0 1 99 11.0 12.0 13.0" // nl //&
           & "2 0 1 99 21.0 22.0 23.0" // nl //&
           & "3 0 1 99 31.0 32.0 33.0")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -150,7 +165,7 @@
           & "4 4" // nl //&
           & "5 5" // nl //&
           & "6 6")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%nSpecies == 6)
       @:ASSERT(geo%speciesNames(1) == 'H')
       @:ASSERT(geo%speciesNames(2) == 'O')
@@ -181,7 +196,7 @@
           & " 1 1 4 4 4 #ignore everything here" // nl //&
           & "  2 1 #ignore me" // nl // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%tPeriodic)
@@ -212,7 +227,7 @@
           & "1 1.0" // nl //&
           & "Atoms" // nl //&
           & "1 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       geo%latVecs = geo%latVecs / AA__Bohr
       @:ASSERT(abs(geo%latVecs(1,1) - 1.0_dp) < prec)
       @:ASSERT(abs(geo%latVecs(2,1)) < prec)
@@ -237,7 +252,7 @@
           & "1 1.99e-26" // nl //&
           & "Atoms" // nl //&
           & "1 1 1.0e-10 2.0e-10 3.0e-10")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(env, node, geo)
       @:ASSERT(geo%speciesNames(1) == 'C')
       do ii = 1, 3
         @:ASSERT(abs(geo%latVecs(ii,ii) - 1.0e10_dp * AA__Bohr) < prec)

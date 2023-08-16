@@ -16,9 +16,9 @@
 #:include "error.fypp"
 
 module dftbp_poisson_parcheck
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : lc, dp
   use dftbp_common_constants, only : hartree__eV, Bohr__AA
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : warning
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
   use dftbp_poisson_parameters, only : cluster, DoGate, gatedir, ncdim, ncont, verbose, localBC,&
@@ -40,11 +40,17 @@ contains
  ! ---------------------------------------------------------------------------
  ! Perform parameters checks
  ! ---------------------------------------------------------------------------
- subroutine check_poisson_box(iErr)
+ subroutine check_poisson_box(env, iErr)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    integer, intent(out), optional :: iErr
 
    integer i
+
+   integer :: stdOut
+   stdOut = env%stdOut
 
    if (present(iErr)) then
      iErr = 0
@@ -59,7 +65,7 @@ contains
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
          if (verbose > VBT) then
-            call warning('Box for Poisson not Found: Setting equal to supercell box')
+            call warning(env%stdOut, 'Box for Poisson not Found: Setting equal to supercell box')
             do i=1,3
                write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
@@ -74,9 +80,9 @@ contains
    else
       if (.not.FoundBox) then
         if (verbose > VBT) then
-          call warning('Box for Poisson not Found')
+          call warning(env%stdOut, 'Box for Poisson not Found')
         end if
-        @:ERROR_HANDLING(iErr, -1, 'No way to build box for Poisson')
+        @:ERROR_HANDLING(env%stdOut, iErr, -1, 'No way to build box for Poisson')
       end if
    end if
 
@@ -92,7 +98,10 @@ contains
  end subroutine check_poisson_box
 
 
- subroutine check_biasdir(iErr)
+ subroutine check_biasdir(env, iErr)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    integer, intent(out), optional :: iErr
 
@@ -109,11 +118,11 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           @:ERROR_HANDLING(iErr, -1,&
+           @:ERROR_HANDLING(env%stdOut, iErr, -1,&
                & 'Local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
-           @:ERROR_HANDLING(iErr, -2,&
+           @:ERROR_HANDLING(env%stdOut, iErr, -2,&
                & 'Contacts must be in the same direction when using cylindrical gate')
          endif
        end if
@@ -146,7 +155,7 @@ contains
    end if
 
    if (period_dir(3) .and. numprocs>1) then
-     @:ERROR_HANDLING(iErr, -3,&
+     @:ERROR_HANDLING(env%stdOut, iErr, -3,&
          & 'Periodicity along z is incompatible with grid parallelization strategy')
    end if
 
@@ -166,9 +175,15 @@ contains
  end subroutine check_parameters
 
    !-------WRITE DOWN FEEDBACK ABOUT INPUT FILE -------------------!
- subroutine write_parameters()
+ subroutine write_parameters(env)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    integer i
+
+   integer :: stdOut
+   stdOut = env%stdOut
 
    if (id0.and.verbose.gt.40) then
 
@@ -234,9 +249,15 @@ contains
 
  end subroutine write_parameters
 
- subroutine check_localbc()
+ subroutine check_localbc(env)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    integer :: m, err
+
+   integer :: stdOut
+   stdOut = env%stdOut
 
    err = 0
    mixed = .false.
@@ -309,11 +330,17 @@ contains
 
 
  !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
- subroutine check_contacts(iErr)
+ subroutine check_contacts(env, iErr)
+
+   !> Environmet
+   type(TEnvironment), intent(in) :: env
 
    integer, intent(out), optional :: iErr
 
    integer i,ncdim_max
+
+   integer :: stdOut
+   stdOut = env%stdOut
 
    if (present(iErr)) then
      iErr = 0
@@ -377,21 +404,21 @@ contains
    if (.not.cluster) then
      do i=1,ncont
        if (iatc(1,i).lt.iatm(2)) then
-         @:ERROR_HANDLING(iErr, -1,&
+         @:ERROR_HANDLING(env%stdOut, iErr, -1,&
              & 'The contacts MUST be defined after the scattering region')
        end if
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:ERROR_HANDLING(iErr, -2, 'The number of atoms in the scattering region is higher than&
+     @:ERROR_HANDLING(env%stdOut, iErr, -2, 'The number of atoms in the scattering region is higher than&
          & the total number of atoms')
    endif
    if (DoGate) then
      if (gatedir.ne.2) then
-       @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
+       @:ERROR_HANDLING(env%stdOut, iErr, -3, 'Gate direction must be along y')
      end if
      if(any(abs(contdir(:)).eq.gatedir)) then
-       @:ERROR_HANDLING(iErr, -4, 'Gate direction along contacts!?')
+       @:ERROR_HANDLING(env%stdOut, iErr, -4, 'Gate direction along contacts!?')
      end if
    endif
 
