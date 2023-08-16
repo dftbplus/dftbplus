@@ -61,7 +61,7 @@ module dftbp_common_mpienv
 
   contains
 
-    procedure :: mpiSerialEnv
+    procedure :: isSerialEnv
 
   end type TMpiEnv
 
@@ -148,21 +148,13 @@ contains
 
   !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
   !> purely serial codes to avid multiple copies being invoked with mpirun)
-  subroutine mpiSerialEnv(this, iErr)
-
-    !> Instance
+  pure function isSerialEnv(this) result(isSerial)
     class(TMpiEnv), intent(in) :: this
+    logical :: isSerial
 
-    !> Optional error flag
-    integer, intent(out), optional :: iErr
+    isSerial = this%globalComm%size == 1
 
-    if (this%globalComm%size > 1) then
-
-      @:ERROR_HANDLING(iErr, -1, 'This is serial code, but invoked on multiple processors')
-
-    end if
-
-  end subroutine mpiSerialEnv
+  end function isSerialEnv
 
 
   !> Sets up subgrids and group communicators used with common (non-NEGF) solvers.

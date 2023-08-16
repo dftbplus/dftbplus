@@ -114,10 +114,13 @@ module dftbp_dftb_shortgamma
 contains
 
   !> Initializes a TShortGamma instance.
-  subroutine TShortGamma_init(this, input, orb)
+  subroutine TShortGamma_init(this, env, input, orb)
 
     !> Initialized instance
     type(TShortGamma), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input parameters
     type(TShortGammaInput), intent(inout) :: input
@@ -140,7 +143,7 @@ contains
 
     if (allocated(input%h5CorrectionInp)) then
       allocate(this%h5Correction_)
-      call TH5Correction_init(this%h5Correction_, input%h5CorrectionInp)
+      call TH5Correction_init(this%h5Correction_, env, input%h5CorrectionInp)
     end if
 
     if (allocated(input%damping)) then
@@ -173,10 +176,13 @@ contains
 
 
   !> Updates the coordinates.
-  subroutine updateCoords(this, coords, species, neighList)
+  subroutine updateCoords(this, env, coords, species, neighList)
 
     !> Instance
     class(TShortGamma), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -187,7 +193,7 @@ contains
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    call updateNrOfNeighbours_(this%shortCutoffs_, species, this%hubbU_, neighList, this%nNeigh_)
+    call updateNrOfNeighbours_(env, this%shortCutoffs_, species, this%hubbU_, neighList, this%nNeigh_)
     call updateShortGammaValues_(coords, species, neighList, this%nNeigh_, this%hubbU_,&
         & this%damping_, this%h5Correction_, this%shortGamma_)
 
@@ -661,7 +667,11 @@ contains
 
 
   !> Updates the number of neighbours.
-  subroutine updateNrOfNeighbours_(shortCutoffs, species, hubb, neighList, nNeigh)
+  subroutine updateNrOfNeighbours_(env, shortCutoffs, species, hubb, neighList, nNeigh)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     real(dp), intent(in) :: shortCutoffs(:,:,:,:)
     integer, intent(in) :: species(:)
     type(TUniqueHubbard), intent(in) :: hubb
@@ -676,7 +686,7 @@ contains
         do iU1 = 1, hubb%nHubbU(species(iAt))
           do iU2 = 1, hubb%nHubbU(iSp)
             nNeigh(iU2, iU1, iSp, iAt) =&
-                & getNrOfNeighbours(neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)), iAt)
+                & getNrOfNeighbours(env, neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)), iAt)
           end do
         end do
       end do

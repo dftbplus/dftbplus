@@ -244,7 +244,7 @@ contains
         & this%energy, this%gradient, this%sigma)
 
     if (allocated(this%hydrogen)) then
-      call addHHRepulsion(this, coords, neigh, img2CentCell)
+      call addHHRepulsion(this, env, coords, neigh, img2CentCell)
     end if
   #:else
     call notImplementedError
@@ -356,10 +356,13 @@ contains
 
 
   !> Add the additional H-H repulsion for D3H5 (Note: this routine does not belong here...)
-  subroutine addHHRepulsion(this, coords, neigh, img2CentCell)
+  subroutine addHHRepulsion(this, env, coords, neigh, img2CentCell)
 
     !> Instance of DFTD3 data
     class(TSDFTD3), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -381,7 +384,7 @@ contains
 
     nAtom = size(neigh%nNeighbour)
     allocate(nNeigh(nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neigh, HHRepCutOff)
+    call getNrOfNeighboursForAll(env, nNeigh, neigh, HHRepCutOff)
 
     repE = 0.0_dp
     do iAt1 = 1, nAtom

@@ -16,7 +16,6 @@
 module dftbp_reks_rekscpeqn
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only: TNeighbourList
   use dftbp_io_message, only: error
   use dftbp_math_blasroutines, only : gemm, gemv
@@ -193,6 +192,9 @@ module dftbp_reks_rekscpeqn
     real(dp) :: rNorm1, rNorm2, alpha, beta, eps
     integer :: iter, superN
 
+    integer :: stdOut
+    stdOut = env%stdOut
+
     superN = size(XT,dim=1)
 
     allocate(shift1e(superN),shift2e(superN))
@@ -208,7 +210,7 @@ module dftbp_reks_rekscpeqn
       ZT(:) = 0.0_dp
       call gemv(ZT, A1ePre, XT)
     else
-      call shiftAY1ePre_(XT, Fc, Fa, omega, SAweight, FONs, G1, &
+      call shiftAY1ePre_(env, XT, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, ZT)
     end if
 
@@ -238,7 +240,7 @@ module dftbp_reks_rekscpeqn
       z0(:) = 0.0_dp
       call gemv(z0, A1ePre, r0)
     else
-      call shiftAY1ePre_(r0, Fc, Fa, omega, SAweight, FONs, G1, &
+      call shiftAY1ePre_(env, r0, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, z0)
     end if
     p0(:) = z0
@@ -283,7 +285,7 @@ module dftbp_reks_rekscpeqn
         z1(:) = 0.0_dp
         call gemv(z1, A1ePre, r1)
       else
-        call shiftAY1ePre_(r1, Fc, Fa, omega, SAweight, FONs, G1, &
+        call shiftAY1ePre_(env, r1, Fc, Fa, omega, SAweight, FONs, G1, &
             & Nc, Na, Glevel, reksAlg, z1)
       end if
       ! compute a gradient correction factor
@@ -481,8 +483,11 @@ module dftbp_reks_rekscpeqn
 
 
   !> Calculate A1ePre * Y shift vectors without saving super A1ePre matrix
-  subroutine shiftAY1ePre_(Y, Fc, Fa, omega, SAweight, FONs, G1, &
+  subroutine shiftAY1ePre_(env, Y, Fc, Fa, omega, SAweight, FONs, G1, &
       & Nc, Na, Glevel, reksAlg, shift1ePre)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> trial vector for soulution
     real(dp), intent(in) :: Y(:)
@@ -523,6 +528,9 @@ module dftbp_reks_rekscpeqn
     real(dp), allocatable :: tmpApre(:)
     real(dp) :: e1, e2
     integer :: nOrb, superN, Nv, ij, i, j
+
+    integer :: stdOut
+    stdOut = env%stdOut
 
     superN = size(Y,dim=1)
     nOrb = size(Fc,dim=1)

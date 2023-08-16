@@ -9,6 +9,7 @@
 
 !> Routines implementing the full 3rd order DFTB.
 module dftbp_dftb_thirdorder
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, minHubDiff, tolSameDist
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
@@ -138,10 +139,13 @@ contains
 
 
   !> Updates data structures if there are changed coordinates for the instance.
-  subroutine updateCoords(this, neighList, species)
+  subroutine updateCoords(this, env, neighList, species)
 
     !> Instance
     class(TThirdOrder), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
@@ -157,7 +161,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iSp2 = 1, this%nSpecies
-        this%nNeigh(iSp2, iAt1) = getNrOfNeighbours(neighList, this%cutoffs(iSp2, iSp1), iAt1)
+        this%nNeigh(iSp2, iAt1) = getNrOfNeighbours(env, neighList, this%cutoffs(iSp2, iSp1), iAt1)
       end do
     end do
     this%nNeighMax = maxval(this%nNeigh, dim=1)

@@ -9,7 +9,6 @@
 
 module dftbp_common_timerarray
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_timer, only : TTimer
   implicit none
 
@@ -45,7 +44,7 @@ module dftbp_common_timerarray
 contains
 
   !> Initializes a global timer
-  subroutine TTimerArray_init(this, timerItems, maxLevel, header, unit)
+  subroutine TTimerArray_init(this, timerItems, unit, maxLevel, header)
 
     !> Instance
     type(TTimerArray), intent(out) :: this
@@ -53,14 +52,14 @@ contains
     !> Names of the sub-timers to use
     type(TTimerItem), intent(in) :: timerItems(:)
 
+    !> File unit to write the statistics to
+    integer, intent(in) :: unit
+
     !> Last timer level to be included in printing (default: all)
     integer, intent(in), optional :: maxLevel
 
     !> Optional header message for the timings
     character(*), intent(in), optional :: header
-
-    !> File unit to write the statistics to (default: standard output)
-    integer, intent(in), optional :: unit
 
     integer :: nTimer
 
@@ -76,11 +75,7 @@ contains
       this%header = "Timing"
     end if
 
-    if (present(unit)) then
-      this%unit = unit
-    else
-      this%unit = stdOut
-    end if
+    this%unit = unit
 
     this%timerNames = timerItems(:)%name
     this%timerLevels = timerItems(:)%level

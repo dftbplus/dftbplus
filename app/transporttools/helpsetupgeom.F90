@@ -8,8 +8,8 @@
 module transporttools_helpsetupgeom
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Bohr__AA
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error, warning
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_math_sorting, only : index_heap_sort
@@ -25,7 +25,10 @@ module transporttools_helpsetupgeom
 contains
 
   !> Set up transport structure with contacts
-  subroutine setupGeometry(geom, iAtInRegion, contacts, plCutoff, nPLs, printDebug)
+  subroutine setupGeometry(env, geom, iAtInRegion, contacts, plCutoff, nPLs, printDebug)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Container of the system geometry
     type(TGeometry), intent(inout) :: geom
@@ -80,21 +83,21 @@ contains
 
     ! Print atom lists
     if (printDebug) then
-      call print_debug(iAtInRegion)
+      call print_debug(env, iAtInRegion)
     end if
 
     ! 4. re-sort the second contact PL to be a shifted copy of the first
-    call arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
+    call arrangeContactPLs(env, geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
 
     ! 5. Define device PLs
-    call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
+    call defineDevicePLs(env, geom, iAtInRegion, plcutoff, contVec, PLlist)
 
     ! 6. write ordered geometry
     call print_gen(geom, contacts, iAtInRegion, PLlist, plcutoff)
 
-    write(stdOut,*)
-    write(stdOut,*) "Written processed geometry file 'processed.gen'"
-    write(stdOut,*) "Written input lines in 'transport.hsd'"
+    write(env%stdOut,*)
+    write(env%stdOut,*) "Written processed geometry file 'processed.gen'"
+    write(env%stdOut,*) "Written input lines in 'transport.hsd'"
 
   end subroutine setupGeometry
 
@@ -194,7 +197,11 @@ contains
   end subroutine sortContacts
 
   ! -----------------------------------------------------------------------------------------------!
-  subroutine arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
+  subroutine arrangeContactPLs(env, geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TGeometry), intent(inout) :: geom
     type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     type(contactInfo), intent(in) :: contacts(:)
@@ -210,7 +217,7 @@ contains
     ncont = size(iAtInRegion)-1
 
     do icont = 1, ncont
-      write(stdOut, *) "Contact",icont, '"'//trim(contacts(icont)%name)//'"'
+      write(env%stdOut, *) "Contact",icont, '"'//trim(contacts(icont)%name)//'"'
       if (nPLs(icont)==2) then
         associate(data=>iAtInRegion(icont)%data)
         uu = 0.0_dp
@@ -218,13 +225,13 @@ contains
         vv = contvec(1:3,icont)
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
-        write(stdOut, *) "PL size:",PLsize
-        write(stdOut, *) "Number of PLs:",nPLs(icont)
-        write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
-        write(stdOut, *) "tolerance:",tol
+        write(env%stdOut, *) "PL size:",PLsize
+        write(env%stdOut, *) "Number of PLs:",nPLs(icont)
+        write(env%stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
+        write(env%stdOut, *) "tolerance:",tol
         ! check PL size
         mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont))
-        write(stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
+        write(env%stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
         if (mindist<plcutoff) then
           errmess(1) = "The size of the contact PL is shorter than SK cutoff"
           errmess(2) = "Check your input geometry or force SKTruncation"
@@ -233,7 +240,7 @@ contains
           call error(errmess)
         end if
         !
-        write(stdOut, *) "check and reorder contact PLs"
+        write(env%stdOut, *) "check and reorder contact PLs"
         do ii = 1, PLsize
           bestcross = huge(bestcross)
           bestdiff = huge(bestdiff)
@@ -248,30 +255,30 @@ contains
             end if
           end do
           if (bestcross>tol .or. bestdiff>tol) then
-             write(stdOut, *) "Atom ",data(ii)
-             write(stdOut, *) "Best cross vector:", bestcross*Bohr__AA, '(A)'
-             write(stdOut, *) "Best difference:", bestdiff*Bohr__AA, '(A)'
+             write(env%stdOut, *) "Atom ",data(ii)
+             write(env%stdOut, *) "Best cross vector:", bestcross*Bohr__AA, '(A)'
+             write(env%stdOut, *) "Best difference:", bestdiff*Bohr__AA, '(A)'
              call error("Atom not found")
           end if
           call swap(data(PLsize+ii),data(jj))
         end do
         end associate
-        write(stdOut, *) "contact done"
+        write(env%stdOut, *) "contact done"
       else if (nPLs(icont)==1) then
         PLsize = size(iAtInRegion(icont)%data)
-        write(stdOut, *) "PL size:",PLsize
+        write(env%stdOut, *) "PL size:",PLsize
         contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
-        write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA, '(A)'
+        write(env%stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA, '(A)'
         ! counting number of added PLs. Factor of 2 is needed to get
         ! always an even total number
         mindist=minDist2ndPL(geom%coords,iAtInRegion(icont)%data,PLsize,contvec(1:3,icont))
         nAddPLs = floor(plcutoff/mindist)*2 + 1
         if (nAddPLs==1) then
-          write(stdOut, *) "Adding",nAddPLs,"PL"
+          write(env%stdOut, *) "Adding",nAddPLs,"PL"
         else
-          write(stdOut, *) "Adding",nAddPLs,"PLs"
+          write(env%stdOut, *) "Adding",nAddPLs,"PLs"
           if (nAddPLs>=3) then
-            call warning("More than 1 copy of the supplied PL will be added to this contact")
+            call warning(env%stdOut, "More than 1 copy of the supplied PL will be added to this contact")
           end if
         end if
         call reallocateInt(iAtInRegion(icont)%data, nAddPLs*PLsize)
@@ -331,7 +338,11 @@ contains
   end subroutine arrangeContactPLs
 
   ! -----------------------------------------------------------------------------------------------
-  subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
+  subroutine defineDevicePLs(env, geom, iAtInRegion, plcutoff, contVec, PLlist)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TGeometry), intent(in) :: geom
     type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(in) :: plCutoff
@@ -367,7 +378,7 @@ contains
     end if
 
 
-    write(stdOut,*) "Partitioning device into PLs"
+    write(env%stdOut,*) "Partitioning device into PLs"
     ! put array of contact atoms in the first node of PLlist
     associate(dataD=>iAtInRegion(ncont+1)%data, dataR=>iAtInRegion(2)%data)
 
@@ -422,10 +433,10 @@ contains
       if (sizeL==0) then
         call error("Found layer of 0 size")
       end if
-      write(stdOut,*) "* Layer size:",sizeL
+      write(env%stdOut,*) "* Layer size:",sizeL
     end do
     end associate
-    write(stdOut,*) "Done."
+    write(env%stdOut,*) "Done."
 
   end subroutine defineDevicePLs
   ! -----------------------------------------------------------------------------------------------
@@ -471,7 +482,11 @@ contains
 
   ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
-  subroutine print_debug(iAtInRegion)
+  subroutine print_debug(env, iAtInRegion)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)
 
     integer :: icont, ncont, PLsize
@@ -481,17 +496,17 @@ contains
     do icont = 1, ncont
       if (allocated(iAtInRegion(icont)%data)) then
         PLsize = size(iAtInRegion(icont)%data)/2
-        write(stdOut,*) 'Atoms in contact',icont,':'
-        write(stdOut,*) iAtInRegion(icont)%data(1:PLsize)
-        write(stdOut,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
-        write(stdOut,*)
+        write(env%stdOut,*) 'Atoms in contact',icont,':'
+        write(env%stdOut,*) iAtInRegion(icont)%data(1:PLsize)
+        write(env%stdOut,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
+        write(env%stdOut,*)
       else
         call error("Atom list not allocated")
       end if
     end do
-    write(stdOut,*) 'Atoms in device:'
-    write(stdOut,*) iAtInRegion(ncont+1)%data
-    write(stdOut,*)
+    write(env%stdOut,*) 'Atoms in device:'
+    write(env%stdOut,*) iAtInRegion(ncont+1)%data
+    write(env%stdOut,*)
 
   end subroutine print_debug
 

@@ -10,6 +10,7 @@
 
 !> Implements interface for the repulsive (force-field like) potential
 module dftbp_dftb_repulsive_repulsivecont
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -92,10 +93,13 @@ contains
 
 
   !> Transmits the updated coordinates to enable for pre-calculations.
-  subroutine updateCoords(this, coords, species, img2CentCell, neighbourList)
+  subroutine updateCoords(this, env, coords, species, img2CentCell, neighbourList)
 
     !> Instance
     class(TRepulsiveCont), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> New coordinates (including those in repeated cells). Shape: [3, nAllAtom]
     real(dp), intent(in) :: coords(:,:)
@@ -114,7 +118,7 @@ contains
 
     do iRep = 1, this%repulsives%size()
       call this%repulsives%view(iRep, repulsive)
-      call repulsive%updateCoords(coords, species, img2CentCell, neighbourList)
+      call repulsive%updateCoords(env, coords, species, img2CentCell, neighbourList)
     end do
 
   end subroutine updateCoords

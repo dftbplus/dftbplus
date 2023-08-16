@@ -9,11 +9,11 @@
 
 !> Contains the routines for initialising modes.
 module modes_initmodes
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdOut
 #:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
@@ -144,8 +144,11 @@ module modes_initmodes
 contains
 
 
-  !> Initialise program variables.
-  subroutine initProgramVariables()
+  !> Initialise program variables
+  subroutine initProgramVariables(env)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     type(TOldSKData) :: skData
     type(fnode), pointer :: root, node, tmp, hsdTree
@@ -167,14 +170,14 @@ contains
     integer :: iErr
 
     !! Write header
-    call printDftbHeader('(MODES '// version //')', releaseYear)
+    call printDftbHeader(env, '(MODES '// version //')', releaseYear)
 
     !! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
-    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
-    write(stdout, "(A)") repeat("-", 80)
+    write(env%stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
+    write(env%stdOut, "(A)") repeat("-", 80)
 
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -184,13 +187,13 @@ contains
     end if
 
     call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, geo)
+    call readGeometry(env, tmp, geo)
 
     call getChildValue(root, "RemoveTranslation", tRemoveTranslate, .false.)
     call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
-    call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getSelectedAtomIndices(env, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
@@ -201,7 +204,7 @@ contains
     if (associated(node)) then
       tPlotModes = .true.
       call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
-      call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
+      call getSelectedIndices(env, child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
     end if
@@ -305,7 +308,7 @@ contains
       end do
     end if
 
-    call getInputMasses(root, geo, replacementMasses)
+    call getInputMasses(env, root, geo, replacementMasses)
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
@@ -388,22 +391,25 @@ contains
     tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
 
     !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, .true.)
+    call warnUnprocessedNodes(env, root, .true.)
 
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
       call dumpHSD(hsdTree, hsdParsedInput)
-      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput // "'"
+      write(env%stdOut, "(A)") "Processed input written as HSD to '" // hsdParsedInput // "'"
     end if
-    write(stdout, "(A)") repeat("-", 80)
-    write(stdout, *)
+    write(env%stdOut, "(A)") repeat("-", 80)
+    write(env%stdOut, *)
     call destroyNode(hsdTree)
 
   end subroutine initProgramVariables
 
 
   !> Read in the geometry stored as gen format.
-  subroutine readGeometry(geonode, geo)
+  subroutine readGeometry(env, geonode, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node containing the geometry
     type(fnode), pointer :: geonode
@@ -418,7 +424,7 @@ contains
     call getNodeName(child, buffer)
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(child, geo)
+      call readTGeometryGen(env, child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case ("xyzformat")
@@ -426,7 +432,7 @@ contains
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case ("vaspformat")
-      call readTGeometryVasp(child, geo)
+      call readTGeometryVasp(env, child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case default
@@ -436,8 +442,11 @@ contains
   end subroutine readGeometry
 
 
-  !> Reads atomic masses from input file.
-  subroutine getInputMasses(node, geo, masses)
+  !> Reads atomic masses from input file
+  subroutine getInputMasses(env, node, geo, masses)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Relevant node of input data
     type(fnode), pointer :: node
@@ -469,13 +478,13 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(child3, "Previous setting for the mass  of atom" // i2c(iAt)&
+          call detailedWarning(env, child3, "Previous setting for the mass  of atom" // i2c(iAt)&
               & // " overwritten")
         end if
         masses(iAt) = rTmp

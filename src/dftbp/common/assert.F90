@@ -9,7 +9,8 @@
 
 !> Auxiliary subroutines for the ASSERT command
 module dftbp_common_assert
-  use dftbp_common_globalenv, only : abortProgram, stdOut
+  use iso_fortran_env, only : stdOut => output_unit
+  use dftbp_common_globalenv, only : abortProgram
   implicit none
 
   private

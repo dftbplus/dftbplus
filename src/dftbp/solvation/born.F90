@@ -394,7 +394,7 @@ contains
     end if
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%rCutoff)
     call getBornRadii(env, nNeigh, neighList%iNeighbour, img2CentCell, &
         & neighList%neighDist2, species0, coords, this%param%vdwRad, &
         & this%rho, this%param%bornOffset, this%param%bornScale, this%param%obc, &
@@ -409,7 +409,7 @@ contains
     end if
 
     if (allocated(this%cm5)) then
-      call this%cm5%updateCoords(neighList, img2CentCell, coords, species0)
+      call this%cm5%updateCoords(env, neighList, img2CentCell, coords, species0)
     end if
 
     this%tCoordsUpdated = .true.
@@ -524,7 +524,7 @@ contains
     sigma(:, :) = 0.0_dp
     this%energies(:) = 0.0_dp
 
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%rCutoff)
     call getBornEGCluster(env, this%nAtom, coords, this%chargesPerAtom, &
       & this%bornRad, this%dbrdr, this%dbrdL, this%param%kernel, this%param%keps, &
       & this%energies, gradients, sigma)

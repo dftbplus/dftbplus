@@ -226,9 +226,9 @@ contains
     this%gradients(:, :) = 0.0_dp
     this%sigma(:, :) = 0.0_dp
 
-    call this%cnCont%updateCoords(neigh, img2CentCell, coords, species0)
+    call this%cnCont%updateCoords(env, neigh, img2CentCell, coords, species0)
 
-    call getNrOfNeighboursForAll(nNeighbour, neigh, this%cutoffInter)
+    call getNrOfNeighboursForAll(env, nNeighbour, neigh, this%cutoffInter)
     call dispersionGradient(env, this%ref, this%param, nNeighbour, coords, &
         & species0, neigh, img2CentCell, this%cnCont%cn, this%cnCont%dcndr, &
         & this%cnCont%dcndL, this%energies, this%gradients, this%sigma)

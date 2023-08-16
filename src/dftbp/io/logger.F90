@@ -7,8 +7,8 @@
 
 !> Contains a simple logger which helps to avoid direct write statements.
 module dftbp_io_logger
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_optarg, only : getOptionalArg
   implicit none
 
@@ -96,12 +96,14 @@ contains
 
 
   !> Writes a message into the log (string).
-  subroutine writeStr(this, msg, verbosity, formStr)
+  subroutine writeStr(this, env, msg, verbosity, formStr)
 
 
     !> Instance
     class(LogWriter), intent(in) :: this
 
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Message to write
     character(*), intent(in) :: msg
@@ -121,19 +123,21 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(stdout, formStr0) msg
+      write(env%stdout, formStr0) msg
     end if
 
   end subroutine writeStr
 
 
   !> Writes a message into the log (int).
-  subroutine writeInt(this, msg, verbosity, formStr)
+  subroutine writeInt(this, env, msg, verbosity, formStr)
 
 
     !> Instance
     class(LogWriter), intent(in) :: this
 
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Message to write
     integer, intent(in) :: msg
@@ -153,19 +157,21 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(stdout, formStr0) msg
+      write(env%stdout, formStr0) msg
     end if
 
   end subroutine writeInt
 
 
   !> Writes a message into the log (real).
-  subroutine writeReal(this, msg, verbosity, formStr)
+  subroutine writeReal(this, env, msg, verbosity, formStr)
 
 
     !> Instance
     class(LogWriter), intent(in) :: this
 
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Message to write
     real(dp), intent(in) :: msg
@@ -185,19 +191,21 @@ contains
     call getOptionalArg(DEFAULT_VERBOSITY, verbosity0, verbosity)
     call getOptionalArg(DEFAULT_FORM_STR, formStr0, formStr)
     if (verbosity0 <= this%verbosity) then
-      write(stdout, formStr0) msg
+      write(env%stdout, formStr0) msg
     end if
 
   end subroutine writeReal
 
 
   !> Writes a message into the log (real1).
-  subroutine writeReal1(this, msg, verbosity, formStr, columnwise)
+  subroutine writeReal1(this, env, msg, verbosity, formStr, columnwise)
 
 
     !> Instance
     class(LogWriter), intent(in) :: this
 
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Message to write
     real(dp), intent(in) :: msg(:)
@@ -226,10 +234,10 @@ contains
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         call getRowFormat(formStr0, 1, formStrRow)
-        write(stdout, formStrRow) msg
+        write(env%stdout, formStrRow) msg
       else
         call getRowFormat(formStr0, size(msg), formStrRow)
-        write(stdout, formStrRow) msg
+        write(env%stdout, formStrRow) msg
       end if
     end if
 
@@ -237,12 +245,14 @@ contains
 
 
   !> Writes a message into the log (real2).
-  subroutine writeReal2(this, msg, verbosity, formStr, columnwise)
+  subroutine writeReal2(this, env, msg, verbosity, formStr, columnwise)
 
 
     !> Instance
     class(LogWriter), intent(in) :: this
 
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Message to write
     real(dp), intent(in) :: msg(:,:)
@@ -269,11 +279,11 @@ contains
     if (verbosity0 <= this%verbosity) then
       if (columnwise0) then
         do ii = 1, size(msg, dim=1)
-          call this%write(msg(ii,:), verbosity, formStr, .false.)
+          call this%write(env, msg(ii,:), verbosity, formStr, .false.)
         end do
       else
         do ii = 1, size(msg, dim=2)
-          call this%write(msg(:,ii), verbosity, formStr, .false.)
+          call this%write(env, msg(:,ii), verbosity, formStr, .false.)
         end do
       end if
     end if
