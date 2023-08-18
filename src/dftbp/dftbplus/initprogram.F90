@@ -475,7 +475,7 @@ module dftbp_dftbplus_initprogram
     logical :: tCasidaForces
 
     !> Optimization of conical intersections
-    logical :: tCIopt = .false.
+    logical :: isCIopt = .false.
 
     !> Are forces being returned
     logical :: tPrintForces
@@ -4658,6 +4658,7 @@ contains
     type(TInputData), intent(in) :: input
 
     logical :: isREKS
+    ! dLev is the number of states to include for non-adiabatic couplings
     integer :: nSpinHams, sqrHamSize, iDet, dLev
 
     isREKS = allocated(this%reks)
@@ -4696,7 +4697,7 @@ contains
         end if
         ! For CI optimization store gradient for several states,
         ! otherwise store excited state gradient for state of interest only  
-        if(this%linearResponse%tCIopt) then
+        if(this%linearResponse%isCIopt) then
           if (.not. this%linearResponse%tNaCoupling) then
             call error("Optimization of CI requires StateCouplings keyword.")
           end if    
@@ -4709,7 +4710,7 @@ contains
         else  if (this%tLinRespZVect .and. this%tCasidaForces) then  
           allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
-        this%tCIopt = this%linearResponse%tCIopt
+        this%isCIopt = this%linearResponse%isCIopt
       end if 
     end if
 
@@ -5414,7 +5415,7 @@ contains
     end if
 
     if (input%ctrl%lrespini%nstat == 0) then
-      if (tCasidaForces) then
+      if (tCasidaForces .and. (.not. input%ctrl%lrespini%isCIopt)) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
       if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then

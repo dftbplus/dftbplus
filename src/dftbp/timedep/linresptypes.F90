@@ -81,7 +81,7 @@ module dftbp_timedep_linresptypes
     logical :: tNaCoupling = .false.
 
     !> should CI be optimized
-    logical :: tCIopt
+    logical :: isCIopt
 
     !> Energy shift used in CI optimizer
     real(dp) :: energyShiftCI

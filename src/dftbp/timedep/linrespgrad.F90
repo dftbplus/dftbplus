@@ -172,7 +172,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:)
+    real(dp), allocatable :: eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -615,23 +615,22 @@ contains
       end if
     else
       ! calculate Furche vectors and transition density matrix for various properties
-
-      if (nstat == 0) then
-        nStartLev = 1
-        nEndLev = this%nExc
-
-        if (tForces) then
-          call error("Forces currently not available unless a single excited state is specified")
-        end if
-
-      else if (this%tCIopt) then
+      
+      if (this%isCIopt) then
         if(this%indNACouplings(1) == 0) then
           nStartLev = this%indNACouplings(1) + 1
         else
           nStartLev = this%indNACouplings(1)
         end if
         nEndLev = this%indNACouplings(2)
-      else  
+      else if (nstat == 0) then
+        nStartLev = 1
+        nEndLev = this%nExc
+
+        if (tForces) then
+          call error("Forces currently not available unless a single excited state is specified")
+        end if
+      else
         nStartLev = nstat
         nEndLev = nstat
       end if
@@ -5462,12 +5461,12 @@ contains
   end subroutine fixNACVPhase
   
   !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
-  !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
+  !! modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
   !> Previous published results [Niehaus JCP 158 054103 (2023), TCA 140 34 (2021)] were obtained
-  !> with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
+  !! with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
   subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, energyShift, naCouplings, excEnergies)
 
-    !> Ground state gradient (overwritten)
+    !> Ground state gradient (overwritten with gradient to follow along)
     real(dp), intent(inout) :: derivs(:,:)
 
     !> Gradients of the excitation energy

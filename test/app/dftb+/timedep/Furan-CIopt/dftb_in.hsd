@@ -2,7 +2,7 @@ Geometry = GenFormat {
     <<< "geo.gen"
 }
 
-Driver = SteepestDescent{MaxSteps=0}
+Driver = SteepestDescent{MaxSteps=0}  # as we want a fast test
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-10
@@ -20,7 +20,6 @@ Hamiltonian = DFTB {
 ExcitedState {
     Casida {
         NrOfExcitations = 10
-        StateOfInterest = 1
         Symmetry = Singlet
         Diagonaliser = Arpack{}
         StateCouplings = {0 1}
@@ -36,12 +35,6 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 12
+    ParserVersion = 13
 }            
-
-Parallel {
-  # Allow OMP threads explicitely to test for hybrid parallelisation with
-  # MPI-binary. (Check the manual before using this in production runs!)
-  UseOmpThreads = Yes
-}
 

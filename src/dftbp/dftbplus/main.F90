@@ -1522,7 +1522,7 @@ contains
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
         
         
-        if (this%tCIopt) then
+        if (this%isCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
               & this%linearResponse%indNACouplings, this%linearResponse%energyShiftCI,&
               & this%naCouplings, this%energiesCasida)       

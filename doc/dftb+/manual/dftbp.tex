@@ -5330,11 +5330,13 @@ The \iscb{Bearpark} optimizer (see \cite{Bearpark1994}) minimizes a gradient tha
 is based on the non-adiabatic coupling vector and the difference
 gradient of the two potential energy surfaces in question. The
 information on forces in the output (\is{Maximal force component} and
-\is{Averaged force norm}) refers to this quantity. The parameters given
+\is{Averaged force norm}) refers to this quantity. \is{Total Energy}
+refers to the higher state (\is{StateOfInterest} is not used).  The parameters given
 in the \is{GeometryOptimisation} block control the optimization as
 usual. Since the CI optimization is numerically challenging, we recommend
 the \is{SteepestDescent} driver. The energy gap between the two states
-in question is written as entry \is{Energy gap CI} to the output.
+in question is written as entry \is{Energy gap CI} to the
+output.  
 
 \iscb{Bearpark} has one option, which is relevant for the CI between the
 ground and first excited state: 
@@ -5343,12 +5345,12 @@ ground and first excited state:
   \end{ptable}
   \begin{description}
   \item[\is{EnergyShift}] Shift of the excited state PES during
-    optimization. Should be brought to zero. 
+    optimization. Should be brought to zero on restarting with a better optimised structure.
   \end{description}
 As discussed by Harabuchi et al.~\cite{Harabuchi2019}, \is{EnergyShift} helps to avoid
 SCC convergence issues close to a ground-to-excited CI. It is
 recommended to first approach the CI with a larger value of
-\is{EnergyShift}, stop the optimization before the loss of convergence,
+\is{EnergyShift}, stop the optimization before the loss of self-consistency occurs,
 and then restart the optimization with successively smaller values of \is{EnergyShift}.   
 
 \subsection{PP-RPA}

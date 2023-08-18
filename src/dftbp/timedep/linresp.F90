@@ -23,7 +23,7 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
@@ -67,7 +67,7 @@ module dftbp_timedep_linresp
     !> atom resolved Hubbard U
     real(dp), allocatable :: HubbardU(:)
 
-    !> atom resolved spinconstants
+    !> atom resolved spin constants
     real(dp), allocatable :: spinW(:)
 
     !> print excited state mulliken populations
@@ -89,7 +89,7 @@ module dftbp_timedep_linresp
     logical :: tXplusY
     
     !> should CI be optimized
-    logical :: tCIopt
+    logical :: isCIopt
 
     !> Energy shift used in CI optimizer
     real(dp) :: energyShiftCI
@@ -208,15 +208,21 @@ contains
       if (this%tSpin) then
         call error('StateCouplings: Spin-polarized systems currently not available.')
       end if
-      if (ini%tCIopt .and. ini%indNACouplings(2)-ini%indNACouplings(1) > 1) then
+      if (ini%isCIopt .and. ini%indNACouplings(2)-ini%indNACouplings(1) > 1) then
         call error("CI optimization: States must be neighbouring.")
       end if
+      if (ini%isCIopt .and. ini%nstat /= 0) then
+        call warning("CI optimization: Setting of StateOfInterest will be ignored.")
+      end if
+      if (ini%energyShiftCI < 0.0_dp) then
+        call error("CI optimization: EnergyShift must be positive.")
+      end if 
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
       dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
     endif
     
-    this%tCIopt = ini%tCIopt
+    this%isCIopt = ini%isCIopt
     this%energyShiftCI = ini%energyShiftCI
     this%writeMulliken = ini%tMulliken
     this%writeCoeffs = ini%tCoeffs
