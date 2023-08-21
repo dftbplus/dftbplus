@@ -797,8 +797,6 @@ contains
     ! CAM calculations need to deduct atomic charges from delta density matrix
     if (this%isHybridXc) then
 
-      if (this%nSpin > 2) call error("HybridXc: Not implemented for non-colinear spin.")
-
       if (this%tRealHS .and. this%tPeriodic) then
         allocate(SSqrReal, mold=this%SSqrReal)
       #:if WITH_SCALAPACK
@@ -898,7 +896,7 @@ contains
 
   !> Output charges SCC handling
   subroutine processScc(env, this, iGeoStep, iSccIter, sccErrorQ, tConverged, eOld, diffElec,&
-      & tStopScc)
+      & tStopScc, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -918,14 +916,17 @@ contains
     !> Has the calculation converged
     logical, intent(out) :: tConverged
 
-    !> energy in previous SCC cycle
+    !> Energy in previous SCC cycle
     real(dp), intent(inout) :: Eold
 
-    !> difference in electronic energies between this and the previous iterations
+    !> Difference in electronic energies between this and the previous iterations
     real(dp), intent(out) :: diffElec
 
-    !> if scc driver should be stopped
+    !> If scc driver should be stopped
     logical, intent(out) :: tStopScc
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     logical :: tWriteSccRestart
 
@@ -953,7 +954,8 @@ contains
               & this%species0, this%species, this%coord, iGeoStep, iSccIter, this%minSccIter,&
               & this%maxSccIter, this%sccTol, tStopScc, this%tReadChrg, this%q0, this%hybridXc,&
               & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
-              & this%qBlockOut)
+              & this%qBlockOut, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         else
           call getNextInputDensityCplx(this%ints, this%neighbourList, this%nNeighbourSK,&
               & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell,&
@@ -1419,11 +1421,12 @@ contains
               & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
               & this%hybridXc, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
               & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%tRealHS,&
-              & onSiteElements=this%onSiteElements, qNetAtom=this%qNetAtom,&
+              & this%onSiteElements, errStatus, qNetAtom=this%qNetAtom,&
               & vOnSiteAtomInt=this%potential%intOnSiteAtom,&
               & vOnSiteAtomExt=this%potential%extOnSiteAtom,&
               & densityMatrix=this%densityMatrix, kWeights=this%kWeight,&
               & localKS=this%parallelKS%localKS)
+          if (errStatus%hasError()) call error(errStatus%message)
 
           if (allocated(this%elecConstraint)) then
             call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
@@ -1443,7 +1446,8 @@ contains
         end do lpConstrInner
 
         call processScc(env, this, iGeoStep, iSccIter, sccErrorQ, tConverged, eOld, diffElec,&
-            & tStopScc)
+            & tStopScc, errStatus)
+        if (errStatus%hasError()) call error(errStatus%message)
 
         if (allocated(this%dispersion) .and. .not. tConverged) then
           call this%dispersion%updateOnsiteCharges(this%qNetAtom, this%orb, this%referenceN0,&
@@ -3143,7 +3147,7 @@ contains
     real(dp), intent(out) :: eigen(:,:)
 
     !> Status of operation
-    type(TStatus), intent(out) :: errStatus
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iKS, iSpin
 
@@ -3171,7 +3175,8 @@ contains
       ! Add hybrid xc-functional contribution to Hamiltonian of current spin-channel
       if (allocated(hybridXc)) then
         call hybridXc%addCamHamiltonian_real(env, denseDesc, SSqrReal, deltaRhoIn(:,:, iKS),&
-            & HSqrReal)
+            & HSqrReal, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
@@ -4363,7 +4368,7 @@ contains
   subroutine getNextInputDensityReal(env, parallelKS, SSqrReal, ints, neighbourList, nNeighbourSK,&
       & denseDesc, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, tHelical, species0,&
       & species, coord, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
-      & q0, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn, qBlockOut)
+      & q0, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn, qBlockOut, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4457,6 +4462,9 @@ contains
 
     !> Dual output charges
     real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+
+    !> Error status
+    type(tStatus), intent(inout) :: errStatus
 
     !! Difference of delta density matrix in and out
     real(dp), allocatable :: deltaRhoDiffSqr(:,:,:)
@@ -4557,7 +4565,8 @@ contains
 
         if (allocated(qBlockIn)) then
         #:if WITH_SCALAPACK
-          call error("Dense block Mulliken routine not implemented for MPI parallel version.")
+          @:RAISE_ERROR(errStatus, -1, "Dense block Mulliken routine not implemented for MPI&
+              & parallel build.")
         #:else
           call denseBlockMulliken(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart,&
               & qBlockIn)
@@ -8021,7 +8030,8 @@ contains
           & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
           & hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & .true., onSiteElements)
+          & .true., onSiteElements, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       if (allocated(dispersion)) then
         ! For dftd4 dispersion, update charges

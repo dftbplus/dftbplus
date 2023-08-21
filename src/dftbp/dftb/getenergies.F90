@@ -6,11 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Evaluate energies
 module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -48,8 +50,8 @@ contains
       & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
       & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, qNetAtom, vOnSiteAtomInt,&
-      & vOnSiteAtomExt, densityMatrix, kWeights, localKS)
+      & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus, qNetAtom,&
+      & vOnSiteAtomInt, vOnSiteAtomExt, densityMatrix, kWeights, localKS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -162,6 +164,9 @@ contains
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Net atom populations
     real(dp), intent(in), optional :: qNetAtom(:)
@@ -281,7 +286,8 @@ contains
         call hybridXc%addCamEnergy_real(env, energy%Efock)
       else
         if ((.not. present(densityMatrix)) .or. (.not. present(kWeights))) then
-          call error("Missing expected array(s) for hybrid xc-functional calculation.")
+          @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for hybrid xc-functional&
+              & calculation.")
         end if
         call hybridXc%addCamEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS,&
             & kWeights, densityMatrix%deltaRhoOutCplx, energy%Efock)
