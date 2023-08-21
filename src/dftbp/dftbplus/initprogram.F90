@@ -2737,7 +2737,10 @@ contains
       call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
     end if
 
-    call this%initializeCharges(input%ctrl%initialSpins, input%ctrl%initialCharges)
+    call this%initializeCharges(errStatus, input%ctrl%initialSpins, input%ctrl%initialCharges)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     ! When restarting and reading charges from charges.bin, the supercell folding matrix of the
     ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb
@@ -2782,11 +2785,14 @@ contains
           & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta,&
           & this%tSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
           & input%ctrl%hybridXcInp%hybridXcType, input%ctrl%hybridXcInp%gammaType, this%tPeriodic,&
-          & this%tRealHS, coeffsDiag=this%supercellFoldingDiag,&
+          & this%tRealHS, errStatus, coeffsDiag=this%supercellFoldingDiag,&
           & gammaCutoff=this%cutOff%gammaCutoff,&
           & gSummationCutoff=this%cutOff%gSummationCutoff,&
           & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
           & latVecs=input%geom%latVecs)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
       ! now all information is present to properly allocate density matrices and associate pointers
       call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
@@ -4083,10 +4089,13 @@ contains
 
   !> Initialise partial charges
   !>
-  subroutine initializeCharges(this, initialSpins, initialCharges)
+  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Initial spins
     real(dp), optional, intent(in) :: initialSpins(:,:)
@@ -4175,28 +4184,32 @@ contains
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%densityMatrix, this%tRealHS, multipoles=this%multipoleInp,&
-            & coeffsAndShifts=this%supercellFoldingMatrix)
+            & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+            & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+        @:PROPAGATE_ERROR(errStatus)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%densityMatrix, this%tRealHS, nEl=sum(this%nEl),&
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+          @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%densityMatrix, this%tRealHS, nEl=sum(this%nEl),&
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
               & coeffsAndShifts=this%supercellFoldingMatrix)
+          @:PROPAGATE_ERROR(errStatus)
         end if
       end if
 
       ! Check if obtained supercell folding matrix meets current requirements
       if (this%isHybridXc .and. this%tPeriodic) then
         allocate(this%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix,&
+        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix, errStatus,&
             & supercellFoldingDiagOut=this%supercellFoldingDiag)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
     #:if WITH_TRANSPORT

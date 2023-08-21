@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
@@ -159,6 +160,7 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
+    type(TStatus) :: errStatus
     type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
     logical :: tReadAnalysis
@@ -208,7 +210,7 @@ contains
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
-        & input%ginfo%greendens, input%poisson)
+        & input%ginfo%greendens, input%poisson, errStatus)
 
   #:else
 
@@ -218,9 +220,13 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
 
   #:endif
+
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
@@ -1222,9 +1228,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1250,22 +1256,27 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: buffer
 
     call getNodeName(node, buffer)
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson)
+      call readXTBHam(node, ctrl, geo, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1275,9 +1286,9 @@ contains
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1303,6 +1314,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
@@ -1556,7 +1570,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (associated(child)) then
@@ -1795,9 +1810,9 @@ contains
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson)
+  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1820,6 +1835,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, modifier
@@ -1933,7 +1951,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, &
@@ -2756,7 +2775,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, poorKSampling)
+  subroutine readKPoints(node, ctrl, geo, poorKSampling, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2769,6 +2788,9 @@ contains
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Should an additional check be performed if more than one SCC step is requested
     logical :: checkStopHybridCalc
@@ -2785,7 +2807,8 @@ contains
 
     ! K-Points
     if (geo%tPeriodic) then
-      call getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo)
+      call getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (geo%tHelical) then
       call getHelicalKSampling(poorKSampling, ctrl, node, geo)
     end if
@@ -2878,7 +2901,7 @@ contains
 
 
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo)
+  subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
@@ -2894,6 +2917,9 @@ contains
 
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -2931,8 +2957,9 @@ contains
       end if
       if (allocated(ctrl%hybridXcInp)) then
         allocate(ctrl%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(coeffsAndShifts,&
+        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
             & supercellFoldingDiagOut=ctrl%supercellFoldingDiag)
+        @:PROPAGATE_ERROR(errStatus)
         ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
       tReduceByInversion = (.not. ctrl%tSpinOrbit)

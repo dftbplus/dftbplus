@@ -1265,7 +1265,9 @@ contains
             & this%nNeighbourCamSym, this%tDualSpinOrbit, this%xi, this%isExtField, this%isXlbomd,&
             & this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
             & this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%dispersion, tConverged,&
-            & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks)
+            & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks,&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
@@ -1665,9 +1667,10 @@ contains
             & this%thirdOrd, this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
             & this%hybridXc, this%SSqrReal, this%ints, this%denseDesc, this%halogenXCorrection,&
             & this%tHelical, this%coord0, this%deltaDftb, this%tPeriodic, this%tRealHS,&
-            & this%kPoint, this%kWeight, deltaRhoOut=this%densityMatrix%deltaRhoOut,&
+            & this%kPoint, this%kWeight, errStatus, deltaRhoOut=this%densityMatrix%deltaRhoOut,&
             & deltaRhoInCplxHS=this%densityMatrix%deltaRhoInCplxHS,&
             & deltaRhoOutCplx=this%densityMatrix%deltaRhoOutCplx)
+        @:PROPAGATE_ERROR(errStatus)
 
         if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs
@@ -3193,7 +3196,8 @@ contains
       if (allocated(hybridXc)) then
         call hybridXc%addCamHamiltonian_real(env, deltaRhoIn(:,:, iKS), SSqrReal, ints%overlap,&
             & neighbourList%iNeighbour, nNeighbourCam, denseDesc%iAtomStart, iSparseStart, orb,&
-            & img2CentCell, tPeriodic, HSqrReal)
+            & img2CentCell, tPeriodic, HSqrReal, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
       ! Warning: SSqrReal gets overwritten here
@@ -3316,7 +3320,8 @@ contains
       ! Get CAM-Hamiltonian contribution for all spins/k-points
       call hybridXc%getCamHamiltonian_kpts(env, densityMatrix%deltaRhoInCplxHS,&
           & symNeighbourList, nNeighbourCamSym, rCellVecs, cellVec, denseDesc%iAtomStart, orb,&
-          & kPoint, densityMatrix%iKiSToiGlobalKS, HSqrCplxCam)
+          & kPoint, densityMatrix%iKiSToiGlobalKS, HSqrCplxCam, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! Loop over all spins/k-points associated with MPI group
@@ -6122,7 +6127,7 @@ contains
       & recVecs2p, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation, qDepExtPot,&
       & chrgForces, dispersion, hybridXc, SSqrReal, ints, denseDesc, halogenXCorrection, tHelical,&
-      & coord0, deltaDftb, tPeriodic, tRealHS, kPoint, kWeight, deltaRhoOut,&
+      & coord0, deltaDftb, tPeriodic, tRealHS, kPoint, kWeight, errStatus, deltaRhoOut,&
       & deltaRhoInCplxHS, deltaRhoOutCplx)
 
     !> Environment settings
@@ -6275,6 +6280,9 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Change in density matrix during this SCC step for hybridXc
     real(dp), intent(in), optional :: deltaRhoOut(:,:,:)
 
@@ -6344,7 +6352,7 @@ contains
       if (tExtChrg) then
         chrgForces(:,:) = 0.0_dp
         if (isXlbomd) then
-          call error("XLBOMD does not work with external charges yet!")
+          @:RAISE_ERROR(errStatus, -1, "XLBOMD does not work with external charges yet!")
         else
           call sccCalc%addForceDc(env, derivs, species, neighbourList%iNeighbour, img2CentCell,&
               & chrgForces)
@@ -6384,7 +6392,7 @@ contains
 
     if (allocated(solvation)) then
       if (isXlbomd) then
-        call error("XLBOMD does not work with solvation yet!")
+        @:RAISE_ERROR(errStatus, -1, "XLBOMD does not work with solvation yet!")
       else
         call solvation%addGradients(env, neighbourList, species, coord, img2CentCell, derivs)
       end if
@@ -6401,10 +6409,11 @@ contains
     if (allocated(hybridXc)) then
       if (tRealHS) then
         if (.not. present(deltaRhoOut)) then
-          call error("Range-separated forces requested, but deltaRhoOut not present")
+          @:RAISE_ERROR(errStatus, -1, "Range-separated forces requested, but deltaRhoOut not&
+              & present")
         end if
         if (size(deltaRhoOut, dim=3) > 2) then
-          call error("Range-separated forces do not support non-colinear spin")
+          @:RAISE_ERROR(errStatus, -1, "Range-separated forces do not support non-colinear spin")
         end if
 
       #:if WITH_SCALAPACK
@@ -6417,7 +6426,7 @@ contains
         end if
         call hybridXc%addCamGradients_real(env, parallelKS, deltaRhoOut, SSqrReal,&
             & skOverCont, symNeighbourList, nNeighbourCamSym, orb, nonSccDeriv, denseDesc,&
-            & size(rhoPrim, dim=2), tPeriodic, derivs)
+            & size(rhoPrim, dim=2), tPeriodic, derivs, errStatus)
       #:else
         if (tHelical) then
           call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
@@ -6428,12 +6437,13 @@ contains
         end if
         call hybridXc%addCamGradients_real(deltaRhoOut, SSqrReal, skOverCont, orb,&
             & denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, nonSccDeriv,&
-            & img2CentCell, species, coord, tPeriodic, derivs, symNeighbourList=symNeighbourList,&
-            & nNeighbourCamSym=nNeighbourCamSym)
+            & img2CentCell, species, coord, tPeriodic, derivs, errStatus,&
+            & symNeighbourList=symNeighbourList, nNeighbourCamSym=nNeighbourCamSym)
       #:endif
+        @:PROPAGATE_ERROR(errStatus)
       else
         if ((.not. present(deltaRhoInCplxHS)) .or. (.not. present(deltaRhoOutCplx))) then
-          call error("Range-separated forces requested, but array(s) not present")
+          @:RAISE_ERROR(errStatus, -1, "Range-separated forces requested, but array(s) not present")
         end if
         call hybridXc%addCamGradients_kpts_ct(deltaRhoInCplxHS, deltaRhoOutCplx,&
             & symNeighbourList, nNeighbourCamSym, cellVecs, denseDesc%iAtomStart, orb, kPoint,&
@@ -7724,7 +7734,7 @@ contains
       & cellVol, extPressure, energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential,&
       & hybridXc, nNeighbourCam, nNeighbourCamSym, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU,&
       & TS, qDepExtPot, qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion,&
-      & tConverged, species0, referenceN0, qNetAtom, multipole, reks)
+      & tConverged, species0, referenceN0, qNetAtom, multipole, reks, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -7862,6 +7872,9 @@ contains
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     real(dp), allocatable :: tmpHamSp(:,:)
     real(dp), allocatable :: tmpEn(:)
 
@@ -7947,12 +7960,13 @@ contains
         ! Add hybrid xc-functional contribution to Hamiltonian
       #:if WITH_SCALAPACK
         call hybridXc%addCamHamiltonian_real(env, denseDesc, reks%overSqr,&
-            & reks%deltaRhoSqrL(:,:, 1, iL), reks%hamSqrL(:,:,1,iL))
+            & reks%deltaRhoSqrL(:,:, 1, iL), reks%hamSqrL(:,:,1,iL), errStatus)
       #:else
         call hybridXc%addCamHamiltonian_real(env, reks%deltaRhoSqrL(:,:,1,iL), reks%overSqr,&
             & ints%overlap, neighbourList%iNeighbour, nNeighbourCam, denseDesc%iAtomStart,&
-            & iSparseStart, orb, img2CentCell, reks%tPeriodic, reks%hamSqrL(:,:, 1, iL))
+            & iSparseStart, orb, img2CentCell, reks%tPeriodic, reks%hamSqrL(:,:, 1, iL), errStatus)
       #:endif
+        @:PROPAGATE_ERROR(errStatus)
         ! Calculate range-separated exchange energy for spin up
         call hybridXc%addCamEnergy_real(env, tmpEn(iL))
       end do

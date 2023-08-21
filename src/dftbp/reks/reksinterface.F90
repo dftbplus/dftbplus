@@ -933,8 +933,9 @@ module dftbp_reks_reksinterface
       #:else
         call hybridXc%addCamGradients_real(this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
             & skOverCont, orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
-            & nonSccDeriv, img2CentCell, species, coord, .false., lcDerivs(:,:,iL),&
+            & nonSccDeriv, img2CentCell, species, coord, .false., lcDerivs(:,:,iL), errStatus,&
             & symNeighbourList=symNeighbourList, nNeighbourCamSym=nNeighbourCamSym)
+        @:PROPAGATE_ERROR(errStatus)
       #:endif
       end if
 

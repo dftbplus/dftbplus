@@ -3217,7 +3217,8 @@ contains
     #:else
       call hybridXc%addCamGradients_real(real(deltaRho), real(sSqr(:,:,1)), skOverCont, orb,&
           & iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator, img2CentCell,&
-          & this%speciesAll, coordAll, .false., derivs)
+          & this%speciesAll, coordAll, .false., derivs, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     #:endif
     end if
 

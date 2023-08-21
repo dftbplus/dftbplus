@@ -560,6 +560,9 @@ contains
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
 
+    !> Error status
+    type(TStatus) :: errStatus
+
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
 
@@ -604,7 +607,10 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
   end subroutine updateDataDependentOnSpeciesOrdering
 

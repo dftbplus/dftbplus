@@ -12,7 +12,6 @@
 module dftbp_math_wignerseitz
 
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_dftb_periodic, only : frac2cart
 
@@ -110,16 +109,12 @@ contains
         do n3 = -wsSearchSize_(3) * nKpt(3), wsSearchSize_(3) * nKpt(3)
           if (allocated(dist)) deallocate(dist)
           do i1 = -wsSearchSize_(1), wsSearchSize_(1)
+            diff(1) = n1 - i1 * nKpt(1)
             do i2 = -wsSearchSize_(2), wsSearchSize_(2)
+              diff(2) = n2 - i2 * nKpt(2)
               do i3 = -wsSearchSize_(3), wsSearchSize_(3)
-                diff(1) = n1 - i1 * nKpt(1)
-                diff(2) = n2 - i2 * nKpt(2)
                 diff(3) = n3 - i3 * nKpt(3)
-                do jj = 1, size(latVecs, dim=2)
-                  do ii = 1, size(latVecs, dim=2)
-                    diffMat(ii, jj) = real(diff(ii), dp) * real(diff(jj), dp)
-                  end do
-                end do
+                diffMat(:,:) = spread(diff, 1, 3) * spread(diff, 2, 3)
                 call appendToArray1d(dist, sum(diffMat * dotProducts))
                 ! Remember the index that corresponds to the center, i.e. i1=i2=i3=0
                 if (i1 == 0 .and. i2 == 0 .and. i3 == 0) iCenter = size(dist, dim=1)
@@ -181,7 +176,7 @@ contains
   end subroutine appendToArray1d
 
 
-  !> Appends element to two-dimensional, integer-valued array.
+  !> Appends a row to a two-dimensional, integer-valued array.
   subroutine appendToArray2d(array, element)
 
     !> Element to add

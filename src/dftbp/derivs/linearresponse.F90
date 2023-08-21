@@ -371,7 +371,8 @@ contains
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call hybridXc%addCamHamiltonian_real(env, dRhoSqr(:,:,iS), workLocal, over,&
           & neighbourList%iNeighbour, nNeighbourCam, denseDesc%iAtomStart, iSparseStart, orb,&
-          & img2CentCell, .false., dRho)
+          & img2CentCell, .false., dRho, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! form |c> H' <c|

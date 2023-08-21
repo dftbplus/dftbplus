@@ -14,7 +14,6 @@ module dftbp_dftb_rshgamma
 
   use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
   use dftbp_common_status, only : TStatus
-  use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : cross3
 
   implicit none
@@ -39,7 +38,7 @@ contains
     real(dp), intent(out) :: cutoff
 
     !> Error status
-    type(TStatus), intent(out) :: errStatus
+    type(TStatus), intent(inout) :: errStatus
 
     !> Number of k-points along each direction
     integer, intent(in), optional :: nK(:)
@@ -188,26 +187,15 @@ contains
     !> Resulting CAM gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    real(dp) :: gammaHf, gammaLr
-
-    call getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, gammaHf, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    call getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, gammaLr, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
-
-    gamma = camAlpha * gammaHf + camBeta * gammaLr
+    gamma =&
+        & camAlpha * getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist)&
+        & + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
 
   end function getCamAnalyticalGammaValue_workhorse
 
 
   !> Workhorse for getHfAnalyticalGammaValue wrapper in hybrid module.
-  subroutine getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, gamma, errStatus)
+  function getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(gamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -216,10 +204,7 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting gamma
-    real(dp), intent(out) :: gamma
-
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    real(dp) :: gamma
 
     real(dp) :: tauA, tauB
     real(dp) :: tmp, tau
@@ -228,16 +213,16 @@ contains
     tauB = 3.2_dp * hubbu2
 
     if (dist < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist < tolSameDist) then
       ! on-site case
-      if (abs(tauA - tauB) < MinHubDiff) then
-        tau = 0.5_dp * (tauA + tauB)
-        gamma = tau * 0.3125_dp
-      else
-        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
-      end if
+      tau = 0.5_dp * (tauA + tauB)
+      gamma = tau * 0.3125_dp
     else
       ! off-site case, Ua == Ub
-      if (abs(tauA - tauB) < MinHubDiff ) then
+      if (abs(tauA - tauB) < MinHubDiff) then
         tauA = 0.5_dp * (tauA + tauB)
         tmp = ((dist * tauA)**3 / 48.0_dp + 0.1875_dp * (dist * tauA)**2 +&
             & 0.6875_dp * (dist * tauA) + 1.0_dp) * exp(-tauA * dist) / dist
@@ -250,11 +235,11 @@ contains
       end if
     end if
 
-  end subroutine getHfAnalyticalGammaValue_workhorse
+  end function getHfAnalyticalGammaValue_workhorse
 
 
   !> Workhorse for getLrAnalyticalGammaValue wrapper in hybrid module.
-  subroutine getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, gamma, errStatus)
+  function getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(gamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -266,10 +251,7 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting gamma
-    real(dp), intent(out) :: gamma
-
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    real(dp) :: gamma
 
     real(dp) :: tauA, tauB
     real(dp) :: prefac, tmp, tmp2, tau
@@ -278,16 +260,16 @@ contains
     tauB = 3.2_dp * hubbu2
 
     if (dist < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist < tolSameDist) then
       ! on-site case
-      if (abs(tauA - tauB) < MinHubDiff) then
-        tau = 0.5_dp * (tauA + tauB)
-        tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4 + omega**6
-        tmp = tmp * 0.0625_dp / tau**5 - omega
-        tmp = tmp * tau**8 / (tau**2 - omega**2)**4
-        gamma = tau * 0.3125_dp - tmp
-      else
-        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
-      end if
+      tau = 0.5_dp * (tauA + tauB)
+      tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4 + omega**6
+      tmp = tmp * 0.0625_dp / tau**5 - omega
+      tmp = tmp * tau**8 / (tau**2 - omega**2)**4
+      gamma = tau * 0.3125_dp - tmp
     else
       ! off-site case, Ua == Ub
       if (abs(tauA - tauB) < MinHubDiff ) then
@@ -318,11 +300,11 @@ contains
       end if
     end if
 
-  end subroutine getLrAnalyticalGammaValue_workhorse
+  end function getLrAnalyticalGammaValue_workhorse
 
 
   !> Returns analytical derivative of full-range Hartree-Fock gamma.
-  subroutine getdHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist, dGamma, errStatus)
+  function getdHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(dGamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -331,10 +313,7 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting d gamma / d dist
-    real(dp), intent(out) :: dGamma
-
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    real(dp) :: dGamma
 
     real(dp) :: tauA, tauB
     real(dp) :: dTmp
@@ -343,12 +322,12 @@ contains
     tauB = 3.2_dp * hubbu2
 
     if (dist < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist < tolSameDist) then
       ! on-site case
-      if (abs(tauA - tauB) < MinHubDiff) then
-        dGamma = 0.0_dp
-      else
-        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
-      end if
+      dGamma = 0.0_dp
     else
       ! off-site case, Ua == Ub
       if (abs(tauA - tauB) < MinHubDiff) then
@@ -369,11 +348,11 @@ contains
       end if
     end if
 
-  end subroutine getdHfAnalyticalGammaValue_workhorse
+  end function getdHfAnalyticalGammaValue_workhorse
 
 
   !> Returns 1st analytical derivative of long-range gamma.
-  subroutine getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist, dGamma, errStatus)
+  function getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(dGamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -385,10 +364,7 @@ contains
     real(dp), intent(in) :: dist
 
     !> Resulting d gamma / d dist
-    real(dp), intent(out) :: dGamma
-
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    real(dp) :: dGamma
 
     real(dp) :: tauA, tauB
     real(dp) :: prefac, tmp, tmp2, dTmp, dTmp2
@@ -397,12 +373,12 @@ contains
     tauB = 3.2_dp * hubbu2
 
     if (dist < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist < tolSameDist) then
       ! on-site case
-      if (abs(tauA - tauB) < MinHubDiff) then
-        dGamma = 0.0_dp
-      else
-        @:RAISE_ERROR(errStatus, -1, "RSH-Gamma: R = 0, Ua != Ub")
-      end if
+      dGamma = 0.0_dp
     else
       ! off-site case, Ua == Ub
       if (abs(tauA - tauB) < MinHubDiff ) then
@@ -442,7 +418,7 @@ contains
       end if
     end if
 
-  end subroutine getdLrAnalyticalGammaValue_workhorse
+  end function getdLrAnalyticalGammaValue_workhorse
 
 
   !> Workhorse routine for getddLrNumericalGammaValue in hybrid module.
@@ -463,21 +439,9 @@ contains
     !> Numerical gamma derivative
     real(dp) :: ddGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    real(dp) :: dGamma1, dGamma2
-
-    call getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist - delta, dGamma1,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-    call getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist + delta, dGamma2,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
-
-    ddGamma = (dGamma2 - dGamma1) / (2.0_dp * delta)
+    ddGamma = (getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist + delta)&
+        & - getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist - delta))&
+        & / (2.0_dp * delta)
 
   end function getddLrNumericalGammaValue_workhorse
 

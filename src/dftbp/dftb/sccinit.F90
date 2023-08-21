@@ -12,6 +12,7 @@ module dftbp_dftb_sccinit
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
@@ -179,7 +180,7 @@ contains
   !> Should test of the input, if the number of orbital charges per atom match the number from the
   !> angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
-      & magnetisation, nEl, coeffsAndShifts, multipoles)
+      & errStatus, magnetisation, nEl, coeffsAndShifts, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
@@ -207,6 +208,9 @@ contains
 
     !> True, if overlap and Hamiltonian are real-valued
     logical, intent(in) :: tRealHS
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
@@ -543,7 +547,7 @@ contains
               end if
             end do
           end do
-          call checkSupercellFoldingMatrix(coeffsAndShifts,&
+          call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
               & supercellFoldingDiagOut=supercellFoldingDiag)
           allocate(densityMatrix%deltaRhoInCplxHS(orb%nOrb, orb%nOrb, supercellFoldingDiag(1),&
               & supercellFoldingDiag(2), supercellFoldingDiag(3), nSpin))

@@ -18,7 +18,6 @@ module dftbp_dftb_hybridxc
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
-  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, symm
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
@@ -394,7 +393,7 @@ contains
 
   !> Intitializes the range-separated hybrid DFTB module.
   subroutine THybridXcFunc_init(this, nAtom0, species0, hubbu, screeningThreshold, omega, camAlpha,&
-      & camBeta, tSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, tPeriodic, tRealHS,&
+      & camBeta, tSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, tPeriodic, tRealHS, errStatus,&
       & gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
 
     !> Class instance
@@ -442,6 +441,9 @@ contains
     !> True, if overlap and Hamiltonian are real-valued
     logical, intent(in) :: tRealHS
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Cutoff for truncated Gamma
     real(dp), intent(in), optional :: gammaCutoff
 
@@ -464,22 +466,19 @@ contains
     !! Number of unique species in system
     integer :: nUniqueSpecies
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     ! Perform basic consistency checks for optional arguments
     if (tPeriodic .and. (.not. present(gSummationCutoff))) then
-      call error('Range-separated Module: Periodic systems require g-summation cutoff, which is not&
-          & present.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Periodic systems require g-summation&
+          & cutoff, which is not present.")
     end if
     if ((.not. tRealHS) .and. (.not. present(coeffsDiag))) then
-      call error('Range-separated Module: General k-point case requires supercell folding&
-          & coefficients, which are not present.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: General k-point case requires supercell&
+          & folding coefficients, which are not present.")
     end if
     if ((.not. tRealHS) .and. gammaType == hybridXcGammaTypes%mic&
         & .and. (.not. present(wignerSeitzReduction))) then
-      call error('Range-separated Module: General k-point case with MIC algorithm requires&
-          & Wigner-Seitz reduction parameter, which is not present.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: General k-point case with MIC algorithm&
+          & requires Wigner-Seitz reduction parameter, which is not present.")
     end if
 
     ! Allocate selected gamma function types
@@ -490,18 +489,18 @@ contains
       allocate(THybridXcFunc_mic:: this)
     case (hybridXcGammaTypes%truncated)
       if (.not. present(gammaCutoff)) then
-        call error('Range-separated Module: Coulomb truncation requires cutoff, which is not&
-            & present.')
+        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Coulomb truncation requires cutoff,&
+            & which is not present.")
       end if
       allocate(THybridXcFunc_truncated:: this)
     case (hybridXcGammaTypes%truncatedAndDamped)
       if (.not. present(gammaCutoff)) then
-        call error('Range-separated Module: Coulomb truncation requires cutoff, which is not&
-            & present.')
+        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Coulomb truncation requires cutoff,&
+            & which is not present.")
       end if
       allocate(THybridXcFunc_truncatedAndDamped:: this)
     case default
-      call error('Range-separated Module: Invalid gamma function type obtained.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Invalid gamma function type obtained.")
     end select
 
     this%gammaType = gammaType
@@ -531,7 +530,8 @@ contains
       this%gammaDamping = 0.95_dp * this%gammaCutoff
 
       if (this%gammaDamping <= 0.0_dp) then
-        call error("Beginning of damped region of electrostatics must be positive.")
+        @:RAISE_ERROR(errStatus, -1, "Beginning of damped region of electrostatics must be&
+            & positive.")
       end if
 
       ! Tabulate truncated Gamma properties for all (symmetric) combinations of species
@@ -541,10 +541,11 @@ contains
       allocate(this%lrddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
-          call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-              & this%gammaDamping, this%lrGammaAtDamping(iSp1, iSp2), errStatus)
-          call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-              & this%gammaDamping, this%lrdGammaAtDamping(iSp1, iSp2), errStatus)
+          this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
+              & this%hubbu(iSp2), this%omega, this%gammaDamping)
+          this%lrdGammaAtDamping(iSp1, iSp2)&
+              & = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & this%omega, this%gammaDamping)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%omega, this%gammaDamping, 1e-08_dp)
@@ -557,10 +558,11 @@ contains
       allocate(this%hfddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
-          call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%gammaDamping, this%hfGammaAtDamping(iSp1, iSp2), errStatus)
-          call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%gammaDamping, this%hfdGammaAtDamping(iSp1, iSp2), errStatus)
+          this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
+              & this%hubbu(iSp2), this%gammaDamping)
+          this%hfdGammaAtDamping(iSp1, iSp2)&
+              & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & this%gammaDamping)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
               & this%gammaDamping, 1e-08_dp)
         end do
@@ -568,11 +570,11 @@ contains
     end if
 
     if (this%tREKS .and. this%hybridXcType == hybridXcFunc%hyb) then
-      call error("Global hybrid functionals not currently implemented for REKS.")
+      @:RAISE_ERROR(errStatus, -1, "Global hybrid functionals not currently implemented for REKS.")
     end if
 
     if (this%tREKS .and. this%hybridXcType == hybridXcFunc%cam) then
-      call error("General CAM functionals not currently implemented for REKS.")
+      @:RAISE_ERROR(errStatus, -1, "General CAM functionals not currently implemented for REKS.")
     end if
 
     allocate(this%coords(3, nAtom0))
@@ -585,21 +587,24 @@ contains
 
     ! Check for current restrictions
     if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-      call error("Spin-unrestricted calculation for thresholded range-separation not yet&
-          & implemented!")
+      @:RAISE_ERROR(errStatus, -1, "Spin-unrestricted calculation for thresholded range-separation&
+          & not yet implemented!")
     end if
 
     if (this%tREKS .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-      call error("REKS calculation with thresholded range-separation not yet implemented!")
+      @:RAISE_ERROR(errStatus, -1, "REKS calculation with thresholded range-separation not yet&
+          & implemented!")
     end if
 
     if (.not. any([hybridXcAlgo%neighbourBased, hybridXcAlgo%thresholdBased,&
           & hybridXcAlgo%matrixBased] == this%hybridXcAlg)) then
-      call error("Unknown algorithm for screening the exchange in range-separation!")
+      @:RAISE_ERROR(errStatus, -1, "Unknown algorithm for screening the exchange in&
+          & range-separation!")
     end if
 
     if (tPeriodic .and. (.not. present(latVecs))) then
-      call error("Range-separated Module: Periodic structure, but no lattice vectors handed over.")
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Periodic structure, but no lattice&
+          & vectors handed over.")
     end if
 
     if (present(coeffsDiag)) then
@@ -674,12 +679,15 @@ contains
 
 
   !> Checks if obtained supercell folding matrix meets current requirements.
-  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, supercellFoldingDiagOut)
+  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus, supercellFoldingDiagOut)
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice
     !! vectors (between 0.0 and 1.0)
     real(dp), intent(in), target :: supercellFoldingMatrix(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Diagonal elements of supercell folding matrix, if present
     integer, intent(out), optional :: supercellFoldingDiagOut(:)
@@ -701,11 +709,11 @@ contains
     shifts => supercellFoldingMatrix(:, 4)
 
     if (abs(determinant33(coeffs)) - 1.0_dp < -1e-06_dp) then
-      call error('Determinant of the supercell matrix must be greater than 1.')
+      @:RAISE_ERROR(errStatus, -1, "Determinant of the supercell matrix must be greater than 1.")
     end if
 
     if (any(abs(modulo(coeffs + 0.5_dp, 1.0_dp) - 0.5_dp) > 1e-6_dp)) then
-      call error('The components of the supercell matrix must be integers.')
+      @:RAISE_ERROR(errStatus, -1, "The components of the supercell matrix must be integers.")
     end if
 
     ! Check if k-point mesh is a Monkhorst-Pack sampling with zero shift
@@ -720,14 +728,14 @@ contains
       end do
     end do lpOuter
     if (tNotMonkhorstPack) then
-      call error('Range-separated calculations with k-points require a Monkhorst-Pack-like&
-          & sampling, i.e. a uniform extension of the lattice.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
+          & Monkhorst-Pack-like sampling, i.e. a uniform extension of the lattice.")
     end if
 
     ! Check if shifts are zero
     if (any(abs(shifts) > 1e-06_dp)) then
-      call error('Range-separated calculations with k-points require a Monkhorst-Pack-like&
-          & sampling with zero shift.')
+      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
+          & Monkhorst-Pack-like sampling with zero shift.")
     end if
 
     ! All checks have passed, continue...
@@ -1202,7 +1210,7 @@ contains
 
 
   !> Builds MPI rank dependent composite index for nested HFX loops.
-  subroutine getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex)
+  subroutine getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(in) :: this
@@ -1218,6 +1226,9 @@ contains
 
     !> Composite index for four nested loops
     integer, intent(out), allocatable :: compositeIndex(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Loop counters for global and local composite index
     integer :: indGlobal, indLocal
@@ -1244,8 +1255,8 @@ contains
     integer :: nAtom0
 
     if (.not. (allocated(this%squareOverEst) .and. allocated(this%overlapIndices))) then
-      call error("Range-separated Module: 4-loop composite index construction depends on overlap&
-          & estimates, that are not allocated yet.")
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: 4-loop composite index construction&
+          & depends on overlap estimates, that are not allocated yet.")
     end if
 
     nAtom0 = size(this%species0)
@@ -1319,7 +1330,8 @@ contains
 
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (non-periodic and Gamma-only version)
-  subroutine addCamHamiltonian_real(this, env, denseDesc, SSqrReal, deltaRhoSqr, HSqrReal)
+  subroutine addCamHamiltonian_real(this, env, denseDesc, SSqrReal, deltaRhoSqr, HSqrReal,&
+      & errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1339,16 +1351,20 @@ contains
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     call env%globalTimer%startTimer(globalTimers%hybridXcH)
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      call error("Range-separated Module: Thresholded algorithm for non-periodic or Gamma-only&
-          & systems does not yet support MPI parallelism (choose matrix-based algorithm instead).")
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Thresholded algorithm for non-periodic&
+          & or Gamma-only systems does not yet support MPI parallelism (choose matrix-based&
+          & algorithm instead).")
     case (hybridXcAlgo%neighbourBased)
-      call error("Range-separated Module: Neighbour-list based algorithm for non-periodic or&
-          & Gamma-only systems does not yet support MPI parallelism (choose matrix-based algorithm&
-          & instead).")
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Neighbour-list based algorithm for&
+          & non-periodic or Gamma-only systems does not yet support MPI parallelism (choose&
+          & matrix-based algorithm instead).")
     case (hybridXcAlgo%matrixBased)
       call addCamHamiltonianMatrix_real_blacs(this, env, denseDesc, SSqrReal, deltaRhoSqr, HSqrReal)
     end select
@@ -1362,7 +1378,7 @@ contains
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (non-periodic and Gamma-only version)
   subroutine addCamHamiltonian_real(this, env, deltaRhoSqr, SSqrReal, overSparse, iNeighbour,&
-      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, tPeriodic, HSqrReal)
+      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, tPeriodic, HSqrReal, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1404,13 +1420,16 @@ contains
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     call env%globalTimer%startTimer(globalTimers%hybridXcH)
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
       if (tPeriodic) then
-        call error('Range-separated Module: Thresholded algorithm not implemented for Gamma-point&
-            & periodic systems.')
+        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Thresholded algorithm not implemented&
+            & for Gamma-point periodic systems.")
       else
         call addCamHamiltonianThreshold_cluster(this, SSqrReal, deltaRhoSqr, iNeighbour,&
             & nNeighbourCam, iSquare, HSqrReal, orb)
@@ -1432,7 +1451,7 @@ contains
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (k-point version)
   subroutine getCamHamiltonian_kpts(this, env, deltaRhoSqr, symNeighbourList, nNeighbourCamSym,&
-      & rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam)
+      & rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1470,22 +1489,30 @@ contains
     !> Square (unpacked) Hamiltonian for all k-point/spin composite indices to be updated
     complex(dp), intent(out), allocatable :: HSqrCplxCam(:,:,:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     call env%globalTimer%startTimer(globalTimers%hybridXcH)
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      call error('Thresholded algorithm not implemented for CAM beyond the Gamma point.')
+      @:RAISE_ERROR(errStatus, -1, "Thresholded algorithm not implemented for CAM beyond the Gamma&
+          & point.")
     case (hybridXcAlgo%neighbourBased)
       if (this%gammaType == hybridXcGammaTypes%mic) then
         call addCamHamiltonianNeighbour_kpts_mic(this, env, deltaRhoSqr, symNeighbourList,&
             & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS,&
-            & HSqrCplxCam)
+            & HSqrCplxCam, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
     else
       call addCamHamiltonianNeighbour_kpts_ct(this, env, deltaRhoSqr, symNeighbourList,&
-          & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam)
+          & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       end if
     case (hybridXcAlgo%matrixBased)
-      call error('Matrix based algorithm not implemented for CAM beyond the Gamma point.')
+      @:RAISE_ERROR(errStatus, -1, "Matrix based algorithm not implemented for CAM beyond the Gamma&
+          & point.")
     end select
 
     call env%globalTimer%stopTimer(globalTimers%hybridXcH)
@@ -2401,7 +2428,8 @@ contains
   !> Adds CAM range-separated contributions to Hamiltonian, using neighbour-list based algorithm.
   !! (k-point version)
   subroutine addCamHamiltonianNeighbour_kpts_mic(this, env, deltaRhoSqr, symNeighbourList,&
-      & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam)
+      & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam,&
+      & errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout), target :: this
@@ -2438,6 +2466,9 @@ contains
 
     !> Square (unpacked) Hamiltonian for all k-point/spin composite indices to be updated
     complex(dp), intent(out), allocatable :: HSqrCplxCam(:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
@@ -2563,7 +2594,8 @@ contains
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
 
-    call getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex)
+    call getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     allocate(gammaMN(size(this%cellVecsG, dim=2)))
     allocate(gammaMB(size(this%cellVecsG, dim=2)))
@@ -2722,7 +2754,7 @@ contains
   !> Adds range-separated contributions to Hamiltonian, using neighbour-list based algorithm.
   !! (k-point version)
   subroutine addCamHamiltonianNeighbour_kpts_ct(this, env, deltaRhoSqr, symNeighbourList,&
-      & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam)
+      & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout), target :: this
@@ -2756,6 +2788,9 @@ contains
 
     !> Square (unpacked) Hamiltonian for all k-point/spin composite indices
     complex(dp), intent(out), allocatable :: HSqrCplxCam(:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
@@ -2866,7 +2901,8 @@ contains
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
 
-    call getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex)
+    call getFourLoopCompositeIndex(this, env, nNeighbourCamSym, pMax, compositeIndex, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     loopMNBA: do ii = 1, size(compositeIndex, dim=2)
       ! Recover indices from composite
@@ -3326,22 +3362,10 @@ contains
     !> Numerical gamma derivative
     real(dp) :: ddGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    real(dp) :: dGamma1, dGamma2
-
-    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist + delta,&
-        & dGamma2, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist - delta,&
-        & dGamma1, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
-
-    ddGamma = (dGamma2 - dGamma1) / (2.0_dp * delta)
+    ddGamma = (&
+        & getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist + delta)&
+        & - getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist - delta))&
+        & / (2.0_dp * delta)
 
   end function getddHfNumericalGammaDeriv
 
@@ -3364,16 +3388,11 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist, gamma, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist)
     end if
 
   end function getLrTruncatedGammaValue
@@ -3397,14 +3416,8 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist, gamma, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
+    gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist)
 
   end function getLrMicGammaValue
 
@@ -3427,9 +3440,6 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       gamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3437,10 +3447,8 @@ contains
     elseif (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist, gamma, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist)
     end if
 
   end function getLrTruncatedAndDampedGammaValue
@@ -3464,16 +3472,10 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
-          & errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
     end if
 
   end function getHfTruncatedGammaValue
@@ -3497,14 +3499,7 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
+    gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
 
   end function getHfMicGammaValue
 
@@ -3527,9 +3522,6 @@ contains
     !> Resulting truncated gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       gamma = poly5zero(this%hfGammaAtDamping(iSp1, iSp2), this%hfdGammaAtDamping(iSp1, iSp2),&
           & this%hfddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3537,10 +3529,7 @@ contains
     elseif (dist >= this%gammaCutoff) then
       gamma = 0.0_dp
     else
-      call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
-          & errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
     end if
 
   end function getHfTruncatedAndDampedGammaValue
@@ -3659,13 +3648,8 @@ contains
     !> Resulting gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega, dist,&
-        & dGamma, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-    if (errStatus%hasError()) call error(errStatus%message)
+    dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist)
 
   end function getdLrAnalyticalGammaValue
 
@@ -3688,13 +3672,7 @@ contains
     !> Resulting gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-    if (errStatus%hasError()) call error(errStatus%message)
+    dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
 
   end function getdHfAnalyticalGammaValue
 
@@ -3717,16 +3695,11 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist, dGamma, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist)
     end if
 
   end function getdLrTruncatedGammaValue
@@ -3750,13 +3723,8 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-        & dist, dGamma, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-    if (errStatus%hasError()) call error(errStatus%message)
+    dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist)
 
   end function getdLrMicGammaValue
 
@@ -3779,16 +3747,10 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
-          & errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
     end if
 
   end function getdHfTruncatedGammaValue
@@ -3812,13 +3774,7 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-    if (errStatus%hasError()) call error(errStatus%message)
+    dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
 
   end function getdHfMicGammaValue
 
@@ -3841,9 +3797,6 @@ contains
     !> Resulting truncated gamma derivative
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       dGamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3851,10 +3804,8 @@ contains
     elseif (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      call getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
-          & dist, dGamma, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      dGamma = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+          & dist)
     end if
 
   end function getdLrTruncatedAndDampedGammaValue
@@ -3879,9 +3830,6 @@ contains
     !> Resulting truncated gamma derivative (1st)
     real(dp) :: dGamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
     if (dist > this%gammaDamping .and. dist < this%gammaCutoff) then
       dGamma = poly5zero(this%lrGammaAtDamping(iSp1, iSp2), this%lrdGammaAtDamping(iSp1, iSp2),&
           & this%lrddGammaAtDamping(iSp1, iSp2), dist, this%gammaDamping, this%gammaCutoff,&
@@ -3889,10 +3837,7 @@ contains
     elseif (dist >= this%gammaCutoff) then
       dGamma = 0.0_dp
     else
-      call getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, dGamma,&
-          & errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
+      dGamma = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
     end if
 
   end function getdHfTruncatedAndDampedGammaValue
@@ -4018,14 +3963,8 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega, dist,&
-        & gamma, errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
+    gamma = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), this%omega,&
+        & dist)
 
   end function getLrAnalyticalGammaValue
 
@@ -4120,7 +4059,8 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, parallelKS, deltaRhoSqr, SSqrReal, skOverCont,&
-      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, gradients)
+      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, gradients,&
+      & errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -4164,6 +4104,9 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     if (tPeriodic) then
       call this%tabulateCamdGammaEval0_gamma()
     else
@@ -4172,8 +4115,8 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
-      call error("Range-separated Module: MPI parallelized force evaluation not supported, choose&
-          & matrix-based algorithm instead.")
+      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: MPI parallelized force evaluation not&
+          & supported, choose matrix-based algorithm instead.")
     case (hybridXcAlgo%matrixBased)
       call addCamGradientsMatrix_real_blacs(this, env, parallelKS, deltaRhoSqr, SSqrReal,&
           & skOverCont, symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin,&
@@ -4188,7 +4131,7 @@ contains
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
       & iNeighbour, nNeighbourSK, derivator, img2CentCell, species, rCoordsAsym, tPeriodic,&
-      & gradients, symNeighbourList, nNeighbourCamSym)
+      & gradients, errStatus, symNeighbourList, nNeighbourCamSym)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -4233,6 +4176,9 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in), optional :: symNeighbourList
 
@@ -4249,8 +4195,8 @@ contains
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
       if (tPeriodic) then
         if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-          call error("Range-separated Module: Gamma-only matrix-based force algorithm requested but&
-              & necessary inputs not present.")
+          @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Gamma-only matrix-based force&
+              & algorithm requested but necessary inputs not present.")
         end if
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
@@ -4260,8 +4206,8 @@ contains
       end if
     case (hybridXcAlgo%matrixBased)
       if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-        call error("Range-separated Module: Real matrix-based force algorithm requested but&
-            & necessary inputs not present.")
+        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Real matrix-based force algorithm&
+            & requested but necessary inputs not present.")
       end if
       call addCamGradientsMatrix_real(this, deltaRhoSqr, SSqrReal, skOverCont,&
           & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
@@ -6240,14 +6186,7 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    !! Error status
-    type(TStatus) :: errStatus
-
-    call getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist, gamma,&
-        & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
-
-    if (errStatus%hasError()) call error(errStatus%message)
+    gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
 
   end function getHfAnalyticalGammaValue
 
