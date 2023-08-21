@@ -30,6 +30,7 @@ module dftbp_dftb_hybridxc
       & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
       & getddLrNumericalGammaValue_workhorse
+  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
 #:if WITH_SCALAPACK
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_math_bisect, only : bisection
@@ -56,30 +57,6 @@ module dftbp_dftb_hybridxc
     module procedure getDirectionalCamGammaPrimeValue_cluster
     module procedure getDirectionalCamGammaPrimeValue_periodic
   end interface getDirectionalCamGammaPrimeValue
-
-
-  type :: TIntArray1D
-
-    !> One dimensional, integer data storage
-    integer, allocatable :: array(:)
-
-  end type TIntArray1D
-
-
-  type :: TRealArray1D
-
-    !> One dimensional, real data storage
-    real(dp), allocatable :: array(:)
-
-  end type TRealArray1D
-
-
-  type :: TRealArray2D
-
-    !> Two dimensional, real data storage
-    real(dp), allocatable :: array(:,:)
-
-  end type TRealArray2D
 
 
   !> Enumerator for type of hybrid functional used.
@@ -172,11 +149,11 @@ module dftbp_dftb_hybridxc
     real(dp), allocatable :: camGammaEval0(:,:), camdGammaEval0(:,:,:)
 
     !> Evaluated (long-range + HF full-range) gamma in the general k-point case
-    type(TRealArray1D), allocatable :: camGammaEvalG(:,:)
-    type(TRealArray2D), allocatable :: camdGammaEvalG(:,:)
+    type(TWrappedReal1), allocatable :: camGammaEvalG(:,:)
+    type(TWrappedReal2), allocatable :: camdGammaEvalG(:,:)
 
     !> Number of numerically non-zero gamma's
-    type(TIntArray1D), allocatable :: nNonZeroGammaG(:,:)
+    type(TWrappedInt1), allocatable :: nNonZeroGammaG(:,:)
 
     !> Range-separation parameter
     real(dp) :: omega
@@ -249,10 +226,10 @@ module dftbp_dftb_hybridxc
     real(dp), allocatable :: hfGammaAtDamping(:,:), hfdGammaAtDamping(:,:), hfddGammaAtDamping(:,:)
 
     !> Overlap estimates
-    type(TRealArray1D), allocatable :: squareOverEst(:)
+    type(TWrappedReal1), allocatable :: squareOverEst(:)
 
     !> Descending neighbour indices in terms of overlap estimates
-    type(TIntArray1D), allocatable :: overlapIndices(:)
+    type(TWrappedInt1), allocatable :: overlapIndices(:)
 
     !> K-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
     real(dp), allocatable :: bvKShifts(:,:)
@@ -1065,12 +1042,12 @@ contains
         gammaSortIdx(:) = gammaSortIdx(size(gammaSortIdx):1:-1)
         gammaEvalGTmp(:) = gammaEvalGTmp(gammaSortIdx)
         nNonZeroEntries = getNumberOfNonZeroElements(gammaEvalGTmp)
-        this%nNonZeroGammaG(iAtM, iAtN)%array = gammaSortIdx(1:nNonZeroEntries)
-        this%camGammaEvalG(iAtM, iAtN)%array = gammaEvalGTmp(1:nNonZeroEntries)
+        this%nNonZeroGammaG(iAtM, iAtN)%data = gammaSortIdx(1:nNonZeroEntries)
+        this%camGammaEvalG(iAtM, iAtN)%data = gammaEvalGTmp(1:nNonZeroEntries)
         ! pre-tabulate g-resolved \partial\gamma_{\mu\nu}(\vec{g})
         dGammaEvalGTmp(:,:) = getCamGammaPrimeGResolved(this, iAtM, iAtN, iSpM, iSpN,&
             & this%rCellVecsG(:, gammaSortIdx))
-        this%camdGammaEvalG(iAtM, iAtN)%array = dGammaEvalGTmp(:, 1:nNonZeroEntries)
+        this%camdGammaEvalG(iAtM, iAtN)%data = dGammaEvalGTmp(:, 1:nNonZeroEntries)
       end do
 
     end if
@@ -1152,7 +1129,7 @@ contains
 
     do iAtN = 1, nAtom0
       descN = getDescriptor(iAtN, iSquare)
-      allocate(this%squareOverEst(iAtN)%array(nNeighbourCamSym(iAtN) + 1))
+      allocate(this%squareOverEst(iAtN)%data(nNeighbourCamSym(iAtN) + 1))
       do iNeighN = 0, nNeighbourCamSym(iAtN)
         iAtB = symNeighbourList%neighbourList%iNeighbour(iNeighN, iAtN)
         iAtBfold = symNeighbourList%img2CentCell(iAtB)
@@ -1162,18 +1139,18 @@ contains
         nOrbAt = descN(iNOrb)
         nOrbNeigh = descB(iNOrb)
         pSbn(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
-        this%squareOverEst(iAtN)%array(iNeighN + 1) = maxval(abs(pSbn))
+        this%squareOverEst(iAtN)%data(iNeighN + 1) = maxval(abs(pSbn))
       end do
     end do
 
     ! sort max square overlap estimates (descending)
     ! this way we can exit the whole loop a.s.a. threshold has been undershot for the first time
     do iAtN = 1, nAtom0
-      allocate(this%overlapIndices(iAtN)%array(nNeighbourCamSym(iAtN) + 1))
-      call index_heap_sort(this%overlapIndices(iAtN)%array, this%squareOverEst(iAtN)%array)
+      allocate(this%overlapIndices(iAtN)%data(nNeighbourCamSym(iAtN) + 1))
+      call index_heap_sort(this%overlapIndices(iAtN)%data, this%squareOverEst(iAtN)%data)
       ! switch from ascending to descending
-      this%overlapIndices(iAtN)%array(:)&
-          & = this%overlapIndices(iAtN)%array(size(this%overlapIndices(iAtN)%array):1:-1)
+      this%overlapIndices(iAtN)%data(:)&
+          & = this%overlapIndices(iAtN)%data(size(this%overlapIndices(iAtN)%data):1:-1)
     end do
 
   end subroutine calculateOverlapEstimates
@@ -1269,12 +1246,12 @@ contains
       loopM1: do iAtM = 1, nAtom0
         loopN1: do iAtN = 1, nAtom0
           loopB1: do iNeighN = 0, nNeighbourCamSym(iAtN)
-            iNeighNsort = this%overlapIndices(iAtN)%array(iNeighN + 1) - 1
-            pSbnPabMax = pMax * this%squareOverEst(iAtN)%array(iNeighNsort + 1)
+            iNeighNsort = this%overlapIndices(iAtN)%data(iNeighN + 1) - 1
+            pSbnPabMax = pMax * this%squareOverEst(iAtN)%data(iNeighNsort + 1)
             if (pSbnPabMax < this%pScreeningThreshold) exit loopB1
             loopA1: do iNeighM = 0, nNeighbourCamSym(iAtM)
-              iNeighMsort = this%overlapIndices(iAtM)%array(iNeighM + 1) - 1
-              maxEstimate = pSbnPabMax * this%squareOverEst(iAtM)%array(iNeighMsort + 1)
+              iNeighMsort = this%overlapIndices(iAtM)%data(iNeighM + 1) - 1
+              maxEstimate = pSbnPabMax * this%squareOverEst(iAtM)%data(iNeighMsort + 1)
               if (maxEstimate < this%pScreeningThreshold) exit loopA1
 
               ind = ind + 1
@@ -1303,12 +1280,12 @@ contains
     loopM2: do iAtM = 1, nAtom0
       loopN2: do iAtN = 1, nAtom0
         loopB2: do iNeighN = 0, nNeighbourCamSym(iAtN)
-          iNeighNsort = this%overlapIndices(iAtN)%array(iNeighN + 1) - 1
-          pSbnPabMax = pMax * this%squareOverEst(iAtN)%array(iNeighNsort + 1)
+          iNeighNsort = this%overlapIndices(iAtN)%data(iNeighN + 1) - 1
+          pSbnPabMax = pMax * this%squareOverEst(iAtN)%data(iNeighNsort + 1)
           if (pSbnPabMax < this%pScreeningThreshold) exit loopB2
           loopA2: do iNeighM = 0, nNeighbourCamSym(iAtM)
-            iNeighMsort = this%overlapIndices(iAtM)%array(iNeighM + 1) - 1
-            maxEstimate = pSbnPabMax * this%squareOverEst(iAtM)%array(iNeighMsort + 1)
+            iNeighMsort = this%overlapIndices(iAtM)%data(iNeighM + 1) - 1
+            maxEstimate = pSbnPabMax * this%squareOverEst(iAtM)%data(iNeighMsort + 1)
             if (maxEstimate < this%pScreeningThreshold) exit loopA2
             if (indGlobal >= iParallelStart .and. indGlobal <= iParallelEnd) then
               compositeIndex(1, indLocal) = iAtM
@@ -2948,8 +2925,8 @@ contains
         ! get continuous 2D copy of Pab density matrix block
         Pab = deltaDeltaRhoSqr(descA(iStart):descA(iEnd), descB(iStart):descB(iEnd), :,:,:, iS)
 
-        loopGMN: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtN)%array)
-          iGMN = this%nNonZeroGammaG(iAtM, iAtN)%array(iG)
+        loopGMN: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtN)%data)
+          iGMN = this%nNonZeroGammaG(iAtM, iAtN)%data(iG)
           bvKIndex(:) = this%foldToBvKIndex(vecH - vecL - this%cellVecsG(:, iGMN))
 
           pSamT_Pab(1:descM(iNOrb), 1:descB(iNOrb)) = matmul(pSamT,&
@@ -2966,19 +2943,19 @@ contains
             tot(1:descM(iNOrb), 1:descN(iNOrb), iGlobalKS)&
                 & = tot(1:descM(iNOrb), 1:descN(iNOrb), iGlobalKS)&
                 & + cmplx(pSamT_Pab_pSbn(1:descM(iNOrb), 1:descN(iNOrb))&
-                & * this%camGammaEvalG(iAtM, iAtN)%array(iG), 0, dp) * phase
+                & * this%camGammaEvalG(iAtM, iAtN)%data(iG), 0, dp) * phase
           end do loopKMN
         end do loopGMN
 
-        loopGMB: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtBfold)%array)
-          iGMB = this%nNonZeroGammaG(iAtM, iAtBfold)%array(iG)
+        loopGMB: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtBfold)%data)
+          iGMB = this%nNonZeroGammaG(iAtM, iAtBfold)%data(iG)
           bvKIndex(:) = this%foldToBvKIndex(vecH - this%cellVecsG(:, iGMB))
 
           pSamT_Pab(1:descM(iNOrb), 1:descB(iNOrb)) = matmul(pSamT,&
               & Pab(:,:, bvKIndex(1), bvKIndex(2), bvKIndex(3)))
           pSamT_Pab_gammaMB_pSbn(1:descM(iNOrb), 1:descN(iNOrb))&
               & = matmul(pSamT_Pab(1:descM(iNOrb), 1:descB(iNOrb))&
-              & * this%camGammaEvalG(iAtM, iAtBfold)%array(iG), pSbn)
+              & * this%camGammaEvalG(iAtM, iAtBfold)%data(iG), pSbn)
 
           loopKMB: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
@@ -2992,15 +2969,15 @@ contains
           end do loopKMB
         end do loopGMB
 
-        loopGAN: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtN)%array)
-          iGAN = this%nNonZeroGammaG(iAtAfold, iAtN)%array(iG)
+        loopGAN: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtN)%data)
+          iGAN = this%nNonZeroGammaG(iAtAfold, iAtN)%data(iG)
           bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAN) - vecL)
 
           Pab_Sbn(1:descA(iNOrb), 1:descN(iNOrb)) = matmul(Pab(:,:, bvKIndex(1), bvKIndex(2),&
               & bvKIndex(3)), pSbn)
           pSamT_Pab_Sbn_gammaAN(1:descM(iNOrb), 1:descN(iNOrb))&
               & = matmul(pSamT, Pab_Sbn(1:descA(iNOrb), 1:descN(iNOrb))&
-              & * this%camGammaEvalG(iAtAfold, iAtN)%array(iG))
+              & * this%camGammaEvalG(iAtAfold, iAtN)%data(iG))
 
           loopKAN: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
@@ -3014,13 +2991,13 @@ contains
           end do loopKAN
         end do loopGAN
 
-        loopGAB: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtBfold)%array)
-          iGAB = this%nNonZeroGammaG(iAtAfold, iAtBfold)%array(iG)
+        loopGAB: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtBfold)%data)
+          iGAB = this%nNonZeroGammaG(iAtAfold, iAtBfold)%data(iG)
           bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAB))
 
           pSamT_Pab_gammaAB(1:descM(iNorb), 1:descB(iNorb)) = matmul(pSamT, Pab(:,:,&
               & bvKIndex(1), bvKIndex(2), bvKIndex(3))&
-              & * this%camGammaEvalG(iAtAfold, iAtBfold)%array(iG))
+              & * this%camGammaEvalG(iAtAfold, iAtBfold)%data(iG))
           pSamT_Pab_gammaAB_pSbn(1:descM(iNOrb), 1:descN(iNOrb))&
               & = matmul(pSamT_Pab_gammaAB(1:descM(iNOrb), 1:descB(iNOrb)), pSbn)
 
@@ -5611,14 +5588,14 @@ contains
             nOrbNeigh = descA(iNOrb)
             pSam(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
 
-            loopGMK1: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtK)%array)
-              iGMK = this%nNonZeroGammaG(iAtM, iAtK)%array(iG)
+            loopGMK1: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtK)%data)
+              iGMK = this%nNonZeroGammaG(iAtM, iAtK)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(vecH - vecL - this%cellVecsG(:, iGMK))
 
               loopKptsMK1: do iK = 1, nK
                 phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGMK)))
-                phaseGammaMK = phase * cmplx(this%camGammaEvalG(iAtM, iAtK)%array(iG)&
+                phaseGammaMK = phase * cmplx(this%camGammaEvalG(iAtM, iAtK)%data(iG)&
                     & * kWeights(iK), 0, dp)
 
                 ! term #1
@@ -5647,14 +5624,14 @@ contains
               end do loopKptsMK1
             end do loopGMK1
 
-            loopGMB: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtBfold)%array)
-              iGMB = this%nNonZeroGammaG(iAtM, iAtBfold)%array(iG)
+            loopGMB: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtBfold)%data)
+              iGMB = this%nNonZeroGammaG(iAtM, iAtBfold)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(vecH - this%cellVecsG(:, iGMB))
 
               loopKptsMB: do iK = 1, nK
                 phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & vecL - this%cellVecsG(:, iGMB)))
-                phaseGammaMB = phase * cmplx(this%camGammaEvalG(iAtM, iAtBfold)%array(iG)&
+                phaseGammaMB = phase * cmplx(this%camGammaEvalG(iAtM, iAtBfold)%data(iG)&
                     & * kWeights(iK), 0, dp)
 
                 ! term #2
@@ -5683,14 +5660,14 @@ contains
               end do loopKptsMB
             end do loopGMB
 
-            loopGAK1: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%array)
-              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%array(iG)
+            loopGAK1: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%data)
+              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK) - vecL)
 
               loopKptsAK1: do iK = 1, nK
                 phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGAK) - vecH))
-                phaseGammaAK = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtK)%array(iG)&
+                phaseGammaAK = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtK)%data(iG)&
                     & * kWeights(iK), 0, dp)
 
                 ! term #3
@@ -5719,14 +5696,14 @@ contains
               end do loopKptsAK1
             end do loopGAK1
 
-            loopGAB1: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtBfold)%array)
-              iGAB = this%nNonZeroGammaG(iAtAfold, iAtBfold)%array(iG)
+            loopGAB1: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtBfold)%data)
+              iGAB = this%nNonZeroGammaG(iAtAfold, iAtBfold)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAB))
 
               loopKptsAB1: do iK = 1, nK
                 phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGAB) + vecL - vecH))
-                phaseGammaAB = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtBfold)%array(iG)&
+                phaseGammaAB = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtBfold)%data(iG)&
                     & * kWeights(iK), 0, dp)
 
                 ! term #4
@@ -5766,7 +5743,7 @@ contains
       loopM2: do iAtM = 1, nAtom0
         if (iAtK == iAtM) cycle
         descM = getDescriptor(iAtM, iSquare)
-        dGammaMK = -this%camdGammaEvalG(iAtM, iAtK)%array
+        dGammaMK = -this%camdGammaEvalG(iAtM, iAtK)%data
         loopB2: do iNeighK = 0, nNeighbourCamSym(iAtK)
           iAtB = symNeighbourList%neighbourList%iNeighbour(iNeighK, iAtK)
           iAtBfold = symNeighbourList%img2CentCell(iAtB)
@@ -5788,8 +5765,8 @@ contains
             nOrbNeigh = descA(iNOrb)
             pSam(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
 
-            loopGMK: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtK)%array)
-              iGMK = this%nNonZeroGammaG(iAtM, iAtK)%array(iG)
+            loopGMK: do iG = 1, size(this%nNonZeroGammaG(iAtM, iAtK)%data)
+              iGMK = this%nNonZeroGammaG(iAtM, iAtK)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(vecH - vecL - this%cellVecsG(:, iGMK))
 
               loopKptsMK: do iK = 1, nK
@@ -5838,7 +5815,7 @@ contains
           if (iAtK == iAtBfold) cycle
           descB = getDescriptor(iAtBfold, iSquare)
           vecL(:) = cellVecs(:, symNeighbourList%iCellVec(iAtB))
-          dGammaKB = this%camdGammaEvalG(iAtK, iAtBfold)%array
+          dGammaKB = this%camdGammaEvalG(iAtK, iAtBfold)%data
           ! get 2D pointer to Sbn overlap block
           ind = symNeighbourList%iPair(iNeighN, iAtN) + 1
           nOrbAt = descN(iNOrb)
@@ -5855,8 +5832,8 @@ contains
             nOrbNeigh = descA(iNOrb)
             pSak(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
 
-            loopGKB: do iG = 1, size(this%nNonZeroGammaG(iAtK, iAtBfold)%array)
-              iGKB = this%nNonZeroGammaG(iAtK, iAtBfold)%array(iG)
+            loopGKB: do iG = 1, size(this%nNonZeroGammaG(iAtK, iAtBfold)%data)
+              iGKB = this%nNonZeroGammaG(iAtK, iAtBfold)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(vecH - this%cellVecsG(:, iGKB))
 
               loopKptsKB: do iK = 1, nK
@@ -5915,15 +5892,15 @@ contains
             if (iAtK == iAtAfold) cycle
             descA = getDescriptor(iAtAfold, iSquare)
             vecH(:) = cellVecs(:, symNeighbourList%iCellVec(iAtA))
-            dGammaAK = -this%camdGammaEvalG(iAtAfold, iAtK)%array
+            dGammaAK = -this%camdGammaEvalG(iAtAfold, iAtK)%data
             ! get 2D pointer to Sam overlap block
             ind = symNeighbourList%iPair(iNeighM, iAtM) + 1
             nOrbAt = descM(iNOrb)
             nOrbNeigh = descA(iNOrb)
             pSam(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
 
-            loopGAK2: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%array)
-              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%array(iG)
+            loopGAK2: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%data)
+              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK) - vecL)
 
               loopKptsAK2: do iK = 1, nK
@@ -5984,15 +5961,15 @@ contains
             if (iAtK == iAtAfold) cycle
             descA = getDescriptor(iAtAfold, iSquare)
             vecH(:) = cellVecs(:, symNeighbourList%iCellVec(iAtA))
-            dGammaAK = -this%camdGammaEvalG(iAtAfold, iAtK)%array
+            dGammaAK = -this%camdGammaEvalG(iAtAfold, iAtK)%data
             ! get 2D pointer to Sam overlap block
             ind = symNeighbourList%iPair(iNeighM, iAtM) + 1
             nOrbAt = descM(iNOrb)
             nOrbNeigh = descA(iNOrb)
             pSam(1:nOrbNeigh, 1:nOrbAt) => this%overSym(ind:ind + nOrbNeigh * nOrbAt - 1)
 
-            loopGAK3: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%array)
-              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%array(iG)
+            loopGAK3: do iG = 1, size(this%nNonZeroGammaG(iAtAfold, iAtK)%data)
+              iGAK = this%nNonZeroGammaG(iAtAfold, iAtK)%data(iG)
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK))
 
               loopKptsAK3: do iK = 1, nK
