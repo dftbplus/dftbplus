@@ -14,6 +14,7 @@ module dftbp_math_wignerseitz
   use dftbp_common_accuracy, only : dp
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_dftb_periodic, only : frac2cart
+  use dftbp_common_append, only : appendToArray1d_real, appendToArray2d_int
 
   implicit none
   private
@@ -115,7 +116,7 @@ contains
               do i3 = -wsSearchSize_(3), wsSearchSize_(3)
                 diff(3) = n3 - i3 * nKpt(3)
                 diffMat(:,:) = spread(diff, 1, 3) * spread(diff, 2, 3)
-                call appendToArray1d(dist, sum(diffMat * dotProducts))
+                call appendToArray1d_real(dist, sum(diffMat * dotProducts))
                 ! Remember the index that corresponds to the center, i.e. i1=i2=i3=0
                 if (i1 == 0 .and. i2 == 0 .and. i3 == 0) iCenter = size(dist, dim=1)
               end do
@@ -124,7 +125,7 @@ contains
 
           if (abs(dist(iCenter) - minval(dist)) <= distTol_) then
             tmp3Int(1) = n1; tmp3Int(2) = n2; tmp3Int(3) = n3
-            call appendToArray2d(wsVectors, tmp3Int)
+            call appendToArray2d_int(wsVectors, tmp3Int)
           end if
 
         end do
@@ -144,68 +145,5 @@ contains
     wsVectors(:,:) = wsVectors(:, ind)
 
   end subroutine generateWignerSeitzGrid
-
-
-  !> Appends element to one-dimensional, double precision array.
-  subroutine appendToArray1d(array, element)
-
-    !> Element to add
-    real(dp), intent(in) :: element
-
-    !> Array to extend
-    real(dp), intent(inout), allocatable :: array(:)
-
-    ! Temporary storage
-    real(dp), allocatable :: tmp(:)
-
-    ! Original number of elements in array
-    integer :: nElem
-
-    if (allocated(array)) then
-      nElem = size(array)
-      allocate(tmp(nElem + 1))
-      tmp(1:nElem) = array
-      tmp(nElem + 1) = element
-      deallocate(array)
-      call move_alloc(tmp, array)
-    else
-      allocate(array(1))
-      array(1) = element
-    end if
-
-  end subroutine appendToArray1d
-
-
-  !> Appends a row to a two-dimensional, integer-valued array.
-  subroutine appendToArray2d(array, element)
-
-    !> Element to add
-    integer, intent(in) :: element(:)
-
-    !> Array to extend
-    integer, intent(inout), allocatable :: array(:,:)
-
-    !! Temporary storage
-    integer, allocatable :: tmp(:,:)
-
-    !! Original number of elements in array
-    integer :: nElem
-
-    @:ASSERT(size(element, dim=1) == 3)
-
-    if (allocated(array)) then
-      @:ASSERT(size(array, dim=1) == 3)
-      nElem = size(array, dim=2)
-      allocate(tmp(3, nElem + 1))
-      tmp(:, :nElem) = array
-      tmp(:, nElem + 1) = element
-      deallocate(array)
-      call move_alloc(tmp, array)
-    else
-      allocate(array(3, 1))
-      array(:, 1) = element
-    end if
-
-  end subroutine appendToArray2d
 
 end module dftbp_math_wignerseitz

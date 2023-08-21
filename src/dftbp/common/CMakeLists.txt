@@ -2,6 +2,7 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/accuracy.F90
+  ${curdir}/append.F90
   ${curdir}/assert.F90
   ${curdir}/atomicrad.F90
   ${curdir}/atomicmass.F90
