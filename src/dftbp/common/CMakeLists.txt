@@ -2,7 +2,6 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/accuracy.F90
-  ${curdir}/append.F90
   ${curdir}/assert.F90
   ${curdir}/atomicrad.F90
   ${curdir}/atomicmass.F90
@@ -14,6 +13,7 @@ set(sources-fpp
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90
   ${curdir}/hamiltoniantypes.F90
+  ${curdir}/matrixappend.F90
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/release.F90

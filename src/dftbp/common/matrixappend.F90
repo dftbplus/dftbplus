@@ -11,7 +11,7 @@
   & ('complex', 'cmplx', '(dp)')]
 
 !> Implements various routines to append elements to an array by copying and reallocation.
-module dftbp_common_append
+module dftbp_common_matrixappend
   use dftbp_common_accuracy, only : dp
   implicit none
 
@@ -89,4 +89,4 @@ contains
 
 #:endfor
 
-end module dftbp_common_append
+end module dftbp_common_matrixappend
