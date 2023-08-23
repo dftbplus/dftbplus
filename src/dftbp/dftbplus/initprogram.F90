@@ -1290,9 +1290,9 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
-
+    
     @:ASSERT(input%tInitialized)
-
+    
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
@@ -2729,6 +2729,7 @@ contains
     end if
 
     call this%initDetArrays()
+
     call this%initArrays(env, input)
 
   #:if WITH_TRANSPORT
@@ -2824,6 +2825,7 @@ contains
     else
       this%pCoord0Out => this%coord0
     end if
+
 
     ! Projection of eigenstates onto specific regions of the system
     this%tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -4690,6 +4692,7 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
+
       if (this%isLinResp) then
         ! For CI optimization store gradient for several states,
         ! otherwise store excited state gradient for state of interest only  
@@ -4707,12 +4710,14 @@ contains
           allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
         this%isCIopt = this%linearResponse%isCIopt
-      end if 
+      end if
     end if
 
-    if(this%linearResponse%tNaCoupling) then
-      dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-      allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
+    if (this%isLinResp) then
+      if(this%linearResponse%tNaCoupling) then
+        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+        allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
+      end if
     end if
 
     call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
