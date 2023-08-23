@@ -2428,7 +2428,7 @@ contains
       this%tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
-          & input%ctrl%lrespini%tWriteDensityMatrix)
+          & input%ctrl%lrespini%tWriteDensityMatrix .or. input%ctrl%lrespini%tNaCoupling)
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -4691,10 +4691,6 @@ contains
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
       if (this%isLinResp) then
-        if(this%linearResponse%tNaCoupling) then
-          dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-          allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
-        end if
         ! For CI optimization store gradient for several states,
         ! otherwise store excited state gradient for state of interest only  
         if(this%linearResponse%isCIopt) then
@@ -4712,6 +4708,11 @@ contains
         end if
         this%isCIopt = this%linearResponse%isCIopt
       end if 
+    end if
+
+    if(this%linearResponse%tNaCoupling) then
+      dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+      allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
     end if
 
     call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
@@ -5414,8 +5415,8 @@ contains
       call warning(tmpStr)
     end if
 
-    if (input%ctrl%lrespini%nstat == 0) then
-      if (tCasidaForces .and. (.not. input%ctrl%lrespini%isCIopt)) then
+    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
+      if (tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
       if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then

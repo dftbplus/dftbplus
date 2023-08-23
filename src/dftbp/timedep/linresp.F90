@@ -67,7 +67,7 @@ module dftbp_timedep_linresp
     !> atom resolved Hubbard U
     real(dp), allocatable :: HubbardU(:)
 
-    !> atom resolved spin constants
+    !> atom resolved spinconstants
     real(dp), allocatable :: spinW(:)
 
     !> print excited state mulliken populations
@@ -93,6 +93,9 @@ module dftbp_timedep_linresp
 
     !> Energy shift used in CI optimizer
     real(dp) :: energyShiftCI
+
+    !> Should non-adiabatic couplings be computed
+    logical :: tNaCoupling
     
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
@@ -193,9 +196,7 @@ contains
       call error("Excited energy window should be non-zero if used")
     end if
 
-    if(all(ini%indNACouplings == 0)) then
-      this%tNaCoupling = .false.
-    else
+    if(ini%tNaCoupling) then
       if (any(ini%indNACouplings < 0)) then
         call error("StateCouplings: Indices must be positive.")
       end if
@@ -214,12 +215,11 @@ contains
       if (ini%isCIopt .and. ini%nstat /= 0) then
         call warning("CI optimization: Setting of StateOfInterest will be ignored.")
       end if
-      if (ini%energyShiftCI < 0.0_dp) then
-        call error("CI optimization: EnergyShift must be positive.")
-      end if 
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
       dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
+    else
+      this%tNaCoupling = .false.
     endif
     
     this%isCIopt = ini%isCIopt

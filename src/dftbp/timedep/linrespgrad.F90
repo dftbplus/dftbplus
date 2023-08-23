@@ -172,7 +172,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:), transitionDipoles(:,:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -197,7 +197,7 @@ contains
     integer :: nStat
 
     !> control variables
-    logical :: tZVector, tFracOcc
+    logical :: tZVector, doAllZVectors, tFracOcc
     logical :: tRangeSep = .false.
 
     !> should gradients be calculated
@@ -251,6 +251,8 @@ contains
       call openFile(fdArnoldi, arpackOut, mode="w")
     end if
 
+    nstat = this%nstat
+    
     nSpin = size(grndEigVal, dim=2)
     @:ASSERT(nSpin > 0 .and. nSpin <=2)
 
@@ -347,15 +349,11 @@ contains
       end if
     end if
 
-    if (this%tNaCoupling) then
-      if (.not. tForces) then
-        call error('StateCouplings: CalculateForces must be set to Yes.')
-      end if
-    end if
-
     !> is a z vector required?
     tZVector = tForces .or. this%writeMulliken .or. this%writeCoeffs .or. present(naturalOrbs) .or.&
-        & this%tWriteDensityMatrix
+        & this%tWriteDensityMatrix .or. this%tNaCoupling
+    doAllZVectors = tZVector .and. (nstat == 0) .and. (.not. this%isCIopt) .and. &
+        & (.not. this%tNaCoupling) 
 
     !> occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
     if((.not. tZVector) .and. this%tCacheChargesSame) then
@@ -363,7 +361,6 @@ contains
     endif
 
     ! Sanity checks
-    nstat = this%nStat
     if (nstat < 0 .and. this%symmetry /= "S") then
       call error("Linresp: Brightest mode only available for singlets.")
     end if
@@ -607,30 +604,25 @@ contains
     deallocate(transitionDipoles)
     deallocate(sposz)
 
-    if (.not. tZVector) then
-      if (nstat == 0) then
-        omega = 0.0_dp
-      else
-        omega = sqrt(eval(nstat))
-      end if
-    else
+    if (tZVector) then
       ! calculate Furche vectors and transition density matrix for various properties
-      
-      if (this%isCIopt) then
-        if(this%indNACouplings(1) == 0) then
-          nStartLev = this%indNACouplings(1) + 1
-        else
-          nStartLev = this%indNACouplings(1)
-        end if
-        nEndLev = this%indNACouplings(2)
-      else if (nstat == 0) then
+
+      if (doAllZVectors) then
         nStartLev = 1
         nEndLev = this%nExc
 
         if (tForces) then
           call error("Forces currently not available unless a single excited state is specified")
         end if
-      else
+
+      else if (this%isCIopt) then
+        if(this%indNACouplings(1) == 0) then
+          nStartLev = this%indNACouplings(1) + 1
+        else
+          nStartLev = this%indNACouplings(1)
+        end if
+        nEndLev = this%indNACouplings(2)
+      else  
         nStartLev = nstat
         nEndLev = nstat
       end if
@@ -752,6 +744,7 @@ contains
               xmym(:) = 0.0_dp
               xpyn(:) = 0.0_dp
               xmyn(:) = 0.0_dp
+
               call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym,&
@@ -814,11 +807,15 @@ contains
             
       end if
 
-      if (nstat == 0) then
-        omega = 0.0_dp
-      end if
-
     end if
+
+    !> Omega has possibly been overwritten for CI optimization or NA couplings, but should always
+    !! refer to nstat 
+    if (nstat == 0) then
+      omega = 0.0_dp
+    else
+      omega = sqrt(eval(nstat))
+    end if  
 
   end subroutine LinRespGrad_old
 
@@ -5461,12 +5458,12 @@ contains
   end subroutine fixNACVPhase
   
   !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
-  !! modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
+  !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
   !> Previous published results [Niehaus JCP 158 054103 (2023), TCA 140 34 (2021)] were obtained
-  !! with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
+  !> with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
   subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, energyShift, naCouplings, excEnergies)
 
-    !> Ground state gradient (overwritten with gradient to follow along)
+    !> Ground state gradient (overwritten)
     real(dp), intent(inout) :: derivs(:,:)
 
     !> Gradients of the excitation energy
