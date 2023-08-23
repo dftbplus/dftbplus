@@ -11,10 +11,37 @@ Unreleased
 Added
 -----
 
+- Electronic constraints on arbitrary regions, targeting the electronic ground
+  state by determining a self-consistent constraint potential
+  (restricted to Mulliken populations at the moment)
+
+- CI optimizer to locate conical intersections
+
+
+Changed
+-------
+
+
+Fixed
+-----
+
+- Memory leak for MPI enabled code with many geometric steps.
+
+
+23.1 (2023-07-05)
+=================
+
+Added
+-----
+
 - Non-adiabatic coupling vectors for linear response calculations
-  
-- Geometry optimizer to locate conical intersection
-  
+
+- Hellmann-Feynman testing for the xTB hamiltonian dipoles
+
+- Born charges and derivatives can now be calculated for a subset of the desired
+  atoms (similar to the Hessian).
+
+
 Changed
 -------
 
@@ -28,9 +55,6 @@ Fixed
 
 - Tool dp_dos produced obviously incorrect results for Pauli-Hamiltonians (e.g.
   when using spin-orbit coupling). Other Hamiltonians were not affected.
-
-- Born charges and derivatives can now be calculated for a subset of the desired
-  atoms (similar to the Hessian).
 
 
 22.2 (2022-12-20)
@@ -515,3 +539,4 @@ Fixed
   modes.
 
 - Make geometry writing in gen and xyz files consistent.
+
