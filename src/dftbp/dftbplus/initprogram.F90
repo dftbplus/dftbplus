@@ -1866,8 +1866,11 @@ contains
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
      end if
-
-     tRequireDerivator = this%tForces
+     if (this%isLinResp) then
+       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
+     else
+       tRequireDerivator = this%tForces
+     end if 
      if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
        tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
@@ -4706,8 +4709,8 @@ contains
           else
             allocate(this%excitedDerivs(3, this%nAtom, dLev))
           end if          
-        else  if (this%tLinRespZVect .and. this%tCasidaForces) then  
-          allocate(this%excitedDerivs(3, this%nAtom, 1))
+          else  if (this%tLinRespZVect .and. this%tCasidaForces) then
+            allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
         this%isCIopt = this%linearResponse%isCIopt
       end if
