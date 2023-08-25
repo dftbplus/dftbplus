@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
@@ -243,10 +244,13 @@ contains
 
 
   !> Initialises the program variables.
-  subroutine TProgramVariables_init(this)
+  subroutine TProgramVariables_init(this, errStatus)
 
     !> Container of program variables
     type(TProgramVariables), intent(out), target :: this
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Pointers to input nodes
     type(fnode), pointer :: root, tmp, detailed, hsdTree
@@ -281,32 +285,36 @@ contains
     !! Auxiliary variable
     integer :: ii
 
-    !! Operation status, if an error needs to be returned
-    type(TStatus) :: errStatus
-
     ! Write header
     call printDftbHeader('(WAVEPLOT '// version //')', releaseYear)
 
     ! Read in input file as HSD
-    call parseHSD(rootTag, hsdInput, hsdTree)
-    call getChild(hsdTree, rootTag, root)
+    call parseHSD(rootTag, hsdInput, hsdTree, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChild(hsdTree, rootTag, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
 
     ! Check if input version is the one, which we can handle
-    call getChildValue(root, "InputVersion", inputVersion, parserVersion)
+    call getChildValue(root, "InputVersion", inputVersion, errStatus, parserVersion)
+    @:PROPAGATE_ERROR(errStatus)
     if (inputVersion /= parserVersion) then
-      call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
+      @:RAISE_ERROR(errStatus, -1, "Version of input (" // i2c(inputVersion) // ") and parser (" &
           &// i2c(parserVersion) // ") do not match")
     end if
 
-    call getChildValue(root, "GroundState", tGroundState, .true.)
+    call getChildValue(root, "GroundState", tGroundState, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Read data from detailed.xml
-    call getChildValue(root, "DetailedXML", strBuffer)
+    call getChildValue(root, "DetailedXML", strBuffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
-    call getChild(tmp, "detailedout", detailed)
-    call readDetailed(this, detailed, tGroundState, kPointsWeights)
+    call getChild(tmp, "detailedout", detailed, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readDetailed(this, detailed, tGroundState, kPointsWeights, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call destroyNode(tmp)
 
     nKPoint = size(kPointsWeights, dim=2)
@@ -314,20 +322,27 @@ contains
     this%eig%nState = size(this%input%occupations, dim=1)
 
     ! Read basis
-    call getChild(root, "Basis", tmp)
-    call readBasis(this, tmp, this%input%geo%speciesNames)
-    call getChildValue(root, "EigenvecBin", strBuffer)
+    call getChild(root, "Basis", tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readBasis(this, tmp, this%input%geo%speciesNames, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "EigenvecBin", strBuffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     eigVecBin = unquote(char(strBuffer))
 
     ! Read options
-    call getChild(root, "Options", tmp)
-    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
+    call getChild(root, "Options", tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, .true.)
+    call warnUnprocessedNodes(root, errStatus, tIgnoreUnprocessed=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Finish parsing, dump parsed and processed input
-    call dumpHSD(hsdTree, hsdParsedInput)
+    call dumpHSD(hsdTree, hsdParsedInput, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
     write(stdout, "(A,/)") repeat("-", 80)
@@ -335,12 +350,14 @@ contains
 
     if (this%input%geo%tPeriodic) then
       call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else if (this%input%geo%tHelical) then
       call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    if (errStatus%hasError()) call error(errStatus%message)
 
     ! Create grid vectors, shift them if necessary
     do ii = 1, 3
@@ -360,7 +377,8 @@ contains
         & this%opt%binaryAccessTypes(2))
 
     ! Check eigenvector id
-    call checkEigenvecs(eigVecBin, this%input%identity)
+    call checkEigenvecs(eigVecBin, this%input%identity, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Initialize necessary (molecular orbital, grid) objects
     allocate(this%loc%molOrb)
@@ -378,7 +396,7 @@ contains
 
 
   !> Interpret the information stored in detailed.xml.
-  subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
+  subroutine readDetailed(this, detailed, tGroundState, kPointsWeights, errStatus)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
@@ -391,6 +409,9 @@ contains
 
     !> K-points and weights
     real(dp), intent(out), allocatable :: kPointsWeights(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Pointers to input nodes
     type(fnode), pointer :: tmp, occ, spin
@@ -407,27 +428,40 @@ contains
     !! Auxiliary variables
     integer :: iSpin, iKpoint
 
-    call getChildValue(detailed, "Identity", this%input%identity)
-    call getChild(detailed, "Geometry", tmp)
-    call readGeometry(this%input%geo, tmp)
+    call getChildValue(detailed, "Identity", this%input%identity, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChild(detailed, "Geometry", tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readGeometry(this%input%geo, tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(detailed, "Real", this%input%tRealHam)
-    call getChildValue(detailed, "NrOfKPoints", nKPoint)
-    call getChildValue(detailed, "NrOfSpins", nSpin)
-    call getChildValue(detailed, "NrOfStates", nState)
-    call getChildValue(detailed, "NrOfOrbitals", this%input%nOrb)
+    call getChildValue(detailed, "Real", this%input%tRealHam, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(detailed, "NrOfKPoints", nKPoint, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(detailed, "NrOfSpins", nSpin, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(detailed, "NrOfStates", nState, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(detailed, "NrOfOrbitals", this%input%nOrb, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     allocate(kPointsWeights(4, nKPoint))
     allocate(this%input%occupations(nState, nKPoint, nSpin))
 
-    call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
+    call getChildValue(detailed, "KPointsAndWeights", kPointsWeights, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (tGroundState) then
-      call getChild(detailed, "Occupations", occ)
+      call getChild(detailed, "Occupations", occ, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       do iSpin = 1, nSpin
-        call getChild(occ, "spin" // i2c(iSpin), spin)
+        call getChild(occ, "spin" // i2c(iSpin), spin, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
+          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin),&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end do
       end do
       do iKpoint = 1, nKPoint
@@ -435,11 +469,15 @@ contains
             & * kPointsWeights(4, iKpoint)
       end do
     else
-      call getChild(detailed, "ExcitedOccupations", occ)
+      call getChild(detailed, "ExcitedOccupations", occ, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       do iSpin = 1, nSpin
-        call getChild(occ, "spin" // i2c(iSpin), spin)
+        call getChild(occ, "spin" // i2c(iSpin), spin, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         do iKpoint = 1, nKPoint
-          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
+          call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin),&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end do
       end do
       do iKpoint = 1, nKPoint
@@ -452,7 +490,7 @@ contains
 
 
   !> Read in the geometry stored as .xml in internal or .gen format.
-  subroutine readGeometry(geo, geonode)
+  subroutine readGeometry(geo, geonode, errStatus)
 
     !> Geometry instance
     type(TGeometry), intent(out) :: geo
@@ -460,37 +498,48 @@ contains
     !> Node containing the geometry
     type(fnode), pointer :: geonode
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !! Pointers to input nodes
     type(fnode), pointer :: child
 
     !! String buffer instance
     type(string) :: buffer
 
-    call getChildValue(geonode, "", child)
+    call getChildValue(geonode, "", child, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(child, buffer)
 
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(child, geo)
+      call readTGeometryGen(child, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case ("xyzformat")
-      call readTGeometryXyz(child, geo)
+      call readTGeometryXyz(child, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case ("vaspformat")
-      call readTGeometryVasp(child, geo)
+      call readTGeometryVasp(child, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
+      call writeTGeometryHSD(geonode, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
-      call readTGeometryHSD(geonode, geo)
+      call readTGeometryHSD(geonode, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
   end subroutine readGeometry
 
 
   !> Interpret the options.
-  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
+  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid, errStatus)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
@@ -512,6 +561,9 @@ contains
 
     !> If grid should be shifted by half a cell
     logical, intent(out) :: tShiftGrid
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Pointer to the nodes, containing the information
     type(fnode), pointer :: subnode, field, value
@@ -541,51 +593,67 @@ contains
     real(dp) :: minEdge
 
     ! Warning, if processed input is read in, but eigenvectors are different
-    call getChildValue(node, "Identity", curId, this%input%identity)
+    call getChildValue(node, "Identity", curId, errStatus, this%input%identity)
+    @:PROPAGATE_ERROR(errStatus)
     if (curId /= this%input%identity) then
       call warning(warnId)
     end if
 
-    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
+    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (nSpin == 2) then
       call renameChildren(node, "TotalSpinPolarization", "TotalSpinPolarisation")
-      call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, .false.)
+      call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
     else
       this%opt%tPlotTotSpin = .false.
     end if
 
-    call getChildValue(node, "TotalChargeDifference", this%opt%tPlotTotDiff, .false., child=field)
-    call getChildValue(node, "TotalAtomicDensity", this%opt%tPlotAtomDens, .false.)
-    call getChildValue(node, "ChargeDensity", this%opt%tPlotChrg, .false.)
-    call getChildValue(node, "ChargeDifference", this%opt%tPlotChrgDiff, .false.)
+    call getChildValue(node, "TotalChargeDifference", this%opt%tPlotTotDiff, errStatus, .false.,&
+        & child=field)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "TotalAtomicDensity", this%opt%tPlotAtomDens, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "ChargeDensity", this%opt%tPlotChrg, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "ChargeDifference", this%opt%tPlotChrgDiff, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
     this%opt%tCalcTotChrg = this%opt%tPlotTotChrg .or. this%opt%tPlotTotSpin&
         & .or. this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff
     this%opt%tCalcAtomDens = this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff&
         & .or. this%opt%tPlotAtomDens
 
-    call getChildValue(node, "RealComponent", this%opt%tPlotReal, .false.)
-    call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
+    call getChildValue(node, "RealComponent", this%opt%tPlotReal, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "ImagComponent", this%opt%tPlotImag, errStatus, .false., child=field)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (this%opt%tPlotImag .and. this%input%tRealHam) then
       call detailedWarning(field, "Wave functions are real, no imaginary part will be plotted")
       this%opt%tPlotImag = .false.
     end if
 
-    call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels)
+    call getChildValue(node, "PlottedLevels", buffer, errStatus, child=field, multiple=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getSelectedIndices(node, char(buffer), [1, nLevel], this%opt%plottedLevels, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (this%input%geo%tPeriodic) then
-      call getChildValue(node, "PlottedKPoints", buffer, child=field, multiple=.true.)
-      call getSelectedIndices(node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
+      call getChildValue(node, "PlottedKPoints", buffer, errStatus, child=field, multiple=.true.)
+      @:PROPAGATE_ERROR(errStatus)
+      call getSelectedIndices(node, char(buffer), [1, nKPoint], this%opt%plottedKPoints, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       allocate(this%opt%plottedKPoints(1))
       this%opt%plottedKPoints(1) = 1
     end if
 
-    call getChildValue(node, "PlottedSpins", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(node, char(buffer), [1, nSpin], this%opt%plottedSpins)
+    call getChildValue(node, "PlottedSpins", buffer, errStatus, child=field, multiple=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getSelectedIndices(node, char(buffer), [1, nSpin], this%opt%plottedSpins, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)
@@ -606,17 +674,19 @@ contains
     end do
 
     if (len(indexBuffer) == 0) then
-      call error("No levels specified for plotting")
+      @:RAISE_ERROR(errStatus, -1, "No levels specified for plotting")
     end if
 
     allocate(this%loc%levelIndex(3, len(indexBuffer)))
     call asArray(indexBuffer, this%loc%levelIndex)
     call destruct(indexBuffer)
 
-    call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
+    call getChildValue(node, "NrOfCachedGrids", nCached, errStatus, 1, child=field)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (nCached < 1 .and. nCached /= -1) then
-      call detailedError(field, "Value must be -1 or greater than zero.")
+      call detailedError(field, "Value must be -1 or greater than zero.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     if (nCached == -1) then
@@ -625,7 +695,8 @@ contains
 
     ! Plotted region: if last (and hopefully only) childnode is not an allowed method -> assume
     ! explicit setting, parse the node "PlottedRegion" for the appropriate children.
-    call getChildValue(node, "PlottedRegion", value, child=subnode)
+    call getChildValue(node, "PlottedRegion", value, errStatus, child=subnode)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value, buffer)
 
     select case (char(buffer))
@@ -635,9 +706,11 @@ contains
         this%opt%origin(:) = [0.0_dp, 0.0_dp, 0.0_dp]
         this%opt%boxVecs(:,:) = this%input%geo%latVecs(:,:)
       else
-        call getChildValue(value, "MinEdgeLength", minEdge, child=field, default=1.0_dp)
+        call getChildValue(value, "MinEdgeLength", minEdge, errStatus, child=field, default=1.0_dp)
+        @:PROPAGATE_ERROR(errStatus)
         if (minEdge < 0.0_dp) then
-          call detailedError(field, "Minimal edge length must be positive")
+          call detailedError(field, "Minimal edge length must be positive", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         this%opt%origin = minval(this%input%geo%coords, dim=2)
         tmpvec = maxval(this%input%geo%coords, dim=2) - this%opt%origin
@@ -655,9 +728,11 @@ contains
 
     case ("optimalcuboid")
       ! Determine optimal cuboid, so that no basis function leaks out
-      call getChildValue(value, "MinEdgeLength", minEdge, child=field, default=1.0_dp)
+      call getChildValue(value, "MinEdgeLength", minEdge, errStatus, child=field, default=1.0_dp)
+      @:PROPAGATE_ERROR(errStatus)
       if (minEdge < 0.0_dp) then
-        call detailedError(field, "Minimal edge length must be positive")
+        call detailedError(field, "Minimal edge length must be positive", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       allocate(mcutoffs(this%input%geo%nSpecies))
       do iSpecies = 1 , this%input%geo%nSpecies
@@ -685,56 +760,78 @@ contains
 
     case ("origin","box")
       ! Those nodes are part of an explicit specification -> explitic specif
-      call getChildValue(subnode, "Box", this%opt%boxVecs, modifier=modifier, child=field)
-      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs)
+      call getChildValue(subnode, "Box", this%opt%boxVecs, errStatus, modifier=modifier,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%boxVecs, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (abs(determinant33(this%opt%boxVecs)) < 1e-08_dp) then
-        call detailedError(field, "Vectors are linearly dependent")
+        call detailedError(field, "Vectors are linearly dependent", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getChildValue(subnode, "Origin", this%opt%origin, modifier=modifier, child=field)
-      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%origin)
+      call getChildValue(subnode, "Origin", this%opt%origin, errStatus, modifier=modifier,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modifier), lengthUnits, field, this%opt%origin, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
     case default
       ! Object with unknown name passed
-      call detailedError(value, "Invalid element name")
+      call detailedError(value, "Invalid element name", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
     ! Replace existing PlottedRegion definition
-    call setChild(node, "PlottedRegion", field, replace=.true.)
-    call setChildValue(field, "Origin", this%opt%origin, replace=.true.)
-    call setChildValue(field, "Box", this%opt%boxVecs, replace=.true.)
+    call setChild(node, "PlottedRegion", field, errStatus, replace=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(field, "Origin", this%opt%origin, errStatus, replace=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(field, "Box", this%opt%boxVecs, errStatus, replace=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "NrOfPoints", this%opt%nPoints, child=field)
+    call getChildValue(node, "NrOfPoints", this%opt%nPoints, errStatus, child=field)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (any(this%opt%nPoints <= 0)) then
-      call detailedError(field, "Specified numbers must be greater than zero")
+      call detailedError(field, "Specified numbers must be greater than zero", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChildValue(node, "ShiftGrid", tShiftGrid, default=.true.)
+    call getChildValue(node, "ShiftGrid", tShiftGrid, errStatus, default=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (this%input%geo%tPeriodic) then
-      call getChildValue(node, "FoldAtomsToUnitCell", this%opt%tFoldCoords, default=.false.)
-      call getChildValue(node, "FillBoxWithAtoms", this%opt%tFillBox, default=.false.)
+      call getChildValue(node, "FoldAtomsToUnitCell", this%opt%tFoldCoords, errStatus,&
+          & default=.false.)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChildValue(node, "FillBoxWithAtoms", this%opt%tFillBox, errStatus, default=.false.)
+      @:PROPAGATE_ERROR(errStatus)
       this%opt%tFoldCoords = this%opt%tFoldCoords .or. this%opt%tFillBox
     else
       this%opt%tFillBox = .false.
       this%opt%tFoldCoords = .false.
     end if
 
-    call getChildValue(node, "RepeatBox", this%opt%repeatBox, default=[1, 1, 1], child=field)
+    call getChildValue(node, "RepeatBox", this%opt%repeatBox, errStatus, default=[1, 1, 1],&
+        & child=field)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (.not. all(this%opt%repeatBox > 0)) then
-      call detailedError(field, "Indexes must be greater than zero")
+      call detailedError(field, "Indexes must be greater than zero", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChildValue(node, "Verbose", this%opt%tVerbose, default=.false.)
+    call getChildValue(node, "Verbose", this%opt%tVerbose, errStatus, default=.false.)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call readBinaryAccessTypes(node, this%opt%binaryAccessTypes)
+    call readBinaryAccessTypes(node, this%opt%binaryAccessTypes, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readOptions
 
 
   !> Reads in the basis related informations.
-  subroutine readBasis(this, node, speciesNames)
+  subroutine readBasis(this, node, speciesNames, errStatus)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
@@ -744,6 +841,9 @@ contains
 
     !> Names of the species for which the basis should be read in
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Name of current species
     character(len=len(speciesNames)) :: speciesName
@@ -761,15 +861,19 @@ contains
 
     @:ASSERT(nSpecies > 0)
 
-    call getChildValue(node, "Resolution", this%basis%basisResolution)
+    call getChildValue(node, "Resolution", this%basis%basisResolution, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     allocate(this%basis%basis(nSpecies))
     allocate(this%aNr%atomicNumbers(nSpecies))
 
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
-      call getChild(node, speciesName, speciesNode)
-      call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii))
+      call getChild(node, speciesName, speciesNode, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       this%aNr%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
     end do
 
@@ -777,7 +881,7 @@ contains
 
 
   !> Read in basis function for a species.
-  subroutine readSpeciesBasis(node, basisResolution, spBasis)
+  subroutine readSpeciesBasis(node, basisResolution, spBasis, errStatus)
 
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
@@ -787,6 +891,9 @@ contains
 
     !> Contains the basis on return
     type(TSpeciesBasis), intent(out) :: spBasis
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !! Input node instances, containing the information
     type(fnode), pointer :: tmpNode, child
@@ -803,12 +910,14 @@ contains
     !! Auxiliary variable
     integer :: ii
 
-    call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
+    call getChildValue(node, "AtomicNumber", spBasis%atomicNumber, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getChildren(node, "Orbital", children)
     spBasis%nOrb = getLength(children)
 
     if (spBasis%nOrb < 1) then
-      call detailedError(node, "Missing orbital definitions")
+      call detailedError(node, "Missing orbital definitions", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     allocate(spBasis%angMoms(spBasis%nOrb))
@@ -818,22 +927,31 @@ contains
 
     do ii = 1, spBasis%nOrb
       call getItem1(children, ii, tmpNode)
-      call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
-      call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
-      call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
+      call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call init(bufferExps)
 
-      call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
+      call getChildValue(tmpNode, "Exponents", bufferExps, errStatus, child=child)
+      @:PROPAGATE_ERROR(errStatus)
       if (len(bufferExps) == 0) then
-        call detailedError(child, "Missing exponents")
+        call detailedError(child, "Missing exponents", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call init(bufferCoeffs)
-      call getChildValue(tmpNode, "Coefficients", bufferCoeffs, child=child)
+      call getChildValue(tmpNode, "Coefficients", bufferCoeffs, errStatus, child=child)
+      @:PROPAGATE_ERROR(errStatus)
       if (len(bufferCoeffs) == 0) then
-        call detailedError(child, "Missing coefficients")
+        call detailedError(child, "Missing coefficients", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       if (mod(len(bufferCoeffs), len(bufferExps)) /= 0) then
-        call detailedError(child, "Number of coefficients incompatible with number of exponents")
+        call detailedError(child, "Number of coefficients incompatible with number of exponents",&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       allocate(exps(len(bufferExps)))
       call asArray(bufferExps, exps)
@@ -850,7 +968,7 @@ contains
 
 
   !> Checks, if the eigenvector file has the right identity number.
-  subroutine checkEigenvecs(fileName, identity)
+  subroutine checkEigenvecs(fileName, identity, errStatus)
 
     !> File to check
     character(len=*), intent(in) :: fileName
@@ -858,20 +976,23 @@ contains
     !> Identity number
     integer, intent(in) :: identity
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(TFileDescr) :: fd
     integer :: id, iostat
 
     call openFile(fd, fileName, mode="rb", iostat=iostat)
 
     if (iostat /= 0) then
-      call error("Can't open file '" // trim(fileName) // "'.")
+      @:RAISE_ERROR(errStatus, -1, "Can't open file '" // trim(fileName) // "'.")
     end if
 
     read(fd%unit) id
 
     if (id /= identity) then
-      call error("Ids for eigenvectors ("// i2c(id) //") and xml-input ("// i2c(identity) // &
-          & ") don't match.")
+      @:RAISE_ERROR(errStatus, -1, "Ids for eigenvectors ("// i2c(id)&
+          & //") and xml-input ("// i2c(identity) // ") don't match.")
     end if
 
     call closeFile(fd)

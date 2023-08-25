@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Read GBSA parametrisation data from file
 module dftbp_solvation_gbsafile
@@ -13,10 +14,11 @@ module dftbp_solvation_gbsafile
   use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
       & symbolToNumber
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_status, only : TStatus
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_io_hsdutils, only : detailedError, detailedWarning
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_io_tokenreader, only : getNextToken, TOKEN_OK
   use dftbp_solvation_born, only : TGBInput
   use dftbp_solvation_solventdata, only : TSolventData
@@ -36,7 +38,7 @@ contains
 
 
   !> Read GBSA parameters from file
-  subroutine readParamGBSAFile(file, input, solvent, speciesNames, node)
+  subroutine readParamGBSAFile(file, input, solvent, speciesNames, errStatus, node)
 
     !> Name of the parametrisation file
     character(len=*), intent(in) :: file
@@ -49,6 +51,9 @@ contains
 
     !> Symbols of all species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Node for error handling
     type(fnode), pointer, optional :: node
@@ -65,16 +70,17 @@ contains
     call openFile(fd, file, mode="r", ioStat=iErr, ioMsg=ioMsg)
     if (iErr /= 0) then
       if (present(node)) then
-        call detailedError(node, "Could not open '"//trim(file)//"': "//trim(ioMsg))
+        call detailedError(node, "Could not open '"//trim(file)//"': "//trim(ioMsg), errStatus)
       else
-        call error("Could not open '"//trim(file)//"': "//trim(ioMsg))
+        @:RAISE_ERROR(errStatus, -1, "Could not open '"//trim(file)//"': "//trim(ioMsg))
       end if
     end if
 
     lineno = 0
 
     do ii = 1, 8
-      call nextLine(fd%unit, line, lineno, file, node=node)
+      call nextLine(fd%unit, line, lineno, errStatus, file, node=node)
+      @:PROPAGATE_ERROR(errStatus)
       iStart = 1
       call getNextToken(trim(line), param(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -83,9 +89,9 @@ contains
           & trim(file), lineno, "Could not read real", newline, trim(line), &
           & newline, repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedError(node, trim(errorStr))
+          call detailedError(node, trim(errorStr), errStatus)
         else
-          call error(trim(errorStr))
+          @:RAISE_ERROR(errStatus, -1, trim(errorStr))
         end if
       end if
       if (iStart < len_trim(line)) then
@@ -101,7 +107,8 @@ contains
     end do
 
     do ii = 1, nElem
-      call nextLine(fd%unit, line, lineno, file, node=node)
+      call nextLine(fd%unit, line, lineno, errStatus, file, node=node)
+      @:PROPAGATE_ERROR(errStatus)
       iStart = 1
       call getNextToken(trim(line), surfaceTension(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -110,9 +117,9 @@ contains
           & "Could not read surface tension", newline, trim(line), newline, &
           & repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedError(node, trim(errorStr))
+          call detailedError(node, trim(errorStr), errStatus)
         else
-          call error(trim(errorStr))
+          @:RAISE_ERROR(errStatus, -1, trim(errorStr))
         end if
       end if
       call getNextToken(trim(line), descreening(ii), iStart, iErr)
@@ -122,9 +129,9 @@ contains
           & "Could not read descreening", newline, trim(line), newline, &
           & repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedError(node, trim(errorStr))
+          call detailedError(node, trim(errorStr), errStatus)
         else
-          call error(trim(errorStr))
+          @:RAISE_ERROR(errStatus, -1, trim(errorStr))
         end if
       end if
       call getNextToken(trim(line), hBondPar(ii), iStart, iErr)
@@ -134,9 +141,9 @@ contains
           & "Could not read hydrogen bond strength", newline, trim(line), newline, &
           & repeat('-', max(iStart-1, 0)), '^'
         if (present(node)) then
-          call detailedError(node, trim(errorStr))
+          call detailedError(node, trim(errorStr), errStatus)
         else
-          call error(trim(errorStr))
+          @:RAISE_ERROR(errStatus, -1, trim(errorStr))
         end if
       end if
       if (iStart < len_trim(line)) then
@@ -196,7 +203,7 @@ contains
 
 
   !> Read a whole line from a formatted IO unit
-  subroutine nextLine(unit, line, lineno, file, iostat, node)
+  subroutine nextLine(unit, line, lineno, errStatus, file, iostat, node)
 
     !> IO-unit bound to the parametrisation file
     integer, intent(in) :: unit
@@ -206,6 +213,9 @@ contains
 
     !> Current line number, will be incremented after successful read
     integer, intent(inout) :: lineno
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Name of the parametrisation file
     character(len=*), intent(in), optional :: file
@@ -260,16 +270,16 @@ contains
               & "line", lineno, "encountered end-of-file while reading"
           end if
           if (present(node)) then
-            call detailedError(node, trim(errorStr))
+            call detailedError(node, trim(errorStr), errStatus)
           else
-            call error(trim(errorStr))
+            @:RAISE_ERROR(errStatus, -1, trim(errorStr))
           end if
         else
           ! unknown error, lets hope for something useful in iomsg
           if (present(node)) then
-            call detailedError(node, trim(iomsg))
+            call detailedError(node, trim(iomsg), errStatus)
           else
-            call error(trim(iomsg))
+            @:RAISE_ERROR(errStatus, -1, trim(iomsg))
           end if
         end if
       end if

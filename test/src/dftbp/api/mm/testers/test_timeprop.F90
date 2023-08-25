@@ -8,6 +8,7 @@
 program test_timeprop
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_constants, only : AA__Bohr, V_m__au
+  use dftbp_common_status, only : TStatus
   use dftbplus
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
@@ -42,6 +43,9 @@ program test_timeprop
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
 
+  !> Error status
+  type(TStatus) :: errStatus
+
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
   type(fnode), pointer :: pPerturb, pKick
@@ -59,35 +63,36 @@ program test_timeprop
 
   call dftbp%getEmptyInput(input)
   call input%getRootNode(pRoot)
-  call setChild(pRoot, "Geometry", pGeo)
-  call setChildValue(pGeo, "Periodic", .false.)
-  call setChildValue(pGeo, "TypeNames", ["C", "H"])
+  call setChild(pRoot, "Geometry", pGeo, errStatus)
+  call setChildValue(pGeo, "Periodic", .false., errStatus)
+  call setChildValue(pGeo, "TypeNames", ["C", "H"], errStatus)
   coords(:,:) = 0.0_dp
-  call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
-  call setChild(pRoot, "Hamiltonian", pHam)
-  call setChild(pHam, "Dftb", pDftb)
-  call setChildValue(pDftb, "Scc", .true.)
-  call setChildValue(pDftb, "SccTolerance", 1e-10_dp)
+  call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords,&
+      & errStatus)
+  call setChild(pRoot, "Hamiltonian", pHam, errStatus)
+  call setChild(pHam, "Dftb", pDftb, errStatus)
+  call setChildValue(pDftb, "Scc", .true., errStatus)
+  call setChildValue(pDftb, "SccTolerance", 1e-10_dp, errStatus)
 
-  call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
-  call setChildValue(pMaxAng, "C", "p")
-  call setChildValue(pMaxAng, "H", "s")
+  call setChild(pDftb, "MaxAngularMomentum", pMaxAng, errStatus)
+  call setChildValue(pMaxAng, "C", "p", errStatus)
+  call setChildValue(pMaxAng, "H", "s", errStatus)
 
-  call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChild(pSlakos, "Type2FileNames", pType2Files)
-  call setChildValue(pType2Files, "Prefix", "./")
-  call setChildValue(pType2Files, "Separator", "-")
-  call setChildValue(pType2Files, "Suffix", ".skf")
+  call setChild(pDftb, "SlaterKosterFiles", pSlakos, errStatus)
+  call setChild(pSlakos, "Type2FileNames", pType2Files, errStatus)
+  call setChildValue(pType2Files, "Prefix", "./", errStatus)
+  call setChildValue(pType2Files, "Separator", "-", errStatus)
+  call setChildValue(pType2Files, "Suffix", ".skf", errStatus)
 
   !  set up electron dynamics options
-  call setChild(pRoot, "ElectronDynamics", pElecDyn)
-  call setChildValue(pElecDyn, "Steps", nsteps)
-  call setChildValue(pElecDyn, "TimeStep", timestep)
-  call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au)
-  call setChild(pElecDyn, "Perturbation", pPerturb)
-  call setChild(pPerturb, "Kick", pKick)
-  call setChildValue(pKick, "PolarisationDirection", "z")
-  call setChildValue(pElecDyn, "WriteBondPopulation", .true.)
+  call setChild(pRoot, "ElectronDynamics", pElecDyn, errStatus)
+  call setChildValue(pElecDyn, "Steps", nsteps, errStatus)
+  call setChildValue(pElecDyn, "TimeStep", timestep, errStatus)
+  call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au, errStatus)
+  call setChild(pElecDyn, "Perturbation", pPerturb, errStatus)
+  call setChild(pPerturb, "Kick", pKick, errStatus)
+  call setChildValue(pKick, "PolarisationDirection", "z", errStatus)
+  call setChildValue(pElecDyn, "WriteBondPopulation", .true., errStatus)
 
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)

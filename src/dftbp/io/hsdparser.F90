@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains the HSD (Human readable Structured Data) parser.
 !>
@@ -18,6 +19,7 @@
 !> For the specification of the HSD format see the sample input
 module dftbp_io_hsdparser
   use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
+  use dftbp_common_status, only : TStatus
   use dftbp_extlibs_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
       & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
       & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&
@@ -25,7 +27,7 @@ module dftbp_io_hsdparser
   use dftbp_io_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
       & unquotedScan, convertWhitespaces, getFirstOccurance
   use dftbp_io_linereader, only : TLineReader
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : getJointMessage
   use dftbp_io_xmlutils, only : getFirstChildByName
   implicit none
 
@@ -146,7 +148,7 @@ contains
 
 
   !> Parser HSD format from a file
-  subroutine parseHSD_file(initRootName, file, xmlDoc)
+  subroutine parseHSD_file(initRootName, file, xmlDoc, errStatus)
 
     !> Name of the root tag, which should contain the parsed tree
     character(len=*), intent(in) :: initRootName
@@ -157,6 +159,9 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(TFileDescr) :: fd
     integer :: iostat
 
@@ -164,16 +169,18 @@ contains
     call openFile(fd, file,&
         & options=TOpenOptions(status='old', action='read', access='stream'), iostat=iostat)
     if (iostat /= 0) then
-      call parsingError("Error in opening file '" // trim(file) //"'.", file, -1)
+      call parsingError("Error in opening file '" // trim(file) //"'.", file, -1, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    call parseHSD_opened(initRootName, fd%unit, file, xmlDoc)
+    call parseHSD_opened(initRootName, fd%unit, file, xmlDoc, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call closeFile(fd)
 
   end subroutine parseHSD_file
 
 
   !> Parses HSD format from an already opened file
-  subroutine parseHSD_opened(initRootName, fd, file, xmlDoc)
+  subroutine parseHSD_opened(initRootName, fd, file, xmlDoc, errStatus)
 
     !> Name of the root tag, which should contain the parsed tree
     character(len=*), intent(in) :: initRootName
@@ -186,6 +193,9 @@ contains
 
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     logical, parameter :: parsedTypes(nSeparator) = .true.
     type(fnode), pointer :: rootNode, dummy
@@ -206,15 +216,16 @@ contains
     dummy => appendChild(xmlDoc, rootNode)
     curLine = 0
     lineReader = TLineReader(fd)
-    tFinished = parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
-        & parsedTypes, .false.)
+    call parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
+        & parsedTypes, .false., tFinished, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine parseHSD_opened
 
 
   !> Recursive parsing function for the HSD parser making the actual work
-  recursive function parse_recursive(curNode, depth, residual, tRightValue, lineReader, curFile,&
-      & fileDepth, curLine, parsedTypes, tNew) result (tFinished)
+  recursive subroutine parse_recursive(curNode, depth, residual, tRightValue, lineReader, curFile,&
+      & fileDepth, curLine, parsedTypes, tNew, tFinished, errStatus)
 
     !> Node which should contain parsed input
     type(fnode), pointer :: curNode
@@ -246,7 +257,11 @@ contains
     !> True, if parsing is done
     logical, intent(in) :: tNew
 
-    logical :: tFinished
+    !> True, if parsing is finished
+    logical, intent(out) :: tFinished
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     character(:), allocatable :: strLine, word
 
@@ -285,7 +300,8 @@ contains
           if (depth /= 0) then
             call getAttribute(curNode, attrStart, buffer)
             call parsingError("Unexpected end of input (probably open node at line "&
-                & // char(buffer) // " or after).", curFile, curLine)
+                & // char(buffer) // " or after).", curFile, curLine, errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           !! If outermost file, we are ready
           if (fileDepth == 0) then
@@ -311,7 +327,8 @@ contains
       case (6)
         !! Block closing char on level zero is invalid
         if (depth == 0) then
-          call parsingError("Invalid block closing sign.", curFile, curLine)
+          call parsingError("Invalid block closing sign.", curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         !! If block closing char is not first char of the line, text before it
         !! will be appended as text, and residual line reparsed in next cycle
@@ -332,7 +349,8 @@ contains
           strLine = strLine(:sepPos-1)
           tTagClosed = .true.
         else
-          call parsingError("Invalid assignment separator", curFile, curLine)
+          call parsingError("Invalid assignment separator", curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
       end select
 
@@ -343,7 +361,8 @@ contains
 
       !! Check for forbidden characters in the current line
       if (.not. (iType == 1 .or. iType == 2 .or. iType == 3)) then
-        call checkForbiddenChars(strLine, curFile, curLine)
+        call checkForbiddenChars(strLine, curFile, curLine, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
       !! Process non-closing separators
@@ -351,7 +370,8 @@ contains
       case(0)
         if (nodetype > 0) then
           call parsingError("Node already contains subnodes, no text content&
-              & allowed any more", curFile, curLine)
+              & allowed any more", curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         !! No separator found -> Add entire line as text
         !! If current node already contains text, prepend newline before
@@ -369,14 +389,15 @@ contains
 
       case(1)
         !! XML inclusion
-        call error("Mixed XML input in HSD input no longer supported")
+        @:RAISE_ERROR(errStatus, -1, "Mixed XML input in HSD input no longer supported")
 
       case(2, 3)
         !! File inclusion operator -> append content of new file to current node
         if (associated(curNode)) then
           if (sepPos /= 1) then
-            call parsingError("Invalid character before file inclusion &
-                &operator", curFile, curLine)
+            call parsingError("Invalid character before file inclusion operator", curFile, curLine,&
+                & errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           strLine = adjustl(unquote(strLine))
           if (iType == 2) then
@@ -386,15 +407,18 @@ contains
           end if
 
           if (len_trim(word) == 0) then
-            call parsingError("No file name specified after the inclusion &
-                &operator.", curFile, curLine)
+            call parsingError("No file name specified after the inclusion operator.", curFile,&
+                & curLine, errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
 
           ! Explicitely setting "stream" access to avoid record length issues
           call openFile(newFile, word,&
               & options=TOpenOptions(status='old', action='read', access='stream'), iostat=iostat)
           if (iostat /= 0) then
-            call parsingError("Error in opening file '" // trim(word) // "'.", curFile, curLine)
+            call parsingError("Error in opening file '" // trim(word) // "'.", curFile, curLine,&
+                & errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           newLineReader = TLineReader(newFile%unit)
           strLine = ""
@@ -408,31 +432,36 @@ contains
             newParsedTypes = (/ .false., .false., .false., .false., .false., &
                 &.false., .false. /)
           end if
-          tFinished = parse_recursive(curNode, 0, strLine, .false., newLineReader,&
-              & word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
+          call parse_recursive(curNode, 0, strLine, .false., newLineReader, word, fileDepth + 1,&
+              & newCurLine, newParsedTypes, .false., tFinished, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           call closeFile(newFile)
         end if
 
       case(4)
         !! Assignment
         if (nodetype < 0) then
-          call parsingError("Node already contains free text, no child nodes&
-              & allowed any more", curFile, curLine)
+          call parsingError("Node already contains free text, no child nodes allowed any more",&
+              & curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         word = adjustl(strLine(:sepPos-1))
         strLine = adjustl(strLine(sepPos+1:))
         if (len_trim(word) == 0) then
-          call parsingError("Missing field name on the left of the &
-              &assignment.", curFile, curLine)
+          call parsingError("Missing field name on the left of the assignment.", curFile, curLine,&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         elseif (len_trim(strLine) == 0) then
-          call parsingError("Missing value on the right of the assignment.", &
-              &curFile, curLine)
+          call parsingError("Missing value on the right of the assignment.", curFile, curLine,&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         elseif (nTextLine > 0) then
-          call parsingError("Unparsed text before current node", curFile, &
-              &curLine)
+          call parsingError("Unparsed text before current node", curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         if (associated(curNode)) then
-          childNode => createChildNode(curNode, word, curLine, curFile)
+          childNode => createChildNode(curNode, word, curLine, curFile, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           tNewNodeCreated = .true.
         else
           childNode => null()
@@ -440,22 +469,24 @@ contains
         !! Only block opening/closing sign and single child separator are parsed
         newParsedTypes = (/ .false., .false., .false., .false., .true., &
             &.true., .true. /)
-        tFinished = parse_recursive(childNode, depth+1, strLine, .true., lineReader,&
-            & curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+        call parse_recursive(childNode, depth+1, strLine, .true., lineReader, curFile, fileDepth,&
+            & curLine, newParsedTypes, tNewNodeCreated, tFinished, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         residual = strLine
         nodetype = 1
 
       case(5)
         if (nodetype < 0) then
-          call parsingError("Node already contains free text, no child nodes&
-              & allowed any more", curFile, curLine)
+          call parsingError("Node already contains free text, no child nodes allowed any more",&
+              & curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         !! Block opening sign
         word = adjustl(strLine(:sepPos-1))
         strLine = adjustl(strLine(sepPos+1:))
         if (nTextLine > 0) then
-          call parsingError("Unparsed text before current node", curFile, &
-              &curLine)
+          call parsingError("Unparsed text before current node", curFile, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         if (associated(curNode)) then
           ! Currently node without name is allowed to support "= {" construct
@@ -463,10 +494,9 @@ contains
           if (len_trim(word) == 0) then
             childNode => curNode
             call setAttribute(curNode, attrList, "")
-            !call parsingError("Node without name not allowed.", curFile,&
-            !    & curLine)
           else
-            childNode => createChildNode(curNode, word, curLine, curFile)
+            childNode => createChildNode(curNode, word, curLine, curFile, errStatus)
+            @:PROPAGATE_ERROR(errStatus)
             tNewNodeCreated = .true.
           end if
         else
@@ -474,8 +504,9 @@ contains
         end if
         newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
             &.true. /)
-        tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
-            & lineReader, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
+        call parse_recursive(childNode, depth+1, strLine, .false., lineReader, curFile, fileDepth,&
+            & curLine, newParsedTypes, tNewNodeCreated, tFinished, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         residual = strLine
         nodetype = 1
 
@@ -495,11 +526,11 @@ contains
       end if
     end if
 
-  end function parse_recursive
+  end subroutine parse_recursive
 
 
   !> Creates a child node with attributes related to the HSD input.
-  function createChildNode(parentNode, childName, curLine, file) result(newChild)
+  function createChildNode(parentNode, childName, curLine, file, errStatus) result(newChild)
 
     !> Parent node containing of the child to be created
     type(fnode), pointer :: parentNode
@@ -512,6 +543,9 @@ contains
 
     !> Name of the current file
     character(*), intent(in) :: file
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Pointer to the new (appended) child node
     type(fnode), pointer :: newChild
@@ -548,12 +582,14 @@ contains
     pos2 = index(lowerName, sModifierClose)
     if (pos1 == 0) then
       if (pos2 /= 0) then
-        call parsingError("Unbalanced modifier opening sign.", file, curLine)
+        call parsingError("Unbalanced modifier opening sign.", file, curLine, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     else
       if (pos2 /= len_trim(lowerName)) then
         call parsingError("Invalid character(s) after modifier closing sign.",&
-            &file, curLine)
+            &file, curLine, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       !! Remove modifier from field name
       modifier = adjustl(truncName(pos1+1:pos2-1))
@@ -564,7 +600,8 @@ contains
 
     !! Check if field name is nonempty
     if (len_trim(lowerName) == 0) then
-      call parsingError("Missing field name", file, curLine)
+      call parsingError("Missing field name", file, curLine, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     !! Create child according extension operator
@@ -591,8 +628,9 @@ contains
         !! We did not found a child with the same name
         select case (iType)
         case(1)
-          call parsingError("Containing block does not contain a(n) '" &
-              &// trim(truncName) // "' block yet.", file, curLine)
+          call parsingError("Containing block does not contain a(n) '" // trim(truncName)&
+              & // "' block yet.", file, curLine, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         case(2)
           newChild => null()
           return
@@ -620,7 +658,7 @@ contains
 
 
   !> Checks for forbidden characters and issue error message, if any found.
-  subroutine checkForbiddenChars(str, curFile, curLine)
+  subroutine checkForbiddenChars(str, curFile, curLine, errStatus)
 
     !> String to investigate
     character(len=*), intent(in) :: str
@@ -631,15 +669,19 @@ contains
     !> Number of the current line in the current file
     integer, intent(in) :: curLine
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     if (scan(str, forbiddenChars) /= 0) then
-      call parsingError("Invalid character(s).", curFile, curLine)
+      call parsingError("Invalid character(s).", curFile, curLine, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine checkForbiddenChars
 
 
   !> Issues a parsing error message containing file name and line number.
-  subroutine parsingError(message, file, line)
+  subroutine parsingError(message, file, line, errStatus)
 
     !> Parsing error message
     character(len=*), intent(in) :: message
@@ -650,7 +692,10 @@ contains
     !> Number of current line
     integer, intent(in) :: line
 
-    character(:), allocatable :: msgArray(:)
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    character(:), allocatable :: jointMsg, msgArray(:)
     character(:), allocatable :: header
     character(100) :: buffer
 
@@ -659,19 +704,23 @@ contains
     allocate(character(max(len_trim(message), len(header))) :: msgArray(2))
     msgArray(1) = header
     msgArray(2) = message
-    call error(msgArray)
+    call getJointMessage(msgArray, jointMsg)
+    @:RAISE_ERROR(errStatus, -1, jointMsg)
 
   end subroutine parsingError
 
 
   !> Dumps a HSD tree in a file.
-  subroutine dumpHSD_file(myDoc, file, subnode)
+  subroutine dumpHSD_file(myDoc, file, errStatus, subnode)
 
     !> The DOM tree
     type(fnode), pointer :: myDoc
 
     !> Name of the file
     character(len=*), intent(in) :: file
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Whether passed node is an arbitrary node within the tree (or the tree top node otherwise).
     !> Default: .false.
@@ -684,7 +733,8 @@ contains
     call openFile(fd, file,&
         & options=TOpenOptions(status='replace', action='write', access='stream'), iostat=iostat)
     if (iostat /= 0) then
-      call parsingError("Error in opening file for the HSD output.", file, -1)
+      call parsingError("Error in opening file for the HSD output.", file, -1, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call dumpHSD_opened(myDoc, fd%unit, subnode)
     call closeFile(fd)
@@ -736,7 +786,7 @@ contains
   recursive subroutine dumpHSD_recursive(node, indent, fd, tRightValue, buffer)
 
     !> Node to dump
-    type(fnode),      pointer :: node
+    type(fnode), pointer :: node
 
     !> Current indentation level
     integer, intent(in) :: indent
@@ -745,10 +795,10 @@ contains
     integer, intent(in) :: fd
 
     !> Is current node the right hand side of an assignment?
-    logical,          intent(in) :: tRightValue
+    logical, intent(in) :: tRightValue
 
     !> Buffer for storing temporary strings
-    type(string),     intent(inout) :: buffer
+    type(string), intent(inout) :: buffer
 
     type(fnode), pointer :: child, attr
     logical :: tOpenBlock

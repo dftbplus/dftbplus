@@ -11,21 +11,25 @@ program dftbplus
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
   use dftbp_common_release, only : releaseName, releaseYear
+  use dftbp_common_status, only : TStatus
   use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_main, only : runDftbPlus
   use dftbp_io_formatout, only : printDftbHeader
+  use dftbp_io_message, only : error
   implicit none
 
   type(TEnvironment) :: env
+  type(TStatus) :: errStatus
   type(TInputData), allocatable :: input
   type(TDftbPlusMain), allocatable, target :: main
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
   allocate(input)
-  call parseHsdInput(input)
+  call parseHsdInput(input, errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   call TEnvironment_init(env)
   allocate(main)
   call main%initProgramVariables(input, env)

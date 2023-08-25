@@ -13,6 +13,7 @@ program phonons
   use dftbp_common_environment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv
+  use dftbp_common_status, only : TStatus
   use phonons_initphonons
   use dftbp_io_message
   use dftbp_io_taggedoutput
@@ -32,10 +33,14 @@ program phonons
   type (TTaggedWriter) :: taggedWriter
   integer :: err, nProcs
 
+  !> Error status
+  type(TStatus) :: errStatus
+
   call initGlobalEnv()
   call printHeader()
   call TEnvironment_init(env)
-  call initProgramVariables(env)
+  call initProgramVariables(env, errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   call TTaggedWriter_init(taggedWriter)
 
   nProcs = 1

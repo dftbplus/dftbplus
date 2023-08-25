@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 module phonons_initphonons
   use dftbp_common_accuracy
@@ -21,7 +22,6 @@ module phonons_initphonons
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
-  use dftbp_io_message
   use dftbp_io_tokenreader
   use dftbp_io_xmlutils
   use dftbp_math_simplealgebra
@@ -190,10 +190,13 @@ module phonons_initphonons
 contains
 
   !> Initialise program variables
-  subroutine initProgramVariables(env)
+  subroutine initProgramVariables(env, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     ! locals
     type(fnode), pointer :: hsdTree, root, node, tmp
@@ -220,44 +223,61 @@ contains
     !! Read in input file as HSD or XML.
     write(stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
     write(stdOut, "(A)") repeat("-", 80)
-    call parseHSD(rootTag, hsdInput, hsdTree)
-    call getChild(hsdTree, rootTag, root)
+    call parseHSD(rootTag, hsdInput, hsdTree, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChild(hsdTree, rootTag, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     !! Check if input version is the one, which we can handle
     !! Handle parser options
-    call getChildValue(root, "Options", tmp, "", child=child, &
-        &list=.true., allowEmptyValue=.true.)
-    call readOptions(child, root, parserFlags)
+    call getChildValue(root, "Options", tmp, errStatus, "", child=child, list=.true.,&
+        & allowEmptyValue=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call readOptions(child, root, parserFlags, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, geo)
+    call getChild(root, "Geometry", tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readGeometry(tmp, geo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Read Transport block
     ! This defines system partitioning
-    call getChild(root, "Transport", child, requested=.false.)
+    call getChild(root, "Transport", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(child)) then
       tTransport = .true.
-      call readTransportGeometry(child, geo, transpar)
+      call readTransportGeometry(child, geo, transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       tTransport = .false.
     end if
 
-    call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
-    call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getChildValue(root, "Atoms", buffer2, errStatus, "1:-1", child=child)
+    @:PROPAGATE_ERROR(errStatus)
+    call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     nMovedAtom = size(iMovedAtoms)
 
-    call getChild(root, "ComputeModes",child=node,requested=.false.)
+    call getChild(root, "ComputeModes", node, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(node)) then
       tCompModes = .true.
-      call getChild(root, "DisplayModes",child=node,requested=.false.)
+      call getChild(root, "DisplayModes", node, errStatus, requested=.false.)
+      @:PROPAGATE_ERROR(errStatus)
       if (associated(node)) then
         tPlotModes = .true.
-        call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, &
-            &multiple=.true.)
-        call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
+        call getChildValue(node, "PlotModes", buffer2, errStatus, "1:-1", child=child,&
+            & multiple=.true.)
+        @:PROPAGATE_ERROR(errStatus)
+        call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         nModesToPlot = size(modesToPlot)
-        call getChildValue(node, "Animate", tAnimateModes, .true.)
-        call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
+        call getChildValue(node, "Animate", tAnimateModes, errStatus, .true.)
+        @:PROPAGATE_ERROR(errStatus)
+        call getChildValue(node, "XMakeMol", tXmakeMol, errStatus, .true.)
+        @:PROPAGATE_ERROR(errStatus)
       else
         nModesToPlot = 0
         tPlotModes = .false.
@@ -275,35 +295,44 @@ contains
     end if
 
     ! Reading K-points for Phonon Dispersion calculation
-    call getChild(root, "PhononDispersion", child=node, requested=.false.)
+    call getChild(root, "PhononDispersion", node, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if  (associated(node))  then
       tPhonDispersion = .true.
       call init(li1)
-      call getChildValue(node, "supercell", 3, li1)
+      call getChildValue(node, "supercell", 3, li1, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call asVector(li1, nCells)
       call destruct(li1)
       nAtomUnitCell = geo%nAtom/(nCells(1)*nCells(2)*nCells(3))
-      call getChildValue(node, "outputUnits", buffer, "H")
+      call getChildValue(node, "outputUnits", buffer, errStatus, "H")
+      @:PROPAGATE_ERROR(errStatus)
       select case(trim(char(buffer)))
       case("H", "eV" , "meV", "THz", "cm")
         outputUnits=trim(char(buffer))
       case default
-        call detailedError(node,"Unknown outputUnits "//trim(char(buffer)))
+        call detailedError(node, "Unknown outputUnits " // trim(char(buffer)), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end select
-      call readKPoints(node, geo, tBadKpoints)
+      call readKPoints(node, geo, tBadKpoints, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       tPhonDispersion = .false.
     end if
 
     ! Read the atomic masses from SlaterKosterFiles or Masses
     allocate(speciesMass(geo%nSpecies))
-    call getChild(root,"Masses",child=node, requested=.true.)
+    call getChild(root, "Masses", node, errStatus, requested=.true.)
+    @:PROPAGATE_ERROR(errStatus)
     if ( associated(node) ) then
-      call getChild(node, "SlaterKosterFiles", child=value,requested=.false.)
+      call getChild(node, "SlaterKosterFiles", value, errStatus, requested=.false.)
+      @:PROPAGATE_ERROR(errStatus)
       if ( associated(value) ) then
-        call readSKfiles(value, geo, speciesMass)
+        call readSKfiles(value, geo, speciesMass, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       else
-        call readMasses(node, geo, speciesMass)
+        call readMasses(node, geo, speciesMass, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       endif
     endif
     allocate(atomicMasses(nMovedAtom))
@@ -315,23 +344,31 @@ contains
     ! --------------------------------------------------------------------------------------
     ! Reading Hessian block parameters
     ! --------------------------------------------------------------------------------------
-    call getChild(root, "Hessian", child=node, requested=.true.)
+    call getChild(root, "Hessian", node, errStatus, requested=.true.)
+    @:PROPAGATE_ERROR(errStatus)
     ! cutoff used to cut out interactions
-    call getChildValue(node, "Cutoff", cutoff, 9.45_dp, modifier=modif, child=value)
-    call convertUnitHsd(char(modif), lengthUnits, value, cutoff)
+    call getChildValue(node, "Cutoff", cutoff, errStatus, 9.45_dp, modifier=modif, child=value)
+    @:PROPAGATE_ERROR(errStatus)
+    call convertUnitHsd(char(modif), lengthUnits, value, cutoff, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Reading the actual Hessian matrix
-    call getChildValue(node, "Matrix", value, child=child)
+    call getChildValue(node, "Matrix", value, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value, buffer)
     select case(trim(char(buffer)))
     case ("dftb")
-      call readDftbHessian(value)
+      call readDftbHessian(value, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case ("dynmatrix")
-      call readDynMatrix(value)
+      call readDynMatrix(value, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case ("cp2k")
-      call readCp2kHessian(value)
+      call readCp2kHessian(value, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
-      call detailedError(node,"Unknown Hessian type "//char(buffer))
+      call detailedError(node, "Unknown Hessian type " // char(buffer), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
     ! --------------------------------------------------------------------------------------
@@ -340,49 +377,58 @@ contains
     ! Reading cubic forces
     ! --------------------------------------------------------------------------------------
     order = 2
-    call getChild(root, "Cubic", child=child, requested=.false.)
+    call getChild(root, "Cubic", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(child)) then
       order = 3
-      call getChildValue(child, "Matrix", buffer, child=child)
+      call getChildValue(child, "Matrix", buffer, errStatus, child=child)
+      @:PROPAGATE_ERROR(errStatus)
       select case(trim(char(buffer)))
       case ("gaussian")
         cubicType = 1
       case default
-        call detailedError(root,"Unknown Cubic forces type "//char(buffer))
+        call detailedError(root, "Unknown Cubic forces type " // char(buffer), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end select
     end if
 
     call buildNeighbourList()
 
-    call getChildValue(root, "Analysis", tmp, "", child=child, list=.true., &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(root, "Analysis", tmp, errStatus, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dummyValue=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (associated(tmp)) then
       if (tPhonDispersion) then
-         call detailedError(root, "Analysis and PhononDispersion cannot coexist")
+        call detailedError(root, "Analysis and PhononDispersion cannot coexist", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call readAnalysis(child, geo, pdos, tundos, transpar, atTemperature)
+      call readAnalysis(child, geo, pdos, tundos, transpar, atTemperature, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     endif
 
     !! Issue warning about unprocessed nodes
     write(stdOut, "(/, A)") "check unprocessed nodes..."
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed )
+    call warnUnprocessedNodes(root, errStatus, tIgnoreUnprocessed=parserFlags%tIgnoreUnprocessed)
+    @:PROPAGATE_ERROR(errStatus)
 
     !! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
-      call dumpHSD(hsdTree, hsdParsedInput)
+      call dumpHSD(hsdTree, hsdParsedInput, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       write(stdOut, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdParsedInput // "'"
     end if
 
     !! Stop, if only parsing is required
     if (parserFlags%tStop) then
-      call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
+      @:RAISE_ERROR(errStatus, -1, "Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
     write(stdOut, "(/, A)") "Initialization done..."
 
   end subroutine initProgramVariables
+
 
   !!* destruct the program variables created in initProgramVariables
   subroutine destructProgramVariables()
@@ -402,53 +448,66 @@ contains
   !!* @param node Node to get the information from
   !!* @param root Root of the entire tree (in the case it must be converted)
   !!* @param flags Contains parser flags on exit.
-  subroutine readOptions(node, root, flags)
+  subroutine readOptions(node, root, flags, errStatus)
     type(fnode), pointer :: node
     type(fnode), pointer :: root
     type(TParserFlags), intent(out) :: flags
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: inputVersion
     type(fnode), pointer :: child
 
     !! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
+    call getChildValue(node, "ParserVersion", inputVersion, errStatus, parserVersion, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
-      call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
-          &// ")")
+      call detailedError(child, "Invalid parser version (" // i2c(inputVersion) // ")", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (inputVersion < minVersion) then
-      call detailedError(child, &
-          &"Sorry, no compatibility mode for parser version " &
-          &// i2c(inputVersion) // " (too old)")
+      call detailedError(child, "Sorry, no compatibility mode for parser version "&
+          & // i2c(inputVersion) // " (too old)", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChildValue(node, "WriteAutotestTag", tWriteTagged, .false.)
-    call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
-    call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
+    call getChildValue(node, "WriteAutotestTag", tWriteTagged, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "StopAfterParsing", flags%tStop, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "IgnoreUnprocessedNodes", &
-        &flags%tIgnoreUnprocessed, .false.)
+    call getChildValue(node, "IgnoreUnprocessedNodes", flags%tIgnoreUnprocessed, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readOptions
+
 
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
   !!* @param geo     Contains the geometry information on exit
-  subroutine readGeometry(geonode, geo)
+  subroutine readGeometry(geonode, geo, errStatus)
     type(fnode), pointer :: geonode
     type(TGeometry), intent(out) :: geo
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: child, value
     type(string) :: buffer
 
-    call getChildValue(geonode, "", value, child=child)
+    call getChildValue(geonode, "", value, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value, buffer)
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(value, geo)
+      call readTGeometryGen(value, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
       call setUnprocessed(value)
-      call readTGeometryHSD(child, geo)
+      call readTGeometryHSD(child, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
     if (geo%tPeriodic) then
@@ -460,11 +519,15 @@ contains
 
   end subroutine readGeometry
 
+
   !!* Read geometry information for transport calculation
-  subroutine readTransportGeometry(root, geom, tp)
+  subroutine readTransportGeometry(root, geom, tp, errStatus)
     type(fnode), pointer :: root
     type(TGeometry), intent(inout) :: geom
     type(TTransPar), intent(inout) :: tp
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
     type(string) :: modif
@@ -476,26 +539,34 @@ contains
 
     tp%defined = .true.
     tp%tPeriodic1D = .not. geom%tPeriodic
-    call getChild(root, "Device", pDevice)
-    call getChildValue(pDevice, "AtomRange", tp%idxdevice)
-    call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
-    call readFirstLayerAtoms(pTmp, tp%PL, tp%nPLs, tp%idxdevice)
+    call getChild(root, "Device", pDevice, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(pDevice, "AtomRange", tp%idxdevice, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChild(pDevice, "FirstLayerAtoms", pTmp, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call readFirstLayerAtoms(pTmp, tp%PL, tp%nPLs, tp%idxdevice, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (.not.associated(pTmp)) then
-      call setChildValue(pDevice, "FirstLayerAtoms", tp%PL)
+      call setChildValue(pDevice, "FirstLayerAtoms", tp%PL, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call getChildren(root, "Contact", pNodeList)
     tp%ncont = getLength(pNodeList)
     if (tp%ncont < 2) then
-      call detailedError(pGeom, "At least two contacts must be defined")
+      call detailedError(pGeom, "At least two contacts must be defined", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(tp%contacts(tp%ncont))
     !! Parse contact geometry
-    call readContacts(pNodeList, tp%contacts, geom, .true.)
+    call readContacts(pNodeList, tp%contacts, geom, .true., errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readTransportGeometry
 
+
   !> Reads settings for the first layer atoms in principal layers
-  subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, check)
+  subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, errStatus, check)
 
     type(fnode), pointer, intent(in) :: pnode
 
@@ -508,6 +579,9 @@ contains
     !> Atoms range of the device
     integer, intent(in) :: idxdevice(2)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Optional setting to turn on/off check (defaults to on if absent)
     logical, optional, intent(in) :: check
 
@@ -519,33 +593,39 @@ contains
     if (present(check)) checkidx = check
 
     if (associated(pnode)) then
-        call init(li)
-        call getChildValue(pnode, "", li)
-        npl = len(li)
-        allocate(pls(npl))
-        call asArray(li, pls)
-        call destruct(li)
-        if (checkidx) then
-          if (any(pls < idxdevice(1) .or. &
-                  pls > idxdevice(2))) then
-             call detailedError(pnode, "First layer atoms must be between " &
-               &// i2c(idxdevice(1)) // " and " // i2c(idxdevice(2)) // ".")
-          end if
+      call init(li)
+      call getChildValue(pnode, "", li, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      npl = len(li)
+      allocate(pls(npl))
+      call asArray(li, pls)
+      call destruct(li)
+      if (checkidx) then
+        if (any(pls < idxdevice(1) .or. &
+            pls > idxdevice(2))) then
+          call detailedError(pnode, "First layer atoms must be between " // i2c(idxdevice(1))&
+              & // " and " // i2c(idxdevice(2)) // ".", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
-      else
-         npl = 1
-         allocate(pls(npl))
-         pls = (/ 1 /)
       end if
+    else
+      npl = 1
+      allocate(pls(npl))
+      pls = (/ 1 /)
+    end if
 
   end subroutine readFirstLayerAtoms
 
+
    !> Read bias information, used in Analysis and Green's function solver
-  subroutine readContacts(pNodeList, contacts, geom, upload)
+  subroutine readContacts(pNodeList, contacts, geom, upload, errStatus)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     logical, intent(in) :: upload
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
@@ -559,48 +639,61 @@ contains
       contacts(ii)%wideBandDos = 0.0
 
       call getItem1(pNodeList, ii, pNode)
-      call getChildValue(pNode, "Id", buffer, child=pTmp)
+      call getChildValue(pNode, "Id", buffer, errStatus, child=pTmp)
+      @:PROPAGATE_ERROR(errStatus)
       buffer = tolower(trim(unquote(char(buffer))))
       if (len(buffer) > mc) then
-        call detailedError(pTmp, "Contact id may not be longer than " &
-            &// i2c(mc) // " characters.")
+        call detailedError(pTmp, "Contact id may not be longer than " // i2c(mc) // " characters.",&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       contacts(ii)%name = char(buffer)
       if (any(contacts(1:ii-1)%name == contacts(ii)%name)) then
-        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) &
-            &//  "' already in use")
+        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) //  "' already in use",&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
-      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
-          & child=field)
-      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol)
+      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, errStatus, 1e-5_dp,&
+          & modifier=modif, child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
-      call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      call getContactVectorII(contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol, &
-                              & contacts(ii)%lattice, contacts(ii)%dir)
+      call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, errStatus, child=pTmp)
+      @:PROPAGATE_ERROR(errStatus)
+      call getContactVectorII(contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol,&
+          & contacts(ii)%lattice, contacts(ii)%dir, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
       ! Contact temperatures. Needed
-      call getChildValue(pNode, "Temperature", contacts(ii)%kbT,&
-                         &0.0_dp, modifier=modif, child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, contacts(ii)%kbT)
+      call getChildValue(pNode, "Temperature", contacts(ii)%kbT, errStatus, 0.0_dp, modifier=modif,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, contacts(ii)%kbT, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       if (upload) then
         contacts(ii)%potential = 0.d0
 
-        call getChildValue(pNode, "wideBand", contacts(ii)%wideBand, .false.)
+        call getChildValue(pNode, "wideBand", contacts(ii)%wideBand, errStatus, .false.)
+        @:PROPAGATE_ERROR(errStatus)
         if (contacts(ii)%wideBand) then
-          call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, &
-                             &0.735_dp, modifier=modif, child=field)
-          call convertUnitHsd(char(modif), energyUnits, field,&
-                              &contacts(ii)%wideBandDos)
+          call getChildValue(pNode, 'LevelSpacing', contacts(ii)%wideBandDos, errStatus, 0.735_dp,&
+              & modifier=modif, child=field)
+          @:PROPAGATE_ERROR(errStatus)
+          call convertUnitHsd(char(modif), energyUnits, field, contacts(ii)%wideBandDos, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           !WideBandApproximation is defined as energy spacing between levels
           !In the code the inverse value (Density of states) is used
           !Convert the negf input value. Default is 20.e eV
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
         end if
-        !call getChildValue(pNode, "FermiLevel", contacts(ii)%eFermi,modifier=modif)
-        !call convertUnitHsd(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
+        ! call getChildValue(pNode, "FermiLevel", contacts(ii)%eFermi, errStatus, modifier=modif)
+        ! @:PROPAGATE_ERROR(errStatus)
+        ! call convertUnitHsd(char(modif), energyUnits, pNode, contacts(ii)%eFermi, errStatus)
+        ! @:PROPAGATE_ERROR(errStatus)
         contacts(ii)%eFermi=0.d0
       end if
 
@@ -608,9 +701,10 @@ contains
 
   end subroutine readContacts
 
-      ! Sanity checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVectorII(atomrange, geom, id, pContact, plShiftTol, &
-      &contactVec, contactDir)
+
+  ! Sanity checking of atom ranges and returning contact vector and direction.
+  subroutine getContactVectorII(atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir,&
+      & errStatus)
     integer, intent(in) :: atomrange(2)
     type(TGeometry), intent(in) :: geom
     integer, intent(in) :: id
@@ -618,6 +712,9 @@ contains
     real(dp), intent(in) :: plShiftTol
     real(dp), intent(out) :: contactVec(3)
     integer, intent(out) :: contactDir
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iStart2, iEnd
     logical :: mask(3)
@@ -627,12 +724,14 @@ contains
     iEnd = atomrange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom &
         &.or. iEnd > geom%nAtom .or. iEnd < iStart) then
-      call detailedError(pContact, "Invalid atom range '" // i2c(iStart) &
-          &// " " // i2c(iEnd) // "', values should be between " // i2c(1) &
-          &// " and " // i2c(geom%nAtom) // ".")
+      call detailedError(pContact, "Invalid atom range '" // i2c(iStart) // " " // i2c(iEnd)&
+          & // "', values should be between " // i2c(1) // " and " // i2c(geom%nAtom) // ".",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (mod(iEnd - iStart + 1, 2) /= 0) then
-      call detailedError(pContact, "Nr. of atoms in the contact must be even")
+      call detailedError(pContact, "Nr. of atoms in the contact must be even", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! Determining contact vector
@@ -653,7 +752,7 @@ contains
       write(stdOut,*) 'Z:'
       write(stdOut,*) ((geom%coords(3,iStart:iStart2-1) - geom%coords(3,iStart2:iEnd) &
           &- spread(contactVec(3), dim=1, ncopies=iStart2-iStart)))
-      call error("Contact " // i2c(id) &
+      @:RAISE_ERROR(errStatus, -1, "Contact " // i2c(id) &
           &// " does not consist of two rigidly shifted layers."//new_line('a') &
           &// "Check structure or increase PLShiftTolerance.")
     end if
@@ -662,11 +761,15 @@ contains
 
   end subroutine getContactVectorII
 
+
   !> Used to read atomic masses from SK files
-  subroutine readSKfiles(child, geo, speciesMass)
+  subroutine readSKfiles(child, geo, speciesMass, errStatus)
     type(fnode), pointer :: child
     type(TGeometry), intent(in) :: geo
     real(dp), dimension(:) :: speciesMass
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TOldSKData) :: skData
     type(TListCharLc), allocatable :: skFiles(:)
@@ -684,18 +787,23 @@ contains
         call init(skFiles(iSp1))
     end do
 
-    call getChildValue(child, "", value)
+    call getChildValue(child, "", value, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value, buffer)
 
     select case(char(buffer))
     case ("type2filenames")
-      call getChildValue(value, "Prefix", buffer2, "")
+      call getChildValue(value, "Prefix", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       prefix = unquote(char(buffer2))
-      call getChildValue(value, "Suffix", buffer2, "")
+      call getChildValue(value, "Suffix", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       suffix = unquote(char(buffer2))
-      call getChildValue(value, "Separator", buffer2, "")
+      call getChildValue(value, "Separator", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       separator = unquote(char(buffer2))
-      call getChildValue(value, "LowerCaseTypeName", tLower, .false.)
+      call getChildValue(value, "LowerCaseTypeName", tLower, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
       do iSp1 = 1, geo%nSpecies
         if (tLower) then
           elem1 = tolower(geo%speciesNames(iSp1))
@@ -707,8 +815,9 @@ contains
         call append(skFiles(iSp1), strTmp)
         inquire(file=strTmp, exist=tExist)
         if (.not. tExist) then
-          call detailedError(value, "SK file with generated name '" &
-              &// trim(strTmp) // "' does not exist.")
+          call detailedError(value, "SK file with generated name '" // trim(strTmp)&
+              & // "' does not exist.", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
       end do
     case default
@@ -717,18 +826,20 @@ contains
         strTmp = trim(geo%speciesNames(iSp1)) // "-" &
             &// trim(geo%speciesNames(iSp1))
         call init(lStr)
-        call getChildValue(child, trim(strTmp), lStr, child=child2)
+        call getChildValue(child, trim(strTmp), lStr, errStatus, child=child2)
+        @:PROPAGATE_ERROR(errStatus)
         ! We can't handle selected shells here (also not needed I guess)
         if (len(lStr) /= 1) then
-          call detailedError(child2, "Incorrect number of Slater-Koster &
-              &files")
+          call detailedError(child2, "Incorrect number of Slater-Koster files", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         do ii = 1, len(lStr)
           call get(lStr, strTmp, ii)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
-            call detailedError(child2, "SK file '" // trim(strTmp) &
-                &// "' does not exist'")
+            call detailedError(child2, "SK file '" // trim(strTmp) // "' does not exist'",&
+                & errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           call append(skFiles(iSp1), strTmp)
         end do
@@ -751,10 +862,14 @@ contains
 
   end subroutine readSKfiles
 
-  subroutine readMasses(value, geo, speciesMass)
+
+  subroutine readMasses(value, geo, speciesMass, errStatus)
     type(fnode), pointer :: value
     type(TGeometry), intent(in) :: geo
     real(dp), dimension(:) :: speciesMass
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: child, child2
     type(string) :: modif
@@ -766,8 +881,9 @@ contains
 
     do iSp = 1, geo%nSpecies
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
-      call getChildValue(value, geo%speciesNames(iSp), mass, defmass,&
-               &modifier=modif, child= child2)
+      call getChildValue(value, geo%speciesNames(iSp), mass, errStatus, defmass, modifier=modif,&
+          & child=child2)
+      @:PROPAGATE_ERROR(errStatus)
       speciesMass(iSp) = mass
       write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
             &SpeciesMass(iSp),"a.u."
@@ -775,8 +891,9 @@ contains
 
   end subroutine readMasses
 
+
   !> K-Points
-  subroutine readKPoints(node, geo, tBadIntegratingKPoints)
+  subroutine readKPoints(node, geo, tBadIntegratingKPoints, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -786,6 +903,9 @@ contains
 
     !> Error check
     logical, intent(out) :: tBadIntegratingKPoints
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -803,26 +923,31 @@ contains
 
     ! K-Points
     if (geo%tPeriodic) then
-      call getChildValue(node, "KPointsAndWeights", value1, child=child, &
-          &modifier=modifier)
+      call getChildValue(node, "KPointsAndWeights", value1, errStatus, child=child,&
+          & modifier=modifier)
+      @:PROPAGATE_ERROR(errStatus)
       call getNodeName(value1, buffer)
       select case(char(buffer))
 
       case ("supercellfolding")
         tBadIntegratingKPoints = .false.
         if (len(modifier) > 0) then
-          call detailedError(child, "No modifier is allowed, if the &
-              &SupercellFolding scheme is used.")
+          call detailedError(child, "No modifier is allowed, if the SupercellFolding scheme is&
+              & used.", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
-        call getChildValue(value1, "", coeffsAndShifts)
+        call getChildValue(value1, "", coeffsAndShifts, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
-          call detailedError(value1, "Determinant of the supercell matrix must &
-              &be greater than 1")
+          call detailedError(value1, "Determinant of the supercell matrix must be greater than 1",&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
             &> 1e-6_dp)) then
-          call detailedError(value1, "The components of the supercell matrix &
-              &must be integers.")
+          call detailedError(value1, "The components of the supercell matrix must be integers.",&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
             & kPoint, kWeight, reduceByInversion=.true.)
@@ -834,9 +959,11 @@ contains
         tBadIntegratingKPoints = .true.
         call init(li1)
         call init(lr1)
-        call getChildValue(value1, "", 1, li1, 3, lr1)
+        call getChildValue(value1, "", 1, li1, 3, lr1, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         if (len(li1) < 1) then
-          call detailedError(value1, "At least one line must be specified.")
+          call detailedError(value1, "At least one line must be specified.", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         allocate(tmpI1(len(li1)))
         allocate(kpts(3, 0:len(lr1)))
@@ -846,13 +973,14 @@ contains
         call destruct(li1)
         call destruct(lr1)
         if (any(tmpI1 < 0)) then
-          call detailedError(value1, "Interval steps must be greater equal to &
-              &zero.")
+          call detailedError(value1, "Interval steps must be greater equal to zero.", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         nKPoints = sum(tmpI1)
         if (nKPoints < 1) then
-          call detailedError(value1, "Sum of the interval steps must be greater &
-              &than zero.")
+          call detailedError(value1, "Sum of the interval steps must be greater than zero.",&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         ii = 1
         do while (tmpI1(ii) == 0)
@@ -879,8 +1007,8 @@ contains
             kPoint(:,:) =  matmul(transpose(geo%latVecs), kPoint)
             kpts(:,:) = matmul(transpose(geo%latVecs), kpts)
           case default
-            call detailedError(child, "Invalid modifier: '" // char(modifier) &
-                &// "'")
+            call detailedError(child, "Invalid modifier: '" // char(modifier) // "'", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end select
         end if
         deallocate(tmpI1)
@@ -892,9 +1020,11 @@ contains
         tBadIntegratingKPoints = .false.
 
         call init(lr1)
-        call getChildValue(child, "", 4, lr1, modifier=modifier)
+        call getChildValue(child, "", 4, lr1, errStatus, modifier=modifier)
+        @:PROPAGATE_ERROR(errStatus)
         if (len(lr1) < 1) then
-          call detailedError(child, "At least one k-point must be defined.")
+          call detailedError(child, "At least one k-point must be defined.", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         nKPoints = len(lr1)
         allocate(kpts(4, nKPoints))
@@ -907,8 +1037,8 @@ contains
           case ("absolute")
             kpts(1:3,:) =  matmul(transpose(geo%latVecs), kpts(1:3,:))
           case default
-            call detailedError(child, "Invalid modifier: '" // char(modifier) &
-                &// "'")
+            call detailedError(child, "Invalid modifier: '" // char(modifier) // "'", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end select
         end if
         allocate(kPoint(3, nKPoints))
@@ -917,20 +1047,28 @@ contains
         kWeight(:) = kpts(4, :)
         deallocate(kpts)
       case default
-        call detailedError(value1, "Invalid K-point scheme")
+        call detailedError(value1, "Invalid K-point scheme", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end select
     end if
 
   end subroutine readKPoints
 
-  subroutine  readKPointsFile(child)
-    type(fnode),  pointer ::  child
+
+  subroutine readKPointsFile(child, errStatus)
+    type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: text
 
-    call getFirstTextChild(child, text)
+    call getFirstTextChild(child, text, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call readKPointsFile_help(child, char(text))
 
-  end subroutine  readKPointsFile
+  end subroutine readKPointsFile
+
 
   subroutine readKPointsFile_help(child,text)
     type(fnode),  pointer ::  child
@@ -972,8 +1110,12 @@ contains
   !>  ---------- + --------- + --------- + ---------- + ---------- +...
   !>  dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
   !>
-  subroutine readDftbHessian(child)
+  subroutine readDftbHessian(child, errStatus)
+
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll
@@ -985,13 +1127,15 @@ contains
     type(string) :: filename
     logical :: texist
 
-    call getChildValue(child, "Filename", filename, "hessian.out")
+    call getChildValue(child, "Filename", filename, errStatus, "hessian.out")
+    @:PROPAGATE_ERROR(errStatus)
 
     inquire(file=trim(char(filename)), exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
     else
-      call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
+      call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     nDerivs = 3 * nMovedAtom
@@ -1024,8 +1168,13 @@ contains
 
   end subroutine readDftbHessian
 
-  subroutine readDynMatrix(child)
+
+  subroutine readDynMatrix(child, errStatus)
+
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll
@@ -1044,19 +1193,25 @@ contains
     write(stdOut, "(/, A)") "read dynamical matrix..."
 
     call init(realBuffer)
-    call getChildValue(child, "", nDerivs, realBuffer)
+    call getChildValue(child, "", nDerivs, realBuffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (len(realBuffer)/=nDerivs) then
-      call detailedError(child,"wrong number of derivatives supplied:" &
-          & // i2c(len(realBuffer)) // " supplied, " &
-          & // i2c(nDerivs) // " required.")
+      call detailedError(child,"wrong number of derivatives supplied:" // i2c(len(realBuffer))&
+          & // " supplied, " // i2c(nDerivs) // " required.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call asArray(realBuffer, dynMatrix)
     call destruct(realBuffer)
 
   end subroutine readDynMatrix
 
-  subroutine readCp2kHessian(child)
+
+  subroutine readCp2kHessian(child, errStatus)
+
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll
@@ -1071,12 +1226,15 @@ contains
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
-    call getChildValue(child, "Filename", filename, "hessian.cp2k")
+    call getChildValue(child, "Filename", filename, errStatus, "hessian.cp2k")
+    @:PROPAGATE_ERROR(errStatus)
     inquire(file=trim(char(filename)), exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
     else
-      call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
+      call detailedError(child, "Hessian file " // trim(char(filename)) // " does not exist",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     !The derivatives matrix must be stored as the following order:
@@ -1122,6 +1280,7 @@ contains
 
   end subroutine readCp2kHessian
 
+
   ! Subroutine removing entries in the Dynamical Matrix.
   ! Not used because identified as a wrong way
   subroutine selectModes()
@@ -1165,42 +1324,55 @@ contains
 
   end subroutine selectModes
 
-  !! Reads the Analysis block.
-  subroutine readAnalysis(node, geo, pdos, tundos, transpar, atTemperature)
+
+  !> Reads the Analysis block.
+  subroutine readAnalysis(node, geo, pdos, tundos, transpar, atTemperature, errStatus)
     type(fnode), pointer :: node, pnode
     type(TGeometry), intent(in) :: geo
     type(TPdos), intent(inout) :: pdos
     type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
-    real(dp) :: atTemperature, TempRange(2)
+    real(dp) :: atTemperature
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    real(dp) :: TempRange(2)
 
     type(fnode), pointer :: val, child, field
     type(string) :: modif
     type(fnodeList), pointer :: children
     logical :: tBadKpoints
 
-    call getChild(node, "TunnelingAndDOS", child, requested=.false.)
+    call getChild(node, "TunnelingAndDOS", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(child)) then
       if (.not.tTransport) then
-        call detailedError(node, "Tunneling requires Transport block")
+        call detailedError(node, "Tunneling requires Transport block", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call readTunAndDos(child, geo, tundos, transpar, maxval(transpar%contacts(:)%kbT) )
+      call readTunAndDos(child, geo, tundos, transpar, maxval(transpar%contacts(:)%kbT), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     endif
 
     !call readKPoints(node, geo, tBadKpoints)
 
-    call getChild(node, "Conductance", child, requested=.false.)
+    call getChild(node, "Conductance", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(child)) then
       if (.not.tTransport) then
-        call detailedError(node, "Conductance requires Transport block")
+        call detailedError(node, "Conductance requires Transport block", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getChildValue(child, "TempRange", TempRange, modifier=modif,&
-      & child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, TempRange)
+      call getChildValue(child, "TempRange", TempRange, errStatus, modifier=modif, child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, TempRange, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
-      call getChildValue(child, "TempStep", TempStep, modifier=modif,&
-      & child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, TempStep)
+      call getChildValue(child, "TempStep", TempStep, errStatus, modifier=modif, child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, TempStep, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
        TempMin = TempRange(1)
        TempMax = TempRange(2)
@@ -1208,11 +1380,16 @@ contains
 
   end subroutine readAnalysis
 
-  subroutine readPDOSRegions(children, geo, iAtInregion, regionLabels)
+
+  subroutine readPDOSRegions(children, geo, iAtInregion, regionLabels, errStatus)
+
     type(fnodeList), pointer :: children
     type(TGeometry), intent(in) :: geo
     type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
     character(lc), allocatable, intent(out) :: regionLabels(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: nReg, iReg
     integer, allocatable :: tmpI1(:)
@@ -1225,26 +1402,33 @@ contains
     allocate(iAtInRegion(nReg))
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
-      call getChildValue(child, "Atoms", buffer, child=child2, &
-          & multiple=.true.)
-      call getSelectedAtomIndices(child2, char(buffer), geo%speciesNames, geo%species, tmpI1)
+      call getChildValue(child, "Atoms", buffer, errStatus, child=child2, multiple=.true.)
+      @:PROPAGATE_ERROR(errStatus)
+      call getSelectedAtomIndices(child2, char(buffer), geo%speciesNames, geo%species, tmpI1,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       iAtInRegion(iReg)%data = tmpI1
       write(strTmp, "('region',I0)") iReg
-      call getChildValue(child, "Label", buffer, trim(strTmp))
+      call getChildValue(child, "Label", buffer, errStatus, trim(strTmp))
+      @:PROPAGATE_ERROR(errStatus)
       regionLabels(iReg) = unquote(char(buffer))
     end do
 
   end subroutine readPDOSRegions
 
+
   !!* Read Tunneling and Dos options from analysis block
   !!* tundos is the container to be filled
   !!* ncont is needed for contact option allocation
-  subroutine readTunAndDos(root, geo, tundos, transpar, temperature)
+  subroutine readTunAndDos(root, geo, tundos, transpar, temperature, errStatus)
     type(fnode), pointer :: root
     type(TGeometry), intent(in) :: geo
     type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
     real(dp), intent(in) :: temperature
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: pNode, pTmp, field
     type(fnodeList), pointer :: pNodeList
@@ -1257,9 +1441,12 @@ contains
 
     tundos%defined = .true.
     ncont = transpar%ncont
-    call getChildValue(root, "Verbosity", tundos%verbose, 51)
-    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .true.)
-    call getChildValue(root, "WriteTunn", tundos%writeTunn, .true.)
+    call getChildValue(root, "Verbosity", tundos%verbose, errStatus, 51)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "WriteLDOS", tundos%writeLDOS, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "WriteTunn", tundos%writeTunn, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Default meaningful: eRange= (0..10*kT]
     ! nKT is set to GreensFunction default, i.e. 10
@@ -1270,26 +1457,33 @@ contains
     eRangeDefault(1) = 0.0001_dp
     eRangeDefault(2) = nKT * temperature
 
-    call getChildValue(root, "FreqRange", eRange, eRangeDefault, &
-         & modifier=modif, child=field)
-    call convertUnitHsd(char(modif), energyUnits, field, eRange)
+    call getChildValue(root, "FreqRange", eRange, errStatus, eRangeDefault, modifier=modif,&
+        & child=field)
+    @:PROPAGATE_ERROR(errStatus)
+    call convertUnitHsd(char(modif), energyUnits, field, eRange, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     tundos%emin = eRange(1)
     tundos%emax = eRange(2)
 
     if (eRange(1).le.0.d0) then
-       call detailedError(root, "FreqRange must be > 0")
+      call detailedError(root, "FreqRange must be > 0", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (eRange(2).lt.eRange(1)) then
-       call detailedError(root, "Emax < Emin")
+      call detailedError(root, "Emax < Emin", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChildValue(root, "FreqStep", tundos%estep, 1.0e-5_dp,  &
-       & modifier=modif, child=field)
+    call getChildValue(root, "FreqStep", tundos%estep, errStatus, 1.0e-5_dp, modifier=modif,&
+        & child=field)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call convertUnitHsd(char(modif), energyUnits, field, tundos%estep)
+    call convertUnitHsd(char(modif), energyUnits, field, tundos%estep, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Terminal currents
-    call getChild(root, "TerminalCurrents", pTmp, requested=.false.)
+    call getChild(root, "TerminalCurrents", pTmp, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (associated(pTmp)) then
       call getChildren(pTmp, "EmitterCollector", pNodeList)
@@ -1297,19 +1491,22 @@ contains
       allocate(tundos%nf(getLength(pNodeList)))
       do ii = 1, getLength(pNodeList)
         call getItem1(pNodeList, ii, pNode)
-        call getEmitterCollectorByName(pNode, tundos%ni(ii),&
-            & tundos%nf(ii), transpar%contacts(:)%name)
+        call getEmitterCollectorByName(pNode, tundos%ni(ii), tundos%nf(ii),&
+            & transpar%contacts(:)%name, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end do
       call destroyNodeList(pNodeList)
     else
       allocate(tundos%ni(ncont-1) )
       allocate(tundos%nf(ncont-1) )
-      call setChild(root, "TerminalCurrents", pTmp)
+      call setChild(root, "TerminalCurrents", pTmp, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       ind = 1
       do ii = 1, 1
         do jj = ii + 1, ncont
-          call setChildValue(pTmp, "EmitterCollector", &
-              &(/ transpar%contacts(ii)%name, transpar%contacts(jj)%name /))
+          call setChildValue(pTmp, "EmitterCollector", [transpar%contacts(ii)%name,&
+              & transpar%contacts(jj)%name], errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           tundos%ni(ind) = ii
           tundos%nf(ind) = jj
           ind = ind + 1
@@ -1317,21 +1514,26 @@ contains
       end do
     end if
 
-    call getChild(root, "DeltaModel", pNode)
-    call readDeltaModel(pNode, tundos)
+    call getChild(root, "DeltaModel", pNode, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readDeltaModel(pNode, tundos, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
-        &0.0_dp, modifier=modif, child=field)
-    call convertUnitHsd(char(modif), energyUnits, field, &
-        &tundos%broadeningDelta)
+    call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, errStatus, 0.0_dp,&
+        & modifier=modif, child=field)
+    @:PROPAGATE_ERROR(errStatus)
+    call convertUnitHsd(char(modif), energyUnits, field, tundos%broadeningDelta, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     call getChildren(root, "Region", pNodeList)
-    call readPDOSRegions(pNodeList, geo, iAtInRegion, regionLabelPrefixes)
+    call readPDOSRegions(pNodeList, geo, iAtInRegion, regionLabelPrefixes, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call destroyNodeList(pNodeList)
 
     call addAtomResolvedRegion(tundos%dosOrbitals, tundos%dosLabels)
 
-    call setTypeOfModes(root, transpar)
+    call setTypeOfModes(root, transpar, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
 
     contains
@@ -1366,14 +1568,18 @@ contains
 
       end subroutine addAtomResolvedRegion
 
-
   end subroutine readTunAndDos
 
+
   ! Get contacts for terminal currents by name
-  subroutine getEmitterCollectorByName(pNode, emitter, collector, contactNames)
+  subroutine getEmitterCollectorByName(pNode, emitter, collector, contactNames, errStatus)
+
     type(fnode), pointer :: pNode
     integer, intent(out) :: emitter, collector
     character(len=*), intent(in) :: contactNames(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TListString) :: lString
     character(len=mc) :: buffer
@@ -1381,24 +1587,33 @@ contains
     logical :: tFound
 
     call init(lString)
-    call getChildValue(pNode, "", lString)
+    call getChildValue(pNode, "", lString, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (len(lString) /= 2) then
-      call detailedError(pNode, "You must provide two contacts")
+      call detailedError(pNode, "You must provide two contacts", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call get(lString, buffer, 1)
-    emitter = getContactByName(contactNames, buffer, pNode)
+    call getContactByName(contactNames, buffer, pNode, emitter, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call get(lString, buffer, 2)
-    collector = getContactByName(contactNames, buffer, pNode)
+    call getContactByName(contactNames, buffer, pNode, collector, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call destruct(lString)
 
   end subroutine getEmitterCollectorByName
 
-  ! Getting the contact by name
-  function getContactByName(contactNames, contName, pNode) result(contact)
+
+  !> Getting the contact by name.
+  subroutine getContactByName(contactNames, contName, pNode, contact, errStatus)
+
     character(len=*), intent(in) :: contactNames(:)
     character(len=*), intent(in) :: contName
     type(fnode), pointer :: pNode
-    integer :: contact
+    integer, intent(out) :: contact
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     logical :: tFound
 
@@ -1410,51 +1625,69 @@ contains
       end if
     end do
     if (.not. tFound) then
-      call detailedError(pNode, "Invalid collector contact name '" &
-          &// trim(contName) // "'")
+      call detailedError(pNode, "Invalid collector contact name '" // trim(contName) // "'",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-  end function getContactByName
+  end subroutine getContactByName
+
 
   ! Set model for w-dependent delta in G.F.
-  subroutine readDeltaModel(root, tundos)
+  subroutine readDeltaModel(root, tundos, errStatus)
+
     type(fnode), pointer :: root
     type(TNEGFTunDos), intent(inout) :: tundos
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: pValue, pChild, field
     type(string) :: buffer, modif
 
-    call getChildValue(root, "", pValue, child=pChild)
+    call getChildValue(root, "", pValue, errStatus, child=pChild)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(pValue, buffer)
     ! Delta is repeated to allow different defaults if needed
     select case (trim(char(buffer)))
     case("deltasquared")
-      call getChildValue(pValue, "Delta", tundos%delta, &
-          &0.0001_dp, modifier=modif, child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
+      call getChildValue(pValue, "Delta", tundos%delta, errStatus, 0.0001_dp, modifier=modif,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       tundos%deltaModel=0
     case("deltaomega")
-      call getChildValue(pValue, "Delta", tundos%delta, &
-          &0.0001_dp, modifier=modif, child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
+      call getChildValue(pValue, "Delta", tundos%delta, errStatus, 0.0001_dp, modifier=modif,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       tundos%deltaModel=1
     case("mingo")
       ! As in Numerical Heat transfer, Part B, 51:333, 2007, Taylor&Francis.
       ! Here Delta is just a dimensionless scaling factor
-      call getChildValue(pValue, "Delta", tundos%delta, 0.0001_dp)
+      call getChildValue(pValue, "Delta", tundos%delta, errStatus, 0.0001_dp)
+      @:PROPAGATE_ERROR(errStatus)
       ! We set a cutoff frequency of 2000 cm^-1.
-      call getChildValue(pValue, "Wmax", tundos%wmax, &
-          &0.009_dp, modifier=modif, child=field)
-      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta)
+      call getChildValue(pValue, "Wmax", tundos%wmax, errStatus, 0.009_dp, modifier=modif,&
+          & child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), energyUnits, field, tundos%delta, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       tundos%deltaModel=2
       ! If Emax >> Wmax delta becomes negative
       if (tundos%Emax > tundos%Wmax) then
-        call detailedError(pValue,"In Mingo model check Wmax <= Emax")
+        call detailedError(pValue,"In Mingo model check Wmax <= Emax", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     case default
-      call detailedError(pValue,"Unknown deltaModel "//trim(char(buffer)))
+      call detailedError(pValue, "Unknown deltaModel " // trim(char(buffer)), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
+
   end subroutine ReadDeltaModel
+
 
   ! Build a simple neighbor list. Currently does not work for periodic systems.
   ! Have to fix this important point
@@ -1491,9 +1724,7 @@ contains
 
     call updateNeighbourList(coords, img2CentCell, iCellVec, neighbourList, &
         &nAllAtom, geo%coords, mCutoff, rCellVec, errStatus, symmetric=.false.)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    @:PROPAGATE_ERROR(errStatus)
 
     deallocate(coords)
     deallocate(iCellVec)
@@ -1519,6 +1750,7 @@ contains
     end do
 
   end subroutine buildNeighbourList
+
 
   subroutine cutDynMatrix()
 
@@ -1546,6 +1778,7 @@ contains
 
   end subroutine cutDynMatrix
 
+
   function getPL(iAt) result(PL)
     integer, intent(in) :: iAt
     integer :: PL
@@ -1566,15 +1799,21 @@ contains
 
   end function getPL
 
+
   !> select family of modes to analyze and restrict transmission
-  subroutine setTypeOfModes(root, transpar)
+  subroutine setTypeOfModes(root, transpar, errStatus)
+
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: transpar
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(string) :: buffer
 
     !selecting the type of modes you want to analyze
-    call getchildValue(root, "ModeType", buffer, "all")
+    call getchildValue(root, "ModeType", buffer, errStatus, "all")
+    @:PROPAGATE_ERROR(errStatus)
     select case(trim(char(buffer)))
     case("all")
       selTypeModes = modeEnum%ALLMODES
@@ -1586,44 +1825,61 @@ contains
       selTypeModes = modeEnum%ZZ
     case("longitudinal")
       selTypeModes = modeEnum%LONGITUDINAL
-      call checkTypeOfModes(root, transpar)
+      call checkTypeOfModes(root, transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case("transverse")
       selTypeModes = modeEnum%TRANSVERSE
-      call checkTypeOfModes(root, transpar)
+      call checkTypeOfModes(root, transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case("in-plane")
       selTypeModes = modeEnum%INPLANE
-      call checkTypeOfModes(root, transpar)
+      call checkTypeOfModes(root, transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case("out-of-plane")
       selTypeModes = modeEnum%OUTOFPLANE
-      call checkTypeOfModes(root, transpar)
+      call checkTypeOfModes(root, transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
-      call detailedError(root,"Unknown type of modes")
+      call detailedError(root, "Unknown type of modes", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
     transpar%typeModes = selTypeModes
 
   end subroutine setTypeOfModes
 
+
   !> Check that the geometry orientation is consistent with selTypeModes
   !> Currently only checks that transport direction is along z
-  subroutine checkTypeOfModes(root, tp)
+  subroutine checkTypeOfModes(root, tp, errStatus)
+
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: tp
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     select case (selTypeModes)
     case(modeEnum%LONGITUDINAL, modeEnum%TRANSVERSE)
-      call checkAlongZ(root, tp)
+      call checkAlongZ(root, tp, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case(modeEnum%INPLANE, modeEnum%OUTOFPLANE)
-      call checkAlongZ(root, tp)
+      call checkAlongZ(root, tp, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
     end select
 
   end subroutine checkTypeOfModes
 
+
   ! check that transport direction is along z
-  subroutine checkAlongZ(root, tp)
+  subroutine checkAlongZ(root, tp, errStatus)
+
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: tp
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: contactVec(3)
     logical :: mask(3)
@@ -1634,11 +1890,10 @@ contains
       ! Determine to which axis the contact vector is parallel.
       mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
       if (count(mask) /= 1 .or. .not.mask(3)) then
-        call detailedError(root,"Transport direction is not along z")
+        call detailedError(root,"Transport direction is not along z", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end do
   end subroutine checkAlongZ
-
-
 
 end module phonons_initphonons

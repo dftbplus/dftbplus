@@ -1,0 +1,201 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
+#:include 'common.fypp'
+#:include 'error.fypp'
+
+!> example code for adding external charges to a water molecule calculation
+program test_extcharges
+  use, intrinsic :: iso_fortran_env, only : output_unit
+  use dftbplus
+  use dftbp_common_constants, only : AA__Bohr
+  use dftbp_common_status, only : TStatus
+  use dftbp_io_message, only : error
+  ! Only needed for the internal test system
+  use testhelpers, only : writeAutotestTag
+  implicit none
+
+
+  !> Error status
+  type(TStatus) :: errStatus
+
+  call main(errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
+
+
+contains
+
+  subroutine main(errStatus)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    integer, parameter :: dp = kind(1.0d0)
+
+    integer, parameter :: nAtom = 3
+
+    integer, parameter :: nExtChrg = 2
+
+    ! H2O coordinates, atomic units
+    real(dp), parameter :: initialCoords(3, nAtom) = reshape([&
+        & 0.000000000000000E+00_dp, -0.188972598857892E+01_dp,  0.000000000000000E+00_dp,&
+        & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp,  0.147977639152057E+01_dp,&
+        & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp, -0.147977639152057E+01_dp],&
+        & [3, nAtom])
+
+    ! Atomic number of each atom
+    integer, parameter :: atomTypes(nAtom) = [8, 1, 1]
+
+    ! list of atoms by atomic number
+    character(2), parameter :: atomTypeNames(10) = [character(2) ::&
+        & "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
+
+    ! External charges (positions and charges, again atomic units)
+    real(dp), parameter :: extCharges(4, nExtChrg) = reshape([&
+        &-0.94486343888717805E+00_dp,-0.94486343888717794E+01_dp, 0.17007541899969201E+01_dp, 2.5_dp,&
+        & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
+        &], [4, nExtChrg])
+
+    !> (optional variable to API call) sets widths of Gaussians to convolve with external charges
+    !> (again set in a.u.). For this particular test, these choices are essentially still point
+    !> charges:
+    real(dp), parameter :: extChargeBlur(nExtChrg) = [0.1_dp, 0.2_dp]
+
+    character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
+        & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
+
+    character(1), parameter :: maxAngNames(4) = ["s", "p", "d", "f"]
+
+
+    type(TDftbPlus) :: dftbp
+    type(TDftbPlusInput) :: input
+
+    integer, allocatable :: species(:)
+    character(2), allocatable :: speciesNames(:)
+    real(dp) :: merminEnergy
+    real(dp) :: coords(3, nAtom), gradients(3, nAtom), atomMasses(nAtom)
+    real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg)
+    type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis, pCm5
+    type(fnode), pointer :: pParserOpts
+
+    character(:), allocatable :: DftbVersion
+    integer :: major, minor, patch
+
+    call getDftbPlusBuild(DftbVersion)
+    write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+    call getDftbPlusApi(major, minor, patch)
+    write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
+
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
+    !open(newunit=devNull, file="/dev/null", action="write")
+    !call TDftbPlus_init(dftbp, outputUnit=devNull)
+    call TDftbPlus_init(dftbp)
+
+    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder.
+    ! These can be downloaded with the utils/get_opt_externals script
+    call dftbp%getEmptyInput(input)
+    call input%getRootNode(pRoot)
+    call setChild(pRoot, "Geometry", pGeo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pGeo, "Periodic", .false., errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    ! Demonstrates how to convert the atom types if they are not numbered from 1 but use atomic
+    ! numbers instead. The atomTypeNames array is optional, if not present, the resulting type names
+    ! (which will have to be used at other places) will be X1, X2, etc.
+    print "(A)", "Converting atom types"
+    call convertAtomTypesToSpecies(atomTypes, species, speciesNames, atomTypeNames)
+
+    call setChildValue(pGeo, "TypeNames", speciesNames, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    coords(:,:) = 0.0_dp
+    call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pRoot, "Hamiltonian", pHam, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pHam, "Dftb", pDftb, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pDftb, "Scc", .true., errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pDftb, "SccTolerance", 1e-12_dp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pDftb, "MaxAngularMomentum", pMaxAng, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    ! read angular momenta from SK data
+    call setChildValue(pMaxAng, speciesNames(1),&
+        & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pMaxAng, speciesNames(2),&
+        & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    ! set up locations for SK file data
+    call setChild(pDftb, "SlaterKosterFiles", pSlakos, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pSlakos, "O-O", trim(slakoFiles(1, 1)), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pSlakos, "H-O", trim(slakoFiles(2, 1)), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pRoot, "Analysis", pAnalysis, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pAnalysis, "CalculateForces", .true., errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pAnalysis, "CM5", pCm5, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChild(pRoot, "ParserOptions", pParserOpts, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pParserOpts, "ParserVersion", 5, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+
+    print "(A)", 'Input tree in HSD format:'
+    call dumpHsd(input%hsdTree, output_unit)
+
+    ! convert input into settings for the DFTB+ calculator
+    call dftbp%setupCalculator(input)
+
+    ! add external charges
+    call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:), extChargeBlur)
+
+    ! replace QM atom coordinates
+    coords(:,:) = initialCoords
+    call dftbp%setGeometry(coords)
+
+    ! get energy, charges and forces
+    call dftbp%getEnergy(merminEnergy)
+    call dftbp%getGradients(gradients)
+    call dftbp%getExtChargeGradients(extChargeGrads)
+    call dftbp%getGrossCharges(atomCharges)
+    call dftbp%getCM5Charges(cm5Charges)
+    call dftbp%getAtomicMasses(atomMasses)
+
+
+    print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
+    print "(A,3F15.10)", 'Obtained gross charges:', atomCharges
+    print "(A,3F15.10)", 'Obtained CM5 charges:', cm5Charges
+    print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
+    print "(A,3F15.10)", 'Obtained gradient of atom 2:', gradients(:,2)
+    print "(A,3F15.10)", 'Obtained gradient of atom 3:', gradients(:,3)
+    print "(A,3F15.10)", 'Obtained gradient of charge 1:', extChargeGrads(:,1)
+    print "(A,3F15.10)", 'Obtained gradient of charge 2:', extChargeGrads(:,2)
+
+    ! clean up
+    call TDftbPlus_destruct(dftbp)
+
+    ! Write file for internal test system
+    call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&
+        & extChargeGradients=extChargeGrads, atomMasses=atomMasses, cm5Charges=cm5Charges)
+
+  end subroutine main
+
+end program test_extcharges

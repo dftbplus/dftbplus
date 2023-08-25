@@ -6,12 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module transporttools_parser
   use dftbp_common_accuracy, only : dp, mc, lc, distFudge, distFudgeOld
   use dftbp_common_constants, only : Bohr__AA
   use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
   use dftbp_dftbplus_oldcompat, only : convertOldHsd
@@ -22,7 +24,7 @@ module transporttools_parser
   use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, getSelectedAtomIndices,&
       & detailedError, detailedWarning
   use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_math_simplealgebra, only: cross3, determinant33
   use dftbp_transport_negfvars, only : TTransPar, ContactInfo
   use dftbp_type_linkedlist, only : TListReal, TListString, TListCharLc, init, destruct, len, get,&
@@ -85,10 +87,13 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdInput(input)
+  subroutine parseHsdInput(input, errStatus)
 
     !> Returns initialised input variables on exit
     type(TInputData), intent(out) :: input
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: hsdTree
     type(fnode), pointer :: root, tmp, child, dummy
@@ -97,29 +102,36 @@ contains
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
-    call parseHSD(rootTag, hsdInputName, hsdTree)
-    call getChild(hsdTree, rootTag, root)
+    call parseHSD(rootTag, hsdInputName, hsdTree, errStatus)
+    call getChild(hsdTree, rootTag, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     write(stdout, "(A)") repeat("-", 80)
 
     ! Handle parser options
-    call getChildValue(root, "ParserOptions", dummy, "", child=child, &
-        &list=.true., allowEmptyValue=.true., dummyValue=.true.)
-    call readParserOptions(child, root, parserFlags)
+    call getChildValue(root, "ParserOptions", dummy, errStatus, "", child=child,&
+        & list=.true., allowEmptyValue=.true., dummyValue=.true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call readParserOptions(child, root, parserFlags, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Read in the different blocks
 
     ! Atomic geometry and boundary conditions
-    call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, input)
+    call getChild(root, "Geometry", tmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readGeometry(tmp, input, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChild(root, "Transport", child, requested=.false.)
+    call getChild(root, "Transport", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Read in transport and modify geometry if it is only a contact calculation
     if (associated(child)) then
-      call readTransportGeometry(child, input%geom, input%transpar)
+      call readTransportGeometry(child, input%geom, input%transpar, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       input%transpar%ncont=0
       allocate(input%transpar%contacts(0))
@@ -131,18 +143,20 @@ contains
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(root, errStatus, tIgnoreUnprocessed=parserFlags%tIgnoreUnprocessed)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
-      call dumpHSD(hsdTree, hsdProcInputName)
+      call dumpHSD(hsdTree, hsdProcInputName, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
 
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
-      call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
+      @:RAISE_ERROR(errStatus, -1, "Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
     call destroyNode(hsdTree)
@@ -153,7 +167,7 @@ contains
 
 
   !> Read in parser options (options not passed to the main code)
-  subroutine readParserOptions(node, root, flags)
+  subroutine readParserOptions(node, root, flags, errStatus)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -165,28 +179,34 @@ contains
     !> Contains parser flags on exit.
     type(TParserFlags), intent(out) :: flags
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     integer :: inputVersion
     type(fnode), pointer :: child
 
     ! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
+    call getChildValue(node, "ParserVersion", inputVersion, errStatus, parserVersion, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
-      call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
-          &// ")")
+      call detailedError(child, "Invalid parser version (" // i2c(inputVersion) // ")", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (inputVersion < minVersion) then
-      call detailedError(child, &
-          &"Sorry, no compatibility mode for parser version " &
-          &// i2c(inputVersion) // " (too old)")
+      call detailedError(child, "Sorry, no compatibility mode for parser version "&
+          & // i2c(inputVersion) // " (too old)", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (inputVersion /= parserVersion) then
       write(stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
           &inputVersion, " to version ", parserVersion, " ..."
-      call convertOldHSD(root, inputVersion, parserVersion)
+      call convertOldHSD(root, inputVersion, parserVersion, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       write(stdout, "(A,/)") "***  Done."
     end if
 
-    call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
-    call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
+    call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "WriteXMLInput", flags%tWriteXML, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
       call detailedWarning(node, &
           &"WriteHSDInput and WriteXMLInput both turned off. You are not&
@@ -195,16 +215,17 @@ contains
           &" to able to obtain the same results with a later version of the&
           & code!")
     end if
-    call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
+    call getChildValue(node, "StopAfterParsing", flags%tStop, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "IgnoreUnprocessedNodes", &
-        &flags%tIgnoreUnprocessed, .false.)
+    call getChildValue(node, "IgnoreUnprocessedNodes", flags%tIgnoreUnprocessed, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readParserOptions
 
 
   !> Read in Geometry
-  subroutine readGeometry(node, input)
+  subroutine readGeometry(node, input, errStatus)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -212,24 +233,30 @@ contains
     !> Input structure to be filled
     type(TInputData), intent(inout) :: input
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: value1, child
     type(string) :: buffer
 
-    call getChildValue(node, "", value1, child=child)
+    call getChildValue(node, "", value1, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value1, buffer)
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(value1, input%geom)
+      call readTGeometryGen(value1, input%geom, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     case default
       call setUnprocessed(value1)
-      call readTGeometryHSD(child, input%geom)
+      call readTGeometryHSD(child, input%geom, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
 
   end subroutine readGeometry
 
 
   !> Read geometry information for transport calculation
-  subroutine readTransportGeometry(root, geom, transpar)
+  subroutine readTransportGeometry(root, geom, transpar, errStatus)
 
     !> Root node containing the current block
     type(fnode), pointer :: root
@@ -239,6 +266,9 @@ contains
 
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: pDevice, pTask, pTaskType
     type(string) :: buffer
@@ -255,34 +285,43 @@ contains
     !! mandatory contact entries. On the other hand we need to wait that
     !! contacts are parsed to resolve the name of the contact for task =
     !! contacthamiltonian
-    call getChildValue(root, "Task", pTask, child=pTaskType, default='uploadcontacts')
+    call getChildValue(root, "Task", pTask, errStatus, child=pTaskType, default='uploadcontacts')
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(pTask, buffer)
 
     if (char(buffer).ne."setupgeometry") then
-      call getChild(root, "Device", pDevice)
-      call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
+      call getChild(root, "Device", pDevice, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChildValue(pDevice, "AtomRange", transpar%idxdevice, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     if (transpar%ncont < 2) then
-      call detailedError(root, "At least two contacts must be defined")
+      call detailedError(root, "At least two contacts must be defined", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(transpar%contacts(transpar%ncont))
 
     select case (char(buffer))
     case ("setupgeometry")
 
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
-      call getSKcutoff(pTask, geom, skCutoff)
+      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getSKcutoff(pTask, geom, skCutoff, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       write(stdOut,*) 'Maximum SK cutoff:', SKcutoff*Bohr__AA,'(A)'
-      call getChildValue(pTask, "printInfo", printDebug, .false.)
+      call getChildValue(pTask, "printInfo", printDebug, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
       call setupGeometry(geom, iAtInRegion, transpar%contacts, skCutoff, nPLs, printDebug)
 
     case default
 
       call getNodeHSDName(pTask, buffer)
-      call detailedError(pTaskType, "Invalid task '" // char(buffer) // "'")
+      call detailedError(pTaskType, "Invalid task '" // char(buffer) // "'", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
    end select
 
@@ -292,13 +331,16 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, nPLs)
+  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, nPLs, errStatus)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
     type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
     integer, intent(out), allocatable :: nPLs(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: selectionRange(2)
@@ -316,24 +358,33 @@ contains
       contacts(ii)%wideBandDos = 0.0_dp
 
       call getItem1(pNodeList, ii, pNode)
-      call getChildValue(pNode, "Id", buffer, child=pTmp)
+      call getChildValue(pNode, "Id", buffer, errStatus, child=pTmp)
+      @:PROPAGATE_ERROR(errStatus)
       buffer = tolower(trim(unquote(char(buffer))))
       if (len(buffer) > mc) then
-        call detailedError(pTmp, "Contact id may not be longer than " // i2c(mc) // " characters.")
+        call detailedError(pTmp, "Contact id may not be longer than " // i2c(mc) // " characters.",&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       contacts(ii)%name = char(buffer)
       if (any(contacts(1:ii-1)%name == contacts(ii)%name)) then
-        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) &
-            &//  "' already in use")
+        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) //  "' already in use",&
+            & errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
-      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
-          & child=field)
-      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol)
+      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, errStatus, 1e-5_dp,&
+          & modifier=modif, child=field)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "PLsDefined", nPLs(ii))
-        call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
+        call getChildValue(pNode, "PLsDefined", nPLs(ii), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        call getChildValue(pNode, "Atoms", buffer, errStatus, child=pTmp, modifier=modif,&
+            & multiple=.true.)
+        @:PROPAGATE_ERROR(errStatus)
         if (isZeroBased(char(modif))) then
           selectionRange(:) = [0, size(geom%species) - 1]
           ishift = 1
@@ -341,26 +392,29 @@ contains
           selectionRange(:) = [1, size(geom%species)]
           ishift = 0
         end if
-        call getSelectedAtomIndices(pTmp, char(buffer), geom%speciesNames, geom%species, &
-            & iAtInRegion(ii)%data, selectionRange=selectionRange)
+        call getSelectedAtomIndices(pTmp, char(buffer), geom%speciesNames, geom%species,&
+            & iAtInRegion(ii)%data, errStatus, selectionRange=selectionRange)
+        @:PROPAGATE_ERROR(errStatus)
         iAtInRegion(ii)%data = iAtInRegion(ii)%data + ishift
         call init(vecBuffer)
-        call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
+        call getChildValue(pNode, "ContactVector", vecBuffer, errStatus, modifier=modif)
+        @:PROPAGATE_ERROR(errStatus)
         if (len(vecBuffer).eq.3) then
            call asArray(vecBuffer, vec)
-           call convertUnitHsd(char(modif), lengthUnits, pNode, vec)
+           call convertUnitHsd(char(modif), lengthUnits, pNode, vec, errStatus)
+           @:PROPAGATE_ERROR(errStatus)
            ! check vector is along x y or z
            if (count(vec == 0.0_dp) < 2 ) then
-             call error("ContactVector must be along either x, y or z")
+             @:RAISE_ERROR(errStatus, -1, "ContactVector must be along either x, y or z")
            end if
            contacts(ii)%lattice = vec
            contacts(ii)%shiftAccuracy = contactLayerTol
            call destruct(vecBuffer)
         else
-           call error("ContactVector must define three entries")
+           @:RAISE_ERROR(errStatus, -1, "ContactVector must define three entries")
         end if
       else
-        call error("Invalid task for setpugeometry tool")
+        @:RAISE_ERROR(errStatus, -1, "Invalid task for setpugeometry tool")
       end if
 
     end do
@@ -376,7 +430,7 @@ contains
         else if (tolower(trim(chr)) .eq. "zerobased") then
           isZeroBased = .true.
         else
-          call error("Modifier in Atoms " // trim(chr) // " not recongnized")
+          @:RAISE_ERROR(errStatus, -1, "Modifier in Atoms " // trim(chr) // " not recongnized")
         end if
 
       end function isZeroBased
@@ -384,7 +438,7 @@ contains
   end subroutine readContacts
 
 
-  subroutine getSKcutoff(node, geo, mSKCutoff)
+  subroutine getSKcutoff(node, geo, mSKCutoff, errStatus)
     !> Node to get the information from
     type(fnode), pointer :: node
 
@@ -394,24 +448,31 @@ contains
     !> Maximum cutoff distance from sk files
     real(dp), intent(out) :: mSKCutoff
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     ! Locals
     type(fnode), pointer :: child
     integer :: skInterMeth
     logical :: oldSKInter
 
-    call getChildValue(node, "OldSKInterpolation", oldSKInter, .false.)
+    call getChildValue(node, "OldSKInterpolation", oldSKInter, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (oldSKInter) then
       skInterMeth = skEqGridOld
     else
       skInterMeth = skEqGridNew
     end if
 
-    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    call getChild(node, "TruncateSKRange", child, errStatus, requested=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(child)) then
       call warning("Artificially truncating the SK table, this is normally a bad idea!")
-      call SKTruncations(child, mSKCutOff, skInterMeth)
+      call SKTruncations(child, mSKCutOff, skInterMeth, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
-      call readSKFiles(node, geo%nSpecies, geo%speciesNames, mSKCutOff)
+      call readSKFiles(node, geo%nSpecies, geo%speciesNames, mSKCutOff, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     ! The fudge distance is added to get complete cutoff
     select case(skInterMeth)
@@ -426,7 +487,7 @@ contains
   !> Reads Slater-Koster files
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
-  subroutine readSKFiles(node, nSpecies, speciesNames, maxSKcutoff)
+  subroutine readSKFiles(node, nSpecies, speciesNames, maxSKcutoff, errStatus)
     !> Node to get the information from
     type(fnode), pointer :: node
 
@@ -438,6 +499,9 @@ contains
 
     !> Maximum SK cutoff distance obtained from SK files
     real(dp), intent(out) :: maxSKcutoff
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, buffer2
@@ -456,17 +520,22 @@ contains
         call init(skFiles(iSp2, iSp1))
       end do
     end do
-    call getChildValue(node, "SlaterKosterFiles", value1, child=child)
+    call getChildValue(node, "SlaterKosterFiles", value1, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case ("type2filenames")
-      call getChildValue(value1, "Prefix", buffer2, "")
+      call getChildValue(value1, "Prefix", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       prefix = unquote(char(buffer2))
-      call getChildValue(value1, "Suffix", buffer2, "")
+      call getChildValue(value1, "Suffix", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       suffix = unquote(char(buffer2))
-      call getChildValue(value1, "Separator", buffer2, "")
+      call getChildValue(value1, "Separator", buffer2, errStatus, "")
+      @:PROPAGATE_ERROR(errStatus)
       separator = unquote(char(buffer2))
-      call getChildValue(value1, "LowerCaseTypeName", tLower, .false.)
+      call getChildValue(value1, "LowerCaseTypeName", tLower, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
       do iSp1 = 1, nSpecies
         if (tLower) then
           elem1 = tolower(speciesNames(iSp1))
@@ -484,8 +553,9 @@ contains
           call append(skFiles(iSp2, iSp1), strTmp)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
-            call detailedError(value1, "SK file with generated name '" &
-                &// trim(strTmp) // "' does not exist.")
+            call detailedError(value1, "SK file with generated name '" // trim(strTmp)&
+                & // "' does not exist.", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
         end do
       end do
@@ -496,7 +566,8 @@ contains
           strTmp = trim(speciesNames(iSp1)) // "-" &
               &// trim(speciesNames(iSp2))
           call init(lStr)
-          call getChildValue(child, trim(strTmp), lStr, child=child2)
+          call getChildValue(child, trim(strTmp), lStr, errStatus, child=child2)
+          @:PROPAGATE_ERROR(errStatus)
           !if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
           !  call detailedError(child2, "Incorrect number of Slater-Koster &
           !      &files")
@@ -505,8 +576,9 @@ contains
             call get(lStr, strTmp, ii)
             inquire(file=strTmp, exist=tExist)
             if (.not. tExist) then
-              call detailedError(child2, "SK file '" // trim(strTmp) &
-                  &// "' does not exist'")
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' does not exist'",&
+                  & errStatus)
+              @:PROPAGATE_ERROR(errStatus)
             end if
             call append(skFiles(iSp2, iSp1), strTmp)
           end do
@@ -538,7 +610,7 @@ contains
 
 
   !> Options for truncation of the SK data sets at a fixed distance
-  subroutine SKTruncations(node, truncationCutOff, skInterMeth)
+  subroutine SKTruncations(node, truncationCutOff, skInterMeth, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -549,15 +621,22 @@ contains
     !> Method of the sk interpolation
     integer, intent(in) :: skInterMeth
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     logical :: tHardCutOff
     type(fnode), pointer :: field
     type(string) :: modifier
 
     ! Artificially truncate the SK table
-    call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
-    call convertUnitHsd(char(modifier), lengthUnits, field, truncationCutOff)
+    call getChildValue(node, "SKMaxDistance", truncationCutOff, errStatus, modifier=modifier,&
+        & child=field)
+    @:PROPAGATE_ERROR(errStatus)
+    call convertUnitHsd(char(modifier), lengthUnits, field, truncationCutOff, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
+    call getChildValue(node, "HardCutOff", tHardCutOff, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
     if (tHardCutOff) then
       ! Adjust by the length of the tail appended to the cutoff
       select case(skInterMeth)
@@ -569,7 +648,8 @@ contains
     end if
     if (truncationCutOff < epsilon(0.0_dp)) then
       call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
-          & goes to 0")
+          & goes to 0", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine SKTruncations

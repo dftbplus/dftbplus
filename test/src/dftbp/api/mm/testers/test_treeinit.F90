@@ -5,12 +5,16 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+! #:include 'common.fypp'
+! #:include 'error.fypp'
+
 !> Test code which builds the DFTB input tree and then evaluates energy and forces. Example is a
 !> periodic geometry with k-points.
 program test_treeinit
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_common_constants, only : AA__Bohr
+  use dftbp_common_status, only : TStatus
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -33,6 +37,9 @@ program test_treeinit
   ! input settings
   type(TDftbPlusInput) :: input
 
+  !> Error status
+  type(TStatus) :: errStatus
+
   real(dp) :: merminEnergy
   real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), stressTensor(3,3)
 
@@ -41,8 +48,6 @@ program test_treeinit
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch
-
-  !integer :: devNull
 
   call getDftbPlusBuild(DftbVersion)
   write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
@@ -61,28 +66,28 @@ program test_treeinit
   ! default values
   call dftbp%getEmptyInput(input)
   call input%getRootNode(pRoot)
-  call setChild(pRoot, "Geometry", pGeo)
-  call setChildValue(pGeo, "Periodic", .true.)
-  call setChildValue(pGeo, "LatticeVectors", initialLatVecs)
-  call setChildValue(pGeo, "TypeNames", ["Si"])
+  call setChild(pRoot, "Geometry", pGeo, errStatus)
+  call setChildValue(pGeo, "Periodic", .true., errStatus)
+  call setChildValue(pGeo, "LatticeVectors", initialLatVecs, errStatus)
+  call setChildValue(pGeo, "TypeNames", ["Si"], errStatus)
   coords(:,:) = 0.0_dp
-  call setChildValue(pGeo, "TypesAndCoordinates", reshape([1, 1], [1, 2]), coords)
-  call setChild(pRoot, "Hamiltonian", pHam)
-  call setChild(pHam, "Dftb", pDftb)
-  call setChildValue(pDftb, "Scc", .false.)
-  call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
-  call setChildValue(pMaxAng, "Si", "p")
-  call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChildValue(pSlakos, "Si-Si", "./Si-Si.skf")
+  call setChildValue(pGeo, "TypesAndCoordinates", reshape([1, 1], [1, 2]), coords, errStatus)
+  call setChild(pRoot, "Hamiltonian", pHam, errStatus)
+  call setChild(pHam, "Dftb", pDftb, errStatus)
+  call setChildValue(pDftb, "Scc", .false., errStatus)
+  call setChild(pDftb, "MaxAngularMomentum", pMaxAng, errStatus)
+  call setChildValue(pMaxAng, "Si", "p", errStatus)
+  call setChild(pDftb, "SlaterKosterFiles", pSlakos, errStatus)
+  call setChildValue(pSlakos, "Si-Si", "./Si-Si.skf", errStatus)
   call setChildValue(pDftb, "KPointsAndWeights", reshape([&
       &  0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
       & -0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
       &  0.25_dp, -0.25_dp, 0.25_dp, 1.00_dp,&
-      & -0.25_dp, -0.25_dp, 0.25_dp, 1.00_dp], [4, 4]))
-  call setChild(pRoot, "Options", pOptions)
-  call setChildValue(pOptions, "CalculateForces", .true.)
-  call setChild(pRoot, "ParserOptions", pParserOpts)
-  call setChildValue(pParserOpts, "ParserVersion", 3)
+      & -0.25_dp, -0.25_dp, 0.25_dp, 1.00_dp], [4, 4]), errStatus)
+  call setChild(pRoot, "Options", pOptions, errStatus)
+  call setChildValue(pOptions, "CalculateForces", .true., errStatus)
+  call setChild(pRoot, "ParserOptions", pParserOpts, errStatus)
+  call setChildValue(pParserOpts, "ParserVersion", 3, errStatus)
 
   ! print resulting input file, including defaults
   print *, 'Input tree in HSD format:'

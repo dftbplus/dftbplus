@@ -13,7 +13,9 @@ program modes
   use dftbp_common_constants, only : Hartree__cm, pi
   use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_io_formatout, only : writeXYZFormat
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
@@ -39,6 +41,9 @@ program modes
   type(TFileDescr) :: fd
   logical :: isAppend
 
+  ! Error status
+  type(TStatus) :: errStatus
+
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
   type(TMpiEnv) :: mpiEnv
@@ -51,7 +56,8 @@ program modes
 #:endif
 
   ! Allocate resources
-  call initProgramVariables()
+  call initProgramVariables(errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   write(stdout, "(/,A,/)") "Starting main program"
 
   allocate(eigenValues(3 * nMovedAtom))

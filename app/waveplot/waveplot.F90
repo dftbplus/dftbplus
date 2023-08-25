@@ -12,8 +12,10 @@ program waveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
+  use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
   use dftbp_type_typegeometry, only : TGeometry
@@ -61,6 +63,9 @@ program waveplot
   !> Onedimensional integer-valued list of atomic species indices
   type(TListInt) :: speciesList
 
+  !> Error status
+  type(TStatus) :: errStatus
+
   !> Auxiliary variables
   integer :: i1, i2, i3
   integer :: iCell, iLevel, iKPoint, iSpin, iSpinOld, iAtom, iSpecies, iAng, mAng, ind, nBox
@@ -82,7 +87,8 @@ program waveplot
 #:endif
 
   ! Allocate resources
-  call TProgramVariables_init(wp)
+  call TProgramVariables_init(wp, errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   write(stdout, "(/,A,/)") "Starting main program"
 
   ! Allocating buffer for general grid, total charge and spin up
