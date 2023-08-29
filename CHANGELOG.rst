@@ -17,7 +17,6 @@ Added
 
 - CI optimizer to locate conical intersections
 
-
 Changed
 -------
 

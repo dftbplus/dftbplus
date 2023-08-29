@@ -380,6 +380,26 @@ void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
 
 
 /**
+ * Queries the reference valence charges of the atoms (effective Z).
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] charges reference charges on each atom. Shape: [natom].
+ */
+void dftbp_get_ref_charges(DftbPlus *instance, double *charges);
+
+
+/**
+ * Sets the reference valence charges of the atoms (effective Z).
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] charges reference charges on each atomic shell. Shape: [natom].
+ */
+void dftbp_set_ref_charges(DftbPlus *instance, double *charges);
+
+
+/**
  * Queries electrostatic potential in specific points.
  *
  * \param[inout] instance Handler of the DFTB+ instance.

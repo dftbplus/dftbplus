@@ -15,10 +15,12 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
+  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -113,15 +115,6 @@ module dftbp_dftbplus_parser
     !> HSD output?
     logical :: tWriteHSD
   end type TParserFlags
-
-
-  !> Mapping between input version and parser version
-  type :: TVersionMap
-    !> named version of parser input
-    character(10) :: inputVersion
-    !> Corresponding numerical version of parser input
-    integer :: parserVersion
-  end type TVersionMap
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
@@ -1707,6 +1700,14 @@ contains
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+    end if
+
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
     end if
@@ -2357,83 +2358,90 @@ contains
       end if
     end if
 
-    ! Point charges present
-    call getChildren(child, "PointCharges", children)
-    if (getLength(children) > 0) then
+    ctrl%nExtChrg = 0
+    if (ctrl%hamiltonian == hamiltonianTypes%dftb) then
 
-      if (.not.ctrl%tSCC) then
-        call error("External charges can only be used in an SCC calculation")
-      end if
-      call init(lCharges)
-      call init(lBlurs)
-      ctrl%nExtChrg = 0
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child2)
-        call getChildValue(child2, "CoordsAndCharges", value1, &
-            &modifier=modifier, child=child3)
-        call getNodeName(value1, buffer)
-        select case(char(buffer))
-        case (textNodeName)
-          call init(lr1)
-          call getChildValue(child3, "", 4, lr1, modifier=modifier)
-          allocate(tmpR2(4, len(lr1)))
-          call asArray(lr1, tmpR2)
-          ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
-          call destruct(lr1)
-        case ("directread")
-          call getChildValue(value1, "Records", ind)
-          call getChildValue(value1, "File", buffer2)
-          allocate(tmpR2(4, ind))
-          call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
-          if (iErr /= 0) then
-            call detailedError(value1, "Could not open file '" &
-                &// trim(unquote(char(buffer2))) // "' for direct reading" )
-          end if
-          read(file%unit, *, iostat=iErr) tmpR2
-          if (iErr /= 0) then
-            call detailedError(value1, "Error during direct reading '" &
-                &// trim(unquote(char(buffer2))) // "'")
-          end if
-          call closeFile(file)
-          ctrl%nExtChrg = ctrl%nExtChrg + ind
-        case default
-          call detailedError(value1, "Invalid block name")
-        end select
-        call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
-        call append(lCharges, tmpR2)
-        call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, &
-            &modifier=modifier, child=child3)
-        if (rTmp < 0.0_dp) then
-          call detailedError(child3, "Gaussian blur width may not be &
-              &negative")
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        ! Point charges present
+        if (.not.ctrl%tSCC) then
+          call error("External charges can only be used in an SCC calculation")
         end if
-        call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
-        allocate(tmpR1(size(tmpR2, dim=2)))
-        tmpR1(:) = rTmp
-        call append(lBlurs, tmpR1)
-        deallocate(tmpR1)
-        deallocate(tmpR2)
-      end do
+        call init(lCharges)
+        call init(lBlurs)
+        ctrl%nExtChrg = 0
+        do ii = 1, getLength(children)
+          call getItem1(children, ii, child2)
+          call getChildValue(child2, "CoordsAndCharges", value1, modifier=modifier, child=child3)
+          call getNodeName(value1, buffer)
+          select case(char(buffer))
+          case (textNodeName)
+            call init(lr1)
+            call getChildValue(child3, "", 4, lr1, modifier=modifier)
+            allocate(tmpR2(4, len(lr1)))
+            call asArray(lr1, tmpR2)
+            ctrl%nExtChrg = ctrl%nExtChrg + len(lr1)
+            call destruct(lr1)
+          case ("directread")
+            call getChildValue(value1, "Records", ind)
+            call getChildValue(value1, "File", buffer2)
+            allocate(tmpR2(4, ind))
+            call openFile(file, unquote(char(buffer2)), mode="r", iostat=iErr)
+            if (iErr /= 0) then
+              call detailedError(value1, "Could not open file '"&
+                  & // trim(unquote(char(buffer2))) // "' for direct reading" )
+            end if
+            read(file%unit, *, iostat=iErr) tmpR2
+            if (iErr /= 0) then
+              call detailedError(value1, "Error during direct reading '"&
+                  & // trim(unquote(char(buffer2))) // "'")
+            end if
+            call closeFile(file)
+            ctrl%nExtChrg = ctrl%nExtChrg + ind
+          case default
+            call detailedError(value1, "Invalid block name")
+          end select
+          call convertUnitHsd(char(modifier), lengthUnits, child3, tmpR2(1:3,:))
+          call append(lCharges, tmpR2)
+          call getChildValue(child2, "GaussianBlurWidth", rTmp, 0.0_dp, modifier=modifier,&
+              & child=child3)
+          if (rTmp < 0.0_dp) then
+            call detailedError(child3, "Gaussian blur width may not be negative")
+          end if
+          call convertUnitHsd(char(modifier), lengthUnits, child3, rTmp)
+          allocate(tmpR1(size(tmpR2, dim=2)))
+          tmpR1(:) = rTmp
+          call append(lBlurs, tmpR1)
+          deallocate(tmpR1)
+          deallocate(tmpR2)
+        end do
 
-      allocate(ctrl%extChrg(4, ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lCharges)
-        call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lCharges)
+        allocate(ctrl%extChrg(4, ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lCharges)
+          call intoArray(lCharges, ctrl%extChrg(:, ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lCharges)
 
-      allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
-      ind = 1
-      do ii = 1, len(lBlurs)
-        call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
-        ind = ind + nElem
-      end do
-      call destruct(lBlurs)
+        allocate(ctrl%extChrgBlurWidth(ctrl%nExtChrg))
+        ind = 1
+        do ii = 1, len(lBlurs)
+          call intoArray(lBlurs, ctrl%extChrgBlurWidth(ind:), nElem, ii)
+          ind = ind + nElem
+        end do
+        call destruct(lBlurs)
+        call destroyNodeList(children)
+      end if
+
     else
-      ctrl%nExtChrg = 0
+
+      call getChildren(child, "PointCharges", children)
+      if (getLength(children) > 0) then
+        call detailedError(child, "External charges are not currently supported for this model")
+      end if
+
     end if
-    call destroyNodeList(children)
 
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
@@ -7433,7 +7441,7 @@ contains
     type(fnode), pointer :: node, container, child
     type(fnodeList), pointer :: nodes
     type(string) :: buffer
-    integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecies, nAtom
     character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
@@ -7458,19 +7466,18 @@ contains
       call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
-        call detailedError(child, "Atom region contains atom(s) which have&
-            & already been overridden")
+        call detailedError(child, "Atom region contains atom(s) which have already been overridden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
-      iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))
-      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecie)) then
-        call detailedError(child, "All atoms in a ReferenceOccupation&
-            & declaration must have the same type.")
+      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+        call detailedError(child, "All atoms in a ReferenceOccupation declaration must have the&
+            & same type.")
       end if
-      call getShellNames(iSpecie, orb, shellNamesTmp)
-      do iShell = 1, orb%nShell(iSpecie)
+      call getShellNames(iSpecies, orb, shellNamesTmp)
+      do iShell = 1, orb%nShell(iSpecies)
           call getChildValue(node, shellNamesTmp(iShell), customOcc(iShell, iCustomOcc), &
-            & default=referenceOcc(iShell, iSpecie))
+            & default=referenceOcc(iShell, iSpecies))
       end do
       deallocate(shellNamesTmp)
     end do

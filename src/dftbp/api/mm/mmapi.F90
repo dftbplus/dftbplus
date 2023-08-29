@@ -22,7 +22,7 @@ module dftbp_mmapi
       & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
       & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
       & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
-      & setExternalCharges, setGeometry, setNeighbourList
+      & setExternalCharges, setGeometry, setNeighbourList, getRefCharges, setRefCharges
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -104,12 +104,19 @@ module dftbp_mmapi
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
     !> get the CM5 DFTB+ charges
     procedure :: getCM5Charges => TDftbPlus_getCM5Charges
+    !> Get the reference charges for neutral DFTB+ atoms
+    procedure :: getRefCharges => TDftbPlus_getRefCharges
+    !> Set the reference charges for neutral DFTB+ atoms
+    procedure :: setRefCharges => TDftbPlus_setRefCharges
     !> get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
+    !> Return the number of spin channels in the DFTB+ calculation (1 if spin free, 2 for z spin
+    !> polarised and 4 for non-collinear/spin-orbit)
+    procedure :: nrOfSpinChannels => TDftbPlus_nrOfSpinChannels
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -602,7 +609,7 @@ contains
   end subroutine TDftbPlus_getExtChargeGradients
 
 
-  !> Returns the gross charges of each atom
+  !> Returns the gross (Mulliken) charges of each atom
   subroutine TDftbPlus_getGrossCharges(this, atomCharges)
 
     !> Instance
@@ -632,6 +639,60 @@ contains
     call getCM5Charges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getCM5Charges
+
+
+  !> Get the reference atomic charges for the atoms of the system to be neutral
+  subroutine TDftbPlus_getRefCharges(this, z0)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Atomic valence reference charges
+    real(dp), intent(out) :: z0(:)
+
+    real(dp), allocatable :: q0(:, :, :)
+    integer :: mOrb, nAtom, nSpin
+
+    call this%checkInit()
+
+    if (this%main%uniqHubbU%mHubbU > 1) then
+      call error("Reference charge call unsupported for shell resolved models")
+    end if
+    mOrb = this%main%orb%mOrb
+    nAtom = nrOfAtoms(this%main)
+    nSpin = this%main%nSpin
+    allocate(q0(mOrb, nAtom, nspin))
+    call getRefCharges(this%main, q0)
+    z0(:) = sum(q0(:,:,1), dim=1)
+
+  end subroutine TDftbPlus_getRefCharges
+
+
+  !> Set the reference atomic charges for the atoms of the system to be neutral
+  subroutine TDftbPlus_setRefCharges(this, z0)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic valence reference charges
+    real(dp), intent(in) :: z0(:)
+
+    real(dp), allocatable :: q0(:, :, :)
+    integer :: mOrb, nAtom, nSpin
+
+    call this%checkInit()
+
+    if (this%main%uniqHubbU%mHubbU > 1) then
+      call error("Reference charge call unsupported for shell resolved models")
+    end if
+    mOrb = this%main%orb%mOrb
+    nAtom = nrOfAtoms(this%main)
+    nSpin = this%main%nSpin
+    allocate(q0(mOrb, nAtom, nspin), source=0.0_dp)
+    q0(1,:,1) = z0
+    call setRefCharges(this%env, this%main, q0)
+
+  end subroutine TDftbPlus_setRefCharges
 
 
   !> Returns electrostatic potential at specified points
@@ -683,6 +744,22 @@ contains
     nKpts = nrOfKPoints(this%main)
 
   end function TDftbPlus_nrOfKPoints
+
+
+  !> Returns the nr. of spin channels
+  function TDftbPlus_nrOfSpinChannels(this) result(nSpin)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of spin channels
+    integer :: nSpin
+
+    call this%checkInit()
+
+    nSpin = this%main%nSpin
+
+  end function TDftbPlus_nrOfSpinChannels
 
 
   !> Returns the atomic masses for each atom in the system.

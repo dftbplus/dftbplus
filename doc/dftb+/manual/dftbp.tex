@@ -216,7 +216,7 @@ Geometry = xyzFormat {
 \label{sec:dftbp.VaspFormat}
 
 You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
-\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries. 
+\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
 Both VASP 4.x and VASP 5.x POSCAR are supported.
 The geometry specification for a molecular ammonia crystal with VASP 5.x would be the following:
 \begin{verbatim}
@@ -226,7 +226,7 @@ Ammonia
  5.01336000000000    0.00000000000000    0.00000000000000
  0.00000000000000    5.01336000000000    0.00000000000000
  0.00000000000000    0.00000000000000    5.01336000000000
-   H  N 
+   H  N
    12 4
 Cartesian
  2.19855889440000    1.76390058240000    0.88014548160000
@@ -781,7 +781,7 @@ are writen as
   .\\
   \frac{\partial^2 E}{\partial \varepsilon_{i} \partial x_{kn}}
   \frac{\partial^2 E}{\partial \varepsilon_{j} \partial x_{kn}}
-  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{kn}}\\  
+  \frac{\partial^2 E}{\partial \varepsilon_{k} \partial x_{kn}}\\
 \end{align*}
 where $\boldsymbol\varepsilon$ is a cartesian electric field and
 $\mathbf{x}$ the cartesian directions written into {\it
@@ -1365,6 +1365,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{ElectronicConstraints} &p&  & \cb & \pref{sec:dftbp.ElectronicConstraints} \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
@@ -1841,6 +1842,91 @@ library.
 Hamiltonian = xTB {
   Method = "GFN1-xTB"
 }
+\end{verbatim}
+
+
+\subsection{ElectronicConstraints}
+\label{sec:dftbp.ElectronicConstraints}
+Allows to impose constraints on the electronic ground state by finding
+the ground state of the system in a (carefully chosen) external
+potential~\cite{Hourahine2010}.
+
+\begin{ptable}
+  \kw{Regions} & p & & \cb & \\
+  \kw{Optimiser} & m & & FIRE & \\
+  \kw{ConstrTolerance} & r & & 1e-8 & \\
+  \kw{MaxConstrIterations} & i & & 100 & \\
+  \kw{ConvergentConstrOnly} & l & & \is{Yes} & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Regions}]
+  Specifies region (e.g.\ of atoms) targeted by electronic constraints.
+  \begin{ptable}
+    \kw{Atoms} & p &  & \cb & \\
+  \end{ptable}
+    \begin{description}
+      \item[\is{Atoms}] Defines a region of atoms (the specification of several blocks is possible).
+    \begin{ptable}
+      \kw{Domain} & (i|s)+ &  &  & \\
+      \kw{Population} & r &  &  & \\
+    \end{ptable}
+      \begin{description}
+        \item[\is{Domain}] Indices of the atoms building a constrained region. The
+          atoms can be specified via index selection expressions, as described
+          in appendix \ref{sec:index_selection}.
+
+        \item[\is{Population}] Sets constraint on the Mulliken population of all
+          atoms included in the region.
+      \end{description}
+    \end{description}
+
+\item[\is{Optimiser}]
+  The optimiser is responsible for propagating the micro-iterations, while searching
+  for an optimal auxiliary potential that enforces the electronic constraints set
+  in the \kw{Regions\cb} block.
+  Currently the following methods are available:
+  \begin{description}
+    \item[\iscb{SteepestDescent}] Propagate micro-iterations using the
+      steepest descent algorithm. See p.~\pref{sec:dftbp.Optimiser.SteepestDescent}.
+    \item[\iscb{FIRE}] Propagate micro-iterations using the FIRE
+      algorithm. See p.~\pref{sec:dftbp.Optimiser.FIRE}.
+    \item[\iscb{Rational}] Propagate micro-iterations using a
+      rational function based optimiser. See p.~\pref{sec:dftbp.Optimiser.RF}.
+    \item[\iscb{LBFGS}] Propagate micro-iterations using the LBFGS
+      algorithm. See p.~\pref{sec:dftbp.Optimiser.LBFGS}.
+  \end{description}
+  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb} optimiser proved to be most
+  stable, when propagating the micro-iterations. However, your experience may vary and
+  manual testing based on your particular system is advised.
+
+\item[\is{ConstrTolerance}] Stopping criteria for the micro-iterations.
+  Specifies the tolerance for the maximum difference in any condition of
+  \kw{Regions\cb} between two micro-iteration cycles.
+
+\item[\is{MaxConstrIterations}] Maximal number of micro-iterations to reach
+  convergence. If convergence is not reached after the specified
+  number of steps, the program stops.
+
+\item[\is{ConvergentConstrOnly}] If true, requires that the micro-iterations
+  converge before proceeding to subsequent stages of the calculation (next SCC
+  step and eventually forces, analysis, etc.).
+\end{description}
+
+Example:
+\begin{verbatim}
+  ElectronicConstraints {
+    Regions {
+      Atoms {
+        Domain = 1
+        Population = 1.5
+      }
+    }
+    Optimiser = FIRE {}
+    ConstrTolerance = 1.0e-08
+    MaxConstrIterations = 30
+    ConvergentConstrOnly = Yes
+  }
 \end{verbatim}
 
 
@@ -2952,6 +3038,11 @@ The specification for \kw{PointCharges} has the following properties:
     }
   }
 \end{verbatim}
+
+\textbf{Note:} External charges are currently only available for the
+DFTB (section \ref{sec:dftbp.DFTB}) hamiltonian, and not for the xTB
+model (section \ref{sec:dftbp.XTB}).
+
 \end{description}
 
 \subsubsection{External}
@@ -5583,7 +5674,7 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
 
 \item[\is{WriteAtomicEnergies}] If the atom-resolved contributions to the total energy
 shpuld be written to the \verb|atomenergies.dat| file.
-  
+
 \item[\is{FillingsFromFile}] If the initial fillings (molecular
   orbital occupations) should be read from a file named
   ``fillings.ini'' present in the working directory. If used, the

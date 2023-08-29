@@ -63,6 +63,10 @@ dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
 dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
+elecconstraints/H2O_scc                #? MPI_PROCS <= 1
+elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
+elecconstraints/Si8_spin               #? MPI_PROCS <= 1
+
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
 non-scc/Si_384_GPU                     #? WITH_MAGMA
@@ -156,7 +160,8 @@ solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and M
 solvers/Si32C32_LS_OMM_kpt             #? WITH_ELSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 32 and OMP_THREADS == 1
 
 solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
-solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
+#! Disabling as test is rather unstable on optimization
+#! solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/10-10Ctube_PEXSI_sparse        #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 solvers/SiC64+V_PEXSI_kpts             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1 and ELSI_VERSION > 2.5

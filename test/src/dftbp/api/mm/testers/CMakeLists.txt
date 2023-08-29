@@ -16,6 +16,15 @@ if(WITH_C_EXECUTABLES)
   set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
 endif()
 
+if(WITH_C_EXECUTABLES)
+  if(WITH_MPI)
+    include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+    add_executable(test_mpic test_mpic.c $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_mpic dftbplus ${MPI_C_LIBRARIES})
+    set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
+  endif()
+endif()
+
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_treeinit dftbplus)
 
@@ -27,6 +36,9 @@ target_link_libraries(test_extpot2 dftbplus)
 
 add_executable(test_extcharges test_extcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_extcharges dftbplus)
+
+add_executable(test_intcharges test_intcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_intcharges dftbplus)
 
 add_executable(test_qdepextpot test_qdepextpot.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpot dftbplus)

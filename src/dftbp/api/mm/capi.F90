@@ -539,6 +539,54 @@ contains
   end subroutine c_DftbPlus_getCM5Charges
 
 
+  !> Obtain reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_getRefCharges(handler, refCharges)&
+      & bind(C, name='dftbp_get_ref_charges')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic reference charges
+    real(c_double), intent(out) :: refCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%getRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getRefCharges
+
+
+  !> Set reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_setRefCharge(handler, refCharges)&
+      & bind(C, name='dftbp_set_ref_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Provided atomic reference charges
+    real(c_double), intent(in) :: refCharges(*)
+
+    !> F pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%setRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_setRefCharge
+
+
   !> Converts a 0-char terminated C-type string into a Fortran string.
   function fortranChar(cstring, maxlen)
 

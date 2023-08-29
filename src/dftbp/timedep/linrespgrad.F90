@@ -1218,14 +1218,14 @@ contains
     ! Small subSpaceDim is faster but leads to convergence problems
     ! if large number of excited states is needed
     if (subSpaceFactor < 2) then
-      write(tmpStr,'(A)') 'SubSpaceStratmann must be larger than one.'
+      write(tmpStr,'(A)') 'SubSpaceFactor for Stratmann solver must be larger than one.'
       call error(tmpStr)
     endif
     subSpaceDim = min(subSpaceFactor * nExc, nxov_rd)
     iterStrat = 1
     write(*,'(A)')
     write(*,'(A)') '>> Stratmann diagonalisation of response matrix'
-    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
+    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' initial subspace: ',&
         & subSpaceDim
     ! Memory available for subspace calcs
     memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
@@ -1300,7 +1300,12 @@ contains
       ! Diagonalise in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
       if (info /= 0) then
-        write(tmpStr,'(A)') 'TDDFT diagonalisation. Increase SubSpaceStratmann.'
+        if (subSpaceFactor * nExc < nxov_rd) then
+          write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Increase SubSpaceFactor.'
+        else
+          write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Insufficient transitions available to&
+              & converge.'
+        end if
         call error(tmpStr)
       endif
 
