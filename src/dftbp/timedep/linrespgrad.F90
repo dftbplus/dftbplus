@@ -197,7 +197,7 @@ contains
     integer :: nStat
 
     !> control variables
-    logical :: tZVector, doAllZVectors, tFracOcc
+    logical :: tZVector, doAllZVectors, tFracOcc, doVanillaZvector
     logical :: tRangeSep = .false.
 
     !> should gradients be calculated
@@ -353,7 +353,7 @@ contains
     tZVector = tForces .or. this%writeMulliken .or. this%writeCoeffs .or. present(naturalOrbs) .or.&
         & this%tWriteDensityMatrix .or. this%tNaCoupling
     doAllZVectors = tZVector .and. (nstat == 0) .and. (.not. this%isCIopt) .and. &
-        & (.not. this%tNaCoupling) 
+        & (.not. this%tNaCoupling)
 
     !> occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
     if((.not. tZVector) .and. this%tCacheChargesSame) then
@@ -604,10 +604,14 @@ contains
     deallocate(transitionDipoles)
     deallocate(sposz)
 
+    ! Calculate Furche vectors and transition density matrix for various properties
     if (tZVector) then
-      ! calculate Furche vectors and transition density matrix for various properties
 
+      ! Differentiates between a standard Z-vector equation for transition densities and forces and
+      ! a specific one for non-adiabatic couplings
+      doVanillaZvector = .true.
       if (doAllZVectors) then
+        
         nStartLev = 1
         nEndLev = this%nExc
 
@@ -616,15 +620,22 @@ contains
         end if
 
       else if (this%isCIopt) then
+        
         if(this%indNACouplings(1) == 0) then
           nStartLev = this%indNACouplings(1) + 1
         else
           nStartLev = this%indNACouplings(1)
         end if
         nEndLev = this%indNACouplings(2)
-      else  
+        
+      else
+        
         nStartLev = nstat
         nEndLev = nstat
+        if (nstat == 0) then
+          doVanillaZvector = .false.
+        end if   
+        
       end if
 
       if (this%tSpin) then
@@ -652,54 +663,57 @@ contains
         allocate(pc(norb, norb, nSpin))
       end if
 
-      do iLev = nStartLev, nEndLev
+      if (doVanillaZvector) then
+        
+        do iLev = nStartLev, nEndLev
 
-        omega = sqrt(eval(iLev))
+          omega = sqrt(eval(iLev))
 
-        ! solve for Z and W to get excited state density matrix
-        call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
-            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
-            & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
-            & wov, woo, wvv)
+          ! solve for Z and W to get excited state density matrix
+          call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
+              & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
+              & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
+              & wov, woo, wvv)
 
-        call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
-            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
-            & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+          call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
+              & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
+              & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
+              & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-         call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
-            & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
-            & this%spinW, tRangeSep, lrGamma)
+          call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
+              & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
+              & this%spinW, tRangeSep, lrGamma)
 
-        call calcPMatrix(t, rhs, win, getIA, pc)
+          call calcPMatrix(t, rhs, win, getIA, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
+          call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
             & naturalOrbs)
 
-        do iSpin = 1, nSpin
-          ! Make MO to AO transformation of the excited density matrix
-          call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-          call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          do iSpin = 1, nSpin
+            ! Make MO to AO transformation of the excited density matrix
+            call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+            call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          end do
+
+          if (this%tWriteDensityMatrix) then
+            call writeDM(iLev, pc, rhoSqr)
+          end if
+
+          if (this%writeMulliken) then
+            !> for now, only total Mulliken charges
+            call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
+          end if
+
+          if (tForces) then
+            iSav = iLev - nStartLev + 1 
+            call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
+                & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
+                & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
+                & tRangeSep, rangeSep, excgrad(:,:,iSav))
+          end if
         end do
-
-        if (this%tWriteDensityMatrix) then
-          call writeDM(iLev, pc, rhoSqr)
-        end if
-
-        if (this%writeMulliken) then
-          !> for now, only total Mulliken charges
-          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
-        end if
-
-        if (tForces) then
-          iSav = iLev - nStartLev + 1 
-          call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
-              & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
-              & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-              & tRangeSep, rangeSep, excgrad(:,:,iSav))
-        end if
-      end do
+      endif
 
       if (this%tNaCoupling) then
 
