@@ -4878,7 +4878,7 @@ contains
         ctrl%lrespini%tNaCoupling = .false.
       else
         ctrl%lrespini%tNaCoupling = .true.
-      end if 
+      end if
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
