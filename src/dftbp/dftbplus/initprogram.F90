@@ -4799,7 +4799,7 @@ contains
         if(this%linearResponse%isCIopt) then
           if (.not. this%linearResponse%tNaCoupling) then
             call error("Optimization of CI requires StateCouplings keyword.")
-          end if    
+          end if
           dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1 
           if (this%linearResponse%indNACouplings(1) == 0) then
             allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
