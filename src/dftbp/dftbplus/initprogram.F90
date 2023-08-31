@@ -1886,7 +1886,7 @@ contains
        tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
      else
        tRequireDerivator = this%tForces
-     end if 
+     end if
      if (.not. tRequireDerivator .and. this%isElecDyn) then
        tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
