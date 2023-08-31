@@ -220,7 +220,6 @@ contains
     else
       this%tNaCoupling = .false.
     endif
-    
     this%isCIopt = ini%isCIopt
     this%energyShiftCI = ini%energyShiftCI
     this%writeMulliken = ini%tMulliken
