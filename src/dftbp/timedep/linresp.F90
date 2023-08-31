@@ -87,7 +87,6 @@ module dftbp_timedep_linresp
 
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
-    
     !> should CI be optimized
     logical :: isCIopt
 
