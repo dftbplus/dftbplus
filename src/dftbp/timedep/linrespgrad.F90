@@ -14,6 +14,8 @@
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
+  use dftbp_io_commonformats, only : format2U
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_rangeseparated, only : TRangeSepFunc, getGammaPrimeValue
@@ -41,7 +43,7 @@ module dftbp_timedep_linrespgrad
   implicit none
 
   private
-  public :: LinRespGrad_old
+  public :: LinRespGrad_old, conicalIntersectionOptimizer
 
   !> Output files for results
   character(*), parameter :: transitionsOut = "TRA.DAT"
@@ -74,10 +76,10 @@ contains
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
-  subroutine LinRespGrad_old(this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0, SSqr,&
-      & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep, omega,&
-      & allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
-      & naturalOrbs)
+  subroutine LinRespGrad_old(this, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
+      & SSqr, filling, species0, iNeighbour, img2CentCell, orb, fdTagged,&
+      & taggedWriter, rangeSep, omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad,&
+      & nacv, derivator, rhoSqr, occNatural, naturalOrbs)
 
     type(TLinResp), intent(inout) :: this
 
@@ -144,8 +146,11 @@ contains
     !> overlap data
     type(TSlakoCont), intent(in), optional :: skOverCont
 
-    !> excitation energy gradient with respect to atomic positions
-    real(dp), intent(out), optional :: excgrad(:,:)
+    !> excitation energy gradients with respect to atomic positions
+    real(dp), intent(out), optional :: excgrad(:,:,:)
+
+    !> Non-adiabatic coupling vectors
+    real(dp), intent(out), optional :: nacv(:,:,:)
 
     !> Differentiator for H0 and S matrices.
     class(TNonSccDiff), intent(in), optional :: derivator
@@ -167,7 +172,7 @@ contains
     real(dp), allocatable :: xpy(:,:), xmy(:,:), sqrOccIA(:)
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
-    real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
+    real(dp), allocatable :: eval(:),transitionDipoles(:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -181,8 +186,8 @@ contains
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
-    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
-    integer :: nCoupLev, mCoupLev, numNAC, iNac
+    integer :: i, j, iSpin, isym, iLev, iSav, nStartLev, nEndLev
+    integer :: nCoupLev, mCoupLev, iNac
     integer :: nSpin
     character :: sym
     character(lc) :: tmpStr
@@ -192,7 +197,7 @@ contains
     integer :: nStat
 
     !> control variables
-    logical :: tZVector, tFracOcc
+    logical :: tZVector, doAllZVectors, tFracOcc, doVanillaZvector
     logical :: tRangeSep = .false.
 
     !> should gradients be calculated
@@ -246,6 +251,7 @@ contains
       call openFile(fdArnoldi, arpackOut, mode="w")
     end if
 
+    nstat = this%nstat
     nSpin = size(grndEigVal, dim=2)
     @:ASSERT(nSpin > 0 .and. nSpin <=2)
 
@@ -342,15 +348,11 @@ contains
       end if
     end if
 
-    if (this%tNaCoupling) then
-      if (.not. tForces) then
-        call error('StateCouplings: CalculateForces must be set to Yes.')
-      end if
-    end if
-
     !> is a z vector required?
     tZVector = tForces .or. this%writeMulliken .or. this%writeCoeffs .or. present(naturalOrbs) .or.&
-        & this%tWriteDensityMatrix
+        & this%tWriteDensityMatrix .or. this%tNaCoupling
+    doAllZVectors = tZVector .and. (nstat == 0) .and. (.not. this%isCIopt) .and. &
+        & (.not. this%tNaCoupling)
 
     !> occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
     if((.not. tZVector) .and. this%tCacheChargesSame) then
@@ -358,7 +360,6 @@ contains
     endif
 
     ! Sanity checks
-    nstat = this%nStat
     if (nstat < 0 .and. this%symmetry /= "S") then
       call error("Linresp: Brightest mode only available for singlets.")
     end if
@@ -602,16 +603,14 @@ contains
     deallocate(transitionDipoles)
     deallocate(sposz)
 
-    if (.not. tZVector) then
-      if (nstat == 0) then
-        omega = 0.0_dp
-      else
-        omega = sqrt(eval(nstat))
-      end if
-    else
-      ! calculate Furche vectors and transition density matrix for various properties
+    ! Calculate Furche vectors and transition density matrix for various properties
+    if (tZVector) then
 
-      if (nstat == 0) then
+      ! Differentiates between a standard Z-vector equation for transition densities and forces and
+      ! a specific one for non-adiabatic couplings
+      doVanillaZvector = .true.
+      if (doAllZVectors) then
+        
         nStartLev = 1
         nEndLev = this%nExc
 
@@ -619,9 +618,23 @@ contains
           call error("Forces currently not available unless a single excited state is specified")
         end if
 
+      else if (this%isCIopt) then
+        
+        if(this%indNACouplings(1) == 0) then
+          nStartLev = this%indNACouplings(1) + 1
+        else
+          nStartLev = this%indNACouplings(1)
+        end if
+        nEndLev = this%indNACouplings(2)
+        
       else
+        
         nStartLev = nstat
         nEndLev = nstat
+        if (nstat == 0) then
+          doVanillaZvector = .false.
+        end if   
+        
       end if
 
       if (this%tSpin) then
@@ -649,61 +662,61 @@ contains
         allocate(pc(norb, norb, nSpin))
       end if
 
-      do iLev = nStartLev, nEndLev
+      if (doVanillaZvector) then
+        
+        do iLev = nStartLev, nEndLev
 
-        omega = sqrt(eval(iLev))
+          omega = sqrt(eval(iLev))
 
-        ! solve for Z and W to get excited state density matrix
-        call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
-            & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
-            & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
-            & wov, woo, wvv)
+          ! solve for Z and W to get excited state density matrix
+          call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
+              & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
+              & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
+              & wov, woo, wvv)
 
-        call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
-            & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
-            & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+          call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
+              & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
+              & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
+              & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
 
-         call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
-            & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
-            & this%spinW, tRangeSep, lrGamma)
+          call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
+              & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
+              & this%spinW, tRangeSep, lrGamma)
 
-        call calcPMatrix(t, rhs, win, getIA, pc)
+          call calcPMatrix(t, rhs, win, getIA, pc)
 
-        call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
+          call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
             & naturalOrbs)
 
-        do iSpin = 1, nSpin
-          ! Make MO to AO transformation of the excited density matrix
-          call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-          call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          do iSpin = 1, nSpin
+            ! Make MO to AO transformation of the excited density matrix
+            call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
+            call getExcMulliken(iAtomStart, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+          end do
+
+          if (this%tWriteDensityMatrix) then
+            call writeDM(iLev, pc, rhoSqr)
+          end if
+
+          if (this%writeMulliken) then
+            !> for now, only total Mulliken charges
+            call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
+          end if
+
+          if (tForces) then
+            iSav = iLev - nStartLev + 1
+            call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
+                & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
+                & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
+                & tRangeSep, rangeSep, excgrad(:,:,iSav))
+          end if
         end do
-
-        if (this%tWriteDensityMatrix) then
-          call writeDM(iLev, pc, rhoSqr)
-        end if
-
-        if (this%writeMulliken) then
-          !> for now, only total Mulliken charges
-          call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
-        end if
-
-        if (tForces) then
-          call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
-              & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
-              & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
-              & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-              & tRangeSep, rangeSep, excgrad)
-        end if
-
-      end do
+      endif
 
       if (this%tNaCoupling) then
 
         ! This overwrites T, RHS and W
-        numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
-        numNAC = numNAC * (numNAC-1) / 2
-        allocate(nacv(3, size(excgrad, dim=2), numNAC))
         allocate(xpyn, mold=xpy(:,1))
         allocate(xpym, mold=xpy(:,1))
         allocate(xmyn, mold=xpy(:,1))
@@ -744,6 +757,7 @@ contains
               xmym(:) = 0.0_dp
               xpyn(:) = 0.0_dp
               xmyn(:) = 0.0_dp
+
               call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym,&
@@ -799,17 +813,20 @@ contains
           end do
         end do
 
-        !> Convention to determine arbitrary phase 
-        call fixNACVPhase(nacv) 
+        !> Convention to determine arbitrary phase
+        call fixNACVPhase(nacv)
 
         call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
-
       end if
 
-      if (nstat == 0) then
-        omega = 0.0_dp
-      end if
+    end if
 
+    !> Omega has possibly been overwritten for CI optimization or NA couplings, but should always
+    !! refer to nstat
+    if (nstat == 0) then
+      omega = 0.0_dp
+    else
+      omega = sqrt(eval(nstat))
     end if
 
   end subroutine LinRespGrad_old
@@ -5456,6 +5473,90 @@ contains
     end do
     
   end subroutine fixNACVPhase
+  !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
+  !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
+  !> Previous published results [Niehaus JCP 158 054103 (2023), TCA 140 34 (2021)] were obtained
+  !> with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor convergence
+  subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, energyShift, naCouplings, excEnergies)
 
+    !> Ground state gradient (overwritten)
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> Gradients of the excitation energy
+    real(dp), intent(in) :: excDerivs(:,:,:)
+
+    !> States between which CI is optimized
+    integer, intent(in) :: indNACouplings(2)
+
+    !> Shift of excited state PES (Harabuchi/Hatanaka/Maeda CPL X 2019)
+    real(dp), intent(in) :: energyShift
+
+    !> Nonadiabatic coupling vectors
+    real(dp), intent(in) :: naCouplings(:,:,:)
+
+    !> Sn-S0 excitation energy
+    real(dp), intent(in) :: excEnergies(:)
+
+
+    integer :: nAtoms, nexcGrad, nCoupl
+    real(dp), allocatable :: X1(:), X2(:), dE2(:), gpf(:)
+    real(dp) :: dpX1, dpX2, dp12, prj1, prj2, deltaE, normGP
+    real(dp) :: alpa, beta
+    character(len=*), parameter :: format2U = "(A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
+    nAtoms = size(derivs, dim=2)
+    nexcGrad = indNACouplings(2)-indNACouplings(1)+1
+    nCoupl = nexcGrad*(nexcGrad-1)/2
+    if (indNACouplings(1) == 0) then
+      nexcGrad = nexcGrad - 1
+    end if
+    @:ASSERT(nexcGrad ==  size(excDerivs, dim=3))
+    @:ASSERT(nCoupl == size(naCouplings, dim=3))
+
+    allocate(X1(3 * nAtoms))
+    allocate(X2(3 * nAtoms))
+    allocate(dE2(3 * nAtoms))
+    allocate(gpf(3 * nAtoms))
+
+    if (indNACouplings(1) == 0) then
+      X1 = reshape(excDerivs(:,:,nexcGrad), (/ 3 * nAtoms /))
+    else
+      X1 = reshape(excDerivs(:,:,nexcGrad)-excDerivs(:,:,1), (/ 3 * nAtoms /))
+    end if
+    ! Last entry of array holds coupling between states indNACouplings(1/2)
+    X2 = reshape(naCouplings(:,:,nCoupl), (/ 3 * nAtoms /))
+
+    ! Original Bearbark suggestion would be dS1/dq, Harabuchi chooses
+    ! 0.5 (dS0/dq + dS1/dq)
+    dE2 = reshape(derivs + 0.5_dp * (excDerivs(:,:,nexcGrad) + excDerivs(:,:,1)), (/ 3 * nAtoms /))
+
+    dpX1 = dot_product(X1, X1)
+    dpX2 = dot_product(X2, X2)
+    dp12 = dot_product(X1, X2)
+    prj1 = dot_product(dE2, X1)
+    prj2 = dot_product(dE2, X2)
+
+    alpa = (prj2*dp12 - prj1*dpX2)/(dpX1*dpX2 - dp12*dp12)
+    beta = (prj2*dpX1 - prj1*dp12)/(dp12*dp12 - dpX1*dpX2)
+
+    ! Eq. 5 in Bearpark et al.
+    gpf(:) = dE2(:) + alpa * X1(:) + beta * X2(:)
+    normGP = norm2(gpf)
+
+    ! Eq. 4 in Bearpark et al. with modifications by Harabuchi
+    ! Yields approximate CI without running into SCF problems too early
+    ! Shift should be brought to zero
+    if (indNACouplings(1) == 0) then
+      deltaE = excEnergies(indNACouplings(2))
+    else
+      deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
+    end if
+    gpf(:) = gpf(:) + 2.0_dp * (deltaE - energyShift) * X1(:) / sqrt(dpX1) 
+
+    derivs(:,:) = reshape(gpf, (/ 3, nAtoms /))
+
+    write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
+
+  end subroutine conicalIntersectionOptimizer
 
 end module dftbp_timedep_linrespgrad

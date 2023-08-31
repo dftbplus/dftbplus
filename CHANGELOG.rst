@@ -15,6 +15,7 @@ Added
   state by determining a self-consistent constraint potential
   (restricted to Mulliken populations at the moment)
 
+- CI optimizer to locate conical intersections
 
 Changed
 -------
@@ -537,3 +538,4 @@ Fixed
   modes.
 
 - Make geometry writing in gen and xyz files consistent.
+

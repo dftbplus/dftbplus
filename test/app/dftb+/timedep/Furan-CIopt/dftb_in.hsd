@@ -2,7 +2,7 @@ Geometry = GenFormat {
     <<< "geo.gen"
 }
 
-Driver = {}
+Driver = SteepestDescent{MaxSteps=0}  # as we want a fast test
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1e-10
@@ -21,8 +21,11 @@ ExcitedState {
     Casida {
         NrOfExcitations = 10
         Symmetry = Singlet
-        Diagonaliser = Stratmann{}
-        StateCouplings = {0 4}
+        Diagonaliser = Arpack{}
+        StateCouplings = {0 1}
+	OptimiserCI = Bearpark{
+	  EnergyShift [eV] = 0.01
+	}
     }
 }
 
@@ -33,7 +36,5 @@ Options {
 
 ParserOptions {
     ParserVersion = 13
-}            
-
-
+}
 

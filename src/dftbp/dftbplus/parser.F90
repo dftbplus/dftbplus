@@ -4801,7 +4801,7 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    type(fnode), pointer :: child2
+    type(fnode), pointer :: child2, child3
     type(fnode), pointer :: value
     type(string) :: buffer, modifier
 
@@ -4874,6 +4874,11 @@ contains
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
+      if (all(ctrl%lrespini%indNACouplings == 0)) then
+        ctrl%lrespini%tNaCoupling = .false.
+      else
+        ctrl%lrespini%tNaCoupling = .true.
+      end if
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -4900,6 +4905,22 @@ contains
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
+
+      call getChildValue(child, "OptimiserCI", child2, "", child=child3, allowEmptyValue=.true.)
+      if (associated(child2)) then
+        call getNodeName(child2, buffer)
+        select case(char(buffer))
+        case ("bearpark")
+          ctrl%lrespini%isCIopt = .true.
+          call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
+              & modifier=modifier, default=0.0_dp)
+          call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+        case default
+          call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
+        end select
+      else
+        ctrl%lrespini%isCIopt = .false.
+      end if
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)

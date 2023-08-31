@@ -5263,7 +5263,8 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
-    \kw{StateCouplings}         & 2i & \is{CalculateForces} = Yes & - & \\
+    \kw{StateCouplings}         & 2i & & - & \\
+    \kw{OptimiserCI}            & m & \is{StateCouplings} non-zero & \{\} & \pref{sec:dftbp.ciopt}\\
   \end{ptable}
 
   \begin{description}
@@ -5281,7 +5282,10 @@ available for range separated calculations.
     zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should
     be left empty (forces will not be available). A value less than 0 requests
     that the state with the largest dipole transition moment be found (again a
-    single-point calculation).
+    single-point calculation). In the output \is{Total Energy} and
+    \is{Total Mermin free energy} refer to \is{StateOfInterest}, while
+    the extrapolated energy and force related energy refer to the
+    ground state.
 
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
     computed: ``singlet'', ``triplet'' or ``both''. This tag is only applicable
@@ -5362,11 +5366,12 @@ available for range separated calculations.
     requires two values, $m$ and $n$, with $m < n$ and state 0 being
     defined as the ground state. The couplings are computed according
     to the method described
-    in~\cite{niehaus2021ground,niehaus2023exact}. The results are written to
-    the file NACV.DAT (See p.~\pref{subsec:nacv.dat})
-
-    Example: \is{StateCouplings = 0 2} would generate the couplings
-    between states $0\to 1$, $0\to 2$ and $1\to 2$.
+    in~\cite{niehaus2021ground,niehaus2023exact}.\\ Example:
+    \is{Couplings = \{0 2\}} would generate the the couplings between
+    states $0\to 1$, $0\to 2$ and $1\to 2$. The results are written to
+    the file NACV.DAT (See p.~\pref{subsec:nacv.dat}). Couplings are
+    usually calculated for single point geometries, as the file NACV.DAT is
+    overwritten along a trajectory.
   \end{description}
 
   \subsubsection{Diagonaliser / Diagonalizer}
@@ -5409,6 +5414,39 @@ available for range separated calculations.
     restarted with an increased value of \is{SubSpaceFactor}.
   \end{description}
 
+\subsubsection{OptimizerCI}
+\label{sec:dftbp.ciopt}
+
+Invokes search for conical intersections (CI) between the two states indicated
+by the \is{StateCouplings} keyword. Note that the two states must be
+direct neighbours (i.e., $n = m + 1$). There is currently one
+optimizer available.
+
+The \iscb{Bearpark} optimizer (see \cite{Bearpark1994}) minimizes a gradient that
+is based on the non-adiabatic coupling vector and the difference
+gradient of the two potential energy surfaces in question.  The parameters given
+in the \is{GeometryOptimisation} block control the optimization as
+usual. Since the CI optimization is numerically challenging, we recommend
+the \is{SteepestDescent} driver. The energy gap between the two states
+in question is written as entry \is{Energy gap CI} to the
+output.
+
+\iscb{Bearpark} has one option, which is relevant for the CI between the
+ground and first excited state:
+  \begin{ptable}
+    \kw{EnergyShift}     & r & & 0.0 & \\
+  \end{ptable}
+  \begin{description}
+  \item[\is{EnergyShift}] Shift of the excited state PES during
+    optimization. Should be brought to zero on restarting with a better optimised structure.
+  \end{description}
+As discussed by Harabuchi et al.~\cite{Harabuchi2019}, \is{EnergyShift} helps to avoid
+SCC convergence issues close to a ground-to-excited CI. It is
+recommended to first approach the CI with a larger value of
+\is{EnergyShift}, stop the optimization before the loss of self-consistency occurs,
+and then restart the optimization with successively smaller values of
+\is{EnergyShift}. Note that specifying \is{StateOfInterest} leads only
+to computation of the corresponding energy, but not the force.
 
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}

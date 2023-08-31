@@ -475,6 +475,9 @@ module dftbp_dftbplus_initprogram
     !> Is the contribution from an excited state needed for the forces
     logical :: tCasidaForces
 
+    !> Optimization of conical intersections
+    logical :: isCIopt = .false.
+
     !> Are forces being returned
     logical :: tPrintForces
 
@@ -943,8 +946,11 @@ module dftbp_dftbplus_initprogram
     !> Forces on any external charges
     real(dp), allocatable :: chrgForces(:,:)
 
-    !> Excited state force addition
-    real(dp), allocatable :: excitedDerivs(:,:)
+    !> Excited state force addition (xyz,atom,state)
+    real(dp), allocatable :: excitedDerivs(:,:,:)
+
+    !> Nonadiabatic coupling vectors
+    real(dp), allocatable :: naCouplings(:,:,:)
 
     !> Dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
@@ -1295,9 +1301,7 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
-
     @:ASSERT(input%tInitialized)
-
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
@@ -1878,8 +1882,11 @@ contains
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
      end if
-
-     tRequireDerivator = this%tForces
+     if (this%isLinResp) then
+       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
+     else
+       tRequireDerivator = this%tForces
+     end if
      if (.not. tRequireDerivator .and. this%isElecDyn) then
        tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
@@ -2449,7 +2456,7 @@ contains
       this%tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
-          & input%ctrl%lrespini%tWriteDensityMatrix)
+          & input%ctrl%lrespini%tWriteDensityMatrix .or. input%ctrl%lrespini%tNaCoupling)
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -2749,6 +2756,7 @@ contains
     end if
 
     call this%initDetArrays()
+
     call this%initArrays(env, input)
 
   #:if WITH_TRANSPORT
@@ -2844,6 +2852,7 @@ contains
     else
       this%pCoord0Out => this%coord0
     end if
+
 
     ! Projection of eigenstates onto specific regions of the system
     this%tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -4751,7 +4760,8 @@ contains
     type(TInputData), intent(in) :: input
 
     logical :: isREKS
-    integer :: nSpinHams, sqrHamSize, iDet
+    ! dLev is the number of states to include for non-adiabatic couplings
+    integer :: nSpinHams, sqrHamSize, iDet, dLev
 
     isREKS = allocated(this%reks)
 
@@ -4782,8 +4792,31 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect .and. this%tCasidaForces) then
-        allocate(this%excitedDerivs(3, this%nAtom))
+
+      if (this%isLinResp) then
+        ! For CI optimization store gradient for several states,
+        ! otherwise store excited state gradient for state of interest only
+        if(this%linearResponse%isCIopt) then
+          if (.not. this%linearResponse%tNaCoupling) then
+            call error("Optimization of CI requires StateCouplings keyword.")
+          end if
+          dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+          if (this%linearResponse%indNACouplings(1) == 0) then
+            allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
+          else
+            allocate(this%excitedDerivs(3, this%nAtom, dLev))
+          end if
+          else  if (this%tLinRespZVect .and. this%tCasidaForces) then
+            allocate(this%excitedDerivs(3, this%nAtom, 1))
+        end if
+        this%isCIopt = this%linearResponse%isCIopt
+      end if
+    end if
+
+    if (this%isLinResp) then
+      if(this%linearResponse%tNaCoupling) then
+        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+        allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
       end if
     end if
 
@@ -5519,7 +5552,7 @@ contains
       call warning(tmpStr)
     end if
 
-    if (input%ctrl%lrespini%nstat == 0) then
+    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
       if (tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
