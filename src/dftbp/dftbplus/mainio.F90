@@ -1978,7 +1978,7 @@ contains
     if (allocated(chrgForces)) then
       call taggedWriter%write(fd%unit, tagLabels%chrgForces, -chrgForces)
     end if
-    !> If CI is optimized, lowest coupled state is printed, otherwise the state of interest 
+    !> If CI is optimized, lowest coupled state is printed, otherwise the state of interest
     if (allocated(excitedDerivs)) then
       if (size(excitedDerivs) > 0) then
         call taggedWriter%write(fd%unit, tagLabels%excForce, -excitedDerivs(:,:,1))
