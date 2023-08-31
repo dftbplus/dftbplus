@@ -704,7 +704,7 @@ contains
           end if
 
           if (tForces) then
-            iSav = iLev - nStartLev + 1 
+            iSav = iLev - nStartLev + 1
             call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc_ud,&
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
