@@ -4795,7 +4795,7 @@ contains
 
       if (this%isLinResp) then
         ! For CI optimization store gradient for several states,
-        ! otherwise store excited state gradient for state of interest only  
+        ! otherwise store excited state gradient for state of interest only
         if(this%linearResponse%isCIopt) then
           if (.not. this%linearResponse%tNaCoupling) then
             call error("Optimization of CI requires StateCouplings keyword.")
