@@ -828,7 +828,7 @@ contains
       omega = 0.0_dp
     else
       omega = sqrt(eval(nstat))
-    end if  
+    end if
 
   end subroutine LinRespGrad_old
 
