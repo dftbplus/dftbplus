@@ -817,7 +817,6 @@ contains
         call fixNACVPhase(nacv)
 
         call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
-            
       end if
 
     end if
