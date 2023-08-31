@@ -4805,7 +4805,7 @@ contains
             allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
           else
             allocate(this%excitedDerivs(3, this%nAtom, dLev))
-          end if          
+          end if
           else  if (this%tLinRespZVect .and. this%tCasidaForces) then
             allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
