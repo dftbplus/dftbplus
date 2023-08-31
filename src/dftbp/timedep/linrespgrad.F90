@@ -5541,7 +5541,7 @@ contains
     beta = (prj2*dpX1 - prj1*dp12)/(dp12*dp12 - dpX1*dpX2)
 
     ! Eq. 5 in Bearpark et al.
-    gpf(:) = dE2(:) + alpa * X1(:) + beta * X2(:) 
+    gpf(:) = dE2(:) + alpa * X1(:) + beta * X2(:)
     normGP = norm2(gpf)
 
     ! Eq. 4 in Bearpark et al. with modifications by Harabuchi
