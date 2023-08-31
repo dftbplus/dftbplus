@@ -1560,7 +1560,6 @@ contains
             & this%rangeSep, this%SSqrReal, this%ints, this%denseDesc, this%deltaRhoOutSqr,&
             & this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb)
         
-        
         if (this%isCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
               & this%linearResponse%indNACouplings, this%linearResponse%energyShiftCI,&
