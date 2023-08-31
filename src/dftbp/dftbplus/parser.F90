@@ -4919,7 +4919,7 @@ contains
           call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
         end select
       else
-        ctrl%lrespini%isCIopt = .false.  
+        ctrl%lrespini%isCIopt = .false.
       end if
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
