@@ -1302,7 +1302,6 @@ contains
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
     @:ASSERT(input%tInitialized)
-    
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
