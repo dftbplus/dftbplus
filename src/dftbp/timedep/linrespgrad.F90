@@ -252,7 +252,6 @@ contains
     end if
 
     nstat = this%nstat
-    
     nSpin = size(grndEigVal, dim=2)
     @:ASSERT(nSpin > 0 .and. nSpin <=2)
 
