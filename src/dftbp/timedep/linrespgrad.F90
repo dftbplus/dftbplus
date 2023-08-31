@@ -5550,7 +5550,7 @@ contains
     ! Yields approximate CI without running into SCF problems too early
     ! Shift should be brought to zero
     if (indNACouplings(1) == 0) then
-      deltaE = excEnergies(indNACouplings(2)) 
+      deltaE = excEnergies(indNACouplings(2))
     else
       deltaE = excEnergies(indNACouplings(2)) - excEnergies(indNACouplings(1))
     end if
