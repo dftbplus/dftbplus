@@ -823,7 +823,7 @@ contains
     end if
 
     !> Omega has possibly been overwritten for CI optimization or NA couplings, but should always
-    !! refer to nstat 
+    !! refer to nstat
     if (nstat == 0) then
       omega = 0.0_dp
     else
