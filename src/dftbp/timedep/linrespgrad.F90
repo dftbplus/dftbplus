@@ -5524,7 +5524,7 @@ contains
     else
       X1 = reshape(excDerivs(:,:,nexcGrad)-excDerivs(:,:,1), (/ 3 * nAtoms /))
     end if
-    ! Last entry of array holds coupling between states indNACouplings(1/2) 
+    ! Last entry of array holds coupling between states indNACouplings(1/2)
     X2 = reshape(naCouplings(:,:,nCoupl), (/ 3 * nAtoms /))
 
     ! Original Bearbark suggestion would be dS1/dq, Harabuchi chooses
