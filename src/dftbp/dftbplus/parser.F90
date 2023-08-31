@@ -4911,7 +4911,7 @@ contains
         call getNodeName(child2, buffer)
         select case(char(buffer))
         case ("bearpark")
-          ctrl%lrespini%isCIopt = .true. 
+          ctrl%lrespini%isCIopt = .true.
           call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
               & modifier=modifier, default=0.0_dp)
           call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
