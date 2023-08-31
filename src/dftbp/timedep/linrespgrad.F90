@@ -5474,7 +5474,6 @@ contains
     end do
     
   end subroutine fixNACVPhase
-  
   !> Implements the CI optimizer of Bearpark et al. Chem. Phys. Lett. 223 269 (1994) with
   !> modifications introduced by Harabuchi/Hatanaka/Maeda CPL X 2019
   !> Previous published results [Niehaus JCP 158 054103 (2023), TCA 140 34 (2021)] were obtained
