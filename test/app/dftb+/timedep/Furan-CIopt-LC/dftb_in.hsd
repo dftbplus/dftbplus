@@ -20,7 +20,7 @@ Hamiltonian = DFTB {
       Screening = Thresholded {
         Threshold = 1.0e-16
       }
-    } 
+    }
 }
 ExcitedState {
     Casida {
