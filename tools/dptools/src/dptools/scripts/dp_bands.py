@@ -8,18 +8,18 @@
 #
 '''Converts band.out to plottable data.'''
 
-import argparse
+from argparse import ArgumentParser, RawTextHelpFormatter
 import numpy as np
 from dptools.bandout import BandOut
 from dptools.scripts.common import ScriptError
 
 USAGE = '''
 Reads the band structure information stored in the file INPUT created
-by DFTB+ (usually band.out) and converts it to NXY-data (to be visualized by gnuplot,
-xmgrace, etc.). The outputfile will be called OUTPREFIX_tot.dat and contains the
-band structure for all spin channels. If spin channel separation is specified,
-the output files OUTPREFIX_s1.dat, OUTPREFIX_s2.dat, etc. will be created for
-each spin channel.
+by DFTB+ (usually band.out) and converts it to NXY-data (to be visualized by
+gnuplot, xmgrace, etc.). The outputfile will be called OUTPREFIX_tot.dat and
+contains the band structure for all spin channels. If spin channel separation is
+specified, the output files OUTPREFIX_s1.dat, OUTPREFIX_s2.dat, etc. will be
+created for each spin channel.
 '''
 
 def main(cmdlineargs=None):
@@ -40,15 +40,34 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE)
+    parser = ArgumentParser(
+        description=USAGE, formatter_class=RawTextHelpFormatter)
+
     msg = "do not use the first column of the output to enumerate the k-points"
     parser.add_argument("-N", "--no-enumeration", action="store_false",
                         default=True, dest="enum", help=msg)
+
     msg = "create separate band structure for each spin channel"
     parser.add_argument("-s", "--separate-spins", action="store_true",
                         default=False, dest="spinsep", help=msg)
+
+    msg = "aligns an estimate of the level of half-occupation to the zero of " +\
+        "energy\ninteger occupations: Shifts the VBM to zero energy.\n" +\
+        "fractional occupations: Shifts approximate Fermi level, i.e. the highest" +\
+        "\n    eigenvalue that is at least half occupied, to zero energy." +\
+        "\n    Note that this energy does not necessarily correspond to the" +\
+        "\n    real Fermi level. Please consult the appropriate output files" +\
+        "\n    (detailed.out|results.tag) to obtain the Fermi level of the" +\
+        "\n    calculation."
+    parser.add_argument("-A", "--auto-align", action="store_true",
+                        default=False, dest="autoalign", help=msg)
+
+    msg = "manually defines zero energy [eV]"
+    parser.add_argument("-a", "--align", type=float, default=None, help=msg)
+
     msg = "input file name"
     parser.add_argument("infile", metavar="INPUT", help=msg)
+
     msg = "output prefix"
     parser.add_argument("outprefix", metavar="OUTPREFIX", help=msg)
 
@@ -66,10 +85,17 @@ def dp_bands(args):
     infile = args.infile
     outprefix = args.outprefix
 
+    # check for argument collisions
+    if args.autoalign and args.align is not None:
+        raise ScriptError(
+            'Collision of incompatible options. Auto-alignment ' + \
+            'and simultaneous manual shifting of eigenvalues is not supported.')
+
     try:
         bandout = BandOut.fromfile(infile)
     except OSError:
-        raise ScriptError('You must enter a valid path to the input file.')
+        raise ScriptError('You must enter a valid path to the input file.') \
+            from OSError
 
     if args.spinsep:
         # Create filename for each spin-channel
@@ -86,6 +112,12 @@ def dp_bands(args):
             iend = (ispin + 1) * bandout.nstate
             plotvals[0, :, istart:iend] = eigvals[ispin, :, :]
         fnames = [outprefix + "_tot.dat",]
+
+    if args.autoalign:
+        plotvals -= find_auto_alignment(bandout)
+
+    if args.align is not None:
+        plotvals -= args.align
 
     if args.enum:
         formstr0 = "{0:d} "
@@ -105,3 +137,19 @@ def dp_bands(args):
             else:
                 fp.write(formstr.format(*kdata))
         fp.close()
+
+
+def find_auto_alignment(bandout):
+    '''
+    Integer occupations: finds the energy shift required to set the VBM to zero
+    Fractional occupations: finds Fermi-type level
+
+    Args:
+        bandout (BandOut): representation of a band.out like file
+
+    '''
+
+    eigvals = bandout.eigvalarray[:, :, :, 0]
+    occ = bandout.eigvalarray[:, :, :, 1]
+
+    return np.max(eigvals[np.where(occ >= np.max(occ) / 2.0)])
