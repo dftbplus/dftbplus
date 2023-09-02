@@ -2301,11 +2301,14 @@ contains
           & symNeighbourList%img2CentCell, symNeighbourList%iCellVec,&
           & symNeighbourList%neighbourList, symNeighbourList%nAllAtom, coord0Fold, species0,&
           & cutoff%camCutOff, rCellVec, errStatus, symmetric=.true.)
-      ! count neighbours for CAM interactions (for symmetric neighbour list)
-      call getNrOfNeighboursForAll(nNeighbourCamSym, symNeighbourList%neighbourList,&
-          & cutoff%camCutOff)
-      call getSparseDescriptor(symNeighbourList%neighbourList%iNeighbour, nNeighbourCamSym,&
-          & symNeighbourList%img2CentCell, orb, symNeighbourList%iPair, symNeighbourList%sparseSize)
+      if (allocated(nNeighbourCamSym)) then
+        ! count neighbours for CAM interactions (for symmetric neighbour list)
+        call getNrOfNeighboursForAll(nNeighbourCamSym, symNeighbourList%neighbourList,&
+            & cutoff%camCutOff)
+        call getSparseDescriptor(symNeighbourList%neighbourList%iNeighbour, nNeighbourCamSym,&
+            & symNeighbourList%img2CentCell, orb, symNeighbourList%iPair,&
+            & symNeighbourList%sparseSize)
+      end if
     end if
 
     if (allocated(sccCalc)) then
@@ -3320,7 +3323,6 @@ contains
     eigen(:,:,:) = 0.0_dp
 
     if (allocated(hybridXc)) then
-
       ! Pre-calculate CAM-Hamiltonian and overlap
       ! Get CAM-Hamiltonian contribution for all spins/k-points
       call hybridXc%getCamHamiltonian_kpts(env, densityMatrix%deltaRhoInCplxHS,&

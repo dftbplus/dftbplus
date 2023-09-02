@@ -1356,6 +1356,9 @@ contains
     this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
+    if (this%isHybridXc) then
+      allocate(this%symNeighbourList)
+    end if
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1742,8 +1745,7 @@ contains
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
 
-    if (this%isHybridXc) then
-      allocate(this%symNeighbourList)
+    if (allocated(this%symNeighbourList)) then
       allocate(this%symNeighbourList%coord(3, this%nAllAtom))
       allocate(this%symNeighbourList%species(this%nAllAtom))
       allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
@@ -2697,32 +2699,34 @@ contains
       end associate
   #:endif
 
-    if (this%isHybridXc) then
+    if (allocated(this%symNeighbourList)) then
       if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
         this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
       end if
-      call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
-      if (.not. this%tReadChrg) then
-        if (this%tPeriodic .and. this%tRealHS) then
-          ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
-          call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
-              & input%ctrl%hybridXcInp%cutoffRed,&
-              & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
-              & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
-        elseif (.not. this%tRealHS) then
-          ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
-          call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
-              & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
-              & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
-              & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
-              & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
+      if (this%isHybridXc) then
+        call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
+        if (.not. this%tReadChrg) then
+          if (this%tPeriodic .and. this%tRealHS) then
+            ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
+            call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
+                & input%ctrl%hybridXcInp%cutoffRed,&
+                & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
+                & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
+          elseif (.not. this%tRealHS) then
+            ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
+            call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
+                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+                & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
+                & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
+                & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
+          end if
         end if
-      end if
 
-      ! Non-periodic system (cluster)
-      if (.not. this%tPeriodic) then
-        call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
+        ! Non-periodic system (cluster)
+        if (.not. this%tPeriodic) then
+          call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
+        end if
       end if
 
     #:if WITH_SCALAPACK
@@ -2733,8 +2737,12 @@ contains
       nLocalCols = this%denseDesc%fullSize
     #:endif
 
-      ! allocation is necessary to hint "initializeCharges" what information to extract
-      call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+      if (this%isHybridXc) then
+        ! allocation is necessary to hint "initializeCharges" what information to extract
+        call reallocateHybridXc(this, nLocalRows, nLocalCols,&
+            & size(this%parallelKS%localKS, dim=2))
+      end if
+
     end if
 
     call this%initializeCharges(errStatus, input%ctrl%initialSpins, input%ctrl%initialCharges)
@@ -2818,11 +2826,13 @@ contains
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    if (this%isHybridXc) then
+    if (allocated(this%symNeighbourList)) then
       allocate(this%symNeighbourList%neighbourList)
       call TNeighbourlist_init(this%symNeighbourList%neighbourList, this%nAtom, nInitNeighbour)
-      allocate(this%nNeighbourCam(this%nAtom))
-      allocate(this%nNeighbourCamSym(this%nAtom))
+      if (this%isHybridXc) then
+        allocate(this%nNeighbourCam(this%nAtom))
+        allocate(this%nNeighbourCamSym(this%nAtom))
+      end if
     end if
 
     ! Set various options
