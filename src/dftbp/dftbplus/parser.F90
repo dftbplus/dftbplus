@@ -5959,6 +5959,9 @@ contains
     type(fnodeList), pointer :: pNodeList
     integer :: contact
     real(dp) :: lateralContactSeparation
+    logical, allocatable :: atomInRegion(:)
+    integer :: ii
+    character(lc) :: strTmp
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -5982,6 +5985,28 @@ contains
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
     call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
+
+    ! check for atoms in multiple contact ranges/device or atoms missing from any of these regions
+    allocate(atomInRegion(geom%nAtom), source=.false.)
+    atomInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .true.
+    do ii = 1, transpar%nCont
+      if (any(atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2))))&
+          & then
+        write(strTmp, "(A,A,A,I0)")"Contact '", trim(transpar%contacts(ii)%name),&
+            & "' contains an atom already in the device region or another contact: Atom nr. ",&
+            & findloc(atomInRegion(transpar%contacts(ii)%idxrange(1):&
+            & transpar%contacts(ii)%idxrange(2)), .true.) + transpar%contacts(ii)%idxrange(1)
+        call getItem1(pNodeList, ii, pTmp)
+        call detailedError(pTmp, strTmp)
+      end if
+      atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .true.
+    end do
+    if (any(.not.atomInRegion)) then
+      write(strTmp, "(A,I0,A)")"Atom ", findloc(atomInRegion, .false.),&
+          & " is not in the device region or any contact"
+      call detailedError(root, strTmp)
+    end if
+
     call destroyNodeList(pNodeList)
 
     transpar%taskUpload = .false.
@@ -7065,9 +7090,17 @@ contains
 
   !> Read bias information, used in Analysis and Green's function eigensolver
   subroutine readContacts(pNodeList, contacts, geom, task, contactLayerTol)
+
+    !> Node to process
     type(fnodeList), pointer :: pNodeList
+
+    !> Contacts
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
+
+    !> Geometry of the system
     type(TGeometry), intent(in) :: geom
+
+    !> What type of transport-related calculation is this?
     character(*), intent(in) :: task
 
     !> Tolerance to distortion of contact vectors
