@@ -1443,12 +1443,33 @@ contains
       end if
     end if
 
+    call env%globalTimer%startTimer(globalTimers%eigvecWriting)
+    if (this%tPrintEigVecs) then
+      call writeEigenvectors(env, this%runId, this%neighbourList, this%nNeighbourSk, this%cellVec,&
+          & this%iCellVec, this%denseDesc, this%iSparseStart, this%img2CentCell, this%species,&
+          & this%speciesName, this%orb, this%kPoint, this%ints%overlap, this%parallelKS,&
+          & this%tPrintEigvecsTxt, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
+    end if
+
+    if (this%tProjEigenvecs) then
+      call writeProjectedEigenvectors(env, this%regionLabels, this%eigen, this%neighbourList,&
+          & this%nNeighbourSk, this%cellVec, this%iCellVec, this%denseDesc, this%iSparseStart,&
+          & this%img2CentCell, this%orb, this%ints%overlap, this%kPoint, this%kWeight,&
+          & this%iOrbRegion, this%parallelKS, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx,&
+          & this%SSqrCplx)
+    end if
+    call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
+
     if (this%tSccCalc .and. .not. this%isXlbomd .and. .not. tConverged&
         & .and. .not. this%tRestartNoSC) then
-      call warning("SCC is NOT converged, maximal SCC iterations exceeded")
-      if (this%isSccConvRequired) then
-        call env%shutdown()
-      end if
+      block
+        character(len=*), parameter :: msg = "SCC is NOT converged, maximal SCC iterations exceeded"
+        if (this%isSccConvRequired) then
+          call error(msg)
+        else
+          call warning(msg)
+        end if
+      end block
     end if
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
@@ -1494,24 +1515,6 @@ contains
           & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
     #:endblock DEBUG_CODE
     end if
-
-    call env%globalTimer%startTimer(globalTimers%eigvecWriting)
-
-    if (this%tPrintEigVecs) then
-      call writeEigenvectors(env, this%runId, this%neighbourList, this%nNeighbourSk, this%cellVec,&
-          & this%iCellVec, this%denseDesc, this%iSparseStart, this%img2CentCell, this%species,&
-          & this%speciesName, this%orb, this%kPoint, this%ints%overlap, this%parallelKS,&
-          & this%tPrintEigvecsTxt, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx, this%SSqrCplx)
-    end if
-
-    if (this%tProjEigenvecs) then
-      call writeProjectedEigenvectors(env, this%regionLabels, this%eigen, this%neighbourList,&
-          & this%nNeighbourSk, this%cellVec, this%iCellVec, this%denseDesc, this%iSparseStart,&
-          & this%img2CentCell, this%orb, this%ints%overlap, this%kPoint, this%kWeight,&
-          & this%iOrbRegion, this%parallelKS, this%eigvecsReal, this%SSqrReal, this%eigvecsCplx,&
-          & this%SSqrCplx)
-    end if
-    call env%globalTimer%stopTimer(globalTimers%eigvecWriting)
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if ((this%isGeoOpt .or. allocated(this%geoOpt)) .and. tWriteRestart) then
