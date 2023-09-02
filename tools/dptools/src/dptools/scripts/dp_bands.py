@@ -51,9 +51,9 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-s", "--separate-spins", action="store_true",
                         default=False, dest="spinsep", help=msg)
 
-    msg = "aligns an estimate of the level of half-occupation at zero " +\
+    msg = "aligns an estimate of the level of half-occupation to the zero of " +\
         "energy\ninteger occupations: Shifts the VBM to zero energy.\n" +\
-        "fractional occupations: Shifts Fermi-type level, i.e. the highest" +\
+        "fractional occupations: Shifts approximate Fermi level, i.e. the highest" +\
         "\n    eigenvalue that is at least half occupied, to zero energy." +\
         "\n    Note that this energy does not necessarily correspond to the" +\
         "\n    real Fermi level. Please consult the appropriate output files" +\
