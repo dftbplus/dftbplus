@@ -4868,7 +4868,7 @@ calculation and/or calculate properties.
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
   \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
-  \kw{CalculateForces} & l & & No & \\
+  \kw{Printforces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
   \kw{Polarisability} & m & Hamiltonian = DFTB & \cb &
   \pref{sec:dftbp.eperturb} \\
@@ -4905,7 +4905,7 @@ calculation and/or calculate properties.
 \item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
   which contains the band structure in a more or less human friendly format.
 
-\item[\is{CalculateForces}] If \is{Yes}, forces are reported, even if not needed
+\item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
 
 \end{description}
@@ -5261,7 +5261,7 @@ available for range separated calculations.
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
-    \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
+    \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
     \kw{StateCouplings}         & 2i & & - & \\
     \kw{OptimiserCI}            & m & \is{StateCouplings} non-zero & \{\} & \pref{sec:dftbp.ciopt}\\

@@ -44,11 +44,11 @@ program test_ehrenfest
   type(TDftbPlusInput) :: input
 
   real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  real(dp) :: forces(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom), velos_store(3, nAtom)
-  real(dp) :: norm, fielddir(3), angFreq, envelope, field(3), time
+  real(dp) :: forces(3, nAtom), atomMasses(nAtom), accel(3, nAtom), velos(3, nAtom)
+  real(dp) :: velos_store(3, nAtom), norm, fielddir(3), angFreq, envelope, field(3), time
   real(dp) :: time0 = 0.0_dp, time1 = 6.0_dp ! fs
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
-  type(fnode), pointer :: pPerturb, pLaser, pAnalysis
+  type(fnode), pointer :: pPerturb, pLaser, pAnalysis, pParserOpt
 
   character(:), allocatable :: DftbVersion
   integer :: major, minor, patch, istep, ii, idim
@@ -82,6 +82,9 @@ program test_ehrenfest
   call setChildValue(pType2Files, "Prefix", "./")
   call setChildValue(pType2Files, "Separator", "-")
   call setChildValue(pType2Files, "Suffix", ".skf")
+
+  call setChild(pRoot, "ParserOptions", pParserOpt)
+  call setChildValue(pParserOpt, "ParserVersion", 13)
 
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
