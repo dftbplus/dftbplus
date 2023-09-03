@@ -38,10 +38,11 @@ module dftbp_dftb_periodic
   public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
 
-  ! NOTE: this entries are public only temporarily for unit testing purposes. Do not call them
+#:if WITH_UNIT_TESTS
+  ! NOTE: these entries are public only temporarily for unit testing purposes. Do not call them
   ! from the outside.
   public :: distributeAtoms, reallocateArrays2, allocateNeighbourArrays, fillNeighbourArrays
-
+#:endif
 
   !> Contains essential data for the neighbourlist
   type TNeighbourList

@@ -30,6 +30,7 @@
 #:set WITH_SDFTD3 = defined('WITH_SDFTD3')
 #:set WITH_TBLITE = defined('WITH_TBLITE')
 #:set WITH_CHIMES = defined('WITH_CHIMES')
+#:set WITH_UNIT_TESTS = defined('WITH_UNIT_TESTS')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
