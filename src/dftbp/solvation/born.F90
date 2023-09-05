@@ -281,11 +281,9 @@ contains
     if (allocated(input%cm5Input)) then
       allocate(this%cm5)
       if (this%tPeriodic) then
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true., latVecs)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true., latVecs)
       else
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true.)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true.)
       end if
     end if
 
