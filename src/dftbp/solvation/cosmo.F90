@@ -1052,7 +1052,8 @@ contains
         & "# area          - segment area [A**2]", &
         & "# potential     - solute potential on segment (A length scale)", &
         & "#", &
-        & "#  n   atom              position (X, Y, Z)                   charge         area        charge/area     potential", &
+        & "#  n   atom              position (X, Y, Z)                   charge         area&
+        &        charge/area     potential", &
         & "#", &
         & "#"
 
