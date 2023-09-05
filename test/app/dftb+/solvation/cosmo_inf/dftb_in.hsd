@@ -12,7 +12,11 @@ Hamiltonian = DFTB {
       Density [kg/l] = 1.0
     }
     FreeEnergyShift [kcal/mol] = 0.0
-    RadiiScaling = 1.4
+    RadiiScaling {
+      C = 1.4
+      N = 1.4
+      H = 1.4
+    }
     AngularGrid = 302
     Solver = DomainDecomposition {
       MaxMoment = 6

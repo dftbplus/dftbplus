@@ -11,8 +11,10 @@
 module dftbp_dftbplus_specieslist
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : elementSymbol
-  use dftbp_extlibs_xmlf90, only : fnode
-  use dftbp_io_hsdutils, only : getChildValue, getChild
+  use dftbp_common_unitconversion, only : TUnit
+  use dftbp_extlibs_xmlf90, only : char, fnode, string
+  use dftbp_io_hsdutils, only : getChild, getChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd
   implicit none
 
   private
@@ -30,52 +32,51 @@ contains
 
 
   !> Read a list of real valued species data
-  subroutine readSpeciesListReal(node, speciesNames, array, default, conv)
+  subroutine readSpeciesListReal(node, speciesNames, array, default, units)
 
     !> Node to process
     type(fnode), pointer :: node
 
     !> Data array to read
-    real(dp), intent(out) :: array(:)
+    real(dp), intent(inout) :: array(:)
 
     !> Names of all species
     character(len=*), intent(in) :: speciesNames(:)
 
-    !> Data array to read
+    !> Optional default values of data array to be read
     real(dp), intent(in), optional :: default(:)
 
     !> Conversion factor
-    real(dp), intent(in), optional :: conv
+    type(TUnit), intent(in), optional :: units(:)
 
     type(fnode), pointer :: child
-    real(dp) :: fact, dummy
+    type(string) :: modifier
     integer :: iSp
 
-    if (present(conv)) then
-      fact = 1.0_dp / conv
-    else
-      fact = 1.0_dp
-    end if
-
     if (present(default)) then
-      do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp)*fact)
-      end do
-    else
-      do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp))
-      end do
-    end if
-
-    do iSp = 1, size(elementSymbol)
-      call getChild(node, elementSymbol(iSp), child, requested=.false.)
-      if (associated(child)) then
-        call getChildValue(child, "", dummy)
+      if (present(units)) then
+        do iSp = 1, size(speciesNames)
+          call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp),&
+              & modifier=modifier, child=child, isDefaultExported=.false.)
+          call convertUnitHsd(char(modifier), units, child, array(iSp))
+        end do
+      else
+        do iSp = 1, size(speciesNames)
+          call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp),&
+              & isDefaultExported=.false.)
+        end do
       end if
-    end do
-
-    if (present(conv)) then
-        array(:) = array * conv
+    else
+      if (present(units)) then
+        do iSp = 1, size(speciesNames)
+          call getChildValue(node, speciesNames(iSp), array(iSp), modifier=modifier, child=child)
+          call convertUnitHsd(char(modifier), units, child, array(iSp))
+        end do
+      else
+        do iSp = 1, size(speciesNames)
+          call getChildValue(node, speciesNames(iSp), array(iSp))
+        end do
+      end if
     end if
 
   end subroutine readSpeciesListReal
@@ -96,26 +97,18 @@ contains
     !> Data array to read
     integer, intent(in), optional :: default(:)
 
-    type(fnode), pointer :: child
-    integer :: dummy
     integer :: iSp
 
     if (present(default)) then
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp))
+        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp),&
+            & isDefaultExported = .false.)
       end do
     else
       do iSp = 1, size(speciesNames)
         call getChildValue(node, speciesNames(iSp), array(iSp))
       end do
     end if
-
-    do iSp = 1, size(elementSymbol)
-      call getChild(node, elementSymbol(iSp), child, requested=.false.)
-      if (associated(child)) then
-        call getChildValue(child, "", dummy)
-      end if
-    end do
 
   end subroutine readSpeciesListInt
 

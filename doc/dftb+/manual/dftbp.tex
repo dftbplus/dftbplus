@@ -2623,7 +2623,7 @@ significant.
 \subsubsection{$\boldsymbol\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
-singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
+singlet species~\cite{irle-JCTC-12-313}. The KS spin orbitals are self-constently
 optimised under non-Aufbau orbital occupation constraints via promotion of an
 electron from the highest occupied molecular orbital (HOMO) of the ground state
 to lowest unoccupied molecular orbital (LUMO) at each SCC
@@ -3662,7 +3662,7 @@ For the electronegativity equilibration model the following parameters are avail
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
-up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
+up to 86 can be supplied automatically~\cite{caldeweyher-jcp-150-154122}.
 
 \begin{ptable}
   \kw{Chi} & m & & \is{Defaults} & \\
@@ -3741,7 +3741,7 @@ while \is{Cov\cb} is the default coordination number for DFTD4.
 \begin{description}
 
 \item[\is{Radii}] Covalent radii of all species in Bohr.
-  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+  Default values taken are the DFTD3 covalent radii~\cite{grimme-jcp-132-154104}.
 
 \item[\is{Electronegativities}] Electronegativities of all species.
   Default values taken are Pauling ENs.
@@ -3988,7 +3988,7 @@ systems.
   \item[\is{Kernel}]
     Interaction kernel for the screened Coulomb operator.
     Possible options are the canonical ``Still'' kernel\cite{still1990} and the
-    ``P16'' kernel.\cite{lange2012}
+    ``P16'' kernel~\cite{lange2012}.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3998,7 +3998,7 @@ systems.
   \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
     polynomial to correct Born radii calculation.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
-    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I~\cite{onufriev2004}.
 
   \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
     before evaluating the Born energy.
@@ -4032,7 +4032,7 @@ systems.
 
   \item[\is{Alpha}]
     Alpha parameter in the ALPB model, should be kept to 0.571412 which was
-    derived from first principles.\cite{sigalov2006}
+    derived from first principles~\cite{sigalov2006}.
 \end{description}
 
 Example for a GB model with \cf{CS2} as solvent:
@@ -4186,7 +4186,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
   \kw{State} & s & & gsolv & \\
   \kw{AngularGrid} & i & & & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
-  \kw{RadiiScaling} & r & & & \\
+  \kw{RadiiScaling} & r & & 1.0 & \\
   \kw{Solver} & m & & \kw{DomainDecomposition} & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
 \end{ptable}
@@ -4223,7 +4223,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of solving the
     COSMO equations, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -4232,19 +4232,19 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
     4334, 4802, 5294, 5810.
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
-    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+  \item[\is{Radii}] Atomic radii for each element, either defaults to
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overridden)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
     Alternatively, \is{VanDerWaalsRadiiCosmo\cb} and \is{VanDerWaalsRadiiBondi\cb}
     can be used to provide van-der-Waals radii. Note that Bondi radii\cite{mantina2009}
-    are only available for main group elements and Cosmo optimised radii default to
+    are only available for main group elements and COSMO optimised radii default to
     2.223~AA if no optimised values are available.
 
   \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.3 and 1.5 are recommended when using DFT-D3 van-der-Waals
     radii, while for Bondi radii usually values between 1.2 and 1.3 are used.
-    Cosmo optimised radius should be used with a scaling factor of unity.
+    COSMO optimised radii should be used with a scaling factor of unity.
 
   \item[\is{Solver}] for the COSMO equation. Currently only
     \is{DomainDecomposition\cb} is implemented (default). If specified
@@ -4301,7 +4301,7 @@ where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
 is the accessible surface area of each atom.
 To calculate the latter, the molecule is assumed as a convolution of spheres
 which is probed by a probe sphere rolled around the surface.
-Here a smooth numerical integration approach is employed.\cite{im2003}
+Here a smooth numerical integration approach is employed~\cite{im2003}.
 
 To use the non-polar surface area model in an calculation use the
 \is{SASA\cb} method in the input to \kw{Solvation}.
@@ -4335,7 +4335,7 @@ This model is currently only available for finite systems.
     for as SASA.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of evaluating the
     accessible surface area, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -5097,8 +5097,8 @@ calculation and/or calculate properties.
   charge associated only with the on-site part of the atomic orbitals, not the
   off-site hybridisation).
 
-\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is written as
-  a cosmo file to dftbp.cosmo. Only works if the solvation model is COSMO.
+\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is
+  written to dftbp.cosmo. Only works if the solvation model is COSMO.
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
@@ -5120,7 +5120,7 @@ calculation and/or calculate properties.
   configuration, prepended by the name of the state. The $s_1$ state
   will be spin contaminated, so if used for density of states will
   require processing according to the Ziegler sum
-  rule.\cite{baerends-TCA-43-261}
+  rule~\cite{baerends-TCA-43-261}.
 
 \item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).

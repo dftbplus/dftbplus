@@ -385,7 +385,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as real.
-  subroutine getChVal_real(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_real(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -405,11 +405,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -427,9 +431,10 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
-      if (present(modifier)) then
-        modifier = ""
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
       end if
+      if (present(modifier)) modifier = ""
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -725,7 +730,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as integer.
-  subroutine getChVal_int(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_int(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -745,11 +750,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -767,6 +776,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
+      end if
       if (present(modifier)) then
         modifier = ""
       end if

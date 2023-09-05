@@ -46,6 +46,16 @@ Fixed
 
 - DeltaDFTB purified forces used correctly.
 
+- COSMO solvent models had a bug leading to the energy showing a
+  dependence on the ordering of the atoms in the system.
+
+- Solvents where RadiiScaling was specified with a unit conversion
+  were scaled by the square of the conversion. Affects calculations
+  using constructs of the form:
+  Radii = * [AA] = {}
+  where * is Values, vanDerWaalsRadiiBondi vanDerWaalsRadiiCosmo or
+  vanDerWaalsRadiiD3
+
 24.1 (2024-02-12)
 =================
 

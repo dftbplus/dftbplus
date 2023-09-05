@@ -22,7 +22,7 @@ Hamiltonian = DFTB {
     FreeEnergyShift [kcal/mol] =    2.83877748
     BornScale =    1.56864732
     BornOffset =   0.000000000000000E+00
-    Radii = vanDerWaalsRadiiD3 [AA] { D = 1.09155 }
+    Radii = vanDerWaalsRadiiD3 { D [AA] = 1.09155 }
     Descreening = Values {
       D  =    0.30000000
       H  =    0.30000000
@@ -123,6 +123,7 @@ Analysis = {
 
 ParserOptions = {
   ParserVersion = 8
+  IgnoreUnprocessedNodes = Yes
 }
 
 Parallel {

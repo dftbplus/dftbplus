@@ -196,8 +196,8 @@ contains
       if (.not.allocated(defaults)) then
         call detailedError(child, "No defaults available for descreening parameters")
       end if
-      call readSpeciesList(value1, geo%speciesNames, input%descreening, &
-          & defaults%descreening)
+      call readSpeciesList(value1, geo%speciesNames, input%descreening,&
+          & default=defaults%descreening)
     case("unity")
       input%descreening(:) = 1.0_dp
     case("values")
@@ -248,8 +248,7 @@ contains
           else
             call detailedError(child, "No defaults available for hydrogen bond strengths")
           end if
-          call readSpeciesList(value1, geo%speciesNames, input%hBondPar, &
-              & defaults%hBondPar)
+          call readSpeciesList(value1, geo%speciesNames, input%hBondPar, default=defaults%hBondPar)
         case("values")
           call readSpeciesList(value1, geo%speciesNames, input%hBondPar)
         end select
@@ -273,7 +272,8 @@ contains
 
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, field
-    real(dp) :: temperature, shift, radScale
+    real(dp) :: temperature, shift
+    real(dp), allocatable :: radScale(:), radScaleSpecies(:), radScaleDefault(:)
     type(TSolventData) :: solvent
 
     if (geo%tPeriodic .or. geo%tHelical) then
@@ -298,8 +298,16 @@ contains
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
 
     call readVanDerWaalsRad(node, geo, input%vdwRad)
-    call getChildValue(node, "RadiiScaling", radScale)
-    input%vdwRad(:) = input%vdwRad * radScale
+
+    call getChild(node, "RadiiScaling", child, requested=.false.)
+    if (associated(child)) then
+      allocate(radScaleSpecies(geo%nSpecies))
+      allocate(radScaleDefault(geo%nSpecies), source=1.0_dp)
+      call readSpeciesList(child, geo%speciesNames, radScaleSpecies, default=radScaleDefault)
+      deallocate(radScaleDefault)
+      input%vdwRad(:) = input%vdwRad * radScaleSpecies
+      deallocate(radScaleSpecies)
+    end if
 
     call readAngularGrid(node, input%gridSize)
 
@@ -393,8 +401,8 @@ contains
       if (.not.present(surfaceTensionDefault)) then
         call detailedError(child, "No defaults available for surface tension values")
       end if
-      call readSpeciesList(value1, geo%speciesNames, input%surfaceTension, &
-          & surfaceTensionDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%surfaceTension,&
+          & default=surfaceTensionDefault)
     case("values")
       call readSpeciesList(value1, geo%speciesNames, input%surfaceTension)
     end select
@@ -420,18 +428,14 @@ contains
 
     type(fnode), pointer :: value1, dummy, child, field
     type(string) :: buffer, modifier
-    real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)
 
     call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
       & modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), inverseLengthUnits, field, input%alpha)
 
-    conv = 1.0_dp
     allocate(input%atomicRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, "AtomicRadii", child=child)
-    call getChild(value1, "", dummy, modifier=modifier)
-    call convertUnitHsd(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -439,16 +443,15 @@ contains
     case("atomicradii")
       allocate(atomicRadDefault(geo%nSpecies))
       atomicRadDefault(:) = getAtomicRad(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, conv=conv, &
-        & default=atomicRadDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, default=atomicRadDefault,&
+          & units=lengthUnits)
       deallocate(atomicRadDefault)
     case("values")
-      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, units=lengthUnits)
     end select
     if (any(input%atomicRad <= 0.0_dp)) then
       call detailedError(value1, "Atomic radii must be positive for all species")
     end if
-    input%atomicRad(:) = input%atomicRad * conv
 
     call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
         & modifier=modifier, child=field)
@@ -558,14 +561,10 @@ contains
 
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, dummy
-    real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 
-    conv = 1.0_dp
     allocate(vdwRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, "vanDerWaalsRadiiD3", child=child)
-    call getChild(value1, "", dummy, modifier=modifier)
-    call convertUnitHsd(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -573,25 +572,24 @@ contains
     case("vanderwaalsradiid3")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
-        & conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, default=vdwRadDefault,&
+          & units=lengthUnits)
       deallocate(vdwRadDefault)
     case("vanderwaalsradiicosmo")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusCosmo(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
-        & conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, default=vdwRadDefault,&
+          & units=lengthUnits)
       deallocate(vdwRadDefault)
     case("vanderwaalsradiibondi")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusBondi(geo%speciesNames)
-      call readSpeciesList(value1, geo%speciesNames, vdwRad, vdwRadDefault, &
-        & conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, default=vdwRadDefault,&
+          & units=lengthUnits)
       deallocate(vdwRadDefault)
     case("values")
-      call readSpeciesList(value1, geo%speciesNames, vdwRad, conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, units=lengthUnits)
     end select
-    vdwRad(:) = vdwRad * conv
 
   end subroutine readVanDerWaalsRad
 

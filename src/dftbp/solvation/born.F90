@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Generalized Born solvation model.
 module dftbp_solvation_born
@@ -14,6 +15,7 @@ module dftbp_solvation_born
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeWithWorkload,&
       & assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_math_blasroutines, only : hemv, gemv
@@ -211,8 +213,7 @@ contains
 
 
   !> Initialize generalized Born model from input data
-  subroutine TGeneralizedBorn_init(this, input, nAtom, species0, speciesNames, &
-      & latVecs)
+  subroutine TGeneralizedBorn_init(this, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Initialised instance at return
     type(TGeneralizedBorn), intent(out) :: this
@@ -229,6 +230,9 @@ contains
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -241,12 +245,13 @@ contains
     if (allocated(input%sasaInput)) then
        allocate(this%sasaCont)
        if (this%tPeriodic) then
-         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
-             & speciesNames, latVecs)
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, speciesNames,&
+             & errStatus, latVecs)
        else
-         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
-             & speciesNames)
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, speciesNames,&
+             & errStatus)
        end if
+       @:PROPAGATE_ERROR(errStatus)
     end if
 
     if (this%tPeriodic) then
@@ -281,11 +286,9 @@ contains
     if (allocated(input%cm5Input)) then
       allocate(this%cm5)
       if (this%tPeriodic) then
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true., latVecs)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true., latVecs)
       else
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true.)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true.)
       end if
     end if
 
@@ -343,6 +346,7 @@ contains
     else
       write(unit, '(a)') "No"
     end if
+
   end subroutine writeGeneralizedBornInfo
 
 
@@ -469,7 +473,7 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients, errStatus)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: this
@@ -492,6 +496,9 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
@@ -502,7 +509,9 @@ contains
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (allocated(this%hBondStrength)) then
         allocate(dhbds(this%nAtom))
         dhbds(:) = this%hBondStrength * this%chargesPerAtom**2
@@ -591,7 +600,7 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb, errStatus)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: this
@@ -617,10 +626,15 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     @:ASSERT(this%tCoordsUpdated)
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom)

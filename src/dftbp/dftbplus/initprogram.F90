@@ -871,6 +871,9 @@ module dftbp_dftbplus_initprogram
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
+    !> Does the solvent require symmetric neighbours?
+    logical :: areSolventNeighboursSym
+
     !> Dielectric scaling of electric fields (if relevant)
     type(TScaleExtEField) :: eFieldScaling
 
@@ -1343,7 +1346,7 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tGeoOptRequiresEgy, isOnsiteCorrected
+    logical :: tGeoOptRequiresEgy, isOnsiteCorrected, areNeighboursSymmetric
     type(TStatus) :: errStatus
     integer :: nLocalRows, nLocalCols
 
@@ -1395,12 +1398,12 @@ contains
     this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
     if (this%isHybridXc) then
-      allocate(this%symNeighbourList)
       this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
       this%checkStopHybridCalc = input%ctrl%checkStopHybridCalc
     else
       this%hybridXcAlg = hybridXcAlgo%none
     end if
+    areNeighboursSymmetric = this%isHybridXc
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1815,14 +1818,6 @@ contains
     allocate(this%species(this%nAllAtom))
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
-
-    if (allocated(this%symNeighbourList)) then
-      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
-      allocate(this%symNeighbourList%species(this%nAllAtom))
-      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
-      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
-      allocate(this%symNeighbourList%iPair(0, this%nAtom))
-    end if
 
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
@@ -2347,35 +2342,43 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
     end if
 
+    this%areSolventNeighboursSym = .false.
     if (allocated(input%ctrl%solvInp)) then
       if (allocated(input%ctrl%solvInp%GBInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .false.
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .false.
+      end if
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
       if (.not.allocated(this%solvation)) then
         call error("Could not initialize solvation model!")
       end if
+      areNeighboursSymmetric = areNeighboursSymmetric .or. this%areSolventNeighboursSym
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
 
       call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
@@ -2387,7 +2390,6 @@ contains
               & this%eFieldScaling%scaledExtEField(this%eField%EFieldStrength)
         end if
       end if
-
     end if
 
     if (allocated(this%halogenXCorrection)) then
@@ -2809,8 +2811,15 @@ contains
 
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
-    if (allocated(this%symNeighbourList)) then
-      if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
+    if (areNeighboursSymmetric) then
+      allocate(this%symNeighbourList)
+      allocate(this%symNeighbourList%neighbourList)
+      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
+      allocate(this%symNeighbourList%species(this%nAllAtom))
+      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
+      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
+      allocate(this%symNeighbourList%iPair(0, this%nAtom))
+      if ((.not. this%tReadChrg) .and. this%tPeriodic) then
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
         this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
       end if
@@ -2960,8 +2969,7 @@ contains
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    if (allocated(this%symNeighbourList)) then
-      allocate(this%symNeighbourList%neighbourList)
+    if (areNeighboursSymmetric) then
       call TNeighbourlist_init(this%symNeighbourList%neighbourList, this%nAtom, nInitNeighbour)
       if (this%isHybridXc) then
         allocate(this%nNeighbourCam(this%nAtom))

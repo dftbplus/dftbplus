@@ -6,14 +6,16 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> update the SCC hamiltonian
 module dftbp_dftb_hamiltonian
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -23,7 +25,6 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_integral, only : TIntegral
@@ -147,7 +148,7 @@ contains
   !> spin, and where relevant dispersion
   subroutine addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0, chargePerShell,&
       & orb, multipole, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd,&
-      & dispersion, potential)
+      & dispersion, potential, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -199,6 +200,9 @@ contains
 
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
@@ -268,7 +272,9 @@ contains
     end if
 
     if (allocated(solvation)) then
-      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
+      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)

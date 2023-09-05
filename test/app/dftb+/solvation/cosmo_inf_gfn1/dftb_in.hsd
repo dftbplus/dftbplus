@@ -1,0 +1,35 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = xtb {
+  Method = "GFN1-xTB"
+  Filling = Fermi {Temperature [K] = 300}
+  Solvation = Cosmo {
+    Solvent = FromConstants {
+      Epsilon = Inf
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    Radii = vanDerWaalsRadiiCosmo {}
+    RadiiScaling = {
+      H = 0.93069759
+      C = 1.11953986
+      N = 1.21082767
+    }
+    AngularGrid = 110
+    Solver = DomainDecomposition {
+      MaxMoment = 6
+      Accuracy = 1E-1
+    }
+  }
+  Charge = +1
+  SccTolerance = 1E-8
+}
+
+Options { WriteAutotestTag = Yes }
+Analysis { PrintForces = Yes }
+ParserOptions { ParserVersion = 14 }
+Parallel { UseOmpThreads = Yes }

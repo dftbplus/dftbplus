@@ -11,6 +11,7 @@
 module dftbp_solvation_solvation
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
@@ -76,6 +77,7 @@ module dftbp_solvation_solvation
 
       !> Central cell chemical species
       integer, intent(in) :: species0(:)
+
     end subroutine updateCoords
 
 
@@ -88,6 +90,7 @@ module dftbp_solvation_solvation
 
       !> Lattice vectors
       real(dp), intent(in) :: latVecs(:,:)
+
     end subroutine updateLatVecs
 
 
@@ -100,12 +103,14 @@ module dftbp_solvation_solvation
 
       !> Energy contributions for each atom
       real(dp), intent(out) :: energies(:)
+
     end subroutine getEnergies
 
 
     !> Get force contributions
-    subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
-      import :: TSolvation, TEnvironment, TNeighbourList, dp
+    subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients,&
+        & errStatus)
+      import :: dp, TEnvironment, TNeighbourList, TSolvation, TStatus
 
       !> Data structure
       class(TSolvation), intent(inout) :: this
@@ -127,6 +132,10 @@ module dftbp_solvation_solvation
 
       !> Gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
+
+      !> Error status
+      type(TStatus), intent(out) :: errStatus
+
     end subroutine addGradients
 
 
@@ -139,6 +148,7 @@ module dftbp_solvation_solvation
 
       !> Stress tensor contributions
       real(dp), intent(out) :: stress(:,:)
+
     end subroutine getStress
 
 
@@ -151,12 +161,13 @@ module dftbp_solvation_solvation
 
       !> Resulting cutoff
       real(dp) :: cutoff
+
     end function getRCutoff
 
 
     !> Updates with changed charges for the instance.
-    subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
-      import :: TSolvation, TEnvironment, TNeighbourList, TOrbitals, dp
+    subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb, errStatus)
+      import :: dp, TEnvironment, TNeighbourList, TOrbitals, TSolvation, TStatus
 
       !> Data structure
       class(TSolvation), intent(inout) :: this
@@ -181,6 +192,10 @@ module dftbp_solvation_solvation
 
       !> Orbital information
       type(TOrbitals), intent(in) :: orb
+
+      !> Error status
+      type(TStatus), intent(out) :: errStatus
+
     end subroutine updateCharges
 
 
@@ -196,6 +211,7 @@ module dftbp_solvation_solvation
 
       !> Shift per shell
       real(dp), intent(out) :: shiftPerShell(:,:)
+
     end subroutine getShifts
 
     !> Is the electrostic field modified by this solvent model?
