@@ -533,6 +533,8 @@ contains
     integer :: iAt, iSp, iSh
     integer :: nAtom, nSpin
 
+    allocate( qq(size(qorb,1),size(qorb,2),size(qorb,3)) )
+    
     if (present(qRef)) then
       qq = qOrb - qRef
     else

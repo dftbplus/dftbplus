@@ -25,7 +25,7 @@ module dftbp_dftb_extcharges
     private
 
     !> Number of point charges
-    integer :: nChrg
+    integer, public :: nChrg
 
     !> Number of atoms
     integer :: nAtom

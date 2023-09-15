@@ -488,6 +488,12 @@ contains
     !> Spatial extension of external charge distribution
     real(dp), intent(in), optional :: blurWidths(:)
 
+    if ( allocated(this%extCharges) ) then
+       if ( this%extCharges%nChrg /= size(chargeQs) ) then
+          deallocate(this%extCharges)
+       end if
+    end if
+    
     if (.not. allocated(this%extCharges)) then
       allocate(this%extCharges)
       call TExtCharges_init(this%extCharges, this%nAtom, size(chargeQs), this%tPeriodic)
