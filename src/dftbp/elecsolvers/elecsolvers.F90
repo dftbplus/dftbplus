@@ -15,10 +15,8 @@ module dftbp_elecsolvers_elecsolvers
   implicit none
 
   private
-  public :: TElectronicSolverInp
-  public :: TElectronicSolver, TElectronicSolver_init
-  public :: TElsiSolverInp
-  public :: electronicSolverTypes
+  public :: TElectronicSolverInp, TElectronicSolver, TElectronicSolver_init, TElsiSolverInp
+  public :: electronicSolverTypes, providesEigenvalues
 
 
   !> Input for electronic/eigen solver block
@@ -109,10 +107,7 @@ contains
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
 
     !> Eigenvalues for hamiltonian available
-    this%providesEigenvals = any(this%iSolver ==&
-        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
-        & electronicSolverTypes%magma_gvd])
+    this%providesEigenvals = providesEigenvalues(this%iSolver)
 
     !> Band energy for electrons available
     this%providesBandEnergy = any(this%iSolver ==&
@@ -150,6 +145,23 @@ contains
     end if
 
   end subroutine TElectronicSolver_init
+
+
+  !> Does the electronic solver provide eigenvalues of the hamiltonian
+  pure function providesEigenvalues(iSolver)
+
+    !> Electronic solver in use
+    integer, intent(in) :: iSolver
+
+    !> Are eigenvalues available?
+    logical :: providesEigenvalues
+
+    providesEigenvalues = any(iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd])
+
+  end function providesEigenvalues
 
 
   !> Resets the electronic solver for the next geometry step.

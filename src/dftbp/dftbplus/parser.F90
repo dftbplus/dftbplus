@@ -46,7 +46,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
-  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
@@ -2737,7 +2737,7 @@ contains
             &  "when task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
-      ! fixEf also avoids checks of total charge in initQFromFile
+      ! fixEf also avoids checks of total charge later on in the run
       ctrl%tFixEf = .true.
     case ("transportonly")
       if (tp%defined .and. .not.tp%taskUpload) then
@@ -4060,6 +4060,21 @@ contains
         ctrl%restartFreq = 0
       end if
     end if
+    if (ctrl%tMD) then
+      allocate(ctrl%mdOutput)
+      call getChild(node, "MDOutput", child, requested=.false.)
+      if (associated(child)) then
+        if (providesEigenvalues(ctrl%solver%isolver)) then
+          call getChildValue(child, "AppendBandOut", ctrl%mdOutput%bandStructure, .false.)
+        end if
+        if (ctrl%tPrintForces) then
+          call getChildValue(child, "Derivatives", ctrl%mdOutput%printForces, .true.)
+        end if
+        if (ctrl%tPrintMulliken) then
+          call getChildValue(child, "Charges", ctrl%mdOutput%printCharges, .true.)
+        end if
+      end if
+    end if
     call getChildValue(node, "RandomSeed", ctrl%iSeed, 0, child=child)
     if (ctrl%iSeed < 0) then
       call detailedError(child, "Random seed must be greater or equal zero")
@@ -5137,11 +5152,7 @@ contains
     logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
-    if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
-      tHaveEigenDecomposition = .true.
-    end if
+    tHaveEigenDecomposition = providesEigenvalues(ctrl%solver%isolver)
     tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
 
     if (tHaveEigenDecomposition) then
