@@ -1138,13 +1138,13 @@ module dftbp_dftbplus_initprogram
     !> Number of determinants in use in the calculation
     integer :: nDets
 
-    !> Final SCC charges if multiple determinants being used
+    !> SCC charges, if multiple determinants being used
     real(dp), allocatable :: qDets(:,:,:,:)
 
-    !> Final SCC block charges if multiple determinants being used
+    !> SCC block charges, if multiple determinants being used
     real(dp), allocatable :: qBlockDets(:,:,:,:,:)
 
-    !> Final density matrices if multiple determinants being used
+    !> Density matrices, if multiple determinants are being used
     real(dp), allocatable :: deltaRhoDets(:,:,:,:)
 
     !> Data type for REKS
@@ -1666,6 +1666,11 @@ contains
         & this%nIndepSpin, this%tempElec)
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
+
+    if (input%ctrl%isNonAufbau) then
+      ! for the moment, as this has not been derived
+      this%electronicSolver%providesElectronEntropy = .false.
+    end if
 
   #:if WITH_TRANSPORT
     this%tTunn = input%ginfo%tundos%defined
@@ -2760,8 +2765,8 @@ contains
     end if
 
     this%tReadChrg = input%ctrl%tReadChrg
-    if (this%tReadChrg .and. this%deltaDftb%isNonAufbau) then
-      call error("Charge restart not currently supported for Delta DFTB")
+    if (this%tReadChrg .and. this%deltaDftb%nDeterminant() > 1) then
+      call error("Charge restart not currently supported for Delta DFTB with multiple states")
     end if
 
     this%tReadShifts = input%ctrl%tReadShifts
@@ -5302,16 +5307,15 @@ contains
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
       ! must be SCC and also need storage for final charges
-      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
-      this%qDets(:,:,:,:) = 0.0_dp
-      ! When block charges are needed
+      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets), source=0.0_dp)
       if (allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
-        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
-        this%qBlockDets(:,:,:,:,:) = 0.0_dp
+        ! When block charges are needed
+        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets),&
+            & source=0.0_dp)
       end if
       if (this%isHybridXc) then
-        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets))
-        this%deltaRhoDets(:,:,:,:) = 0.0_dp
+        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets),&
+            & source=0.0_dp)
       end if
     end if
 

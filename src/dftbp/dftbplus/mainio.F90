@@ -3934,10 +3934,12 @@ contains
 
   end subroutine writeMdOut1
 
+
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
-      & fixEf, printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol,&
-      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
+      & fixEf, printMulliken, dftbEnergy, energiesCasida, latVec, derivs, totalStress, cellVol,&
+      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage,&
+      & electronicSolver, deltaDftb)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3966,8 +3968,8 @@ contains
     !> Should Mulliken charges be printed?
     logical, intent(in) :: printMulliken
 
-    !> Energy contributions
-    type(TEnergies), intent(in) :: energy
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: dftbEnergy(:)
 
     !> Excitation energies, if allocated
     real(dp), intent(inout), allocatable :: energiesCasida(:)
@@ -4008,8 +4010,16 @@ contains
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
 
-    integer :: ii
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    integer :: ii, iDet
     character(lc) :: strTmp
+
+    iDet = deltaDftb%iFinal
 
     if (printForces) then
       write(fd, "(A)") "Forces (au)"
@@ -4033,17 +4043,17 @@ contains
       write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
       write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
       if (abs(pressure) < 1.0e-16_dp) then
-        write(fd, format2U) "Gibbs free energy", energy%EGibbs, "H",&
-            & Hartree__eV * energy%EGibbs, "eV"
-        write(fd, format2U) "Gibbs free energy including KE", energy%EGibbsKin, "H",&
-            & Hartree__eV * energy%EGibbsKin, "eV"
+        write(fd, format2U) "Gibbs free energy", dftbEnergy(iDet)%EGibbs, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%EGibbs, "eV"
+        write(fd, format2U) "Gibbs free energy including KE", dftbEnergy(iDet)%EGibbsKin, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%EGibbsKin, "eV"
       end if
     end if
 
     if (isLinResp) then
-      if (energy%Eexcited /= 0.0_dp) then
-        write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
-            & Hartree__eV * energy%Eexcited, "eV"
+      if (dftbEnergy(iDet)%Eexcited /= 0.0_dp) then
+        write(fd, format2U) "Excitation Energy", dftbEnergy(iDet)%Eexcited, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%Eexcited, "eV"
       end if
       if (allocated(energiesCasida)) then
         do ii = 1, size(energiesCasida)
@@ -4054,10 +4064,12 @@ contains
       end if
     end if
 
-    write(fd, format2U) "Potential Energy", energy%EMermin, "H", energy%EMermin * Hartree__eV, "eV"
-    write(fd, format2U) "MD Kinetic Energy", energy%Ekin, "H", energy%Ekin * Hartree__eV, "eV"
-    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
-        & energy%EMerminKin * Hartree__eV, "eV"
+    write(fd, format2U) "Potential Energy", dftbEnergy(iDet)%EMermin, "H",&
+        & dftbEnergy(iDet)%EMermin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Kinetic Energy", dftbEnergy(iDet)%Ekin, "H",&
+        & dftbEnergy(iDet)%Ekin * Hartree__eV, "eV"
+    write(fd, format2U) "Total MD Energy", dftbEnergy(iDet)%EMerminKin, "H",&
+        & dftbEnergy(iDet)%EMerminKin * Hartree__eV, "eV"
     write(fd, format2U) "MD Temperature", tempIon, "au", tempIon / Boltzmann, "K"
 
     if (allocated(eField)) then
@@ -4080,6 +4092,10 @@ contains
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
       write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
+    end if
+
+    if (deltaDftb%nDeterminant() > 1) then
+      call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fd)
     end if
 
   end subroutine writeMdOut2
@@ -4716,19 +4732,17 @@ contains
         end if
 
         if (deltaDftb%iGround > 0) then
-          if (electronicSolver%providesFreeEnergy) then
-            write(iUnit, *)
-            write(iUnit, format2U) 'S0 -> T1',&
-                & energy(deltaDftb%iTriplet)%EForceRelated&
-                & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
-                & (energy(deltaDftb%iTriplet)%EForceRelated&
-                & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
-            write(iUnit, format2U) 'S0 -> S1',&
-                & energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated,&
-                & 'H',&
-                & (energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated)&
-                & * Hartree__eV, 'eV'
-          end if
+          write(iUnit, *)
+          write(iUnit, format2U) 'S0 -> T1',&
+              & energy(deltaDftb%iTriplet)%EForceRelated&
+              & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
+              & (energy(deltaDftb%iTriplet)%EForceRelated&
+              & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
+          write(iUnit, format2U) 'S0 -> S1',&
+              & energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated,&
+              & 'H',&
+              & (energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated)&
+              & * Hartree__eV, 'eV'
         end if
 
       else

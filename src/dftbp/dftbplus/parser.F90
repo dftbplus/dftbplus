@@ -2730,7 +2730,7 @@ contains
             &  "when task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
-      ! fixEf also avoids checks of total charge in initQFromFile
+      ! fixEf also avoids checks of total charge later on in the run
       ctrl%tFixEf = .true.
     case ("transportonly")
       if (tp%defined .and. .not.tp%taskUpload) then
