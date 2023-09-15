@@ -1417,8 +1417,13 @@ contains
               & this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
-          if (this%tWriteBandDat .and. this%deltaDftb%nDeterminant() == 1) then
-            call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+          if (this%tWriteBandDat) then
+            if (this%deltaDftb%nDeterminant() == 1) then
+              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+            else
+              call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) // '_'&
+                  & //  bandOut, this%eigen, this%filling, this%kWeight)
+            end if
           end if
 
           call processOutputCharges(env, this)

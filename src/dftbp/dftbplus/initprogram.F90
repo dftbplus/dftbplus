@@ -5066,6 +5066,8 @@ contains
     !> Environment
     type(TEnvironment), intent(inout) :: env
 
+    integer :: iDet
+
     call TTaggedWriter_init(this%taggedWriter)
 
     if (this%tWriteAutotest) then
@@ -5075,11 +5077,18 @@ contains
       call clearFile(resultsTag)
     end if
     if (this%tWriteBandDat) then
-      call clearFile(bandOut)
+      if (this%deltaDftb%nDeterminant() == 1) then
+        call clearFile(bandOut)
+      else
+        do iDet = 1, this%deltaDftb%nDeterminant()
+          call clearFile(this%deltaDftb%determinantName(iDet) // '_' //  bandOut)
+        end do
+      end if
       if (this%doPerturbation .and. this%isEResp) then
         call clearFile(derivEBandOut)
       end if
     end if
+
     if (this%tDerivs) then
       call clearFile(hessianOut)
     end if
