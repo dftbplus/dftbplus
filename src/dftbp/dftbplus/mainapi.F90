@@ -455,6 +455,11 @@ contains
 
     main%tExtChrg = .true.
     if (main%tForces) then
+      if ( allocated(main%chrgForces) ) then
+         if ( size(main%chrgForces,2) /= size(chargeQs) ) then
+            deallocate(main%chrgForces)
+         end if
+      end if
       if (.not. allocated(main%chrgForces)) then
         allocate(main%chrgForces(3, size(chargeQs)))
       end if
