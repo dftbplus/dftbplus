@@ -4047,8 +4047,6 @@ contains
       #:endfor
     end if
 
-
-    !TODO(Alex) Could definitely split the code here
     if (allocated(this%reks)) return
 
     ! Charges not read from file
@@ -4982,7 +4980,6 @@ contains
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
-
 
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
