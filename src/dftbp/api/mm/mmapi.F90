@@ -26,7 +26,8 @@ module dftbp_mmapi
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
+  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild,&
+      & destroyNode
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_message, only: error
@@ -38,7 +39,7 @@ module dftbp_mmapi
   public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusAtomList
-  public :: TDftbPlusInput
+  public :: TDftbPlusInput, TDftbPlusInput_destruct
   public :: TQDepExtPotGen
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
@@ -189,6 +190,20 @@ contains
     end if
 
   end subroutine getDftbPlusApi
+
+
+  !> Destructs the DFTB+ input type
+  subroutine TDftbPlusInput_destruct(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    if (associated(this%hsdTree)) then
+      call destroyNode(this%hsdTree)
+      this%hsdTree => null()
+    end if
+
+  end subroutine TDftbPlusInput_destruct
 
 
   !> Returns the root node of the input, so that it can be further processed
