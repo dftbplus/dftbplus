@@ -187,6 +187,9 @@ module dftbp_dftbplus_inputdata
     !> Geometry step
     integer :: iGeoOpt = 0
 
+    !> Are all atoms, including those outside the central cell printed?
+    logical :: areAllAtomsPrinted
+
     !> Used for gDIIS
     real(dp) :: deltaGeoOpt = 0.0_dp
 

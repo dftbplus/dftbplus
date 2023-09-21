@@ -20,11 +20,15 @@ Added
 Changed
 -------
 
+- Degeneracy tolerance for perturbation theory switched to absolute
+  tolerance of differences between eigenvalues.
 
 Fixed
 -----
 
 - Memory leak for MPI enabled code with many geometric steps.
+
+- Geometry error for periodic structures with open boundary contacts
 
 
 23.1 (2023-07-05)

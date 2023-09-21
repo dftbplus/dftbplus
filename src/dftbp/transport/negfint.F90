@@ -16,6 +16,7 @@ module dftbp_transport_negfint
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, unpackHS
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
@@ -43,7 +44,7 @@ module dftbp_transport_negfint
   implicit none
 
   private
-  public :: TNegfInt, TNegfInt_init, TNegfInt_final
+  public :: TNegfInt, TNegfInt_init, TNegfInt_final, transportPeriodicSetup
 
 
   !> Contains data needed by the NEGF interface
@@ -76,6 +77,34 @@ module dftbp_transport_negfint
   character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
 
 contains
+
+
+  !> Transport geometric setup when in a periodic structure
+  subroutine transportPeriodicSetup(transpar, latVecs, boundaryCond)
+
+    !> Parameters for the transport calculation
+    Type(TTranspar), intent(in) :: transpar
+
+    !> Periodic lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    !> Boundary conditions on the calculation
+    type(TBoundaryConditions), intent(inout) :: boundaryCond
+
+    logical :: isDir(3)
+    integer :: iCont, iDir
+
+    isDir(:) = .false.
+    do iCont = 1, transpar%nCont
+      do iDir = 1, 3
+        isDir(iDir) = isDir(iDir) .or.&
+            & abs(dot_product(transpar%contacts(iCont)%lattice, latVecs(:,iDir))) > epsilon(0.0_dp)
+      end do
+    end do
+    call boundaryCond%setTransportDirections(isDir)
+
+  end subroutine transportPeriodicSetup
+
 
   !> Init gDFTB environment and variables
   subroutine TNegfInt_init(this, transpar, env, greendens, tundos, tempElec, coords, skCutOff,&
@@ -129,7 +158,6 @@ contains
       do iAt = transpar%contacts(i)%idxrange(1), transpar%contacts(i)%idxrange(2)
         do j = i+1, ncont
           do jAt = transpar%contacts(j)%idxrange(1), transpar%contacts(j)%idxrange(2)
-            !write(*,*)i,j,sum((coords(:,iAt)-coords(:,jAt))**2),skCutOff**2
             if (sum((coords(:,iAt)-coords(:,jAt))**2) <= skCutOff**2) then
               write(errString,"(A,I0,A,I0,A)") 'Atom ', iAt, ' in contact "'//&
                   & trim(transpar%contacts(i)%name) // '" and atom ', jAt, ' in contact "'// &
@@ -142,7 +170,8 @@ contains
     end do
 
     if (hasFullySurroundingContacts(isPeriodic, nCont, transpar)) then
-      call error('Device is fully surrounded by contacts, so should not be a periodic geometry')
+      call error('Device has contacts breaking periodicity in all three directions, so should not&
+          & be a periodic geometry')
     end if
 
     ! ------------------------------------------------------------------------------
@@ -419,24 +448,19 @@ contains
     !> Is the device surrounded
     logical :: isSurrounded
 
-    real(dp), allocatable :: contVectors(:, :), sigma(:), U(:, :), Vt(:, :)
+    logical :: isDir(3)
     integer :: iCont
 
-    if (.not.isPeriodic .or. nCont < 3) then
+    if (.not.isPeriodic) then
       isSurrounded = .false.
       return
     end if
 
-    allocate(sigma(min(nCont,3)))
-    allocate(contVectors(3, nCont))
-    allocate(U(3, 3))
-    allocate(Vt(nCont, nCont))
+    isDir(:) = .false.
     do iCont = 1, nCont
-      contVectors(:, iCont) = transpar%contacts(iCont)%lattice
+      isDir(:) = isDir .or. (abs(transpar%contacts(iCont)%lattice) > epsilon(0.0_dp))
     end do
-    call gesvd(contVectors, U, sigma, Vt)
-
-    isSurrounded = all(sigma > transpar%contactLayerTol**2)
+    isSurrounded = all(isDir)
 
   end function hasFullySurroundingContacts
 

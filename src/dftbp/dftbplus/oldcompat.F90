@@ -802,7 +802,7 @@ contains
 
       call getDescendant(root, "Analysis/DegeneracyTolerance", ch1)
       if (associated(ch1)) then
-        call detailedWarning(ch1, "Keyword renamed to 'PerturbDegenTol'.")
+        call detailedWarning(ch1, "Keyword renamed to 'PertubDegenTol'.")
         call setNodeName(ch1, "PertubDegenTol")
       end if
 
@@ -841,12 +841,23 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1
+    type(fnode), pointer :: ch1, par1
+    real(dp) :: rTol
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword renamed to 'PrintForces'.")
       call setNodeName(ch1, "PrintForces")
+    end if
+
+    call getDescendant(root, "Analysis/PertubDegenTol", ch1, parent=par1)
+    if (associated(ch1)) then
+      call getChildValue(par1, "PertubDegenTol", rTol)
+      if (rTol < 1.0_dp) then
+        call detailedError(ch1, "Perturbation degeneracy tolerance must be above 1x")
+      end if
+      call setChildValue(par1, "PerturbDegenTol", rTol * epsilon(0.0_dp), child=ch1)
+      call detailedWarning(par1, "Keyword renamed to 'PerturbDegenTol'.")
     end if
 
   end subroutine convert_13_14
