@@ -489,7 +489,7 @@ contains
     real(dp), intent(in), optional :: blurWidths(:)
 
     if ( allocated(this%extCharges) ) then
-       if ( this%extCharges%nChrg /= size(chargeQs) ) then
+       if ( this%extCharges%getNumCharges() /= size(chargeQs) ) then
           deallocate(this%extCharges)
        end if
     end if

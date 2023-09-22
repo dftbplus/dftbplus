@@ -25,7 +25,7 @@ module dftbp_dftb_extcharges
     private
 
     !> Number of point charges
-    integer, public :: nChrg
+    integer :: nChrg
 
     !> Number of atoms
     integer :: nAtom
@@ -80,6 +80,9 @@ module dftbp_dftb_extcharges
     !> Copy Q * inverse R contribution for the point charges
     procedure :: copyInvRvec
 
+    !> Returns the number of external charges
+    procedure :: getNumCharges
+    
   end type TExtCharges
 
 
@@ -316,5 +319,18 @@ contains
 
   end subroutine copyInvRvec
 
+  
+  !> Returns the number of external charges
+  function getNumCharges(this) result(n)
+    
+    !> Instance of SCC calculation
+    class(TExtCharges), intent(in) :: this
 
+    integer :: n
+    
+    n = this%nChrg
+    
+  end function getNumCharges
+
+  
 end module dftbp_dftb_extcharges
