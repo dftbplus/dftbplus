@@ -26,6 +26,11 @@ Fixed
 
 - Memory leak for MPI enabled code with many geometric steps.
 
+- API call to setExternalCharges was not marking calculation to be
+  re-evaluated.
+
+- setExternalCharges was failing if number of external charges
+  changes.
 
 23.1 (2023-07-05)
 =================

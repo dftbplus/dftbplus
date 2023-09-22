@@ -465,6 +465,12 @@ contains
       end if
     end if
     call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    ! work around for lack (at the moment) for a flag to re-calculate ground state even if
+    ! geometries are unchanged.
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
 
   end subroutine setExternalCharges
 
