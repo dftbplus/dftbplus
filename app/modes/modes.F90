@@ -31,7 +31,7 @@ program modes
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom, nTrans
   integer :: iCount, jCount
-  real(dp), allocatable :: eigenValues(:), displ(:,:,:)
+  real(dp), allocatable :: eigenValues(:), eigenModesScaled(:,:), displ(:,:,:)
   real(dp), allocatable :: transDip(:), degenTransDip(:), transPol(:), degenTransPol(:)
   real(dp) :: zStar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
@@ -55,6 +55,7 @@ program modes
   write(stdout, "(/,A,/)") "Starting main program"
 
   allocate(eigenValues(3 * nMovedAtom))
+  if (tPlotModes) allocate(eigenModesScaled(3 * nMovedAtom, 3 * nMovedAtom))
 
   ! mass weight the Hessian matrix to get the dynamical matrix
   ! H_{ij} = \frac{\partial^2 \Phi}{\partial u_i \partial u_j}
@@ -85,6 +86,9 @@ program modes
   else
     call heev(dynMatrix, eigenValues, "U", "N")
   end if
+
+  ! save original eigenvectors
+  if (allocated(eigenModesScaled)) eigenModesScaled(:,:) = dynMatrix
 
   ! take square root of eigenvalues of modes (allowing for imaginary modes)
   eigenValues(:) = sign(sqrt(abs(eigenValues)), eigenValues)
@@ -174,7 +178,7 @@ program modes
     call taggedWriter%write(fd%unit, "eigenmodes", dynMatrix(:, modesToPlot))
     write(stdout, *) "Plotting eigenmodes:"
     write(stdout, "(16I5)") modesToPlot(:)
-    call taggedWriter%write(fd%unit, "eigenmodes_scaled", dynMatrix(:, modesToPlot))
+    call taggedWriter%write(fd%unit, "eigenmodes_scaled", eigenModesScaled(:, modesToPlot))
     if (tAnimateModes) then
       do ii = 1, nModesToPlot
         iMode = modesToPlot(ii)
