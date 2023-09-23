@@ -11,6 +11,16 @@ import argparse
 import numpy as np
 import matplotlib.pylab as plt
 
+
+def check_input(parser, args):
+    if args.xticklabels is not None:
+        if args.xticks is None:
+            parser.error("To use ’--xticklabels' you must also use ’--xticks’!")
+        elif (len_xticks := len(args.xticks)) != (len_xticklabels := len(args.xticklabels)):
+            parser.error(f"The number of xticks ({len_xticks}) must equal "
+                         f"the number of xticklabels ({len_xticklabels})!")
+
+
 parser = argparse.ArgumentParser(description='Plot 2D data as ((N)X)Y plot')
 parser.add_argument('--version', action='version', version='1.1')
 parser.add_argument('-L', '--no-legend', action='store_false', default=True,
@@ -54,8 +64,16 @@ parser.add_argument('--logscale', action='store',
                     '(default: none)')
 parser.add_argument('--zero-line', action='store_true', default=False,
                     dest='zeroline', help='draw extra line for y=0')
+parser.add_argument('--xticks', dest='xticks', metavar='XTICKS',
+                    nargs='+', default=None, type=float,
+                    help='ticks on x axis')
+parser.add_argument('--xticklabels', dest='xticklabels', metavar='XTICKLABELS',
+                    nargs='+', default=None,
+                    help='label for ticks on x axis')
 
 args = parser.parse_args()
+
+check_input(parser, args)
 
 axis = plt.gca()
 
@@ -115,5 +133,9 @@ if args.xlim:
     axis.set_xlim(args.xlim[0], args.xlim[1])
 if args.ylim:
     axis.set_ylim(args.ylim[0], args.ylim[1])
+if args.xticks:
+    axis.set_xticks(args.xticks)
+if args.xticklabels:
+    axis.set_xticklabels(args.xticklabels)
 
 plt.show()
