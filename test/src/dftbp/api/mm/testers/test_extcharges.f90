@@ -18,6 +18,7 @@ program test_extcharges
 
   integer, parameter :: nAtom = 3
 
+  !> Number of external charges used in regression case
   integer, parameter :: nExtChrg = 2
 
   ! H2O coordinates, atomic units
@@ -33,16 +34,18 @@ program test_extcharges
   character(2), parameter :: atomTypeNames(10) = [character(2) ::&
       & "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
 
-  ! External charges (positions and charges, again atomic units)
-  real(dp), parameter :: extCharges(4, nExtChrg) = reshape([&
-      &-0.94486343888717805E+00_dp,-0.94486343888717794E+01_dp, 0.17007541899969201E+01_dp, 2.5_dp,&
-      & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
-      &], [4, nExtChrg])
+  ! External charges (positions and charges, again atomic units). Extra charge at end of list to
+  ! test reallocation.
+  real(dp), parameter :: extCharges(4, nExtChrg + 1) = reshape([&
+      &-0.94486343888717805E+00_dp,-0.94486343888717794E+01_dp,0.17007541899969201E+01_dp, 2.5_dp,&
+      & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp,0.26456176288841000E+01_dp, -1.9_dp,&
+      & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp,0.26456176288841000E+01_dp, 1.9_dp&
+      &], [4, nExtChrg + 1])
 
   !> (optional variable to API call) sets widths of Gaussians to convolve with external charges
-  !> (again set in a.u.). For this particular test, these choices are essentially still point
-  !> charges:
-  real(dp), parameter :: extChargeBlur(nExtChrg) = [0.1_dp, 0.2_dp]
+  !> (again set in a.u.). For this particular test, the first two choices are essentially still
+  !> point charges:
+  real(dp), parameter :: extChargeBlur(nExtChrg + 1) = [0.1_dp, 0.2_dp, 2.0_dp]
 
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
       & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
@@ -56,8 +59,8 @@ program test_extcharges
   integer, allocatable :: species(:)
   character(2), allocatable :: speciesNames(:)
   real(dp) :: merminEnergy
-  real(dp) :: coords(3, nAtom), gradients(3, nAtom)
-  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg), atomMasses(nAtom)
+  real(dp) :: coords(3, nAtom), gradients(3, nAtom), extChargeGrads(3, nExtChrg)
+  real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), atomMasses(nAtom)
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis, pCm5
   type(fnode), pointer :: pParserOpts
 
@@ -122,12 +125,23 @@ program test_extcharges
   ! convert input into settings for the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
-  ! add external charges
-  call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:), extChargeBlur)
-
   ! replace QM atom coordinates
   coords(:,:) = initialCoords
   call dftbp%setGeometry(coords)
+
+  ! add a single external charge
+  call dftbp%setExternalCharges(extCharges(:3,:1), extCharges(4,:1), extChargeBlur(:1))
+  ! get energy and forces for the single external charge
+  call dftbp%getEnergy(merminEnergy)
+  call dftbp%getExtChargeGradients(extChargeGrads(:,:1))
+
+  ! replace with a different number of external charges and re-compute
+  call dftbp%setExternalCharges(extCharges(:3,:3), extCharges(4,:3), extChargeBlur(:3))
+  ! get energy
+  call dftbp%getEnergy(merminEnergy)
+
+  ! Finally, external charges corresponding to the regression data
+  call dftbp%setExternalCharges(extCharges(:3,:2), extCharges(4,:2), extChargeBlur(:2))
 
   ! get energy, charges and forces
   call dftbp%getEnergy(merminEnergy)

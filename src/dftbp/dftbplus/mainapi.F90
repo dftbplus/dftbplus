@@ -455,11 +455,21 @@ contains
 
     main%tExtChrg = .true.
     if (main%tForces) then
+      if ( allocated(main%chrgForces) ) then
+         if ( size(main%chrgForces,2) /= size(chargeQs) ) then
+            deallocate(main%chrgForces)
+         end if
+      end if
       if (.not. allocated(main%chrgForces)) then
         allocate(main%chrgForces(3, size(chargeQs)))
       end if
     end if
     call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    ! flag ground state for recalculation as external charge geometries changed:
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
 
   end subroutine setExternalCharges
 
