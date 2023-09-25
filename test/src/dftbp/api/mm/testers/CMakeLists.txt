@@ -2,6 +2,7 @@ set(projectdir ${PROJECT_SOURCE_DIR})
 
 # Collect commonly used modules into object library to prevent .mod file renaming conflicts during
 # parallel compilation (see e.g. https://github.com/Unidata/netcdf-fortran/issues/64)
+
 add_library(test_api_mm_utils OBJECT testhelpers.f90 extchargepot.f90 extchargepotgen.f90)
 add_dependencies(test_api_mm_utils dftbplus)
 target_include_directories(test_api_mm_utils PUBLIC
@@ -11,18 +12,26 @@ add_executable(test_fileinit test_fileinit.f90 $<TARGET_OBJECTS:test_api_mm_util
 target_link_libraries(test_fileinit dftbplus)
 
 if(WITH_C_EXECUTABLES)
+
   add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_fileinitc dftbplus)
   set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
-endif()
 
-if(WITH_C_EXECUTABLES)
+  add_executable(test_neighbour_list_c test_neighbour_list_c.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_neighbour_list_c dftbplus)
+  set_target_properties(test_neighbour_list_c PROPERTIES LINKER_LANGUAGE C)
+
+  add_executable(test_qdepextpotc test_qdepextpotc.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_qdepextpotc dftbplus)
+  set_target_properties(test_qdepextpotc PROPERTIES LINKER_LANGUAGE C)
+
   if(WITH_MPI)
     include_directories(SYSTEM ${MPI_INCLUDE_PATH})
     add_executable(test_mpic test_mpic.c $<TARGET_OBJECTS:test_api_mm_utils>)
     target_link_libraries(test_mpic dftbplus ${MPI_C_LIBRARIES})
     set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
   endif()
+
 endif()
 
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
@@ -52,17 +61,12 @@ target_link_libraries(test_timeprop dftbplus)
 add_executable(test_ehrenfest test_ehrenfest.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_ehrenfest dftbplus)
 
-add_executable(test_ehrenfest_ext_ions test_ehrenfest_ext_ions.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+add_executable(test_ehrenfest_ext_ions test_ehrenfest_ext_ions.f90
+  $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_ehrenfest_ext_ions dftbplus)
 
 add_executable(test_neighbour_list test_neighbour_list.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_neighbour_list dftbplus)
-
-if(WITH_C_EXECUTABLES)
-  add_executable(test_neighbour_list_c test_neighbour_list_c.c $<TARGET_OBJECTS:test_api_mm_utils>)
-  target_link_libraries(test_neighbour_list_c dftbplus)
-  set_target_properties(test_neighbour_list_c PROPERTIES LINKER_LANGUAGE C)
-endif()
 
 dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_setspeciesanddependents.F90"
   test_setspeciesanddependents.f90)
@@ -70,19 +74,16 @@ dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_setspeciesanddepend
 add_executable(test_setspeciesanddependents test_setspeciesanddependents.f90
   $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_setspeciesanddependents PRIVATE dftbplus)
+
 if(WITH_MPI)
   target_include_directories(test_setspeciesanddependents PRIVATE ${MPI_Fortran_MODULE_DIR})
   target_link_libraries(test_setspeciesanddependents PRIVATE ${MPI_Fortran_LIBRARIES})
-endif()
 
-if(WITH_MPI)
   add_executable(test_mpisubgrids test_mpisubgrids.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_mpisubgrids PRIVATE dftbplus)
   target_include_directories(test_mpisubgrids PRIVATE ${MPI_Fortran_MODULE_DIR})
   target_link_libraries(test_mpisubgrids PRIVATE ${MPI_Fortran_LIBRARIES})
-endif()
 
-if(WITH_MPI)
   set(mpi_sources
     test_setspeciesanddependents.f90
     test_mpisubgrids.f90)
@@ -94,14 +95,10 @@ if(WITH_MPI)
     endif()
     if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "GNU")
       if("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER_EQUAL "11")
-        set_source_files_properties(SOURCE ${mpisource} PROPERTY COMPILE_FLAGS -fallow-argument-mismatch)
+        set_source_files_properties(SOURCE ${mpisource} PROPERTY COMPILE_FLAGS
+          -fallow-argument-mismatch)
       endif()
     endif()
   endforeach()
-endif()
 
-if(WITH_C_EXECUTABLES)
-  add_executable(test_qdepextpotc test_qdepextpotc.c $<TARGET_OBJECTS:test_api_mm_utils>)
-  target_link_libraries(test_qdepextpotc dftbplus)
-  set_target_properties(test_qdepextpotc PROPERTIES LINKER_LANGUAGE C)
 endif()
