@@ -107,6 +107,15 @@ void dftbp_api(int *major, int *minor, int *patch);
  */
 _Bool dftbp_is_instance_safe();
 
+
+/**
+ * Finalizes a DftbPlusInput instance.
+ *
+ * \param[inout] instance Handler of the DftbPlusInput instance.
+*/
+void dftbp_input_final(DftbPlusInput *instance);
+
+
 /**
  * Initializes a DFTB+ calculator.
  *

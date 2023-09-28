@@ -15,7 +15,8 @@ module dftbp_capi
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   use dftbp_mmapi, only :&
-      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
+      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusInput_destruct,&
+      & TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
   implicit none
   private
@@ -23,13 +24,13 @@ module dftbp_capi
 
   !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
-    type(c_ptr) :: pDftbPlusInput
+    type(c_ptr) :: pDftbPlusInput = c_null_ptr
   end type c_DftbPlusInput
 
 
   !> DFTB+ calculation
   type, bind(C) :: c_DftbPlus
-    type(c_ptr) :: instance
+    type(c_ptr) :: instance = c_null_ptr
   end type c_DftbPlus
 
 
@@ -41,6 +42,24 @@ module dftbp_capi
 
 
 contains
+
+  !> finalises a DFTB+ instance
+subroutine c_DftbPlusInput_final(handler) bind(C, name='dftbp_input_final')
+
+  !> DFTB+ handler
+  type(c_DftbPlusInput), intent(inout) :: handler
+
+  !> the specific instance to be finalised
+  type(TDftbPlusInput), pointer :: instance
+
+  if (.not. c_associated(handler%pDftbPlusInput)) return
+  call c_f_pointer(handler%pDftbPlusInput, instance)
+  call TDftbPlusInput_destruct(instance)
+  deallocate(instance)
+  handler%pDftbPlusInput = c_null_ptr
+
+end subroutine c_DftbPlusInput_final
+
 
 
   !> Returns the current API version
@@ -117,6 +136,7 @@ contains
     !> the specific instance to be finalised
     type(TDftbPlusC), pointer :: instance
 
+    if (.not. c_associated(handler%instance)) return
     call c_f_pointer(handler%instance, instance)
     call TDftbPlus_destruct(instance%TDftbPlus)
     deallocate(instance)
