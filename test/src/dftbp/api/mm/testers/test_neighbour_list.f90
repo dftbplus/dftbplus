@@ -47,7 +47,6 @@ contains
 
     call dftbp%getInputFromFile("dftb_in.hsd", input)
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! setup all data for the neighbour list
     cutoff = 6.0_dp
@@ -66,9 +65,6 @@ contains
     ! evaluate energy and forces
     call dftbp%getEnergy(merminEnergy)
     call dftbp%getGradients(gradients)
-
-    ! clean up
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients)

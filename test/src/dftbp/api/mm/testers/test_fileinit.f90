@@ -42,8 +42,8 @@ contains
   !!
   subroutine main_()
 
-    type(TDftbPlus) :: dftbp
-    type(TDftbPlusInput) :: input
+    type(TDftbPlus), allocatable :: dftbp
+    type(TDftbPlusInput), allocatable :: input
 
     real(dp) :: merminEnergy
     real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), grossCharges(2), stressTensor(3, 3)
@@ -55,6 +55,9 @@ contains
     integer :: iIter
 
     do iIter = 1, nIter
+      allocate(dftbp)
+      allocate(input)
+
       call getDftbPlusBuild(DftbVersion)
       write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
       call getDftbPlusApi(major, minor, patch)
@@ -70,13 +73,11 @@ contains
       ! You should provide the dftb_in.hsd and skfile found in the test/app/dftb+/non-scc/Si_2/ folder
       call dftbp%getInputFromFile("dftb_in.hsd", input)
       call dftbp%setupCalculator(input)
-      call TDftbPlusInput_destruct(input)
 
       ! a simple check for data values in the file
       if (dftbp%nrOfAtoms() /= size(coords, dim=2)) then
         print *, "Mismatch between expected number of atoms and dftb_in.hsd file"
-        call TDftbPlus_destruct(dftbp)
-        stop
+        return
       end if
 
       ! replace the lattice vectors and coordinates in the document tree
@@ -104,8 +105,9 @@ contains
       print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
       print "(A,2F15.10)", 'Obtained charges:', grossCharges
 
-      ! clean up
-      call TDftbPlus_destruct(dftbp)
+      ! Deallocating instances to trigger finalizers
+      deallocate(dftbp)
+      deallocate(input)
 
     end do
 

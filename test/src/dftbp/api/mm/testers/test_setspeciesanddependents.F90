@@ -30,8 +30,7 @@ program test_setSpeciesAndDependents
 #:if WITH_MPI
   use mpi
 #:endif
-  use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput,&
-      & TDftbPlusInput_destruct
+  use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
   use testhelpers, only: writeAutotestTag
@@ -161,7 +160,6 @@ contains
         ! Dump hsd tree to file "fort.1" if debugging
         ! call dumpHsd(hsd_tree%hsdTree, 001)
         call dftb%setupCalculator(hsd_tree)
-        call TDftbPlusInput_destruct(hsd_tree)
       endif
 
       ! Update coordinates and lattice vectors
@@ -192,9 +190,6 @@ contains
       ! call output_forces_per_process(gradients, imd_lab)
 
     enddo
-
-    ! Clean up
-    call TDftbPlus_destruct(dftb)
 
     ! Write file for internal test system, using the last structure that was run
     call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&

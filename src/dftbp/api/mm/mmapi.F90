@@ -67,6 +67,8 @@ module dftbp_mmapi
   contains
     !> obtain the root of the tree of input
     procedure :: getRootNode => TDftbPlusInput_getRootNode
+    !> finaliser
+    final :: TDftbPlusInput_final
   end type TDftbPlusInput
 
 
@@ -75,7 +77,7 @@ module dftbp_mmapi
     private
     type(TEnvironment), allocatable :: env
     type(TDftbPlusMain), allocatable :: main
-    logical :: tInit = .false.
+    logical :: isInitialised = .false.
   contains
     !> read input from a file
     procedure :: getInputFromFile => TDftbPlus_getInputFromFile
@@ -142,6 +144,8 @@ module dftbp_mmapi
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
     !> get the maximum cutoff distance
     procedure :: getCutOff => TDftbPlus_getCutOff
+    !> Finalizer
+    final :: TDftbPlus_final
   end type TDftbPlus
 
 
@@ -190,6 +194,17 @@ contains
     end if
 
   end subroutine getDftbPlusApi
+
+
+  !> Finalizer for the DFTB+ input type
+  subroutine TDftbPlusInput_final(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    call TDftbPlusInput_destruct(this)
+
+  end subroutine TDftbPlusInput_final
 
 
   !> Destructs the DFTB+ input type
@@ -295,7 +310,8 @@ contains
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
+  !> TDftbPlus_destruct() has been called in between (or the instance had been finalized).
+  !> Otherwise the subroutine will stop.
   !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
@@ -336,9 +352,20 @@ contains
     allocate(this%main)
     call TEnvironment_init(this%env)
     this%env%tAPICalculation = .true.
-    this%tInit = .true.
+    this%isInitialised = .true.
 
   end subroutine TDftbPlus_init
+
+
+  !> Finalizer for DFTB+
+  subroutine TDftbPlus_final(this)
+
+    !> Instance
+    type(TDftbPlus), intent(inout) :: this
+
+    call TDftbPlus_destruct(this)
+
+  end subroutine TDftbPlus_final
 
 
   !> Destroys a DFTB+ instance
@@ -347,13 +374,14 @@ contains
     !> Instance
     type(TDftbPlus), intent(inout) :: this
 
+    if (.not. this%isInitialised) return
     call this%checkInit()
 
     call this%main%destructProgramVariables()
     call this%env%destruct()
     deallocate(this%main, this%env)
     call destructGlobalEnv()
-    this%tInit = .false.
+    this%isInitialised = .false.
 
     #:if not INSTANCE_SAFE_BUILD
       nInstance_ = 0
@@ -829,7 +857,7 @@ contains
     !> Instance.
     class(TDftbPlus), intent(in) :: this
 
-    if (.not. this%tInit) then
+    if (.not. this%isInitialised) then
       call error("Received uninitialized TDftbPlus instance")
     end if
 

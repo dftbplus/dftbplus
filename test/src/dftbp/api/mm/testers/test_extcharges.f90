@@ -135,7 +135,6 @@ contains
 
     ! convert input into settings for the DFTB+ calculator
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! replace QM atom coordinates
     coords(:,:) = initialCoords
@@ -173,9 +172,6 @@ contains
     print "(A,3F15.10)", 'Obtained gradient of atom 3:', gradients(:,3)
     print "(A,3F15.10)", 'Obtained gradient of charge 1:', extChargeGrads(:,1)
     print "(A,3F15.10)", 'Obtained gradient of charge 2:', extChargeGrads(:,2)
-
-    ! clean up
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&

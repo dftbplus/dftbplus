@@ -105,7 +105,6 @@ contains
 
     ! initialise the DFTB+ calculator
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! Replace coordinates
     coords(:,:) = initialCoords*AA__Bohr
@@ -123,8 +122,6 @@ contains
     print "(A,F15.10)", 'Final SCC Energy:', energy
     print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
     print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
-
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges)

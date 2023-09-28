@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
   DftbPlusInput input;
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
   dftbp_process_input(&calculator, &input);
+  dftbp_input_final(&input);
 
   // Evaluate energy and forces
   double mermin_energy;

@@ -113,7 +113,6 @@ contains
 
     ! initialise the DFTB+ calculator
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! Replace coordinates
     coords(:,:) = initialCoords
@@ -141,8 +140,6 @@ contains
     print "(A,3F15.10)", 'Obtained gradient of atom 3:', gradients(:,3)
     print "(A,3F15.10)", 'Obtained gradient of charge 1:', extChargeGrads(:,1)
     print "(A,3F15.10)", 'Obtained gradient of charge 2:', extChargeGrads(:,2)
-
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&

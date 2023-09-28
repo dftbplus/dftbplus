@@ -14,9 +14,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
-  use dftbp_mmapi, only :&
-      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusInput_destruct,&
-      & TDftbPlusAtomList
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
   implicit none
   private
@@ -54,7 +52,6 @@ subroutine c_DftbPlusInput_final(handler) bind(C, name='dftbp_input_final')
 
   if (.not. c_associated(handler%pDftbPlusInput)) return
   call c_f_pointer(handler%pDftbPlusInput, instance)
-  call TDftbPlusInput_destruct(instance)
   deallocate(instance)
   handler%pDftbPlusInput = c_null_ptr
 
@@ -138,7 +135,6 @@ end subroutine c_DftbPlusInput_final
 
     if (.not. c_associated(handler%instance)) return
     call c_f_pointer(handler%instance, instance)
-    call TDftbPlus_destruct(instance%TDftbPlus)
     deallocate(instance)
     handler%instance = c_null_ptr
 

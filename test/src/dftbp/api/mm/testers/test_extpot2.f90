@@ -125,7 +125,6 @@ contains
     call dumpHsd(input%hsdTree, output_unit)
 
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! over-write coordinates
     coords(:,:) = initialCoords
@@ -166,8 +165,6 @@ contains
     print "(A,3F15.10)", 'Expected gradient of charge 2:', -0.655287529916873E-002_dp,&
         & 0.222543951385786E-002_dp, -0.473142778171874E-002_dp
     print "(A,3F15.10)", 'Obtained gradient of charge 2:', extChargeGrads(:,2)
-
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=atomCharges,&

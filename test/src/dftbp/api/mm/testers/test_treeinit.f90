@@ -103,7 +103,6 @@ contains
 
     ! parse the input for the DFTB+ instance
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! set the lattice vectors and coordinates in the document tree
     latVecs(:,:) = initialLatVecs
@@ -125,9 +124,6 @@ contains
     call dftbp%getStressTensor(stressTensor)
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
     print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
-
-    ! clean up
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor)

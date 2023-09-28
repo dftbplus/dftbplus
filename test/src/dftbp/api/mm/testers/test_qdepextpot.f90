@@ -78,7 +78,6 @@ contains
     call TDftbPlus_init(dftbp)
     call dftbp%getInputFromFile("dftb_in.hsd", input)
     call dftbp%setupCalculator(input)
-    call TDftbPlusInput_destruct(input)
 
     ! set up the above external potential generator for this calculation
     call dftbp%setQDepExtPotGen(potGen)
@@ -99,9 +98,6 @@ contains
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
     print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
     print "(A,3F15.10)", 'Obtained gross charges:', grossCharges
-
-    ! clean up
-    call TDftbPlus_destruct(dftbp)
 
     ! Write file for internal test system
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
