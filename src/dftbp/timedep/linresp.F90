@@ -17,6 +17,7 @@
 !>   case).
 !> * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -95,7 +96,7 @@ module dftbp_timedep_linresp
 
     !> Should non-adiabatic couplings be computed
     logical :: tNaCoupling
-    
+
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 
@@ -130,10 +131,13 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
+  subroutine LinResp_init(this, env, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
 
     !> data structure for linear response
     type(TLinResp), intent(out) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> initial values for setting parameters
     type(TLinrespini), intent(inout) :: ini
@@ -212,7 +216,7 @@ contains
         call error("CI optimization: States must be neighbouring.")
       end if
       if (ini%isCIopt .and. ini%nstat /= 0) then
-        call warning("CI optimization: Setting of StateOfInterest will be ignored.")
+        call warning(env%stdOut, "CI optimization: Setting of StateOfInterest will be ignored.")
       end if
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
