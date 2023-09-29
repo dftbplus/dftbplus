@@ -128,24 +128,24 @@ contains
       write(msg, '(A,1X,I0)') 'Unknown message protocol', input%protocol
     end if
 
-    call this%logger%write(env, 'socketCreate: Opening socket for two-way&
+    call this%logger%write(env%stdOut, 'socketCreate: Opening socket for two-way&
         & communication with a server.', 1)
 
     ! If port > 0: internet port, otherwise local Unix socket
     tUnix = input%port < 1
     if (tUnix) then
-      call this%logger%write(env, 'Establishing UNIX socket connection to'&
+      call this%logger%write(env%stdOut, 'Establishing UNIX socket connection to'&
           & // trim(input%host), 1)
       call connect_unix_socket(this%socket, input%host)
     else
-      call this%logger%write(env, 'Establishing an internet connection to', 1)
-      call this%logger%write(env, 'Host: ' // trim(input%host), 1)
+      call this%logger%write(env%stdOut, 'Establishing an internet connection to', 1)
+      call this%logger%write(env%stdOut, 'Host: ' // trim(input%host), 1)
       write(msg, '(A,I0)') 'Port: ', input%port
-      call this%logger%write(env, msg, 1)
+      call this%logger%write(env%stdOut, msg, 1)
       call connect_inet_socket(this%socket, input%host, input%port)
     end if
 
-    call this%logger%write(env, 'socketCreate: ...Done', 1)
+    call this%logger%write(env%stdOut, 'socketCreate: ...Done', 1)
     this%tInit = .true.
 
   end subroutine IpiSocketComm_init
@@ -212,20 +212,20 @@ contains
     end if
 
     allocate(commsBuffer1(this%nAtom * 3))
-    call this%logger%write(env, 'socketRetrieve: Retrieving data from socket... ', 1)
+    call this%logger%write(env%stdOut, 'socketRetrieve: Retrieving data from socket... ', 1)
 
     ! wait for anything other than 'STATUS' state from the interface, returning state 'READY' in the
     ! meanwhile
     do while (.true.)
       call readbuffer(this%socket, header)
-      call this%logger%write(env, 'ipisocket%receive: read from socket: ' // trim(header), 3)
+      call this%logger%write(env%stdOut, 'ipisocket%receive: read from socket: ' // trim(header), 3)
       if (trim(header) /= 'STATUS') then
         exit
       end if
 
       buffer = 'READY'
       call writebuffer(this%socket, buffer)
-      call this%logger%write(env, 'ipisocket%receive: write to socket: READY', 3)
+      call this%logger%write(env%stdOut, 'ipisocket%receive: write to socket: READY', 3)
     end do
 
     ! expecting positions data
@@ -245,18 +245,18 @@ contains
     call readbuffer(this%socket, commsBuffer2)
     cell(:,:) = transpose(reshape(commsBuffer2, [3, 3]))
 
-    call this%logger%write(env, 'ipisocket%receive: read from socket: cell', 3)
-    call this%logger%write(env, cell, 4, '(f12.6)')
+    call this%logger%write(env%stdOut, 'ipisocket%receive: read from socket: cell', 3)
+    call this%logger%write(env%stdOut, cell, 4, '(f12.6)')
 
     ! inverse lattice vectors
     call readbuffer(this%socket, commsBuffer2)
-    call this%logger%write(env, 'ipisocket%receive: read from socket: inverse of cell', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%receive: read from socket: inverse of cell', 3)
 
     ! number of atomic coordinates
     call readbuffer(this%socket, natom)
-    call this%logger%write(env, 'ipisocket%receive: read from socket: number of atoms', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%receive: read from socket: number of atoms', 3)
     write(msg, '(I0)') nAtom
-    call this%logger%write(env, msg, 4)
+    call this%logger%write(env%stdOut, msg, 4)
 
     if (nAtom /= this%nAtom) then
       write(msg, '(1X,A,2I4)')'Mismatch in number of atoms received', nAtom,this%nAtom
@@ -266,9 +266,9 @@ contains
     ! read actual coordinates
     call readbuffer(this%socket, commsBuffer1)
     coord = reshape(commsBuffer1, [3, natom])
-    call this%logger%write(env, 'ipisocket%receive: read from socket: atomic positions', 3)
-    call this%logger%write(env, coord, 5, '(f12.6)')
-    call this%logger%write(env, 'ipisocket%receive: Done', 1)
+    call this%logger%write(env%stdOut, 'ipisocket%receive: read from socket: atomic positions', 3)
+    call this%logger%write(env%stdOut, coord, 5, '(f12.6)')
+    call this%logger%write(env%stdOut, 'ipisocket%receive: Done', 1)
 
   end subroutine receive
 
@@ -311,13 +311,13 @@ contains
       call error(msg)
     end if
 
-    call this%logger%write(env, 'ipisocket%send: Sending data to socket... ', 1)
+    call this%logger%write(env%stdOut, 'ipisocket%send: Sending data to socket... ', 1)
 
     ! wait for anything other than a 'STATUS' state from the interface,
     ! returning state 'HAVEDATA' in the meanwhile
     listen: do while (.true.)
       call readbuffer(this%socket, header)
-      call this%logger%write(env, 'ipisocket%send: read from socket: ' // trim(header), 3)
+      call this%logger%write(env%stdOut, 'ipisocket%send: read from socket: ' // trim(header), 3)
 
       if (trim(header)/='STATUS') then
         exit listen
@@ -326,7 +326,7 @@ contains
       ! announce that we have available data
       buffer = 'HAVEDATA'
       call writebuffer(this%socket, buffer)
-      call this%logger%write(env, 'ipisocket%send: write to socket: HAVEDATA', 3)
+      call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: HAVEDATA', 3)
     end do listen
 
     ! expecting to send force data
@@ -337,36 +337,36 @@ contains
 
     buffer = 'FORCEREADY'
     call writebuffer(this%socket, buffer)
-    call this%logger%write(env, 'ipisocket%send: write to socket: FORCEREADY', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: FORCEREADY', 3)
 
     ! transmit total energy
     call writebuffer(this%socket, energy)
-    call this%logger%write(env, 'ipisocket%send: write to socket: energy', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: energy', 3)
     write(msg, *) energy
-    call this%logger%write(env, msg, 4)
+    call this%logger%write(env%stdOut, msg, 4)
 
     ! transmit number of atoms we have
     call writebuffer(this%socket, natom)
-    call this%logger%write(env, 'ipisocket%send: write to socket: natom', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: natom', 3)
 
     ! transmit forces
     call writebuffer(this%socket, reshape(forces, [3 * natom]))
-    call this%logger%write(env, 'ipisocket%send: write to socket: forces', 3)
-    call this%logger%write(env, forces, 5, '(f12.6)')
+    call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: forces', 3)
+    call this%logger%write(env%stdOut, forces, 5, '(f12.6)')
 
     ! transmit stress
     ! The (virial) stress tensor is symmetric, so no transpose needed.
     call writebuffer(this%socket, reshape(stress, [9]))
-    call this%logger%write(env, 'ipisocket%send: write to socket: stress', 3)
-    call this%logger%write(env, stress, 4, '(f12.6)')
+    call this%logger%write(env%stdOut, 'ipisocket%send: write to socket: stress', 3)
+    call this%logger%write(env%stdOut, stress, 4, '(f12.6)')
 
     ! i-pi can also receive an arbitrary string, that will be printed out to the 'extra' trajectory
     ! file. this is useful if you want to return additional information, e.g.  atomic charges,
     ! wannier centres, etc. one must return the number of characters, then the string. here we just
     ! send back zero characters.
     call writebuffer(this%socket, 0)
-    call this%logger%write(env, 'ipisocket%send: 0: nothing else to send', 3)
-    call this%logger%write(env, 'ipisocket%send: Done', 1)
+    call this%logger%write(env%stdOut, 'ipisocket%send: 0: nothing else to send', 3)
+    call this%logger%write(env%stdOut, 'ipisocket%send: Done', 1)
 
   end subroutine send
 

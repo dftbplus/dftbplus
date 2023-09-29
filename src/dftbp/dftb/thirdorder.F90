@@ -161,7 +161,7 @@ contains
     do iAt1 = 1, this%nAtoms
       iSp1 = species(iAt1)
       do iSp2 = 1, this%nSpecies
-        this%nNeigh(iSp2, iAt1) = getNrOfNeighbours(env, neighList, this%cutoffs(iSp2, iSp1), iAt1)
+        this%nNeigh(iSp2, iAt1) = getNrOfNeighbours(env%stdOut, neighList, this%cutoffs(iSp2, iSp1), iAt1)
       end do
     end do
     this%nNeighMax = maxval(this%nNeigh, dim=1)

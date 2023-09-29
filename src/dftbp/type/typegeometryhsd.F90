@@ -1061,7 +1061,7 @@ contains
     geo%latVecs = geo%latVecs * AA__Bohr
     if (geo%tFracCoord) then
       if (any(abs(geo%coords) > 1.0_dp)) then
-        call detailedWarning(env, node, "Fractional coordinates with absolute value greater than one.")
+        call detailedWarning(env%stdOut, node, "Fractional coordinates with absolute value greater than one.")
       end if
     end if
     allocate(geo%recVecs2p(3, 3))

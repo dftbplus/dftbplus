@@ -363,13 +363,13 @@ contains
     else if (inputVersion /= parserVersion) then
       write(env%stdOut, "(A,I2,A,I2,A)") "***  Converting input from parser version ",&
           & inputVersion, " to parser version ", parserVersion, " ..."
-      call convertOldHSD(env, root, inputVersion, parserVersion)
+      call convertOldHSD(env%stdOut, root, inputVersion, parserVersion)
       write(env%stdOut, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     if (.not. flags%tWriteHSD) then
-      call detailedWarning(env, node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
+      call detailedWarning(env%stdOut, node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
           &" to able to obtain the same results with a later version of the code!" // newline // &
           & "(the dftb_pin.hsd file DOES guarantee this)")
     end if
@@ -504,7 +504,7 @@ contains
     case ("steepestdescent")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env, node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -515,7 +515,7 @@ contains
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env, node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')// "Please use the GeometryOptimisation driver instead.")
 
       ! Conjugate gradient location optimisation
@@ -525,7 +525,7 @@ contains
     case("gdiis")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env, node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -538,7 +538,7 @@ contains
     case ("lbfgs")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env, node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -562,7 +562,7 @@ contains
     case ("fire")
 
       modeName = "geometry relaxation"
-      call detailedWarning(env, node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -581,7 +581,7 @@ contains
 
       call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
           & multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer2), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species,&
           & ctrl%indDerivAtom)
       if (size(ctrl%indDerivAtom) == 0) then
         call error("No atoms specified for derivatives calculation.")
@@ -594,7 +594,7 @@ contains
             & "Atoms for calculation of partial Hessian must be a contiguous range.")
         end if
         call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
-        call getSelectedAtomIndices(env, child2, char(buffer2), geom%speciesNames, geom%species, &
+        call getSelectedAtomIndices(env%stdOut, child2, char(buffer2), geom%speciesNames, geom%species, &
            & ctrl%indMovedAtom)
         if (.not. isContiguousRange(ctrl%indMovedAtom)) then
           call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
@@ -623,7 +623,7 @@ contains
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer2), geom%speciesNames, geom%species, &
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species, &
           & ctrl%indMovedAtom)
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
@@ -976,7 +976,7 @@ contains
       end if
     end if
     call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, multiple=.true.)
-    call getSelectedAtomIndices(env, child, char(buffer2), geom%speciesNames, geom%species,&
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species,&
         & ctrl%indMovedAtom)
 
     ctrl%nrMoved = size(ctrl%indMovedAtom)
@@ -1220,13 +1220,13 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(env, child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
+          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
               & " overwritten")
         end if
         masses(iAt) = rTmp
@@ -1353,9 +1353,6 @@ contains
 
     !> For range separation
     type(TRangeSepSKTag) :: rangeSepSK
-
-    integer :: stdOut
-    stdOut = env%stdOut
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
@@ -1686,11 +1683,11 @@ contains
               & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
         if (any(iTmpN(:)>1)) then
-          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
-          write(stdout, "(A,A3,A,I2)") &
+          write(env%stdOut, *)'Multiple copies of shells present in OrbitalPotential!'
+          write(env%stdOut, "(A,A3,A,I2)") &
               & 'The count for the occurrence of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
-          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
+          write(env%stdOut, *)iTmpN(1:slako%orb%nShell(iSp1))
           call abortProgram()
         end if
       end do
@@ -1859,9 +1856,6 @@ contains
     character(len=:), allocatable :: paramFile, paramTmp
     type(TOrbitals) :: orb
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
     allocate(ctrl%tbliteInp)
@@ -1892,7 +1886,7 @@ contains
         call getParamSearchPath(searchPath)
         call findFile(searchPath, paramFile, paramTmp)
         if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-        write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
+        write(env%stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
         call ctrl%tbliteInp%setupCalculator(paramFile)
       else
         call detailedError(node, "Either a Method or ParameterFile must be specified for xTB")
@@ -2827,7 +2821,7 @@ contains
 
     end if
 
-    call maxSelfConsIterations(env, node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
+    call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
     ! Eventually, perturbation routines should also have restart reads:
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning(env%stdOut, "It is strongly suggested you use the ReadInitialCharges option.")
@@ -2837,10 +2831,10 @@ contains
 
 
   !> Set the maximum number of SCC cycles, depending on k-point behaviour
-  subroutine maxSelfConsIterations(env, node, ctrl, label, maxSccIter)
+  subroutine maxSelfConsIterations(output, node, ctrl, label, maxSccIter)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2873,7 +2867,7 @@ contains
     if (ctrl%poorKSampling .and. maxSccIter /= 1) then
       write(warningStr, "(A,I3)") "A self-consistent cycle with these k-points probably will&
           & not correctly calculate many properties, maximum iterations set to:", maxSccIter
-      call warning(env%stdOut, warningStr)
+      call warning(output, warningStr)
     end if
 
   end subroutine maxSelfConsIterations
@@ -3304,12 +3298,12 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "ChargePerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (initCharges(iAt) /= 0.0_dp) then
-            call detailedWarning(env, child3, "Previous setting for the charge &
+            call detailedWarning(env%stdOut, child3, "Previous setting for the charge &
                 &of atom" // i2c(iAt) // " overwritten")
           end if
           initCharges(iAt) = rTmp
@@ -3367,12 +3361,12 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "SpinPerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (any(initSpins(:,iAt) /= 0.0_dp)) then
-            call detailedWarning(env, child3, "Previous setting for the spin of atom" // i2c(iAt) //&
+            call detailedWarning(env%stdOut, child3, "Previous setting for the spin of atom" // i2c(iAt) //&
                 & " overwritten")
           end if
           initSpins(:,iAt) = rTmp
@@ -3546,9 +3540,6 @@ contains
     ! if artificially cutting the SK tables
     integer :: nEntries
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0) .and. (size(skFiles, dim=1) == nSpecies))
     @:ASSERT(all(shape(repPoly) == shape(skFiles)))
@@ -3567,7 +3558,7 @@ contains
     call init(slako%skOverCont, nSpecies)
     allocate(slako%pairRepulsives(nSpecies, nSpecies))
 
-    write(stdout, "(A)") "Reading SK-files:"
+    write(env%stdOut, "(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
       nSK1 = len(angShells(iSp1))
       lpSp2: do iSp2 = iSp1, nSpecies
@@ -3580,7 +3571,7 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
-            write(stdOut, "(a)") trim(fileName)
+            write(env%stdOut, "(a)") trim(fileName)
             if (.not. present(rangeSepSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
@@ -3716,7 +3707,7 @@ contains
         end if
       end do lpSp2
     end do lpSp1
-    write(stdout, "(A)") "Done."
+    write(env%stdOut, "(A)") "Done."
 
   end subroutine readSKFiles
 
@@ -4008,7 +3999,7 @@ contains
     call renameChildren(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
     if (ctrl%tMinMemory) then
-      call detailedWarning(env, child, "Memory minimisation is not working currently, normal calculation&
+      call detailedWarning(env%stdOut, child, "Memory minimisation is not working currently, normal calculation&
           & will be used instead")
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
@@ -4705,12 +4696,12 @@ contains
     input%method = 'ts'
     call getChild(node, "EnergyAccuracy", child, requested=.false.)
     if (associated(child)) then
-      call detailedWarning(env, child, "The energy accuracy setting will be ignored as it is not&
+      call detailedWarning(env%stdOut, child, "The energy accuracy setting will be ignored as it is not&
           & supported/need by libMBD any more")
     end if
     call getChild(node, "ForceAccuracy", child, requested=.false.)
     if (associated(child)) then
-      call detailedWarning(env, child, "The force accuracy setting will be ignored as it is not&
+      call detailedWarning(env%stdOut, child, "The force accuracy setting will be ignored as it is not&
           & supported/need by libMBD any more")
     end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
@@ -5113,7 +5104,7 @@ contains
         do iReg = 1, nReg
           call getItem1(children, iReg, child2)
           call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-          call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+          call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
           call append(ctrl%iAtInRegion, pTmpI1)
           call getChildValue(child2, "ShellResolved", &
               & ctrl%tShellResInRegion(iReg), .false., child=child3)
@@ -5241,7 +5232,7 @@ contains
       end if
 
       if (allocated(ctrl%perturbInp)) then
-        call maxSelfConsIterations(env, node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
+        call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
         if (ctrl%tScc) then
           call getChildValue(node, "PerturbSccTol", ctrl%perturbInp%perturbSccTol, 1.0e-5_dp)
           ! self consistency required, or not, to proceed with perturbation
@@ -5808,7 +5799,7 @@ contains
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
 
       input%nExcitedAtom = size(input%indExcitedAtom)
@@ -5834,7 +5825,7 @@ contains
       call convertUnitHsd(char(modifier), EFieldUnits, child, input%tdLaserField)
 
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
       input%nExcitedAtom = size(input%indExcitedAtom)
       if (input%nExcitedAtom == 0) then
@@ -5897,7 +5888,7 @@ contains
     call getChildValue(node, "IonDynamics", input%tIons, .false.)
     if (input%tIons) then
       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indMovedAtom)
 
       input%nMovedAtom = size(input%indMovedAtom)
@@ -6707,9 +6698,6 @@ contains
     logical :: mask(3)
     character(lc) :: errorStr
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     !! Sanity check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
@@ -6734,19 +6722,19 @@ contains
     if (any(sum( (geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
         & - spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1) > contactLayerTol**2))&
         & then
-      write(stdout,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
-      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
-      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
+      write(env%stdOut,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
+      write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
+      write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
       do ii = 0, iStart2 -1 -iStart
         if (sum((geom%coords(:,ii+iStart)-geom%coords(:,ii+iStart2) - contactVec)**2)&
             & > contactLayerTol**2) then
-          write(stdout,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
+          write(env%stdOut,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
               & ' inconsistent with the contact vector.'
           exit
         end if
       end do
-      write(stdout,*)'Mismatches in atomic positions in the two layers:'
-      write(stdout,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+      write(env%stdOut,*)'Mismatches in atomic positions in the two layers:'
+      write(env%stdOut,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
           & - spread(contactVec(:), dim=2, ncopies=iStart2-iStart))) * Bohr__AA
 
       write (errorStr,"('Contact ',A,' (',A,') does not consist of two rigidly shifted layers')")&
@@ -7008,7 +6996,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child3)
         call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
-        call getSelectedAtomIndices(env, child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
+        call getSelectedAtomIndices(env%stdOut, child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
         call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
         ! If not defined, use common unit modifier defined after Coupling
         if (len(modifier2)==0) then
@@ -7019,7 +7007,7 @@ contains
         do jj=1, size(tmpI1)
           iAt = tmpI1(jj)
           if (atmCoupling(iAt) /= 0.0_dp) then
-            call detailedWarning(env, child3, "Previous setting of coupling &
+            call detailedWarning(env%stdOut, child3, "Previous setting of coupling &
                 &for atom" // i2c(iAt) // " has been overwritten")
           end if
           atmCoupling(iAt) = rTmp
@@ -7293,7 +7281,7 @@ contains
         call getNodeName2(child1, buffer)
         if (char(buffer) == "") then
           contacts(ii)%tFermiSet = .false.
-          call detailedWarning(env, pNode, "Missing Fermi level - required to be set in solver block or&
+          call detailedWarning(env%stdOut, pNode, "Missing Fermi level - required to be set in solver block or&
               & read from a contact shift file")
         else
           call init(fermiBuffer)
@@ -7480,7 +7468,7 @@ contains
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
-      call getSelectedAtomIndices(env, child2, char(buffer), geo%speciesNames,&
+      call getSelectedAtomIndices(env%stdOut, child2, char(buffer), geo%speciesNames,&
           & geo%species(idxdevice(1) : idxdevice(2)), tmpI1,&
           & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geo%nAtom])
       iAtInRegion(iReg)%data = tmpI1
@@ -7611,7 +7599,7 @@ contains
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
-      call getSelectedAtomIndices(env, child, char(buffer), geo%speciesNames, geo%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
         call detailedError(child, "Atom region contains atom(s) which have already been overridden")
@@ -7654,7 +7642,7 @@ contains
     end if
     if (associated(node)) then
       if (.not. withMpi) then
-        call detailedWarning(env, node, "Settings will be read but ignored (compiled without MPI&
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without MPI&
             & support)")
       end if
       allocate(input%ctrl%parallelOpts)
@@ -7686,7 +7674,7 @@ contains
     end if
     if (associated(node)) then
       if (.not. withScalapack) then
-        call detailedWarning(env, node, "Settings will be read but ignored (compiled without SCALAPACK&
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without SCALAPACK&
             & support)")
       end if
       call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
@@ -8053,9 +8041,6 @@ contains
     integer :: ii, nFunc
     logical :: tFunc = .true.
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     !> Read 'Energy' block
     call getChild(node, "Energy", child=child1)
 
@@ -8087,12 +8072,12 @@ contains
     end if
 
     if (.not. tFunc) then
-      write(stdOut,'(A)',advance="no") "Current Functional : "
+      write(env%stdOut,'(A)',advance="no") "Current Functional : "
       do ii = 1, nFunc
         if (ii == nFunc) then
-          write(stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
+          write(env%stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
         else
-          write(stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
+          write(env%stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
         end if
       end do
       call detailedError(child1, "Invalid Functional")

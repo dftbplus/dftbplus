@@ -88,7 +88,7 @@ contains
     nSpecies = size(input%speciesNames)
     allocate(this%sumVdw_(nSpecies, nSpecies))
     allocate(this%h5Scaling_(nSpecies, nSpecies))
-    call getParams_(env, input%speciesNames, input%elementParams, this%h5Scaling_, this%sumVdw_)
+    call getParams_(env%stdOut, input%speciesNames, input%elementParams, this%h5Scaling_, this%sumVdw_)
 
   end subroutine TH5Correction_init
 
@@ -169,10 +169,10 @@ contains
 
 
   ! Get H5 parameters for all species pairs.
-  subroutine getParams_(env, speciesNames, elementParams, h5Scaling_, sumVdw_)
+  subroutine getParams_(output, speciesNames, elementParams, h5Scaling_, sumVdw_)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     character(*), intent(in) :: speciesNames(:)
     real(dp), intent(in) :: elementParams(:)
@@ -209,7 +209,7 @@ contains
 
         call getVdwData(speciesNames(iSpHeavy), vdwHeavy, found=tFoundRadius)
         if (.not. tFoundRadius .and. h5Scaling_(iSp2, iSp1) > 0.0_dp) then
-          call warning(env%stdOut, "The van de  Waals radius for " // trim(speciesNames(iSpHeavy)) //&
+          call warning(output, "The van de  Waals radius for " // trim(speciesNames(iSpHeavy)) //&
               & " is required for the H5 correction but is not available. H-" //&
               & trim(speciesNames(iSpHeavy)) // " contributions therefore neglected.")
           h5Scaling_(iSp2, iSp1) = -1.0_dp

@@ -39,18 +39,18 @@
     #:endblock
 
     #:block TEST("singleRank")
-      call distributeAtoms(env, 0, 1, 42, startAtom, endAtom, error)
+      call distributeAtoms(env%stdOut, 0, 1, 42, startAtom, endAtom, error)
       @:ASSERT(startAtom == 1)
       @:ASSERT(endAtom == 42)
       @:ASSERT(.not. error)
     #:endblock
 
     #:block TEST("multipleRanks")
-      call distributeAtoms(env, 0, 2, 13, startAtom, endAtom, error)
+      call distributeAtoms(env%stdOut, 0, 2, 13, startAtom, endAtom, error)
       @:ASSERT(startAtom == 1)
       @:ASSERT(endAtom == 7)
       @:ASSERT(.not. error)
-      call distributeAtoms(env, 1, 2, 13, startAtom, endAtom, error)
+      call distributeAtoms(env%stdOut, 1, 2, 13, startAtom, endAtom, error)
       @:ASSERT(startAtom == 8)
       @:ASSERT(endAtom == 13)
       @:ASSERT(.not. error)
@@ -59,7 +59,7 @@
     #:block TEST("tooManyRanks")
       integer :: i
       do i = 1, 4
-        call distributeAtoms(env, i, 4, 2, startAtom, endAtom, error)
+        call distributeAtoms(env%stdOut, i, 4, 2, startAtom, endAtom, error)
         @:ASSERT(error)
       end do
     #:endblock

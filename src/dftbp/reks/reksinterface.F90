@@ -217,7 +217,7 @@ module dftbp_reks_reksinterface
           call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
         end do
         call writeReksTDP(this%tdp)
-        call getReksOsc(env, this%tdp, this%energy)
+        call getReksOsc(env%stdOut, this%tdp, this%energy)
       end if
 
     end if
@@ -316,9 +316,6 @@ module dftbp_reks_reksinterface
     real(dp), allocatable :: Qmat(:,:)
     integer :: ist, ia, ib, nstHalf, fac
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     nstHalf = this%nstates * (this%nstates-1) / 2
 
     allocate(Qmat(orb%nOrb,orb%nOrb))
@@ -351,9 +348,9 @@ module dftbp_reks_reksinterface
         do ist = 1, this%nstates
           if (ist /= this%SAstates) then
 
-            write(stdOut,"(A)")
-            write(stdOut,"(A)") repeat("-", 82)
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,"(A)")
+            write(env%stdOut,"(A)") repeat("-", 82)
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', ist, 'state vector...'
 
             ! solve CP-REKS equation for SA-REKS state
@@ -376,9 +373,9 @@ module dftbp_reks_reksinterface
         do ist = 1, nstHalf
 
           call getTwoIndices(this%nstates, ist, ia, ib, 1)
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
-          write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
 
           ! solve CP-REKS equation for state-interaction term
@@ -404,9 +401,9 @@ module dftbp_reks_reksinterface
           call SaToSsrWeight(this%Rab, this%weightIL, this%G1, &
               & this%eigvecsSSR, this%rstate, this%weightL)
 
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
-          write(stdOut,'(1x,a,1x,I2,1x,a)') &
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
 
           ! solve CP-REKS equation for SSR state
@@ -424,13 +421,13 @@ module dftbp_reks_reksinterface
 
         else
 
-          write(stdOut,"(A)")
-          write(stdOut,"(A)") repeat("-", 82)
+          write(env%stdOut,"(A)")
+          write(env%stdOut,"(A)") repeat("-", 82)
           if (this%Lstate == 0) then
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
           else
-            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+            write(env%stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', this%Lstate, 'microstate vector...'
           end if
 
@@ -473,7 +470,7 @@ module dftbp_reks_reksinterface
     end if
 
     if (this%Plevel >= 1) then
-      call printReksGradInfo(env, this, derivs)
+      call printReksGradInfo(this, derivs, env%stdOut)
     end if
 
   end subroutine getReksGradients
@@ -1178,18 +1175,15 @@ module dftbp_reks_reksinterface
     !> option for relaxed properties (QM/MM) calculations
     logical, intent(in) :: optionQMMM
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     if (this%Glevel == 1 .or. this%Glevel == 2) then
 
       ! solve linear equation A * Z = X using CG algorithm
       ! get converged R, Z, Q2 matrices & ZT vector
       ! RmatL : AO index, ZmatL : AO index, Q2mat : MO index
       if (optionQMMM) then
-        write(stdOut,'(a)') &
+        write(env%stdOut,'(a)') &
             & ' Warning! For calculating relaxed density for SSR state,'
-        write(stdOut,'(a)') &
+        write(env%stdOut,'(a)') &
             & '          run CG again to obtain ZT solution in (nac) case.'
       end if
       call CGgrad(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart, &
@@ -1217,7 +1211,7 @@ module dftbp_reks_reksinterface
             & this%SpinAO, this%LrGammaAO, this%orderRmatL, this%getDenseAO, &
             & this%Lpaired, this%Glevel, this%tSaveMem, this%isRangeSep, ZmatL)
         call getQ2mat(eigenvecs, this%fillingL, this%weight, ZmatL, Q2mat)
-        write(stdOut,"(A)") repeat("-", 82)
+        write(env%stdOut,"(A)") repeat("-", 82)
       end if
 
     end if
@@ -1227,7 +1221,7 @@ module dftbp_reks_reksinterface
       call getQ1mat(ZT, this%fockFc, this%fockFa, this%SAweight, &
           & this%FONs, this%Nc, this%Na, this%reksAlg, Q1mat)
     else
-      write(stdOut,"(A)")
+      write(env%stdOut,"(A)")
     end if
 
   end subroutine solveCpReks_

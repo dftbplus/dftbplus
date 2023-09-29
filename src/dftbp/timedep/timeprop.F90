@@ -970,9 +970,6 @@ contains
     type(TTimer) :: loopTime
     integer :: iStep
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
     call initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
@@ -988,9 +985,9 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
 
-    write(stdOut, "(A)")
-    write(stdOut, "(A)") 'Starting electronic dynamics...'
-    write(stdOut, "(A80)") repeat("-", 80)
+    write(env%stdOut, "(A)")
+    write(env%stdOut, "(A)") 'Starting electronic dynamics...'
+    write(env%stdOut, "(A80)") repeat("-", 80)
 
     ! Main loop
     do iStep = 1, this%nSteps
@@ -1005,13 +1002,13 @@ contains
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
         this%timeElec  = loopTime%getWallClockTime()
-        write(stdOut, "(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ',&
+        write(env%stdOut, "(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ',&
             & this%timeElec, 'average time per loop ', this%timeElec / (iStep + 1)
       end if
 
     end do
 
-    write(stdOut, "(A)") 'Dynamics finished OK!'
+    write(env%stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
@@ -1238,13 +1235,13 @@ contains
 
 
   !> Kick the density matrix for spectrum calculations
-  subroutine kickDM(this, env, rho, Ssqr, Sinv, iSquare, coord)
+  subroutine kickDM(this, output, rho, Ssqr, Sinv, iSquare, coord)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
 
     !> Square overlap
@@ -1309,7 +1306,7 @@ contains
       call gemm(rho(:,:,iKS), Sinv(:,:,iKS), T2, cmplx(0.5, 0, dp), cmplx(1, 0, dp), 'N', 'C')
     end do
 
-    write(env%stdOut,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
+    write(output,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
 
   end subroutine kickDM
 
@@ -2887,7 +2884,7 @@ contains
     call updateNeighbourListAndSpecies(env, coordAll, this%speciesAll, img2CentCell, this%iCellVec,&
         & neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec, errStatus)
     @:PROPAGATE_ERROR(errStatus)
-    call getNrOfNeighboursForAll(env, nNeighbourSK, neighbourList, this%skCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
 
@@ -3857,7 +3854,7 @@ contains
 
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
-      call kickDM(this, env, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
+      call kickDM(this, env%stdOut, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
     end if
 
     call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell, nNeighbourSK,&

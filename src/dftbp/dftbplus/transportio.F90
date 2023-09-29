@@ -8,7 +8,6 @@
 #:include 'common.fypp'
 
 module dftbp_dftbplus_transportio
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
@@ -31,10 +30,10 @@ module dftbp_dftbplus_transportio
 contains
 
   !> Write the Hamiltonian self consistent shifts to file
-  subroutine writeShifts(env, fShifts, orb, shiftPerL)
+  subroutine writeShifts(output, fShifts, orb, shiftPerL)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> filename where shifts are stored
     character(*), intent(in) :: fShifts
@@ -66,7 +65,7 @@ contains
     end do
     call closeFile(fdHS)
 
-    write(env%stdOut,*) ">> Shifts saved for restart in shifts.dat"
+    write(output,*) ">> Shifts saved for restart in shifts.dat"
 
   end subroutine writeShifts
 
@@ -117,10 +116,10 @@ contains
 
 
   !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContactShifts(env, filename, orb, shiftPerL, charges, Ef, blockCharges, tWriteAscii)
+  subroutine writeContactShifts(output, filename, orb, shiftPerL, charges, Ef, blockCharges, tWriteAscii)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> filename where shifts are written
     character(*), intent(in) :: filename
@@ -184,7 +183,7 @@ contains
         write(fdHS%unit, formatFermiWrite) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       end if
 
-      write(env%stdOut,*) 'shiftcont_' // trim(filename) // '.dat written to file'
+      write(output,*) 'shiftcont_' // trim(filename) // '.dat written to file'
 
     else
 
@@ -208,7 +207,7 @@ contains
 
       write(fdHS%unit) Ef(:)
 
-      write(env%stdOut,*) 'shiftcont_' // trim(filename) // '.bin written to file'
+      write(output,*) 'shiftcont_' // trim(filename) // '.bin written to file'
 
     end if
 
@@ -221,10 +220,10 @@ contains
 #:if WITH_TRANSPORT
 
   !> Read contact potential shifts from file
-  subroutine readContactShifts(env, shiftPerL, charges, tp, orb, blockUp)
+  subroutine readContactShifts(output, shiftPerL, charges, tp, orb, blockUp)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
@@ -323,7 +322,7 @@ contains
 
         case default
 
-          write(env%stdOut,*) "Error reading file contact file " // fileName
+          write(output,*) "Error reading file contact file " // fileName
           call error(trim(buffer))
 
         end select

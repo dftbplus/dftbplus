@@ -9,7 +9,7 @@
 
 !> Auxiliary subroutines for the ASSERT command
 module dftbp_common_assert
-  use iso_fortran_env, only : stdOut => output_unit
+  use dftbp_common_globalenv, only : stdOut0
   use dftbp_common_globalenv, only : abortProgram
   implicit none
 
@@ -32,9 +32,9 @@ contains
     !> Nr. of the line at which the error occurred.
     integer, intent(in) :: lineNr
 
-    write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
-    write(stdout, '(A,A)') "!!! FILE:      ", fileName
-    write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
+    write(stdOut0, '(A)') "!!! UNFULLFILLED ASSERTION"
+    write(stdOut0, '(A,A)') "!!! FILE:      ", fileName
+    write(stdOut0, '(A,I0)') "!!! LINE NR.:  ", lineNr
     call abortProgram()
 
   end subroutine assertError

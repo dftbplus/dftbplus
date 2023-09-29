@@ -270,7 +270,7 @@ contains
     call this%cnCont%updateCoords(env, neigh, img2CentCell, coords, species)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%cutoff)
 
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
