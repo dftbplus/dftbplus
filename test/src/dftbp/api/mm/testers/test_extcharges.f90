@@ -140,10 +140,10 @@ contains
     coords(:,:) = initialCoords
     call dftbp%setGeometry(coords)
 
-    ! add external charges
-    call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:1), extChargeBlur(:1))
+    ! add a single external charge
+    call dftbp%setExternalCharges(extCharges(:3,:1), extCharges(4,:1), extChargeBlur(:1))
 
-    ! get energy, charges and forces
+    ! get energy, charges and forces for the single external charge
     call dftbp%getEnergy(merminEnergy)
     call dftbp%getExtChargeGradients(extChargeGrads(:,:1))
 
@@ -152,7 +152,7 @@ contains
 
     ! get energy
     call dftbp%getEnergy(merminEnergy)
-  
+
     ! Finally, external charges corresponding to the regression data
     call dftbp%setExternalCharges(extCharges(:3,:2), extCharges(4,:2), extChargeBlur(:2))
 
