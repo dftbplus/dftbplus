@@ -125,7 +125,7 @@ contains
       call findFile(searchPath, paramFile, paramTmp)
       if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
       write(env%stdOut, '(a)') "Reading GBSA parameter file '" // paramFile // "'"
-      call readParamGBSA(env, paramFile, defaults, solvent, geo%speciesNames, node=child)
+      call readParamGBSA(env%stdOut, paramFile, defaults, solvent, geo%speciesNames, node=child)
     else
       call readSolvent(node, solvent)
     end if
@@ -634,7 +634,7 @@ contains
       write(errorStr, '(a, *(1x, i0, 1x, a))') &
           & "No angular integration grid with", gridPoints, &
           & "points available, using",  gridSize(angGrid), "points instead"
-      call detailedWarning(env, child, trim(errorStr))
+      call detailedWarning(env%stdOut, child, trim(errorStr))
     end if
 
   end subroutine readAngularGrid

@@ -246,7 +246,7 @@ contains
     end if
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
-    call getSelectedAtomIndices(env, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
 
     tCompModes = .false.
@@ -261,7 +261,7 @@ contains
       if (associated(node)) then
         tPlotModes = .true.
         call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
-        call getSelectedIndices(env, child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
+        call getSelectedIndices(env%stdOut, child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
         nModesToPlot = size(modesToPlot)
         call getChildValue(node, "Animate", tAnimateModes, .true.)
         call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
@@ -300,9 +300,9 @@ contains
     if ( associated(node) ) then
       call getChild(node, "SlaterKosterFiles", child=value,requested=.false.)
       if ( associated(value) ) then
-        call readSKfiles(env, value, geo, speciesMass)
+        call readSKfiles(env%stdOut, value, geo, speciesMass)
       else
-        call readMasses(env, node, geo, speciesMass)
+        call readMasses(env%stdOut, node, geo, speciesMass)
       endif
     endif
     allocate(atomicMasses(nMovedAtom))
@@ -324,11 +324,11 @@ contains
     call getNodeName(value, buffer)
     select case(trim(char(buffer)))
     case ("dftb")
-      call readDftbHessian(env, value)
+      call readDftbHessian(env%stdOut, value)
     case ("dynmatrix")
-      call readDynMatrix(env, value)
+      call readDynMatrix(env%stdOut, value)
     case ("cp2k")
-      call readCp2kHessian(env, value)
+      call readCp2kHessian(env%stdOut, value)
     case default
       call detailedError(node,"Unknown Hessian type "//char(buffer))
     end select
@@ -365,7 +365,7 @@ contains
 
     !! Issue warning about unprocessed nodes
     write(env%stdOut, "(/, A)") "check unprocessed nodes..."
-    call warnUnprocessedNodes(env, root, parserFlags%tIgnoreUnprocessed )
+    call warnUnprocessedNodes(env%stdOut, root, parserFlags%tIgnoreUnprocessed )
 
     !! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
@@ -384,10 +384,10 @@ contains
   end subroutine initProgramVariables
 
   !!* destruct the program variables created in initProgramVariables
-  subroutine destructProgramVariables(env)
+  subroutine destructProgramVariables(output)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     deallocate(atomicMasses)
     deallocate(dynMatrix)
@@ -397,7 +397,7 @@ contains
     if (allocated(modesToPlot)) then
       deallocate(modesToPlot)
     end if
-    write(env%stdOut, "(/,A)") repeat("=", 80)
+    write(output, "(/,A)") repeat("=", 80)
   end subroutine destructProgramVariables
 
 
@@ -594,7 +594,7 @@ contains
       call convertUnitHsd(char(modif), lengthUnits, field, contactLayerTol)
 
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      call getContactVectorII(env, contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol, &
+      call getContactVectorII(env%stdOut, contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol, &
                               & contacts(ii)%lattice, contacts(ii)%dir)
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
@@ -628,10 +628,10 @@ contains
 
 
   !> Verification checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVectorII(env, atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir)
+  subroutine getContactVectorII(output, atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     integer, intent(in) :: atomrange(2)
     type(TGeometry), intent(in) :: geom
@@ -662,18 +662,18 @@ contains
     contactVec = geom%coords(:,iStart) - geom%coords(:,iStart2)
     if (any(sqrt(sum((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd) &
         &- spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1)) > plShiftTol)) then
-      write(env%stdOut,*) 'coords:', geom%coords(:,iStart)
-      write(env%stdOut,*) 'coords:', geom%coords(:,iStart2)
-      write(env%stdOut,*) 'Contact Vector:', contactVec(1:3)
-      write(env%stdOut,*) iStart,iStart2,iEnd
-      write(env%stdOut,*) 'X:'
-      write(env%stdOut,*) ((geom%coords(1,iStart:iStart2-1) - geom%coords(1,iStart2:iEnd)&
+      write(output,*) 'coords:', geom%coords(:,iStart)
+      write(output,*) 'coords:', geom%coords(:,iStart2)
+      write(output,*) 'Contact Vector:', contactVec(1:3)
+      write(output,*) iStart,iStart2,iEnd
+      write(output,*) 'X:'
+      write(output,*) ((geom%coords(1,iStart:iStart2-1) - geom%coords(1,iStart2:iEnd)&
           & - spread(contactVec(1), dim=1, ncopies=iStart2-iStart)))
-      write(env%stdOut,*) 'Y:'
-      write(env%stdOut,*) ((geom%coords(2,iStart:iStart2-1) - geom%coords(2,iStart2:iEnd) &
+      write(output,*) 'Y:'
+      write(output,*) ((geom%coords(2,iStart:iStart2-1) - geom%coords(2,iStart2:iEnd) &
           & - spread(contactVec(2), dim=1, ncopies=iStart2-iStart)))
-      write(env%stdOut,*) 'Z:'
-      write(env%stdOut,*) ((geom%coords(3,iStart:iStart2-1) - geom%coords(3,iStart2:iEnd) &
+      write(output,*) 'Z:'
+      write(output,*) ((geom%coords(3,iStart:iStart2-1) - geom%coords(3,iStart2:iEnd) &
           &- spread(contactVec(3), dim=1, ncopies=iStart2-iStart)))
       call error("Contact " // i2c(id) &
           &// " does not consist of two rigidly shifted layers."//new_line('a') &
@@ -686,10 +686,10 @@ contains
 
 
   !> Used to read atomic masses from SK files
-  subroutine readSKfiles(env, child, geo, speciesMass)
+  subroutine readSKfiles(output, child, geo, speciesMass)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: child
     type(TGeometry), intent(in) :: geo
@@ -704,7 +704,7 @@ contains
     integer :: ii, iSp1
     logical :: tLower, tExist
 
-    write(env%stdOut, "(/, A)") "read atomic masses from sk files..."
+    write(output, "(/, A)") "read atomic masses from sk files..."
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
@@ -779,10 +779,10 @@ contains
   end subroutine readSKfiles
 
 
-  subroutine readMasses(env, value, geo, speciesMass)
+  subroutine readMasses(output, value, geo, speciesMass)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value
     type(TGeometry), intent(in) :: geo
@@ -793,14 +793,14 @@ contains
     integer :: iSp
     real(dp) :: mass, defmass
 
-    write(env%stdOut, "(/, A)") "set atomic masses as IUPAC defaults ..."
+    write(output, "(/, A)") "set atomic masses as IUPAC defaults ..."
 
     do iSp = 1, geo%nSpecies
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
       call getChildValue(value, geo%speciesNames(iSp), mass, defmass,&
                &modifier=modif, child= child2)
       speciesMass(iSp) = mass
-      write(env%stdOut,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
+      write(output,*) trim(geo%speciesNames(iSp)),": ", mass/amu__au, "amu", &
             &SpeciesMass(iSp),"a.u."
     end do
 
@@ -1006,10 +1006,10 @@ contains
   !!  ---------- + --------- + --------- + ---------- + ---------- +...
   !!  dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
   !!
-  subroutine readDftbHessian(env, child)
+  subroutine readDftbHessian(output, child)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: child
 
@@ -1030,7 +1030,7 @@ contains
     strTmp = char(filename)
     inquire(file=strTmp, exist=texist )
     if (texist) then
-      write(env%stdOut, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
+      write(output, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
     else
       call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
     end if
@@ -1066,10 +1066,10 @@ contains
   end subroutine readDftbHessian
 
 
-  subroutine readDynMatrix(env, child)
+  subroutine readDynMatrix(output, child)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: child
 
@@ -1087,7 +1087,7 @@ contains
     !! ---------- + --------- + --------- + ---------- + ---------- +...
     !! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
 
-    write(env%stdOut, "(/, A)") "read dynamical matrix..."
+    write(output, "(/, A)") "read dynamical matrix..."
 
     call init(realBuffer)
     call getChildValue(child, "", nDerivs, realBuffer)
@@ -1102,10 +1102,10 @@ contains
   end subroutine readDynMatrix
 
 
-  subroutine readCp2kHessian(env, child)
+  subroutine readCp2kHessian(output, child)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: child
 
@@ -1128,7 +1128,7 @@ contains
     strTmp = char(filename)
     inquire(file=strTmp, exist=texist )
     if (texist) then
-      write(env%stdOut, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
+      write(output, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
     else
       call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
     end if
@@ -1295,7 +1295,7 @@ contains
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, &
           & multiple=.true.)
-      call getSelectedAtomIndices(env, child2, char(buffer), geo%speciesNames, geo%species, tmpI1)
+      call getSelectedAtomIndices(env%stdOut, child2, char(buffer), geo%speciesNames, geo%species, tmpI1)
       iAtInRegion(iReg)%data = tmpI1
       write(strTmp, "('region',I0)") iReg
       call getChildValue(child, "Label", buffer, trim(strTmp))
@@ -1582,7 +1582,7 @@ contains
     allocate(nNeighbour(geo%nAtom))
     nNeighbour(:) = 0
 
-    call getNrOfNeighboursForAll(env, nNeighbour, neighbourList, mCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbour, neighbourList, mCutoff)
 
     ! Check PL size with neighbor list
     do iAtom = 1, transpar%idxdevice(2)

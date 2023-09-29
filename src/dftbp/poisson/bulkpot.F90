@@ -52,64 +52,61 @@ module dftbp_poisson_bulkpot
 contains
 
  !%--------------------------------------------------------------------------
- subroutine create_super_array(env, SA,na,nb,nc)
+ subroutine create_super_array(output, SA,na,nb,nc)
 
-   !> Environmet
-   type(TEnvironment), intent(in) :: env
+   !> output for write processes
+   integer, intent(in) :: output
 
    type(super_array) :: SA
    integer :: na,nb,nc
 
-   call log_gallocate(env%stdOut, SA%val,na,nb,nc)
+   call log_gallocate(output, SA%val,na,nb,nc)
 
    SA%ibsize=na*nb*nc
 
  end subroutine create_super_array
 
  !%--------------------------------------------------------------------------
- subroutine destroy_super_array(env, SA)
+ subroutine destroy_super_array(output, SA)
 
-   !> Environmet
-   type(TEnvironment), intent(in) :: env
+   !> output for write processes
+   integer, intent(in) :: output
 
    type(super_array) :: SA
 
-   call log_gdeallocate(env%stdOut, SA%val)
+   call log_gdeallocate(output, SA%val)
 
  end subroutine destroy_super_array
  !%--------------------------------------------------------------------------
 
 
- subroutine write_super_array(env, SA)
+ subroutine write_super_array(output, SA)
 
-   !> Environmet
-   type(TEnvironment), intent(in) :: env
+   !> output for write processes
+   integer, intent(in) :: output
 
    type(super_array) :: SA
 
    character(*), parameter :: formatStr = '(a, ":", t30, g14.10)'
 
-   integer :: stdOut
-   stdOut = env%stdOut
+   write(output,"(I0,1X,I0,1X,I0)") SA%a,SA%b,SA%c
+   write(output,"(3E20.12)") SA%dla,SA%dlb,SA%dlc
 
-   write(stdOut,"(I0,1X,I0,1X,I0)") SA%a,SA%b,SA%c
-   write(stdOut,"(3E20.12)") SA%dla,SA%dlb,SA%dlc
-
-   write(stdOut, formatStr) 'size',SA%ibsize
-   write(stdOut, formatStr) 'iparm',SA%iparm
-   write(stdOut, formatStr) 'fparm',SA%fparm
-   write(stdOut, formatStr) 'natm_PL',SA%natm_PL
-   write(stdOut, formatStr) 'L_PL',SA%L_PL
-   write(stdOut, formatStr) 'rhs',size(SA%rhs)
-   write(stdOut, formatStr) 'val',size(SA%val)
+   write(output, formatStr) 'size',SA%ibsize
+   write(output, formatStr) 'iparm',SA%iparm
+   write(output, formatStr) 'fparm',SA%fparm
+   write(output, formatStr) 'natm_PL',SA%natm_PL
+   write(output, formatStr) 'L_PL',SA%L_PL
+   write(output, formatStr) 'rhs',size(SA%rhs)
+   write(output, formatStr) 'val',size(SA%val)
 
  end subroutine write_super_array
 
  !%--------------------------------------------------------------------------
- subroutine create_phi_bulk(env, phi_bulk,iparm,dlx,dly,dlz,cont_mem)
+ subroutine create_phi_bulk(output, phi_bulk,iparm,dlx,dly,dlz,cont_mem)
 
- !> Environmet
- type(TEnvironment), intent(in) :: env
+ !> output for write processes
+ integer, intent(in) :: output
 
  type(super_array) :: phi_bulk(:)
  integer :: iparm(23)
@@ -293,7 +290,7 @@ contains
    phi_bulk(m)%iparm(19) = 0            ! Gauss-Siedel
    phi_bulk(m)%iparm(20) = 7*(na+2)*(nb+2)*(nc+2)/2
 
-   call log_gallocate(env%stdOut, phi_bulk(m)%rhs,na,nb,nc)
+   call log_gallocate(output, phi_bulk(m)%rhs,na,nb,nc)
 
    cont_mem = na*nb*nc
 
@@ -301,7 +298,7 @@ contains
 
    phi_bulk(m)%ibsize = cont_mem
 
-   call log_gallocate(env%stdOut, phi_bulk(m)%val,na,nb,nc)
+   call log_gallocate(output, phi_bulk(m)%val,na,nb,nc)
 
    phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
 
@@ -311,17 +308,17 @@ end subroutine create_phi_bulk
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-subroutine destroy_phi_bulk(env, phi_bulk)
+subroutine destroy_phi_bulk(output, phi_bulk)
 
-  !> Environmet
-  type(TEnvironment), intent(in) :: env
+ !> output for write processes
+ integer, intent(in) :: output
 
   type(super_array) :: phi_bulk(:)
   integer :: m
 
   do m=1,ncont
-    call log_gdeallocate(env%stdOut, phi_bulk(m)%val)
-    call log_gdeallocate(env%stdOut, phi_bulk(m)%rhs)
+    call log_gdeallocate(output, phi_bulk(m)%val)
+    call log_gdeallocate(output, phi_bulk(m)%rhs)
   enddo
 
 end subroutine destroy_phi_bulk
@@ -493,7 +490,7 @@ Subroutine compbulk_pot_ewald(env, phi_bulk, m)
               nsh = nshells(izp(atom))
 
               ! Compute L-independent part:
-              call long_pot(env, distR,basis,recbasis,alpha,vol,tol,lng_pot)
+              call long_pot(env%stdOut, distR,basis,recbasis,alpha,vol,tol,lng_pot)
               ! total atomic charge
               deltaQ = sum(dQmat(1:nsh,atom))
               phi_bulk_PAR(i,j,k) = phi_bulk_PAR(i,j,k) + deltaQ*lng_pot
@@ -503,7 +500,7 @@ Subroutine compbulk_pot_ewald(env, phi_bulk, m)
                  deltaQ = dQmat(l,atom)
                  uhatm = uhubb(l,izp(atom))
 
-                 call short_pot(env, distR,basis,uhatm,deltaQ,tol,sh_pot)
+                 call short_pot(env%stdOut, distR,basis,uhatm,deltaQ,tol,sh_pot)
 
                  !OMP CRITICAL
                  phi_bulk_PAR(i,j,k) = phi_bulk_PAR(i,j,k) - sh_pot

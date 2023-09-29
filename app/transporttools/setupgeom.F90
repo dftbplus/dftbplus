@@ -43,7 +43,7 @@ program setupgeom
 #:endif
   ! temporary fix
   env%stdOut = stdOut
-  call printDftbHeader(env, '(setupgeom)', releaseYear)
+  call printDftbHeader(env%stdOut, '(setupgeom)', releaseYear)
   allocate(input)
   call parseHsdInput(env, input)
   deallocate(input)

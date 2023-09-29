@@ -298,7 +298,7 @@ contains
     end if
 
     !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(env, root)
+    call warnUnprocessedNodes(env%stdOut, root)
     write(env%stdout, "(A)") "Done."
     write(env%stdout, "(A)") repeat("-", 80)
 

@@ -48,7 +48,7 @@ contains
     write(env%stdout, "(A)") "Reading input file '" // hsdFileName // "'"
     call readHsdFile(hsdFileName, hsdTree)
     call parseHsdTree(env, hsdTree, input, parserFlags)
-    call doPostParseJobs(env, hsdTree, parserFlags)
+    call doPostParseJobs(env%stdOut, hsdTree, parserFlags)
     call destroyNode(hsdTree)
 
   end subroutine parseHsdInput
@@ -68,10 +68,10 @@ contains
 
 
   !> Execute parser related tasks (warning, processed input dumping) needed after parsing
-  subroutine doPostParseJobs(env, hsdTree, parserFlags)
+  subroutine doPostParseJobs(output, hsdTree, parserFlags)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Tree representation of the HSD input
     type(fnode), pointer, intent(in) :: hsdTree
@@ -84,12 +84,12 @@ contains
     call getChild(hsdTree, rootTag, root)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(env, root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(output, root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcFileName)
-      write(env%stdout, '(/,/,A)') "Processed input in HSD format written to '" // hsdProcFileName&
+      write(output, '(/,/,A)') "Processed input in HSD format written to '" // hsdProcFileName&
           & // "'"
     end if
 

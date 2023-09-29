@@ -231,7 +231,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(env, tmpRho, rstate, Lstate, Nc, Na, tSSR)
+    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR, env%stdOut)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
@@ -396,7 +396,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONs(env, tmpRho, rstate, Nc, Na, tSSR)
+    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR, env%stdOut)
 
   end subroutine getRelaxedDensMat
 
@@ -513,7 +513,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONsL(env, tmpRho, Lstate, Nc, Na)
+    call printRelaxedFONsL(tmpRho, Lstate, Nc, Na, env%stdOut)
 
   end subroutine getRelaxedDensMatL
 
@@ -582,10 +582,10 @@ module dftbp_reks_reksproperty
 
 
   !> get the oscillator strength between the states
-  subroutine getReksOsc(env, tdp, energy)
+  subroutine getReksOsc(output, tdp, energy)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> transition dipole moment between states
     real(dp), intent(in) :: tdp(:,:)
@@ -596,22 +596,19 @@ module dftbp_reks_reksproperty
     real(dp) :: osc
     integer :: ia, ib, ist, nstates, nstHalf
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     nstates = size(energy,dim=1)
     nstHalf = size(tdp,dim=2)
 
-    write(stdOut,*)
-    write(stdOut,'(A)') " Oscillator Strength (au)"
+    write(output,*)
+    write(output,'(A)') " Oscillator Strength (au)"
     do ist = 1, nstHalf
 
       call getTwoIndices(nstates, ist, ia, ib, 1)
 
       osc = 2.0_dp / 3.0_dp * (energy(ib) - energy(ia)) * sum(tdp(:,ist)**2)
 
-      write(stdOut,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
-      write(stdOut,'(1(f12.6))') osc
+      write(output,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
+      write(output,'(1(f12.6))') osc
 
     end do
 

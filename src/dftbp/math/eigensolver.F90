@@ -12,7 +12,6 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_math_eigensolver
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : rsp, rdp
   use dftbp_extlibs_lapack, only : slamch, dlamch, spotrf, ssyev, ssyevd, ssyevr, ssygst, ssygv,&
       & ssygvd, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, cheev, cheevd, cheevr,&

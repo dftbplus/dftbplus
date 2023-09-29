@@ -334,7 +334,7 @@ contains
     end if
 
     ! Calculate new search direction
-    call TLbfgs_calcDirection(this, env, this%xx, dxTemp)
+    call TLbfgs_calcDirection(this, env%stdOut, this%xx, dxTemp)
 
     if (this%isLineSearch) then
       this%alpha = 1.0_dp
@@ -385,13 +385,13 @@ contains
 
 
   !> Calculates next search direction
-  subroutine TLbfgs_calcDirection(this, env, xx, gg, diagIn)
+  subroutine TLbfgs_calcDirection(this, output, xx, gg, diagIn)
 
     !> lbfgs instance
     class(TLbfgs), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Point
     real(dp), intent(in) :: xx(:)
@@ -426,12 +426,12 @@ contains
 
     ! Checks whether new x is different to last iteration
     if (maxval(abs(xx - this%xOld)) < epsilon(1.0_dp)) then
-      call warning(env%stdOut, "Error: x need to be different in each iteration. (LBFGS Minimizer)")
+      call warning(output, "Error: x need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Checks whether new gradient is different to last iteration
     if (maxval(abs(gg - this%gg)) < epsilon(1.0_dp)) then
-      call warning(env%stdOut, "Error: g need to be different in each iteration. (LBFGS Minimizer)")
+      call warning(output, "Error: g need to be different in each iteration. (LBFGS Minimizer)")
     end if
 
     ! Save new ss, yy and rho
@@ -623,10 +623,10 @@ contains
     dphi = dot_product(dx, this%d0)
 
     if (.not. this%tZoom) then
-      call TLineSearch_getOptimalStep(this, env, phi, dphi, dx, xNew, tConverged)
+      call TLineSearch_getOptimalStep(this, env%stdOut, phi, dphi, dx, xNew, tConverged)
     end if
     if (this%tZoom) then
-      call TLineSearch_zoom(this, env, phi, dphi, dx, xNew, tConverged)
+      call TLineSearch_zoom(this, env%stdOut, phi, dphi, dx, xNew, tConverged)
     end if
 
     this%iter = this%iter + 1
@@ -707,13 +707,13 @@ contains
 
 
   !> Tries to find the optimal or a bracket containing the optimal step.
-  subroutine TLineSearch_getOptimalStep(this, env, phi, dphi, dx, xNew, tConverged)
+  subroutine TLineSearch_getOptimalStep(this, output, phi, dphi, dx, xNew, tConverged)
 
     !> Instance.
     type(TLineSearch), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Function value at current point
     real(dp), intent(in) :: phi
@@ -789,7 +789,7 @@ contains
       this%dxLo(:) = dx
 
       if (abs(this%alphaNew - this%maxAlpha) < epsilon(1.0_dp)) then
-        call warning(env%stdOut, "Line Search hit maximum border.")
+        call warning(output, "Line Search hit maximum border.")
         tConverged = .true.
         xNew(:) = this%xNew
       else if ((this%alphaNew > this%maxAlpha) .and. this%iter > 0) then
@@ -806,13 +806,13 @@ contains
 
 
   !> Finds the optimal step by zooming into the brackets.
-  subroutine TLineSearch_zoom(this, env, phi, dphi, dx, xNew, tConverged)
+  subroutine TLineSearch_zoom(this, output, phi, dphi, dx, xNew, tConverged)
 
     !> Instance.
     type(TLineSearch), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Function value at current point
     real(dp), intent(in) :: phi
@@ -856,7 +856,7 @@ contains
       end if
       xNew(:) = this%x0 + this%alphaLo * this%d0
 
-      call warning(env%stdOut, "LineSearch did not Converged. (zoom)")
+      call warning(output, "LineSearch did not Converged. (zoom)")
       tConverged = .true.
       return
     end if

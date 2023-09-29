@@ -27,7 +27,7 @@ program dftbplus
   call TEnvironment_init(env)
   ! temporary fix
   env%stdOut = stdOut
-  call printDftbHeader(env, releaseName, releaseYear)
+  call printDftbHeader(env%stdOut, releaseName, releaseYear)
   call parseHsdInput(env, input)
   allocate(main)
   call main%initProgramVariables(input, env)

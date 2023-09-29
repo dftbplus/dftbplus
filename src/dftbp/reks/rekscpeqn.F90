@@ -192,9 +192,6 @@ module dftbp_reks_rekscpeqn
     real(dp) :: rNorm1, rNorm2, alpha, beta, eps
     integer :: iter, superN
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     superN = size(XT,dim=1)
 
     allocate(shift1e(superN),shift2e(superN))
@@ -202,7 +199,7 @@ module dftbp_reks_rekscpeqn
     allocate(z0(superN),z1(superN))
     allocate(p0(superN),p1(superN))
 
-    write(stdOut,"(A)") repeat("-", 82)
+    write(env%stdOut,"(A)") repeat("-", 82)
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
@@ -246,7 +243,7 @@ module dftbp_reks_rekscpeqn
     p0(:) = z0
 
     iter = 0; eps = 0.0_dp
-    write(stdOut,'(2x,a)') 'CG solver: Constructing Y initial guess'
+    write(env%stdOut,'(2x,a)') 'CG solver: Constructing Y initial guess'
 
     CGsolver: do iter = 1, maxIter
 
@@ -301,7 +298,7 @@ module dftbp_reks_rekscpeqn
       eps = sum( r1(:)*r1(:) )
 
       ! show current iteration
-      write(stdOut,'(2x,a,1x,i4,4x,a,F18.12)') &
+      write(env%stdOut,'(2x,a,1x,i4,4x,a,F18.12)') &
           & 'CG solver: Iteration', iter, 'eps =', eps
 
       ! convergence check
@@ -311,13 +308,13 @@ module dftbp_reks_rekscpeqn
         z0(:) = z1
         p0(:) = p1
         if (iter == maxIter) then
-          write(stdOut,'(2x,a,i4,a)') &
+          write(env%stdOut,'(2x,a,i4,a)') &
               & 'Warning! Maximum number of iterations (', maxIter, &
               & ') is exceeded in CG solver'
           call error("Increase the maximum number of iterations")
         end if
       else
-        write(stdOut,'(2x,a,1x,i4,1x,a)') &
+        write(env%stdOut,'(2x,a,1x,i4,1x,a)') &
             & 'Convergence reached in CG solver after', iter, 'iterations'
         exit CGsolver
       end if
@@ -332,8 +329,8 @@ module dftbp_reks_rekscpeqn
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
         & Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
-    write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
-    write(stdOut,"(A)") repeat("-", 82)
+    write(env%stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
+    write(env%stdOut,"(A)") repeat("-", 82)
 
   end subroutine CGgrad
 
@@ -529,9 +526,6 @@ module dftbp_reks_rekscpeqn
     real(dp) :: e1, e2
     integer :: nOrb, superN, Nv, ij, i, j
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     superN = size(Y,dim=1)
     nOrb = size(Fc,dim=1)
     Nv = nOrb - Nc - Na
@@ -569,7 +563,7 @@ module dftbp_reks_rekscpeqn
 
       ! check singularity for preconditioner
       if (abs(tmpApre(ij)) <= epsilon(1.0_dp)) then
-        write(stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
+        write(env%stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
         call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 

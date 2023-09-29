@@ -41,7 +41,7 @@ program integvalue
   call getSkColumnData(extended, skData, col, data)
   call init(skgrid, skdata%dist, data, skEqGridNew)
   nPoint = floor((getCutoff(skgrid) - rStart) / dr) + 1
-  call writeValues(env, skgrid, rStart, dr, nPoint)
+  call writeValues(env%stdOut, skgrid, rStart, dr, nPoint)
 
   call env%destruct()
   call destructGlobalEnv()
@@ -50,12 +50,12 @@ contains
 
 
   !> Prints help and stops.
-  subroutine printHelp(env)
+  subroutine printHelp(output)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
-    write(env%stdout, "(A)") &
+    write(output, "(A)") &
         & "Usage: integvalue  {homo|hetero}  skfile {orig|ext} col",&
         & "",&
         "Reads an SK-file, extracts the given column in the integral table and&
@@ -102,7 +102,7 @@ contains
     end if
     call get_command_argument(1, arg)
     if (arg == "-h" .or. arg == "--help") then
-      call printHelp(env)
+      call printHelp(env%stdOut)
     end if
     if (command_argument_count() /= 4) then
       call error("Invalid number of arguments. Use 'integvalue -h' to obtain&
@@ -175,10 +175,10 @@ contains
 
   !> Writes values on a given grid.
   !!
-  subroutine writeValues(env, skgrid, rStart, dr, nPoint)
+  subroutine writeValues(output, skgrid, rStart, dr, nPoint)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> SK data grid
     type(TSlakoEqGrid), intent(in) :: skgrid
@@ -200,7 +200,7 @@ contains
       call getSKIntegrals(skgrid, sk0, dist)
       call getSKIntegrals(skgrid, skp1, dist + deltaXDiff)
       call getSKIntegrals(skgrid, skm1, dist - deltaXDiff)
-      write(env%stdout, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
+      write(output, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
           & (skp1 + skm1 - 2.0_dp * sk0) / (deltaXDiff * deltaXDiff)
     end do
 

@@ -7,7 +7,6 @@
 
 !> External fields
 module dftbp_dftb_extfields
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -82,11 +81,11 @@ module dftbp_dftb_extfields
 contains
 
   !> Sets up external electric or other fields
-  subroutine addUpExternalField(env, eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
+  subroutine addUpExternalField(output, eField, tPeriodic, neighbourList, nNeighbourSK, iCellVec,&
       & cellVec, deltaT, iGeoStep, coord0Fold, coord, potential)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Whether an external field is present
     type(TEfield), intent(inout), allocatable :: eField
@@ -150,7 +149,7 @@ contains
             end do
           end do
           if (isBoundaryCrossed) then
-            call warning(env%stdOut, "Interactions between atoms cross the saw-tooth discontinuity in the&
+            call warning(output, "Interactions between atoms cross the saw-tooth discontinuity in the&
                 & electric field")
           end if
           do iAt1 = 1, nAtom

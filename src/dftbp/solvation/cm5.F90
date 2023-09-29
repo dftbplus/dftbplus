@@ -214,7 +214,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neighList, this%rCutoff)
     if (allocated(this%dcm5dr) .and. allocated(this%dcm5dL)) then
       call getCorrectionDerivs(this, nNeigh, neighList%iNeighbour, img2CentCell, &
           & neighList%neighDist2, species0, coords)

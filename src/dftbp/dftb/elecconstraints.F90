@@ -164,7 +164,7 @@ contains
     do iConstr = 1, nConstr
       call getItem1(children, iConstr, child2)
       call getChildValue(child2, "Domain", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species,&
+      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species,&
           & input%atomGrp(iConstr)%data)
       call getChildValue(child2, "Population", input%atomNc(iConstr))
       ! Functionality currently restricted to charges only

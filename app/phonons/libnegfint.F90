@@ -264,25 +264,25 @@ contains
   end subroutine init_tun_proj
 
 
-  subroutine negf_destroy(env)
+  subroutine negf_destroy(output)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
-    write(env%stdOut, *)
-    write(env%stdOut, *) 'Release NEGF memory:'
+    write(output, *)
+    write(output, *) 'Release NEGF memory:'
     call destruct(csrHam)
     call destroy_negf(negf)
-    call writePeakInfo(env%stdOut)
-    call writeMemInfo(env%stdOut)
+    call writePeakInfo(output)
+    call writeMemInfo(output)
 
   end subroutine negf_destroy
 
 
-  subroutine negf_init_str(env, nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+  subroutine negf_init_str(output, nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     !> Number of atoms
     integer, intent(in) :: nAtoms
@@ -373,8 +373,8 @@ contains
 
        do j1 = 1, ncont
           if (count(minv(:,j1).eq.j1).gt.1) then
-             write(env%stdOut,*) 'Contact',j1,'interacts with more than one PL:'
-             write(env%stdOut,*) 'PLs:',minv(:,j1)
+             write(output,*) 'Contact',j1,'interacts with more than one PL:'
+             write(output,*) 'PLs:',minv(:,j1)
              call error('check cutoff value or PL size')
           end if
           do m = 1, transpar%nPLs
@@ -383,11 +383,11 @@ contains
        end do
 
 
-       write(env%stdOut,*)
-       write(env%stdOut,*) ' Structure info:'
-       write(env%stdOut,*) ' Number of PLs:',nbl
-       write(env%stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
-       write(env%stdOut,*)
+       write(output,*)
+       write(output,*) ' Structure info:'
+       write(output,*) ' Number of PLs:',nbl
+       write(output,*) ' PLs coupled to contacts:',cblk(1:ncont)
+       write(output,*)
 
     end if
 
@@ -874,16 +874,16 @@ contains
 
 
   !> DEBUG routine dumping H and S on file in Matlab format
-  subroutine negf_dumpHS(env, HH,SS)
+  subroutine negf_dumpHS(output, HH,SS)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(z_CSR), intent(in) :: HH, SS
 
     type(TFileDescr) :: fd
 
-    write(env%stdOut,*) 'Dumping H and S on files...'
+    write(output,*) 'Dumping H and S on files...'
     call openFile(fd, 'HH.dat', mode="w")
     write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
     write(fd%unit, *) '% Nonzeros =',HH%nnz

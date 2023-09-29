@@ -252,7 +252,7 @@ contains
     integer, allocatable :: nNeighDamp(:)
 
     allocate(nNeighReal(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeighReal, neigh, this%rCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighReal, neigh, this%rCutoff)
     this%energies(:) = 0.0_dp
     this%gradients(:,:) = 0.0_dp
     this%stress(:,:) = 0.0_dp
@@ -263,7 +263,7 @@ contains
           & this%energies, this%gradients, this%stress)
       ! Correct those terms, where damping is important
       allocate(nNeighDamp(this%nAtom))
-      call getNrOfNeighboursForAll(env, nNeighDamp, neigh, this%dampCutoff)
+      call getNrOfNeighboursForAll(env%stdOut, nNeighDamp, neigh, this%dampCutoff)
       call addDispEnergyAndGrad_cluster(env, this%nAtom, coords, nNeighDamp, neigh%iNeighbour,&
         & neigh%neighDist2, img2CentCell, this%c6, this%rVdW2, this%energies, this%gradients,&
         & dampCorrection=-1.0_dp, stress=this%stress, vol=this%vol)

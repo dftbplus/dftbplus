@@ -137,7 +137,7 @@ contains
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighbourList
 
-    call getNrOfNeighboursForAll(env, this%nNeighbours, neighbourList, this%getRCutoff())
+    call getNrOfNeighboursForAll(env%stdOut, this%nNeighbours, neighbourList, this%getRCutoff())
 
   end subroutine updateCoords
 

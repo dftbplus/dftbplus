@@ -667,7 +667,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
     if (ncont.gt.0) then
 
       allocate(bulk(ncont))
-       call create_phi_bulk(env, bulk,iparm,dlx,dly,dlz,cont_mem)
+       call create_phi_bulk(env%stdOut, bulk,iparm,dlx,dly,dlz,cont_mem)
 
        if(InitPot.and.id0.and.niter_.eq.1.and.verbose.gt.VBT) then
          write(env%stdOut,*) 'Bulk Potential Info:'
@@ -721,7 +721,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
 
     !write(stdOut,*) 'debug bulk potential'
     !do m=1,ncont
-    !  call write_super_array(env, bulk(m))
+    !  call write_super_array(env%stdOut, bulk(m))
     !  call save_bulkpot(bulk,m)
     !enddo
 
@@ -843,7 +843,7 @@ case(GetPOT)     !Poisson called in order to calculate potential in SCC
       call env%globalTimer%stopTimer(globalTimers%poissonShifts)
     end if
 
-    call destroy_phi_bulk(env, bulk)
+    call destroy_phi_bulk(env%stdOut, bulk)
 
     deallocate(bulk,stat=err)
 
@@ -1829,7 +1829,7 @@ subroutine save_pot(env, iparm,fparm,dlx,dly,dlz,phi,rhs)
             nsh = nshells(izp(atom))
 
             ! Compute L-independent part:
-            call long_pot(env, distR,basis,recbasis,alpha,vol,tol,lng_pot)
+            call long_pot(env%stdOut, distR,basis,recbasis,alpha,vol,tol,lng_pot)
             ! total atomic charge
             deltaQ = sum(dQmat(1:nsh,atom) )
             phi(i,j,k) = phi(i,j,k) + deltaQ*lng_pot
@@ -1839,7 +1839,7 @@ subroutine save_pot(env, iparm,fparm,dlx,dly,dlz,phi,rhs)
                deltaQ = dQmat(l,atom)
                uhatm = uhubb(l,izp(atom))
 
-               call short_pot(env, distR,basis,uhatm,deltaQ,tol,sh_pot)
+               call short_pot(env%stdOut, distR,basis,uhatm,deltaQ,tol,sh_pot)
 
                !OMP CRITICAL
                phi(i,j,k) = phi(i,j,k) - sh_pot

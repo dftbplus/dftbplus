@@ -443,33 +443,33 @@ contains
 
 
   !> Initialise dephasing effects
-  subroutine setup_dephasing(this, env, tundos)
+  subroutine setup_dephasing(this, output, tundos)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> density of states in tunnel region
     type(TNEGFTunDos), intent(in) :: tundos
 
     if(this%negf%tDephasingVE) then
-      call negf_setup_elph(env, this%negf, tundos%elph)
+      call negf_setup_elph(output, this%negf, tundos%elph)
     end if
 
     if(this%negf%tDephasingBP) then
-      call negf_setup_bp(env, this%negf, tundos%bp)
+      call negf_setup_bp(output, this%negf, tundos%bp)
     end if
 
   end subroutine setup_dephasing
 
 
   !> Initialise electron-phonon coupling model
-  subroutine negf_setup_elph(env, negf, elph)
+  subroutine negf_setup_elph(output, negf, elph)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -477,16 +477,16 @@ contains
     !> el-ph coupling structure
     type(TElPh), intent(in) :: elph
 
-    write(env%stdOut,*)
+    write(output,*)
     select case(elph%model)
     case(1)
-      write(env%stdOut,*) 'Setting local fully diagonal (FD) elastic dephasing model'
+      write(output,*) 'Setting local fully diagonal (FD) elastic dephasing model'
       call set_elph_dephasing(negf, elph%coupling, elph%scba_niter)
     case(2)
-      write(env%stdOut,*) 'Setting local block diagonal (BD) elastic dephasing model'
+      write(output,*) 'Setting local block diagonal (BD) elastic dephasing model'
       call set_elph_block_dephasing(negf, elph%coupling, elph%orbsperatm, elph%scba_niter)
     case(3)
-      write(env%stdOut,*) 'Setting overlap mask (OM) block diagonal elastic dephasing model'
+      write(output,*) 'Setting overlap mask (OM) block diagonal elastic dephasing model'
       call set_elph_s_dephasing(negf, elph%coupling, elph%orbsperatm, elph%scba_niter)
     case default
       call error("This electron-phonon model is not supported")
@@ -496,10 +496,10 @@ contains
 
 
   !> Initialise Buttiker Probe dephasing
-  subroutine negf_setup_bp(env, negf, elph)
+  subroutine negf_setup_bp(output, negf, elph)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -507,17 +507,17 @@ contains
     !> el-ph coupling structure
     type(TElPh), intent(in) :: elph
 
-    write(env%stdOut,*)
+    write(output,*)
     select case(elph%model)
     case(1)
-      write(env%stdOut,*) 'Setting local fully diagonal (FD) BP dephasing model'
+      write(output,*) 'Setting local fully diagonal (FD) BP dephasing model'
       !write(stdOut,*) 'coupling=',elph%coupling
       call set_bp_dephasing(negf, elph%coupling)
     case(2)
-      write(env%stdOut,*) 'Setting local block diagonal (BD) BP dephasing model'
+      write(output,*) 'Setting local block diagonal (BD) BP dephasing model'
       call error('NOT IMPLEMENTED! INTERRUPTED!')
     case(3)
-      write(env%stdOut,*) 'Setting overlap mask (OM) block diagonal BP dephasing model'
+      write(output,*) 'Setting overlap mask (OM) block diagonal BP dephasing model'
       call error('NOT IMPLEMENTED! INTERRUPTED!')
     case default
       call error("BP model is not supported")
@@ -560,33 +560,33 @@ contains
 
 
   !> Destroy CSR matrices
-  subroutine TNegfInt_final(env, this)
+  subroutine TNegfInt_final(output, this)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     type(TNegfInt), intent(inout) :: this
 
-    write(env%stdOut, *)
-    write(env%stdOut, *) 'Release NEGF memory:'
+    write(output, *)
+    write(output, *) 'Release NEGF memory:'
     !BA: the following two/three calls are probably absolutely unnecessary
     call destruct(this%csrHam)
     call destruct(this%csrOver)
     call destroy_negf(this%negf)
-    call writePeakInfo(env%stdOut)
-    call writeMemInfo(env%stdOut)
+    call writePeakInfo(output)
+    call writeMemInfo(output)
 
   end subroutine TNegfInt_final
 
 
   !> Initialise the structures for the libNEGF library
-  subroutine setup_str(this, env, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
+  subroutine setup_str(this, output, denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
 
     !> Instance.
     class(TNegfInt), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Dense matrix information
     Type(TDenseDescr), intent(in) :: denseDescr
@@ -628,7 +628,7 @@ contains
 
     natoms = size(denseDescr%iatomstart) - 1
 
-    call check_pls(env, transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
+    call check_pls(output, transpar, greendens, natoms, iNeigh, nNeigh, img2CentCell, info)
 
     allocate(PL_end(nbl))
     allocate(atomst(nbl+1))
@@ -701,17 +701,17 @@ contains
        do j1 = 1, ncont
 
          if (all(minv(:,j1) == 0)) then
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(env%stdOut,*) 'WARNING: contact',j1,' does not interact with any PL'
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) 'WARNING: contact',j1,' does not interact with any PL'
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            minv(1,j1) = j1
          end if
 
          if (count(minv(:,j1).eq.j1).gt.1) then
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(env%stdOut,*) 'ERROR: contact',j1,' interacts with more than one PL'
-           write(env%stdOut,*) '       check structure and increase PL size         '
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) 'ERROR: contact',j1,' interacts with more than one PL'
+           write(output,*) '       check structure and increase PL size         '
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            call error("")
          end if
 
@@ -729,10 +729,10 @@ contains
 
       end if
 
-      write(env%stdOut,*) ' Structure info:'
-      write(env%stdOut,*) ' Number of PLs:',nbl
-      write(env%stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
-      write(env%stdOut,*)
+      write(output,*) ' Structure info:'
+      write(output,*) ' Number of PLs:',nbl
+      write(output,*) ' PLs coupled to contacts:',cblk(1:ncont)
+      write(output,*)
 
     end if
 
@@ -742,10 +742,10 @@ contains
 
 
   !> Subroutine to check the principal layer (PL) definitions
-  subroutine check_pls(env, transPar, greenDens, nAtoms, iNeigh, nNeigh, img2CentCell, info)
+  subroutine check_pls(output, transPar, greenDens, nAtoms, iNeigh, nNeigh, img2CentCell, info)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> transport calculation parameters
     type(TTranspar), intent(in) :: transPar
@@ -811,9 +811,9 @@ contains
                img2CentCell(iNeigh(1:nNeigh(ii),ii)).le.iate) )
          end do
          if (nn .gt. mm+1 .and. kk .ge. iats .and. kk .le. iate) then
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(env%stdOut,*) 'WARNING: PL ',mm,' interacts with PL',nn
-           write(env%stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
+           write(output,*) 'WARNING: PL ',mm,' interacts with PL',nn
+           write(output,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            info = mm
          end if
        end do
@@ -941,10 +941,10 @@ contains
   !>
   !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
-  subroutine negf_dumpHS(env, HH,SS)
+  subroutine negf_dumpHS(output, HH,SS)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> hamiltonian in CSR format
     type(z_CSR), intent(in) :: HH
@@ -954,7 +954,7 @@ contains
 
     type(TFileDescr) :: fd
 
-    write(env%stdOut, *) 'Dumping H and S in files...'
+    write(output, *) 'Dumping H and S in files...'
 
     call openFile(fd, 'HH.dat', mode="w")
     write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
@@ -978,10 +978,10 @@ contains
 
 
   !> Routines to setup orthogonalised H and S have been moved here
-  subroutine prepare_HS(env, negf, H_dev,S_dev,HH,SS)
+  subroutine prepare_HS(output, negf, H_dev,S_dev,HH,SS)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> NEGF container
     type(TNegf), intent(inout) :: negf
@@ -999,12 +999,12 @@ contains
     type(z_CSR), intent(inout) :: SS
 
     if (negf%tOrthonormal) then
-      write(env%stdOut, "(' Lowdin orthogonalization for the whole system ')")
+      write(output, "(' Lowdin orthogonalization for the whole system ')")
       call Orthogonalization(negf, H_dev, S_dev)
     end if
 
     if (negf%tOrthonormalDevice) then
-      write(env%stdOut, "(' Lowdin orthogonalization for device-only')")
+      write(output, "(' Lowdin orthogonalization for device-only')")
       call Orthogonalization_dev(negf, H_dev, S_dev)
     end if
 
@@ -1534,7 +1534,7 @@ contains
         call unpackHS(S_all, over, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
         call adjointLowerTriangle(S_all)
 
-        call prepare_HS(env, this%negf, H_all, S_all, this%csrHam, this%csrOver)
+        call prepare_HS(env%stdOut, this%negf, H_all, S_all, this%csrHam, this%csrOver)
 
       else
 

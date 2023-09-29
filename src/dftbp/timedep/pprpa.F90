@@ -239,7 +239,7 @@ contains
       allocate(pp_eval(dim_rpa))
       allocate(vr(dim_rpa, dim_rpa))
 
-      call buildAndDiagppRPAmatrix(env, RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
+      call buildAndDiagppRPAmatrix(env%stdOut, RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
           & denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
       call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
@@ -256,11 +256,11 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(env, tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
+  subroutine buildAndDiagppRPAmatrix(output, tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> Output for write processes
+    integer, intent(in) :: output
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -587,10 +587,10 @@ contains
     end if
 
     ! Diagonalize ppRPA matrix
-    call geev(env, PP, pp_eval, wi, vl, vr, info)
+    call geev(output, PP, pp_eval, wi, vl, vr, info)
 
     if (info /= 0) then
-      @:FORMATTED_ERROR_HANDLING(env%stdOut, err, info, "(A,I0)", " Error with dgeev, info = ", info)
+      @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0)", " Error with dgeev, info = ", info)
     end if
 
   end subroutine buildAndDiagppRPAmatrix

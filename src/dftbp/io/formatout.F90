@@ -388,10 +388,10 @@ contains
 
 
   !> Writes the greeting message of dftb+ code(s) on env%stdout
-  subroutine printDFTBHeader(env, text, year)
+  subroutine printDFTBHeader(output, text, year)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Additional text to print next to project name
     character(len=*), intent(in) :: text
@@ -403,29 +403,29 @@ contains
     character, parameter :: horizontalBar = '='
     integer, parameter :: headerWidth = 80
 
-    write(env%stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
-    write(env%stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(text)
-    write(env%stdOut, '(A)') verticalBar
-    write(env%stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
+    write(output, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
+    write(output, '(3A)') verticalBar, '  DFTB+ ', trim(text)
+    write(output, '(A)') verticalBar
+    write(output, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
         & '  DFTB+ developers group'
-    write(env%stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
+    write(output, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
         & verticalBar
-    write(env%stdOut, '(2A)') verticalBar,&
+    write(output, '(2A)') verticalBar,&
         & '  When publishing results obtained with DFTB+, please cite the following', verticalBar,&
         & '  reference:'
-    write(env%stdOut, '(A)') verticalBar
-    write(env%stdOut, '(2A)') verticalBar,&
+    write(output, '(A)') verticalBar
+    write(output, '(2A)') verticalBar,&
         & '  * DFTB+, a software package for efficient approximate density functional',&
         & verticalBar,&
         & '    theory based atomistic simulations, J. Chem. Phys. 152, 124101 (2020).',&
         & verticalBar, '    [doi: 10.1063/1.5143190]'
-    write(env%stdOut, '(A)') verticalBar
-    write(env%stdOut, '(2A,2(/,2A))') verticalBar,&
+    write(output, '(A)') verticalBar
+    write(output, '(2A,2(/,2A))') verticalBar,&
         & '  You should also cite additional publications crediting the parametrization',&
         & verticalBar,&
         & '  data you use. Please consult the documentation of the SK-files for the', verticalBar,&
         & '  references.'
-    write(env%stdOut, '(A,/,2A,/)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1)
+    write(output, '(A,/,2A,/)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1)
 
   end subroutine printDFTBHeader
 

@@ -9,7 +9,6 @@
 
 !> Removal of translation or rotation related modes.
 module modes_modeprojection
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : warning
   use dftbp_math_blasroutines, only : herk
@@ -26,11 +25,11 @@ contains
 
 
   !> Projection out of the space of the dynamical matrix
-  subroutine project(env, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
+  subroutine project(output, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
       & atomicMasses)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Dynamical matrix
     real(dp), intent(inout) :: dynMatrix(:,:)
@@ -86,7 +85,7 @@ contains
 
     if (tRemoveRotate) then
       if (geo%tPeriodic) then
-        call warning(env%stdOut, "Rotational modes were requested to be removed for a periodic geometry -&
+        call warning(output, "Rotational modes were requested to be removed for a periodic geometry -&
             & results probably unphysical!")
       end if
       centreOfMass(:) = 0.0_dp

@@ -184,7 +184,7 @@ contains
     real(dp) :: r, rvdw, eTmp
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%cutoff)
 
     atomE(:) = 0.0_dp
 
@@ -247,7 +247,7 @@ contains
     real(dp) :: rvdw, fTmp(3)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%cutoff)
 
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
@@ -338,7 +338,7 @@ contains
     st(:,:) = 0.0_dp
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neigh, this%cutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neigh, this%cutoff)
 
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)

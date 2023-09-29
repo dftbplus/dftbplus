@@ -11,7 +11,6 @@
 !> solvent cavity contains the system.
 module dftbp_solvation_fieldscaling
   use, intrinsic :: ieee_arithmetic, only : ieee_is_finite
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : warning
   use dftbp_solvation_solvation, only : TSolvation
@@ -48,13 +47,13 @@ contains
 
 
   !> Initialise type
-  subroutine init_TScaleExtEField(this, env, solvent, isRescaled)
+  subroutine init_TScaleExtEField(this, output, solvent, isRescaled)
 
     !> Instance
     type(TScaleExtEField), intent(out) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Solvent model
     class(TSolvation), allocatable, intent(in) :: solvent
@@ -67,7 +66,7 @@ contains
     if (allocated(solvent)) then
       this%isRescaled = this%isRescaled
       if (this%isRescaled .and. .not.solvent%isEFieldModified()) then
-        call warning(env%stdOut, "Field rescaling requested for solvent model with no electrostatic effects,&
+        call warning(output, "Field rescaling requested for solvent model with no electrostatic effects,&
             & turning scaling off")
         this%isRescaled= .false.
       end if
