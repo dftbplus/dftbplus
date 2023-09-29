@@ -14,7 +14,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
-  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlusInput, TDftbPlusAtomList
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
   implicit none
   private
@@ -36,6 +36,8 @@ module dftbp_capi
   type, extends(TDftbPlus) :: TDftbPlusC
     private
     type(TFileDescr) :: outputFile
+  contains
+    final :: TDftbPlusC_final
   end type TDftbPlusC
 
 
@@ -601,6 +603,24 @@ end subroutine c_DftbPlusInput_final
     call instance%setRefCharges(refCharges(1:nAtom))
 
   end subroutine c_DftbPlus_setRefCharge
+
+
+  !> Finalizer for TDftbPlusC
+  subroutine TDftbPlusC_final(this)
+
+    !> Instance
+    type(TDftbPlusC), intent(inout) :: this
+
+    ! Note: Fortran finalizes all components of a child class instance (TDftbPlusC) first and only
+    ! then the components of its parent (TDftbPlus). TDftbPlusC contains a descriptor of an open
+    ! file, whose unit had been passed to and stored by TDftbPlus. When TDftbPlusC is finalized, the
+    ! file is closed, so TDftbPlus would try to write the timings to an invalid unit when finalized
+    ! aftewards. Therefore, we call TDftbPlus_destruct explicitely before finalization of TDftbPlusC
+    ! happens.
+    !
+    call TDftbPlus_destruct(this%TDftbPlus)
+
+  end subroutine TDftbPlusC_final
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.
