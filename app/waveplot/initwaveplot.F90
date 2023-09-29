@@ -290,13 +290,13 @@ contains
     type(TStatus) :: errStatus
 
     ! Write header
-    call printDftbHeader(env, '(WAVEPLOT '// version //')', releaseYear)
+    call printDftbHeader(env%stdOut, '(WAVEPLOT '// version //')', releaseYear)
 
     ! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
-    write(env%stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
+    write(env%stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
 
     ! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -329,7 +329,7 @@ contains
     call readOptions(this, env, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(env, root, .true.)
+    call warnUnprocessedNodes(env%stdOut, root, .true.)
 
     ! Finish parsing, dump parsed and processed input
     if (tIoProc) then
@@ -337,7 +337,7 @@ contains
     end if
     write(env%stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
-    write(env%stdout, "(A,/)") repeat("-", 80)
+    write(env%stdOut, "(A,/)") repeat("-", 80)
     call destroyNode(hsdTree)
 
   #:if WITH_MPI
@@ -364,7 +364,7 @@ contains
     end if
     this%loc%gridVol = abs(determinant33(this%loc%gridVec))
 
-    write(env%stdout, "(A)") "Doing initialisation"
+    write(env%stdOut, "(A)") "Doing initialisation"
 
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
     call setDefaultBinaryAccess(this%opt%binaryAccessTypes(1), this%opt%binaryAccessTypes(2),&
@@ -588,23 +588,23 @@ contains
     call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
 
     if (this%opt%tPlotImag .and. this%input%tRealHam) then
-      call detailedWarning(env, field, "Wave functions are real, no imaginary part will be plotted")
+      call detailedWarning(env%stdOut, field, "Wave functions are real, no imaginary part will be plotted")
       this%opt%tPlotImag = .false.
     end if
 
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(env, node, char(buffer), [1, nLevel], this%opt%plottedLevels)
+    call getSelectedIndices(env%stdOut, node, char(buffer), [1, nLevel], this%opt%plottedLevels)
 
     if (this%input%geo%tPeriodic) then
       call getChildValue(node, "PlottedKPoints", buffer, child=field, multiple=.true.)
-      call getSelectedIndices(env, node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
+      call getSelectedIndices(env%stdOut, node, char(buffer), [1, nKPoint], this%opt%plottedKPoints)
     else
       allocate(this%opt%plottedKPoints(1))
       this%opt%plottedKPoints(1) = 1
     end if
 
     call getChildValue(node, "PlottedSpins", buffer, child=field, multiple=.true.)
-    call getSelectedIndices(env, node, char(buffer), [1, nSpin], this%opt%plottedSpins)
+    call getSelectedIndices(env%stdOut, node, char(buffer), [1, nSpin], this%opt%plottedSpins)
 
     ! Create the list of the levels, which must be calculated explicitely
     call init(indexBuffer)

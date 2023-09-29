@@ -161,7 +161,7 @@ contains
       call getChildValue(node, "Isotropic", input%isotropic, .false.)
     end if
     call getChildValue(node, "MovedAtoms", buffer, trim(atomsRange), multiple=.true., child=child)
-    call getSelectedAtomIndices(env, child, char(buffer), geom%speciesNames, geom%species, &
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species, &
         & input%indMovedAtom)
 
   end subroutine readFilterInput

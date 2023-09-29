@@ -193,7 +193,7 @@ contains
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    call updateNrOfNeighbours_(env, this%shortCutoffs_, species, this%hubbU_, neighList, this%nNeigh_)
+    call updateNrOfNeighbours_(env%stdOut, this%shortCutoffs_, species, this%hubbU_, neighList, this%nNeigh_)
     call updateShortGammaValues_(coords, species, neighList, this%nNeigh_, this%hubbU_,&
         & this%damping_, this%h5Correction_, this%shortGamma_)
 
@@ -667,10 +667,10 @@ contains
 
 
   !> Updates the number of neighbours.
-  subroutine updateNrOfNeighbours_(env, shortCutoffs, species, hubb, neighList, nNeigh)
+  subroutine updateNrOfNeighbours_(output, shortCutoffs, species, hubb, neighList, nNeigh)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(dp), intent(in) :: shortCutoffs(:,:,:,:)
     integer, intent(in) :: species(:)
@@ -686,7 +686,7 @@ contains
         do iU1 = 1, hubb%nHubbU(species(iAt))
           do iU2 = 1, hubb%nHubbU(iSp)
             nNeigh(iU2, iU1, iSp, iAt) =&
-                & getNrOfNeighbours(env, neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)), iAt)
+                & getNrOfNeighbours(output, neighList, shortCutoffs(iU2, iU1, iSp, species(iAt)), iAt)
           end do
         end do
       end do

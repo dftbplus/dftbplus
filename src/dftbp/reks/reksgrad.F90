@@ -892,7 +892,7 @@ contains
       if (tSaveMem) then
 
         ! build super A matrix except H-XC kernel
-        call buildA1e_(env, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
+        call buildA1e_(env%stdOut, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
             & Glevel, reksAlg, A1e, A1ePre)
 
       end if
@@ -3114,11 +3114,11 @@ contains
 
 
   !> Calculate super A hessian matrix without H-XC kernel
-  subroutine buildA1e_(env, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
+  subroutine buildA1e_(output, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
       & Glevel, reksAlg, A1e, A1ePre)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -3248,7 +3248,7 @@ contains
 
       ! check singularity for preconditioner
       if (abs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
-        write(env%stdOut,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
+        write(output,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
         call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 

@@ -11,7 +11,6 @@
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_extlibs_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength,&
       & getNodeName, destroyNode, getItem1, destroyNodeList
   use dftbp_io_charmanip, only : i2c, newline, tolower
@@ -29,10 +28,10 @@ contains
 
 
   !> Converts an HSD input for an older parser to the current format
-  subroutine convertOldHSD(env, root, oldVersion, curVersion)
+  subroutine convertOldHSD(output, root, oldVersion, curVersion)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -53,40 +52,40 @@ contains
         call convert_1_2(root)
         version = 2
       case(2)
-        call convert_2_3(env, root)
+        call convert_2_3(output, root)
         version = 3
       case (3)
-        call convert_3_4(env, root)
+        call convert_3_4(output, root)
         version = 4
       case (4)
-        call convert_4_5(env, root)
+        call convert_4_5(output, root)
         version = 5
       case (5)
-        call convert_5_6(env, root)
+        call convert_5_6(output, root)
         version = 6
       case (6)
-        call convert_6_7(env, root)
+        call convert_6_7(output, root)
         version = 7
       case (7)
-        call convert_7_8(env, root)
+        call convert_7_8(output, root)
         version = 8
       case (8)
-        call convert_8_9(env, root)
+        call convert_8_9(output, root)
         version = 9
       case (9)
-        call convert_9_10(env, root)
+        call convert_9_10(output, root)
         version = 10
       case (10)
-        call convert_10_11(env, root)
+        call convert_10_11(output, root)
         version = 11
       case (11)
-        call convert_11_12(env, root)
+        call convert_11_12(output, root)
         version = 12
       case (12)
-        call convert_12_13(env, root)
+        call convert_12_13(output, root)
         version = 13
       case (13)
-        call convert_13_14(env, root)
+        call convert_13_14(output, root)
         version = 14
       end select
     end do
@@ -121,10 +120,10 @@ contains
 
 
   !> Converts input from version 2 to 3. (Version 3 introduced in Nov. 2006)
-  subroutine convert_2_3(env, root)
+  subroutine convert_2_3(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -136,7 +135,7 @@ contains
         &"Driver/VelocityVerlet/Thermostat/Andersen/RescalingProbability", &
         &ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword renamed to 'ReselectProbability'.")
+      call detailedWarning(output, ch1, "Keyword renamed to 'ReselectProbability'.")
       call setNodeName(ch1, "ReselectProbability")
     end if
 
@@ -144,7 +143,7 @@ contains
         &"Driver/VelocityVerlet/Thermostat/Andersen/RescaleIndividually", &
         &ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword renamed to 'ReselectIndividually'.")
+      call detailedWarning(output, ch1, "Keyword renamed to 'ReselectIndividually'.")
       call setNodeName(ch1, "ReselectIndividually")
     end if
 
@@ -156,7 +155,7 @@ contains
         call detailedError(ch1, "Sorry, non-variational energy calculation &
             &is not supported any more!")
       else
-        call detailedWarning(env, ch1, "Energy calculation is made only variational, option removed.")
+        call detailedWarning(output, ch1, "Energy calculation is made only variational, option removed.")
         call destroyNode(ch1)
       end if
     end if
@@ -168,27 +167,27 @@ contains
       if (tValue) then
         call setChildValue(par, "OrbitalResolvedSCC", .true., child=ch2)
         call setUnprocessed(ch2)
-        call detailedWarning(env, ch2, "Calculations are not orbital resolved &
+        call detailedWarning(output, ch2, "Calculations are not orbital resolved &
             &per default any more. Keyword 'OrbitalResolvedSCC' added.")
       end if
     end if
 
     call getDescendant(root, "Options/PrintEigenvectors", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'WriteEigenvectors'")
+      call detailedWarning(output, ch1, "Keyword converted to 'WriteEigenvectors'")
       call setNodeName(ch1, "WriteEigenvectors")
     end if
 
     call getDescendant(root, "Options/WriteTaggedOut", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'WriteAutotestTag'. &
+      call detailedWarning(output, ch1, "Keyword converted to 'WriteAutotestTag'. &
           &Output file name changed to 'autotest.out'")
       call setNodeName(ch1, "WriteAutotestTag")
     end if
 
     call getDescendant(root, "Options/WriteBandDat", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'WriteBandOut'. &
+      call detailedWarning(output, ch1, "Keyword converted to 'WriteBandOut'. &
           &Output file name changed to 'band.out'")
       call setNodeName(ch1, "WriteBandOut")
     end if
@@ -197,10 +196,10 @@ contains
 
 
   !> Converts input from version 3 to 4. (Version 4 introduced in Mar. 2010)
-  subroutine convert_3_4(env, root)
+  subroutine convert_3_4(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -211,13 +210,13 @@ contains
 
     ! Replace range operator with short start:end syntax
     call getDescendant(root, "Driver/SteepestDescent/MovedAtoms", node)
-    call replaceRange(env, node)
+    call replaceRange(output, node)
     call getDescendant(root, "Driver/ConjugateGradient/MovedAtoms", node)
-    call replaceRange(env, node)
+    call replaceRange(output, node)
     call getDescendant(root, "Driver/SecondDerivatives/Atoms", node)
-    call replaceRange(env, node)
+    call replaceRange(output, node)
     call getDescendant(root, "Driver/VelocityVerlet/MovedAtoms", node)
-    call replaceRange(env, node)
+    call replaceRange(output, node)
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
@@ -225,7 +224,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, node2)
         call getChild(node2, "Atoms", node3)
-        call replaceRange(env, node3)
+        call replaceRange(output, node3)
       end do
       call destroyNodeList(children)
     end if
@@ -233,17 +232,17 @@ contains
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
-      call detailedWarning(env, node, "Keyword renamed to 'InitialSpins'.")
+      call detailedWarning(output, node, "Keyword renamed to 'InitialSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
 
   end subroutine convert_3_4
 
   !> Helper function for Range keyword in convert_3_4
-  subroutine replaceRange(env, node)
+  subroutine replaceRange(output, node)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> node to process
     type(fnode), pointer :: node
@@ -258,7 +257,7 @@ contains
         call removeChildNodes(node)
         call setChildValue(node, "", &
             &i2c(bounds(1)) // ":" // i2c(bounds(2)), replace=.true.)
-        call detailedWarning(env, node, "Specification 'Range { start end }' &
+        call detailedWarning(output, node, "Specification 'Range { start end }' &
             &not supported any more, using 'start:end' instead")
       end if
     end if
@@ -267,10 +266,10 @@ contains
 
 
   !> Converts input from version 4 to 5. (Version 5 introduced in Dec. 2014)
-  subroutine convert_4_5(env, root)
+  subroutine convert_4_5(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -280,14 +279,14 @@ contains
 
     call getDescendant(root, "Hamiltonian/DFTB/Eigensolver/Standard", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword renamed to 'QR'.")
+      call detailedWarning(output, ch1, "Keyword renamed to 'QR'.")
       call setNodeName(ch1, "QR")
     end if
 
     call getDescendant(root, "Options/MullikenAnalysis", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(ch1, "", tVal)
-      call detailedWarning(env, ch1, "Keyword moved to Analysis block.")
+      call detailedWarning(output, ch1, "Keyword moved to Analysis block.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
@@ -302,7 +301,7 @@ contains
     call getDescendant(root, "Options/AtomResolvedEnergies", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "AtomResolvedEnergies", tVal)
-      call detailedWarning(env, ch1, "Keyword moved to Analysis block.")
+      call detailedWarning(output, ch1, "Keyword moved to Analysis block.")
       dummy => removeChild(par,ch1)
       call destroyNode(ch1)
       call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
@@ -317,7 +316,7 @@ contains
     call getDescendant(root, "Options/WriteEigenvectors", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "WriteEigenvectors", tVal)
-      call detailedWarning(env, ch1, "Keyword moved to Analysis block.")
+      call detailedWarning(output, ch1, "Keyword moved to Analysis block.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
@@ -332,7 +331,7 @@ contains
     call getDescendant(root, "Options/WriteBandOut", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "WriteBandOut", tVal)
-      call detailedWarning(env, ch1, "Keyword moved to Analysis block.")
+      call detailedWarning(output, ch1, "Keyword moved to Analysis block.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
@@ -347,7 +346,7 @@ contains
     call getDescendant(root, "Options/CalculateForces", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "CalculateForces", tVal)
-      call detailedWarning(env, ch1, "Keyword moved to Analysis block.")
+      call detailedWarning(output, ch1, "Keyword moved to Analysis block.")
       dummy => removeChild(par,ch1)
       call destroyNode(ch1)
       call getChildValue(root, "Analysis", dummy, "", child=ch1, list=.true., &
@@ -364,7 +363,7 @@ contains
       call setChild(ch1, "Differentiation", ch2)
       call setChild(ch2, "FiniteDiff", ch3)
       call setChildValue(ch3, "Delta", 1.0e-2_dp)
-      call detailedWarning(env, ch2, "Adding legacy step size for finite difference&
+      call detailedWarning(output, ch2, "Adding legacy step size for finite difference&
           & differentiation")
     end if
 
@@ -376,10 +375,10 @@ contains
   end subroutine convert_4_5
 
   !> Converts input from version 5 to 6. (Version 6 introduced in May. 2018)
-  subroutine convert_5_6(env, root)
+  subroutine convert_5_6(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -390,13 +389,13 @@ contains
 
     call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'Tolerance'.")
+      call detailedWarning(output, ch1, "Keyword converted to 'Tolerance'.")
       call setNodeName(ch1, "Tolerance")
     end if
 
     call getDescendant(root, "Analysis/Localise/PipekMezey/SparseTollerances", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'SparseTollerances'.")
+      call detailedWarning(output, ch1, "Keyword converted to 'SparseTollerances'.")
       call setNodeName(ch1, "SparseTolerances")
     end if
 
@@ -410,7 +409,7 @@ contains
       if (associated(ch2)) then
         call getChildValue(par, "DampXHExponent", rTmp)
       end if
-      call detailedWarning(env, ch1, "Keyword DampXH moved to HCorrection block")
+      call detailedWarning(output, ch1, "Keyword DampXH moved to HCorrection block")
       dummy => removeChild(par,ch1)
       call destroyNode(ch1)
       dummy => removeChild(par,ch2)
@@ -426,17 +425,17 @@ contains
       call setChild(ch2, "HCorrection", ch3)
       call setChild(ch3, "Damping", ch4)
       call setChildValue(ch4, "Exponent", rTmp)
-      call detailedWarning(env, ch3, "Adding Damping to HCorrection")
+      call detailedWarning(output, ch3, "Adding Damping to HCorrection")
     end if
 
   end subroutine convert_5_6
 
 
   !> Converts input from version 6 to 7. (Version 7 introduced in April 2019)
-  subroutine convert_6_7(env, root)
+  subroutine convert_6_7(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -445,14 +444,14 @@ contains
 
     call getDescendant(root, "Hamiltonian/DFTB/OrbitalResolvedSCC", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'ShellResolvedSCC'.")
+      call detailedWarning(output, ch1, "Keyword converted to 'ShellResolvedSCC'.")
       call setNodeName(ch1, "ShellResolvedSCC")
     end if
-    call handleD3Defaults(env, root)
+    call handleD3Defaults(output, root)
 
     call getDescendant(root, "Hamiltonian/DFTB/Eigensolver", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword renamed to 'Solver'.")
+      call detailedWarning(output, ch1, "Keyword renamed to 'Solver'.")
       call setNodeName(ch1, "Solver")
     end if
 
@@ -460,10 +459,10 @@ contains
 
 
   !> Converts input from version 7 to 8. (Version 8 introduced in October 2019)
-  subroutine convert_7_8(env, root)
+  subroutine convert_7_8(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -475,7 +474,7 @@ contains
 
     call getDescendant(root, "Analysis/EigenvectorsAsTxt", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword converted to 'EigenvectorsAsText'.")
+      call detailedWarning(output, ch1, "Keyword converted to 'EigenvectorsAsText'.")
       call setNodeName(ch1, "EigenvectorsAsText")
     end if
 
@@ -501,10 +500,10 @@ contains
       call getChildValue(ch1, "", tVal)
       call setUnprocessed(ch1)
       if (tVal) then
-        call detailedWarning(env, ch1, "Sorry, XML export of the dftb_in.hsd is not supported any more&
+        call detailedWarning(output, ch1, "Sorry, XML export of the dftb_in.hsd is not supported any more&
             & so is removed")
       else
-        call detailedWarning(env, ch1, "XML export option is removed.")
+        call detailedWarning(output, ch1, "XML export option is removed.")
       end if
       call destroyNode(ch1)
     end if
@@ -513,10 +512,10 @@ contains
 
 
   !> Converts input from version 8 to 9. (Version 9 introduced in August 2020)
-  subroutine convert_8_9(env, root)
+  subroutine convert_8_9(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -541,13 +540,13 @@ contains
       if (tVal1 .and. .not.tVal2) then
         call getDescendant(root, "Hamiltonian/DFTB/Filling", ch1)
         if (associated(ch1)) then
-          call detailedWarning(env, ch1, "Restarted electronDynamics does not require Filling{}&
+          call detailedWarning(output, ch1, "Restarted electronDynamics does not require Filling{}&
               & settings unless projected onto ground state")
           call destroyNode(ch1)
         end if
         call getDescendant(root, "Analysis", ch1)
         if (associated(ch1)) then
-          call detailedWarning(env, ch1, "Restarted electronDynamics does not use the Analysis{} block")
+          call detailedWarning(output, ch1, "Restarted electronDynamics does not use the Analysis{} block")
           call destroyNode(ch1)
         end if
       end if
@@ -557,20 +556,20 @@ contains
     if (associated(ch1)) then
       call setChildValue(ch1, "LineSearch", .true., child=ch2)
       call setUnprocessed(ch2)
-      call detailedWarning(env, ch2, "Set 'LineSearch = Yes'")
+      call detailedWarning(output, ch2, "Set 'LineSearch = Yes'")
       call setChildValue(ch1, "oldLineSearch", .true., child=ch2)
       call setUnprocessed(ch2)
-      call detailedWarning(env, ch2, "Set 'oldLineSearch = Yes'")
+      call detailedWarning(output, ch2, "Set 'oldLineSearch = Yes'")
     end if
 
   end subroutine convert_8_9
 
 
   !> Converts input from version 9 to 10. (Version 10 introduced in November 2021)
-  subroutine convert_9_10(env, root)
+  subroutine convert_9_10(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -584,7 +583,7 @@ contains
       dummy => removeChild(ch1, ch2)
       call getChildValue(ch1, "TestArnoldi", tVal2, default=.false., child=ch2)
       dummy => removeChild(ch1, ch2)
-      call detailedWarning(env, ch1, "Keyword moved to Diagonaliser block.")
+      call detailedWarning(output, ch1, "Keyword moved to Diagonaliser block.")
       call setUnprocessed(ch1)
       call setChild(ch1, "Diagonaliser", ch2)
       call setUnprocessed(ch2)
@@ -601,7 +600,7 @@ contains
     call getDescendant(root, "Hamiltonian/Dispersion/Ts/ConvergentSCCOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentSCCOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian", ch1)
@@ -612,7 +611,7 @@ contains
     call getDescendant(root, "Hamiltonian/Dispersion/Mbd/ConvergentSCCOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentSCCOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -627,7 +626,7 @@ contains
     call getDescendant(root, "Driver/ConjugateGradient/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -642,7 +641,7 @@ contains
     call getDescendant(root, "Driver/VelocityVerlet/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -657,7 +656,7 @@ contains
     call getDescendant(root, "Driver/SteepestDescent/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -672,7 +671,7 @@ contains
     call getDescendant(root, "Driver/gDiis/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -687,7 +686,7 @@ contains
     call getDescendant(root, "Driver/LBfgs/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -702,7 +701,7 @@ contains
     call getDescendant(root, "Driver/Fire/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -717,7 +716,7 @@ contains
     call getDescendant(root, "Driver/SecondDerivatives/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -732,7 +731,7 @@ contains
     call getDescendant(root, "Driver/Socket/ConvergentForcesOnly", ch1, parent=par)
     if (associated(ch1)) then
       call getChildValue(par, "ConvergentForcesOnly", tVal1)
-      call detailedWarning(env, ch1, "Keyword Moved to Hamiltonian {}.")
+      call detailedWarning(output, ch1, "Keyword Moved to Hamiltonian {}.")
       dummy => removeChild(par, ch1)
       call destroyNode(ch1)
       call getDescendant(root, "Hamiltonian/ConvergentSCCOnly", ch3)
@@ -748,10 +747,10 @@ contains
 
 
   !> Converts input from version 10 to 11. (Version 11 introduced in April 2022)
-  subroutine convert_10_11(env, root)
+  subroutine convert_10_11(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -760,19 +759,19 @@ contains
 
     call getDescendant(root, "Hamiltonian/DFTB/Solvation/GeneralizedBorn", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call detailedWarning(output, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
       call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
     end if
 
     call getDescendant(root, "Hamiltonian/DFTB/Solvation/Cosmo", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call detailedWarning(output, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
       call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
     end if
 
     call getDescendant(root, "Hamiltonian/DFTB/Solvation/Sasa", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
+      call detailedWarning(output, ch1, "Set solvated field scaling (RescaleSolvatedFields) to No.")
       call setChildValue(ch1, "RescaleSolvatedFields", .false., child=ch2, replace=.true.)
     end if
 
@@ -780,10 +779,10 @@ contains
 
 
   !> Converts input from version 11 to 12. (Version 12 introduced in June 2022)
-  subroutine convert_11_12(env, root)
+  subroutine convert_11_12(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -800,7 +799,7 @@ contains
         call getDescendant(root, "Hamiltonian/${LABEL}$/Charge", ch1)
         if (associated(ch1)) then
           call setUnprocessed(ch1)
-          call detailedWarning(env, ch1, "Device region charge cannot be set if contacts are present.")
+          call detailedWarning(output, ch1, "Device region charge cannot be set if contacts are present.")
           call destroyNode(ch1)
         end if
       #:endfor
@@ -811,10 +810,10 @@ contains
 
 
   !> Converts input from version 12 to 13. (Version 13 introduced in February 2023)
-  subroutine convert_12_13(env, root)
+  subroutine convert_12_13(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -835,13 +834,13 @@ contains
 
       call getDescendant(root, "Analysis/Eta", ch1)
       if (associated(ch1)) then
-        call detailedWarning(env, ch1, "Keyword renamed to 'PerturbEta'.")
+        call detailedWarning(output, ch1, "Keyword renamed to 'PerturbEta'.")
         call setNodeName(ch1, "PerturbEta")
       end if
 
       call getDescendant(root, "Analysis/DegeneracyTolerance", ch1)
       if (associated(ch1)) then
-        call detailedWarning(env, ch1, "Keyword renamed to 'PerturbDegenTol'.")
+        call detailedWarning(output, ch1, "Keyword renamed to 'PerturbDegenTol'.")
         call setNodeName(ch1, "PertubDegenTol")
       end if
 
@@ -875,10 +874,10 @@ contains
 
 
   !> Converts input from version 13 to 14. (Version 14 introduced in August 2023)
-  subroutine convert_13_14(env, root)
+  subroutine convert_13_14(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
@@ -891,7 +890,7 @@ contains
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
-      call detailedWarning(env, ch1, "Keyword renamed to 'PrintForces'.")
+      call detailedWarning(output, ch1, "Keyword renamed to 'PrintForces'.")
       call setNodeName(ch1, "PrintForces")
     end if
 
@@ -988,10 +987,10 @@ contains
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser
-  subroutine handleD3Defaults(env, root)
+  subroutine handleD3Defaults(output, root)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root node of the HSD-tree
     type(fnode), pointer :: root
@@ -1004,8 +1003,8 @@ contains
       return
     end if
 
-    call useDftb3Default(env, pD3, "s6", 1.0_dp)
-    call useDftb3Default(env, pD3, "s8", 0.5883_dp)
+    call useDftb3Default(output, pD3, "s6", 1.0_dp)
+    call useDftb3Default(output, pD3, "s8", 0.5883_dp)
 
     call getChildValue(pD3, "Damping", pDampMethod, default="BeckeJohnson", child=pChild)
     call setUnprocessed(pChild)
@@ -1014,18 +1013,18 @@ contains
 
     select case (char(buffer))
     case ("beckejohnson")
-      call useDftb3Default(env, pDampMethod, "a1", 0.5719_dp)
-      call useDftb3Default(env, pDampMethod, "a2", 3.6017_dp)
+      call useDftb3Default(output, pDampMethod, "a1", 0.5719_dp)
+      call useDftb3Default(output, pDampMethod, "a2", 3.6017_dp)
     end select
 
   end subroutine handleD3Defaults
 
 
   !> Helper routine to update values in the DftD3 block to match behaviour of v6 parser
-  subroutine useDftb3Default(env, root, option, default)
+  subroutine useDftb3Default(output, root, option, default)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root node of the HSD-tree
     type(fnode), pointer, intent(in) :: root
@@ -1041,7 +1040,7 @@ contains
     call getChild(root, option, pChild, requested=.false.)
     if (.not. associated(pChild)) then
       call setChildValue(root, option, default, child=pChild)
-      call detailedWarning(env, pChild, "Using DFTB3 optimised default value for parameter " // option)
+      call detailedWarning(output, pChild, "Using DFTB3 optimised default value for parameter " // option)
     end if
     call setUnprocessed(pChild)
 

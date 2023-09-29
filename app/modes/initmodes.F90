@@ -170,7 +170,7 @@ contains
     integer :: iErr
 
     !! Write header
-    call printDftbHeader(env, '(MODES '// version //')', releaseYear)
+    call printDftbHeader(env%stdOut, '(MODES '// version //')', releaseYear)
 
     !! Read in input file as HSD
     call parseHSD(rootTag, hsdInput, hsdTree)
@@ -193,7 +193,7 @@ contains
     call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
-    call getSelectedAtomIndices(env, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
@@ -204,7 +204,7 @@ contains
     if (associated(node)) then
       tPlotModes = .true.
       call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
-      call getSelectedIndices(env, child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
+      call getSelectedIndices(env%stdOut, child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
     end if
@@ -391,7 +391,7 @@ contains
     tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
 
     !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(env, root, .true.)
+    call warnUnprocessedNodes(env%stdOut, root, .true.)
 
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
@@ -478,13 +478,13 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(env, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(env, child3, "Previous setting for the mass  of atom" // i2c(iAt)&
+          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" // i2c(iAt)&
               & // " overwritten")
         end if
         masses(iAt) = rTmp

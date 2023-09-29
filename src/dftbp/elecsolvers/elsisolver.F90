@@ -349,7 +349,7 @@ contains
     integer :: version(3)
 
     call elsi_get_version(version(1), version(2), version(3))
-    call supportedVersionNumber(env, TVersion(version(1), version(2), version(3)))
+    call supportedVersionNumber(env%stdOut, TVersion(version(1), version(2), version(3)))
 
     this%iSolver = inp%iSolver
 
@@ -539,18 +539,15 @@ contains
 
 
   !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
-  subroutine supportedVersionNumber(env, version)
+  subroutine supportedVersionNumber(output, version)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Version value components inside the structure
     type(TVersion), intent(in) :: version
 
     logical :: isSupported, isPartSupported
-
-    integer :: stdOut
-    stdOut = env%stdOut
 
     isSupported = version >= TVersion(2, 6)
     isPartSupported = version >= TVersion(2, 5)
@@ -558,11 +555,11 @@ contains
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
     else if (.not. isSupported) then
-      call warning(env%stdOut, "ELSI version 2.5 is only partially supported due to changes in default solver&
+      call warning(output, "ELSI version 2.5 is only partially supported due to changes in default solver&
           & behaviour for PEXSI at 2.6.0")
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
+    write(output,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
 
   end subroutine supportedVersionNumber
 

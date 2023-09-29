@@ -12,7 +12,6 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_math_eigensolver
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : rsp, rdp
   use dftbp_extlibs_lapack, only : slamch, dlamch, spotrf, ssyev, ssyevd, ssyevr, ssygst, ssygv,&
       & ssygvd, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, cheev, cheevd, cheevr,&
@@ -2105,10 +2104,10 @@ contains
 #:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sgeev'), ('dble', 'd', 'real', 'dgeev')]
 
   !> Simple general matrix eigensolver
-  subroutine ${DTYPE}$_${NAME}$(env, a, wr, wi, vl, vr, err)
+  subroutine ${DTYPE}$_${NAME}$(output, a, wr, wi, vl, vr, err)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Matrix, overwritten on exit
     real(r${VPREC}$p), intent(inout) :: a(:,:)
@@ -2178,7 +2177,7 @@ contains
           & -1, info)
     end if
     if (info/=0) then
-      @:ERROR_HANDLING(env%stdOut, err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
+      @:ERROR_HANDLING(output, err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
     endif
     int_idealwork=nint(idealwork(1))
     allocate(work(int_idealwork))
@@ -2199,10 +2198,10 @@ contains
 
     if (info/=0) then
       if (info<0) then
-        @:FORMATTED_ERROR_HANDLING(env%stdOut, err, info, "(A,I0)", 'Failure in diagonalisation routine&
+        @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0)", 'Failure in diagonalisation routine&
             & ${VPREC}$geev, illegal argument at position ', info)
       else
-        @:FORMATTED_ERROR_HANDLING(env%stdOut, err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
+        @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
             & ${VPREC}$geev, diagonal element ', info, ' did not converge to zero.')
       endif
     endif

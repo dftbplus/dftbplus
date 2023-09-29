@@ -507,9 +507,6 @@ contains
     ! local variables
     integer :: iErr
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     iErr = 0
     initinfo = .true.
 
@@ -519,10 +516,10 @@ contains
     call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*) 'Poisson Initialisation:'
+    write(env%stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
+    write(env%stdOut,*)
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
@@ -530,7 +527,7 @@ contains
   #:if WITH_TRANSPORT
     if (id0 .and. transpar%ncont > 0) then
       ! only use a scratch folder on the lead node
-      call create_directory_(env, trim(scratchfolder),iErr)
+      call create_directory_(env%stdOut, trim(scratchfolder),iErr)
     end if
   #:endif
 
@@ -538,12 +535,12 @@ contains
       ! processors over which the right hand side of the Poisson equation is parallelised
 
       iErr = 0
-      call init_structure(env, structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
+      call init_structure(env%stdOut, structure%nAtom, structure%nSpecies, structure%specie0, structure%x0,&
           & structure%latVecs, structure%isperiodic)
 
-      call init_skdata(env, orb%nShell, orb%angShell, hubbU)
+      call init_skdata(env%stdOut, orb%nShell, orb%angShell, hubbU)
 
-      call init_charges(env)
+      call init_charges(env%stdOut)
 
       ! Initialise renormalization factors for grid projection
 
@@ -620,11 +617,11 @@ contains
 
       ! if deltaR_max > 0 is a radius cutoff, if < 0 a tolerance
       if (deltaR_max < 0.0_dp) then
-        write(stdOut,*) "Atomic density tolerance: ", -deltaR_max
+        write(env%stdOut,*) "Atomic density tolerance: ", -deltaR_max
         deltaR_max = getAtomDensityCutoff_(-deltaR_max, uhubb)
       end if
 
-      write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
+      write(env%stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
     #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
@@ -665,11 +662,11 @@ contains
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
-      call check_biasdir(env, iErr)
+      call check_biasdir(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      call check_poisson_box(env, iErr)
+      call check_poisson_box(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
@@ -677,9 +674,9 @@ contains
         period = .false.
       end if
       call check_parameters()
-      call check_localbc(env)
-      call write_parameters(env)
-      call check_contacts(env, iErr)
+      call check_localbc(env%stdOut)
+      call write_parameters(env%stdOut)
+      call check_contacts(env%stdOut, iErr)
       if  (iErr /= 0) then
         call error("Unable to build contact potentials for Poisson solver")
       end if
@@ -691,17 +688,17 @@ contains
       ! DoTip,tip_atom,base_atom1,base_atom2
       !-----------------------------------------------------------------------------+
 
-      write(stdOut,'(79(">"))')
+      write(env%stdOut,'(79(">"))')
 
     endif
 
   end subroutine poiss_init_
 
 
-  subroutine create_directory_(env, dirName, iErr)
+  subroutine create_directory_(output, dirName, iErr)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     character(*), intent(in) :: dirName
 
@@ -710,9 +707,6 @@ contains
     integer :: cstat
     character(len=255) :: cmsg
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     iErr = -999
     cstat = -999
     cmsg  = "notfilled"
@@ -720,9 +714,9 @@ contains
     call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
         & cmdmsg=cmsg)
     if (iErr /= 0) then
-      write (stdOut,*) 'error status of mkdir: ', iErr
-      write (stdOut,*) 'command status: ', cstat
-      write (stdOut,*) "command msg:  ", trim(cmsg)
+      write (output,*) 'error status of mkdir: ', iErr
+      write (output,*) 'command status: ', cstat
+      write (output,*) "command msg:  ", trim(cmsg)
     end if
 
   end subroutine create_directory_
@@ -760,9 +754,6 @@ contains
     integer :: ierr
     integer :: PoissFlag
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     ! The subroutine gives the atom shifts.
 
     ! Poiss Flag is a control flag:
@@ -781,10 +772,10 @@ contains
       select case(PoissFlag)
       case(0)
         if (verbose.gt.30) then
-          write(stdOut,*)
-          write(stdOut,'(80("="))')
-          write(stdOut,*) '                       SOLVING POISSON EQUATION         '
-          write(stdOut,'(80("="))')
+          write(env%stdOut,*)
+          write(env%stdOut,'(80("="))')
+          write(env%stdOut,*) '                       SOLVING POISSON EQUATION         '
+          write(env%stdOut,'(80("="))')
         end if
         call init_PoissBox(env, iErr)
         if (iErr /= 0) then
@@ -796,7 +787,7 @@ contains
       end select
 
       if (verbose.gt.30) then
-        write(stdOut,'(80("*"))')
+        write(env%stdOut,'(80("*"))')
       end if
     end if
 
@@ -921,16 +912,13 @@ contains
 
     integer :: ii
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     ! GP In Poisson both the contact layers are used, which is the reason why we
     ! have a factor 2 in front of pllens
     do ii = 1, size(pllens)
       if (rr > 2.0_dp * pllens(ii) + 1e-12_dp) then
-        write(stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
+        write(env%stdOut,"(A,I0,A)") "!!! ERROR: Atomic density cutoff incompatible with the principle&
             & layer width in contact ", ii, "."
-        write(stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
+        write(env%stdOut,"(A,G10.3,A,G10.3,A)") "  (", rr, ">", pllens(ii), ")"
         call error("Either enlarge PL width in the contact or increase AtomDensityCutoff or&
             & AtomDensityTolerance.")
       end if

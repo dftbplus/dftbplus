@@ -342,7 +342,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(env, nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neighList, this%rCutoff)
     call getCoordinationNumber(this%nAtom, coords, species0, nNeigh, &
         & neighList%iNeighbour, neighList%neighDist2, img2CentCell, &
         & this%covRad, this%en, this%tENScale, this%kcn, this%countFunc, &

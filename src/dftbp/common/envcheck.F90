@@ -41,10 +41,10 @@ module dftbp_common_envcheck
 contains
 
   !> Checks stacksize settings for optimal user experience/performance.
-  subroutine checkStackSize(env)
+  subroutine checkStackSize(output)
 
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !! Current stacksize
     integer :: cStack
@@ -52,20 +52,17 @@ contains
     !! Error status
     integer :: iErr
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     call get_stacksize(cStack, iErr)
 
     if (iErr /= 0) then
-      write(stdOut, "(A,':',T30,A,I0,A)") "Current stacksize", "N/A (error code: ", iErr, ")"
+      write(output, "(A,':',T30,A,I0,A)") "Current stacksize", "N/A (error code: ", iErr, ")"
     else
       if (cStack == -1 .or. cStack == 0) then
-        write(stdOut, "(A,':',T30,A)") "Current stacksize", "unlimited"
+        write(output, "(A,':',T30,A)") "Current stacksize", "unlimited"
       else
-        write(stdOut, "(A,':',T30,I0,A)") "Current stacksize",&
+        write(output, "(A,':',T30,I0,A)") "Current stacksize",&
             & nint(real(cStack, dp) / 1024.0_dp**2), " [Mb] (recommended: unlimited)"
-        call warning(env%stdOut, "Current stacksize not set to unlimited or hard limit, which might cause"&
+        call warning(output, "Current stacksize not set to unlimited or hard limit, which might cause"&
             & // new_line("A") // "   random crashes (e.g. segmentation faults). It is advised to&
             & unlimit the" // new_line("A") // "   stacksize by issuing 'ulimit -s unlimited'&
             & (Linux) or setting it to the " // new_line("A") // "   hard limit by 'ulimit -s hard'&

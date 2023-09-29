@@ -83,7 +83,7 @@ contains
 
     ! Print atom lists
     if (printDebug) then
-      call print_debug(env, iAtInRegion)
+      call print_debug(env%stdOut, iAtInRegion)
     end if
 
     ! 4. re-sort the second contact PL to be a shifted copy of the first
@@ -482,10 +482,10 @@ contains
 
   ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
-  subroutine print_debug(env, iAtInRegion)
+  subroutine print_debug(output, iAtInRegion)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)
 
@@ -496,17 +496,17 @@ contains
     do icont = 1, ncont
       if (allocated(iAtInRegion(icont)%data)) then
         PLsize = size(iAtInRegion(icont)%data)/2
-        write(env%stdOut,*) 'Atoms in contact',icont,':'
-        write(env%stdOut,*) iAtInRegion(icont)%data(1:PLsize)
-        write(env%stdOut,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
-        write(env%stdOut,*)
+        write(output,*) 'Atoms in contact',icont,':'
+        write(output,*) iAtInRegion(icont)%data(1:PLsize)
+        write(output,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
+        write(output,*)
       else
         call error("Atom list not allocated")
       end if
     end do
-    write(env%stdOut,*) 'Atoms in device:'
-    write(env%stdOut,*) iAtInRegion(ncont+1)%data
-    write(env%stdOut,*)
+    write(output,*) 'Atoms in device:'
+    write(output,*) iAtInRegion(ncont+1)%data
+    write(output,*)
 
   end subroutine print_debug
 

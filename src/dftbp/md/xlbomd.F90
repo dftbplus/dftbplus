@@ -131,7 +131,7 @@ contains
     if (this%useInverseJacobian) then
       allocate(this%invJacobian(nElems, nElems))
       if (this%readInverseJacobian) then
-        call this%readJacobianKernel(env)
+        call this%readJacobianKernel(env%stdOut)
       else
         this%invJacobian(:,:) = 0.0_dp
       end if
@@ -273,13 +273,13 @@ contains
 
 
   !> Read inverse Jacobian from disc
-  subroutine readJacobianKernel(this, env)
+  subroutine readJacobianKernel(this, output)
 
     !> Instance.
     class(TXLBOMD), intent(inout) :: this
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     type(TFileDescr) :: fp
 
@@ -287,7 +287,7 @@ contains
     read(fp%unit, *) this%invJacobian
     call closeFile(fp)
     this%invJacobian = transpose(this%invJacobian)
-    write(env%stdOut, "(A,A,A)") "Negative inverse Jacobian read from '", &
+    write(output, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"
 
   end subroutine readJacobianKernel

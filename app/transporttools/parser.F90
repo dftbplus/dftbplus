@@ -104,9 +104,9 @@ contains
     call parseHSD(rootTag, hsdInputName, hsdTree)
     call getChild(hsdTree, rootTag, root)
 
-    write(env%stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    write(env%stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    write(env%stdout, "(A)") repeat("-", 80)
+    write(env%stdOut, '(A,1X,I0,/)') 'Parser version:', parserVersion
+    write(env%stdOut, "(A)") "Interpreting input file '" // hsdInputName // "'"
+    write(env%stdOut, "(A)") repeat("-", 80)
 
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, &
@@ -135,12 +135,12 @@ contains
     input%tInitialized = .true.
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(env, root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(env%stdOut, root, parserFlags%tIgnoreUnprocessed)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(hsdTree, hsdProcInputName)
-      write(env%stdout, '(/,/,A)') "Processed input in HSD format written to '" &
+      write(env%stdOut, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
     end if
 
@@ -151,7 +151,7 @@ contains
 
     call destroyNode(hsdTree)
 
-    write(env%stdout,*) 'Geometry processed. Job finished'
+    write(env%stdOut,*) 'Geometry processed. Job finished'
 
   end subroutine parseHsdInput
 
@@ -186,16 +186,16 @@ contains
           &"Sorry, no compatibility mode for parser version " &
           &// i2c(inputVersion) // " (too old)")
     elseif (inputVersion /= parserVersion) then
-      write(env%stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
+      write(env%stdOut, "(A,I2,A,I2,A)") "***  Converting input from version ", &
           &inputVersion, " to version ", parserVersion, " ..."
-      call convertOldHSD(env, root, inputVersion, parserVersion)
-      write(env%stdout, "(A,/)") "***  Done."
+      call convertOldHSD(env%stdOut, root, inputVersion, parserVersion)
+      write(env%stdOut, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
     if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
-      call detailedWarning(env, node, &
+      call detailedWarning(env%stdOut, node, &
           &"WriteHSDInput and WriteXMLInput both turned off. You are not&
           & guaranteed" &
           &// newline // &
@@ -358,7 +358,7 @@ contains
           selectionRange(:) = [1, size(geom%species)]
           ishift = 0
         end if
-        call getSelectedAtomIndices(env, pTmp, char(buffer), geom%speciesNames, geom%species, &
+        call getSelectedAtomIndices(env%stdOut, pTmp, char(buffer), geom%speciesNames, geom%species, &
             & iAtInRegion(ii)%data, selectionRange=selectionRange)
         iAtInRegion(ii)%data = iAtInRegion(ii)%data + ishift
         call init(vecBuffer)
@@ -540,17 +540,17 @@ contains
       end do
     end select
 
-    write(env%stdout, "(A)") "Reading SK-files:"
+    write(env%stdOut, "(A)") "Reading SK-files:"
     do iSp1 = 1, nSpecies
       do iSp2 = iSp1, nSpecies
         call get(skFiles(iSp2, iSp1), fileName, 1)
-        write(env%stdout,*) trim(fileName)
+        write(env%stdOut,*) trim(fileName)
         call readFromFile(skData, fileName, (iSp1 == iSp2))
         maxSKcutoff = max(maxSKcutoff, skData%dist * size(skData%skHam,1))
       end do
     end do
-    write(env%stdout, "(A)") "Done."
-    write(env%stdout, *)
+    write(env%stdOut, "(A)") "Done."
+    write(env%stdOut, *)
 
     do iSp1 = 1, nSpecies
       do iSp2 = 1, nSpecies

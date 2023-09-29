@@ -446,7 +446,7 @@ contains
     call this%checkInit()
 
     call parseHsdTree(this%env, input%hsdTree, inpData, parserFlags)
-    call doPostParseJobs(this%env, input%hsdTree, parserFlags)
+    call doPostParseJobs(this%env%stdOut, input%hsdTree, parserFlags)
     call this%main%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator

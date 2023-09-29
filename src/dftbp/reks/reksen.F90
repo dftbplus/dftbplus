@@ -75,10 +75,10 @@ module dftbp_reks_reksen
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(env, this, eigenvecs)
+  subroutine activeOrbSwap(output, this, eigenvecs)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -89,7 +89,7 @@ module dftbp_reks_reksen
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call MOswap22_(env, eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+      call MOswap22_(output, eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -371,7 +371,7 @@ module dftbp_reks_reksen
     end if
 
     ! print state energies and couplings
-    call printReksSSRInfo(env, this, Wab, tmpEn, StateCoup)
+    call printReksSSRInfo(this, Wab, tmpEn, StateCoup, env%stdOut)
 
   end subroutine solveSecularEqn
 
@@ -561,10 +561,10 @@ module dftbp_reks_reksen
 
 
   !> Swap active orbitals when fa < fb in REKS(2,2) case
-  subroutine MOswap22_(env, eigenvecs, SAweight, FONs, Efunction, Nc)
+  subroutine MOswap22_(output, eigenvecs, SAweight, FONs, Efunction, Nc)
 
-    !> Environmet
-    type(TEnvironment), intent(in) :: env
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -586,9 +586,6 @@ module dftbp_reks_reksen
     real(dp) :: n_a, n_b, fa, fb
     integer :: nOrb
 
-    integer :: stdOut
-    stdOut = env%stdOut
-
     nOrb = size(eigenvecs,dim=1)
 
     n_a = FONs(1,1)
@@ -607,7 +604,7 @@ module dftbp_reks_reksen
     end if
 
     if (fa < fb) then
-      write(stdOut,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
+      write(output,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
           & ", MO swap between a(", Nc+1, ") and b(", Nc+2, ") occurs"
       tmpMO(:) = eigenvecs(:,Nc+1)
       eigenvecs(:,Nc+1) = eigenvecs(:,Nc+2)
