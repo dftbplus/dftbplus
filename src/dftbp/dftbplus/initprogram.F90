@@ -2524,7 +2524,7 @@ contains
             & corrections")
       end if
 
-      call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
+      call LinResp_init(this%linearResponse, env, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
           & this%nSpin, this%onSiteElements, isIoProc)
 
     end if

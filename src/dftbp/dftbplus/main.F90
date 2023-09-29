@@ -1760,7 +1760,7 @@ contains
         if (this%isCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
               & this%linearResponse%indNACouplings, this%linearResponse%energyShiftCI,&
-              & this%naCouplings, this%energiesCasida)
+              & this%naCouplings, this%energiesCasida, env%stdOut)
         else if (this%tCasidaForces) then
           this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)
         end if

@@ -15,7 +15,6 @@ module dftbp_timedep_linrespgrad
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_io_commonformats, only : format2U
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_hybridxc, only : THybridXcFunc, getDirectionalCamGammaPrimeValue
@@ -5282,7 +5281,7 @@ contains
 
     derivs(:,:) = reshape(gpf, [3, nAtoms])
 
-    write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
+    write(output, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
 
   end subroutine conicalIntersectionOptimizer
 
