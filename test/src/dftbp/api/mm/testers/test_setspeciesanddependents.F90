@@ -30,7 +30,7 @@ program test_setSpeciesAndDependents
 #:if WITH_MPI
   use mpi
 #:endif
-  use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus, TDftbPlusInput
+  use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
   use testhelpers, only: writeAutotestTag
@@ -187,13 +187,18 @@ contains
         end if
       end if
 
-      ! call output_forces_per_process(gradients, imd_lab)
+      ! call output_forces_per_process(rank, gradients, imd_lab)
 
     enddo
 
     ! Write file for internal test system, using the last structure that was run
     call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&
         & grossCharges=grossCharges)
+
+    ! Note: the TDftbPlus instance must be explicited destroyed here, as in the next line the
+    ! MPI-framework is finalized, so that the finalizer of TDftbPlus would not be able to free
+    ! its internal MPI-communicators any more.
+    call TDftbPlus_destruct(dftb)
 
   #:if WITH_MPI
     call mpi_finalize(ierr)
@@ -268,8 +273,11 @@ contains
 #:if WITH_MPI
 
   !> Output forces per process
-  subroutine output_forces_per_process(gradients, imd_lab)
+  subroutine output_forces_per_process(rank, gradients, imd_lab)
     implicit none
+
+    !> Rank of the process
+    integer, intent(in) :: rank
 
     !> atomic gradients = -forces
     real(dp), allocatable, intent(in) :: gradients(:,:)
@@ -342,7 +350,7 @@ contains
     ! Boundary condition label
     character(1) :: boundary
 
-    integer :: io_unit, ii
+    integer :: io_unit, ii, ierr
 
     if (IO) then
       open(newunit=io_unit,file=fname)
