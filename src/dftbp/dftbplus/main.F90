@@ -1131,7 +1131,7 @@ contains
           & this%symNeighbourList, this%nAllAtom, this%coord0Fold, this%coord,this%species,&
           & this%cellVec, this%rCellVec, this%denseDesc, this%nNeighbourSk, this%nNeighbourCam,&
           & this%nNeighbourCamSym, this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim,&
-          & this%iSparseStart, this%cm5Cont, this%skOverCont, errStatus)
+          & this%iSparseStart, this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -2146,7 +2146,7 @@ contains
       & thirdOrd, hybridXc, reks, img2CentCell, iCellVec, neighbourList, symNeighbourList,&
       & nAllAtom, coord0Fold, coord, species, cellVec, rCellVec, denseDescr, nNeighbourSK,&
       & nNeighbourCam, nNeighbourCamSym, ints, H0, rhoPrim, iRhoPrim, ERhoPrim, iSparseStart,&
-      & cm5Cont, skOverCont, errStatus)
+      & cm5Cont, skOverCont, areNeighSetExternal, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2271,6 +2271,9 @@ contains
     !> Sparse overlap part
     type(TSlakoCont), intent(in) :: skOverCont
 
+    !> Are Neighbour lists set externally, so should not be updated
+    logical, intent(in) :: areNeighSetExternal
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
@@ -2282,15 +2285,17 @@ contains
 
     call boundaryCond%foldCoordsToCell(coord0Fold, latVec)
 
-    if (tHelical) then
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
-          & errStatus, helicalBoundConds=latVec)
-    else
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
+    if (.not.areNeighSetExternal) then
+      if (tHelical) then
+        call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+            & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
+            & errStatus, helicalBoundConds=latVec)
+      else
+        call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+            & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
+      end if
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    @:PROPAGATE_ERROR(errStatus)
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
 
