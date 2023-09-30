@@ -261,6 +261,9 @@ module dftbp_dftbplus_initprogram
     !> Index in cellVec for each atom
     integer, allocatable :: iCellVec(:)
 
+    !> Are neighbour lists set externally (via the API), so should not be changed internally
+    logical :: areNeighSetExternal = .false.
+
     !> ADT for neighbour parameters
     type(TNeighbourList), allocatable :: neighbourList
 
