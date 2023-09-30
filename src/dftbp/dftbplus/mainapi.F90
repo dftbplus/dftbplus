@@ -100,10 +100,10 @@ contains
   subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
       & coordNeighbours, neighbour2CentCell)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), target, intent(inout) :: main
 
     !> number of neighbours of an atom in the central cell
@@ -124,8 +124,31 @@ contains
     !> mapping between neighbour reference and atom index in the central cell
     integer, intent(in) :: neighbour2CentCell(:)
 
+  #:block DEBUG_CODE
+
+    logical, allocatable :: centralAtoms(:)
+    integer :: iAt, jAt, iNeigh
+
     @:ASSERT(size(nNeighbour) == main%nAtom)
     @:ASSERT(size(neighbour2CentCell) == size(coordNeighbours, dim=2))
+    @:ASSERT(all(nNeighbour >= 0))
+    ! cycle over neighbours, looking for array boundary fails, but also lack of any atoms in the
+    ! central cell in the mapping
+    allocate(centralAtoms(main%nAtom), source=.false.)
+    do iAt = 1, main%nAtom
+      @:ASSERT(iNeighbour(1, iAt) == iAt)
+      do iNeigh = 1, nNeighbour(iAt)
+        jAt = iNeighbour(iNeigh, iAt)
+        @:ASSERT(jAt <= size(coordNeighbours, dim=2))
+        jAt = neighbour2CentCell(jAt)
+        centralAtoms(jAt) = .true.
+      end do
+    end do
+    @:ASSERT(all(centralAtoms))
+    @:ASSERT(cutOff > 0.0_dp)
+    @:ASSERT(all(neighDist > 0.0_dp))
+
+  #:endblock DEBUG_CODE
 
     if (allocated(main%electronDynamics)) then
       call error("Not implemented: Cannot set the neighbour list when time propagation is enabled")
