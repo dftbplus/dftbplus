@@ -41,12 +41,19 @@ program test_neighbour_list
   x = 2.5639291987021915_dp
   coord(:,:) = reshape([-x, -x, x, x, -x, -x, -x, x, -x, x, x, x], shape(coord))
   img2CentCell(:) = [2, 2, 2, 2]
-  nNeighbour(:) = [4, 0]
   iNeighbour(:,:) = reshape([1, 2, 3, 4, 0, 0, 0, 0], shape(iNeighbour))
   dist = sqrt(19.721198807872987_dp)
   neighDist(:,:) = reshape([dist, dist, dist, dist, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp],&
       & shape(neighDist))
 
+  nNeighbour(:) = [3, 0]
+  ! set the neighbour list
+  call dftbp%setNeighbourList(nNeighbour, iNeighbour, neighDist, cutoff, coord, img2CentCell)
+  ! evaluate energy and forces
+  call dftbp%getEnergy(merminEnergy)
+  call dftbp%getGradients(gradients)
+
+  nNeighbour(:) = [4, 0]
   ! set the neighbour list
   call dftbp%setNeighbourList(nNeighbour, iNeighbour, neighDist, cutoff, coord, img2CentCell)
 
