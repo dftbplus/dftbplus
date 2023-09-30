@@ -536,7 +536,7 @@ Relevant CMake options
 |CMake option       |Default       |Notes                                     |
 +===================+==============+==========================================+
 |-DLCOV_REPORT      |N             |Generate coverage reports if using        |
-|                   |              |gfortran and gcov is available.           |
+|                   |              |gfortran and lcov is available.           |
 +-------------------+--------------+------------------------------------------+
 |-CMAKE_BUILD_TYPE  |RelWithDebInfo|Can generate a binary with extra checking |
 |                   |              |or profiling enabled.                     |
