@@ -191,9 +191,11 @@ contains
 
     enddo
 
-    ! Write file for internal test system, using the last structure that was run
-    call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&
-        & grossCharges=grossCharges)
+    if (IO) then
+      ! Write file for internal test system, using the last structure that was run
+      call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients,&
+          & stressTensor=stressTensor, grossCharges=grossCharges)
+    end if
 
     ! Note: the TDftbPlus instance must be explicited destroyed here, as in the next line the
     ! MPI-framework is finalized, so that the finalizer of TDftbPlus would not be able to free
