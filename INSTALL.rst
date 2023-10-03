@@ -471,6 +471,8 @@ targets. The ELSI library offers a CMake export file providing the
 ``elsi::elsi`` target. Make sure, that CMake can find this export file if the
 DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
+Note: you may need to install ELSI (not just point the prefix path to its build system) to generate
+this file correctly.
 
 
 Linking the library in non-CMake based builds
@@ -492,12 +494,14 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
-pkg-config can also find the respective pkconfig files for these packages, as
-those libraries are declared as dependencies in the DFTB+ pkg-config file. For
-external dependencies without pkg-config files (e.g. mbd, negf) the options for
-linking those libraries can not be queried via pkg-config and must be added
-manually.
+If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that pkg-config can also find the
+respective pkconfig files for these packages. If you enable support for these components, their
+libraries are declared as dependencies in the DFTB+ pkg-config file. Note, if you compile these
+libraries themseleves, you may have to follow their install processes to generate suitable
+pkg-config files in their specified install location(s).
+
+For external dependencies without pkg-config files (e.g. mbd, negf), the options for linking those
+libraries can not be queried via pkg-config, and they must be added manually.
 
 
 Generating developer documentation
