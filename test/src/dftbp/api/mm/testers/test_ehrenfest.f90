@@ -47,8 +47,8 @@ contains
 
   !! Main test routine
   !!
-  !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes.
+  !! All non-constant variables must be defined here to ensure that they are all explicitly
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
   !!
   subroutine main_()
 

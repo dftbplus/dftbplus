@@ -87,9 +87,9 @@ set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
 option(TEST_WITH_VALGRIND "Whether valgrind should be invoked when testing binaries" FALSE)
-# Turn this on, when VALGRIND should invoked when testing binaries. Note, that this is currently
-# only active when testing serial (non-mpi) binaries. You also should consider to set OMP-threads
-# to 1 above to avoid false positives triggered by the threading library.
+# Turn this on, then VALGRIND should be invoked when testing binaries. Note, that this is currently
+# only active when testing serial (non-mpi) binaries. You also should consider setting OMP-threads
+# to 1 (see above) to avoid false positives triggered by the threading library.
 
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.

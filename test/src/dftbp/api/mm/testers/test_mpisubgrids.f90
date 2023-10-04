@@ -52,7 +52,7 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes.
+  !! deallocated before the program finishes  (avoiding residual memory).
   !!
   subroutine main_()
 
@@ -65,7 +65,6 @@ contains
     integer :: providedThreading, iErr, myId, myGroup, nProc
     integer :: iRepeat, nAtom
 
-    !type(mpi_comm) :: groupComm
     integer :: groupComm
     integer :: nGroup, myIdGroup, nProcGroup
 

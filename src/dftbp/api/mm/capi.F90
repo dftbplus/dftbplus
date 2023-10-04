@@ -43,7 +43,7 @@ module dftbp_capi
 
 contains
 
-  !> finalises a DFTB+ instance
+  !> finalises a DFTB+ input instance
 subroutine c_DftbPlusInput_final(handler) bind(C, name='dftbp_input_final')
 
   !> DFTB+ handler
@@ -612,9 +612,9 @@ end subroutine c_DftbPlusInput_final
     type(TDftbPlusC), intent(inout) :: this
 
     ! Note: Fortran finalizes all components of a child class instance (TDftbPlusC) first and only
-    ! then the components of its parent (TDftbPlus). TDftbPlusC contains a descriptor of an open
+    ! then the components of its parent (TDftbPlus). TDftbPlusC contains a descriptor connected to an open
     ! file, whose unit had been passed to and stored by TDftbPlus. When TDftbPlusC is finalized, the
-    ! file is closed, so TDftbPlus would try to write the timings to an invalid unit when finalized
+    ! file is closed, so TDftbPlus will try to write the timings to an invalid unit when finalized
     ! aftewards. Therefore, we call TDftbPlus_destruct explicitely before finalization of TDftbPlusC
     ! happens.
     !

@@ -310,7 +310,7 @@ contains
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between (or the instance had been finalized).
+  !> TDftbPlus_destruct() has been called in between the inits (or the instance had already been finalized).
   !> Otherwise the subroutine will stop.
   !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
@@ -357,7 +357,7 @@ contains
   end subroutine TDftbPlus_init
 
 
-  !> Finalizer for DFTB+
+  !> Finalizer for TDftbPlus.
   subroutine TDftbPlus_final(this)
 
     !> Instance
@@ -368,7 +368,7 @@ contains
   end subroutine TDftbPlus_final
 
 
-  !> Destroys a DFTB+ instance
+  !> Destroys a DFTB+ calculation instance
   subroutine TDftbPlus_destruct(this)
 
     !> Instance

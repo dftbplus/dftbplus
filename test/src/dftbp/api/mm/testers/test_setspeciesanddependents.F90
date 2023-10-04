@@ -156,9 +156,6 @@ contains
       #:endif
 
         call initialise_dftbplus_tree(geo, dftb, hsd_tree)
-
-        ! Dump hsd tree to file "fort.1" if debugging
-        ! call dumpHsd(hsd_tree%hsdTree, 001)
         call dftb%setupCalculator(hsd_tree)
       endif
 
