@@ -37,7 +37,7 @@ module dftbp_io_message
   end interface
 
 
-  public :: warning, error, cleanShutdown
+  public :: warning, error, cleanShutdown, getJointMessage
 
 contains
 
@@ -100,6 +100,41 @@ contains
     call abortProgram()
 
   end subroutine error_array
+
+
+  !> Joins an array of error messages.
+  subroutine getJointMessage(messages, message)
+
+    !> Lines of the error message to print to standard out
+    character(len=*), intent(in) :: messages(:)
+
+    !> Joint message
+    character(len=:), intent(out), allocatable :: message
+
+    integer, parameter :: lenNewline = 1
+    integer :: totLength, iMessage, iAppend
+
+    if (size(messages, dim=1) >= 1) then
+
+      totLength = 0
+
+      do iMessage = 1, size(messages, dim=1)
+        totLength = totLength + len(messages(iMessage))
+      end do
+      totLength = totLength + (size(messages, dim=1) - 1) * lenNewline
+
+      allocate(character(len=totLength) :: message)
+      message(:len(messages(1))) = messages(1)
+
+      iAppend = len(messages(1)) + 1
+      do iMessage = 2, size(messages, dim=1)
+        message(iAppend:len(messages(iMessage)) + 1) = messages(iMessage) // NEW_LINE("A")
+        iAppend = len(messages(iMessage)) + 2
+      end do
+
+    end if
+
+  end subroutine getJointMessage
 
 
   !> Prints a message and stops the code cleanly.

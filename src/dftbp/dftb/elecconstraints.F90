@@ -6,10 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_status, only : TStatus
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getLength, getItem1, fnodeList
@@ -106,7 +108,7 @@ contains
 
 
   !> General entry point to read constraint on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, isSpinPol)
+  subroutine readElecConstraintInput(node, geo, input, isSpinPol, errStatus)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -120,20 +122,29 @@ contains
     !> True, if this is a spin polarized calculation
     logical, intent(in) :: isSpinPol
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: val, child1, child2, child3
     type(fnodeList), pointer :: children
     type(string) :: buffer
     integer :: iConstr, nConstr
 
-    call getChildValue(node, "Optimiser", child1, "FIRE")
-    call readOptimizerInput(child1, input%optimiser)
+    call getChildValue(node, "Optimiser", child1, errStatus, "FIRE")
+    @:PROPAGATE_ERROR(errStatus)
+    call readOptimizerInput(child1, input%optimiser, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "ConstrTolerance", input%constrTol, 1.0e-08_dp)
-    call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
-    call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, .true.)
+    call getChildValue(node, "ConstrTolerance", input%constrTol, errStatus, 1.0e-08_dp)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "MaxConstrIterations", input%nConstrIter, errStatus, 100)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, errStatus, .true.)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call getChildValue(node, "Regions", val, "", child=child1, allowEmptyValue=.true.,&
+    call getChildValue(node, "Regions", val, errStatus, "", child=child1, allowEmptyValue=.true.,&
         & dummyValue=.true., list=.true.)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Read specification for regions of atoms
     call getChildren(child1, "Atoms", children)
@@ -145,10 +156,13 @@ contains
 
     do iConstr = 1, nConstr
       call getItem1(children, iConstr, child2)
-      call getChildValue(child2, "Domain", buffer, child=child3, multiple=.true.)
+      call getChildValue(child2, "Domain", buffer, errStatus, child=child3, multiple=.true.)
+      @:PROPAGATE_ERROR(errStatus)
       call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species,&
-          & input%atomGrp(iConstr)%data)
-      call getChildValue(child2, "Population", input%atomNc(iConstr))
+          & input%atomGrp(iConstr)%data, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChildValue(child2, "Population", input%atomNc(iConstr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       ! Functionality currently restricted to charges
       if (isSpinPol) then
         input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]

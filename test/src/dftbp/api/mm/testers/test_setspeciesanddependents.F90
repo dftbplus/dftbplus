@@ -22,29 +22,45 @@
 !
 ! NOTE: count_substrings function requires no leading white space for species names in structure.gen
 
-#! Fypp preprocessing required as this can be compiled either as serial or MPI parallel
-#:set WITH_MPI = defined('WITH_MPI')
+#:include 'common.fypp'
+#:include 'error.fypp'
 
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
 #:if WITH_MPI
   use mpi
 #:endif
+  use dftbp_common_status, only : TStatus
+  use dftbp_io_message, only : error
   use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
   use testhelpers, only: writeAutotestTag
   implicit none
 
+
   !> Precision and unit conversion
   integer, parameter :: dp = REAL64
   real(dp), parameter :: Bohr__AA = 0.529177249_dp
   real(dp), parameter :: AA__Bohr = 1.0_dp / Bohr__AA
 
-  !> DFTB Objects
-  type(TDftbPlus) :: dftb
-  type(TDftbPlusInput) :: hsd_tree
+
   character(*), parameter :: dftb_fname = 'dftb_in.hsd'
+
+
+#:if WITH_MPI
+  !> MPI variables
+  integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
+  integer :: providedThreading, rank, np, ierr
+  integer, parameter :: lead_id = 0
+  logical :: IO
+#:else
+  !> Dummy variables for serial code
+  integer, parameter :: MPI_COMM_WORLD = 0
+  integer, parameter :: lead_id = 0
+  logical :: IO = .true.
+#:endif
+
 
   !> Type for containing geometrical information
   !> One can write your own type, rather than copy DTFB+
@@ -61,129 +77,136 @@ program test_setSpeciesAndDependents
     character(50), allocatable :: speciesNames(:)
   end type TGeometry
 
-  !> MD indexing type
-  type MDstatus_type
-    integer :: initial_step
-    integer :: final_step
-  end type MDstatus_type
 
-#:if WITH_MPI
-  !> MPI variables
-  integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
-  integer :: providedThreading, rank, np, ierr
-  integer, parameter :: lead_id = 0
-  logical :: IO
-#:else
-  !> Dummy variables for serial code
-  integer, parameter :: MPI_COMM_WORLD = 0
-  integer, parameter :: lead_id = 0
-  logical :: IO = .true.
-#:endif
+  !> Error status
+  type(TStatus) :: errStatus
 
-  ! Local
-  integer, parameter :: nSteps = 2
-  integer :: nAtoms
+  call main(errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
 
-  type(MDstatus_type):: MDstatus
-  type(TGeometry) :: geo
-  integer :: imd
-  real(dp) :: merminEnergy, cutOff
-  character(100) :: imd_lab
-  character(100) :: fname
-  real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
-
-#:if WITH_MPI
-  ! Initialise MPI environment
-  call mpi_init_thread(requiredThreading, providedThreading, ierr)
-  call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
-  call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
-  IO = (rank == lead_id)
-#:endif
-
-  nAtoms = get_number_of_atoms('structure_1.gen')
-  MDstatus = MDstatus_type(1, nSteps) ! initialise type
-  allocate(gradients(3,nAtoms))
-  allocate(grossCharges(nAtoms))
-
-  do imd = MDstatus%initial_step, MDstatus%final_step
-
-    if(IO) then
-      write(*,*) 'MD step ', imd, 'of ', MDstatus%final_step
-    end if
-
-    ! For every step, read in atomic positions from file
-    ! Equivalent to obtaining data externally, e.g. from an MD package
-    write(imd_lab, '(I0)') imd
-    fname = 'structure_'//trim(imd_lab)//'.gen'
-    call read_in_geo(trim(fname), geo)
-  #:if WITH_MPI
-    call broadcast_geometry(MPI_COMM_WORLD, geo)
-  #:endif
-
-    if (geo%nAtom /= nAtoms) then
-      write(*,*) 'Error: Number of atoms not conserved between MD steps'
-    #:if WITH_MPI
-      call mpi_abort(MPI_COMM_WORLD, 0, ierr)
-    #:else
-      stop
-    #:endif
-    endif
-
-    if(imd == MDstatus%initial_step) then
-    #:if WITH_MPI
-      call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
-    #:else
-      call TDftbPlus_init(dftb, output_unit)
-    #:endif
-
-      call initialise_dftbplus_tree(geo, dftb, hsd_tree)
-
-      ! Dump hsd tree to file "fort.1" if debugging
-      ! call dumpHsd(hsd_tree%hsdTree, 001)
-      call dftb%setupCalculator(hsd_tree)
-    endif
-
-    ! Update coordinates and lattice vectors
-    call dftb%setGeometry(geo%coords, geo%latVecs)
-
-    ! Update species order every step
-    call dftb%setSpeciesAndDependents(geo%speciesNames, geo%species)
-
-    ! get the cutoff
-    cutOff = dftb%getCutOff()
-
-    ! Do a total energy calculation
-    call dftb%getEnergy(merminEnergy)
-    call dftb%getGradients(gradients)
-    call dftb%getGrossCharges(grossCharges)
-
-    if (geo%tPeriodic) then
-      if (.not.allocated(stressTensor)) then
-        allocate(stressTensor(3,3))
-      end if
-      call dftb%getStressTensor(stressTensor)
-    else
-      if (allocated(stressTensor)) then
-        deallocate(stressTensor)
-      end if
-    end if
-
-    ! call output_forces_per_process(gradients, imd_lab)
-
-  enddo
-
-  ! Clean up
-  call TDftbPlus_destruct(dftb)
-
-  ! Write file for internal test system, using the last structure that was run
-  call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&
-      & grossCharges=grossCharges)
-
-#:if WITH_MPI
-  call mpi_finalize(ierr)
-#:endif
 
 contains
+
+  subroutine main(errStatus)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    !> DFTB Objects
+    type(TDftbPlus) :: dftb
+    type(TDftbPlusInput) :: hsd_tree
+
+    !> MD indexing type
+    type MDstatus_type
+      integer :: initial_step
+      integer :: final_step
+    end type MDstatus_type
+
+    ! Local
+    integer, parameter :: nSteps = 2
+    integer :: nAtoms
+
+    type(MDstatus_type):: MDstatus
+    type(TGeometry) :: geo
+    integer :: imd
+    real(dp) :: merminEnergy, cutOff
+    character(100) :: imd_lab
+    character(100) :: fname
+    real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
+
+  #:if WITH_MPI
+    ! Initialise MPI environment
+    call mpi_init_thread(requiredThreading, providedThreading, ierr)
+    call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
+    call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
+    IO = (rank == lead_id)
+  #:endif
+
+    nAtoms = get_number_of_atoms('structure_1.gen')
+    MDstatus = MDstatus_type(1, nSteps) ! initialise type
+    allocate(gradients(3,nAtoms))
+    allocate(grossCharges(nAtoms))
+
+    do imd = MDstatus%initial_step, MDstatus%final_step
+
+      if(IO) then
+        write(*,*) 'MD step ', imd, 'of ', MDstatus%final_step
+      end if
+
+      ! For every step, read in atomic positions from file
+      ! Equivalent to obtaining data externally, e.g. from an MD package
+      write(imd_lab, '(I0)') imd
+      fname = 'structure_'//trim(imd_lab)//'.gen'
+      call read_in_geo(trim(fname), geo)
+    #:if WITH_MPI
+      call broadcast_geometry(MPI_COMM_WORLD, geo)
+    #:endif
+
+      if (geo%nAtom /= nAtoms) then
+        write(*,*) 'Error: Number of atoms not conserved between MD steps'
+      #:if WITH_MPI
+        call mpi_abort(MPI_COMM_WORLD, 0, ierr)
+      #:else
+        stop
+      #:endif
+      endif
+
+      if(imd == MDstatus%initial_step) then
+      #:if WITH_MPI
+        call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
+      #:else
+        call TDftbPlus_init(dftb, output_unit)
+      #:endif
+
+        call initialise_dftbplus_tree(geo, dftb, hsd_tree)
+
+        ! Dump hsd tree to file "fort.1" if debugging
+        ! call dumpHsd(hsd_tree%hsdTree, 001)
+        call dftb%setupCalculator(hsd_tree)
+      endif
+
+      ! Update coordinates and lattice vectors
+      call dftb%setGeometry(geo%coords, geo%latVecs)
+
+      ! Update species order every step
+      call dftb%setSpeciesAndDependents(geo%speciesNames, geo%species)
+
+      ! get the cutoff
+      cutOff = dftb%getCutOff()
+
+      ! Do a total energy calculation
+      call dftb%getEnergy(merminEnergy)
+      call dftb%getGradients(gradients)
+      call dftb%getGrossCharges(grossCharges)
+
+      if (geo%tPeriodic) then
+        if (.not.allocated(stressTensor)) then
+          allocate(stressTensor(3,3))
+        end if
+        call dftb%getStressTensor(stressTensor)
+      else
+        if (allocated(stressTensor)) then
+          deallocate(stressTensor)
+        end if
+      end if
+
+      ! call output_forces_per_process(gradients, imd_lab)
+
+    enddo
+
+    ! Clean up
+    call TDftbPlus_destruct(dftb)
+
+    ! Write file for internal test system, using the last structure that was run
+    call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients,&
+        & stressTensor=stressTensor, grossCharges=grossCharges)
+
+  #:if WITH_MPI
+    call mpi_finalize(ierr)
+  #:endif
+
+  end subroutine main
+
 
   !--------------------------------------------
   ! Utility routines based on DL_POLY V4.10 API
@@ -228,23 +251,30 @@ contains
     ! Set structure data, retain rest
     call hsd_tree%getRootNode(pRoot)
 
-    call setChild(pRoot, "Geometry", pGeo, replace=replace_geometry)
+    call setChild(pRoot, "Geometry", pGeo, errStatus, replace=replace_geometry)
+    @:PROPAGATE_ERROR(errStatus)
 
-    call setChildValue(pGeo, "Periodic", geo%tPeriodic)
+    call setChildValue(pGeo, "Periodic", geo%tPeriodic, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (geo%tPeriodic) then
-      call setChildValue(pGeo, "LatticeVectors", geo%latVecs)
+      call setChildValue(pGeo, "LatticeVectors", geo%latVecs, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call setChildValue(pGeo, "TypeNames", geo%speciesNames)
+    call setChildValue(pGeo, "TypeNames", geo%speciesNames, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! See DFTB+ subroutine in lib_type/typegeometryhsd.F90
     call setChildValue(pGeo, "TypesAndCoordinates",&
-        & reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
+        & reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Always compute forces
-    call setChild(pRoot, "Analysis", pAnalysis, replace=.True.)
-    call setChildValue(pAnalysis, "CalculateForces", .True.)
+    call setChild(pRoot, "Analysis", pAnalysis, errStatus, replace=.True.)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(pAnalysis, "CalculateForces", .True., errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine initialise_dftbplus_tree
 

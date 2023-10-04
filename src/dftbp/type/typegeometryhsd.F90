@@ -5,12 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'error.fypp'
+
 !> Routines to read/write a TGeometry type in HSD and XML format.
 module dftbp_type_typegeometryhsd
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_common_atomicmass, only : getAtomicSymbol
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, pi, avogadConst
   use dftbp_common_globalenv, only : stdout
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits, angularUnits
   use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char,&
       & getNodeType, getNodeValue, TEXT_NODE
@@ -18,7 +21,6 @@ module dftbp_type_typegeometryhsd
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
       & checkError, getFirstTextChild, writeChildValue
   use dftbp_io_hsdutils2, only : splitModifier, convertUnitHsd
-  use dftbp_io_message, only : error
   use dftbp_io_tokenreader, only : TOKEN_OK, TOKEN_ERROR, getNextToken
   use dftbp_math_simplealgebra, only : invert33, determinant33
   use dftbp_type_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
@@ -45,7 +47,7 @@ contains
 
 
   !> Write the geometry in HSD format to a specified node
-  subroutine writeTGeometryHSD_dom(node, geo)
+  subroutine writeTGeometryHSD_dom(node, geo, errStatus)
 
     !> Node in the HSD-tree which should contain the geometry
     type(fnode), pointer :: node
@@ -53,15 +55,24 @@ contains
     !> The geometry
     type(TGeometry), intent(in) :: geo
 
-    call setChildValue(node, "TypeNames", geo%speciesNames, .false.)
-    call setChildValue(node, "TypesAndCoordinates", &
-        &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, .false.)
-    call setChildValue(node, "Periodic", geo%tPeriodic, .false.)
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    call setChildValue(node, "TypeNames", geo%speciesNames, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(node, "TypesAndCoordinates",&
+        & reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call setChildValue(node, "Periodic", geo%tPeriodic, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (geo%tPeriodic .or. geo%tHelical) then
-      call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
-      call setChildValue(node, "CoordinateOrigin", geo%origin, .false.)
+      call setChildValue(node, "LatticeVectors", geo%latVecs, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
+      call setChildValue(node, "CoordinateOrigin", geo%origin, errStatus, .false.)
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    call setChildValue(node, "Helical", geo%tHelical, .false.)
+    call setChildValue(node, "Helical", geo%tHelical, errStatus, .false.)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine writeTGeometryHSD_dom
 
@@ -95,13 +106,16 @@ contains
 
 
   !> Read the geometry from a node in a HSD tree.
-  subroutine readTGeometryHSD(node, geo)
+  subroutine readTGeometryHSD(node, geo, errStatus)
 
     !> Node in the HSD tree containing the geomery
     type(fnode), pointer :: node
 
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(string) :: modifier, modifs(2)
     type(TListString) :: stringBuffer
@@ -111,27 +125,33 @@ contains
     integer, allocatable :: tmpInt(:,:)
     real(dp) :: latvec(9), det, helVec(3)
 
-    call getChildValue(node, "Periodic", geo%tPeriodic, default=.false.)
-    call getChildValue(node, "Helical", geo%tHelical, default=.false.)
+    call getChildValue(node, "Periodic", geo%tPeriodic, errStatus, default=.false.)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(node, "Helical", geo%tHelical, errStatus, default=.false.)
+    @:PROPAGATE_ERROR(errStatus)
     if (geo%tPeriodic .and. geo%tHelical) then
-      call error("Periodic and helical boundary conditions mutually exclusive.")
+      @:RAISE_ERROR(errStatus, -1, "Periodic and helical boundary conditions mutually exclusive.")
     end if
     call init(stringBuffer)
-    call getChildValue(node, "TypeNames", stringBuffer)
+    call getChildValue(node, "TypeNames", stringBuffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     geo%nSpecies = len(stringBuffer)
     if (geo%nSpecies == 0) then
-      call detailedError(node, "Missing species names.")
+      call detailedError(node, "Missing species names.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(stringBuffer, geo%speciesNames)
     call destruct(stringBuffer)
     call init(intBuffer)
     call init(realBuffer)
-    call getChildValue(node, "TypesAndCoordinates", 1, intBuffer, 3, &
-        &realBuffer, modifier=modifier, child=typesAndCoords)
+    call getChildValue(node, "TypesAndCoordinates", 1, intBuffer, 3, realBuffer, errStatus,&
+        & modifier=modifier, child=typesAndCoords)
+    @:PROPAGATE_ERROR(errStatus)
     geo%nAtom = len(intBuffer)
     if (geo%nAtom == 0) then
-      call detailedError(typesAndCoords, "Missing coordinates")
+      call detailedError(typesAndCoords, "Missing coordinates", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(geo%species(geo%nAtom))
     allocate(geo%coords(3, geo%nAtom))
@@ -142,8 +162,9 @@ contains
     deallocate(tmpInt)
     !! Check validity of species
     if (any(geo%species < 1 .or. geo%species > geo%nSpecies)) then
-      call detailedError(typesAndCoords, "Type index must be between 1 and " &
-          &// i2c(geo%nSpecies) // ".")
+      call detailedError(typesAndCoords, "Type index must be between 1 and " // i2c(geo%nSpecies)&
+          & // ".", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call asArray(realBuffer, geo%coords)
     call destruct(realBuffer)
@@ -152,29 +173,38 @@ contains
       select case(tolower(char(modifier)))
       case ("relative")
         if (.not. geo%tPeriodic) then
-          call detailedError(typesAndCoords, "Relative coordinates are only &
-              &allowed for periodic systems")
+          call detailedError(typesAndCoords, "Relative coordinates are only allowed for periodic&
+              & systems", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         geo%tFracCoord = .true.
       case default
-        call convertUnitHsd(char(modifier), lengthUnits, typesAndCoords, geo%coords)
+        call convertUnitHsd(char(modifier), lengthUnits, typesAndCoords, geo%coords, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call setChildValue(typesAndCoords, "", reshape(geo%species, [1, size(geo%species)]),&
-            & geo%coords, replace=.true.)
+            & geo%coords, errStatus, replace=.true.)
+        @:PROPAGATE_ERROR(errStatus)
       end select
     end if
     if (geo%tPeriodic) then
       allocate(geo%origin(3))
       if (geo%tFracCoord) then
-        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp])
+        call getChildValue(node, "CoordinateOrigin", geo%origin, errStatus, [0.0_dp,0.0_dp,0.0_dp])
+        @:PROPAGATE_ERROR(errStatus)
       else
-        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp],&
+        call getChildValue(node, "CoordinateOrigin", geo%origin, errStatus, [0.0_dp,0.0_dp,0.0_dp],&
             & modifier=modifier, child=child)
-        call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, replace=.true.)
+        @:PROPAGATE_ERROR(errStatus)
+        call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, errStatus,&
+            & replace=.true.)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3,3))
-      call getChildValue(node, "LatticeVectors", latvec, modifier=modifier, child=child)
-      call convertUnitHsd(char(modifier), lengthUnits, child, latvec, replace=.true.)
+      call getChildValue(node, "LatticeVectors", latvec, errStatus, modifier=modifier, child=child)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modifier), lengthUnits, child, latvec, errStatus, replace=.true.)
+      @:PROPAGATE_ERROR(errStatus)
       geo%latVecs(:,:) = reshape(latvec, [3, 3])
       if (geo%tFracCoord) then
         geo%coords(:,:) = matmul(geo%latVecs, geo%coords)
@@ -183,7 +213,8 @@ contains
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
       if (abs(det) < 1e-12_dp) then
-        call detailedError(child, "Dependent lattice vectors")
+        call detailedError(child, "Dependent lattice vectors", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call invert33(geo%recVecs2p, geo%latVecs, det)
       geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
@@ -191,19 +222,26 @@ contains
 
     if (geo%tHelical) then
       allocate(geo%origin(3))
-      call getChildValue(node, "CoordinateOrigin", geo%origin, modifier=modifier, child=child)
-      call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, replace=.true.)
+      call getChildValue(node, "CoordinateOrigin", geo%origin, errStatus, modifier=modifier,&
+          & child=child)
+      @:PROPAGATE_ERROR(errStatus)
+      call convertUnitHsd(char(modifier), lengthUnits, child, geo%origin, errStatus, replace=.true.)
+      @:PROPAGATE_ERROR(errStatus)
       geo%coords(:,:) = geo%coords - spread(geo%origin, 2, geo%nAtom)
       allocate(geo%latVecs(3, 1))
-      call getChildValue(node, "LatticeVectors", helVec, modifier=modifier, child=child)
+      call getChildValue(node, "LatticeVectors", helVec, errStatus, modifier=modifier, child=child)
+      @:PROPAGATE_ERROR(errStatus)
       if (len(modifier) > 0) then
-        call splitModifier(char(modifier), child, modifs)
-        call convertUnitHsd(char(modifs(1)), lengthUnits, child, helVec(1))
-        call convertUnitHsd(char(modifs(2)), angularUnits, child, helVec(2))
+        call splitModifier(char(modifier), child, modifs, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        call convertUnitHsd(char(modifs(1)), lengthUnits, child, helVec(1), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        call convertUnitHsd(char(modifs(2)), angularUnits, child, helVec(2), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       geo%latVecs(:3,1) = helVec
       if (geo%latVecs(3,1) < 1) then
-        call error("Helical structure rotation order non-positive")
+        @:RAISE_ERROR(errStatus, -1, "Helical structure rotation order non-positive")
       end if
       allocate(geo%recVecs2p(1, 1))
       geo%recVecs2p = 2.0_dp * pi / geo%latVecs(1,1)
@@ -215,7 +253,7 @@ contains
 
 
   !> Reads the geometry from a node in a HSD tree in GEN format
-  subroutine readTGeometryGen(node, geo)
+  subroutine readTGeometryGen(node, geo, errStatus)
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -223,16 +261,21 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: text
 
-    call getFirstTextChild(node, text)
-    call readTGeometryGen_help(node, geo, char(text))
+    call getFirstTextChild(node, text, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readTGeometryGen_help(node, geo, char(text), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readTGeometryGen
 
 
   !> Helping routine for reading geometry from a HSD tree in GEN format
-  subroutine readTGeometryGen_help(node, geo, text)
+  subroutine readTGeometryGen_help(node, geo, text, errStatus)
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -242,6 +285,9 @@ contains
 
     !> Text content of the node
     character(len=*), intent(in) :: text
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(string) :: txt
     integer :: iStart, iErr, iEnd
@@ -254,7 +300,8 @@ contains
     iStart = 1
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
-    call checkError(node, iErr, "Bad number of atoms in the first line of geometry")
+    call checkError(node, iErr, "Bad number of atoms in the first line of geometry", errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call getNextToken(text(:iEnd), txt, iStart, iErr)
     select case (char(txt))
     case("S","s")
@@ -274,11 +321,12 @@ contains
       geo%tPeriodic = .false.
       geo%tFracCoord = .false.
     case default
-      call detailedError(node, "Unknown boundary condition type '" &
-          &// char(txt) // "'")
+      call detailedError(node, "Unknown boundary condition type '" // char(txt) // "'", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
     if (iStart < iEnd) then
-      call detailedError(node, "Found trailing characters in first line")
+      call detailedError(node, "Found trailing characters in first line", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     iStart = iEnd + 1
 
@@ -292,14 +340,16 @@ contains
       if (iErr == TOKEN_OK) then
         if (find(speciesNames, char(txt)) > 0) then
           call detailedError(node, "Species name '"//char(txt)//"' is not unique, check species'//&
-              &//' names in second line")
+              &//' names in second line", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         call append(speciesNames, char(txt))
       end if
     end do
     geo%nSpecies = len(speciesNames)
     if (geo%nSpecies == 0) then
-      call detailedError(node, "No species are given in second line of geometry.")
+      call detailedError(node, "No species are given in second line of geometry.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(speciesNames, geo%speciesNames)
@@ -314,20 +364,25 @@ contains
       write(errorStr, '(i0)') ii
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), iTmp, iStart, iErr)
-      call checkError(node, iErr, "Bad sequential number for atom "//trim(errorStr))
+      call checkError(node, iErr, "Bad sequential number for atom "//trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(text(:iEnd), geo%species(ii), iStart, iErr)
-      call checkError(node, iErr, "Bad species number for atom "//trim(errorStr))
+      call checkError(node, iErr, "Bad species number for atom "//trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(text(:iEnd), coords, iStart, iErr)
-      call checkError(node, iErr, "Bad coordinates for atom "//trim(errorStr))
+      call checkError(node, iErr, "Bad coordinates for atom "//trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%coords(:, ii) = coords(:)
       if (iStart < iEnd) then
-        call detailedError(node, "Found trailing characters for atom "//trim(errorStr))
+        call detailedError(node, "Found trailing characters for atom " // trim(errorStr), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = iEnd + 1
     end do
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
-      call detailedError(node, &
-          &"Nr. of species and nr. of specified elements do not match.")
+      call detailedError(node, "Nr. of species and nr. of specified elements do not match.",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! Read in origin an lattice vectors, if the structure is periodic
@@ -336,12 +391,14 @@ contains
       allocate(geo%origin(3))
       allocate(geo%latVecs(3, 3))
       call getNextToken(text(:iEnd), geo%origin, iStart, iErr)
-      call checkError(node, iErr, "Invalid origin given in geometry.")
+      call checkError(node, iErr, "Invalid origin given in geometry.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       iStart = iEnd + 1
       do ii = 1, 3
         iEnd = nextLine(text, iStart)
         call getNextToken(text(:iEnd), geo%latVecs(:, ii), iStart, iErr)
-        call checkError(node, iErr, "Invalid lattice vectors in geometry.")
+        call checkError(node, iErr, "Invalid lattice vectors in geometry.", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         iStart = iEnd + 1
       end do
     end if
@@ -350,17 +407,20 @@ contains
       allocate(geo%origin(3))
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), geo%origin, iStart, iErr)
-      call checkError(node, iErr, 'Invalid specified helical boundary conditions: origin.')
+      call checkError(node, iErr, 'Invalid specified helical boundary conditions: origin.',&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%origin(:) = geo%origin * AA__Bohr
       allocate(geo%latVecs(3, 1))
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), geo%latVecs(:, 1), iStart, iErr)
       call checkError(node, iErr, 'Invalid specified helical boundary conditions: "translation,&
-          & twist angle, rotation order" should be supplied).')
+          & twist angle, rotation order" should be supplied).', errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%latVecs(1,1) = geo%latVecs(1,1) * AA__Bohr
       geo%latVecs(2,1) = geo%latVecs(2,1) * pi / 180.0_dp
       if (geo%latVecs(3,1) < 1) then
-        call error("Helical structure rotation order non-positive")
+        @:RAISE_ERROR(errStatus, -1, "Helical structure rotation order non-positive")
       end if
       allocate(geo%recVecs2p(1, 1))
       geo%recVecs2p = 1.0_dp / (geo%latVecs(1,1) * 2.0_dp * pi)
@@ -369,12 +429,14 @@ contains
     ! Check if any data remains in the geometry - should be nothing left now
     if (iStart <= len(text)) then
       call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
-          & the number of actually entered positions.")
+          & the number of actually entered positions.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! tests that are relevant to periodic geometries only
     if (geo%tPeriodic) then
-      call setupPeriodicGeometry(node, geo)
+      call setupPeriodicGeometry(node, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! convert coords to correct internal units
@@ -395,7 +457,7 @@ contains
 
 
   !> Reads the geometry from a node in a HSD tree in XYZ format
-  subroutine readTGeometryXyz(node, geo)
+  subroutine readTGeometryXyz(node, geo, errStatus)
 
     !> Node containing the geometry in XYZ format
     type(fnode), pointer :: node
@@ -403,16 +465,21 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: text
 
-    call getFirstTextChild(node, text)
-    call readTGeometryXyz_help(node, geo, char(text))
+    call getFirstTextChild(node, text, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readTGeometryXyz_help(node, geo, char(text), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readTGeometryXyz
 
 
   !> Helping routine for reading geometry from a HSD tree in XYZ format
-  subroutine readTGeometryXyz_help(node, geo, text)
+  subroutine readTGeometryXyz_help(node, geo, text, errStatus)
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -422,6 +489,9 @@ contains
 
     !> Text content of the node
     character(len=*), intent(in) :: text
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(string) :: txt
     integer :: iStart, iOldStart, iErr, iEnd
@@ -434,10 +504,13 @@ contains
     iStart = 1
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
-    call checkError(node, iErr, "Bad number of atoms.")
+    call checkError(node, iErr, "Bad number of atoms.", errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (iStart < iEnd) then
-      call checkError(node, TOKEN_ERROR, "Additional field(s) found on first line of xyz geometry")
+      call checkError(node, TOKEN_ERROR, "Additional field(s) found on first line of xyz geometry",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! advance to next line
@@ -468,7 +541,8 @@ contains
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), txt, iStart, iErr)
       write(errorStr,"(A,1X,I0)")"Bad species name for atom", ii
-      call checkError(node, iErr, trim(errorStr))
+      call checkError(node, iErr, trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       iSp = find(speciesNames, char(txt))
       if (iSp == 0) then
         call append(speciesNames, char(txt))
@@ -477,7 +551,8 @@ contains
       geo%species(ii) = iSp
       call getNextToken(text(:iEnd), coords, iStart, iErr)
       write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
-      call checkError(node, iErr, trim(errorStr))
+      call checkError(node, iErr, trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%coords(:, ii) = coords(:)
       iStart = iEnd + 1
     end do
@@ -488,12 +563,15 @@ contains
     call destruct(speciesNames)
 
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
-      call detailedError(node, "Nr. of species and nr. of specified elements do not match.")
+      call detailedError(node, "Nr. of species and nr. of specified elements do not match.",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     if (iStart <= len(text)) then
       call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
-          & the number of actually entered positions.")
+          & the number of actually entered positions.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! convert coords to correct internal units
@@ -510,7 +588,7 @@ contains
 
 
   !> Reads the geometry from a node in a HSD tree in VASP POSCAR/CONTCAR formats
-  subroutine readTGeometryVasp(node, geo)
+  subroutine readTGeometryVasp(node, geo, errStatus)
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -518,16 +596,21 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: text
 
-    call getFirstTextChild(node, text)
-    call readTGeometryVasp_help(node, geo, char(text))
+    call getFirstTextChild(node, text, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call readTGeometryVasp_help(node, geo, char(text), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readTGeometryVasp
 
 
   !> Helping routine for reading geometry from a HSD tree in VASP format
-  subroutine readTGeometryVasp_help(node, geo, text)
+  subroutine readTGeometryVasp_help(node, geo, text, errStatus)
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -537,6 +620,9 @@ contains
 
     !> Text content of the node
     character(len=*), intent(in) :: text
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(string) :: txt
     character(mc), allocatable :: vaspNames(:)
@@ -580,12 +666,15 @@ contains
       ! try to read the real `second' line now
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), rScale, iStart, iErr)
-      call checkError(node, iErr, "Bad scaling factor in line 2 of VASP geometry")
+      call checkError(node, iErr, "Bad scaling factor in line 2 of VASP geometry", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       iStart = iEnd + 1
     end if
 
     if (rScale <= 0.0_dp) then
-      call detailedError(node, "Scaling factor for VASP geometry must be positive and non-zero")
+      call detailedError(node, "Scaling factor for VASP geometry must be positive and non-zero",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     ! we expect the lattice information now
@@ -595,7 +684,9 @@ contains
     do ii = 1, 3
       iEnd = nextLine(text, iStart)
       call getNextToken(text, latVec, iStart, iErr)
-      call checkError(node, iErr, "Bad lattice vectors, please check lines 3-5 of the geometry")
+      call checkError(node, iErr, "Bad lattice vectors, please check lines 3-5 of the geometry",&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%latVecs(:, ii) = latVec(:) * rScale
       iStart = iEnd + 1
     end do
@@ -641,7 +732,8 @@ contains
 
     geo%nSpecies = len(speciesNames)
     if (geo%nSpecies == 0) then
-      call detailedError(node, "Number of species in the VASP geometry equals zero.")
+      call detailedError(node, "Number of species in the VASP geometry equals zero.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(speciesNames, geo%speciesNames)
@@ -649,7 +741,8 @@ contains
     allocate(countSp(size(vaspSp, dim=1)))
     do iSp = 1, size(vaspSp, dim=1)
       call getNextToken(text(:iEnd), countSp(iSp), iStart, iErr)
-      call checkError(node, iErr, "Could not read number of species in geometry")
+      call checkError(node, iErr, "Could not read number of species in geometry", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end do
     geo%nAtom = sum(countSp)
     allocate(geo%species(geo%nAtom))
@@ -674,7 +767,8 @@ contains
     else if (scan(char(txt), "dD") == 1) then
       geo%tFracCoord = .true.
     else
-      call detailedError(node, "Unknown coordinate format '"// char(txt) // "'")
+      call detailedError(node, "Unknown coordinate format '"// char(txt) // "'", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     iStart = iEnd + 1
 
@@ -682,12 +776,14 @@ contains
       iEnd = nextLine(text, iStart)
       call getNextToken(text, coords, iStart, iErr)
       write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
-      call checkError(node, iErr, trim(errorStr))
+      call checkError(node, iErr, trim(errorStr), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       geo%coords(:, ii) = coords(:)
       iStart = iEnd + 1
     end do
 
-    call setupPeriodicGeometry(node, geo)
+    call setupPeriodicGeometry(node, geo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! convert coords to correct internal units
     if (geo%tFracCoord) then
@@ -705,7 +801,7 @@ contains
 
 
   !> Reads the geometry in a HSD tree in LAMMPS data file format
-  subroutine readTGeometryLammps(node, geo)
+  subroutine readTGeometryLammps(node, geo, errStatus)
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -713,28 +809,36 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: child
     type(string) :: text1, text2
 
-    call getChildValue(node, "CommandFile", child)
+    call getChildValue(node, "CommandFile", child, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (.not. associated(child) .or. getNodeType(child) /= TEXT_NODE) then
-      call detailedError(node, "Missing CommandFile for LammpsFormat")
+      call detailedError(node, "Missing CommandFile for LammpsFormat", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call getNodeValue(child, text1)
 
-    call getChildValue(node, "DataFile", child)
+    call getChildValue(node, "DataFile", child, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (.not. associated(child) .or. getNodeType(child) /= TEXT_NODE) then
-      call detailedError(node, "Missing DataFile for LammpsFormat")
+      call detailedError(node, "Missing DataFile for LammpsFormat", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call getNodeValue(child, text2)
 
-    call readTGeometryLammps_help(node, geo, char(text1), char(text2))
+    call readTGeometryLammps_help(node, geo, char(text1), char(text2), errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
   end subroutine readTGeometryLammps
 
 
   !> Helping routine for reading geometry from a HSD tree in LAMMPS format
-  subroutine readTGeometryLammps_help(node, geo, commandInput, dataInput)
+  subroutine readTGeometryLammps_help(node, geo, commandInput, dataInput, errStatus)
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -747,6 +851,9 @@ contains
 
     !> Text contents of the data file
     character(len=*), intent(in) :: dataInput
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iEnd, iErr, intValue, skipItemsForCoords, i, j
     real(dp) :: realValue(3), toAngstrom, toAtomicMassUnit
@@ -783,14 +890,17 @@ contains
       select case(char(command))
       case("pair_style")
         call getNextToken(commandInput, text, iStart, iErr)
-        call checkError(node, iErr, "Error reading pair_style in command file")
+        call checkError(node, iErr, "Error reading pair_style in command file", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         if (char(text) /= "dftbplus") then
-          call detailedError(node, "pair_style must be dftbplus")
+          call detailedError(node, "pair_style must be dftbplus", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         call jumpToEndOfLine(commandInput, iStart)
       case("atom_style") ! default is atomic
         call getNextToken(commandInput, text, iStart, iErr)
-        call checkError(node, iErr, "Error reading atom_style in command file")
+        call checkError(node, iErr, "Error reading atom_style in command file", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         select case(char(text))
         case("angle", "bond", "molecular")
           skipMoleculeId = .true.
@@ -809,21 +919,25 @@ contains
         case("wavepacket")
           skipItemsForCoords = 6
         case("body", "mesont", "peri", "smd", "sphere", "bpm/sphere")
-          call detailedError(node, "Unsupported atom_style " // char(text))
+          call detailedError(node, "Unsupported atom_style " // char(text), errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end select
         call jumpToEndOfLine(commandInput, iStart)
       case("boundary") ! default is p p p
         do i = 1, 3
           call getNextToken(commandInput, text, iStart, iErr)
-          call checkError(node, iErr, "Error reading boundary in command file")
+          call checkError(node, iErr, "Error reading boundary in command file", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           if (char(text) /= "p") then
-            call detailedError(node, "Only periodic boundary conditions supported")
+            call detailedError(node, "Only periodic boundary conditions supported", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
         end do
         call jumpToEndOfLine(commandInput, iStart)
       case("units") ! default is lj
         call getNextToken(commandInput, text, iStart, iErr)
-        call checkError(node, iErr, "Error reading units in command file")
+        call checkError(node, iErr, "Error reading units in command file", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         select case(char(text))
         case("si")
           toAngstrom = 1.0e10_dp ! from meters
@@ -841,7 +955,8 @@ contains
           toAngstrom = 10.0_dp ! from nanometers
           toAtomicMassUnit = 1.0e-18_dp * avogadConst ! from attograms
         case("lj")
-          call detailedError(node, "Unit system lj is not supported")
+          call detailedError(node, "Unit system lj is not supported", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         case default
           toAngstrom = 1.0_dp
           toAtomicMassUnit = 1.0_dp
@@ -882,7 +997,8 @@ contains
       select case(char(command))
       case("atoms")
         if (.not. readIntValue) then
-          call detailedError(node, "Invalid number of atoms")
+          call detailedError(node, "Invalid number of atoms", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         geo%nAtom = intValue
         call jumpToEndOfLine(dataInput, iStart)
@@ -890,7 +1006,8 @@ contains
         call getNextToken(dataInput, text, iStart, iErr)
         if (iErr == TOKEN_OK .and. char(text) == "types") then
           if (.not. readIntValue) then
-            call detailedError(node, "Invalid number of species")
+            call detailedError(node, "Invalid number of species", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           geo%nSpecies = intValue
           call jumpToEndOfLine(dataInput, iStart)
@@ -899,7 +1016,8 @@ contains
         call getNextToken(dataInput, text, iStart, iErr)
         if (iErr == TOKEN_OK .and. char(text) == "xhi") then
           if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
-            call detailedError(node, "Invalid values for xlo and/or xhi")
+            call detailedError(node, "Invalid values for xlo and/or xhi", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           geo%origin(1) = realValue(1)
           geo%latVecs(1,1) = realValue(2) - realValue(1)
@@ -909,7 +1027,8 @@ contains
         call getNextToken(dataInput, text, iStart, iErr)
         if (iErr == TOKEN_OK .and. char(text) == "yhi") then
           if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
-            call detailedError(node, "Invalid values for ylo and/or yhi")
+            call detailedError(node, "Invalid values for ylo and/or yhi", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           geo%origin(2) = realValue(1)
           geo%latVecs(2,2) = realValue(2) - realValue(1)
@@ -919,7 +1038,8 @@ contains
         call getNextToken(dataInput, text, iStart, iErr)
         if (iErr == TOKEN_OK .and. char(text) == "zhi") then
           if (.not. readRealValue(1) .or. .not. readRealValue(2)) then
-            call detailedError(node, "Invalid values for zlo and/or zhi")
+            call detailedError(node, "Invalid values for zlo and/or zhi", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           geo%origin(3) = realValue(1)
           geo%latVecs(3,3) = realValue(2) - realValue(1)
@@ -931,7 +1051,8 @@ contains
           call getNextToken(dataInput, text, iStart, iErr)
           if (iErr == TOKEN_OK .and. char(text) == "yz") then
             if (any(.not. readRealValue)) then
-              call detailedError(node, "Invalid values for xy/xz/yz")
+              call detailedError(node, "Invalid values for xy/xz/yz", errStatus)
+              @:PROPAGATE_ERROR(errStatus)
             end if
             geo%latVecs(1,2) = realValue(1) ! xy
             geo%latVecs(1,3) = realValue(2) ! xz
@@ -940,26 +1061,32 @@ contains
         end if
       case("Masses")
         if (geo%nSpecies == 0) then
-          call detailedError(node, "Missing number of species (atom types) in data file header")
+          call detailedError(node, "Missing number of species (atom types) in data file header",&
+              & errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         allocate(geo%speciesNames(geo%nSpecies))
         call jumpToEndOfLine(dataInput, iStart)
 
         do i = 1, geo%nSpecies
           call getNextToken(dataInput, intValue, iStart, iErr)
-          call checkError(node, iErr, "Invalid value for species index")
+          call checkError(node, iErr, "Invalid value for species index", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           if (intValue /= i) then
-            call detailedError(node, "Unexpected species index")
+            call detailedError(node, "Unexpected species index", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           call getNextToken(dataInput, realValue(1), iStart, iErr)
-          call checkError(node, iErr, "Invalid value for species mass")
+          call checkError(node, iErr, "Invalid value for species mass", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           geo%speciesNames(i) = trim(getAtomicSymbol(realValue(1) * toAtomicMassUnit))
           call jumpToEndOfLine(dataInput, iStart)
         end do
         haveMasses = .true.
       case("Atoms")
         if (geo%nAtom == 0) then
-          call detailedError(node, "Missing number of atoms in data file header")
+          call detailedError(node, "Missing number of atoms in data file header", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         end if
         allocate(geo%species(geo%nAtom))
         allocate(geo%coords(3, geo%nAtom))
@@ -967,18 +1094,22 @@ contains
 
         do i = 1, geo%nAtom
           call getNextToken(dataInput, intValue, iStart, iErr)
-          call checkError(node, iErr, "Invalid value for atom index")
+          call checkError(node, iErr, "Invalid value for atom index", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           if (intValue /= i) then
-            call detailedError(node, "Unexpected atom index")
+            call detailedError(node, "Unexpected atom index", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           if (skipMoleculeId) then
             call getNextToken(dataInput, text, iStart, iErr)
           end if
           call getNextToken(dataInput, intValue, iStart, iErr)
-          call checkError(node, iErr, "Invalid value for atom species")
+          call checkError(node, iErr, "Invalid value for atom species", errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           geo%species(i) = intValue
           if (geo%species(i) > geo%nSpecies) then
-            call detailedError(node, "Unexpected species index")
+            call detailedError(node, "Unexpected species index", errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
           iEnd = nextLine(dataInput, iStart)
           do j = 1, skipItemsForCoords
@@ -997,13 +1128,16 @@ contains
     end do
 
     if (.not. haveMasses) then
-      call detailedError(node, "Missing Masses section in data file")
+      call detailedError(node, "Missing Masses section in data file", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (.not. haveAtoms) then
-      call detailedError(node, "Missing Atoms section in data file")
+      call detailedError(node, "Missing Atoms section in data file", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (toAngstrom == 0.0_dp) then
-      call detailedError(node, "Require explicit units definition in command file")
+      call detailedError(node, "Require explicit units definition in command file", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     geo%origin(:) = toAngstrom * geo%origin(:)
@@ -1014,7 +1148,8 @@ contains
     geo%tFracCoord = .false.
     geo%tHelical = .false.
 
-    call setupPeriodicGeometry(node, geo)
+    call setupPeriodicGeometry(node, geo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     geo%coords = geo%coords * AA__Bohr
 
     write(stdout, "(A,I8,A,I3,A)") "Read values from LAMMPS input file: ",&
@@ -1026,13 +1161,16 @@ contains
 
 
   !> Common checks for periodic input and generation of associated information
-  subroutine setupPeriodicGeometry(node, geo)
+  subroutine setupPeriodicGeometry(node, geo, errStatus)
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
 
     !> Contains the geometry on exit
     type(TGeometry), intent(inout) :: geo
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: det
 
@@ -1046,7 +1184,8 @@ contains
     allocate(geo%recVecs2p(3, 3))
     det = determinant33(geo%latVecs)
     if (abs(det) < 1e-12_dp) then
-      call detailedError(node, "Dependent lattice vectors")
+      call detailedError(node, "Dependent lattice vectors", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call invert33(geo%recVecs2p, geo%latVecs, det)
 

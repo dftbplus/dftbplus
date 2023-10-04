@@ -10,8 +10,10 @@
 #:block TEST_SUITE("typegeometryhsd")
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr
+  use dftbp_common_status, only : TStatus
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode
   use dftbp_io_hsdutils, only : setChildValue
+  use dftbp_io_message, only : error
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
   implicit none
 
@@ -24,6 +26,7 @@
     type(TGeometry) :: geo
     integer :: ii, jj
     character(len=1), parameter :: nl = new_line('a')
+    type(TStatus) :: errStatus
 
   #:contains
 
@@ -37,7 +40,8 @@
           & "1 1" // nl //&
           & "2 1" // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -66,7 +70,8 @@
           & "1 1" // nl //&
           & "2 1" // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -94,7 +99,8 @@
           & "3 1" // nl //&
           & "Masses" // nl //&
           & "1 1.0")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -118,7 +124,8 @@
           & "1 0 1 99 11.0 12.0 13.0" // nl //&
           & "2 0 1 99 21.0 22.0 23.0" // nl //&
           & "3 0 1 99 31.0 32.0 33.0")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%speciesNames(1) == 'H')
@@ -150,7 +157,8 @@
           & "4 4" // nl //&
           & "5 5" // nl //&
           & "6 6")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%nSpecies == 6)
       @:ASSERT(geo%speciesNames(1) == 'H')
       @:ASSERT(geo%speciesNames(2) == 'O')
@@ -181,7 +189,8 @@
           & " 1 1 4 4 4 #ignore everything here" // nl //&
           & "  2 1 #ignore me" // nl // nl //&
           & "3 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%natom == 3)
       @:ASSERT(geo%nSpecies == 1)
       @:ASSERT(geo%tPeriodic)
@@ -212,7 +221,8 @@
           & "1 1.0" // nl //&
           & "Atoms" // nl //&
           & "1 1")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       geo%latVecs = geo%latVecs / AA__Bohr
       @:ASSERT(abs(geo%latVecs(1,1) - 1.0_dp) < prec)
       @:ASSERT(abs(geo%latVecs(2,1)) < prec)
@@ -237,7 +247,8 @@
           & "1 1.99e-26" // nl //&
           & "Atoms" // nl //&
           & "1 1 1.0e-10 2.0e-10 3.0e-10")
-      call readTGeometryLammps(node, geo)
+      call readTGeometryLammps(node, geo, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
       @:ASSERT(geo%speciesNames(1) == 'C')
       do ii = 1, 3
         @:ASSERT(abs(geo%latVecs(ii,ii) - 1.0e10_dp * AA__Bohr) < prec)
@@ -259,12 +270,15 @@
       character(len=*), intent(in) :: text1, text2
 
       type(fnode), pointer :: child1, child2
+      type(TStatus) :: errStatus
 
       node => createDocumentNode()
       child1 => createTextNode(text1)
       child2 => createTextNode(text2)
-      call setChildValue(node, "CommandFile", child1)
-      call setChildValue(node, "DataFile", child2)
+      call setChildValue(node, "CommandFile", child1, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
+      call setChildValue(node, "DataFile", child2, errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
 
   end subroutine prepareNode
 

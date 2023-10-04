@@ -7,8 +7,32 @@ add_dependencies(test_api_mm_utils dftbplus)
 target_include_directories(test_api_mm_utils PUBLIC
   $<TARGET_PROPERTY:dftbplus,INTERFACE_INCLUDE_DIRECTORIES>)
 
-add_executable(test_fileinit test_fileinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
-target_link_libraries(test_fileinit dftbplus)
+set(fypp_flags ${FYPP_BUILD_FLAGS})
+list(APPEND fypp_flags -I${projectdir}/src/dftbp/include -DRELEASE="'${releasename}'")
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_ehrenfest_ext_ions.F90"
+  test_ehrenfest_ext_ions.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_ehrenfest.F90"
+  test_ehrenfest.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_extcharges.F90"
+  test_extcharges.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_extpot.F90"
+  test_extpot.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_extpot2.F90"
+  test_extpot2.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_intcharges.F90"
+  test_intcharges.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_timeprop.F90"
+  test_timeprop.f90)
+
+dftbp_preprocess("${FYPP}" "${fypp_flags}" "F90" "f90" "test_treeinit.F90"
+  test_treeinit.f90)
 
 if(WITH_C_EXECUTABLES)
   add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
@@ -24,6 +48,9 @@ if(WITH_C_EXECUTABLES)
     set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
   endif()
 endif()
+
+add_executable(test_fileinit test_fileinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_fileinit dftbplus)
 
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_treeinit dftbplus)
@@ -42,9 +69,6 @@ target_link_libraries(test_intcharges dftbplus)
 
 add_executable(test_qdepextpot test_qdepextpot.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpot dftbplus)
-
-set(fypp_flags ${FYPP_BUILD_FLAGS})
-list(APPEND fypp_flags -I${projectdir}/src/dftbp/include -DRELEASE="'${releasename}'")
 
 add_executable(test_timeprop test_timeprop.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_timeprop dftbplus)

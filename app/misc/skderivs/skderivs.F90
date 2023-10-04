@@ -6,11 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
   use dftbp_common_accuracy
   use dftbp_common_constants
+  use dftbp_common_status, only : TStatus
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_slakoeqgrid
@@ -18,7 +20,7 @@ program skderivs
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_io_hsdutils
   use dftbp_io_hsdutils2
-  use dftbp_io_message
+  use dftbp_io_message, only : error
   use dftbp_type_linkedlist
   use dftbp_type_oldskdata
 #:if WITH_MPI
@@ -39,8 +41,11 @@ implicit none
   end type TInputData
 
 
-  !> input data for the calculation of the derivatives
+  !> Input data for the calculation of the derivatives
   type(TInputData) :: inp
+
+  !> Error status
+  type(TStatus) :: errStatus
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -52,7 +57,8 @@ implicit none
   call mpi%mpiSerialEnv()
 #:endif
 
-  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in")
+  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in", errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   call main(inp)
 
 contains
@@ -153,7 +159,7 @@ contains
 
 
   !> Parses the HSD input
-  subroutine parseHSDInput(inp, hsdInputName, rootTag)
+  subroutine parseHSDInput(inp, hsdInputName, rootTag, errStatus)
 
     !> parsed data
     type(TInputData), intent(out) :: inp
@@ -163,6 +169,9 @@ contains
 
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fNode), pointer :: hsdTree, root, child
     type(TOldSKData) :: skData12(1,1), skData21(1,1)
@@ -180,17 +189,21 @@ contains
       angShellOrdered(ii) = ii - 1
     end do
 
-    call parseHSD(rootTag, hsdInputName, root)
+    call parseHSD(rootTag, hsdInputName, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
 
-    call getChild(hsdTree, rootTag, root)
+    call getChild(hsdTree, rootTag, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     !! First interaction
-    call getChildValue(root, "File1", buffer)
+    call getChildValue(root, "File1", buffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call readFromFile(skData12(1,1), unquote(char(buffer)), .false.)
-    call getChildValue(root, "MaxAngularMomentum1", buffer, child=child)
+    call getChildValue(root, "MaxAngularMomentum1", buffer, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     strTmp = unquote(char(buffer))
     call init(angShells(1))
     do jj = 1, size(shellNames)
@@ -199,17 +212,19 @@ contains
       end if
     end do
     if (len(angShells(1)) < 1) then
-      call detailedError(child, "Invalid orbital name '" // &
-          &trim(strTmp) // "'")
+      call detailedError(child, "Invalid orbital name '" // trim(strTmp) // "'", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
-    call getChildValue(root, "File2", buffer, "")
+    call getChildValue(root, "File2", buffer, errStatus, "")
+    @:PROPAGATE_ERROR(errStatus)
     if (char(buffer) == "") then
       nSpecies = 1
     else
       nSpecies = 2
       call readFromFile(skData21(1,1), unquote(char(buffer)), .false.)
-      call getChildValue(root, "MaxAngularMomentum2", buffer, child=child)
+      call getChildValue(root, "MaxAngularMomentum2", buffer, errStatus, child=child)
+      @:PROPAGATE_ERROR(errStatus)
       strTmp = unquote(char(buffer))
       call init(angShells(2))
       do jj = 1, size(shellNames)
@@ -218,12 +233,13 @@ contains
         end if
       end do
       if (len(angShells(2)) < 1) then
-        call detailedError(child, "Invalid orbital name '" // &
-            &trim(strTmp) // "'")
+        call detailedError(child, "Invalid orbital name '" // trim(strTmp) // "'", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end if
 
-    call getChildValue(root, "OldSKInterpolation", useOldInter)
+    call getChildValue(root, "OldSKInterpolation", useOldInter, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (useOldInter) then
       skInterMeth = skEqGridOld
     else
@@ -246,43 +262,55 @@ contains
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
 
-    call getChildValue(root, "Step", inp%step)
-    call getChildValue(root, "Value", inp%value)
-    call getChildValue(root, "FirstDerivative", inp%first)
-    call getChildValue(root, "SecondDerivative", inp%second)
-    call getChildValue(root, "Displacement", inp%displ)
-    call getChildValue(root, "Start", inp%from, child=child)
+    call getChildValue(root, "Step", inp%step, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "Value", inp%value, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "FirstDerivative", inp%first, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "SecondDerivative", inp%second, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "Displacement", inp%displ, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "Start", inp%from, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     if (inp%from - inp%displ < skData12(1, 1)%dist) then
       write(strTmp, "(A, F8.4)") "With given displacement, start point must be larger than ",&
           & skData12(1, 1)%dist + inp%displ
-      call detailedError(child, trim(strTmp))
+      call detailedError(child, trim(strTmp), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    call getChildValue(root, "End", inp%to, child=child)
-    call getChildValue(root, "OutputPrefix", buffer)
+    call getChildValue(root, "End", inp%to, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
+    call getChildValue(root, "OutputPrefix", buffer, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     inp%output = unquote(char(buffer))
 
     allocate(lIntTmp)
     call init(lIntTmp)
-    call getChildValue(root, "Hamiltonian", lIntTmp, child=child)
+    call getChildValue(root, "Hamiltonian", lIntTmp, errStatus, child=child)
+    @:PROPAGATE_ERROR(errStatus)
     allocate(inp%iHam(len(lIntTmp)))
     call asArray(lIntTmp, inp%iHam)
     if (any(inp%iHam < 1) .or. any(inp%iHam > nInt)) then
-      call detailedError(child, "Integral index must be between 1 and " &
-          &// i2c(nInt))
+      call detailedError(child, "Integral index must be between 1 and " // i2c(nInt), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     deallocate(lIntTmp)
     allocate(lIntTmp)
     call init(lIntTmp)
-    call getChildValue(root, "Overlap", lIntTmp)
+    call getChildValue(root, "Overlap", lIntTmp, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     allocate(inp%iOver(len(lIntTmp)))
     call asArray(lIntTmp, inp%iOver)
     if (any(inp%iOver < 1) .or. any(inp%iover > nInt)) then
-      call detailedError(child, "Integral index must be between 1 and " &
-          &// i2c(nInt))
+      call detailedError(child, "Integral index must be between 1 and " // i2c(nInt), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root)
+    call warnUnprocessedNodes(root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     write(stdout, "(A)") "Done."
     write(stdout, "(A)") repeat("-", 80)
 

@@ -6,11 +6,13 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Routines to deal with HSD species lists
 module dftbp_dftbplus_specieslist
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : elementSymbol
+  use dftbp_common_status, only : TStatus
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_hsdutils, only : getChildValue, getChild
   implicit none
@@ -30,16 +32,19 @@ contains
 
 
   !> Read a list of real valued species data
-  subroutine readSpeciesListReal(node, speciesNames, array, default, conv)
+  subroutine readSpeciesListReal(node, speciesNames, array, errStatus, default, conv)
 
     !> Node to process
     type(fnode), pointer :: node
 
+    !> Names of all species
+    character(len=*), intent(in) :: speciesNames(:)
+
     !> Data array to read
     real(dp), intent(out) :: array(:)
 
-    !> Names of all species
-    character(len=*), intent(in) :: speciesNames(:)
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Data array to read
     real(dp), intent(in), optional :: default(:)
@@ -59,18 +64,23 @@ contains
 
     if (present(default)) then
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp)*fact)
+        call getChildValue(node, speciesNames(iSp), array(iSp), errStatus,&
+            & default=default(iSp)*fact)
+        @:PROPAGATE_ERROR(errStatus)
       end do
     else
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp))
+        call getChildValue(node, speciesNames(iSp), array(iSp), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end do
     end if
 
     do iSp = 1, size(elementSymbol)
-      call getChild(node, elementSymbol(iSp), child, requested=.false.)
+      call getChild(node, elementSymbol(iSp), child, errStatus, requested=.false.)
+      @:PROPAGATE_ERROR(errStatus)
       if (associated(child)) then
-        call getChildValue(child, "", dummy)
+        call getChildValue(child, "", dummy, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end do
 
@@ -82,16 +92,19 @@ contains
 
 
   !> Read a list of integer valued species data
-  subroutine readSpeciesListInt(node, speciesNames, array, default)
+  subroutine readSpeciesListInt(node, speciesNames, array, errStatus, default)
 
     !> Node to process
     type(fnode), pointer :: node
 
+    !> Names of all species
+    character(len=*), intent(in) :: speciesNames(:)
+
     !> Data array to read
     integer, intent(out) :: array(:)
 
-    !> Names of all species
-    character(len=*), intent(in) :: speciesNames(:)
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Data array to read
     integer, intent(in), optional :: default(:)
@@ -102,18 +115,22 @@ contains
 
     if (present(default)) then
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp))
+        call getChildValue(node, speciesNames(iSp), array(iSp), errStatus, default=default(iSp))
+        @:PROPAGATE_ERROR(errStatus)
       end do
     else
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp))
+        call getChildValue(node, speciesNames(iSp), array(iSp), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end do
     end if
 
     do iSp = 1, size(elementSymbol)
-      call getChild(node, elementSymbol(iSp), child, requested=.false.)
+      call getChild(node, elementSymbol(iSp), child, errStatus, requested=.false.)
+      @:PROPAGATE_ERROR(errStatus)
       if (associated(child)) then
-        call getChildValue(child, "", dummy)
+        call getChildValue(child, "", dummy, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end do
 

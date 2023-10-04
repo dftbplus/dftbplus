@@ -10,7 +10,9 @@
 program setupgeom
   use dftbp_common_globalenv
   use dftbp_common_release, only : releaseYear
+  use dftbp_common_status, only : TStatus
   use dftbp_io_formatout, only : printDftbHeader
+  use dftbp_io_message, only : error
   use transporttools_inputdata, only : TInputData
   use transporttools_parser, only : parseHsdInput
 #:if WITH_MPI
@@ -21,6 +23,7 @@ program setupgeom
   implicit none
 
   type(TInputData), allocatable :: input
+  type(TStatus) :: errStatus
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -37,7 +40,8 @@ program setupgeom
 #:endif
   call printDftbHeader('(setupgeom)', releaseYear)
   allocate(input)
-  call parseHsdInput(input)
+  call parseHsdInput(input, errStatus)
+  if (errStatus%hasError()) call error(errStatus%message)
   deallocate(input)
   call destructGlobalEnv()
 

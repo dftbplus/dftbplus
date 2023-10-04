@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 #:set UNIT_CONVERSION_RANKS = [0, 1, 2]
 
@@ -13,6 +14,7 @@
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
@@ -83,10 +85,13 @@ contains
 
 
   !> Prints a warning message about unprocessed nodes
-  subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
+  subroutine warnUnprocessedNodes(node, errStatus, tIgnoreUnprocessed, nodeList)
 
     !> Root element of the tree to investigate
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> if anything left after processing should be flagged
     logical, intent(in), optional :: tIgnoreUnprocessed
@@ -126,7 +131,7 @@ contains
       tIgnoreUnprocessed0 = .false.
     end if
     if (.not. tIgnoreUnprocessed0 .and. (ll > 0)) then
-      call error("Code halting due to the presence of errors in dftb_in file.")
+      @:RAISE_ERROR(errStatus, -1, "Code halting due to the presence of errors in dftb_in file.")
     end if
 
   end subroutine warnUnprocessedNodes
@@ -217,7 +222,7 @@ contains
   !>
   !> Note: if the number of the modifiers found differs from the size of the modifiers array, the
   !> program stops with error.
-  subroutine splitModifier(modifier, child, modifiers)
+  subroutine splitModifier(modifier, child, modifiers, errStatus)
 
     !> The list of modifers as a string.
     character(len=*), intent(in) :: modifier
@@ -228,6 +233,9 @@ contains
     !>  Array of the modifiers, occurring in modifer.
     type(string), intent(inout) :: modifiers(:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     integer :: nModif
     integer :: ii, iStart, iEnd
 
@@ -236,16 +244,18 @@ contains
     do ii = 1, nModif - 1
       iEnd = index(modifier(iStart:), sepModifier)
       if (iEnd == 0) then
-        call detailedError(child, "Invalid number of specified modifiers (" &
-            &// i2c(ii) // " instead of " // i2c(nModif) // ").")
+        call detailedError(child, "Invalid number of specified modifiers (" // i2c(ii)&
+            & // " instead of " // i2c(nModif) // ").", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iEnd = iStart + iEnd - 1
       modifiers(ii) = trim(adjustl(modifier(iStart:iEnd-1)))
       iStart = iEnd + 1
     end do
     if (index(modifier(iStart:), sepModifier) /= 0) then
-      call detailedError(child, "Invalid number of specified modifiers (&
-          &more than " // i2c(nModif) // ").")
+      call detailedError(child, "Invalid number of specified modifiers (more than " // i2c(nModif)&
+          & // ").", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     modifiers(nModif) = trim(adjustl(modifier(iStart:)))
 
@@ -258,7 +268,8 @@ contains
   !>
   !> Stops by calling detailedError(), if modifier is not found among the passed units.
   !>
-  subroutine convertUnitHsdR${RANK}$(modifier, units, child, convertValue, replace, changed)
+  subroutine convertUnitHsdR${RANK}$(modifier, units, child, convertValue, errStatus, replace,&
+      & changed)
 
     !> Modifier (name of the unit to use)
     character(len=*), intent(in) :: modifier
@@ -272,12 +283,14 @@ contains
     !> Value to convert, converted value on return.
     real(dp), intent(inout) :: convertValue${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> If childs value should replaced by the new value (default: .false.)
     logical, intent(in), optional :: replace
 
     !> Contains flag on return, if childs value was changed.
     logical, intent(out), optional :: changed
-
 
     logical :: replace_, changed_
     integer :: status
@@ -292,10 +305,12 @@ contains
     if (changed_) then
       call convertUnit(units, modifier, convertValue, status)
       if (status /= unitConvStat%ok) then
-        call detailedError(child, MSG_INVALID_MODIFIER // modifier)
+        call detailedError(child, MSG_INVALID_MODIFIER // modifier, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       if (replace_) then
-        call setChildValue(child, "", convertValue, .true.)
+        call setChildValue(child, "", convertValue, errStatus, .true.)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end if
 
@@ -308,7 +323,7 @@ contains
 
 
   !> Returns a descendant of a given node.
-  subroutine getDescendant(root, path, child, requested, processed, parent)
+  subroutine getDescendant(root, path, child, errStatus, requested, processed, parent)
 
     !> Node to seek the descendants of
     type(fnode), pointer :: root
@@ -319,6 +334,9 @@ contains
 
     !> Pointer to the child on return or null pointer if not found
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Should the program stop, if specified descendant is not present (default: .false.)
     logical, intent(in), optional :: requested
@@ -353,8 +371,8 @@ contains
     iPos = index(path, pathSep)
     do while (iPos /= 0 .and. associated(child))
       par => child
-      call getChild(par, path(iStart:iStart+iPos-2), child, &
-          &requested=tRequested)
+      call getChild(par, path(iStart:iStart+iPos-2), child, errStatus, requested=tRequested)
+      @:PROPAGATE_ERROR(errStatus)
       if (.not. associated(child)) then
         exit
       end if
@@ -366,7 +384,8 @@ contains
     end do
     if (associated(child)) then
       par => child
-      call getChild(par, path(iStart:), child, requested=tRequested)
+      call getChild(par, path(iStart:), child, errStatus, requested=tRequested)
+      @:PROPAGATE_ERROR(errStatus)
       if (associated(child) .and. tUnprocessed) then
         call setUnprocessed(child)
       end if

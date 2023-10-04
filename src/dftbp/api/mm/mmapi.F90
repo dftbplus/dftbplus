@@ -14,6 +14,7 @@ module dftbp_mmapi
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
+  use dftbp_common_status, only : TStatus
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -28,8 +29,8 @@ module dftbp_mmapi
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
   use dftbp_io_charmanip, only : newline
+  use dftbp_io_message, only : error
   use dftbp_io_hsdutils, only : getChild
-  use dftbp_io_message, only: error
   use dftbp_type_linkedlist, only : TListString, init, append, get, len, asArray
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
@@ -200,10 +201,14 @@ contains
     !> Pointer to root node
     type(fnode), pointer, intent(out) :: root
 
+    ! Error status
+    type(TStatus) :: errStatus
+
     if (.not. associated(this%hsdTree)) then
       call error("Input has not been created yet!")
     end if
-    call getChild(this%hsdTree, rootTag, root)
+    call getChild(this%hsdTree, rootTag, root, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end subroutine TDftbPlusInput_getRootNode
 
@@ -359,9 +364,13 @@ contains
     !> Input containing the tree representation of the parsed HSD file.
     type(TDftbPlusInput), intent(out) :: input
 
+    ! Error status
+    type(TStatus) :: errStatus
+
     call this%checkInit()
 
-    call readHsdFile(fileName, input%hsdTree)
+    call readHsdFile(fileName, input%hsdTree, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
   end subroutine TDftbPlus_getInputFromFile
 
@@ -398,10 +407,15 @@ contains
     type(TParserFlags) :: parserFlags
     type(TInputData) :: inpData
 
+    ! Error status
+    type(TStatus) :: errStatus
+
     call this%checkInit()
 
-    call parseHsdTree(input%hsdTree, inpData, parserFlags)
-    call doPostParseJobs(input%hsdTree, parserFlags)
+    call parseHsdTree(input%hsdTree, inpData, parserFlags, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
+    call doPostParseJobs(input%hsdTree, parserFlags, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
     call this%main%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator

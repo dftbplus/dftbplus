@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
@@ -23,7 +24,7 @@ module dftbp_io_hsdutils
   use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrStart, attrModifier, attrName,&
       & getHSDPath, getNodeHSDName
   use dftbp_io_indexselection, only : getIndexSelection
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_io_tokenreader, only : TOKEN_EOS, TOKEN_ERROR, LOGICAL_TRUE, LOGICAL_FALSE, TOKEN_OK,&
       & getNextToken
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
@@ -178,7 +179,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as logical.
-  subroutine getChVal_logical(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_logical(node, name, variableValue, errStatus, default, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -188,6 +189,9 @@ contains
 
     !> Value on return
     logical, intent(out) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     logical, intent(in), optional :: default
@@ -210,22 +214,25 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr)
-      call checkError(child2, iErr, "Invalid logical value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid logical value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -235,7 +242,8 @@ contains
 
 
   !> Returns the value (the child) of a child node as logical.
-  subroutine getChVal_logicalR1(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_logicalR1(node, name, variableValue, errStatus, default, nItem, modifier,&
+      & child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -245,6 +253,9 @@ contains
 
     !> Value on return
     logical, intent(out) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     logical, intent(in), optional :: default(:)
@@ -279,17 +290,20 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr, nReadItem)
-      call checkError(child2, iErr, "Invalid logical value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid logical value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(variableValue)) then
-        call detailedError(node, MSG_MISSING_VALUES)
+        call detailedError(node, MSG_MISSING_VALUES, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -300,9 +314,10 @@ contains
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call setAttribute(child2, attrProcessed, "")
     if (present(child)) then
@@ -313,7 +328,8 @@ contains
 
 
   !> Returns the value (the child) of a child node as string.
-  subroutine getChVal_string(node, name, variableValue, default, modifier, child, multiple)
+  subroutine getChVal_string(node, name, variableValue, errStatus, default, modifier, child,&
+      & multiple)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -323,6 +339,9 @@ contains
 
     !> Value on return
     type(string), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     character(len=*), intent(in), optional :: default
@@ -356,16 +375,18 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (tMultiple) then
         variableValue = unquote(trim(adjustl(char(text))))
       else
         iStart = 1
         call getNextToken(char(text), variableValue, iStart, iErr)
-        call checkError(child2, iErr, "Invalid string value")
-        call checkNoData(child2, char(text), iStart)
+        call checkError(child2, iErr, "Invalid string value", errStatus)
+        call checkNoData(child2, char(text), iStart, errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -373,9 +394,10 @@ contains
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, default, .false., child=child2)
+      call setChildValue(node, name, default, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -385,7 +407,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as real.
-  subroutine getChVal_real(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_real(node, name, variableValue, errStatus, default, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -395,6 +417,9 @@ contains
 
     !> Value on return
     real(dp), intent(out) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default
@@ -417,22 +442,25 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr)
-      call checkError(child2, iErr, "Invalid real value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid real value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call setAttribute(child2, attrProcessed, "")
     if (present(child)) then
@@ -443,7 +471,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as a rank one real array.
-  subroutine getChVal_realR1(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_realR1(node, name, variableValue, errStatus, default, nItem, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -453,6 +481,9 @@ contains
 
     !> Value on return
     real(dp), intent(out) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default(:)
@@ -487,17 +518,20 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr, nReadItem)
-      call checkError(child2, iErr, "Invalid real value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid real value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(variableValue)) then
-        call detailedError(node, MSG_MISSING_VALUES)
+        call detailedError(node, MSG_MISSING_VALUES, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -508,9 +542,10 @@ contains
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call setAttribute(child2, attrProcessed, "")
     if (present(child)) then
@@ -525,7 +560,7 @@ contains
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
   !> are pretty printed. For higher ranked arrays the rank one version should be used with some
   !> reshaping after.
-  subroutine getChVal_realR2(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_realR2(node, name, variableValue, errStatus, default, nItem, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -535,6 +570,9 @@ contains
 
     !> Value on return
     real(dp), intent(out) :: variableValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     real(dp), intent(in), optional :: default(:,:)
@@ -564,21 +602,23 @@ contains
     nReadItem = 0
     variableValue = 0.0_dp
     if (present(default)) then
-      call getChildValue(node, name, buffer, reshape(default, shape(buffer)), &
-          &nReadItem, modifier=modif, child=child2)
+      call getChildValue(node, name, buffer, errStatus, reshape(default, shape(buffer)), nReadItem,&
+          & modifier=modif, child=child2)
     else
-      call getChildValue(node, name, buffer, nItem=nReadItem, modifier=modif, &
-          &child=child2)
+      call getChildValue(node, name, buffer, errStatus, nItem=nReadItem, modifier=modif,&
+          & child=child2)
     end if
     if (present(nItem)) then
       nItem = nReadItem
     elseif (nReadItem /= size(variableValue)) then
-      call detailedError(node, MSG_MISSING_VALUES)
+      call detailedError(node, MSG_MISSING_VALUES, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(modifier)) then
       modifier = modif
     elseif (len(modif) > 0) then
-      call detailedError(child2, MSG_NOMODIFIER)
+      call detailedError(child2, MSG_NOMODIFIER, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     variableValue(:,:) = reshape(buffer, shape(variableValue))
     if (present(child)) then
@@ -589,7 +629,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as complex.
-  subroutine getChVal_complex(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_complex(node, name, variableValue, errStatus, default, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -599,6 +639,9 @@ contains
 
     !> Value on return
     complex(dp), intent(out) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     complex(dp), intent(in), optional :: default
@@ -621,22 +664,25 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr)
-      call checkError(child2, iErr, "Invalid real value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid real value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call setAttribute(child2, attrProcessed, "")
     if (present(child)) then
@@ -647,7 +693,8 @@ contains
 
 
   !> Returns the value (the child) of a child node as a rank one complex array.
-  subroutine getChVal_complexR1(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_complexR1(node, name, variableValue, errStatus, default, nItem, modifier,&
+      & child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -657,6 +704,9 @@ contains
 
     !> Value on return
     complex(dp), intent(out) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     complex(dp), intent(in), optional :: default(:)
@@ -691,17 +741,20 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr, nReadItem)
-      call checkError(child2, iErr, "Invalid complex value '" // trim(char(text)) // "'")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid complex value '" // trim(char(text)) // "'", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(variableValue)) then
-        call detailedError(node, MSG_MISSING_VALUES)
+        call detailedError(node, MSG_MISSING_VALUES, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -712,9 +765,10 @@ contains
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     call setAttribute(child2, attrProcessed, "")
     if (present(child)) then
@@ -725,7 +779,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as integer.
-  subroutine getChVal_int(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_int(node, name, variableValue, errStatus, default, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -735,6 +789,9 @@ contains
 
     !> Value on return
     integer, intent(out) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default
@@ -757,22 +814,25 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr)
-      call checkError(child2, iErr, "Invalid integer variableValue")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid integer variableValue", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -782,7 +842,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as a rank one integer array.
-  subroutine getChVal_intR1(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_intR1(node, name, variableValue, errStatus, default, nItem, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -792,6 +852,9 @@ contains
 
     !> Value on return
     integer, intent(out) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default(:)
@@ -826,17 +889,20 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       iStart = 1
-      call getFirstTextChild(child2, text)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call getNextToken(char(text), variableValue, iStart, iErr, nReadItem)
-      call checkError(child2, iErr, "Invalid integer value")
-      call checkNoData(child2, char(text), iStart)
+      call checkError(child2, iErr, "Invalid integer value", errStatus)
+      call checkNoData(child2, char(text), iStart, errStatus)
       if (present(nItem)) then
         nItem = nReadItem
       elseif (nReadItem /= size(variableValue)) then
-        call detailedError(node, MSG_MISSING_VALUES)
+        call detailedError(node, MSG_MISSING_VALUES, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -847,9 +913,10 @@ contains
       if (present(modifier)) then
         modifier = ""
       end if
-      call setChildValue(node, name, variableValue, .false., child=child2)
+      call setChildValue(node, name, variableValue, errStatus, .false., child=child2)
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -863,7 +930,7 @@ contains
   !> This is just a wrapper around the rank one version, to make sure that two dimensional arrays
   !> are pretty printed. For higher ranked arrays the rank one version should be used with some
   !> reshaping after.
-  subroutine getChVal_intR2(node, name, variableValue, default, nItem, modifier, child)
+  subroutine getChVal_intR2(node, name, variableValue, errStatus, default, nItem, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -873,6 +940,9 @@ contains
 
     !> Value on return
     integer, intent(out) :: variableValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found
     integer, intent(in), optional :: default(:,:)
@@ -901,21 +971,23 @@ contains
 
     nReadItem = 0
     if (present(default)) then
-      call getChildValue(node, name, buffer, reshape(default, shape(buffer)), &
-          &nReadItem, modif, child=child2)
+      call getChildValue(node, name, buffer, errStatus, reshape(default, shape(buffer)), nReadItem,&
+          & modif, child=child2)
     else
-      call getChildValue(node, name, buffer, nItem=nReadItem, modifier=modif, &
-          &child=child2)
+      call getChildValue(node, name, buffer, errStatus, nItem=nReadItem, modifier=modif,&
+          & child=child2)
     end if
     if (present(nItem)) then
       nItem = nReadItem
     elseif (nReadItem /= size(variableValue)) then
-      call detailedError(node, MSG_MISSING_VALUES)
+      call detailedError(node, MSG_MISSING_VALUES, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(modifier)) then
       modifier = modif
     elseif (len(modif) > 0) then
-      call detailedError(child2, MSG_NOMODIFIER)
+      call detailedError(child2, MSG_NOMODIFIER, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     variableValue(:,:) = reshape(buffer, shape(variableValue))
     if (present(child)) then
@@ -931,7 +1003,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lString(node, name, variableValue, modifier, child)
+  subroutine getChVal_lString(node, name, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -941,6 +1013,9 @@ contains
 
     !> Value on return
     type(TListString), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -958,13 +1033,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lString_h(char(text), variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lString_h(char(text), variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -974,7 +1052,7 @@ contains
 
 
   !> Helper function for getChVal_lString to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lString_h(text, variableValue, node)
+  subroutine getChVal_lString_h(text, variableValue, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -984,6 +1062,9 @@ contains
 
     !> node for error handling
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     type(string) :: token
@@ -995,7 +1076,8 @@ contains
       call getNextToken(text, token, iStart, iErr)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid string")
+      call detailedError(node, "Invalid string", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lString_h
@@ -1007,7 +1089,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lReal(node, name, variableValue, modifier, child)
+  subroutine getChVal_lReal(node, name, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1017,6 +1099,9 @@ contains
 
     !> Value on return
     type(TListReal), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1035,13 +1120,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lReal_h(char(text), variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lReal_h(char(text), variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1051,14 +1139,18 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lReal_h(text, variableValue, node)
+  subroutine getChVal_lReal_h(text, variableValue, node, errStatus)
 
     !> text  Text to parse
     character(len=*), intent(in) :: text
 
     !> value Contains the value of the parsed text
     type(TListReal), intent(inout) :: variableValue
+
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     real(dp) :: buffer
@@ -1070,7 +1162,8 @@ contains
       call getNextToken(text, buffer, iStart, iErr)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid real value")
+      call detailedError(node, "Invalid real value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lReal_h
@@ -1082,7 +1175,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lRealR1(node, name, dim, variableValue, modifier, child)
+  subroutine getChVal_lRealR1(node, name, dim, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1096,6 +1189,9 @@ contains
     !> Value on return
     type(TListRealR1), intent(inout) :: variableValue
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
 
@@ -1113,13 +1209,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lRealR1_h(char(text), dim, variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lRealR1_h(char(text), dim, variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1129,7 +1228,7 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lRealR1_h(text, dim, variableValue, node)
+  subroutine getChVal_lRealR1_h(text, dim, variableValue, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -1142,6 +1241,9 @@ contains
 
     !> nodes for error handling
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     real(dp) :: buffer(dim)
@@ -1154,9 +1256,11 @@ contains
       call getNextToken(text, buffer, iStart, iErr, nItem)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid real value")
+      call detailedError(node, "Invalid real value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (iErr == TOKEN_EOS .and. nItem /= 0) then
-      call detailedError(node, "Unexpected end of data")
+      call detailedError(node, "Unexpected end of data", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lRealR1_h
@@ -1168,7 +1272,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lComplex(node, name, variableValue, modifier, child)
+  subroutine getChVal_lComplex(node, name, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1178,6 +1282,9 @@ contains
 
     !> Value on return
     type(TListComplex), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1196,13 +1303,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lComplex_h(char(text), variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lComplex_h(char(text), variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1212,14 +1322,18 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lComplex_h(text, variableValue, node)
+  subroutine getChVal_lComplex_h(text, variableValue, node, errStatus)
 
     !> text  Text to parse
     character(len=*), intent(in) :: text
 
     !> value Contains the value of the parsed text
     type(TListComplex), intent(inout) :: variableValue
+
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     complex(dp) :: buffer
@@ -1231,7 +1345,8 @@ contains
       call getNextToken(text, buffer, iStart, iErr)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid complex value")
+      call detailedError(node, "Invalid complex value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lComplex_h
@@ -1243,7 +1358,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lComplexR1(node, name, dim, variableValue, modifier, child)
+  subroutine getChVal_lComplexR1(node, name, dim, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1257,6 +1372,9 @@ contains
     !> Value on return
     type(TListComplexR1), intent(inout) :: variableValue
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
 
@@ -1274,13 +1392,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lComplexR1_h(char(text), dim, variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lComplexR1_h(char(text), dim, variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1290,7 +1411,7 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lComplexR1_h(text, dim, variableValue, node)
+  subroutine getChVal_lComplexR1_h(text, dim, variableValue, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -1304,6 +1425,9 @@ contains
     !> nodes for error handling
     type(fnode), pointer :: node
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     integer :: iStart, iErr
     complex(dp) :: buffer(dim)
     integer :: nItem
@@ -1315,9 +1439,11 @@ contains
       call getNextToken(text, buffer, iStart, iErr, nItem)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid real value")
+      call detailedError(node, "Invalid real value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (iErr == TOKEN_EOS .and. nItem /= 0) then
-      call detailedError(node, "Unexpected end of data")
+      call detailedError(node, "Unexpected end of data", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lComplexR1_h
@@ -1329,7 +1455,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lInt(node, name, variableValue, modifier, child)
+  subroutine getChVal_lInt(node, name, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1339,6 +1465,9 @@ contains
 
     !> Value on return
     type(TListInt), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1357,13 +1486,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lInt_h(char(text), variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lInt_h(char(text), variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1373,7 +1505,7 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lInt_h(text, variableValue, node)
+  subroutine getChVal_lInt_h(text, variableValue, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -1381,8 +1513,11 @@ contains
     !> Contains the value of the parsed text
     type(TListInt), intent(inout) :: variableValue
 
-    !> node for error handling
+    !> Node for error handling
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     integer :: buffer
@@ -1394,7 +1529,8 @@ contains
       call getNextToken(text, buffer, iStart, iErr)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid real value")
+      call detailedError(node, "Invalid real value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lInt_h
@@ -1406,7 +1542,7 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lIntR1(node, name, dim, variableValue, modifier, child)
+  subroutine getChVal_lIntR1(node, name, dim, variableValue, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1419,6 +1555,9 @@ contains
 
     !> Modifier of the child on return
     type(TListIntR1), intent(inout) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Pointer to the child node (with the spec. name) on return
     type(string), intent(inout), optional :: modifier
@@ -1437,13 +1576,16 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lIntR1_h(char(text), dim, variableValue, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lIntR1_h(char(text), dim, variableValue, child2, errStatus)
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1453,19 +1595,22 @@ contains
 
 
   !> Helper function for getChVal_lReal to avoid string to character conversion in the do-loop.
-  subroutine getChVal_lIntR1_h(text, dim, variableValue, node)
+  subroutine getChVal_lIntR1_h(text, dim, variableValue, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
 
-    !> buffer sizing
+    !> Buffer sizing
     integer, intent(in) :: dim
 
     !> Contains the value of the parsed text
     type(TListIntR1), intent(inout) :: variableValue
 
-    !> node for error handling
+    !> Node for error handling
     type(fnode), pointer :: node
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     integer :: iStart, iErr
     integer :: buffer(dim)
@@ -1478,9 +1623,11 @@ contains
       call getNextToken(text, buffer, iStart, iErr, nItem)
     end do
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, "Invalid real value")
+      call detailedError(node, "Invalid real value", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (iErr == TOKEN_EOS .and. nItem /= 0) then
-      call detailedError(node, "Unexpected end of data")
+      call detailedError(node, "Unexpected end of data", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChVal_lIntR1_h
@@ -1493,8 +1640,8 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lIntR1RealR1(node, name, dimInt, valueInt, dimReal, valueReal, modifier, &
-      & child)
+  subroutine getChVal_lIntR1RealR1(node, name, dimInt, valueInt, dimReal, valueReal, errStatus,&
+      & modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1513,6 +1660,9 @@ contains
 
     !> List of real array on return
     type(TListRealR1), intent(inout) :: valueReal
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1533,17 +1683,21 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lIntR1RealR1_h(char(text), dimInt, valueInt, &
-          &dimReal, valueReal, child2)
+      call getFirstTextChild(child2, text, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      call getChVal_lIntR1RealR1_h(char(text), dimInt, valueInt, dimReal, valueReal, child2,&
+          & errStatus)
       if (len(valueInt) /= len(valueReal)) then
-        call detailedError(node, "Unexpected end of data")
+        call detailedError(node, "Unexpected end of data", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1553,7 +1707,7 @@ contains
 
 
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
-  subroutine getChVal_lIntR1RealR1_h(text, dimInt, valueInt, dimReal, valueReal, node)
+  subroutine getChVal_lIntR1RealR1_h(text, dimInt, valueInt, dimReal, valueReal, node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -1573,6 +1727,9 @@ contains
     !> for error handling
     type(fnode), pointer :: node
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     integer :: iStart, iErr
     real(dp) :: bufferReal(dimReal)
     integer :: bufferInt(dimInt)
@@ -1583,14 +1740,16 @@ contains
     do while (iErr == TOKEN_OK)
       call getNextToken(text, bufferInt, iStart, iErr, nItem)
       if (iErr == TOKEN_ERROR) then
-        call detailedError(node, "Invalid integer")
+        call detailedError(node, "Invalid integer", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       elseif (iErr == TOKEN_EOS .and. nItem /= 0) then
-        call detailedError(node, "Unexpected end of data")
+        call detailedError(node, "Unexpected end of data", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       if (iErr == TOKEN_OK) then
         call append(valueInt, bufferInt)
         call getNextToken(text, bufferReal, iStart, iErr, nItem)
-        call checkError(node, iErr, "Invalid real")
+        call checkError(node, iErr, "Invalid real", errStatus)
         if (iErr == TOKEN_OK) then
           call append(valueReal, bufferReal)
         end if
@@ -1607,8 +1766,8 @@ contains
   !> array), the setting of defaults for list types is not allowed. The presence of the child must
   !> be explicitly queried in the caller routine and an eventual default setting must be set with
   !> an explicit setChildValue call.
-  subroutine getChVal_lStringIntR1RealR1(node, name, valueStr, dimInt, valueInt, dimReal, &
-      & valueReal, modifier, child)
+  subroutine getChVal_lStringIntR1RealR1(node, name, valueStr, dimInt, valueInt, dimReal,&
+      & valueReal, errStatus, modifier, child)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1631,6 +1790,9 @@ contains
     !> List of real array on return
     type(TListRealR1), intent(inout) :: valueReal
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
 
@@ -1650,18 +1812,20 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
-      call getFirstTextChild(child2, text)
-      call getChVal_lStringIntR1RealR1_h(char(text), valueStr, &
-          &dimInt, valueInt, dimReal, valueReal, child2)
-      if (len(valueStr) /= len(valueInt) &
-          &.or. len(valueInt) /= len(valueReal)) then
-        call detailedError(node, "Unexpected end of data")
+      call getFirstTextChild(child2, text, errStatus)
+      call getChVal_lStringIntR1RealR1_h(char(text), valueStr, dimInt, valueInt, dimReal,&
+          & valueReal, child2, errStatus)
+      if (len(valueStr) /= len(valueInt) .or. len(valueInt) /= len(valueReal)) then
+        call detailedError(node, "Unexpected end of data", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (present(child)) then
       child => child2
@@ -1671,8 +1835,8 @@ contains
 
 
   !> Helper function for getChVal_lIntR1RealR1 to avoid string to char conversion in the do-loop.
-  subroutine getChVal_lStringIntR1RealR1_h(text, valueStr, dimInt, valueInt, dimReal, valueReal, &
-      & node)
+  subroutine getChVal_lStringIntR1RealR1_h(text, valueStr, dimInt, valueInt, dimReal, valueReal,&
+      & node, errStatus)
 
     !> Text to parse
     character(len=*), intent(in) :: text
@@ -1695,6 +1859,9 @@ contains
     !> for error handling
     type(fnode), pointer :: node
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     integer :: iStart, iErr
     real(dp) :: bufferReal(dimReal)
     integer :: bufferInt(dimInt)
@@ -1706,18 +1873,19 @@ contains
     do while (iErr == TOKEN_OK)
       call getNextToken(text, bufferStr, iStart, iErr)
       if (iErr == TOKEN_ERROR) then
-        call detailedError(node, "Invalid string")
+        call detailedError(node, "Invalid string", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       elseif (iErr == TOKEN_EOS) then
         exit
       end if
       call append(valueStr, char(bufferStr))
 
       call getNextToken(text, bufferInt, iStart, iErr, nItem)
-      call checkError(node, iErr, "Invalid integer")
+      call checkError(node, iErr, "Invalid integer", errStatus)
       call append(valueInt, bufferInt)
 
       call getNextToken(text, bufferReal, iStart, iErr, nItem)
-      call checkError(node, iErr, "Invalid real")
+      call checkError(node, iErr, "Invalid real", errStatus)
       call append(valueReal, bufferReal)
     end do
 
@@ -1728,7 +1896,7 @@ contains
   !>
   !> Caveat: If allowEmptyValue is set to .true. and the child has no subnodes (empty value) then
   !> the returned value is an unassociated pointer
-  subroutine getChVal_node(node, name, variableValue, default, modifier, child, list, &
+  subroutine getChVal_node(node, name, variableValue, errStatus, default, modifier, child, list,&
       & allowEmptyValue, dummyValue)
 
     !> The node to investigate.
@@ -1739,6 +1907,9 @@ contains
 
     !> Value on return
     type(fnode), pointer :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Default value for the child, if child is not found. If the empty string is passed as default
     !> value, the child is created but no value is added to it. The returned value pointer will be
@@ -1797,11 +1968,13 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child2, MSG_NOMODIFIER)
+        call detailedError(child2, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       variableValue => getFirstChild(child2)
       if ((.not. associated(variableValue)) .and. (.not. tAllowEmptyVal)) then
-        call detailedError(child2, "Missing value")
+        call detailedError(child2, "Missing value", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
@@ -1810,14 +1983,15 @@ contains
       end if
       if (len(default) > 0) then
         variableValue => createElement(tolower(default))
-        call setChildValue(node, name, variableValue, .false., child=child2, list=tList)
+        call setChildValue(node, name, variableValue, errStatus, .false., child=child2, list=tList)
         call setAttribute(variableValue, attrName, default)
       else
         nullify(variableValue)
-        call setChild(node, name, child2, .false., list=tList)
+        call setChild(node, name, child2, errStatus, .false., list=tList)
       end if
     else
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (associated(variableValue) .and. .not. tDummyValue) then
       if (getNodeType(variableValue) == ELEMENT_NODE) then
@@ -1833,7 +2007,7 @@ contains
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
   subroutine getSelectedAtomIndices(node, selectionExpr, speciesNames, species, selectedIndices,&
-        & selectionRange, indexRange)
+        & errStatus, selectionRange, indexRange)
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1850,6 +2024,9 @@ contains
     !> Integer list of atom indices on return.
     integer, allocatable, intent(out) :: selectedIndices(:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> The range of indices [from, to] available for selection. Default: [1, size(species)]
     integer, optional, intent(in) :: selectionRange(:)
 
@@ -1857,7 +2034,6 @@ contains
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: errStatus
     logical, allocatable :: selected(:)
     integer :: selectionRange_(2)
     integer :: ii
@@ -1872,8 +2048,9 @@ contains
     call getIndexSelection(selectionExpr, selectionRange_, selected, errStatus,&
         & indexRange=indexRange, speciesNames=speciesNames, species=species)
     if (errStatus%hasError()) then
-      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // errStatus%message)
+      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr)&
+          & // "': " // errStatus%message, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     selectedIndices = pack([(ii, ii = selectionRange_(1), selectionRange_(2))], selected)
     if (size(selectedIndices) == 0) then
@@ -1884,7 +2061,8 @@ contains
 
 
   !> Converts a string containing indices and ranges to a list of indices.
-  subroutine getSelectedIndices(node, selectionExpr, selectionRange, selectedIndices, indexRange)
+  subroutine getSelectedIndices(node, selectionExpr, selectionRange, selectedIndices, errStatus,&
+      & indexRange)
 
     !> Top node for detailed errors.
     type(fnode), pointer, intent(in) :: node
@@ -1898,11 +2076,13 @@ contains
     !> Integer list of atom indices on return.
     integer, allocatable, intent(out) :: selectedIndices(:)
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> The range of indices [from, to] available in general. Must contain the range specified in
     !> selectionRange. Default: selectionRange.
     integer, optional, intent(in) :: indexRange(:)
 
-    type(TStatus) :: errStatus
     logical, allocatable :: selected(:)
     integer :: ii
 
@@ -1910,8 +2090,9 @@ contains
     call getIndexSelection(selectionExpr, selectionRange, selected, errStatus,&
         & indexRange=indexRange)
     if (errStatus%hasError()) then
-      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr) &
-          & // "': " // errStatus%message)
+      call detailedError(node, "Invalid atom selection expression '" // trim(selectionExpr)&
+          & // "': " // errStatus%message, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     selectedIndices = pack([(ii, ii = selectionRange(1), selectionRange(2))], selected)
     if (size(selectedIndices) == 0) then
@@ -1922,7 +2103,7 @@ contains
 
 
   !> Returns a child node with a specified name
-  subroutine getChild(node, name, child, requested, modifier)
+  subroutine getChild(node, name, child, errStatus, requested, modifier)
 
     !> Node to investigate
     type(fnode), pointer :: node
@@ -1932,6 +2113,9 @@ contains
 
     !> Contains a pointer to the child on return
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> If true and child not found, error is issued
     logical, intent(in), optional :: requested
@@ -1956,11 +2140,13 @@ contains
       if (present(modifier)) then
         modifier = modif
       elseif (len(modif) > 0) then
-        call detailedError(child, MSG_NOMODIFIER)
+        call detailedError(child, MSG_NOMODIFIER, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
       call setAttribute(child, attrProcessed, "")
     elseif (tRequested) then
-      call detailedError(node, MSG_MISSING_FIELD // name)
+      call detailedError(node, MSG_MISSING_FIELD // name, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine getChild
@@ -1975,7 +2161,7 @@ contains
     !> Name of the children to look for
     character(len=*), intent(in) :: name
 
-    !> List of the children.
+    !> List of the children
     type(fnodeList), pointer :: children
 
     type(fnode), pointer :: child
@@ -1991,7 +2177,7 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_logical(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_logical(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2001,6 +2187,9 @@ contains
 
     !> Value to set
     logical, intent(in) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2022,8 +2211,9 @@ contains
     end if
 
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .false., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2035,7 +2225,7 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_logicalR1(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_logicalR1(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2045,6 +2235,9 @@ contains
 
     !> Value to set
     logical, intent(in) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2066,8 +2259,9 @@ contains
     end if
 
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .false., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2175,7 +2369,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
-  subroutine setChVal_real(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_real(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2185,6 +2379,9 @@ contains
 
     !> Value to set
     real(dp), intent(in) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2206,8 +2403,9 @@ contains
     end if
 
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .false., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2259,7 +2457,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
-  subroutine setChVal_realR1(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_realR1(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2269,6 +2467,9 @@ contains
 
     !> Value to set
     real(dp), intent(in) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2289,8 +2490,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2360,7 +2562,7 @@ contains
   !>
   !> This subroutines assumes, that a real can be represented as text with less than nCharReal
   !> characters.
-  subroutine setChVal_realR2(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_realR2(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> node to process from
     type(fnode), pointer :: node
@@ -2370,6 +2572,9 @@ contains
 
     !> Value to set
     real(dp), intent(in) :: variableValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2391,8 +2596,9 @@ contains
     end if
 
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2452,7 +2658,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
-  subroutine setChVal_complex(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_complex(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2462,6 +2668,9 @@ contains
 
     !> Value to set
     complex(dp), intent(in) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2483,7 +2692,9 @@ contains
     end if
 
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .false., tReplace, child2, variableValue=char(strBuffer))
+    call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2542,7 +2753,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that a real can be represented as text with less than
   !> nCharReal characters.
-  subroutine setChVal_complexR1(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_complexR1(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2552,6 +2763,9 @@ contains
 
     !> Value to set
     complex(dp), intent(in) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2572,7 +2786,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2638,7 +2854,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
-  subroutine setChVal_int(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_int(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2648,6 +2864,9 @@ contains
 
     !> Value to set
     integer, intent(in) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2668,8 +2887,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .false., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2721,7 +2941,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
-  subroutine setChVal_intR1(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_intR1(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2731,6 +2951,9 @@ contains
 
     !> Value to set
     integer, intent(in) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2750,8 +2973,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2821,7 +3045,7 @@ contains
   !>
   !> Caveat: This subroutines assumes, that an integer can be represented as text with less than
   !> nCharInt characters.
-  subroutine setChVal_intR2(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_intR2(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2831,6 +3055,9 @@ contains
 
     !> Value to set
     integer, intent(in) :: variableValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2851,8 +3078,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -2909,7 +3137,8 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_char(node, name, variableValue, replace, child, omitQuotes, modifier)
+  subroutine setChVal_char(node, name, variableValue, errStatus, replace, child, omitQuotes,&
+      & modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2919,6 +3148,9 @@ contains
 
     !> Value to set
     character(len=*), intent(in) :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2946,10 +3178,13 @@ contains
       tQuotes = .true.
     end if
     if (tQuotes) then
-      call createChild_local(node, name, .false., tReplace, child2, &
-          &variableValue='"'//variableValue//'"')
+      call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+          & variableValue='"'//variableValue//'"')
+      @:PROPAGATE_ERROR(errStatus)
     else
-      call createChild_local(node, name, .false., tReplace, child2, variableValue=variableValue)
+      call createChild_local(node, name, .false., tReplace, child2, errStatus,&
+          & variableValue=variableValue)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     if (present(child)) then
@@ -2963,7 +3198,7 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_charR1(node, name, variableValue, replace, child, modifier)
+  subroutine setChVal_charR1(node, name, variableValue, errStatus, replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -2973,6 +3208,9 @@ contains
 
     !> Value to set
     character(len=*), intent(in) :: variableValue(:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -2993,8 +3231,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(variableValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -3054,7 +3293,8 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_intR2RealR2(node, name, intValue, realValue, replace, child, modifier)
+  subroutine setChVal_intR2RealR2(node, name, intValue, realValue, errStatus, replace, child,&
+      & modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -3067,6 +3307,9 @@ contains
 
     !> Value for the reals
     real(dp), intent(in) :: realValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -3087,8 +3330,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(intValue, realValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -3162,8 +3406,8 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_charR1IntR2RealR2(node, name, charValue, intValue, realValue, replace, &
-      & child, modifier)
+  subroutine setChVal_charR1IntR2RealR2(node, name, charValue, intValue, realValue, errStatus,&
+      & replace, child, modifier)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -3179,6 +3423,9 @@ contains
 
     !> Value for the reals
     real(dp), intent(in) :: realValue(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -3199,8 +3446,9 @@ contains
       tReplace = .false.
     end if
     call getAsString(charValue, intValue, realValue, strBuffer)
-    call createChild_local(node, name, .true., tReplace, child2, &
-        &variableValue=char(strBuffer))
+    call createChild_local(node, name, .true., tReplace, child2, errStatus,&
+        & variableValue=char(strBuffer))
+    @:PROPAGATE_ERROR(errStatus)
     if (present(child)) then
       child => child2
     end if
@@ -3282,7 +3530,7 @@ contains
 
 
   !> Sets the value (child) of a child with given name.
-  subroutine setChVal_node(node, name, variableValue, replace, child, modifier, list)
+  subroutine setChVal_node(node, name, variableValue, errStatus, replace, child, modifier, list)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -3292,6 +3540,9 @@ contains
 
     !> Value to set
     type(fnode), pointer :: variableValue
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Replace if child with same name already exists
     logical, intent(in), optional :: replace
@@ -3318,7 +3569,8 @@ contains
     else
       tList = .false.
     end if
-    call createChild_local(node, name, tList, tReplace, child2)
+    call createChild_local(node, name, tList, tReplace, child2, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     if (associated(variableValue)) then
       dummy => appendChild(child2, variableValue)
     end if
@@ -3337,7 +3589,7 @@ contains
   !> If an empty string is provided as child name, no child is created, and the current node is
   !> replace instead. The pointer "node" becomes associated with the new node, since the old
   !> instance will be destroyed.
-  subroutine createChild_local(node, name, list, replace, child, variableValue)
+  subroutine createChild_local(node, name, list, replace, child, errStatus, variableValue)
 
     !> The node to investigate
     type(fnode), pointer :: node
@@ -3353,6 +3605,9 @@ contains
 
     !> Pointer to the created child on return
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Value to set (if empty, no child is appended to the created child)
     character(len=*), intent(in), optional :: variableValue
@@ -3388,7 +3643,8 @@ contains
       call getNodeName(dummy, parentname)
       if (char(parentname) == textNodeName) then
         call detailedError(node, "Node contains superfluous free text: '"&
-            & // trim(dummy%nodeValue) // "'")
+            & // trim(dummy%nodeValue) // "'", errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end if
 
@@ -3436,7 +3692,7 @@ contains
 
 
   !> Creates a child with the given name
-  subroutine setChild(node, name, child, replace, list, modifier)
+  subroutine setChild(node, name, child, errStatus, replace, list, modifier)
 
     !> Node to append the child to
     type(fnode), pointer :: node
@@ -3446,6 +3702,9 @@ contains
 
     !> Contains the pointer to the added child node on return
     type(fnode), pointer :: child
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> If an already existing child with the same name should be replaced
     logical, intent(in), optional :: replace
@@ -3476,7 +3735,8 @@ contains
         dummy => removeChild(node, child)
         call destroyNode(child)
       else
-        call detailedError(node, MSG_EXISTING_CHILD // name)
+        call detailedError(node, MSG_EXISTING_CHILD // name, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end if
     child => createElement(tolower(name))
@@ -3497,7 +3757,7 @@ contains
   !> node does not exist.
   !>
   !> Note: the document tree is normalized, every node has only one TEXT_NODE child.
-  subroutine getFirstTextChild(node, str)
+  subroutine getFirstTextChild(node, str, errStatus)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -3505,13 +3765,17 @@ contains
     !> String representation of the TEXT_NODE.
     type(string), intent(out) :: str
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: child
 
     child => getFirstChild(node)
     if (.not. associated(child)) then
       str = ""
     elseif (getNodeType(child) /= TEXT_NODE) then
-      call detailedError(child, "Invalid node type.")
+      call detailedError(child, "Invalid node type.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     else
       call getNodeValue(child, str)
     end if
@@ -3520,7 +3784,7 @@ contains
 
 
   !> Checks if error flag signals an error. If yes, raises error.
-  subroutine checkError(node, iErr, msg)
+  subroutine checkError(node, iErr, msg, errStatus)
 
     !> Node which the error flag was set for
     type(fnode), pointer :: node
@@ -3531,17 +3795,22 @@ contains
     !> Message to print, if error occurred
     character(len=*), intent(in) :: msg
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     if (iErr == TOKEN_ERROR) then
-      call detailedError(node, msg)
+      call detailedError(node, msg, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     elseif (iErr == TOKEN_EOS) then
-      call detailedError(node, "Unexpected end of data")
+      call detailedError(node, "Unexpected end of data", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine checkError
 
 
   !> Issues an error, if the string from a given position contains non-whitespace characters.
-  subroutine checkNoData(node, str, start)
+  subroutine checkNoData(node, str, start, errStatus)
 
     !> Node which is being processed (for error message)
     type(fnode), pointer :: node
@@ -3552,15 +3821,19 @@ contains
     !> Starting position, after which the string should not contain any whitespace characters.
     integer, intent(in) :: start
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     if (complementaryScan(str(start:), whiteSpaces) > 0) then
-      call detailedError(node, "Superfluous data found.")
+      call detailedError(node, "Superfluous data found.", errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine checkNoData
 
 
   !> Prints detailed error, including line number and path
-  subroutine detailedError(node, msg)
+  subroutine detailedError(node, msg, errStatus)
 
     !> Node where the error occurred.
     type(fnode), pointer :: node
@@ -3568,11 +3841,14 @@ contains
     !> Message to print
     character(len=*), intent(in) :: msg
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: str
 
     str = trim(msg)
     call appendPathAndLine(node, str)
-    call error(char(str) // newline)
+    @:RAISE_ERROR(errStatus, -1, char(str) // newline)
 
   end subroutine detailedError
 

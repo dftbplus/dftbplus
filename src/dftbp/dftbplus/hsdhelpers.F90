@@ -6,10 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include "common.fypp"
+#:include "error.fypp"
 
 !> HSD-parsing related helper routines.
 module dftbp_dftbplus_hsdhelpers
   use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_status, only : TStatus
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, readHsdFile, parseHsdTree
   use dftbp_extlibs_xmlf90, only : fnode, destroyNode
@@ -32,39 +34,49 @@ module dftbp_dftbplus_hsdhelpers
 contains
 
   !> Parses input file and returns initialised input structure
-  subroutine parseHsdInput(input)
+  subroutine parseHsdInput(input, errStatus)
 
     !> Input data parsed from the input file
     type(TInputData), intent(out) :: input
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: hsdTree
     type(TParserFlags) :: parserFlags
 
-    call ensureInputFilePresence()
+    call ensureInputFilePresence(errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     write(stdout, "(A)") "Reading input file '" // hsdFileName // "'"
-    call readHsdFile(hsdFileName, hsdTree)
-    call parseHsdTree(hsdTree, input, parserFlags)
-    call doPostParseJobs(hsdTree, parserFlags)
+    call readHsdFile(hsdFileName, hsdTree, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call parseHsdTree(hsdTree, input, parserFlags, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    call doPostParseJobs(hsdTree, parserFlags, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call destroyNode(hsdTree)
 
   end subroutine parseHsdInput
 
 
   !> Checks whether input file is present and stops if not
-  subroutine ensureInputFilePresence()
+  subroutine ensureInputFilePresence(errStatus)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     logical :: tExist
 
     inquire(file=hsdFileName, exist=tExist)
     if (.not. tExist) then
-      call error("No input file '" // hsdFileName // "' not found.")
+      @:RAISE_ERROR(errStatus, -1, "No input file '" // hsdFileName // "' not found.")
     end if
 
   end subroutine ensureInputFilePresence
 
 
   !> Execute parser related tasks (warning, processed input dumping) needed after parsing
-  subroutine doPostParseJobs(hsdTree, parserFlags)
+  subroutine doPostParseJobs(hsdTree, parserFlags, errStatus)
 
     !> Tree representation of the HSD input
     type(fnode), pointer, intent(in) :: hsdTree
@@ -72,23 +84,29 @@ contains
     !> Parser specific settings in the output
     type(TParserFlags), intent(in) :: parserFlags
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: root
 
-    call getChild(hsdTree, rootTag, root)
+    call getChild(hsdTree, rootTag, root, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(root, errStatus, tIgnoreUnprocessed=parserFlags%tIgnoreUnprocessed)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
-      call dumpHSD(hsdTree, hsdProcFileName)
+      call dumpHSD(hsdTree, hsdProcFileName, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" // hsdProcFileName&
           & // "'"
     end if
 
     ! Stop, if only parsing is required
     if (parserFlags%tStop) then
-      call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
+      @:RAISE_ERROR(errStatus, -1, "Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
 
   end subroutine doPostParseJobs
