@@ -26,7 +26,8 @@ module dftbp_mmapi
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
+  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild,&
+      & destroyNode
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_message, only: error
@@ -38,7 +39,7 @@ module dftbp_mmapi
   public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusAtomList
-  public :: TDftbPlusInput
+  public :: TDftbPlusInput, TDftbPlusInput_destruct
   public :: TQDepExtPotGen
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
@@ -66,6 +67,8 @@ module dftbp_mmapi
   contains
     !> obtain the root of the tree of input
     procedure :: getRootNode => TDftbPlusInput_getRootNode
+    !> finaliser
+    final :: TDftbPlusInput_final
   end type TDftbPlusInput
 
 
@@ -74,7 +77,7 @@ module dftbp_mmapi
     private
     type(TEnvironment), allocatable :: env
     type(TDftbPlusMain), allocatable :: main
-    logical :: tInit = .false.
+    logical :: isInitialised = .false.
   contains
     !> read input from a file
     procedure :: getInputFromFile => TDftbPlus_getInputFromFile
@@ -141,6 +144,8 @@ module dftbp_mmapi
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
     !> get the maximum cutoff distance
     procedure :: getCutOff => TDftbPlus_getCutOff
+    !> Finalizer
+    final :: TDftbPlus_final
   end type TDftbPlus
 
 
@@ -189,6 +194,31 @@ contains
     end if
 
   end subroutine getDftbPlusApi
+
+
+  !> Finalizer for the DFTB+ input type
+  subroutine TDftbPlusInput_final(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    call TDftbPlusInput_destruct(this)
+
+  end subroutine TDftbPlusInput_final
+
+
+  !> Destructs the DFTB+ input type
+  subroutine TDftbPlusInput_destruct(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    if (associated(this%hsdTree)) then
+      call destroyNode(this%hsdTree)
+      this%hsdTree => null()
+    end if
+
+  end subroutine TDftbPlusInput_destruct
 
 
   !> Returns the root node of the input, so that it can be further processed
@@ -280,7 +310,8 @@ contains
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
+  !> TDftbPlus_destruct() has been called in between the inits (or the instance had already been finalized).
+  !> Otherwise the subroutine will stop.
   !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
@@ -321,24 +352,36 @@ contains
     allocate(this%main)
     call TEnvironment_init(this%env)
     this%env%tAPICalculation = .true.
-    this%tInit = .true.
+    this%isInitialised = .true.
 
   end subroutine TDftbPlus_init
 
 
-  !> Destroys a DFTB+ instance
+  !> Finalizer for TDftbPlus.
+  subroutine TDftbPlus_final(this)
+
+    !> Instance
+    type(TDftbPlus), intent(inout) :: this
+
+    call TDftbPlus_destruct(this)
+
+  end subroutine TDftbPlus_final
+
+
+  !> Destroys a DFTB+ calculation instance
   subroutine TDftbPlus_destruct(this)
 
     !> Instance
     type(TDftbPlus), intent(inout) :: this
 
+    if (.not. this%isInitialised) return
     call this%checkInit()
 
     call this%main%destructProgramVariables()
     call this%env%destruct()
     deallocate(this%main, this%env)
     call destructGlobalEnv()
-    this%tInit = .false.
+    this%isInitialised = .false.
 
     #:if not INSTANCE_SAFE_BUILD
       nInstance_ = 0
@@ -814,7 +857,7 @@ contains
     !> Instance.
     class(TDftbPlus), intent(in) :: this
 
-    if (.not. this%tInit) then
+    if (.not. this%isInitialised) then
       call error("Received uninitialized TDftbPlus instance")
     end if
 

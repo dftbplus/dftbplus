@@ -147,6 +147,7 @@ int main()
       dftbp_get_input_from_file(&calculator, "dftb_in.H2O.hsd", &input);
     }
     dftbp_process_input(&calculator, &input);
+    dftbp_input_final(&input);
 
     /* Check whether the calculator was initialized with the correct nr. of atoms */
     natom = dftbp_get_nr_atoms(&calculator);

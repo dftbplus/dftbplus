@@ -41,11 +41,6 @@ program test_setSpeciesAndDependents
   real(dp), parameter :: Bohr__AA = 0.529177249_dp
   real(dp), parameter :: AA__Bohr = 1.0_dp / Bohr__AA
 
-  !> DFTB Objects
-  type(TDftbPlus) :: dftb
-  type(TDftbPlusInput) :: hsd_tree
-  character(*), parameter :: dftb_fname = 'dftb_in.hsd'
-
   !> Type for containing geometrical information
   !> One can write your own type, rather than copy DTFB+
   type TGeometry
@@ -67,123 +62,149 @@ program test_setSpeciesAndDependents
     integer :: final_step
   end type MDstatus_type
 
-#:if WITH_MPI
-  !> MPI variables
-  integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
-  integer :: providedThreading, rank, np, ierr
-  integer, parameter :: lead_id = 0
-  logical :: IO
-#:else
-  !> Dummy variables for serial code
-  integer, parameter :: MPI_COMM_WORLD = 0
-  integer, parameter :: lead_id = 0
-  logical :: IO = .true.
-#:endif
+  character(*), parameter :: dftb_fname = 'dftb_in.hsd'
 
-  ! Local
-  integer, parameter :: nSteps = 2
-  integer :: nAtoms
-
-  type(MDstatus_type):: MDstatus
-  type(TGeometry) :: geo
-  integer :: imd
-  real(dp) :: merminEnergy, cutOff
-  character(100) :: imd_lab
-  character(100) :: fname
-  real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
-
-#:if WITH_MPI
-  ! Initialise MPI environment
-  call mpi_init_thread(requiredThreading, providedThreading, ierr)
-  call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
-  call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
-  IO = (rank == lead_id)
-#:endif
-
-  nAtoms = get_number_of_atoms('structure_1.gen')
-  MDstatus = MDstatus_type(1, nSteps) ! initialise type
-  allocate(gradients(3,nAtoms))
-  allocate(grossCharges(nAtoms))
-
-  do imd = MDstatus%initial_step, MDstatus%final_step
-
-    if(IO) then
-      write(*,*) 'MD step ', imd, 'of ', MDstatus%final_step
-    end if
-
-    ! For every step, read in atomic positions from file
-    ! Equivalent to obtaining data externally, e.g. from an MD package
-    write(imd_lab, '(I0)') imd
-    fname = 'structure_'//trim(imd_lab)//'.gen'
-    call read_in_geo(trim(fname), geo)
   #:if WITH_MPI
-    call broadcast_geometry(MPI_COMM_WORLD, geo)
+    ! MPI variables
+    integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
+    integer, parameter :: lead_id = 0
+  #:else
+    ! Dummy variables for serial code
+    integer, parameter :: MPI_COMM_WORLD = 0
+    integer, parameter :: lead_id = 0
   #:endif
 
-    if (geo%nAtom /= nAtoms) then
-      write(*,*) 'Error: Number of atoms not conserved between MD steps'
-    #:if WITH_MPI
-      call mpi_abort(MPI_COMM_WORLD, 0, ierr)
-    #:else
-      stop
-    #:endif
-    endif
-
-    if(imd == MDstatus%initial_step) then
-    #:if WITH_MPI
-      call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
-    #:else
-      call TDftbPlus_init(dftb, output_unit)
-    #:endif
-
-      call initialise_dftbplus_tree(geo, dftb, hsd_tree)
-
-      ! Dump hsd tree to file "fort.1" if debugging
-      ! call dumpHsd(hsd_tree%hsdTree, 001)
-      call dftb%setupCalculator(hsd_tree)
-    endif
-
-    ! Update coordinates and lattice vectors
-    call dftb%setGeometry(geo%coords, geo%latVecs)
-
-    ! Update species order every step
-    call dftb%setSpeciesAndDependents(geo%speciesNames, geo%species)
-
-    ! get the cutoff
-    cutOff = dftb%getCutOff()
-
-    ! Do a total energy calculation
-    call dftb%getEnergy(merminEnergy)
-    call dftb%getGradients(gradients)
-    call dftb%getGrossCharges(grossCharges)
-
-    if (geo%tPeriodic) then
-      if (.not.allocated(stressTensor)) then
-        allocate(stressTensor(3,3))
-      end if
-      call dftb%getStressTensor(stressTensor)
-    else
-      if (allocated(stressTensor)) then
-        deallocate(stressTensor)
-      end if
-    end if
-
-    ! call output_forces_per_process(gradients, imd_lab)
-
-  enddo
-
-  ! Clean up
-  call TDftbPlus_destruct(dftb)
-
-  ! Write file for internal test system, using the last structure that was run
-  call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients, stressTensor=stressTensor,&
-      & grossCharges=grossCharges)
-
-#:if WITH_MPI
-  call mpi_finalize(ierr)
-#:endif
+  call main_()
 
 contains
+
+  !! Main test routine
+  !!
+  !! All non-constant variables must be defined here to ensure that they are all explicitely
+  !! deallocated before the program finishes.
+  !!
+  subroutine main_()
+
+    ! DFTB Objects
+    type(TDftbPlus) :: dftb
+    type(TDftbPlusInput) :: hsd_tree
+
+  #:if WITH_MPI
+    ! MPI variables
+    integer :: providedThreading, rank, np, ierr
+    logical :: IO
+  #:else
+    ! Dummy variables for serial code
+    logical :: IO
+  #:endif
+
+    integer, parameter :: nSteps = 2
+    integer :: nAtoms
+
+    type(MDstatus_type):: MDstatus
+    type(TGeometry) :: geo
+    integer :: imd
+    real(dp) :: merminEnergy, cutOff
+    character(100) :: imd_lab
+    character(100) :: fname
+    real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
+
+  #:if WITH_MPI
+    ! Initialise MPI environment
+    call mpi_init_thread(requiredThreading, providedThreading, ierr)
+    call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
+    call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
+    IO = (rank == lead_id)
+  #:else
+    IO = .true.
+  #:endif
+
+    nAtoms = get_number_of_atoms(io, 'structure_1.gen')
+    MDstatus = MDstatus_type(1, nSteps) ! initialise type
+    allocate(gradients(3,nAtoms))
+    allocate(grossCharges(nAtoms))
+
+    do imd = MDstatus%initial_step, MDstatus%final_step
+
+      if(IO) then
+        write(*,*) 'MD step ', imd, 'of ', MDstatus%final_step
+      end if
+
+      ! For every step, read in atomic positions from file
+      ! Equivalent to obtaining data externally, e.g. from an MD package
+      write(imd_lab, '(I0)') imd
+      fname = 'structure_'//trim(imd_lab)//'.gen'
+      call read_in_geo(io, trim(fname), geo)
+    #:if WITH_MPI
+      call broadcast_geometry(MPI_COMM_WORLD, geo)
+    #:endif
+
+      if (geo%nAtom /= nAtoms) then
+        write(*,*) 'Error: Number of atoms not conserved between MD steps'
+      #:if WITH_MPI
+        call mpi_abort(MPI_COMM_WORLD, 0, ierr)
+      #:else
+        stop
+      #:endif
+      endif
+
+      if(imd == MDstatus%initial_step) then
+      #:if WITH_MPI
+        call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
+      #:else
+        call TDftbPlus_init(dftb, output_unit)
+      #:endif
+
+        call initialise_dftbplus_tree(geo, dftb, hsd_tree)
+        call dftb%setupCalculator(hsd_tree)
+      endif
+
+      ! Update coordinates and lattice vectors
+      call dftb%setGeometry(geo%coords, geo%latVecs)
+
+      ! Update species order every step
+      call dftb%setSpeciesAndDependents(geo%speciesNames, geo%species)
+
+      ! get the cutoff
+      cutOff = dftb%getCutOff()
+
+      ! Do a total energy calculation
+      call dftb%getEnergy(merminEnergy)
+      call dftb%getGradients(gradients)
+      call dftb%getGrossCharges(grossCharges)
+
+      if (geo%tPeriodic) then
+        if (.not.allocated(stressTensor)) then
+          allocate(stressTensor(3,3))
+        end if
+        call dftb%getStressTensor(stressTensor)
+      else
+        if (allocated(stressTensor)) then
+          deallocate(stressTensor)
+        end if
+      end if
+
+      ! call output_forces_per_process(rank, gradients, imd_lab)
+
+    enddo
+
+    if (IO) then
+      ! Write file for internal test system, using the last structure that was run
+      call writeAutotestTag(merminEnergy=merminEnergy, cutOff=cutOff, gradients=gradients,&
+          & stressTensor=stressTensor, grossCharges=grossCharges)
+    end if
+
+    ! Note: the TDftbPlus instance must be explicited destroyed here, as in the next line the
+    ! MPI-framework is finalized, so that the finalizer of TDftbPlus would not be able to free
+    ! its internal MPI-communicators any more.
+    call TDftbPlus_destruct(dftb)
+
+  #:if WITH_MPI
+    call mpi_finalize(ierr)
+  #:endif
+
+  end subroutine main_
+
 
   !--------------------------------------------
   ! Utility routines based on DL_POLY V4.10 API
@@ -251,8 +272,11 @@ contains
 #:if WITH_MPI
 
   !> Output forces per process
-  subroutine output_forces_per_process(gradients, imd_lab)
+  subroutine output_forces_per_process(rank, gradients, imd_lab)
     implicit none
+
+    !> Rank of the process
+    integer, intent(in) :: rank
 
     !> atomic gradients = -forces
     real(dp), allocatable, intent(in) :: gradients(:,:)
@@ -307,8 +331,11 @@ contains
 
 
   !> Get number of atoms from DFTB+ geometry file
-  function get_number_of_atoms(fname, headerLines) result(nAtoms)
+  function get_number_of_atoms(io, fname, headerLines) result(nAtoms)
     implicit none
+
+    !> Whether current process is the io process
+    logical, intent(in) :: io
 
     !> File name to read
     character(*), intent(in) :: fname
@@ -322,7 +349,7 @@ contains
     ! Boundary condition label
     character(1) :: boundary
 
-    integer :: io_unit, ii
+    integer :: io_unit, ii, ierr
 
     if (IO) then
       open(newunit=io_unit,file=fname)
@@ -347,8 +374,11 @@ contains
 
 
   !> Read DFTB+ geometry file (on lead_id processor and broadcast, if MPI parallel)
-  subroutine read_in_geo(fname, geo, headerLines)
+  subroutine read_in_geo(io, fname, geo, headerLines)
     implicit none
+
+    !> Whether current process is the io process
+    logical, intent(in) :: io
 
     !> Name of file to read
     character(*), intent(in) :: fname

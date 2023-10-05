@@ -740,7 +740,7 @@ module dftbp_dftbplus_initprogram
     logical :: isLinResp
 
     !> Calculate Z vector for excited properties
-    logical :: tLinRespZVect
+    logical :: tLinRespZVect = .false.
 
     !> Data type for pp-RPA
     type(TppRPAcal), allocatable :: ppRPA

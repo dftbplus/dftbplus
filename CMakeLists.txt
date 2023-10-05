@@ -305,6 +305,9 @@ add_subdirectory(tools)
 #
 # Testing
 #
+if(TEST_WITH_VALGRIND)
+  find_program(VALGRIND valgrind REQUIRED)
+endif()
 string(CONFIGURE "${TEST_RUNNER_TEMPLATE}" TEST_RUNNER)
 if(NOT WITH_MPI)
   string(CONFIGURE "${MODES_RUNNER_TEMPLATE}" MODES_RUNNER)
