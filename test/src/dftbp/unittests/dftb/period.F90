@@ -15,28 +15,29 @@
       & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
   implicit none
+  type(TEnvironment) :: env
 
 #:contains
 
+#:block TEST_SUITE_INIT()
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
+#:endblock
+
+#:block TEST_SUITE_FINAL()
+  call env%destruct()
+  call destructGlobalEnv()
+#:endblock
+
+
   #:block TEST_FIXTURE("distributeAtoms")
 
-  	type(TEnvironment) :: env
-    integer :: startAtom, endAtom
+  	integer :: startAtom, endAtom
     logical :: error
 
   #:contains
-
-    #:block TEST_FIXTURE_INIT()
-      call initGlobalEnv()
-      call TEnvironment_init(env)
-      ! temporary fix
-      env%stdOut = stdOut
-    #:endblock
-
-    #:block TEST_FIXTURE_FINAL()
-      call env%destruct()
-      call destructGlobalEnv()
-    #:endblock
 
     #:block TEST("singleRank")
       call distributeAtoms(env%stdOut, 0, 1, 42, startAtom, endAtom, error)

@@ -15,13 +15,24 @@
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
-  implicit none
+  type(TEnvironment) :: env
 
 #:contains
 
+#:block TEST_SUITE_INIT()
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
+#:endblock
+
+#:block TEST_SUITE_FINAL()
+  call env%destruct()
+  call destructGlobalEnv()
+#:endblock
+
   #:block TEST_FIXTURE("readTGeometryLammps")
 
-  	type(TEnvironment) :: env
     real(dp), parameter :: prec = 1.e-14_dp
     type(fnode), pointer :: node
     type(TGeometry) :: geo
@@ -29,18 +40,6 @@
     character(len=1), parameter :: nl = new_line('a')
 
   #:contains
-
-    #:block TEST_FIXTURE_INIT()
-      call initGlobalEnv()
-      call TEnvironment_init(env)
-      ! temporary fix
-      env%stdOut = stdOut
-    #:endblock
-
-    #:block TEST_FIXTURE_FINAL()
-      call env%destruct()
-      call destructGlobalEnv()
-    #:endblock
 
     #:block TEST("minimalCaseWithDefaultValues")
       call prepareNode(node, "units real",&
