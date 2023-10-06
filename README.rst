@@ -90,10 +90,11 @@ If the configuration was successful, start the build with::
 
   cmake --build _build -- -j
 
-After successful build, you should test the code. First download the SK-files
+After successful build, you should test the code. First download the files
 needed for the test ::
 
   ./utils/get_opt_externals slakos
+  ./utils/get_opt_externals gbsa
 
 and then run the tests with ::
 
