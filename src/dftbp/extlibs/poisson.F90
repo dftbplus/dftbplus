@@ -67,6 +67,8 @@ module dftbp_extlibs_poisson
     ! Stores the shift vector to use in order to upload the shell potential
     real(dp), allocatable :: shellPotUpload_(:,:)
 
+    logical :: isInitialised_ = .false.
+
     !> output for write processes
     integer :: output
 
@@ -330,6 +332,7 @@ contains
   #:else
     call poiss_init_(env, input%poissonStruct, orb, input%hubbU, input%poissonInfo, success)
   #:endif
+    this%isInitialised_ = .true.
 
   end subroutine TPoisson_init
 
@@ -347,6 +350,7 @@ contains
   subroutine finalize_(this)
     type(TPoisson), intent(inout) :: this
 
+    if (.not. this%isInitialised_) return
     call poiss_destroy_(this%output)
     nInstances_ = nInstances_ - 1
 
