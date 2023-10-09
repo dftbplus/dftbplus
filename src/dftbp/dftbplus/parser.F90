@@ -7782,11 +7782,11 @@ contains
     !! File name of representative SK-file to read
     character(lc) :: fileName
 
-    !! Range-separated extra tag in SK-files, if allocated
-    integer :: rangeSepSkTag
-
     !! Range-separated functional type of user input
     integer :: rangeSepInputTag
+
+    !! Range-separated extra tag in SK-files, if allocated
+    integer :: rangeSepSkTag
 
     !! Auxiliary node pointers
     type(fnode), pointer :: hybridChild, hybridValue, screeningChild, screeningValue, child1
@@ -7811,37 +7811,24 @@ contains
     call inquireRangeSepTag(fileName, rangeSepSkTag)
     isHybridSk = rangeSepSkTag /= rangeSepFunc%none
 
-    call getChild(node, "RangeSeparated", child=hybridChild, requested=.false.)
-    isHybridInp = associated(hybridChild)
+    call getChildValue(node, "RangeSeparated", hybridValue, "None", child=hybridChild)
+    call getNodeName(hybridValue, buffer)
+    isHybridInp = tolower(char(buffer)) /= "none"
 
     if (isHybridInp .and. .not. isHybridSk) then
       call error("RangeSeparated input block present, but SK-file '" // trim(fileName)&
           & // "' seems to be (semi-)local.")
-    elseif (isHybridSk .and. .not. isHybridInp) then
+    else if (isHybridSk .and. .not. isHybridInp) then
       call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
     end if
 
+    rangeSepInputTag = rangeSepFunc%none
+
     if (isHybridInp) then
-      call getChildValue(node, "RangeSeparated", hybridValue, "None", child=hybridChild)
-      call getNodeName(hybridValue, buffer)
-      ! Convert hybrid functional type of user input to enumerator
-      select case(tolower(char(buffer)))
+      allocate(input)
+      select case (tolower(char(buffer)))
       case ("lc")
         rangeSepInputTag = rangeSepFunc%lc
-      case default
-        call detailedError(hybridChild, "Unknown hybrid xc-functional type '" // char(buffer)&
-            & // "' in input.")
-      end select
-      if (.not. rangeSepInputTag == rangeSepSkTag) then
-        ! Check if hybrid functional type is in line with SK-files
-        call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
-      end if
-      select case (tolower(char(buffer)))
-      case ("none")
-        rangeSepInputTag = rangeSepFunc%none
-        continue
-      case ("lc")
-        allocate(input)
         call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
             & child=screeningChild)
         call getNodeName(screeningValue, buffer)
@@ -7865,8 +7852,18 @@ contains
           call getNodeHSdName(screeningValue, buffer)
           call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'.")
         end select
+
+      case default
+        call detailedError(hybridChild, "Unknown hybrid xc-functional type '" // char(buffer)&
+            & // "' in input.")
       end select
+
       input%rangeSepType = rangeSepInputTag
+    end if
+
+    if (.not. rangeSepInputTag == rangeSepSkTag) then
+      ! Check if hybrid functional type is in line with SK-files
+      call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
     end if
 
   end subroutine parseRangeSeparated
