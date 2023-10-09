@@ -660,8 +660,7 @@ contains
           & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
           & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
           & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
-          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
-          & main%electronicSolver, errStatus)
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if

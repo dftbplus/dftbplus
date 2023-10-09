@@ -425,13 +425,13 @@ contains
     if (allocated(this%electronDynamics)) then
       call runDynamics(this%electronDynamics, this%boundaryCond, this%eigvecsReal, this%H0,&
           & this%species, this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
-          & this%nNeighbourSK, this%nNeighbourLC, this%denseDesc%iAtomStart, this%iSparseStart,&
-          & this%img2CentCell, this%orb, this%coord0, this%spinW, this%repulsive, env,&
-          & this%tDualSpinOrbit, this%xi, this%thirdOrd, this%solvation, this%eFieldScaling,&
-          & this%rangeSep, this%qDepExtPot, this%dftbU, this%iAtInCentralRegion, this%tFixEf,&
-          & this%Ef, this%coord, this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec,&
-          & this%invLatVec, this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver,&
-          & this%eigvecsCplx, this%taggedWriter, this%refExtPot, errStatus)
+          & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell,&
+          & this%orb, this%coord0, this%spinW, this%repulsive, env, this%tDualSpinOrbit, this%xi,&
+          & this%thirdOrd, this%solvation, this%eFieldScaling, this%rangeSep, this%qDepExtPot,&
+          & this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
+          & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
+          & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%eigvecsCplx,&
+          & this%taggedWriter, this%refExtPot, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
