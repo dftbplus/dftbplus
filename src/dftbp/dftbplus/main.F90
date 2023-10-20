@@ -1314,7 +1314,7 @@ contains
               & this%filling, this%rhoPrim, this%xi, this%orbitalL, this%HSqrReal,&
               & this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx, this%SSqrCplx,&
               & this%eigvecsCplx, this%rhoSqrReal, this%deltaRhoInSqr, this%deltaRhoOutSqr,&
-              & this%nNeighbourLC, this%deltaDftb, errStatus)
+              & this%nNeighbourLC, this%deltaDftb, errStatus, this%apiCallBack)
           if (errStatus%hasError()) then
             call error(errStatus%message)
           end if
@@ -2643,9 +2643,6 @@ contains
 
     !> Determinant derived type
     type(TDftbDeterminants), intent(inout) :: deltaDftb
-
-    !> Object for invocation of the density, overlap, and hamiltonian matrices exported by callbacks
-    type(TAPICallback), intent(inout) :: apiCallBack
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
