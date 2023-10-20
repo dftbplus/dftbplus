@@ -134,6 +134,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DINSTANCE_SAFE_BUILD)
   endif()
 
+  if(WITH_UNIT_TESTS)
+    list(APPEND _fyppflags -DWITH_UNIT_TESTS)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()

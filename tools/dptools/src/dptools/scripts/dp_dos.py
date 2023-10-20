@@ -97,7 +97,7 @@ def parse_arguments(cmdlineargs=None):
                         dest="broadwidth", help=msg, default=-1.0)
 
     msg = "number of sigmas after which the broadening function is considered "\
-          "to be zero (default: gauss {0:.2f}, fermi {1:.2f}, mp {1:.2f})"\
+          "to be zero (default: gauss {:.2f}, fermi {:.2f}, mp {:.2f})"\
            .format(DEFAULT_RANGES[GAUSS_BROADENING],
                    DEFAULT_RANGES[FERMI_BROADENING],
                    DEFAULT_RANGES[MP_BROADENING])

@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "22.2")
+set(DFTBPLUS_VERSION "23.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -38,6 +38,7 @@ if(WITH_MPI)
   endif()
   list(FILTER MPI_Fortran_COMPILE_OPTIONS EXCLUDE REGEX  "-fallow-argument-mismatch")
   message(STATUS "MPI_Fortran_COMPILE_OPTIONS: ${MPI_Fortran_COMPILE_OPTIONS}")
+  message(STATUS "MPI_C_COMPILE_OPTIONS: ${MPI_C_COMPILE_OPTIONS}")
 endif()
 
 if(WITH_OMP)
@@ -191,7 +192,7 @@ if(WITH_MPI)
   find_package(CustomScalapack REQUIRED)
 
   set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "ff38e221e0819aa89a2a081ed1d21fbef2baf093")  # do not change manually!
+  set(SCALAPACKFX_GIT_TAG "0e8950990a2891b14d93a3e7acd51aa55f281656")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
@@ -261,7 +262,7 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "3e4ea97f90b2e93c73e52c210135ccd49c338796")  # do not change manually!
+    set(DFTD4_GIT_TAG "056491b915204865bf5893b76eeb8ea32e1666ad")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
@@ -304,6 +305,9 @@ add_subdirectory(tools)
 #
 # Testing
 #
+if(TEST_WITH_VALGRIND)
+  find_program(VALGRIND valgrind REQUIRED)
+endif()
 string(CONFIGURE "${TEST_RUNNER_TEMPLATE}" TEST_RUNNER)
 if(NOT WITH_MPI)
   string(CONFIGURE "${MODES_RUNNER_TEMPLATE}" MODES_RUNNER)
@@ -311,6 +315,10 @@ endif()
 enable_testing()
 if(NOT BUILD_EXPORTED_TARGETS_ONLY)
   add_subdirectory(test)
+  if(WITH_MPI AND NOT MPI_C_FOUND)
+    message(FATAL_ERROR "Compiler ${CMAKE_C_COMPILER} is not MPI capable but is specified "
+      "for a WITH_MPI=TRUE build of API testing")
+  endif()
 endif()
 
 

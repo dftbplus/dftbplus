@@ -15,6 +15,7 @@ set(sources-fpp
   ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
+  ${curdir}/release.F90
   ${curdir}/schedule.F90
   ${curdir}/status.F90
   ${curdir}/timer.F90

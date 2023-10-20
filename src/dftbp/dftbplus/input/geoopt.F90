@@ -14,14 +14,14 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_geoopt_package, only : TFilterInput, TOptimizerInput, TRationalFuncInput,&
       & TLbfgsInput, TFireInput, TSteepdescInput, TOptTolerance
   use dftbp_io_charmanip, only : unquote
-  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
-      & detailedWarning, getSelectedAtomIndices
+  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, detailedWarning,&
+      & getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private
-  public :: readGeoOptInput, TGeoOptInput
+  public :: readGeoOptInput, readOptimizerInput, TGeoOptInput
 
 
   !> General input wrapper for optimisers in this package

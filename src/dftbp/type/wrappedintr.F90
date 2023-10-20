@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-#:set FLAVOURS = [('logical','Logical',''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
+#:set FLAVOURS = [('logical', 'Logical', ''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
   & ('complex', 'Cmplx', '(dp)')]
 
 !> Implements various wrapped data types for use in creating ragged multi-dimensional arrays.
@@ -17,7 +17,7 @@ module dftbp_type_wrappedintr
 #:for _, SUFFIX, _ in FLAVOURS
 #:for DIM in [('1'), ('2')]
 
-  public :: Twrapped${SUFFIX}$${DIM}$
+  public :: TWrapped${SUFFIX}$${DIM}$
 
 #:endfor
 #:endfor
@@ -26,9 +26,9 @@ module dftbp_type_wrappedintr
 #:for DIM, ARRAY in [('1',':'), ('2', ':,:')]
 
   !> ${DIM}$ dimensional ${TYPE}$
-  type :: Twrapped${NAME}$${DIM}$
+  type :: TWrapped${NAME}$${DIM}$
     ${TYPE}$${PREC}$, allocatable :: data(${ARRAY}$)
-  end type Twrapped${NAME}$${DIM}$
+  end type TWrapped${NAME}$${DIM}$
 
 #:endfor
 #:endfor

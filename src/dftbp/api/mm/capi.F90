@@ -12,8 +12,8 @@ module dftbp_capi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
-  use dftbp_dftbplus_qdepextpotgenc, only : getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC,&
-      & TQDepExtPotGenC_init
+  use dftbp_dftbplus_qdepextpotgenc, only :&
+      & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput,&
       & TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
@@ -25,13 +25,13 @@ module dftbp_capi
 
   !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
-    type(c_ptr) :: pDftbPlusInput
+    type(c_ptr) :: pDftbPlusInput = c_null_ptr
   end type c_DftbPlusInput
 
 
   !> DFTB+ calculation
   type, bind(C) :: c_DftbPlus
-    type(c_ptr) :: instance
+    type(c_ptr) :: instance = c_null_ptr
   end type c_DftbPlus
 
 
@@ -39,10 +39,29 @@ module dftbp_capi
   type, extends(TDftbPlus) :: TDftbPlusC
     private
     type(TFileDescr) :: outputFile
+  contains
+    final :: TDftbPlusC_final
   end type TDftbPlusC
 
 
 contains
+
+  !> finalises a DFTB+ input instance
+subroutine c_DftbPlusInput_final(handler) bind(C, name='dftbp_input_final')
+
+  !> DFTB+ handler
+  type(c_DftbPlusInput), intent(inout) :: handler
+
+  !> the specific instance to be finalised
+  type(TDftbPlusInput), pointer :: instance
+
+  if (.not. c_associated(handler%pDftbPlusInput)) return
+  call c_f_pointer(handler%pDftbPlusInput, instance)
+  deallocate(instance)
+  handler%pDftbPlusInput = c_null_ptr
+
+end subroutine c_DftbPlusInput_final
+
 
 
   !> Returns the current API version
@@ -119,8 +138,8 @@ contains
     !> the specific instance to be finalised
     type(TDftbPlusC), pointer :: instance
 
+    if (.not. c_associated(handler%instance)) return
     call c_f_pointer(handler%instance, instance)
-    call TDftbPlus_destruct(instance%TDftbPlus)
     deallocate(instance)
     handler%instance = c_null_ptr
 
@@ -756,6 +775,72 @@ contains
     call instance%getCM5Charges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getCM5Charges
+
+
+  !> Obtain reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_getRefCharges(handler, refCharges)&
+      & bind(C, name='dftbp_get_ref_charges')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic reference charges
+    real(c_double), intent(out) :: refCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%getRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getRefCharges
+
+
+  !> Set reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_setRefCharge(handler, refCharges)&
+      & bind(C, name='dftbp_set_ref_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Provided atomic reference charges
+    real(c_double), intent(in) :: refCharges(*)
+
+    !> F pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%setRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_setRefCharge
+
+
+  !> Finalizer for TDftbPlusC
+  subroutine TDftbPlusC_final(this)
+
+    !> Instance
+    type(TDftbPlusC), intent(inout) :: this
+
+    ! Note: Fortran finalizes all components of a child class instance (TDftbPlusC) first and only
+    ! then the components of its parent (TDftbPlus). TDftbPlusC contains a descriptor connected to an open
+    ! file, whose unit had been passed to and stored by TDftbPlus. When TDftbPlusC is finalized, the
+    ! file is closed, so TDftbPlus will try to write the timings to an invalid unit when finalized
+    ! aftewards. Therefore, we call TDftbPlus_destruct explicitely before finalization of TDftbPlusC
+    ! happens.
+    !
+    call TDftbPlus_destruct(this%TDftbPlus)
+
+  end subroutine TDftbPlusC_final
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.

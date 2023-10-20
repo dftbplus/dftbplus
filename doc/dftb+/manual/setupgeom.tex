@@ -41,15 +41,15 @@ An example of the \verb|Transport| section is reported below:
 Transport {
     Contact {
       Id = "source"
-     	Atoms [zeroBased] = {9:24 56:78}
-     	ContactVector = 0.0 0.0 3.78
-     	SpecifiedPLs = 2
+       Atoms [zeroBased] = {9:24 56:78}
+       ContactVector = 0.0 0.0 3.78
+       PLsDefined = 2
     }
     Contact {
       Id = "drain"
       Atoms [zeroBased] = {81:100}
-     	ContactVector = 0.0 0.0 3.78
-      SpecifiedPLs = 2
+      ContactVector = 0.0 0.0 3.78
+      PLsDefined = 2
     }
     Task = SetupGeometry{
       SlaterKosterFiles = type2names{
@@ -67,7 +67,7 @@ Transport {
 \begin{ptable}
  \kw{Id}    & s & &   &  \\
  \kw{Atoms} &l i& & - &  \\
- \kw{SpecifiedPLs} &i & 1 or 2 & 2 & \\
+ \kw{PLsDefined} &i & 1 or 2 & 2 & \\
  \kw{ContactVector} & 3r & & - & \\
  \kw{TruncateSKRange} & p & & & \\
  \kw{SlaterKosterFiles} & p & & & \\
@@ -76,24 +76,24 @@ Transport {
 \begin{description}
 \item[\is{Id}] Specifies a unique contact name.
 \item[\is{Atoms}] Sets the list of atoms belonging to the named contact. This list can
-	be easily obtained using some external atomic manipulation tool like for instance Jmol. \\
-	NOTE the modifier $[zeroBased]$ specifying that the defined atom numbers starts from $0$
-	rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
+       be easily obtained using some external atomic manipulation tool like for instance Jmol. \\
+       NOTE the modifier $[zeroBased]$ specifying that the defined atom numbers starts from $0$
+       rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
   (You can also use index specification expressions as described in appendix
   \ref{sec:index_selection}.)
 
-\item[\is{SpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value
-	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
-	is reordered according to the 1st with the help of \kw{ContactVector}.
-	If this value is 1, the correct numbers of PLs are created according to the interaction cutoff
-	distance.
+\item[\is{PLsDefined}] Specifies the number of PLs given for the named contact. If this value
+       is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
+       is reordered according to the 1st with the help of \kw{ContactVector}.
+       If this value is 1, the correct numbers of PLs are created according to the interaction cutoff
+       distance.
 \item[\is{ContactVector}] Sets the translation vector connecting the 2 PLs along the transport direction.
-	Since contact must be aligned to a cartesian axis, so must be this vector. Different contact
+       Since contact must be aligned to a cartesian axis, so must be this vector. Different contact
       can be in different directions. Also notice that the vector must be specified along the positive axis
       direction.
 \item[\is{TruncateSKRange}]  This section is the same as that described in section \ref{sec:dftbp.Hamiltonian}.
 \item[\is{SlaterKosterFiles}]  This section is the same as that described in section
-	\ref{sec:dftbp.Hamiltonian}. The SK files are used to compute the cutoff distance.
+       \ref{sec:dftbp.Hamiltonian}. The SK files are used to compute the cutoff distance.
 
 \end{description}
 

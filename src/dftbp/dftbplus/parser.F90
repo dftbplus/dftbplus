@@ -15,10 +15,12 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
+  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
@@ -114,18 +116,9 @@ module dftbp_dftbplus_parser
     logical :: tWriteHSD
   end type TParserFlags
 
-
-  !> Mapping between input version and parser version
-  type :: TVersionMap
-    !> named version of parser input
-    character(10) :: inputVersion
-    !> Corresponding numerical version of parser input
-    integer :: parserVersion
-  end type TVersionMap
-
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("23.2", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -1709,6 +1702,14 @@ contains
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
+    end if
+
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -4804,7 +4805,7 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    type(fnode), pointer :: child2
+    type(fnode), pointer :: child2, child3
     type(fnode), pointer :: value
     type(string) :: buffer, modifier
 
@@ -4877,6 +4878,11 @@ contains
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
+      if (all(ctrl%lrespini%indNACouplings == 0)) then
+        ctrl%lrespini%tNaCoupling = .false.
+      else
+        ctrl%lrespini%tNaCoupling = .true.
+      end if
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -4903,6 +4909,22 @@ contains
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
+
+      call getChildValue(child, "OptimiserCI", child2, "", child=child3, allowEmptyValue=.true.)
+      if (associated(child2)) then
+        call getNodeName(child2, buffer)
+        select case(char(buffer))
+        case ("bearpark")
+          ctrl%lrespini%isCIopt = .true.
+          call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
+              & modifier=modifier, default=0.0_dp)
+          call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+        case default
+          call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
+        end select
+      else
+        ctrl%lrespini%isCIopt = .false.
+      end if
 
       if (ctrl%tForces .or. ctrl%tPrintForces) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
@@ -5185,7 +5207,7 @@ contains
         end if
       end if
 
-      call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
+      call getChildValue(node, "PrintForces", ctrl%tPrintForces, .false.)
 
     else
 
@@ -5941,6 +5963,9 @@ contains
     type(fnodeList), pointer :: pNodeList
     integer :: contact
     real(dp) :: lateralContactSeparation
+    logical, allocatable :: atomInRegion(:)
+    integer :: ii
+    character(lc) :: strTmp
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -5964,6 +5989,28 @@ contains
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
     call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
+
+    ! check for atoms in multiple contact ranges/device or atoms missing from any of these regions
+    allocate(atomInRegion(geom%nAtom), source=.false.)
+    atomInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .true.
+    do ii = 1, transpar%nCont
+      if (any(atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2))))&
+          & then
+        write(strTmp, "(A,A,A,I0)")"Contact '", trim(transpar%contacts(ii)%name),&
+            & "' contains an atom already in the device region or another contact: Atom nr. ",&
+            & findloc(atomInRegion(transpar%contacts(ii)%idxrange(1):&
+            & transpar%contacts(ii)%idxrange(2)), .true.) + transpar%contacts(ii)%idxrange(1)
+        call getItem1(pNodeList, ii, pTmp)
+        call detailedError(pTmp, strTmp)
+      end if
+      atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .true.
+    end do
+    if (any(.not.atomInRegion)) then
+      write(strTmp, "(A,I0,A)")"Atom ", findloc(atomInRegion, .false.),&
+          & " is not in the device region or any contact"
+      call detailedError(root, strTmp)
+    end if
+
     call destroyNodeList(pNodeList)
 
     transpar%taskUpload = .false.
@@ -7047,9 +7094,17 @@ contains
 
   !> Read bias information, used in Analysis and Green's function eigensolver
   subroutine readContacts(pNodeList, contacts, geom, task, contactLayerTol)
+
+    !> Node to process
     type(fnodeList), pointer :: pNodeList
+
+    !> Contacts
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
+
+    !> Geometry of the system
     type(TGeometry), intent(in) :: geom
+
+    !> What type of transport-related calculation is this?
     character(*), intent(in) :: task
 
     !> Tolerance to distortion of contact vectors
@@ -7425,7 +7480,7 @@ contains
     type(fnode), pointer :: node, container, child
     type(fnodeList), pointer :: nodes
     type(string) :: buffer
-    integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecies, nAtom
     character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
@@ -7450,19 +7505,18 @@ contains
       call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
-        call detailedError(child, "Atom region contains atom(s) which have&
-            & already been overridden")
+        call detailedError(child, "Atom region contains atom(s) which have already been overridden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
-      iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))
-      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecie)) then
-        call detailedError(child, "All atoms in a ReferenceOccupation&
-            & declaration must have the same type.")
+      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+        call detailedError(child, "All atoms in a ReferenceOccupation declaration must have the&
+            & same type.")
       end if
-      call getShellNames(iSpecie, orb, shellNamesTmp)
-      do iShell = 1, orb%nShell(iSpecie)
+      call getShellNames(iSpecies, orb, shellNamesTmp)
+      do iShell = 1, orb%nShell(iSpecies)
           call getChildValue(node, shellNamesTmp(iShell), customOcc(iShell, iCustomOcc), &
-            & default=referenceOcc(iShell, iSpecie))
+            & default=referenceOcc(iShell, iSpecies))
       end do
       deallocate(shellNamesTmp)
     end do

@@ -36,62 +36,72 @@ program test_qdepextpot
 
   real(dp), parameter :: extCharges(nExtCharge) = [2.5_dp, -1.9_dp]
 
+  call main_()
 
-  type(TDftbPlus) :: dftbp
-  type(TDftbPlusInput) :: input
-  type(TExtChargePotGen) :: potGen
+contains
 
-  real(dp), allocatable :: extPot(:), extPotGrad(:,:)
-  real(dp) :: merminEnergy
-  real(dp) :: gradients(3, nQmAtom), grossCharges(nQmAtom)
 
-  character(:), allocatable :: DftbVersion
-  integer :: major, minor, patch
+  !! Main test routine
+  !!
+  !! All non-constant variables must be defined here to ensure that they are all explicitely
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
+  !!
+  subroutine main_()
 
-  !integer :: devNull
+    type(TDftbPlus) :: dftbp
+    type(TDftbPlusInput) :: input
+    type(TExtChargePotGen) :: potGen
 
-  call getDftbPlusBuild(DftbVersion)
-  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
-  call getDftbPlusApi(major, minor, patch)
-  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
+    real(dp), allocatable :: extPot(:), extPotGrad(:,:)
+    real(dp) :: merminEnergy
+    real(dp) :: gradients(3, nQmAtom), grossCharges(nQmAtom)
 
-  ! Pass the 1st external charge to dynamic potential generator from the extchargepotgen module,
-  ! while the 2nd charge will be set as constant electrostatic potential
-  call TExtChargePotGen_init(potGen, coords, extChargeCoords(:,1:1), extCharges(1:1))
+    character(:), allocatable :: DftbVersion
+    integer :: major, minor, patch
 
-  ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
-  !open(newunit=devNull, file="/dev/null", action="write")
-  !call TDftbPlus_init(dftbp, outputUnit=devNull)
+    !integer :: devNull
 
-  ! initialise a calculation then read input from file
-  call TDftbPlus_init(dftbp)
-  call dftbp%getInputFromFile("dftb_in.hsd", input)
-  call dftbp%setupCalculator(input)
+    call getDftbPlusBuild(DftbVersion)
+    write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+    call getDftbPlusApi(major, minor, patch)
+    write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-  ! set up the above external potential generator for this calculation
-  call dftbp%setQDepExtPotGen(potGen)
+    ! Pass the 1st external charge to dynamic potential generator from the extchargepotgen module,
+    ! while the 2nd charge will be set as constant electrostatic potential
+    call TExtChargePotGen_init(potGen, coords, extChargeCoords(:,1:1), extCharges(1:1))
 
-  ! add an extra fixed external charge
-  allocate(extPot(nQmAtom))
-  allocate(extPotGrad(3, nQmAtom))
-  call getPointChargePotential(extChargeCoords(:,2:2), extCharges(2:2), coords, extPot, extPotGrad)
-  call dftbp%setExternalPotential(extPot, extPotGrad)
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    !open(newunit=devNull, file="/dev/null", action="write")
+    !call TDftbPlus_init(dftbp, outputUnit=devNull)
 
-  ! set the geometry from this program, replacing the dftb_in.hsd values
-  call dftbp%setGeometry(coords)
+    ! initialise a calculation then read input from file
+    call TDftbPlus_init(dftbp)
+    call dftbp%getInputFromFile("dftb_in.hsd", input)
+    call dftbp%setupCalculator(input)
 
-  ! obtain energy and forces
-  call dftbp%getEnergy(merminEnergy)
-  call dftbp%getGradients(gradients)
-  call dftbp%getGrossCharges(grossCharges)
-  print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
-  print "(A,3F15.10)", 'Obtained gross charges:', grossCharges
+    ! set up the above external potential generator for this calculation
+    call dftbp%setQDepExtPotGen(potGen)
 
-  ! clean up
-  call TDftbPlus_destruct(dftbp)
+    ! add an extra fixed external charge
+    allocate(extPot(nQmAtom))
+    allocate(extPotGrad(3, nQmAtom))
+    call getPointChargePotential(extChargeCoords(:,2:2), extCharges(2:2), coords, extPot, extPotGrad)
+    call dftbp%setExternalPotential(extPot, extPotGrad)
 
-  ! Write file for internal test system
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
+    ! set the geometry from this program, replacing the dftb_in.hsd values
+    call dftbp%setGeometry(coords)
+
+    ! obtain energy and forces
+    call dftbp%getEnergy(merminEnergy)
+    call dftbp%getGradients(gradients)
+    call dftbp%getGrossCharges(grossCharges)
+    print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
+    print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
+    print "(A,3F15.10)", 'Obtained gross charges:', grossCharges
+
+    ! Write file for internal test system
+    call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
+
+  end subroutine main_
 
 end program test_qdepextpot

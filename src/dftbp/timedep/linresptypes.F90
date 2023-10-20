@@ -80,6 +80,11 @@ module dftbp_timedep_linresptypes
     !> Should non-adiabatic couplings be computed?
     logical :: tNaCoupling = .false.
 
+    !> should CI be optimized
+    logical :: isCIopt
+
+    !> Energy shift used in CI optimizer
+    real(dp) :: energyShiftCI
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 

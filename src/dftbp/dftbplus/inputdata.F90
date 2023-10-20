@@ -12,6 +12,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
+  use dftbp_dftb_elecconstraints, only : TElecConstraintInput
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -470,6 +471,9 @@ module dftbp_dftbplus_inputdata
     !> Solvation
     class(TSolvationInp), allocatable :: solvInp
 
+    !> Electronic constraints
+    type(TElecConstraintInput), allocatable :: elecConstraintInp
+
     !> Rescaling of electric fields (applied or dipole) if the system is solvated
     logical :: isSolvatedFieldRescaled = .false.
 
@@ -519,8 +523,10 @@ module dftbp_dftbplus_inputdata
     !> Maximal timing level to show in output
     integer :: timingLevel
 
-    ! Custom occupations
+    !> Array of lists of atoms where the 'neutral' shell occupation is modified
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
+
+    !> Modified occupations for shells of the groups atoms in customOccAtoms
     real(dp), allocatable :: customOccFillings(:,:)
 
     ! TI-DFTB variables

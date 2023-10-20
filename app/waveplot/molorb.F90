@@ -8,21 +8,21 @@
 #:include 'common.fypp'
 
 !> Contains routines to calculate the value of one or more molecular orbitals composed from STOs on
-!> an equidistant grid.
+!! an equidistant grid.
 module waveplot_molorb
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
-  use dftbp_dftb_periodic, only: getCellTranslations
+  use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
-  use waveplot_slater, only : TSlaterOrbital, RealTessY, getValue, init
+  use waveplot_slater, only : TSlaterOrbital, realTessY, getValue
   implicit none
 
   private
   save
 
 
-  !> Data type containing information about the basis for a species
+  !> Data type containing information about the basis for a species.
   type TSpeciesBasis
 
     !> Atomic number of the species
@@ -31,7 +31,7 @@ module waveplot_molorb
     !> Nr. of orbitals
     integer :: nOrb
 
-    !> Angular momentum for each orb.
+    !> Angular momentum for each orbital
     integer, allocatable :: angMoms(:)
 
     !> Cutoff for each orbital
@@ -40,13 +40,13 @@ module waveplot_molorb
     !> STO for each orbital
     type(TSlaterOrbital), allocatable :: stos(:)
 
-    !> Occupation for each orb.
+    !> Occupation for each orbital
     real(dp), allocatable :: occupations(:)
 
   end type TSpeciesBasis
 
 
-  !> Data type containing information for molecular orbital calculator
+  !> Data type containing information for molecular orbital calculator.
   type TMolecularOrbital
     private
 
@@ -94,29 +94,24 @@ module waveplot_molorb
 
     !> If it is initialised
     logical :: tInitialised = .false.
+
   end type TMolecularOrbital
-
-
-  !> Initialises a MolecularOrbital instance
-  interface init
-    module procedure MolecularOrbital_init
-  end interface
 
 
   !> Returns the value of one or more molecular orbitals on a grid
   interface getValue
-    module procedure MolecularOrbital_getValue_real
-    module procedure MolecularOrbital_getValue_cmpl
+    module procedure TMolecularOrbital_getValue_real
+    module procedure TMolecularOrbital_getValue_cmpl
   end interface
 
   public :: TSpeciesBasis
-  public :: TMolecularOrbital, init, getValue
+  public :: TMolecularOrbital, TMolecularOrbital_init, getValue
 
 contains
 
 
   !> Initialises MolecularOrbital instance.
-  subroutine MolecularOrbital_init(this, geometry, boundaryCond, basis)
+  subroutine TMolecularOrbital_init(this, geometry, boundaryCond, basis)
 
     !> Molecular Orbital
     type(TMolecularOrbital), intent(out) :: this
@@ -141,7 +136,7 @@ contains
     this%nAtom = geometry%nAtom
     this%nSpecies = geometry%nSpecies
     allocate(this%species(this%nAtom))
-    this%species(:) = geometry%species(:)
+    this%species(:) = geometry%species
 
     ! Create sequential list of STOs
     nOrb = 0
@@ -176,7 +171,7 @@ contains
     if (this%tPeriodic) then
       allocate(this%latVecs(3,3))
       allocate(this%recVecs2p(3,3))
-      this%latVecs(:,:) = geometry%latVecs(:,:)
+      this%latVecs(:,:) = geometry%latVecs
       call invert33(this%recVecs2p, this%latVecs)
       this%recVecs2p = reshape(this%recVecs2p, [3, 3], order=[2, 1])
       mCutoff = maxval(this%cutoffs)
@@ -194,7 +189,7 @@ contains
 
     ! Create coorinates for central cell and periodic images
     allocate(this%coords(3, this%nAtom, this%nCell))
-    this%coords(:,:,1) = geometry%coords(:,:)
+    this%coords(:,:,1) = geometry%coords
     call boundaryCond%foldCoordsToCell(this%coords(:,:,1), this%latVecs)
     if (this%tPeriodic) then
       do ii = 2, this%nCell
@@ -206,11 +201,11 @@ contains
 
     this%tInitialised = .true.
 
-  end subroutine MolecularOrbital_init
+  end subroutine TMolecularOrbital_init
 
 
-  !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_real(this, origin, gridVecs, eigVecsReal, valueOnGrid,&
+  !> Returns molecular orbitals on a grid.
+  subroutine TMolecularOrbital_getValue_real(this, origin, gridVecs, eigVecsReal, valueOnGrid,&
       & addDensities)
 
     !> MolecularOrbital instance
@@ -255,12 +250,12 @@ contains
         & this%tPeriodic, .true., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
         & this%cellVec, tAddDensities, valueOnGrid, valueCmpl)
 
-  end subroutine MolecularOrbital_getValue_real
+  end subroutine TMolecularOrbital_getValue_real
 
 
-  !> Returns molecular orbitals on a grid
-  subroutine MolecularOrbital_getValue_cmpl(this, origin, gridVecs, eigVecsCmpl, kPoints, kIndexes,&
-      & valueOnGrid)
+  !> Returns molecular orbitals on a grid.
+  subroutine TMolecularOrbital_getValue_cmpl(this, origin, gridVecs, eigVecsCmpl, kPoints,&
+      & kIndexes, valueOnGrid)
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
@@ -304,12 +299,12 @@ contains
         & this%tPeriodic, .false., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
         & this%cellVec, tAddDensities, valueReal, valueOnGrid)
 
-  end subroutine MolecularOrbital_getValue_cmpl
+  end subroutine TMolecularOrbital_getValue_cmpl
 
 
   !> Returns the values of several molecular orbitals on grids.
-  !> Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
-  !> various parameters.
+  !! Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
+  !! various parameters.
   subroutine local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, nAtom, nOrb, coords,&
       & species, cutoffs, iStos, angMoms, stos, tPeriodic, tReal, latVecs, recVecs2p, kPoints,&
       & kIndexes, nCell, cellVec, tAddDensities, valueReal, valueCmpl)
@@ -429,7 +424,7 @@ contains
             ind = 1
             lpAtom: do iAtom = 1, nAtom
               iSpecies = species(iAtom)
-              diff(:) = xyz(:) - coords(:,iAtom, iCell)
+              diff(:) = xyz - coords(:,iAtom, iCell)
               xx = sqrt(sum(diff**2))
               lpOrb: do iOrb = iStos(iSpecies), iStos(iSpecies+1)-1
                 iL = angMoms(iOrb)
@@ -438,7 +433,7 @@ contains
                   allZero = .false.
                   call getValue(stos(iOrb), xx, val)
                   do iM = -iL, iL
-                    atomAllOrbVal(ind, iCell) = val * RealTessY(iL, iM, diff, xx)
+                    atomAllOrbVal(ind, iCell) = val * realTessY(iL, iM, diff, xx)
                     ind = ind + 1
                   end do
                 else
