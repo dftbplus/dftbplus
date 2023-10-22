@@ -39,6 +39,9 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+- ASI interface for accessing H, S and density matrix
+
+
 Fixed
 -----
 

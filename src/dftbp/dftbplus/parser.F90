@@ -1261,6 +1261,7 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     type(string) :: buffer
+    type(fnode), pointer :: child
 
     call getNodeName(node, buffer)
     select case (char(buffer))
@@ -1281,6 +1282,15 @@ contains
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
+
+  #:if WITH_API
+    call getChild(node, "ASI", child, requested=.false.)
+    if (associated(child)) then
+      ctrl%isASICallbackEnabled = .true.
+    else
+      ctrl%isASICallbackEnabled = .false.
+    end if
+  #:endif
 
   end subroutine readHamiltonian
 
