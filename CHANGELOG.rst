@@ -55,6 +55,7 @@ Added
   and support for the divide and conquer and relatively robust LAPACK
   solvers
 
+- ASI interface for accessing H, S and density matrix
 
 Changed
 -------

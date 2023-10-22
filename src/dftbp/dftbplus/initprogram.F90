@@ -67,6 +67,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_spin, only : qm2ud, Spin_getOrbitalEquiv, ud2qm
   use dftbp_dftb_thirdorder, only : ThirdOrder_init, TThirdOrder, TThirdOrderInp
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+  use dftbp_dftbplus_apicallback, only : TAPICallback
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData,&
       & TParallelOpts
@@ -74,6 +75,7 @@ module dftbp_dftbplus_initprogram
       & fStopDriver, fStopSCC, hessianOut, mdOut, resultsTag, userOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
+  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver,&
       & TElectronicSolver_init
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_final, TElsiSolver_init
@@ -146,7 +148,7 @@ module dftbp_dftbplus_initprogram
   implicit none
 
   private
-  public :: TDftbPlusMain, TNegfInt
+  public :: TDangerousChange, TDftbPlusMain, TNegfInt
   public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -163,6 +165,16 @@ module dftbp_dftbplus_initprogram
   end type TNegfInt
 
 #:endif
+
+
+  !> Structure for calculations where changing the quantities are dangerous for calculation
+  !! reliability/correctness
+  type TDangerousChange
+    !> Hamiltonian matrix
+    logical :: hamiltonian = .false.
+    !> Overlap matrix
+    logical :: overlap = .false.
+  end type TDangerousChange
 
 
   type :: TDftbPlusMain
@@ -1157,9 +1169,17 @@ module dftbp_dftbplus_initprogram
     type(TBoundaryConds) :: boundaryCond
 
     !> Whether the order of the atoms matter. Typically the case, when properties were specified
-    !> based on atom numbers (e.g. custom occupations). In that case setting a different order
-    !> of the atoms via the API is forbidden.
+    !! based on atom numbers (e.g. custom occupations). In that case setting a different order
+    !! of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+
+    !> This object encapsulates subroutines and variables that are used for registering and
+    !! invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
+    type(TAPICallback), allocatable :: apiCallBack
+
+    !> Lists changes that are dangerous for calculation reliability/correctness if these quantities
+    !! are changed
+    type(TDangerousChange) :: dangerousChanges
 
   #:if WITH_SCALAPACK
 
@@ -1353,6 +1373,12 @@ contains
       this%nSpin = 2
     end if
     this%nIndepSpin = this%nSpin
+
+  #:if WITH_API
+    if (input%ctrl%isASICallbackEnabled) then
+      allocate(this%apiCallBack)
+    end if
+  #:endif
 
     this%tSpinSharedEf = input%ctrl%tSpinSharedEf
     this%tSpinOrbit = input%ctrl%tSpinOrbit
@@ -1672,7 +1698,7 @@ contains
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
-        & this%nIndepSpin, this%tempElec)
+        & this%nIndepSpin, this%tempElec, input%ctrl%isASICallbackEnabled)
     nBufferedCholesky = countBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
@@ -3871,6 +3897,63 @@ contains
       end do
     end if
 
+    if (allocated(this%apiCallBack)) then
+      if (this%apiCallBack%canAsiChangeTheModel()) then
+        if (allocated(this%scc)) then
+          ! As this needs assurances that the DM is actually being read by the external code,
+          ! leading to the external code making changes in the hamiltonian, otherwise SCC never
+          ! converges.
+          call warning("ASI callback with model modification enabled does not support&
+              & self-consistent calculations at present")
+          this%dangerousChanges%hamiltonian = .true.
+        end if
+        if (this%tForces) then
+          ! Since if H and/or S is modified, the derivatives are not available via ASI at the
+          ! moment.
+          call warning("ASI callback with model modification enabled does not support forces at&
+              & present")
+          this%dangerousChanges%hamiltonian = .true.
+          this%dangerousChanges%overlap = .true.
+        end if
+        if (this%tMulliken) then
+          call warning("ASI callback with model modification enabled does not support Mulliken&
+              & population analysis at present")
+          this%dangerousChanges%overlap = .true.
+        end if
+      end if
+      if (all(this%densityMatrix%iDensityMatrixAlgorithm /= [densityMatrixTypes%fromEigenVecs,&
+          & densityMatrixTypes%magma_fromEigenVecs])) then
+        call error("ASI callback currently requires eigenvector enabled solution in DFTB+")
+      end if
+      if (allocated(this%reks)) then
+        call error("ASI callback does not support REKS")
+      end if
+      if (allocated(this%dftbU))  then
+        call error("ASI callback does not support +U at present")
+      end if
+      if (allocated(this%onSiteElements)) then
+        call error("ASI callback does currently support onsite corrections")
+      end if
+      if (this%isHybridXc) then
+        call error("ASI callback does currently support hybrid functionals")
+      end if
+      if (this%isElecDyn) then
+        call error("ASI callback does not currently support electron dynamics")
+      end if
+      if (this%tNegf) then
+        call error("ASI callback does not support transport")
+      end if
+      if (this%isLinResp) then
+        call error("ASI callback does not support linear response")
+      end if
+      if (allocated(this%ppRPA)) then
+        call error("ASI callback does not support ppRPA")
+      end if
+      if (this%doPerturbation) then
+        call error("ASI callback does not support perturbation calculations at present")
+      end if
+    end if
+
     if (this%deltaDftb%isNonAufbau) then
       if (this%nSpin /= 2) then
         call error("Internal error, Delta DFTB requires two spin channels")
@@ -5650,7 +5733,8 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec,&
+      & isCallBackApiEnabled)
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5666,6 +5750,9 @@ contains
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
+
+    !> Is the API callback for H/S/density matrix enabled?
+    logical, intent(in) :: isCallBackApiEnabled
 
     logical :: tElsiSolver
     integer :: nKPoint
@@ -5693,6 +5780,13 @@ contains
 
     if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
       call error("This solver requires a finite electron broadening")
+    end if
+
+    if (isCallBackApiEnabled .and. .not. any(iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa, electronicSolverTypes%magmaGvd])) then
+      ! there are not dense matrices for ASI to work with
+      call error("ASI interface incompatible with the current choice of electronic solver")
     end if
 
   end subroutine ensureSolverCompatibility
@@ -6538,7 +6632,6 @@ contains
   !> Sets up how the density matrix is obtained
   subroutine densityMatrixSource(densityMatrix, electronicSolver, isGpuUsed)
     use dftbp_dftb_densitymatrix, only : TDensityMatrix_init
-    use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
 
     !> Holds real and complex delta density matrices and pointers
     type(TDensityMatrix), intent(out) :: densityMatrix

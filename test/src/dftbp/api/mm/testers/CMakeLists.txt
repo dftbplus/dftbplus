@@ -11,10 +11,6 @@ target_link_libraries(test_fileinit dftbplus)
 
 if(WITH_C_EXECUTABLES)
 
-  add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
-  target_link_libraries(test_fileinitc dftbplus)
-  set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
-
   add_executable(test_neighbour_list_c test_neighbour_list_c.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_neighbour_list_c dftbplus)
   set_target_properties(test_neighbour_list_c PROPERTIES LINKER_LANGUAGE C)
@@ -23,11 +19,33 @@ if(WITH_C_EXECUTABLES)
   target_link_libraries(test_qdepextpotc dftbplus)
   set_target_properties(test_qdepextpotc PROPERTIES LINKER_LANGUAGE C)
 
+  add_executable(test_expdmhs test_expdmhs.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_expdmhs dftbplus)
+  set_target_properties(test_expdmhs PROPERTIES LINKER_LANGUAGE C)
+
+  add_executable(test_imp_ham test_imp_ham.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_imp_ham dftbplus)
+  set_target_properties(test_imp_ham PROPERTIES LINKER_LANGUAGE C)
+
+  add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_fileinitc dftbplus)
+  set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
+
   if(WITH_MPI)
+
     include_directories(SYSTEM ${MPI_INCLUDE_PATH})
     add_executable(test_mpic test_mpic.c $<TARGET_OBJECTS:test_api_mm_utils>)
     target_link_libraries(test_mpic dftbplus ${MPI_C_LIBRARIES})
     set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
+
+    add_executable(test_mpiexpdmhs test_mpiexpdmhs.c $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_mpiexpdmhs dftbplus MPI::MPI_C)
+    set_target_properties(test_mpiexpdmhs PROPERTIES LINKER_LANGUAGE C)
+
+    add_executable(test_mpiexpdmhsz test_mpiexpdmhsz.c $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_mpiexpdmhsz dftbplus MPI::MPI_C)
+    set_target_properties(test_mpiexpdmhsz PROPERTIES LINKER_LANGUAGE C)
+
   endif()
 
 endif()
