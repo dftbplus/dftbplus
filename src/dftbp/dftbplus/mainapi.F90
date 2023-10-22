@@ -19,7 +19,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : error, warning
   use dftbp_timedep_timeprop, only : doTdStep, finalizeDynamics, initializeDynamics
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
@@ -29,13 +29,12 @@ module dftbp_dftbplus_mainapi
   implicit none
 
   private
-  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
-  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
-  public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
+  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges, getLocalKS
+  public :: nrOfSpin, nrOfLocalKS, getEnergy, getGradients, getExtChargeGradients, getGrossCharges
+  public :: getCM5Charges, getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints
+  public :: getAtomicMasses, getCutOff, updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
-  public :: setTdCoordsAndVelos, getTdForces
-  public :: getRefCharges, setRefCharges, setElectronNumber
+  public :: setTdCoordsAndVelos, getTdForces, getRefCharges, setRefCharges, setElectronNumber
 
 contains
 
@@ -495,11 +494,26 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Resulting atom count
     integer :: nrOfAtoms
 
     nrOfAtoms = main%nAtom
 
   end function nrOfAtoms
+
+
+  !> Obtains number of spin channels in the system
+  function nrOfSpin(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> Spin channel count (1 for spin free, 2 conventional z-spin, 4 non-collinear)
+    integer :: nrOfSpin
+
+    nrOfSpin = main%nSpin
+
+  end function nrOfSpin
 
 
   !> Obtains number of k-points in the system (1 if not a repeating structure)
@@ -508,11 +522,41 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Number of k-points present
     integer :: nrOfKPoints
 
     nrOfKPoints = main%nKPoint
 
   end function nrOfKPoints
+
+
+  !> Obtains number of (k-point,spin chanel) pairs in current process group
+  function nrOfLocalKS(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> k-points and spin on the local processor group
+    integer :: nrOfLocalKS
+
+    nrOfLocalKS = main%parallelKS%nLocalKS
+
+  end function nrOfLocalKS
+
+
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine getLocalKS(main, localKS)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !! Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    localKS(:,:) = main%parallelKS%localKS
+
+  end subroutine getLocalKS
 
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
@@ -556,8 +600,8 @@ contains
 
 
   !> When order of atoms changes, update arrays containing atom type indices,
-  !> and all subsequent dependencies.
-  !  Updated data returned via module use statements
+  !! and all subsequent dependencies.
+  !! Updated data returned via module use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, main, inputSpecies)
 
     !> dftb+ environment
@@ -967,7 +1011,7 @@ contains
 
 #:endif
 
-  !> re-evaluate the energy/forces if the geometry changes
+  !> Re-evaluate the energy/forces if the geometry changes
   subroutine recalcGeometry(env, main)
 
     !> instance
@@ -982,6 +1026,11 @@ contains
     type(TStatus) :: errStatus
 
     if (main%tLatticeChanged .or. main%tCoordsChanged) then
+      if (allocated(main%apiCallBack)) then
+        if (main%apiCallBack%canAsiChangeTheModel()) then
+          call warning('ASI registered as able to adjust the running model')
+        end if
+      end if
       call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)

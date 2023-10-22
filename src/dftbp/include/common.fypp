@@ -13,6 +13,7 @@
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #:set DEBUG = getvar('DEBUG', 0)
+#:set WITH_API = defined('WITH_API')
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_OMP = defined('WITH_OMP')
