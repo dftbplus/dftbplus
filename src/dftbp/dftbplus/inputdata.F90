@@ -144,6 +144,16 @@ module dftbp_dftbplus_inputdata
     !> Choice of electronic hamiltonian
     integer :: hamiltonian = hamiltonianTypes%none
 
+  #:if WITH_API
+    !> Is this ASI callback interface for H,S,P enabled (Stishenko et al.,
+    !! https://doi.org/10.21105/joss.05186)
+    logical :: isAsiCallbackEnabled = .false.
+
+    !> Is the ASI modifying H or S matrices
+    logical :: isAsiChangingTheModel = .false.
+
+  #:endif
+
     !> Random number generator seed
     integer :: iSeed = 0
 
