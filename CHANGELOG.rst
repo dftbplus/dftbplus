@@ -33,6 +33,8 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
+- ASI interface for accessing H, S and density matrix
+
 Fixed
 -----
 
