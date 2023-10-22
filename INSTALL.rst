@@ -405,6 +405,8 @@ the ``WITH_API`` option to ``TRUE`` in the CMake config file
 library, the C-include file and the Fortran module files, which are necessary
 for linking DFTB+ with C and Fortran programs.
 
+The binding for the `ASI <https://gitlab.com/pvst/asi/>`_ API for data
+extraction/provision are also supported.
 
 DFTB+ CMake library options
 ---------------------------
