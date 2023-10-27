@@ -18,7 +18,8 @@ module dftbp_dftb_periodic
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR
+  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR,&
+      & MPIFX_SIZE_T
 #:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
@@ -806,15 +807,21 @@ contains
     type(TEnvironment), intent(in), optional :: env
 
     integer :: dataLength
+    #:if WITH_MPI
+      integer(MPIFX_SIZE_T) :: longDataLength
+    #:endif
 
     dataLength = (maxNeighbour + 1) * nAtom
 
     if (neigh%useMpiWindows_) then
     #:if WITH_MPI
+      longDataLength = int(dataLength, kind=MPIFX_SIZE_T)
       if (associated(neigh%iNeighbourMem_)) call neigh%iNeighbourWin_%free()
-      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%iNeighbourMem_)
+      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%iNeighbourMem_)
       if (associated(neigh%neighDist2Mem_)) call neigh%neighDist2Win_%free()
-      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%neighDist2Mem_)
+      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%neighDist2Mem_)
     #:endif
     else
       if (associated(neigh%iNeighbourMem_)) deallocate(neigh%iNeighbourMem_)
