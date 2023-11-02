@@ -18,6 +18,7 @@ module dftbp_mmapi
   use dftbp_dftbplus_initprogram, only: TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
+      & nrOfLocalKS, nrOfSpin, getLocalKS,&
       & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
       & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
       & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
@@ -75,8 +76,11 @@ module dftbp_mmapi
   !> A DFTB+ calculation
   type :: TDftbPlus
     private
+    !> Computational environment
     type(TEnvironment), allocatable :: env
+    !> Calculation instance
     type(TDftbPlusMain), allocatable :: main
+    !> Has this been initialised and ready to use
     logical :: isInitialised = .false.
   contains
     !> read input from a file
@@ -115,6 +119,24 @@ module dftbp_mmapi
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Return the number of spin channels in the system
+    procedure :: nrOfSpin => TDftbPlus_nrOfSpin
+    !> Return the number of (k-point,spin chanel) pairs in the process group
+    procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
+    !> get (k-point,spin chanel) pairs in current process group
+    procedure :: getLocalKS => TDftbPlus_getLocalKS
+    !> Queries weights of k-points
+    procedure :: getKWeights => TDftbPlus_getKWeights
+    !> Returns size of the basis set
+    procedure :: getBasisSize => TDftbPlus_getBasisSize
+    !> Whether the system is described with real matrices (complex otherwise)
+    procedure :: isHSReal => TDftbPlus_isHSReal
+    !> Register callback function to be invoked on each evaluation of the density matrix
+    procedure :: registerDMCallback => TDftbPlus_registerDMCallback
+    !> Register callback function to be invoked on the first evaluation of the overlap matrix
+    procedure :: registerSCallback => TDftbPlus_registerSCallback
+    !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
+    procedure :: registerHCallback => TDftbPlus_registerHCallback
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Return the number of spin channels in the DFTB+ calculation (1 if spin free, 2 for z spin
@@ -773,6 +795,155 @@ contains
   end function TDftbPlus_nrOfAtoms
 
 
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine TDftbPlus_getLocalKS(this, localKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    call getLocalKS(this%main, localKS)
+
+  end subroutine TDftbPlus_getLocalKS
+
+
+  !> Queries weights of k-points
+  subroutine TDftbPlus_getKWeights(this, KWeights)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Weights of k-points
+    real(dp), intent(out) :: KWeights(:)
+
+    KWeights(:) = this%main%kweight(:)
+
+
+  end subroutine TDftbPlus_getKWeights
+
+
+  !> Returns the nr. of spin channels in the system.
+  function TDftbPlus_nrOfSpin(this) result(nSpin)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of spins channels
+    integer :: nSpin
+
+    call this%checkInit()
+
+    nSpin = nrOfSpin(this%main)
+
+  end function TDftbPlus_nrOfSpin
+
+
+  !> Return the number of (k-point,spin chanel) pairs in the process group.
+  function TDftbPlus_nrOfLocalKS(this) result(nLocalKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of (k-point,spin chanel) pairs
+    integer :: nLocalKS
+
+    call this%checkInit()
+
+    nLocalKS = nrOfLocalKS(this%main)
+
+  end function TDftbPlus_nrOfLocalKS
+
+
+  !> Returns size of the basis set
+  function TDftbPlus_getBasisSize(this) result(basisSize)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    integer :: basisSize
+
+    call this%checkInit()
+
+    basisSize = this%main%denseDesc%fullSize
+
+  end function TDftbPlus_getBasisSize
+
+
+  !> Whether the system is described with real matrices
+  function TDftbPlus_isHSReal(this) result(isHSReal)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    logical isHSReal
+
+    call this%checkInit()
+
+    isHSReal = this%main%tRealHS
+
+  end function TDftbPlus_isHSReal
+
+
+  !> Register callback function to be invoked on each evaluation of the density matrix
+  subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for DM export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the DM callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerDM(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerDMCallback
+
+
+  !> Register callback function to be invoked on the first evaluation of the overlap matrix
+  subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the S callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerS(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSCallback
+
+
+  !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
+  subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for H export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the H callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerH(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerHCallback
+
+
   !> Returns the nr. of k-points describing the system.
   function TDftbPlus_nrOfKPoints(this) result(nKpts)
 
@@ -941,7 +1112,11 @@ contains
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
+
+    !> Instance
     class(TDftbPlus),  intent(inout) :: this
+
+    !> Chemical species labels
     character(len=*), intent(in) :: inputSpeciesNames(:)
 
     logical :: tSpeciesNameChanged

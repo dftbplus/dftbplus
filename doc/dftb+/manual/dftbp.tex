@@ -1349,7 +1349,8 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \label{sec:dftbp.Hamiltonian}
 
 Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Hamiltonians are
-implemented.
+implemented, with an optional interface (ASI) to externally managed
+models.
 
 \subsection{Density Functional based Tight Binding}
 \label{sec:dftbp.DFTB}
@@ -1844,6 +1845,23 @@ Hamiltonian = xTB {
 }
 \end{verbatim}
 
+\subsection{External Hamiltonian models}
+\label{sec:dftbp.ASI}
+
+For \dftbp{} binaries compiled with the API included, the interface to
+Atomic Simulation Interface (ASI~\cite{Stishenko2023}) can be enabled
+inside the \iscb{Hamiltonian} input block:
+
+\begin{ptable}
+  \kw{ASI} & l &  & No & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{ASI}] Allow an external code to read or replace the
+  hamiltonian, overlap or density matrix during the calculation. Note,
+  not all functionality of the code will be available if the interface
+  is active.
+\end{description}
 
 \subsection{ElectronicConstraints}
 \label{sec:dftbp.ElectronicConstraints}
@@ -4692,7 +4710,6 @@ Example:
 \begin{verbatim}
 ForceEvaluation = 'dynamics'
 \end{verbatim}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Options

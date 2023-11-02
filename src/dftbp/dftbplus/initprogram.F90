@@ -144,6 +144,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
+  use dftbp_dftbplus_apicallback, only : TAPICallback
   implicit none
 
   private
@@ -1126,6 +1127,10 @@ module dftbp_dftbplus_initprogram
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
 
+    !> This object encapsulates subroutines and variables that are used for registering and
+    !> invocation of the density, overlap, and hamiltonian matrices exporting callbacks.
+    type(TAPICallback), allocatable :: apiCallBack
+
   #:if WITH_SCALAPACK
 
     !> Should the dense matrices be re-ordered for sparse operations
@@ -1311,6 +1316,12 @@ contains
     ! Set the same access for readwrite as for write (we do not open any files in readwrite mode)
     call setDefaultBinaryAccess(input%ctrl%binaryAccessTypes(1), input%ctrl%binaryAccessTypes(2),&
         & input%ctrl%binaryAccessTypes(2))
+
+  #:if WITH_API
+    if (input%ctrl%isASICallbackEnabled) then
+      allocate(this%apiCallBack)
+    end if
+  #:endif
 
     ! Basic variables
     this%hamiltonianType = input%ctrl%hamiltonian
