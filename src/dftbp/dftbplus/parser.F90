@@ -1700,13 +1700,13 @@ contains
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
-    ! Electronic constraints
-    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    if (associated(value1)) then
-      allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
-    end if
+    ! ! Electronic constraints
+    ! call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+    !     & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    ! if (associated(value1)) then
+    !   allocate(ctrl%elecConstraintInp)
+    !   call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+    ! end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
