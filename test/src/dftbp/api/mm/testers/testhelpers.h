@@ -6,7 +6,7 @@
 /*------------------------------------------------------------------------------------------------*/
 
 #ifndef __TESTHELPERS_H__
-#define __TESTHELPERS_H_
+#define __TESTHELPERS_H__
 
 #ifdef __cplusplus
 extern "C" {
