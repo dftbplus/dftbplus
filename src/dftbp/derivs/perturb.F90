@@ -18,13 +18,11 @@ module dftbp_derivs_perturb
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal,&
-      & dRhoCmplx, dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
+  use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
+      & dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
-  use dftbp_dftbplus_mainio, only : writeDerivBandOut
-  use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
   use dftbp_dftb_periodic, only : TNeighbourList
@@ -35,6 +33,8 @@ module dftbp_derivs_perturb
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
+  use dftbp_dftbplus_mainio, only : writeDerivBandOut
+  use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
@@ -43,10 +43,9 @@ module dftbp_derivs_perturb
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
-#:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
-#:endif
-#:if not WITH_SCALAPACK
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
+#:else
   use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif
   implicit none
@@ -1433,10 +1432,9 @@ contains
               call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             else
               call mix(pChrgMixer, dqInpRed, dqDiffRed)
-            #:if WITH_MPI
+            #:if WITH_SCALAPACK
               ! Synchronise charges in order to avoid mixers that store a history drifting apart
-              call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
-              dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
+              call mpifx_bcast(env%mpi%globalComm, dqInpRed)
             #:endif
 
               call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
