@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
@@ -29,9 +30,10 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
       & getCellTranslations, updateNeighbourList
-  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes, rangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcAlgo, hybridXcGammaTypes,&
+      & checkSupercellFoldingMatrix, hybridXcFunc
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
@@ -40,7 +42,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
+  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
@@ -75,7 +77,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
       & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireRangeSepTag
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireHybridXcTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
@@ -158,6 +160,7 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
+    type(TStatus) :: errStatus
     type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
     logical :: tReadAnalysis
@@ -207,7 +210,7 @@ contains
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
-        & input%ginfo%greendens, input%poisson)
+        & input%ginfo%greendens, input%poisson, errStatus)
 
   #:else
 
@@ -217,9 +220,13 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
 
   #:endif
+
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
@@ -1221,9 +1228,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1232,7 +1239,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure to be filled
@@ -1249,22 +1256,27 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: buffer
 
     call getNodeName(node, buffer)
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson)
+      call readXTBHam(node, ctrl, geo, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1274,9 +1286,9 @@ contains
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1302,6 +1314,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
@@ -1327,7 +1342,7 @@ contains
     character(len=:), allocatable :: strOut
 
     !> For range separation
-    type(TRangeSepSKTag) :: rangeSepSK
+    type(THybridXcSKTag) :: hybridXcSK
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
@@ -1452,9 +1467,9 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call parseRangeSeparated(node, ctrl%rangeSepInp, skFiles)
+    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
 
-    if (.not. allocated(ctrl%rangeSepInp)) then
+    if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
@@ -1466,14 +1481,13 @@ contains
         call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
-
     else
-
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
-      ctrl%rangeSepInp%omega = rangeSepSk%omega
+          & skInterMeth, repPoly, hybridXcSK=hybridXcSK)
+      ctrl%hybridXcInp%omega = hybridXcSK%omega
+      ctrl%hybridXcInp%camAlpha = hybridXcSK%camAlpha
+      ctrl%hybridXcInp%camBeta = hybridXcSK%camBeta
     end if
-
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -1556,7 +1570,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (associated(child)) then
@@ -1795,9 +1810,9 @@ contains
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson)
+  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1820,6 +1835,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, modifier
@@ -1933,7 +1951,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, &
@@ -2756,7 +2775,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, poorKSampling)
+  subroutine readKPoints(node, ctrl, geo, poorKSampling, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2770,27 +2789,47 @@ contains
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    !! Should an additional check be performed if more than one SCC step is requested
+    logical :: checkStopHybridCalc
+
     integer :: ii
     character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
     poorKSampling = .false.
 
+    ! We can omit any hybrid xc-functional related checks for helical boundary conditions, since
+    ! such a calculation will nevertheless be stopped due to the incompatibility of these features
+    checkStopHybridCalc = .false.
+
     ! K-Points
     if (geo%tPeriodic) then
-
-      call getEuclideanKSampling(poorKSampling, ctrl, node, geo)
-
-    else if (geo%tHelical) then
-
+      call getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    elseif (geo%tHelical) then
       call getHelicalKSampling(poorKSampling, ctrl, node, geo)
-
     end if
 
     call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
     ! Eventually, perturbation routines should also have restart reads:
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
+    end if
+
+    ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
+    if (checkStopHybridCalc) then
+      if (ctrl%maxSccIter == 1) then
+        call warning("Restarting a hybrid xc-functional run with what appears to be&
+            & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
+            & original sampling (however fine for bandstructure calculations).")
+      else
+        call error("Error while parsing k-point sampling for a hybrid xc-functional&
+            & run." // NEW_LINE('A') // "   Only allowed for bandstructure calculations,&
+            & i.e. a single SCC iteration.")
+      end if
     end if
 
   end subroutine readKPoints
@@ -2836,11 +2875,39 @@ contains
   end subroutine maxSelfConsIterations
 
 
+  !> Tries to infer whether the k-point sampling is restricted to the Gamma-point.
+  pure function isGammaOnly(nKPoint, kPoint, kWeight)
+
+    !> Number of k-points for the calculation
+    integer, intent(in) :: nKPoint
+
+    !> K-points for the system
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> True, if this appears to be a Gamma-only calculation
+    logical :: isGammaOnly
+
+    if (.not. nKPoint == 1) then
+      isGammaOnly = .false.
+    else
+      isGammaOnly = .not. ((.not. all(abs(kPoint(:, 1)) < 1.0e-08_dp))&
+          & .or. (.not. abs(kWeight(1)) - 1.0_dp < 1.0e-08_dp))
+    end if
+
+  end function isGammaOnly
+
+
   !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(poorKSampling, ctrl, node, geo)
+  subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: poorKSampling
+
+    !> Should an additional check be performed if more than one SCC step is requested
+    logical, intent(out) :: checkStopHybridCalc
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2851,44 +2918,53 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
     integer :: ind, ii, jj, kk
-    real(dp) :: coeffsAndShifts(3, 4)
+    real(dp), target :: coeffsAndShifts(3, 4)
     real(dp) :: rTmp3(3)
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
 
-    call getChildValue(node, "KPointsAndWeights", value1, child=child, &
-        &modifier=modifier)
+    !! True, if k-points should be reduced by inversion
+    logical :: tReduceByInversion
+
+    !! True, if a Gamma-only k-point sampling is requested
+    logical :: tGammaOnly
+
+    call getChildValue(node, "KPointsAndWeights", value1, child=child, modifier=modifier)
     call getNodeName(value1, buffer)
+
     select case(char(buffer))
 
     case ("supercellfolding")
       poorKSampling = .false.
       if (len(modifier) > 0) then
-        call detailedError(child, "No modifier is allowed, if the &
-            &SupercellFolding scheme is used.")
+        call detailedError(child, "No modifier is allowed, if the SupercellFolding scheme is used.")
       end if
       call getChildValue(value1, "", coeffsAndShifts)
-      if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
-        call detailedError(value1, "Determinant of the supercell matrix must &
-            &be greater than 1")
+      if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-06_dp) then
+        call detailedError(value1, "Determinant of the supercell matrix must be greater than 1")
       end if
-      if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
-          &> 1e-6_dp)) then
-        call detailedError(value1, "The components of the supercell matrix &
-            &must be integers.")
+      if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp)&
+          & > 1e-06_dp)) then
+        call detailedError(value1, "The components of the supercell matrix must be integers.")
       end if
-      if (.not.ctrl%tSpinOrbit) then
-        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.true.)
-      else
-        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
+      if (allocated(ctrl%hybridXcInp)) then
+        allocate(ctrl%supercellFoldingDiag(3))
+        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
+            & supercellFoldingDiagOut=ctrl%supercellFoldingDiag)
+        @:PROPAGATE_ERROR(errStatus)
+        ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
+      tReduceByInversion = (.not. ctrl%tSpinOrbit)
+      call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+          & ctrl%kPoint, ctrl%kWeight, reduceByInversion=tReduceByInversion)
       ctrl%nKPoint = size(ctrl%kPoint, dim=2)
 
     case ("klines")
@@ -2981,6 +3057,33 @@ contains
     case default
       call detailedError(value1, "Invalid K-point scheme")
     end select
+
+    ! Catch problematic k-point sampling in case this is a hybrid calculation
+    checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+        & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
+
+    ! Check for hybrid xc-functional requirements
+    tGammaOnly = isGammaOnly(ctrl%nKPoint, ctrl%kPoint, ctrl%kWeight)
+    if (.not. tGammaOnly) then
+      if (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+          & .and. (char(buffer) /= "supercellfolding") .and. (.not. ctrl%tReadChrg)) then
+        call detailedError(child, "Error while parsing k-point sampling for a hybrid xc-functional&
+            & run. Currently only" // NEW_LINE('A') // "   the supercell folding technique (or any&
+            & format specifying the Gamma-point only)" // NEW_LINE('A') // "   is supported.")
+      end if
+    end if
+
+    ! Hybrid calculations expect the supercell folding coefficients/shifts to be present
+    if (allocated(ctrl%hybridXcInp) .and. tGammaOnly&
+        & .and. (char(buffer) /= "supercellfolding")) then
+      coeffsAndShifts(:,:) = 0.0_dp
+      allocate(ctrl%supercellFoldingDiag(3))
+      do ii = 1, 3
+        coeffsAndShifts(ii, ii) = 1.0_dp
+        ctrl%supercellFoldingDiag(ii) = coeffsAndShifts(ii, ii)
+      end do
+      ctrl%supercellFoldingMatrix = coeffsAndShifts
+    end if
 
   end subroutine getEuclideanKSampling
 
@@ -3139,8 +3242,8 @@ contains
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
 
-    ! temporararily removed until debugged
-    !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
+    ! temporarily removed until debugged
+    ! call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
     ctrl%tWriteShifts = .false.
 
     if (geo%tPeriodic) then
@@ -3440,11 +3543,11 @@ contains
   end subroutine readHCorrection
 
 
-  !> Reads Slater-Koster files
+  !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
-  !> established
+  !> established.
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, rangeSepSK)
+      & truncationCutOff, hybridXcSK, tHyb, tLc, tCam)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3475,7 +3578,16 @@ contains
     real(dp), intent(in), optional :: truncationCutOff
 
     !> if calculation range separated then read omega from end of SK file
-    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+    type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
+
+    !> True, if global hybrid functional is requested
+    logical, intent(in), optional :: tHyb
+
+    !> True, if purely long-range corrected functional is requested
+    logical, intent(in), optional :: tLc
+
+    !> True, if CAM range-separation is requested
+    logical, intent(in), optional :: tCam
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
@@ -3523,7 +3635,7 @@ contains
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
             write(stdOut, "(a)") trim(fileName)
-            if (.not. present(rangeSepSK)) then
+            if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
               elseif (readRep) then
@@ -3535,12 +3647,12 @@ contains
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
-                    & rangeSepSK=rangeSepSK)
+                    & hybridXcSK=hybridXcSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK)
+                    & splineRepIn=repSplineIn1, hybridXcSK=hybridXcSK)
               else
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, hybridXcSK=hybridXcSK)
               end if
             end if
             ind = ind + 1
@@ -4882,7 +4994,7 @@ contains
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      if (allocated(ctrl%rangeSepInp)) then
+      if (allocated(ctrl%hybridXcInp)) then
         call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       end if
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
@@ -7768,13 +7880,17 @@ contains
   end function is_numeric
 
 
-  !> Parse range separation input
-  subroutine parseRangeSeparated(node, input, skFiles)
+  !> Parses hybrid xc-functional input.
+  subroutine parseHybridBlock(node, input, geo, skFiles)
+
     !> Node to parse
     type(fnode), intent(in), pointer :: node
 
     !> Range separated data structure to fill
-    type(TRangeSepInp), intent(inout), allocatable :: input
+    type(THybridXcInp), intent(inout), allocatable :: input
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -7782,94 +7898,163 @@ contains
     !! File name of representative SK-file to read
     character(lc) :: fileName
 
-    !! Range-separated extra tag in SK-files, if allocated
-    integer :: rangeSepSkTag
-
-    !! Range-separated functional type of user input
-    integer :: rangeSepInputTag
-
-    !! Auxiliary node pointers
-    type(fnode), pointer :: hybridChild, hybridValue, screeningChild, screeningValue, child1
-
-    !! True, if RangeSeparated input block present
+    !! True, if hybrid xc-functional input block present
     logical :: isHybridInp
 
-    !! True, if range-separated extra tag found in SK-file(s)
+    !! True, if hybrid xc-functional extra tag found in SK-file(s)
     logical :: isHybridSk
+
+    !! Hybrid xc-functional extra tag in SK-files, if allocated
+    integer :: hybridXcSkTag
+
+    !! Hybrid functional type of user input
+    integer :: hybridXcInputTag
+
+    !! Auxiliary node pointers
+    type(fnode), pointer :: hybridChild, hybridValue, screeningChild
+    type(fnode), pointer :: screeningValue, cmChild, cmValue, child1, child2
 
     !! Temporary string buffers
     type(string) :: buffer, modifier
 
+    !! Temporary string buffer, that stores the gamma function type
+    type(string) :: strBuffer
+    character(lc) :: strTmp
+
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0))
 
-    ! Extracting range-separated tag from first SK-file only is a workaround and assumes that a set
-    ! of given SK-files uses the same parameters (which should always be the case)!
+    ! Extracting hybridXc tag from first SK-file only is a workaround and assumes that a set of
+    ! given SK-files uses the same parameters (which should always be the case)!
     call get(skFiles(1, 1), fileName, 1)
 
-    ! Check if SK-files contain extra tag for range-separated functionals
-    call inquireRangeSepTag(fileName, rangeSepSkTag)
-    isHybridSk = rangeSepSkTag /= rangeSepFunc%none
+    ! Check if SK-files contain extra tag for hybrid xc-functionals
+    call inquireHybridXcTag(fileName, hybridXcSkTag)
+    isHybridSk = hybridXcSkTag /= hybridXcFunc%none
 
-    call getChild(node, "RangeSeparated", child=hybridChild, requested=.false.)
-    isHybridInp = associated(hybridChild)
+    call getChild(node, "Hybrid", child=hybridChild, requested=.false.)
+    call getChildValue(node, "Hybrid", hybridValue, "None", child=hybridChild)
+    call getNodeName(hybridValue, buffer)
+
+    isHybridInp = associated(hybridChild) .and. (tolower(char(buffer)) /= "none")
 
     if (isHybridInp .and. .not. isHybridSk) then
-      call error("RangeSeparated input block present, but SK-file '" // trim(fileName)&
-          & // "' seems to be (semi-)local.")
+      call error("Hybrid input block present, but SK-file '" // trim(fileName)&
+          & // "' appears to be (semi-)local.")
     elseif (isHybridSk .and. .not. isHybridInp) then
       call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
     end if
 
     if (isHybridInp) then
-      call getChildValue(node, "RangeSeparated", hybridValue, "None", child=hybridChild)
-      call getNodeName(hybridValue, buffer)
       ! Convert hybrid functional type of user input to enumerator
       select case(tolower(char(buffer)))
+      case ("global")
+        hybridXcInputTag = hybridXcFunc%hyb
       case ("lc")
-        rangeSepInputTag = rangeSepFunc%lc
+        hybridXcInputTag = hybridXcFunc%lc
+      case ("cam")
+        hybridXcInputTag = hybridXcFunc%cam
       case default
         call detailedError(hybridChild, "Unknown hybrid xc-functional type '" // char(buffer)&
             & // "' in input.")
       end select
-      if (.not. rangeSepInputTag == rangeSepSkTag) then
-        ! Check if hybrid functional type is in line with SK-files
+
+      ! Check if hybrid functional type is in line with SK-files
+      if (.not. hybridXcInputTag == hybridXcSkTag) then
         call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
       end if
-      select case (tolower(char(buffer)))
-      case ("none")
-        rangeSepInputTag = rangeSepFunc%none
-        continue
-      case ("lc")
-        allocate(input)
-        call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
-            & child=screeningChild)
-        call getNodeName(screeningValue, buffer)
-        select case(char(buffer))
-        case ("neighbourbased")
-          input%rangeSepAlg = rangeSepTypes%neighbour
-          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-              & modifier=modifier, child=child1)
-          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
-        case ("thresholded")
-          input%rangeSepAlg = rangeSepTypes%threshold
+
+      allocate(input)
+      input%hybridXcType = hybridXcInputTag
+      call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
+          & child=screeningChild)
+
+      call getNodeName(screeningValue, buffer)
+      select case(tolower(char(buffer)))
+      case ("neighbourbased")
+        input%hybridXcAlg = hybridXcAlgo%neighbourBased
+        call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child1)
+        call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+        if (geo%tPeriodic) then
           call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
-          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-              & modifier=modifier, child=child1)
-          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
-        case ("matrixbased")
-          input%rangeSepAlg = rangeSepTypes%matrixBased
-          ! In this case, CutoffRedunction is not used so it should be set to zero.
-          input%cutoffRed = 0.0_dp
-        case default
-          call getNodeHSdName(screeningValue, buffer)
-          call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'.")
-        end select
+        end if
+      case ("thresholded")
+        input%hybridXcAlg = hybridXcAlgo%thresholdBased
+        call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
+        call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child1)
+        call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+      case ("matrixbased")
+        input%hybridXcAlg = hybridXcAlgo%matrixBased
+        ! In this case, CutoffRedunction is not used so it should be set to zero.
+        input%cutoffRed = 0.0_dp
+      case default
+        call getNodeHSdName(screeningValue, buffer)
+        call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'")
       end select
-      input%rangeSepType = rangeSepInputTag
+
+      ! Additional settings for periodic sytems
+      ifPeriodic: if (geo%tPeriodic) then
+
+        ! parse gamma function type (full, truncated, mic, ...)
+        call getChildValue(hybridValue, "CoulombMatrix", cmValue, "Truncated", child=cmChild)
+
+        call getNodeName(cmValue, buffer)
+        select case(char(buffer))
+        case ("full")
+          input%gammaType = hybridXcGammaTypes%full
+        case ("minimumimage")
+          input%gammaType = hybridXcGammaTypes%mic
+        case ("truncated")
+          input%gammaType = hybridXcGammaTypes%truncated
+        case ("truncated+damping")
+          input%gammaType = hybridXcGammaTypes%truncatedAndDamped
+        case default
+          call getNodeHSdName(cmValue, buffer)
+          call detailedError(cmChild, "Invalid Gamma function type '" // char(strBuffer) // "'")
+        end select
+
+        ! g-Summation cutoff not needed for MIC CAM Hamiltonian
+        if (input%gammaType /= hybridXcGammaTypes%mic) then
+          call getChild(cmValue, "GSummationCutoff", child=child1, modifier=modifier,&
+              & requested=.false.)
+          if (associated(child1)) then
+            allocate(input%gSummationCutoff)
+            call getChildValue(child1, "", input%gSummationCutoff, modifier=modifier, child=child2)
+            call convertUnitHsd(char(modifier), lengthUnits, child2, input%gSummationCutoff)
+          end if
+        end if
+
+        if (input%gammaType == hybridXcGammaTypes%truncated&
+            & .or. input%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
+          call getChild(cmValue, "CoulombCutoff", child=child1, modifier=modifier,&
+              & requested=.false.)
+          if (associated(child1)) then
+            allocate(input%gammaCutoff)
+            call getChildValue(child1, "", input%gammaCutoff, modifier=modifier, child=child2)
+            call convertUnitHsd(char(modifier), lengthUnits, child2, input%gammaCutoff)
+          end if
+        end if
+
+      else
+        ! Always use unaltered gamma function for non-periodic systems
+        input%gammaType = hybridXcGammaTypes%full
+      end if ifPeriodic
+
+      ! Number of primitive cells regarded in MIC, along each supercell folding direction
+      if (input%gammaType == hybridXcGammaTypes%mic) then
+        allocate(input%wignerSeitzReduction)
+        call getChildValue(cmValue, "WignerSeitzReduction", input%wignerSeitzReduction, default=0)
+      end if
+
+    else
+
+      hybridXcInputTag = hybridXcFunc%none
+
     end if
 
-  end subroutine parseRangeSeparated
+  end subroutine parseHybridBlock
 
 
   !> Reads the REKS block

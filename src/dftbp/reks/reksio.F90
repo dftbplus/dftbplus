@@ -54,7 +54,7 @@ module dftbp_reks_reksio
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (this%isRangeSep) then
+      if (this%isHybridXc) then
         write(stdOut,'(1(f13.8))',advance="no") this%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp

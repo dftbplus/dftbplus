@@ -6,11 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Evaluate energies
 module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -19,7 +22,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
@@ -45,10 +48,10 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, species,&
       & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
-      & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, &
-      & energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt,&
-      & vOnSiteAtomExt)
+      & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
+      & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus, qNetAtom,&
+      & vOnSiteAtomInt, vOnSiteAtomExt, densityMatrix, kWeights, localKS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -128,8 +131,8 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
-    !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
+    !> Data from hybrid xc-functional calculations
+    class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
@@ -156,8 +159,14 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
+
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Net atom populations
     real(dp), intent(in), optional :: qNetAtom(:)
@@ -167,6 +176,16 @@ contains
 
     !> On-site only (external) potential
     real(dp), intent(in), optional :: vOnSiteAtomExt(:,:)
+
+    !> Holds real and complex delta density matrices and pointers
+    type(TDensityMatrix), intent(in), optional :: densityMatrix
+
+    !> K-point weights
+    real(dp), intent(in), optional :: kWeights(:)
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(in), optional :: localKS(:,:)
 
     integer :: nSpin
     real(dp) :: nEl(2)
@@ -261,9 +280,18 @@ contains
     end if
 
     ! Add exchange contribution for range separated calculations
-    if (allocated(rangeSep) .and. .not. allocated(reks)) then
+    if (allocated(hybridXc) .and. .not. allocated(reks)) then
       energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
+      if (tRealHS) then
+        call hybridXc%addCamEnergy_real(env, energy%Efock)
+      else
+        if ((.not. present(densityMatrix)) .or. (.not. present(kWeights))) then
+          @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for hybrid xc-functional&
+              & calculation.")
+        end if
+        call hybridXc%addCamEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS,&
+            & kWeights, densityMatrix%deltaRhoOutCplx, energy%Efock)
+      end if
     end if
 
     ! Free energy contribution if attached to an electron reservoir

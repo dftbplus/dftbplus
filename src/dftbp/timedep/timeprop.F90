@@ -36,9 +36,11 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_onsitecorrection, only : addOnsShift
   use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies,&
       & getNrOfNeighboursForAll
-  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms
+  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms,&
+      & denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks,&
+      & denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
@@ -399,8 +401,8 @@ module dftbp_timedep_timeprop
     !> Is this a real hamiltonian
     logical :: tRealHS
 
-    !> Is this a hybrid calculation
-    logical :: isRangeSep
+    !> Whether this is a hybrid xc-functional calculation
+    logical :: isHybridXc
 
     !> If Euler steps should be done during simulation
     logical :: tEulers = .false.
@@ -692,7 +694,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, sccCalc, tblite,&
+      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isHybridXc, sccCalc, tblite,&
       & eFieldScaling, hamiltonianType, errStatus)
 
     !> ElecDynamics instance
@@ -758,8 +760,8 @@ contains
     !> Weight of the K-Points
     real(dp) :: KWeight(:)
 
-    !> LC correction
-    logical, intent(in) :: isRangeSep
+    !> Whether this is a hybrid xc-functional calculation
+    logical, intent(in) :: isHybridXc
 
     !> SCC module internal variables
     type(TScc), intent(in), allocatable :: sccCalc
@@ -876,7 +878,7 @@ contains
     this%tBondP = inp%tBondP
     this%species = species
     this%tPeriodic = tPeriodic
-    this%isRangeSep = isRangeSep
+    this%isHybridXc = isHybridXc
     this%tWriteAtomEnergies = inp%tWriteAtomEnergies
 
     if (this%tIons) then
@@ -970,7 +972,7 @@ contains
   !> Driver for time dependent propagation to calculate either a spectrum or laser driving
   subroutine runDynamics(this, boundaryCond, eigvecs, H0, speciesAll, q0, referenceN0, ints,&
       & filling, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord,&
-      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & spinW, repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, hybridXc,&
       & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
       & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
       & taggedWriter, refExtPot, errStatus)
@@ -1056,7 +1058,7 @@ contains
     type(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -1121,7 +1123,7 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
             & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+            & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, hybridXc,&
             & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
             & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
             & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
@@ -1130,7 +1132,7 @@ contains
     else
       call doDynamics(this, boundaryCond, eigvecs, H0, q0, referenceN0, ints, filling,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+          & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, hybridXc,&
           & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
           & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
           & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
@@ -1142,7 +1144,7 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, boundaryCond, eigvecsReal, H0, q0, referenceN0, ints, filling,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, rangeSep,&
+      & repulsive, env, tDualSpinOrbit, xi, thirdOrd, solvation, eFieldScaling, hybridXc,&
       & qDepExtPot, dftbU, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
       & onSiteElements, skHamCont, skOverCont, electronicSolver, speciesAll, eigvecsCplx,&
       & taggedWriter, refExtPot, latVec, invLatVec, iCellVec, rCellVec, cellVec, errStatus)
@@ -1232,7 +1234,7 @@ contains
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -1292,7 +1294,7 @@ contains
     call initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll,&
        & H0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements,&
-       & refExtPot, solvation, eFieldScaling, rangeSep, referenceN0, q0, repulsive,&
+       & refExtPot, solvation, eFieldScaling, hybridXc, referenceN0, q0, repulsive,&
        & iAtInCentralRegion, eigvecsReal, eigvecsCplx, filling, qDepExtPot, tFixEf, Ef, latVec,&
        & invLatVec, iCellVec, rCellVec, cellVec, speciesAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
@@ -1312,7 +1314,7 @@ contains
       call doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK,&
        & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env,&
        & coordAll, q0, referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU,&
-       & onSiteElements, refExtPot, solvation, eFieldScaling, rangeSep, repulsive,&
+       & onSiteElements, refExtPot, solvation, eFieldScaling, hybridXc, repulsive,&
        & iAtInCentralRegion, tFixEf, Ef, electronicSolver, qDepExtPot, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
@@ -1342,7 +1344,7 @@ contains
   subroutine updateH(this, H1, ints, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, dftbU, onSiteElements, refExtPot,&
-      & deltaRho, H1LC, Ssqr, solvation, rangeSep, dispersion, rho, errStatus)
+      & deltaRho, H1LC, Ssqr, solvation, hybridXc, dispersion, rho, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1435,7 +1437,7 @@ contains
     class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Dispersion data and calculations
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
@@ -1526,23 +1528,18 @@ contains
       end if
     end do
 
-    ! add LC correction
-    if (this%isRangeSep) then
+    ! add hybrid xc-functional contribution
+    if (this%isHybridXc) then
       deltaRho = rho
-      select case(this%nSpin)
-      case(2)
-        do iSpin = 1, this%nSpin
-          call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
-        end do
-      case(1)
-        call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
-      case default
-        @:RAISE_ERROR(errStatus, -1, "Range separation not implemented for noncolinear spin")
-      end select
+      if (this%nSpin > 2) then
+        @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
+      end if
+      ! denseSubtractDensityOfAtoms_cmplx_nonperiodic
+      call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
-        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
-            & H1LC)
+        call hybridXc%addCamHamiltonianMatrix_cluster_cmplx(iSquare, sSqr(:,:, iSpin),&
+            & deltaRho(:,:, iSpin), H1LC)
         call blockHermitianHS(H1LC, iSquare)
         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
       end do
@@ -1893,8 +1890,8 @@ contains
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
   subroutine getTDEnergy(this, env, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
       & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, dftbU, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & tDualSpinOrbit, thirdOrd, solvation, hybridXc, qDepExtPot, qBlock, dftbU, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, onSiteElements, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1957,7 +1954,7 @@ contains
     class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -1983,6 +1980,9 @@ contains
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
@@ -2012,8 +2012,9 @@ contains
     call calcEnergies(env, this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
         & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
-        & potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
-        & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & potential, energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock,&
+        & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, .true., onSiteElements, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
@@ -2265,7 +2266,7 @@ contains
       allocate(qNetAtom(this%nAtom))
     end if
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       allocate(H1LC(this%nOrbs, this%nOrbs))
     end if
 
@@ -3362,7 +3363,7 @@ contains
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
       & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho, sSqr, errStatus)
+      & repulsive, coordAll, rhoPrim, ErhoPrim, iStep, env, hybridXc, deltaRho, sSqr, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -3434,7 +3435,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
@@ -3524,10 +3525,16 @@ contains
       repulsiveDerivs(:,:) = 0.0_dp
     end if
 
-    if (this%isRangeSep) then
-      call rangeSep%addLRGradients(derivs, this%derivator, real(deltaRho), skOverCont, coordAll,&
-          & this%speciesAll, orb, iSquare, real(sSqr(:,:,1)), neighbourList%iNeighbour,&
-          & nNeighbourSK)
+    if (this%isHybridXc) then
+    #:if WITH_SCALAPACK
+      @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
+          & implemented for rTD-DFTB.")
+    #:else
+      call hybridXc%addCamGradients_real(real(deltaRho), real(sSqr(:,:,1)), skOverCont, orb,&
+          & iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator, img2CentCell,&
+          & this%speciesAll, coordAll, .false., derivs, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    #:endif
     end if
 
     if (this%tLaser) then
@@ -3705,11 +3712,14 @@ contains
 
 
   !> Calculates repulsive and dispersion energies
-  subroutine  getPositionDependentEnergy(this, energy, coordAll, img2CentCell, neighbourList,&
-      & repulsive, iAtInCentralRegion, rangeSep)
+  subroutine getPositionDependentEnergy(this, env, energy, coordAll, img2CentCell, neighbourList,&
+      & repulsive, iAtInCentralRegion, hybridXc)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Data type for energy components and total
     type(TEnergies), intent(inout) :: energy
@@ -3730,7 +3740,7 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     if (allocated(repulsive)) then
       call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
@@ -3746,8 +3756,8 @@ contains
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
     end if
-    if (allocated(rangeSep)) then
-      call rangeSep%addLREnergy(energy%Efock)
+    if (allocated(hybridXc)) then
+      call hybridXc%addCamEnergy_real(env, energy%Efock)
     else
       energy%Efock = 0.0_dp
     end if
@@ -3855,7 +3865,7 @@ contains
   subroutine initializeDynamics(this, boundaryCond, coord, orb, neighbourList, nNeighbourSK,&
       & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, H0, spinW,&
       & tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation, eFieldScaling,&
-      & rangeSep, referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx,&
+      & hybridXc, referenceN0, q0, repulsive, iAtInCentralRegion, eigvecsReal, eigvecsCplx,&
       & filling, qDepExtPot, tFixEf, Ef, latVec, invLatVec, iCellVec, rCellVec, cellVec,&
       & speciesAll, errStatus)
 
@@ -3944,7 +3954,7 @@ contains
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -4116,7 +4126,7 @@ contains
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
-        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, hybridXc,&
         & this%dispersion, this%trho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
@@ -4125,7 +4135,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
+          & 0, env, hybridXc, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -4147,13 +4157,15 @@ contains
       call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
     end if
 
-    call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, neighbourList,&
-        & repulsive, iAtInCentralRegion, rangeSep)
+    call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell, neighbourList,&
+        & repulsive, iAtInCentralRegion, hybridXc)
 
     call getTDEnergy(this, env, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK,&
         & orb, iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
-        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
-        & qDepExtPot, this%qBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, hybridXc,&
+        & qDepExtPot, this%qBlock, dftbu, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (.not. this%tReadRestart .or. this%tProbe) then
       ! output ground state data
@@ -4198,7 +4210,7 @@ contains
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
-        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, hybridXc,&
         & this%dispersion,this%rho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
@@ -4206,7 +4218,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont,  skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & 0, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
+          & 0, env, hybridXc, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -4216,11 +4228,11 @@ contains
 
 
   !> Do one TD step, propagating electrons and nuclei (if IonDynamics is enabled)
-  subroutine doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-      & iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0, referenceN0,&
-      & spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot, solvation,&
-      & eFieldScaling, rangeSep, repulsive, iAtInCentralRegion, tFixEf, Ef, electronicSolver,&
-      & qDepExtPot, errStatus)
+  subroutine doTdStep(this, boundaryCond, iStep, coord, orb, neighbourList, nNeighbourSK,&
+      & iSquare, iSparseStart, img2CentCell, skHamCont, skOverCont, ints, env, coordAll, q0,&
+      & referenceN0, spinW, tDualSpinOrbit, xi, thirdOrd, dftbU, onSiteElements, refExtPot,&
+      & solvation, eFieldScaling, hybridXc, repulsive, iAtInCentralRegion, tFixEf, Ef,&
+      & electronicSolver, qDepExtPot, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -4298,7 +4310,7 @@ contains
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -4363,14 +4375,16 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
-      call getPositionDependentEnergy(this, this%energy, coordAll, img2CentCell, neighbourList,&
-          & repulsive, iAtInCentralRegion, rangeSep)
+      call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell,&
+          & neighbourList, repulsive, iAtInCentralRegion, hybridXc)
     end if
 
     call getTDEnergy(this, env, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK,&
         & orb, iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
-        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep,&
-        & qDepExtPot, this%qBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & this%chargePerShell, this%energyKin, tDualSpinOrbit, thirdOrd, solvation, hybridXc,&
+        & qDepExtPot, this%qBlock, dftbU, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements,&
+        & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if ((mod(iStep, this%writeFreq) == 0)) then
       call getBondPopulAndEnergy(this, this%bondWork, this%lastBondPopul, this%rhoPrim, this%ham0,&
@@ -4379,7 +4393,7 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-      if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
+      if (this%tIons .or. (.not. this%tRealHS) .or. this%isHybridXc) then
         this%H1(:,:,iKS) = this%RdotSprime + imag * this%H1(:,:,iKS)
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
@@ -4473,7 +4487,7 @@ contains
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
-        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, rangeSep,&
+        & onSiteElements, refExtPot, this%deltaRho, this%H1LC, this%Ssqr, solvation, hybridXc,&
         & this%dispersion,this%rho, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
@@ -4481,7 +4495,7 @@ contains
       call getForces(this, this%movedAccel, this%totalForce, this%rho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, iSquare, this%potential, orb,&
           & skHamCont, skOverCont, this%qq, q0, repulsive, coordAll, this%rhoPrim, this%ErhoPrim,&
-          & iStep, env, rangeSep, this%deltaRho, this%Ssqr, errStatus)
+          & iStep, env, hybridXc, this%deltaRho, this%Ssqr, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -4545,7 +4559,7 @@ contains
 
     if (this%tIons) then
       if (allocated(this%polDirs)) then
-        if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
+        if (size(this%polDirs) < (this%nDynamicsInit + 1)) then
           deallocate(this%pMDIntegrator)
         end if
       end if

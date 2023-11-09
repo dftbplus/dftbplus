@@ -23,7 +23,6 @@ set(sources-fpp
   ${curdir}/dispuffdata.F90
   ${curdir}/elecconstraints.F90
   ${curdir}/elstatpot.F90
-  #${curdir}/emfields.F90
   ${curdir}/energytypes.F90
   ${curdir}/encharges.F90
   ${curdir}/etemp.F90
@@ -42,6 +41,7 @@ set(sources-fpp
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
   ${curdir}/rangeseparated.F90
+  ${curdir}/rshgamma.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90

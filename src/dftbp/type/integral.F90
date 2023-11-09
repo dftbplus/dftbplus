@@ -21,22 +21,22 @@ module dftbp_type_integral
     real(dp), allocatable :: overlap(:)
 
     !> Dipole integrals with operator on ket function
-    real(dp), allocatable :: dipoleKet(:, :)
+    real(dp), allocatable :: dipoleKet(:,:)
 
     !> Dipole integrals with operator on bra function
-    real(dp), allocatable :: dipoleBra(:, :)
+    real(dp), allocatable :: dipoleBra(:,:)
 
     !> Quadrupole integrals with operator on ket function
-    real(dp), allocatable :: quadrupoleKet(:, :)
+    real(dp), allocatable :: quadrupoleKet(:,:)
 
     !> Quadrupole integrals with operator on bra function
-    real(dp), allocatable :: quadrupoleBra(:, :)
+    real(dp), allocatable :: quadrupoleBra(:,:)
 
     !> Real Hamiltonian integrals in atomic block sparse form
-    real(dp), allocatable :: hamiltonian(:, :)
+    real(dp), allocatable :: hamiltonian(:,:)
 
     !> Imaginary Hamiltonian integrals in atomic block sparse form
-    real(dp), allocatable :: iHamiltonian(:, :)
+    real(dp), allocatable :: iHamiltonian(:,:)
 
   end type TIntegral
 

@@ -94,22 +94,50 @@ input/ammonia_lammps                   #? MPI_PROCS <= 1
 input/ammonia_poscar                   #? MPI_PROCS <= 1
 input/unsorted_contcar                 #? MPI_PROCS <= 1
 
-rangesep/C18H12-force                  #? not WITH_MPI
-rangesep/C18H12-nbscreening            #? not WITH_MPI
-rangesep/C18H12-matrix                 #? not WITH_MPI
-rangesep/CH3                           #? not WITH_MPI
-rangesep/CH3-matrix                    #? not WITH_MPI
-rangesep/C60-nb                        #? not WITH_MPI
-rangesep/C60-nb-cutoff                 #? not WITH_MPI
-rangesep/Thymine-T1-force              #? not WITH_MPI
-rangesep/cyclopropene_nb_restart       #? not WITH_MPI
-rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
-rangesep/Thymine-T1_onsite             #? not WITH_MPI
-rangesep/C4H6-Casida-S1-Force          #? not WITH_MPI
-rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI
-rangesep/C4H6-TD-LC-Triplet            #? not WITH_MPI
-rangesep/Benzene-TD-LC-Spinpol         #? not WITH_MPI
-rangesep/Benzene-TD-LC-Spinpol-Iter    #? not WITH_MPI
+hybrid/cluster/C18H12-force-hyb                    #? MPI_PROCS <= 4
+hybrid/cluster/C18H12-force-lc                     #? not WITH_MPI
+hybrid/cluster/C18H12-force-cam                    #? MPI_PROCS <= 4
+hybrid/cluster/C18H12-nbscreening                  #? not WITH_MPI
+hybrid/cluster/C18H12-matrix                       #? MPI_PROCS <= 4
+hybrid/cluster/CH3                                 #? not WITH_MPI
+hybrid/cluster/CH3-matrix                          #? MPI_PROCS <= 1
+hybrid/cluster/C60-nb                              #? not WITH_MPI
+hybrid/cluster/C60-nb-cutoff                       #? not WITH_MPI
+hybrid/cluster/Thymine-T1-force                    #? not WITH_MPI
+hybrid/cluster/cyclopropene_nb_restart             #? not WITH_MPI
+hybrid/cluster/Thymine-spin-matrix-force-restart   #? not WITH_MPI
+hybrid/cluster/C240_tn                             #? not WITH_MPI and LONG_TEST
+hybrid/cluster/Thymine-T1_onsite                   #? not WITH_MPI
+hybrid/cluster/Thymine-spin-matrix-force-mpi-grp1  #? MPI_PROCS <= 2
+hybrid/cluster/Thymine-spin-matrix-force-mpi-grp2  #? MPI_PROCS == 2
+hybrid/cluster/C4H6-Casida-S1-Force                #? not WITH_MPI
+hybrid/cluster/Benzene-Spinpol-matrix              #? MPI_PROCS <= 1
+hybrid/cluster/Benzene-Casida-S5-Force             #? not WITH_MPI
+hybrid/cluster/C4H6-TD-LC-Triplet                  #? not WITH_MPI
+hybrid/cluster/Benzene-TD-LC-Spinpol               #? not WITH_MPI
+hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? not WITH_MPI
+
+hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
+hybrid/periodic/Acene-gamma-matrix-restart            #? not WITH_MPI
+hybrid/periodic/Acene-gamma-neigh-force-cam           #? not WITH_MPI
+hybrid/periodic/Acene-gamma-neigh-force-hyb           #? not WITH_MPI
+hybrid/periodic/Acene-gamma-neigh-force-lc            #? not WITH_MPI
+hybrid/periodic/Acene-kpts-band                       #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-band-mpi                   #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-force-lc                   #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-restart                    #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-restart-mpi                #? MPI_PROCS == 2
+hybrid/periodic/Benzene-gamma-matrix-spin-force-grp1  #? MPI_PROCS <= 9 and MPI_PROCS != 5 and MPI_PROCS != 7
+hybrid/periodic/Benzene-gamma-matrix-spin-force-grp2  #? MPI_PROCS == 2 or MPI_PROCS == 4
+hybrid/periodic/Benzene-gamma-neigh-spin-force        #? not WITH_MPI
+hybrid/periodic/CN-chain_transl-inv-ct                #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-gamma-matrix                     #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-gamma-neigh                      #? not WITH_MPI
+hybrid/periodic/GaAs-gamma-restart                    #? not WITH_MPI
+hybrid/periodic/GaAs-kpts-ct                          #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-ct-mpi                      #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-mic                         #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-mic-mpi                     #? MPI_PROCS == 2
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
