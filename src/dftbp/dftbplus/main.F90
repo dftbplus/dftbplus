@@ -117,7 +117,7 @@ module dftbp_dftbplus_main
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
       & unpackHSHelicalCplxBlacs
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc, blacsfx_gemr2d
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
@@ -4046,8 +4046,7 @@ contains
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart
-        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
-        qInpRed(:) = qInpRed / env%mpi%globalComm%size
+        call mpifx_bcast(env%mpi%globalComm, qInpRed)
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
             & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
