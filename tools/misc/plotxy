@@ -10,9 +10,11 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import matplotlib.pylab as plt
+import re
 
 
 def check_input(parser, args):
+    """Checks the compatibility of the arguments xticks and xticklabels"""
     if args.xticklabels is not None:
         if args.xticks is None:
             parser.error("To use ’--xticklabels' you must also use ’--xticks’!")
@@ -21,7 +23,43 @@ def check_input(parser, args):
                          f"the number of xticklabels ({len_xticklabels})!")
 
 
-parser = argparse.ArgumentParser(description='Plot 2D data as ((N)X)Y plot')
+class ArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser class for modifying the 'convert_arg_line_to_args' method"""
+    QUOTE_PATTERN = re.compile(r"(['\"])(.*?)\1")
+    SPACE_PATTERN = re.compile(r"[ \t]+")
+
+    def convert_arg_line_to_args(self, cmdline):
+        """Converts the arguments in the specified argument file line by line
+        into arguments parsed by argparse"""
+        cmdline = cmdline.strip()
+        args = []
+        lastend = 0
+        for match in self.QUOTE_PATTERN.finditer(cmdline.strip()):
+            start, end = match.span()
+            unquoted = match.group(2)
+            newargs = self.SPACE_PATTERN.split(cmdline[lastend:start])
+            if firstarg := newargs[0]:
+                prefix = args.pop() if args else ""
+                args.append(prefix + firstarg)
+            args += newargs[1:-1]
+            if len(newargs) == 1:
+                prefix = args.pop() if args else ""
+                args.append(prefix + unquoted)
+            elif lastarg := newargs[-1]:
+                args.append(lastarg + unquoted)
+            else:
+                args.append(unquoted)
+            lastend = end
+        newargs = self.SPACE_PATTERN.split(cmdline[lastend:])
+        if firstarg := newargs[0]:
+            prefix = args.pop() if args else ""
+            args.append(prefix + firstarg)
+        args += newargs[1:]
+        return args
+
+
+parser = ArgumentParser(description='Plot 2D data as ((N)X)Y plot',
+                        fromfile_prefix_chars='@')
 parser.add_argument('--version', action='version', version='1.1')
 parser.add_argument('-L', '--no-legend', action='store_false', default=True,
                     dest='legend', help='omit legends')
