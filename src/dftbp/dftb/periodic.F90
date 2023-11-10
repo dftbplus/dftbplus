@@ -178,11 +178,11 @@ contains
   end subroutine TNeighbourList_final
 
 
-  !> Finalizes the symmetric neighbour-list.
+  !> Finalizes the symmetric neighbour-list instance.
   !!
-  !! Note: This is a workaround for Intel/2021 and Intel/2022 that should possibly be removed as
-  !! soon as we no longer support these compilers. The issue that led to this subroutine is that
-  !! otherwise the compilers mentioned above did not finalize MPI windows correctly.
+  !! Workaround: Intel oneAPI 2021/22
+  !! Without explicit deallocation, the oneAPI versions listed above do not correctly finalize the
+  !! MPI windows.
   subroutine TSymNeighbourList_final(this)
 
     !> TSymNeighbourList instance
