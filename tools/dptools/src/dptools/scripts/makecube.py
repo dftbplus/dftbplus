@@ -20,9 +20,24 @@ calculation to a Gaussian Cube format.
 """
 
 
-def main():
-    '''Main driver routine for makecube.'''
+def main(cmdlineargs=None):
+    '''Main driver for makecube.
 
+    Args:
+        cmdlineargs: List of command line arguments. When None, arguments in
+            sys.argv are parsed (Default: None).
+    '''
+    args = parse_arguments(cmdlineargs)
+    makecube(args)
+
+
+def parse_arguments(cmdlineargs=None):
+    '''Parses command line arguments.
+
+    Args:
+        cmdlineargs: List of command line arguments. When None, arguments in
+            sys.argv are parsed (Default: None).
+    '''
     parser = argparse.ArgumentParser(description=USAGE)
 
     helpstring = 'file containing X vector coordinates (default Xvector.dat)'
@@ -45,8 +60,18 @@ def main():
     helpstring = 'output cube/vtk file name'
     parser.add_argument('dest', help=helpstring)
 
-    args = parser.parse_args()
+    args = parser.parse_args(cmdlineargs)
 
+    return args
+
+
+def makecube(args):
+    '''Converts the potential or charge data file from DFTB+ transport
+    calculations to a Gaussian Cube format.
+
+    Args:
+        args: Containing the obtained parsed arguments.
+    '''
     # Build the grid
     with open(args.xvec, 'r') as xvecfile:
         xvec = np.array(xvecfile.read().split(), dtype=float)
@@ -89,6 +114,7 @@ def main():
     else:
         raise ValueError('Cannot determine output format in '
                          'makecube:unknown file extension')
+
 
 if __name__ == "__main__":
     main()
