@@ -11,6 +11,17 @@ Unreleased
 Added
 -----
 
+- General range-separated, long-range corrected CAM hybrid functionals for
+  ground-state periodic systems
+  (MPI-parallel Fock-type exchange and energy gradient construction by
+  neighbour-list and matrix-multiplication based algorithms)
+
+- Generalization of non-periodic, ground-state LC-DFTB Hamiltonian to general
+  range-separated, long-range corrected CAM hybrid functionals
+  (MPI-parallelization of matrix-multiplication based Fock-type exchange
+  construction, MPI-parallel matrix-multiplication based energy gradient
+  evaluation, restart of matrix-multiplication based hybrid-DFTB calculations)
+
 - Electronic constraints on arbitrary regions, targeting the electronic ground
   state by determining a self-consistent constraint potential
   (restricted to Mulliken populations at the moment)
@@ -23,6 +34,8 @@ Changed
 
 Fixed
 -----
+
+- SK-file parser extra-/spline-tag sequence dependent
 
 - Memory leak for MPI enabled code with many geometric steps.
 
