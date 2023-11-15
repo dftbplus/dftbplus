@@ -1502,6 +1502,8 @@ contains
 
   !> Adds CAM range-separated contributions to Hamiltonian, using the thresholding algorithm.
   !! (non-periodic version)
+  !!
+  !! Eq.(31) of J. Chem. Phys. 143, 184107 (2015) (DOI: 10.1063/1.4935095)
   subroutine addCamHamiltonianThreshold_cluster(this, overlap, deltaRho, iNeighbour, nNeighbourCam,&
       & iSquare, hamiltonian, orb)
 
@@ -1681,6 +1683,9 @@ contains
 
   !> Adds CAM range-separated contributions to Hamiltonian, using neighbour-list based algorithm.
   !! (non-periodic and Gamma-only version)
+  !!
+  !! Non-periodic or Gamma-only approximation of
+  !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianNeighbour_real(this, deltaRhoSqr, overSparse, iNeighbour,&
       & nNeighbourCam, iSquare, iPair, orb, img2CentCell, HSqrReal)
 
@@ -1911,11 +1916,11 @@ contains
 
 #:if WITH_SCALAPACK
 
-  !> Update Hamiltonian with CAM range-separated contributions, using the matrix-based algorithm.
-  !! (non-periodic, real version)
+  !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
+  !! based algorithm.
+  !! (real non-periodic and real Gamma-only version)
   !!
-  !! The routine provides a matrix-matrix multiplication based implementation of the 3rd term in
-  !! Eq. 26 in https://doi.org/10.1063/1.4935095
+  !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_real_blacs(this, env, denseDesc, overlap, densSqr, HH)
 
     !> Class instance
@@ -2068,11 +2073,11 @@ contains
 
 #:else
 
-  !> Update Hamiltonian with CAM range-separated contributions, using the matrix-based algorithm.
-  !! (non-periodic, real version)
+  !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
+  !! based algorithm.
+  !! (real non-periodic and real Gamma-only version)
   !!
-  !! The routine provides a matrix-matrix multiplication based implementation of the 3rd term in
-  !! Eq. 26 in https://doi.org/10.1063/1.4935095
+  !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_real(this, iSquare, overlap, densSqr, HH)
 
     !> Class instance
@@ -2234,11 +2239,11 @@ contains
 #:endif
 
 
-  !> Update Hamiltonian with CAM range-separated contributions, using matrix-based algorithm.
-  !! (non-periodic, complex version)
+  !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
+  !! based algorithm.
+  !! (complex non-periodic and complex Gamma-only version)
   !!
-  !! The routine provides a matrix-matrix multiplication based implementation of the 3rd term in
-  !! Eq. 26 in https://doi.org/10.1063/1.4935095
+  !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_cluster_cmplx(this, iSquare, overlap, densSqr, HH)
 
     !> Class instance
@@ -2407,6 +2412,8 @@ contains
 
   !> Adds CAM range-separated contributions to Hamiltonian, using neighbour-list based algorithm.
   !! (k-point version)
+  !!
+  !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianNeighbour_kpts_mic(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam,&
       & errStatus)
@@ -2733,6 +2740,8 @@ contains
 
   !> Adds range-separated contributions to Hamiltonian, using neighbour-list based algorithm.
   !! (k-point version)
+  !!
+  !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianNeighbour_kpts_ct(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam, errStatus)
 
@@ -4200,6 +4209,10 @@ contains
 
   !> Adds gradients due to CAM range-separated contributions, using the neighbour-list based
   !! formulation (non-periodic and Gamma-only version).
+  !!
+  !! PhD thesis of Vitalij Lutsker (2015)
+  !! "Range-Separated Hybrid Functionals in the Density Functional-Based Tight-Binding Method"
+  !! Appendix, Section E, Eq.(E.1-E.9)
   subroutine addCamGradientsNeighbour_cluster(this, derivator, deltaRhoSqr, skOverCont, orb,&
       & iSquare, SSqrReal, iNeighbour, nNeighbourSK, gradients)
 
@@ -4862,6 +4875,8 @@ contains
 
   !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
   !! (non-periodic and Gamma-only version)
+  !!
+  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamGradientsMatrix_real_blacs(this, env, parallelKS, deltaRhoSqr,&
       & overlap, skOverCont, symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc,&
       & nSpin, gradients)
@@ -5037,6 +5052,8 @@ contains
 
 
   !> Calculates derivative of the (long-range + HF full-range) gamma interaction w.r.t. given atom.
+  !!
+  !! 2nd term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getUnpackedCamGammaAOPrime(env, denseDesc, orb, iAtomPrime, camdGammaEval0,&
       & camdGammaAO)
 
@@ -5089,6 +5106,8 @@ contains
 
   !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
   !! given atom.
+  !!
+  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getUnpackedOverlapPrime(env, denseDesc, iAtomPrime, skOverCont, orb, derivator,&
       & symNeighbourList, nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
 
@@ -5164,6 +5183,8 @@ contains
 
   !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
   !! (non-periodic and Gamma-only version)
+  !!
+  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamGradientsMatrix_real(this, deltaRhoSqr, overlap, skOverCont,&
       & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
 
@@ -5328,6 +5349,8 @@ contains
 
 
   !> Calculates derivative of the (long-range + HF full-range) gamma interaction w.r.t. given atom.
+  !!
+  !! 2nd term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getUnpackedCamGammaAOPrime(iAtomPrime, camdGammaEval0, iSquare, camdGammaAO)
 
     !> Overlap derivative calculated w.r.t. this atom in the central cell
@@ -5363,6 +5386,8 @@ contains
 
   !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
   !! given atom.
+  !!
+  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getUnpackedOverlapPrime(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
       & nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
 
