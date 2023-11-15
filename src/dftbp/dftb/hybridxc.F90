@@ -81,7 +81,7 @@ module dftbp_dftb_hybridxc
   end type THybridXcFuncEnum
 
 
-  !> Enumerator for algorithms to build up the range-separated Hamiltonian.
+  !> Enumerator for algorithms to build up the Fock-type exchange contribution to the Hamiltonian.
   type :: THybridXcAlgoEnum
 
     !> Neighbour based
@@ -139,7 +139,7 @@ module dftbp_dftb_hybridxc
   end type THybridXcSKTag
 
 
-  !> Abstract base type for range-separated functionality, some procedures need to be overridden.
+  !> Abstract base type for hybrid functionality, some procedures need to be overridden.
   type, abstract :: THybridXcFunc
 
     !> Real-space coordinates of atoms (relative units), potentially including periodic images
@@ -185,7 +185,7 @@ module dftbp_dftb_hybridxc
     !> Previous delta density matrix in screening by tolerance
     real(dp), allocatable :: dRhoPrevCplxHS(:,:,:,:,:,:)
 
-    !> Is screening initialised
+    !> Is screening initialised?
     logical :: tScreeningInited
 
     !> Threshold for screening by value
@@ -1971,7 +1971,7 @@ contains
     !> Get orbital-by-orbital gamma matrix
     subroutine initGamma(this, env, denseDesc, camGammaAO)
 
-      !> class instance
+      !> Class instance
       class(THybridXcFunc), intent(inout) :: this
 
       !> Environment settings
@@ -2006,7 +2006,7 @@ contains
     !> Evaluates the Hamiltonian using PGEMM operations.
     subroutine evaluateHamiltonian(this, desc, Smat, Dmat, camGammaAO, Hcam)
 
-      !> class instance
+      !> Class instance
       class(THybridXcFunc), intent(inout) :: this
 
       !> BLACS matrix descriptor

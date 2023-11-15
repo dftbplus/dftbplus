@@ -33,6 +33,7 @@ set(sources-fpp
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
   ${curdir}/hamiltonian.F90
+  ${curdir}/hybridxc.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
@@ -40,7 +41,6 @@ set(sources-fpp
   ${curdir}/pmlocalisation.F90
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
-  ${curdir}/rangeseparated.F90
   ${curdir}/rshgamma.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
