@@ -17,12 +17,12 @@ module dftbp_dftb_hybridxc
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
   use dftbp_math_blasroutines, only : gemm, symm
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dftb_periodic, only : TSymNeighbourList, getCellTranslations, cart2frac
   use dftbp_dftb_nonscc, only : buildS
+  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_common_parallel, only : getStartAndEndIndex
   use dftbp_math_wignerseitz, only : generateWignerSeitzGrid
@@ -1557,14 +1557,14 @@ contains
 
       allocate(tmpOvr(matrixSize, matrixSize))
       tmpOvr(:,:) = overlap
-      call blockSymmetrizeHS(tmpOvr, iSquare)
+      call triangleCopySquareMatrix(tmpOvr)
 
       allocate(tmpDHam(matrixSize, matrixSize))
       tmpDHam(:,:) = 0.0_dp
 
       allocate(tmpDRho(matrixSize, matrixSize))
       tmpDRho(:,:) = deltaRho
-      call symmetrizeHS(tmpDRho)
+      call triangleCopySquareMatrix(tmpDRho)
       call checkAndInitScreening(this, matrixSize, tmpDRho)
 
       allocate(tmpDDRho(matrixSize, matrixSize))
@@ -1743,7 +1743,7 @@ contains
       tmpHH(:,:) = 0.125_dp * tmpHH
     end if
 
-    call symmetrizeHS(tmpHH)
+    call triangleCopySquareMatrix(tmpHH)
 
     HSqrReal(:,:) = HSqrReal + tmpHH
     this%camEnergy = this%camEnergy + evaluateEnergy_real(tmpHH, tmpDRho)
@@ -1763,7 +1763,7 @@ contains
       tmpHH(:,:) = 0.0_dp
       allocate(tmpDRho(size(deltaRhoSqr, dim=1), size(deltaRhoSqr, dim=1)))
       tmpDRho(:,:) = deltaRhoSqr
-      call symmetrizeHS(tmpDRho)
+      call triangleCopySquareMatrix(tmpDRho)
 
     end subroutine allocateAndInit
 
@@ -2162,11 +2162,11 @@ contains
       nAtom = size(this%camGammaEval0, dim=1)
 
       ! Symmetrize Hamiltonian, overlap, density matrices
-      call symmetrizeHS(HH)
+      call triangleCopySquareMatrix(HH)
       Smat(:,:) = overlap
-      call symmetrizeHS(Smat)
+      call triangleCopySquareMatrix(Smat)
       Dmat(:,:) = densSqr
-      call symmetrizeHS(Dmat)
+      call triangleCopySquareMatrix(Dmat)
 
       ! Get CAM gamma variable
       camGammaAO(:,:) = 0.0_dp
@@ -2335,11 +2335,11 @@ contains
       nAtom = size(this%camGammaEval0, dim=1)
 
       !! Symmetrize Hamiltonian, overlap, density matrices
-      call hermitianSquareMatrix(HH)
+      call triangleCopySquareMatrix(HH)
       Smat(:,:) = overlap
-      call hermitianSquareMatrix(Smat)
+      call triangleCopySquareMatrix(Smat)
       Dmat(:,:) = densSqr
-      call hermitianSquareMatrix(Dmat)
+      call triangleCopySquareMatrix(Dmat)
 
       ! Get CAM gamma variable
       camGammaAO(:,:) = 0.0_dp
@@ -4374,10 +4374,10 @@ contains
       tmpOvr(:,:) = SSqrReal
       tmpRho(:,:,:) = deltaRhoSqr
 
-      call symmetrizeHS(tmpOvr)
+      call triangleCopySquareMatrix(tmpOvr)
 
       do iSpin = 1, size(deltaRhoSqr, dim=3)
-        call symmetrizeHS(tmpRho(:,:, iSpin))
+        call triangleCopySquareMatrix(tmpRho(:,:, iSpin))
       end do
 
     end subroutine allocateAndInit
@@ -4497,7 +4497,7 @@ contains
 
     tmpDeltaRhoSqr = deltaRhoSqr
     do iSpin = 1, nSpin
-      call symmetrizeHS(tmpDeltaRhoSqr(:,:, iSpin))
+      call triangleCopySquareMatrix(tmpDeltaRhoSqr(:,:, iSpin))
     end do
 
     loopK1: do iAtK = 1, nAtom0
@@ -5265,10 +5265,10 @@ contains
 
     ! symmetrize square overlap and density matrix
     overlapSym = overlap
-    call symmetrizeHS(overlapSym)
+    call triangleCopySquareMatrix(overlapSym)
     deltaRhoSqrSym = deltaRhoSqr
     do iSpin = 1, nSpin
-      call symmetrizeHS(deltaRhoSqrSym(:,:, iSpin))
+      call triangleCopySquareMatrix(deltaRhoSqrSym(:,:, iSpin))
     end do
 
     ! get CAM \tilde{gamma} super-matrix
@@ -6117,8 +6117,8 @@ contains
     tmpOvr(:,:) = overlap
     tmpDRho(:,:) = deltaRho
 
-    call symmetrizeHS(tmpOvr)
-    call symmetrizeHS(tmpDRho)
+    call triangleCopySquareMatrix(tmpOvr)
+    call triangleCopySquareMatrix(tmpDRho)
 
     energy = 0.0_dp
     do iAt1 = 1, nAtom0

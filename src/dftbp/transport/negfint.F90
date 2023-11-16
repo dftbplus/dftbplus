@@ -17,7 +17,7 @@ module dftbp_transport_negfint
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
-  use dftbp_dftb_sparse2dense, only : blockSymmetrizeHS, unpackHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_extlibs_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units,&
       & z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF, associate_lead_currents, associate_ldos,&
@@ -31,6 +31,7 @@ module dftbp_transport_negfint
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_lapackroutines, only : gesvd
+  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
   use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
   use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
       & TElph
@@ -1503,10 +1504,10 @@ contains
         end if
 
         call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
-        call blockSymmetrizeHS(H_all, iAtomStart)
+        call triangleCopySquareMatrix(H_all)
 
         call unpackHS(S_all, over, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
-        call blockSymmetrizeHS(S_all, iAtomStart)
+        call triangleCopySquareMatrix(S_all)
 
         call prepare_HS(this%negf, H_all, S_all, this%csrHam, this%csrOver)
 

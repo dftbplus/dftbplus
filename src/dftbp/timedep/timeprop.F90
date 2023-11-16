@@ -45,8 +45,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, blockSymmetrizeHS, blockHermitianHS,&
-      & unpackDQ, getSparseDescriptor
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, unpackDQ, getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
@@ -57,6 +56,7 @@ module dftbp_timedep_timeprop
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : matinv, gesv
+  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_md_dummytherm, only : TDummyThermostat
@@ -1518,13 +1518,13 @@ contains
       if (this%tRealHS) then
         call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & iSquare, iSparseStart, img2CentCell)
-        call blockSymmetrizeHS(T2, iSquare)
+        call triangleCopySquareMatrix(T2)
         H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
       else
         call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
             & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
             & iSparseStart, img2CentCell)
-        call blockHermitianHS(H1(:,:,iKS), iSquare)
+        call triangleCopySquareMatrix(H1(:,:,iKS))
       end if
     end do
 
@@ -1540,7 +1540,7 @@ contains
         H1LC(:,:) = (0.0_dp, 0.0_dp)
         call hybridXc%addCamHamiltonianMatrix_cluster_cmplx(iSquare, sSqr(:,:, iSpin),&
             & deltaRho(:,:, iSpin), H1LC)
-        call blockHermitianHS(H1LC, iSquare)
+        call triangleCopySquareMatrix(H1LC)
         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
       end do
     end if
@@ -2165,7 +2165,7 @@ contains
         if (this%tRealHS) then
           call unpackHS(T2, ints%overlap, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
               & img2CentCell)
-          call blockSymmetrizeHS(T2, iSquare)
+          call triangleCopySquareMatrix(T2)
           Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
           T3(:,:) = 0.0_dp
           do iOrb = 1, this%nOrbs
@@ -2179,7 +2179,7 @@ contains
           T4(:,:) = cmplx(0,0,dp)
           call unpackHS(T4, ints%overlap, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
-          call blockHermitianHS(T4, iSquare)
+          call triangleCopySquareMatrix(T4)
           Ssqr(:,:,iKS) = T4
           Sinv(:,:,iKS) = cmplx(0,0,dp)
           do iOrb = 1, this%nOrbs
@@ -2196,12 +2196,12 @@ contains
         if (this%tRealHS) then
           call unpackHS(T3, ints%hamiltonian(:,iSpin), iNeighbour, nNeighbourSK, iSquare,&
               & iSparseStart, img2CentCell)
-          call blockSymmetrizeHS(T3, iSquare)
+          call triangleCopySquareMatrix(T3)
           H1(:,:,iKS) = cmplx(T3, 0, dp)
         else
           call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK), iNeighbour,&
               & nNeighbourSK, this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
-          call blockHermitianHS(H1(:,:,iKS), iSquare)
+          call triangleCopySquareMatrix(H1(:,:,iKS))
         end if
       end do
 
@@ -3235,7 +3235,7 @@ contains
       Sreal = 0.0_dp
       call unpackHS(Sreal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell)
-      call blockSymmetrizeHS(Sreal, iSquare)
+      call triangleCopySquareMatrix(Sreal)
       do iKS = 1, this%parallelKS%nLocalKS
         Ssqr(:,:,iKS) = cmplx(Sreal, 0, dp)
       end do
@@ -3260,7 +3260,7 @@ contains
         T4(:,:) = cmplx(0,0,dp)
         call unpackHS(T4, ints%overlap, this%kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
-        call blockHermitianHS(T4, iSquare)
+        call triangleCopySquareMatrix(T4)
         Ssqr(:,:,iKS) = T4
         Sinv(:,:,iKS) = cmplx(0,0,dp)
         do iOrb = 1, this%nOrbs

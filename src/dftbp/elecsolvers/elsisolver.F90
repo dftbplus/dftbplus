@@ -27,11 +27,10 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs,&
-      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
-      & unpackSPauliBlacs, packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
-      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
-      & packERhoPauliBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, unpackHSHelicalRealBlacs,&
+      & unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs, unpackSPauliBlacs,&
+      & packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, unpackHSHelicalCplxBlacs,&
+      & unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, packERhoPauliBlacs
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc_init
   use dftbp_extlibs_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
       & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&

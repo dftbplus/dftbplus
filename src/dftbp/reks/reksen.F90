@@ -19,11 +19,12 @@ module dftbp_reks_reksen
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_eigensolver, only : heev
+  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
   use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
   use dftbp_reks_reksio, only : printReksSSRInfo
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
@@ -730,7 +731,7 @@ module dftbp_reks_reksen
         call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call triangleCopySquareMatrix(tmpHam)
       end if
 
       ! compute the Fock operator with core, a, b orbitals in AO basis
@@ -817,7 +818,7 @@ module dftbp_reks_reksen
       end do
     end do
 
-    call symmetrizeHS(fock)
+    call triangleCopySquareMatrix(fock)
 
   end subroutine getPseudoFock_
 
@@ -1085,7 +1086,7 @@ module dftbp_reks_reksen
               & neighbourList%iNeighbour, nNeighbourSK, &
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-          call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+          call triangleCopySquareMatrix(tmpHam)
           ! convert tmpHam from AO basis to MO basis
           call matAO2MO(tmpHam, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis
