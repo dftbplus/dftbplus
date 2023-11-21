@@ -10,18 +10,18 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_diismixer, only : TDIISMixer, reset, init, mix
+  use dftbp_mixer_diismixer, only : TDiisMixer, TDiisMixer_reset, TDiisMixer_init, TDiisMixer_mix
   implicit none
 
   private
 
 
   !> Contains data for the DIIS mimimizer
-  type TDIIS
+  type TDiis
     private
 
     !> DIIS object itself
-    type(TDIISMixer) :: pDIIS
+    type(TDiisMixer) :: pDIIS
 
     !> Vector of current coordinate
     real(dp), allocatable :: x(:)
@@ -34,7 +34,7 @@ module dftbp_geoopt_gdiis
 
     !> If object is initialized
     logical :: tInitialized
-  end type TDIIS
+  end type TDiis
 
 
   !> Creates gDIIS instance
@@ -54,7 +54,7 @@ module dftbp_geoopt_gdiis
     module procedure gDIIS_next
   end interface
 
-  public :: TDIIS
+  public :: TDiis
   public :: init, reset, next
 
 contains
@@ -64,7 +64,7 @@ contains
   subroutine gDIIS_init(this, nElem, tol, alpha, nGens)
 
     !> DIIS instance on exit
-    type(TDIIS), intent(out) :: this
+    type(TDiis), intent(out) :: this
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -81,7 +81,7 @@ contains
     this%nElem = nElem
     this%tolerance = tol
     allocate(this%x(this%nElem))
-    call init(this%pDIIS,nGens,alpha,.true.,alpha)
+    call TDiisMixer_init(this%pDIIS, nGens, alpha, .true., alpha)
     this%tInitialized = .true.
 
   end subroutine gDIIS_init
@@ -91,24 +91,24 @@ contains
   subroutine gDIIS_reset(this,x)
 
     !> Minimiser
-    type(TDIIS), intent(inout) :: this
+    type(TDiis), intent(inout) :: this
 
     !> Point to start from
     real(dp) :: x(:)
 
-    call reset(this%pDIIS, this%nElem)
-    this%x(:) = x(:)
+    call TDiisMixer_reset(this%pDIIS, this%nElem)
+    this%x(:) = x
 
   end subroutine gDIIS_reset
 
 
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
-  !> back.  When calling the first time, function value and gradient for the starting point of the
-  !> minimization should be passed.
+  !! back.  When calling the first time, function value and gradient for the starting point of the
+  !! minimization should be passed.
   subroutine gDIIS_next(this,dx, xNew, tConverged)
 
     !> minimiser
-    type(TDIIS), intent(inout) :: this
+    type(TDiis), intent(inout) :: this
 
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)
@@ -124,7 +124,7 @@ contains
     @:ASSERT(size(dx) == this%nElem)
 
     xNew = this%x
-    call mix(this%pDIIS,this%x,dx)
+    call TDiisMixer_mix(this%pDIIS,this%x,dx)
     if (maxval(abs(xNew-this%x)) < this%tolerance &
         & .or. (maxval(abs(dx)) < this%tolerance)) then
       tConverged = .true.

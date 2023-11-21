@@ -69,6 +69,7 @@ module dftbp_dftb_populations
     module procedure denseSubtractDensityOfAtoms_cmplx_nonperiodic
     module procedure denseSubtractDensityOfAtoms_real_periodic
     module procedure denseSubtractDensityOfAtoms_cmplx_periodic
+    module procedure denseSubtractDensityOfAtoms_cmplx_periodic_global
   #:if WITH_SCALAPACK
     module procedure denseSubtractDensityOfAtoms_real_nonperiodic_blacs
     module procedure denseSubtractDensityOfAtoms_real_periodic_blacs
@@ -203,10 +204,10 @@ contains
 
 
   !> Calculate the Mulliken population for each orbital in the system using purely real-space
-  !> overlap and BvK density matrix values. Currently Mulliken is transformed into real space sums
-  !> over one triangle of real space extended matrices
-  !>
-  !> To do: add description of algorithm to programer manual / documentation.
+  !! overlap and BvK density matrix values. Currently Mulliken is transformed into real space sums
+  !! over one triangle of real space extended matrices
+  !!
+  !! To do: add description of algorithm to programer manual / documentation.
   subroutine mullikenPerOrbital_bvKDensityMatrix(qq, over, rho, orb, iNeighbour, nNeighbourSK,&
       & img2CentCell, iPair, iSquare, iCellVec, cellVecs, hybridXc)
 
@@ -885,6 +886,87 @@ contains
     end do
 
   end subroutine denseSubtractDensityOfAtoms_cmplx_periodic
+
+
+  !> Subtracts superposition of atomic densities from dense density matrix.
+  !! For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  !! Note: q0 is normalized by the overlap that includes periodic images.
+  subroutine denseSubtractDensityOfAtoms_cmplx_periodic_global(env, ints, denseDesc, neighbourList,&
+      & kPoint, iKiSToiGlobalKS, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, q0,&
+      & rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> List of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> The k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
+    integer, intent(in) :: iKiSToiGlobalKS(:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Spin polarized density matrix for all k-points/spins
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    !! Temporarily stores square overlap matrix of current k-point
+    complex(dp), allocatable :: SSqrCplx(:,:)
+
+    integer :: nAtom, iAtom, iStart, iEnd, iOrb, iSpin, nSpin, iK
+    real(dp) :: scale
+
+    nAtom = size(denseDesc%iAtomStart) - 1
+    nSpin = size(q0, dim=3)
+
+    allocate(SSqrCplx(denseDesc%fullSize, denseDesc%fullSize))
+
+    scale = populationScalingFactor(nSpin)
+
+    do iK = 1, size(kPoint, dim=2)
+      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+      do iSpin = 1, nSpin
+        do iAtom = 1, nAtom
+          iStart = denseDesc%iAtomStart(iAtom)
+          iEnd = denseDesc%iAtomStart(iAtom + 1) - 1
+          do iOrb = 1, iEnd - iStart + 1
+            rho(iStart+iOrb-1, iStart+iOrb-1, iKiSToiGlobalKS(iK, iSpin))&
+                & = rho(iStart+iOrb-1, iStart+iOrb-1, iKiSToiGlobalKS(iK, iSpin))&
+              & - scale * q0(iOrb, iAtom, 1) / SSqrCplx(iStart+iOrb-1, iStart+iOrb-1)
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtoms_cmplx_periodic_global
 
 
   !> Subtracts superposition of atomic densities from dense density matrix.

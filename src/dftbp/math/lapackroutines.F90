@@ -30,6 +30,7 @@ module dftbp_math_lapackroutines
     module procedure gesv_real
     module procedure gesv_dble
     module procedure gesv_dcomplex
+    module procedure gesv1_dcomplex
   end interface gesv
 
 
@@ -321,6 +322,27 @@ contains
     end if
 
   end subroutine gesv_dcomplex
+
+
+  !> Double precision version of gesv
+  subroutine gesv1_dcomplex(aa, bvec, iError)
+
+    !> Contains the coefficients on entry, the LU factorisation on exit.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
+    complex(rdp), intent(inout), target :: bvec(:)
+
+    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
+    !> will not abort the program.
+    integer, intent(out), optional :: iError
+
+    complex(rdp), pointer :: bptr(:,:)
+
+    bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
+    call gesv_dcomplex(aa, bptr, iError=iError)
+
+  end subroutine gesv1_dcomplex
 
 
   !> Single precision version of getrf.
@@ -1295,7 +1317,7 @@ contains
   end subroutine getrs_dble
 
 
-  !> Solves a system of linear equations with one right hand sides
+  !> Solves a system of linear equations with one right hand side
   subroutine getrs1_dble(amat, ipiv, bvec, trans, iError)
 
     !> Matrix of the linear system

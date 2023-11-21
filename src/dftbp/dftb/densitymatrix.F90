@@ -48,23 +48,33 @@ module dftbp_dftb_densitymatrix
 
     !! Real and complex delta (i.e. change between cycles) density matrices.
 
-    !> DeltaRho input for range separation in matrix form
+    !> Real, square dual-space deltaRho input
     real(dp), allocatable :: deltaRhoIn(:,:,:)
 
-    !> DeltaRho output from range separation in matrix form
+    !> Real, square dual-space deltaRho output
     real(dp), allocatable :: deltaRhoOut(:,:,:)
 
-    !> Complex, square dual-space deltaRho output from range separation
+    !> Complex, square dual-space deltaRho input
+    complex(dp), allocatable :: deltaRhoInCplx(:,:,:)
+
+    !> Complex, square dual-space deltaRho output
     complex(dp), allocatable :: deltaRhoOutCplx(:,:,:)
 
-    !> Real-space, square deltaRho input for range separation
+    !> Real-space, square deltaRho input
     real(dp), allocatable :: deltaRhoInCplxHS(:,:,:,:,:,:)
 
-    !> Real-space, square deltaRho output for range separation
+    !> Real-space, square deltaRho output
     real(dp), allocatable :: deltaRhoOutCplxHS(:,:,:,:,:,:)
 
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
     integer, allocatable :: iKiSToiGlobalKS(:,:)
+
+    !> The k' k-points that are possibly different from the current ones in case of a
+    !! bandstructure calculation
+    real(dp), allocatable :: kPointPrime(:,:)
+
+    !> Weights of k' k-points
+    real(dp), allocatable :: kWeightPrime(:)
 
   contains
 
