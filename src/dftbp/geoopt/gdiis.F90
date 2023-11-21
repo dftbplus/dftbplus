@@ -10,10 +10,14 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_diismixer, only : TDiisMixer, TDiisMixer_reset, TDiisMixer_init, TDiisMixer_mix
+  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_reset, TDiisMixerReal_init,&
+      & TDiisMixerReal_mix
   implicit none
 
   private
+
+  public :: TDiis
+  public :: init, reset, next
 
 
   !> Contains data for the DIIS mimimizer
@@ -21,7 +25,7 @@ module dftbp_geoopt_gdiis
     private
 
     !> DIIS object itself
-    type(TDiisMixer) :: pDIIS
+    type(TDiisMixerReal) :: pDiis
 
     !> Vector of current coordinate
     real(dp), allocatable :: x(:)
@@ -39,29 +43,26 @@ module dftbp_geoopt_gdiis
 
   !> Creates gDIIS instance
   interface init
-    module procedure gDIIS_init
+    module procedure gDiis_init
   end interface
 
 
   !> Resets the gDIIS instance
   interface reset
-    module procedure gDIIS_reset
+    module procedure gDiis_reset
   end interface
 
 
   !> Passes calculated gradient to the minimizer and returns a new point
   interface next
-    module procedure gDIIS_next
+    module procedure gDiis_next
   end interface
-
-  public :: TDiis
-  public :: init, reset, next
 
 contains
 
 
-  !> Creates a DIIS geometry optimiser instance
-  subroutine gDIIS_init(this, nElem, tol, alpha, nGens)
+  !> Creates a DIIS geometry optimiser instance.
+  subroutine gDiis_init(this, nElem, tol, alpha, nGens)
 
     !> DIIS instance on exit
     type(TDiis), intent(out) :: this
@@ -72,7 +73,7 @@ contains
     !> Termination tolerance for the gradient
     real(dp), intent(in) :: tol
 
-    !> initial value for mixing in gradient information to DIIS space
+    !> Initial value for mixing in gradient information to DIIS space
     real(dp), intent(in) :: alpha
 
     !> Number of vectors to use in building DIIS space
@@ -81,14 +82,14 @@ contains
     this%nElem = nElem
     this%tolerance = tol
     allocate(this%x(this%nElem))
-    call TDiisMixer_init(this%pDIIS, nGens, alpha, .true., alpha)
+    call TDiisMixerReal_init(this%pDiis, nGens, alpha, .true., alpha)
     this%tInitialized = .true.
 
-  end subroutine gDIIS_init
+  end subroutine gDiis_init
 
 
-  !> Resets optimiser
-  subroutine gDIIS_reset(this,x)
+  !> Resets optimiser.
+  subroutine gDiis_reset(this, x)
 
     !> Minimiser
     type(TDiis), intent(inout) :: this
@@ -96,18 +97,18 @@ contains
     !> Point to start from
     real(dp) :: x(:)
 
-    call TDiisMixer_reset(this%pDIIS, this%nElem)
+    call TDiisMixerReal_reset(this%pDiis, this%nElem)
     this%x(:) = x
 
-  end subroutine gDIIS_reset
+  end subroutine gDiis_reset
 
 
   !> Passes calculated function value and gradient to the minimizare and gives a new coordinate
   !! back.  When calling the first time, function value and gradient for the starting point of the
   !! minimization should be passed.
-  subroutine gDIIS_next(this,dx, xNew, tConverged)
+  subroutine gDiis_next(this, dx, xNew, tConverged)
 
-    !> minimiser
+    !> Minimiser
     type(TDiis), intent(inout) :: this
 
     !> Gradient in the last point
@@ -123,16 +124,11 @@ contains
     @:ASSERT(size(xNew) == this%nElem)
     @:ASSERT(size(dx) == this%nElem)
 
-    xNew = this%x
-    call TDiisMixer_mix(this%pDIIS,this%x,dx)
-    if (maxval(abs(xNew-this%x)) < this%tolerance &
-        & .or. (maxval(abs(dx)) < this%tolerance)) then
-      tConverged = .true.
-    else
-      tConverged = .false.
-    end if
-    xNew = this%x
+    xNew(:) = this%x
+    call TDiisMixerReal_mix(this%pDiis, this%x, dx)
+    tConverged = maxval(abs(xNew - this%x)) < this%tolerance .or. (maxval(abs(dx)) < this%tolerance)
+    xNew(:) = this%x
 
-  end subroutine gDIIS_next
+  end subroutine gDiis_next
 
 end module dftbp_geoopt_gdiis

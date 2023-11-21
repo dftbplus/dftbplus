@@ -165,6 +165,13 @@ contains
 
 
   !> Mixes charges according to the modified Broyden method.
+  !!
+  !! Warning: The complex-valued Broyden mixer requires flattened hermitian matrices as input.
+  !!   You are free to permute the individual elements of the flattened arrays as long as the same
+  !!   permutation is applied to qInpResult and qDiff.
+  !!   The restriction arises from the assumption that the dot-products of density matrices are
+  !!   real-valued (imaginary parts add up to zero due to the hermitian property) and the linear
+  !!   system of equations remains real-valued.
   subroutine TBroydenMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> The Broyden mixer

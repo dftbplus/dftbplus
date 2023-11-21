@@ -1146,12 +1146,12 @@ contains
         @:PROPAGATE_ERROR(errStatus)
     end if
 
-    #:if WITH_TRANSPORT
-      if (this%tNegf) then
-        call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
-            & this%neighbourList, this%nNeighbourSK, this%img2CentCell, this%orb)
-      end if
-    #:endif
+  #:if WITH_TRANSPORT
+    if (this%tNegf) then
+      call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
+          & this%neighbourList, this%nNeighbourSK, this%img2CentCell, this%orb)
+    end if
+  #:endif
 
     if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
       if (this%isHybridXc) then

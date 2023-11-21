@@ -108,10 +108,12 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_thermostat, only : TThermostat, init
   use dftbp_md_velocityverlet, only : TVelocityVerlet, init
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_mixer_andersonmixer, only : TAndersonMixer, TAndersonMixer_init
+  use dftbp_mixer_andersonmixer, only : TAndersonMixerReal, TAndersonMixerReal_init,&
+      & TAndersonMixerCmplx, TAndersonMixerCmplx_init
   use dftbp_mixer_broydenmixer, only : TBroydenMixerReal, TBroydenMixerReal_init,&
       & TBroydenMixerCmplx, TBroydenMixerCmplx_init
-  use dftbp_mixer_diismixer, only : TDiisMixer, TDiisMixer_init
+  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerCmplx,&
+      & TDiisMixerCmplx_init
   use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, mixerTypes, TMixerReal_init,&
       & TMixerCmplx_init
   use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
@@ -1218,14 +1220,16 @@ contains
     type(TSimpleMixerCmplx), allocatable :: pSimpleMixerCmplx
 
     !> Anderson mixer (if used)
-    type(TAndersonMixer), allocatable :: pAndersonMixer
+    type(TAndersonMixerReal), allocatable :: pAndersonMixerReal
+    type(TAndersonMixerCmplx), allocatable :: pAndersonMixerCmplx
 
     !> Broyden mixer (if used)
     type(TBroydenMixerReal), allocatable :: pBroydenMixerReal
     type(TBroydenMixerCmplx), allocatable :: pBroydenMixerCmplx
 
     !> DIIS mixer (if used)
-    type(TDiisMixer), allocatable :: pDiisMixer
+    type(TDiisMixerReal), allocatable :: pDiisMixerReal
+    type(TDiisMixerCmplx), allocatable :: pDiisMixerCmplx
 
     ! Geometry optimiser related local variables
 
@@ -1337,7 +1341,7 @@ contains
     integer :: nLocalRows, nLocalCols
 
   #:if WITH_MPI
-    !! Number of k' k-points
+    !! Number of k'-points
     integer :: nKPrime
   #:endif
 
@@ -1833,14 +1837,29 @@ contains
           allocate(pSimplemixerCmplx)
           call TSimpleMixerCmplx_init(pSimpleMixerCmplx, mixParam)
           call TMixerCmplx_init(this%pChrgMixerCmplx, pSimpleMixerCmplx)
+        case(mixerTypes%anderson)
+          allocate(pAndersonMixerCmplx)
+          if (input%ctrl%andersonNrDynMix > 0) then
+            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
+                & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
+                & input%ctrl%andersonOmega0)
+          else
+            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
+                & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
+          end if
+          call TMixerCmplx_init(this%pChrgMixerCmplx, pAndersonMixerCmplx)
         case (mixerTypes%broyden)
           allocate(pBroydenMixerCmplx)
           call TBroydenMixerCmplx_init(pBroydenMixerCmplx, this%maxSccIter, mixParam,&
               & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
               & input%ctrl%broydenWeightFac)
           call TMixerCmplx_init(this%pChrgMixerCmplx, pBroydenMixerCmplx)
+        case(mixerTypes%diis)
+          allocate(pDiisMixerCmplx)
+          call TDiisMixerCmplx_init(pDiisMixerCmplx, nGeneration, mixParam, input%ctrl%tFromStart)
+          call TMixerCmplx_init(this%pChrgMixerCmplx, pDiisMixerCmplx)
         case default
-          call error("Unknown charge mixer type.")
+          call error("Unknown charge/density mixer type.")
         end select
       end if
       allocate(this%pChrgMixerReal)
@@ -1850,16 +1869,16 @@ contains
         call TSimpleMixerReal_init(pSimpleMixerReal, mixParam)
         call TMixerReal_init(this%pChrgMixerReal, pSimpleMixerReal)
       case(mixerTypes%anderson)
-        allocate(pAndersonMixer)
+        allocate(pAndersonMixerReal)
         if (input%ctrl%andersonNrDynMix > 0) then
-          call TAndersonMixer_init(pAndersonMixer, nGeneration, mixParam,&
+          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
               & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
               & input%ctrl%andersonOmega0)
         else
-          call TAndersonMixer_init(pAndersonMixer, nGeneration, mixParam,&
+          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
               & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
         end if
-        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixer)
+        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixerReal)
       case(mixerTypes%broyden)
         allocate(pBroydenMixerReal)
         call TBroydenMixerReal_init(pBroydenMixerReal, this%maxSccIter, mixParam,&
@@ -1867,11 +1886,11 @@ contains
             & input%ctrl%broydenWeightFac)
         call TMixerReal_init(this%pChrgMixerReal, pBroydenMixerReal)
       case(mixerTypes%diis)
-        allocate(pDiisMixer)
-        call TDiisMixer_init(pDiisMixer,nGeneration, mixParam, input%ctrl%tFromStart)
-        call TMixerReal_init(this%pChrgMixerReal, pDiisMixer)
+        allocate(pDiisMixerReal)
+        call TDiisMixerReal_init(pDiisMixerReal, nGeneration, mixParam, input%ctrl%tFromStart)
+        call TMixerReal_init(this%pChrgMixerReal, pDiisMixerReal)
       case default
-        call error("Unknown charge mixer type.")
+        call error("Unknown charge/density mixer type.")
       end select
     end if
 
