@@ -4605,7 +4605,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
       but test whether this does not change your results considerably.
       Default: 0.0 -- no reduction, using the cutoff from the SK-files.
     \end{description}
-    
+
     Note: The thresholded algorithm is only available for non-periodic systems and does
       neither support colinear spin polarization, restarts nor MPI parallelism.
 
@@ -4622,7 +4622,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
       \is{Thresholded} block.
     \item[\is{Threshold}] See description in the \is{Thresholded} block.
     \end{description}
-    
+
   Note: Except for quasi-1D systems the neighbour-list based algorithm is usually
     considerably slower than the matrix-based (or thresholded) algorithm. For systems
     treated beyond the $\Gamma$-point the neighbour-list based algorithm supports MPI
@@ -4662,10 +4662,10 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
       of Ref.~\cite{vdH-PRM-7-063802}. Usually a modification of the default value by
       the user is not necessary. Change only if you know what you are doing.
     \end{description}
-    
+
     Note: Recommended choice for most calculations, especially if analytic energy gradients
       are required, i.e.\ geometry relaxation or MD simulations.
-    
+
   \item[\is{Truncated+Damping \cb}] Identical to \is{Truncated} block, but with additional
     fifth-order polynomial damping to zero, instead of hard truncation.
 
@@ -4680,7 +4680,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
     \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
       \is{Truncated} block.
     \end{description}
-    
+
   \item[\is{MinimumImage \cb}] Adaption of the minimum image convention (MIC) to avoid
   divergent lattice sums.
 
@@ -4697,7 +4697,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
 
     Note: Usually slightly slower than the truncated Coulomb operator. Does not yet support
       analytic energy gradients, i.e.\ atomic forces.
-    
+
   \item[\is{Full \cb}] Full, unaltered Coulomb operator. This option only exists for
     testing and debugging purposes, do NOT use for production runs.
 
@@ -4709,7 +4709,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
     \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
       \is{Truncated} block.
     \end{description}
-  
+
 \end{description}
 
 \subsubsection{Examples: non-periodic systems}

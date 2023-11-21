@@ -1334,6 +1334,11 @@ contains
     type(TStatus) :: errStatus
     integer :: nLocalRows, nLocalCols
 
+  #:if WITH_MPI
+    !! Number of k' k-points
+    integer :: nKPrime
+  #:endif
+
     @:ASSERT(input%tInitialized)
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
@@ -2806,9 +2811,29 @@ contains
 
     call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
         & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
+    if (errStatus%hasError()) call error(errStatus%message)
+
+  #:if WITH_MPI
+    if (this%isHybridXc) then
+      if (allocated(this%densityMatrix%kPointPrime)) then
+        nKPrime = size(this%densityMatrix%kPointPrime, dim=2)
+      else
+        nKPrime = this%nKPoint
+      end if
+      if ((.not. this%tRealHS)&
+          & .and. (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint * nKPrime)&
+          & .and. input%ctrl%hybridXcInp%hybridXcAlg == hybridXcAlgo%matrixBased) then
+        ! General k-point case, matrix-multiplication based algorithm
+        ! (parallelized over iKS-iKSPrime summation)
+        write(tmpStr, "(A,I0,A,I0,A)") 'For hybrid calculations beyond the Gamma point using the&
+            & matrix-multiplication' // NEW_LINE('A') // '   based algorithm, the number of MPI'&
+            & // " groups may not exceed nS * nK * nK' processes." // NEW_LINE('A')&
+            & // '   Obtained (', input%ctrl%parallelOpts%nGroup, ') groups, upper bound is (',&
+            & this%nIndepSpin * this%nKPoint * nKPrime, ') groups!'
+        call error(trim(tmpStr))
+      end if
     end if
+  #:endif
 
     ! When restarting and reading charges from charges.bin, the supercell folding matrix of the
     ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb

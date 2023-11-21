@@ -979,9 +979,7 @@ contains
 
       call getSccInfo(iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, Eold,&
           & diffElec)
-      if (this%tNegf) then
-        call printSccHeader()
-      end if
+      if (this%tNegf) call printSccHeader()
 
       tWriteSccRestart = env%tGlobalLead .and. needsSccRestartWriting(this%restartFreq,&
           & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd,&
@@ -3324,7 +3322,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Holds real and complex delta density matrices and pointers
+    !> Holds real and complex delta density matrices
     type(TDensityMatrix), intent(inout) :: densityMatrix
 
     !> Symmetric neighbour list version of nNeighbourCam
@@ -3382,9 +3380,9 @@ contains
       end if
 
       ! Get CAM-Hamiltonian contribution for all spins/k-points
-      call hybridXc%getCamHamiltonian_kpts(env, densityMatrix, symNeighbourList, nNeighbourCamSym,&
-          & rCellVecs, cellVec, denseDesc%iAtomStart, orb, kPoint, kWeight, HSqrCplxCam, errStatus,&
-          & SSqrCplxCam=SSqrCplxCam)
+      call hybridXc%getCamHamiltonian_kpts(env, denseDesc, orb, ints, densityMatrix, neighbourList,&
+          & nNeighbourSK, symNeighbourList, nNeighbourCamSym, iCellVec, cellVec, rCellVecs,&
+          & iSparseStart, img2CentCell, kPoint, kWeight, HSqrCplxCam, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -4805,7 +4803,13 @@ contains
 
     if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
       if (env%tGlobalLead) then
-        deltaRhoDiffSqrCplx = densityMatrix%deltaRhoOutCplx - densityMatrix%deltaRhoInCplx
+        if (tReadChrg) then
+          allocate(deltaRhoDiffSqrCplx(size(densityMatrix%deltaRhoOutCplx, dim=1),&
+              & size(densityMatrix%deltaRhoOutCplx, dim=2),&
+              & size(densityMatrix%deltaRhoOutCplx, dim=3)), source=(0.0_dp, 0.0_dp))
+        else
+          deltaRhoDiffSqrCplx = densityMatrix%deltaRhoOutCplx - densityMatrix%deltaRhoInCplx
+        end if
         sccErrorQ = maxval(abs(deltaRhoDiffSqrCplx))
       end if
     #:if WITH_MPI

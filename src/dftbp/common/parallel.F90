@@ -20,7 +20,7 @@ module dftbp_common_parallel
 contains
 
   !> Returns the start and end index of an MPI process that calculates parts of a loop.
-  pure subroutine getStartAndEndIndex(nElements, nProcs, iProc, iStart, iEnd)
+  subroutine getStartAndEndIndex(nElements, nProcs, iProc, iStart, iEnd)
 
     !> Array size to split
     integer, intent(in) :: nElements
@@ -39,6 +39,8 @@ contains
 
     !! number of elements that exceed integer times nProcs
     integer :: offset
+
+    @:ASSERT(iProc + 1 <= nProcs)
 
     splitSize = nElements / nProcs
 
