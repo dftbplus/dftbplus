@@ -14,6 +14,7 @@ set(sources-fpp
   ${curdir}/dftbplusu.F90
   ${curdir}/dftd3param.F90
   ${curdir}/dftd4param.F90
+  ${curdir}/dipolecorr.F90
   ${curdir}/dispcommon.F90
   ${curdir}/dispdftd4.F90
   ${curdir}/dispersions.F90

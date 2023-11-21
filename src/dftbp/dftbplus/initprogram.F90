@@ -31,6 +31,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
   use dftbp_dftb_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
       & TDispDftD4, init, DispSlaKirk_init, DispUff_init
@@ -1674,7 +1675,7 @@ contains
             & this%boundaryCond%iBoundaryCondition, coulombInput)
       end if
       call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
-          & coulombInput, shortGammaInput, poissonInput, this%scc)
+          & coulombInput, shortGammaInput, poissonInput, input%ctrl%dipoleCorrInput, this%scc)
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
@@ -6691,7 +6692,7 @@ contains
 
   ! Initializes the scc calculator
   subroutine initSccCalculator_(env, orb, ctrl, boundaryCond, coulombInput, shortGammaInput,&
-      & poissonInput, sccCalc)
+      & poissonInput, dipoleCorrInput, sccCalc)
     type(TEnvironment), intent(inout) :: env
     type(TOrbitals), intent(in) :: orb
     type(TControl), intent(in) :: ctrl
@@ -6699,6 +6700,7 @@ contains
     type(TCoulombInput), allocatable, intent(inout) :: coulombInput
     type(TShortGammaInput), allocatable, intent(inout) :: shortGammaInput
     type(TPoissonInput), allocatable, intent(inout) :: poissonInput
+    type(TDipoleCorrInput), allocatable, intent(inout) :: dipoleCorrInput
     type(TScc), allocatable, intent(out) :: sccCalc
 
     type(TSccInput) :: sccInput
@@ -6706,6 +6708,7 @@ contains
     call move_alloc(coulombInput, sccInput%coulombInput)
     call move_alloc(shortGammaInput, sccInput%shortGammaInput)
     call move_alloc(poissonInput, sccInput%poissonInput)
+    call move_alloc(dipoleCorrInput, sccInput%dipoleCorrInput)
 
     sccInput%boundaryCond = boundaryCond
     if (boundaryCond == boundaryConditions%helical) then

@@ -14,6 +14,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_derivs_perturb, only : TPerturbInp
   use dftbp_dftb_elecconstraints, only : TElecConstraintInput
   use dftbp_dftb_dftbplusu, only : TDftbUInp
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
   use dftbp_dftb_etemp, only : fillingTypes
@@ -533,6 +534,8 @@ module dftbp_dftbplus_inputdata
 
     !> Hybrid xc-functional input
     type(THybridXcInp), allocatable :: hybridXcInp
+
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
 
   #:if WITH_SOCKETS
     !> Socket communication
