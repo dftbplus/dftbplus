@@ -1552,8 +1552,6 @@ contains
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = input%slako%mass(:)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = getAtomicMass(this%speciesName)
     end select
@@ -1600,8 +1598,6 @@ contains
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
       end if
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
       this%cutOff%skCutoff = this%tblite%getRCutoff()
       this%cutOff%mCutoff = this%cutOff%skCutoff
     end select
@@ -2527,8 +2523,8 @@ contains
         call error("PP-RPA does not support ${ERR}$")
       end if
     #:endfor
-    #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
-      & ("tDampH","H damping")]
+    #:for VAR, ERR in [("tShellResolved", "shell resolved hamiltonians"),&
+      & ("tDampH", "H damping")]
       if (input%ctrl%${VAR}$) then
         call error("PP-RPA does not support ${ERR}$")
       end if
@@ -4611,8 +4607,7 @@ contains
       @:ASSERT(size(input%slako%skHubbU, dim=2) == nSpecies)
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+      ! handled elsewhere
     end select
 
     if (allocated(input%ctrl%hubbU)) then

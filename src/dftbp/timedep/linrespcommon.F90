@@ -405,7 +405,7 @@ contains
   !> (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
   !>
   !> For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
-  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !> (see definitions in Mark Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !> Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
   !> occupations n_is, correct for finite T.
@@ -538,8 +538,7 @@ contains
 
     ! product charges with the v*wn product, i.e. Q * v*wn
     oTmp(:) = 0.0_dp
-    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, &
-        & vTmp * sqrOccIA, oTmp)
+    call transChrg%qMatVec(iAtomStart, ovrXev, grndEigVecs, getIA, win, vTmp * sqrOccIA, oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -693,7 +692,7 @@ contains
 
   !> Multiplies the excitation supermatrix with a supervector.
   !> (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
-  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !> (see definitions in Mark Casida, in Recent Advances in Density Functional Methods,
   !>  World Scientific, 1995, Part I, p. 155.)
   !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
   subroutine actionAminusB(spin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
