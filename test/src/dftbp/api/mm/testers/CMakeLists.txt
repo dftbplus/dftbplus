@@ -4,9 +4,7 @@ set(projectdir ${PROJECT_SOURCE_DIR})
 # parallel compilation (see e.g. https://github.com/Unidata/netcdf-fortran/issues/64)
 
 add_library(test_api_mm_utils OBJECT testhelpers.f90 extchargepot.f90 extchargepotgen.f90)
-add_dependencies(test_api_mm_utils dftbplus)
-target_include_directories(test_api_mm_utils PUBLIC
-  $<TARGET_PROPERTY:dftbplus,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(test_api_mm_utils PUBLIC dftbplus)
 
 add_executable(test_fileinit test_fileinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_fileinit dftbplus)
