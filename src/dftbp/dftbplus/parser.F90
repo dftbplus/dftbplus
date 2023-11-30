@@ -3253,7 +3253,7 @@ contains
 
     if (geo%tHelical) then
       ! Tolerance for k-points being commensurate with C_n rotation
-      call getChildValue(node, "HelicalSymmetryTol", ctrl%helicalSymTol, 1.0E-8_dp)
+      call getChildValue(node, "HelicalSymmetryTol", ctrl%helicalSymTol, 1.0E-6_dp)
     end if
 
     ! self consistency required or not to proceed
