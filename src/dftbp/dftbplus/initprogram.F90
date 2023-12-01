@@ -1444,9 +1444,9 @@ contains
       end if
       this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
       if (this%tHelical) then
-        if (any(abs(this%kPoint(2,:)*nint(this%latVec(3,1))&
-            & -nint(this%kPoint(2,:)*nint(this%latVec(3,1)))) > epsilon(1.0_dp))) then
-          call error("Specified k-value(s) incommensurate with C_n symmetry operation.")
+        if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
+            & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
+          call warning("Specified k-value(s) incommensurate with C_n symmetry operation.")
         end if
       end if
     else

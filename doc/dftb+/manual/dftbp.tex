@@ -1404,6 +1404,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
   \kw{CustomisedOccupations} & p & SCC = Yes & & \\
   \kw{TruncateSKRange} & p & & & \\
+  \kw{HelicalSymmetryTol} & r & Helical = Yes & 1e-6 & \\
   \hline
 \end{ptable}
 
@@ -1757,6 +1758,10 @@ expressions, as described in appendix \ref{sec:index_selection}.):
     HardCutOff = Yes
   }
   \end{verbatim}
+
+\item[\is{HelicalSymmetryTol}] Sets the tolerance for testing whether
+  provided $k$-points are consistent with the $C_n$ rotational
+  symmetry around the $z$-axis.
 
 \end{description}
 

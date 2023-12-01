@@ -3251,6 +3251,11 @@ contains
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
     end if
 
+    if (geo%tHelical) then
+      ! Tolerance for k-points being commensurate with C_n rotation
+      call getChildValue(node, "HelicalSymmetryTol", ctrl%helicalSymTol, 1.0E-6_dp)
+    end if
+
     ! self consistency required or not to proceed
     call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
 
