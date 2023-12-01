@@ -170,21 +170,52 @@ Main features
 Installing
 ==========
 
-Fypp needs a working Python interpreter. It is compatible with Python 2 (version
-2.6 and above) and Python 3 (all versions).
+Fypp needs a working Python 3 interpreter (Python 3.5 or above).
 
-Automatic install
------------------
+When you install Fypp, you obtain the command line tool ``fypp`` and the Python
+module ``fypp.py``. Latter you can import if you want to access the
+functionality of Fypp directly from within your Python scripts.
 
-Use Pythons command line installer ``pip`` in order to download the stable
-release from the `Fypp page on PyPI <http://pypi.python.org/pypi/fypp>`_ and
-install it on your system::
 
-  pip install fypp
+Installing via conda
+--------------------
 
-This installs both, the command line tool ``fypp`` and the Python module
-``fypp.py``. Latter you can import if you want to access the functionality of
-Fypp directly from within your Python scripts.
+The last stable release of Fypp can be easily installed as conda package by
+issuing ::
+
+  conda install -c conda-forge fypp
+
+
+Installing via pip
+------------------
+
+You can also use Pythons command line installer ``pip`` in order to download the
+stable release from the `Fypp page on PyPI <http://pypi.python.org/pypi/fypp>`_
+and install it on your system.
+
+If you want to install Fypp into the module system of the active Python 3
+interpreter (typically the case when you are using a Python virtual
+environment), issue ::
+
+  pip3 install fypp
+
+Alternatively, you can install Fypp into the user space (under `~/.local`) with
+::
+
+  pip3 install --user fypp
+
+
+Installing via MSYS2 pacman
+---------------------------
+
+On Windows you can use the `MSYS2 toolchain <https://www.msys2.org/>`_ to install
+Fypp in a MinGW terminal. To install Fypp use::
+
+  pacman -S mingw-w64-x86_64-python-fypp
+
+Make sure the selected architecture is matching your current MinGW terminal.
+For all supporting MinGW architectures visit check the package index
+`here <https://packages.msys2.org/base/mingw-w64-python-fypp>`_.
 
 
 Manual install

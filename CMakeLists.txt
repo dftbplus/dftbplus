@@ -136,11 +136,13 @@ endif()
 #
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_add_fypp_defines(FYPP_FLAGS)
+set(FYPP_FLAGS "${FYPP_FLAGS}")
 
 set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
 # Make sure, the line-marker option is not set
 list(REMOVE_ITEM FYPP_CONFIG_FLAGS "-n")
-set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
+set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "--file-var-root=${CMAKE_SOURCE_DIR}"
+  "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
 
 set(PYTHON_INTERPRETER "python3" CACHE STRING
   "Python interpreter to use for installing and test python components")
