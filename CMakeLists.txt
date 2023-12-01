@@ -186,7 +186,7 @@ string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONF
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "da51073aa87831a91ae756a9773e39ea000d1c3a")  # do not change manually!
+  set(MPIFX_GIT_TAG "fa41668e358f88dfaa55c31e8104d53850c7c4ef")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -204,7 +204,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "ac4f811da9d4140ebfe3f2d913b33ebf8287488f")  # do not change manually!
+  set(MBD_GIT_TAG "a1667288552506bb83f0ea84df8e856b0c922b7a")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
@@ -264,7 +264,7 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "056491b915204865bf5893b76eeb8ea32e1666ad")  # do not change manually!
+    set(DFTD4_GIT_TAG "3844dc141936e801ca059d1daea1773c3e6103ec")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
