@@ -17,15 +17,15 @@ Compiling DFTB+
 In order to be able to use the Python interface, DFTB+ has to be
 compiled as a shared library with API support enabled. To instruct
 cmake that a dynamically linked shared library should be created
-containing DFTB+. This can be done by setting the WITH_API,
-WITH_PYTHON, and BUILD_SHARED_LIBS flags to be TRUE in the 
-configuration file config.cmake, before starting the configuration 
-and compilation process. Alternatively, if you do not want to 
-modify files, a construct like the following is a convenient way 
-to specify these flags on the command line while configuring with 
+containing DFTB+. This can be done by setting the WITH_API, WITH_PYTHON,
+BUILD_SHARED_LIBS and ENABLE_DYNAMIC_LOADING flags to be TRUE in the
+configuration file config.cmake, before starting the configuration
+and compilation process. Alternatively, if you do not want to
+modify files, a construct like the following is a convenient way
+to specify these flags on the command line while configuring with
 CMake:
 
-cmake -DBUILD_SHARED_LIBS=1 -DWITH_API=1 -DWITH_PYTHON=1 ..
+cmake -DENABLE_DYNAMIC_LOADING=1 -DBUILD_SHARED_LIBS=1 -DWITH_API=1 -DWITH_PYTHON=1 ..
 
 
 Testing pythonapi
@@ -53,30 +53,9 @@ Installation
 Please note, that this package has been tested for **Python 3.X**
 support. It additionally needs Numerical Python (the numpy module).
 
-System install
---------------
+You can install the script package via the standard 'pip'
+mechanism::
 
-You can install the script package via the standard 'python setup'
-mechanism. If you want to install it system-wide into your normal
-python installation, for the script in the tools/pythonapi/
-sub-directory you simply issue::
-
-  python setup.py
+  python -m pip install .
 
 with an appropriate level of permission.
-
-Local install
--------------
-
-Alternatively, you can install it locally in your home space, e.g.::
-
-  python setup.py install --user
-
-If the local python install directory is not in your path, you should
-add this. For the bash shell you should include in .bashrc::
-
-  export PATH=$PATH:/home/user/.local/bin
-
-while in tcsh shell, you would have to add to your .cshrc::
-
-  setenv PATH $PATH:/home/user/.local/bin

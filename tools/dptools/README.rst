@@ -26,11 +26,11 @@ gen2xyz
 xyz2gen
   Converts an xyz file to gen file.
 
-straingen 
+straingen
   Applies uniaxial, isotropic or shear strains to geometries,
   with principle axes aligned with the cartesian directions.
 
-repeatgen 
+repeatgen
   Can be used to build supercell structures for phonon bandstructures
 
 Each script can be invoked with the option ``-h`` to obtain a short
@@ -40,9 +40,9 @@ summary about its usage and possible options.
 Testing dp_tools
 ================
 
-In the top directory of DFTB+, running
+In the top directory of DFTB+, running::
 
-make test_dptools
+  make test_dptools
 
 will validate the source of dp_tools for your python interpreter and
 environment.
@@ -51,10 +51,10 @@ For developers
 --------------
 
 To perform pylint static checking, in the top DFTB+ directory the
-individual scripts can be tested, for example by
+individual scripts can be tested, for example by ::
 
-env PYTHONPATH=$PWD/tools/dptools/src pylint3 --rcfile \
-utils/srccheck/pylint/pylintrc-3.ini tools/dptools/bin/*
+  env PYTHONPATH=$PWD/tools/dptools/src pylint3 --rcfile \
+  utils/srccheck/pylint/pylintrc-3.ini tools/dptools/src/dptools/*
 
 
 Installation
@@ -64,8 +64,6 @@ Please note, that the package needs at least **Python 2.6** or later,
 with Python 3.X preferred. It additionally needs Numerical Python (the
 numpy module).
 
-You can install the script package via the standard 'python setup'
-mechanism::
+You can install the script package via the standard 'pip' mechanism::
 
   pip install .
-
