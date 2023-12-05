@@ -7,7 +7,9 @@ Geometry = GenFormat {
     0.2140932670E+01 1.8E-1 1000
 }
 
-Driver = LBFGS {}
+Driver = LBFGS {
+  MaxForceComponent = 1.0E-10
+}
 
 Hamiltonian = DFTB {
     SCC = No
@@ -37,3 +39,10 @@ Analysis = {
 ParserOptions = {
     ParserVersion = 10
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
