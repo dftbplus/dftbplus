@@ -187,7 +187,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        fc: [ifort]
+        fc: [ifx]
         cc: [icx]
     env:
       FC: ${{ matrix.fc }}
@@ -195,7 +195,7 @@ jobs:
       WITH_MPI: false
       APT_PACKAGES: >-
         intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+        intel-oneapi-compiler-dpcpp-cpp
         intel-oneapi-mkl
         intel-oneapi-mkl-devel
       CMAKE_OPTIONS: >-
@@ -218,10 +218,8 @@ jobs:
     - name: Add Intel repository
       if: contains(matrix.os, 'ubuntu')
       run: |
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt-get update
 
     - name: Install Intel oneAPI compiler
