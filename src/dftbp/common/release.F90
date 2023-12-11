@@ -21,7 +21,7 @@ module dftbp_common_release
 
   !> Mapping between input version and parser version
   type :: TVersionMap
-    !> named version of parser input
+    !> Named version of parser input
     character(10) :: inputVersion
     !> Corresponding numerical version of parser input
     integer :: parserVersion
