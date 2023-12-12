@@ -161,7 +161,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> array to assemble
+    !> Array to assemble
     ${DTYPE}$, intent(inout) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
   #:if WITH_MPI

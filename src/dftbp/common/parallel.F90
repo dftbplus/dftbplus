@@ -22,16 +22,16 @@ contains
   !> Returns the start and end index of an MPI process that calculates parts of a loop.
   pure subroutine getStartAndEndIndex(nElements, nProcs, iProc, iStart, iEnd)
 
-    !> array size to split
+    !> Array size to split
     integer, intent(in) :: nElements
 
-    !> number of available processes
+    !> Number of available processes
     integer, intent(in) :: nProcs
 
-    !> current process index
+    !> Current process index
     integer, intent(in) :: iProc
 
-    !> start and end index of current element range
+    !> Start and end index of current element range
     integer, intent(out) :: iStart, iEnd
 
     !! size of split index regions

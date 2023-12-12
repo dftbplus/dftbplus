@@ -65,12 +65,12 @@ module dftbp_common_memman
 contains
 
 
-  !> figures out how much larger an array should be to minimize reallocations in future if the array
-  !> grows more
+  !> Figures out how much larger an array should be to minimize reallocations in future if the array
+  !! grows more
   pure function incrmntOfArray(currentSize)
     integer :: incrmntOfArray
 
-    !> current array size
+    !> Current array size
     integer, intent(in) :: currentSize
 
     incrmntOfArray = currentSize + currentSize  / 2 + 1
