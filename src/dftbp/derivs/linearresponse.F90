@@ -62,7 +62,7 @@ contains
     !> Derivative of the hamiltonian
     real(dp), intent(in) :: dHam(:,:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -71,7 +71,7 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Dense matrix descriptor
@@ -80,10 +80,10 @@ contains
     !> Particular spin/k-point
     integer, intent(in) :: iKS
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in) :: eigVecsReal(:,:,:)
 
     !> Eigenvalue of each level, kpoint and spin channel
@@ -104,7 +104,7 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> returning dRhoSparse on exit
+    !> Returning dRhoSparse on exit
     real(dp), intent(out) :: dRhoSparse(:)
 
     !> Derivative of rho as a square matrix, if needed
@@ -113,7 +113,7 @@ contains
     !> Data for range-separated calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
@@ -122,7 +122,7 @@ contains
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Derivative of single particle eigenvalues
@@ -479,7 +479,7 @@ contains
 
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy for real, q=0
-  !> systems
+  !! systems
   subroutine dRhoFermiChangeReal(dRhoExtra, env, maxFill, parallelKS, iKS, neighbourList,&
       & nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef, nFilled, nEmpty, eigVecsReal, orb,&
       & denseDesc, tempElec, eigVals, dRhoSqr, species, coord, isHelical)
@@ -493,19 +493,19 @@ contains
     !> Maximum allowed number of electrons in a single particle state
     real(dp), intent(in) :: maxFill
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> spin/kpoint channel
+    !> Spin/kpoint channel
     integer, intent(in) :: iKS
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
@@ -523,7 +523,7 @@ contains
     !> First (partly) empty level in each spin channel (and dummy k)
     integer, intent(in) :: nEmpty(:, :)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in) :: eigVecsReal(:,:,:)
 
     !> Atomic orbital information
@@ -541,7 +541,7 @@ contains
     !> Derivative of rho as a square matrix, if needed
     real(dp), pointer :: dRhoSqr(:,:,:)
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Coordinates of all atoms including images
@@ -637,7 +637,7 @@ contains
 
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian at q=0 but with
-  !> k-points
+  !! k-points
   subroutine dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec, orb,&
       & dRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, transform, species, coord, dEi, dPsi,&
@@ -649,7 +649,7 @@ contains
     !> Derivative of the hamiltonian
     real(dp), intent(in) :: dHam(:,:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -658,16 +658,16 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     complex(dp), intent(in) :: eigVecsCplx(:,:,:)
 
     !> Eigenvalue of each level, kpoint and spin channel
@@ -688,10 +688,10 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> returning dRhoSparse on exit
+    !> Returning dRhoSparse on exit
     real(dp), intent(inout) :: dRhoSparse(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -703,13 +703,13 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
-    !> spin/kpoint channel
+    !> Spin/kpoint channel
     integer, intent(in) :: iKS
 
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Derivative of single particle eigenvalues
@@ -1035,7 +1035,7 @@ contains
 
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy for q=0 cases with
-  !> k-points
+  !! k-points
   subroutine dRhoFermiChangeCmplx(dRhoExtra, env, maxFill, parallelKS, iKS, kPoint, kWeight,&
       & iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dE_F, Ef,&
       & nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals, species, coord, isHelical)
@@ -1049,13 +1049,13 @@ contains
     !> Maximum allowed number of electrons in a single particle state
     real(dp), intent(in) :: maxFill
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> spin/kpoint channel
+    !> Spin/kpoint channel
     integer, intent(in) :: iKS
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1067,13 +1067,13 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
@@ -1091,7 +1091,7 @@ contains
     !> First (partly) empty level in each spin channel
     integer, intent(in) :: nEmpty(:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     complex(dp), intent(in) :: eigVecsCplx(:,:,:)
 
     !> Atomic orbital information
@@ -1106,7 +1106,7 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Coordinates of all atoms including images
@@ -1220,7 +1220,7 @@ contains
     !> Derivative of the imaginary part of the hamiltonian
     real(dp), intent(inout), allocatable :: idHam(:,:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -1229,16 +1229,16 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     complex(dp), intent(in) :: eigVecsCplx(:,:,:)
 
     !> Eigenvalue of each level, kpoint and spin channel
@@ -1259,13 +1259,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> returning dRhoSparse on exit
+    !> Returning dRhoSparse on exit
     real(dp), intent(inout) :: dRhoSparse(:,:)
 
-    !> returning imaginary part of dRhoSparse on exit
+    !> Returning imaginary part of dRhoSparse on exit
     real(dp), intent(inout), allocatable :: idRhoSparse(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1277,13 +1277,13 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
-    !> spin/kpoint channel
+    !> Spin/kpoint channel
     integer, intent(in) :: iKS
 
     !> Transformation structure for degenerate orbitals
     type(TRotateDegen), intent(inout) :: transform
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Derivative of single particle eigenvalues
@@ -1619,13 +1619,13 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> spin/kpoint channel
+    !> Spin/kpoint channel
     integer, intent(in) :: iKS
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1637,13 +1637,13 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Index array for the start of atomic blocks in sparse arrays
@@ -1661,7 +1661,7 @@ contains
     !> First (partly) empty level in each spin channel
     integer, intent(in) :: nEmpty(:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     complex(dp), intent(in) :: eigVecsCplx(:,:,:)
 
     !> Atomic orbital information
@@ -1676,7 +1676,7 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> species of all atoms in the system
+    !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
     !> Coordinates of all atoms including images

@@ -9,7 +9,7 @@
 #:include 'error.fypp'
 
 !> Module for linear response derivative calculations using perturbation methods at q=0 for fixed
-!> structures
+!! structures
 module dftbp_derivs_perturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
@@ -186,7 +186,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Filling
@@ -195,16 +195,16 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Atomic orbital information
@@ -213,10 +213,10 @@ contains
     !> Number of central cell atoms
     integer, intent(in) :: nAtom
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -228,16 +228,16 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
     !> SCC module internal variables
     type(TScc), intent(inout), allocatable :: sccCalc
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
     !> Tolerance for SCC convergence
@@ -246,17 +246,17 @@ contains
     !> Use converged derivatives of charges
     logical, intent(in) :: isSccConvRequired
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Equivalence relations between orbitals
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
@@ -268,7 +268,7 @@ contains
     !> Fermi level(s)
     real(dp), intent(in) :: Ef(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -277,7 +277,7 @@ contains
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Data for range-separated calculation
@@ -302,7 +302,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Electric polarisability
-    real(dp), intent(out) :: polarisability(:, :, :)
+    real(dp), intent(out) :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues, if required
     real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
@@ -500,10 +500,10 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> should regression test data be written
+    !> Should regression test data be written
     logical, intent(in) :: isAutotestWritten
 
     !> Name of output file
@@ -530,16 +530,16 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Atomic orbital information
@@ -548,10 +548,10 @@ contains
     !> Number of central cell atoms
     integer, intent(in) :: nAtom
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -563,7 +563,7 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> SCC module internal variables
@@ -572,7 +572,7 @@ contains
     !> Should the kernel be evaluated at the RPA level (non-SCC) or self-consistent
     logical, intent(in) :: isRespKernelRPA
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
     !> Tolerance for SCC convergence
@@ -581,17 +581,17 @@ contains
     !> Use converged derivatives of charges
     logical, intent(in) :: isSccConvRequired
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Equivalence relations between orbitals
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
@@ -603,7 +603,7 @@ contains
     !> Fermi level(s)
     real(dp), intent(in) :: Ef(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -612,7 +612,7 @@ contains
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Data for range-separated calculation
@@ -879,7 +879,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     ! derivative of potentials
@@ -888,11 +888,11 @@ contains
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Number of central cell atoms
@@ -916,10 +916,10 @@ contains
     !> Derivative of imaginary part of sparse density matrix
     real(dp), intent(inout), allocatable :: idRho(:,:)
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -934,13 +934,13 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -961,7 +961,7 @@ contains
     !> Maximum allowed number of electrons in a single particle state
     real(dp), intent(in) :: maxFill
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Equivalence relations between orbitals
@@ -985,7 +985,7 @@ contains
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Levels with at least partial filling
@@ -1018,10 +1018,10 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Derivative of Fermi energy
@@ -1033,7 +1033,7 @@ contains
     !> Derivative of block charges (output)
     real(dp), allocatable, intent(inout) :: dqBlockOut(:,:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
@@ -1316,7 +1316,7 @@ contains
           call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
-          dEf(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
+          dEf(iS) = -sum(dqOut(:,:, iS)) / neFermi(iS)
 
           if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
             ! Fermi level changes, so need to correct for the change in the number of charges
@@ -1528,7 +1528,7 @@ contains
       & dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef,&
       & kWeight)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Tolerance for degeneracy between eigenvalues
@@ -1582,10 +1582,10 @@ contains
     !> Square matrix for overlap (if needed in range separated calculation)
     real(dp), allocatable, intent(out) :: sSqrReal(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -1597,7 +1597,7 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Derivative of density matrix
