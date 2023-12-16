@@ -2881,7 +2881,7 @@ contains
     !> Number of k-points for the calculation
     integer, intent(in) :: nKPoint
 
-    !> K-points for the system
+    !> The k-points for the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for the k-points
@@ -2900,7 +2900,7 @@ contains
   end function isGammaOnly
 
 
-  !> K-points in Euclidean space
+  !> The k-points in Euclidean space
   subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
@@ -3088,7 +3088,7 @@ contains
   end subroutine getEuclideanKSampling
 
 
-  !> K-points for helical boundaries
+  !> The k-points for helical boundaries
   subroutine getHelicalKSampling(poorKSampling, ctrl, node, geo)
 
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?

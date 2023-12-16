@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Construct Pipek-Mezey localised orbitals, either for molecules/gamma point periodic, or for each
-!> k-point separately. Note that for the k-point case these are NOT localised Wannier functions as
-!> each k-point is localised independently.
+!! The k-point separately. Note that for the k-point case these are NOT localised Wannier functions
+!! as each k-point is localised independently.
 module dftbp_dftb_pmlocalisation
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut

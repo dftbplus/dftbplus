@@ -82,16 +82,16 @@ contains
     !> Complex, dense, square dual-space rho of all spins/k-points
     complex(dp), intent(in) :: rhoDual(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> k-points in relative units
+    !> The k-points in relative units
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights of k-points
     real(dp), intent(in) :: kWeight(:)
 
-    !> K-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
+    !> The k-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
     real(dp), intent(in) :: bvKShifts(:,:)
 
     !> Supercell folding coefficients (diagonal elements)

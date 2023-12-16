@@ -1815,7 +1815,7 @@ contains
     !> Spin index
     integer, intent(in) :: iS
 
-    !> K-point index
+    !> The k-point index
     integer, intent(in) :: iK
 
     !> Fermi level
@@ -1887,7 +1887,7 @@ contains
     !> Spin index
     integer, intent(in) :: iS
 
-    !> K-point index
+    !> The k-point index
     integer, intent(in) :: iK
 
     !> Fermi level
@@ -1961,7 +1961,7 @@ contains
     !> Spin index
     integer, intent(in) :: iS
 
-    !> K-point index
+    !> The k-point index
     integer, intent(in) :: iK
 
     !> Number of levels
@@ -2021,7 +2021,7 @@ contains
     !> Spin index
     integer, intent(in) :: iS
 
-    !> K-point index
+    !> The k-point index
     integer, intent(in) :: iK
 
     !> Frequency and imaginary part

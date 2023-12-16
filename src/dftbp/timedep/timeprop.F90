@@ -754,7 +754,7 @@ contains
     !> H and S are real
     logical, intent(in) :: tRealHS
 
-    !> K-points
+    !> The k-points
     real(dp) :: kPoint(:,:)
 
     !> Weight of the K-Points

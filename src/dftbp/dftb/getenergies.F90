@@ -180,7 +180,7 @@ contains
     !> Holds real and complex delta density matrices and pointers
     type(TDensityMatrix), intent(in), optional :: densityMatrix
 
-    !> K-point weights
+    !> The k-point weights
     real(dp), intent(in), optional :: kWeights(:)
 
     !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))

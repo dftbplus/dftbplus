@@ -234,7 +234,7 @@ module dftbp_dftb_hybridxc
     !> Descending neighbour indices in terms of overlap estimates
     type(TWrappedInt1), allocatable :: overlapIndices(:)
 
-    !> K-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
+    !> The k-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
     real(dp), allocatable :: bvKShifts(:,:)
 
     !> Supercell folding coefficients (diagonal elements)
@@ -629,7 +629,7 @@ contains
       !> Supercell folding coefficients (diagonal elements)
       integer, intent(in) :: coeffsDiag(:)
 
-      !> K-point compatible BvK real-space shifts in relative coordinates
+      !> The k-point compatible BvK real-space shifts in relative coordinates
       real(dp), intent(out), allocatable :: bvKShifts(:,:)
 
       !! Number of BvK real-space shifts
@@ -1460,7 +1460,7 @@ contains
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points in relative coordinates to calculate delta H(k) for
+    !> The k-points in relative coordinates to calculate delta H(k) for
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
@@ -2445,7 +2445,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points in relative coordinates to calculate delta H(k) for
+    !> The k-points in relative coordinates to calculate delta H(k) for
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
@@ -2769,7 +2769,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points in relative coordinates to calculate delta H(k) for
+    !> The k-points in relative coordinates to calculate delta H(k) for
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
@@ -3099,7 +3099,7 @@ contains
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
     integer, intent(in) :: iKiSToiGlobalKS(:,:)
 
-    !> K-point weights
+    !> The k-point weights
     real(dp), intent(in) :: kWeights(:)
 
     !> Complex, dense, square k-space delta density matrix of all spins/k-points
@@ -3195,7 +3195,7 @@ contains
     !> Hamiltonian matrix
     complex(dp), intent(in) :: hamiltonian(:,:)
 
-    !> K-point weight (for energy contribution)
+    !> The k-point weight (for energy contribution)
     real(dp), intent(in) :: kWeight
 
     !> Density matrix in k-space
@@ -4057,7 +4057,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square (unpacked) delta density matrix
@@ -4741,7 +4741,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Distributed matrix (source)
@@ -4813,7 +4813,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Collected, full square matrix (source)
@@ -4887,7 +4887,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square (unpacked) delta density matrix
@@ -5487,10 +5487,10 @@ contains
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points in relative coordinates to calculate delta H(k) for
+    !> The k-points in relative coordinates to calculate delta H(k) for
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> K-point weights (for energy contribution)
+    !> The k-point weights (for energy contribution)
     real(dp), intent(in) :: kWeights(:)
 
     !> Sparse overlap container

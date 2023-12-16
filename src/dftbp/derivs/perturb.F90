@@ -289,7 +289,7 @@ contains
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -624,7 +624,7 @@ contains
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1045,7 +1045,7 @@ contains
     !> Square matrix for overlap (if needed)
     real(dp), allocatable, intent(inout) :: sSqrReal(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points

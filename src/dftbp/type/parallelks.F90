@@ -19,8 +19,8 @@ module dftbp_type_parallelks
   !> Contains information about which k-points and spins must be processed by which processor group
   type :: TParallelKS
 
-    !> K-point and spin-channels to be processed by each processor group (groupKS(1:2,iKS,iGroup)).
-    !> Note: third index (group index) starts from 0
+    !> The k-point and spin-channels to be processed by each processor group
+    !! (groupKS(1:2,iKS,iGroup)).  Note: third index (group index) starts from 0
     integer, allocatable :: groupKS(:,:,:)
 
     !> Number of (K, S) tuples to process for each group.
