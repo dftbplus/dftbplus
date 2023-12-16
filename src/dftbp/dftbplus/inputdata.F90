@@ -373,7 +373,7 @@ module dftbp_dftbplus_inputdata
     !> Number of k-points for the calculation
     integer :: nKPoint = 0
 
-    !> K-points for the system (= 0 for molecular in free space and no symmetries)
+    !> The k-points for the system (= 0 for molecular in free space and no symmetries)
     real(dp), allocatable :: kPoint(:,:)
 
     !> Weights for the k-points

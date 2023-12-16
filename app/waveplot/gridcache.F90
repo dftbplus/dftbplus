@@ -67,7 +67,7 @@ module waveplot_gridcache
     !> Levels in the eigenvec file
     integer :: nAllLevel
 
-    !> K-points in the eigenv. file
+    !> The k-points in the eigenv. file
     integer :: nAllKPoint
 
     !> Spins in the eigenvec. file

@@ -165,13 +165,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -243,7 +243,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -317,13 +317,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -388,7 +388,7 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
@@ -459,7 +459,7 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
@@ -500,7 +500,7 @@ contains
     !> Square Hamiltonian (or work array)
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -642,7 +642,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -696,7 +696,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -854,7 +854,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -916,7 +916,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -1078,7 +1078,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -1164,7 +1164,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1173,7 +1173,7 @@ contains
     !> Orbital regions to project
     type(TListIntR1), intent(inout) :: iOrbRegion
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Storage for eigenvectors (real)
@@ -1250,7 +1250,7 @@ contains
     !> Eigenvectors
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Sparse overlap
@@ -1370,7 +1370,7 @@ contains
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -1436,10 +1436,10 @@ contains
     !> Eigenvectors
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1585,7 +1585,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigen vectors
@@ -1656,10 +1656,10 @@ contains
     !> Basis orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1815,7 +1815,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
@@ -2283,7 +2283,7 @@ contains
     !> Number of atomic orbitals (may not match nStates if non-collinear)
     integer, intent(in) :: nOrb
 
-    !> k-points in the system
+    !> The k-points in the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights of the k-points
@@ -2735,7 +2735,7 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
     integer :: nKPoint, nMovedAtom, iAt, iK
@@ -4184,7 +4184,7 @@ contains
     !> Image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> index  for which unit cell an atom is in
@@ -5090,7 +5090,7 @@ contains
     !> Spin index of the eigenvector
     integer, intent(in) :: iS
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -5158,7 +5158,7 @@ contains
     !> Fraction of each orbital in the eigenvector, decomposed into 4 components.
     real(dp), intent(in) :: fracs(:,:)
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -5585,7 +5585,7 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
     !> atoms in the central cell (or device region if transport)

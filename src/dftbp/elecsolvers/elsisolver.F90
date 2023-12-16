@@ -333,7 +333,7 @@ contains
     !> total number of k-points
     integer, intent(in) :: nKPoint
 
-    !> K-point processed by current process.
+    !> The k-point processed by current process.
     integer, intent(in) :: iKPoint
 
     !> Weight of current k-point
@@ -855,7 +855,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -888,7 +888,7 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Fermi level(s)
@@ -1051,7 +1051,7 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1090,7 +1090,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix
@@ -1305,7 +1305,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> sparse density matrix
@@ -1409,7 +1409,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1427,7 +1427,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> sparse density matrix
@@ -1542,7 +1542,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1563,7 +1563,7 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy contributions and total
@@ -1990,7 +1990,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2026,7 +2026,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix
@@ -2085,7 +2085,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2112,7 +2112,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix

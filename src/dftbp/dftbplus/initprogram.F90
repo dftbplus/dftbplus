@@ -344,7 +344,7 @@ module dftbp_dftbplus_initprogram
     !> Nr. of K-points
     integer :: nKPoint
 
-    !> K-points
+    !> The k-points
     real(dp), allocatable :: kPoint(:,:)
 
     !> Weight of the K-Points
@@ -6190,7 +6190,7 @@ contains
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Nr. of electrons

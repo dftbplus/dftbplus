@@ -823,13 +823,13 @@ module phonons_libnegfint
     !> Total data to be written
     real(dp), intent(in) :: pTot(:,:)
 
-    !> k-point resolved data, if allocated
+    !> The k-point resolved data, if allocated
     real(dp), allocatable, intent(in) :: pKRes(:,:,:)
 
     !> file to print out to
     character(*), intent(in) :: filename
 
-    !> k-points for the system
+    !> The k-points for the system
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights for k-points

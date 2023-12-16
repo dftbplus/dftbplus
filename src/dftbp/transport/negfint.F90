@@ -1103,10 +1103,10 @@ contains
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> k-point weights
+    !> The k-point weights
     real(dp), intent(in) :: kWeights(:)
 
     !> chemical potentials of reservoirs
@@ -1260,10 +1260,10 @@ contains
     !> atomic orbital information Needs only orb%nOrbAtom, orb%mOrb
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> k-point weights
+    !> The k-point weights
     real(dp), intent(in) :: kWeights(:)
 
     !> chemical potentials
@@ -1395,10 +1395,10 @@ contains
     !> atomic orbital information Needs only orb%nOrbAtom, orb%mOrb
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> k-point weights
+    !> The k-point weights
     real(dp), intent(in) :: kWeights(:)
 
     !> matrix of tunnelling amplitudes at each energy from contacts
@@ -1739,7 +1739,7 @@ contains
     !> number of spins
     integer, intent(in) :: nS
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights for k-points
@@ -1816,7 +1816,7 @@ contains
     !> number of spins
     integer, intent(in) :: nS
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights for k-points
@@ -1920,7 +1920,7 @@ contains
     !> Orbital descriptor
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points and weights
+    !> The k-points and weights
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
 
     !> central cell coordinates (folded to central cell)

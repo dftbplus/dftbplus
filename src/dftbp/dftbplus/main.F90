@@ -2670,7 +2670,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2733,7 +2733,7 @@ contains
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Fermi level(s)
@@ -2893,7 +2893,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2956,7 +2956,7 @@ contains
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Fermi level(s)
@@ -3129,7 +3129,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> k-points and spins to be handled
+    !> The k-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
     !>Data for hybrid xc-functional calculation
@@ -3246,10 +3246,10 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
-    !> K-point weight (for energy contribution)
+    !> The k-point weight (for energy contribution)
     real(dp), intent(in) :: kWeight(:)
 
     !> List of neighbours for each atom
@@ -3282,7 +3282,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> k-points and spins to be handled
+    !> The k-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -3427,7 +3427,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> List of neighbours for each atom
@@ -3454,7 +3454,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> k-points and spins to be handled
+    !> The k-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvalues (orbital, kpoint)
@@ -3565,7 +3565,7 @@ contains
     !> Species of atoms
     integer, intent(in), optional :: species(:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> All coordinates
@@ -3695,7 +3695,7 @@ contains
     !> Occupations of single particle states in the ground state
     real(dp), intent(in) :: filling(:,:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -3722,7 +3722,7 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -3829,7 +3829,7 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -3862,7 +3862,7 @@ contains
     !> Species of all atoms in the system
     integer, intent(in) :: species(:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
@@ -4381,7 +4381,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square dense overlap storage
@@ -4962,7 +4962,7 @@ contains
     !> Excited state settings
     type(TLinResp), intent(inout), allocatable :: linearResponse
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> SCC module internal variables
@@ -5372,7 +5372,7 @@ contains
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -5405,7 +5405,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -5519,7 +5519,7 @@ contains
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -5552,7 +5552,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -5646,7 +5646,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -5829,7 +5829,7 @@ contains
     !> Eigen-values of the system
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> k-points of the system
+    !> The k-points of the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -5859,7 +5859,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Is the geometry helical
@@ -6052,7 +6052,7 @@ contains
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -6082,7 +6082,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
@@ -6148,7 +6148,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Boundary conditions on the geometry
@@ -6289,7 +6289,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -7158,7 +7158,7 @@ contains
     !> Integral container
     type(TIntegral), intent(in) :: ints
 
-    !> k-points in the system (0,0,0) if molecular
+    !> The k-points in the system (0,0,0) if molecular
     real(dp), intent(in) :: kPoint(:,:)
 
     !> List of neighbours for each atom
@@ -7194,7 +7194,7 @@ contains
     !> Label for each atomic chemical species
     character(*), intent(in) :: speciesName(:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Localisation measure of single particle states
@@ -7571,7 +7571,7 @@ contains
     !> Eigenvectors
     real(dp), intent(inout) :: eigvecs(:,:,:)
 
-    !> k-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Sparse density matrix

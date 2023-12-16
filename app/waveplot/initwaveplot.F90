@@ -74,7 +74,7 @@ module waveplot_initwaveplot
     !> Levels to plot
     integer, allocatable :: plottedLevels(:)
 
-    !> K-points to plot
+    !> The k-points to plot
     integer, allocatable :: plottedKPoints(:)
 
     !> Spins to plot
@@ -389,7 +389,7 @@ contains
     !> Wether to look for ground state occupations (True) or excited (False)
     logical, intent(in) :: tGroundState
 
-    !> K-points and weights
+    !> The k-points and weights
     real(dp), intent(out), allocatable :: kPointsWeights(:,:)
 
     !! Pointers to input nodes

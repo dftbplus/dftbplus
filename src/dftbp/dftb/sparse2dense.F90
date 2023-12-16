@@ -584,7 +584,7 @@ contains
     !> sparse hamiltonian
     real(dp), intent(in) :: ham(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -713,7 +713,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -2253,7 +2253,7 @@ contains
     !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2379,7 +2379,7 @@ contains
     !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2544,7 +2544,7 @@ contains
     !> Distributed dense matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2647,7 +2647,7 @@ contains
     !> dense distributed matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2705,7 +2705,7 @@ contains
     !> distributed sparse matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2876,7 +2876,7 @@ contains
     !> local part of the distributed matrix
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight at this k-point
@@ -3239,7 +3239,7 @@ contains
     !> Distributed dense matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point

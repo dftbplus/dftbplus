@@ -475,7 +475,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Dense matrix descriptor
@@ -824,13 +824,13 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points and spins to be handled
+    !> The k-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
     !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Number of neighbours for each of the atoms
@@ -996,7 +996,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Reference atom populations
@@ -1042,7 +1042,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Reference atom populations
