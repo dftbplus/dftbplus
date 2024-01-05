@@ -2050,19 +2050,25 @@ contains
     !> contribution to the sum
     real(dp) :: recSum
 
-    real(dp) :: gg(3), g2
+    real(dp), allocatable :: recSumArray(:)
+
+    real(dp) :: g2Factor, g2, gr
     integer :: iG
 
     @:ASSERT(vol > 0.0_dp)
 
-    recSum = 0.0_dp
+    g2Factor = -1.0_dp / (4.0_dp*alpha**2)
+
+    allocate(recSumArray(size(gVec, dim=2)), source=0.0_dp)
+
+    ! note the explicit unrolling of loops to enforce vectorization of the outer loop
     do iG = 1, size(gVec, dim=2)
-      gg = gVec(:,iG)
-      g2 = sum(gg(:)**2)
-      recSum = recSum + exp(-g2/(4.0_dp*alpha**2))/g2 * cos(dot_product(gg,rr))
+      g2 = gVec(1,iG)**2 + gVec(2,iG)**2 + gVec(3,iG)**2
+      gr = gVec(1,iG) * rr(1) + gVec(2,iG) * rr(2) + gVec(3,iG) * rr(3)
+      recSumArray(iG) = exp(g2Factor * g2)/g2 * cos(gr)
     end do
     ! note factor of 2 as only summing half of reciprocal space
-    recSum = 2.0_dp * recSum * 4.0_dp * pi / vol
+    recSum = 2.0_dp * sum(recSumArray) * 4.0_dp * pi / vol
 
   end function ewaldReciprocal
 
@@ -2086,19 +2092,28 @@ contains
     !> contribution to the derivative value
     real(dp) :: recSum(3)
 
-    real(dp) :: gg(3), g2
+    real(dp), allocatable :: recSumArray(:,:)
+
+    real(dp) :: g2Factor, g2, gr, prefactor
     integer :: iG
 
     @:ASSERT(vol > 0.0_dp)
 
-    recSum(:) = 0.0_dp
+    g2Factor = -1.0_dp / (4.0_dp*alpha**2)
+
+    allocate(recSumArray(size(gVec, dim=2), 3), source=0.0_dp)
+
+    ! note the explicit unrolling of loops to enforce vectorization of the outer loop
     do iG = 1, size(gVec, dim=2)
-      gg(:) = gVec(:,iG)
-      g2 = sum(gg(:)**2)
-      recSum(:) = recSum(:) - gg(:)*sin(dot_product(gg,rr))*exp(-g2/(4.0_dp*alpha**2))/g2
+      g2 = gVec(1,iG)**2 + gVec(2,iG)**2 + gVec(3,iG)**2
+      gr = gVec(1,iG) * rr(1) + gVec(2,iG) * rr(2) + gVec(3,iG) * rr(3)
+      prefactor = -sin(gr) * exp(g2Factor * g2)/g2
+      recSumArray(iG,1) = prefactor * gVec(1,iG)
+      recSumArray(iG,2) = prefactor * gVec(2,iG)
+      recSumArray(iG,3) = prefactor * gVec(3,iG)
     end do
     ! note factor of 2 as only summing over half of reciprocal space
-    recSum(:) = 2.0_dp * recSum(:) * 4.0_dp * pi / vol
+    recSum(:) = 2.0_dp * sum(recSumArray, dim=1) * 4.0_dp * pi / vol
 
   end function derivEwaldReciprocal
 
