@@ -3660,8 +3660,13 @@ contains
     #:endif
 
       if (allocated(rhoSqrReal)) then
-        rhoSqrReal(:,:, iSpin) = work
+        if (.not. allocated(deltaRhoOut)) then
+          rhoSqrReal(:,:, iSpin) = work
+        else
+          rhoSqrReal(:,:, iSpin) = deltaRhoOut(:,:,iSpin)
+        end if
       end if
+
     end do
 
   #:if WITH_SCALAPACK
