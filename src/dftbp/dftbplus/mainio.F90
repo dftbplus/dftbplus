@@ -3843,9 +3843,9 @@ contains
     if (allocated(neFermi)) then
       write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
       if (size(neFermi)==2) then
-        write(fd,"(E12.6,A,E12.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+        write(fd,"(E13.6,A,E13.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
       else
-        write(fd,"(E12.6)")neFermi
+        write(fd,"(E13.6)")neFermi
       end if
     end if
 
