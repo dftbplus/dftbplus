@@ -9,14 +9,8 @@
 
 !> Contains data type representing the input data for setupgeom
 module transporttools_inputdata
-  use dftbp_common_accuracy
-  use dftbp_io_message
-  use dftbp_transport_negfvars
-  use dftbp_type_commontypes
-  use dftbp_type_linkedlist
-  use dftbp_type_typegeometry
-  use dftbp_type_wrappedintr
-
+  use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
   private
 
