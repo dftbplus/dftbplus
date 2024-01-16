@@ -8,29 +8,32 @@
 #:include 'common.fypp'
 
 module phonons_initphonons
-  use dftbp_common_accuracy
-  use dftbp_common_atomicmass
-  use dftbp_common_constants
-  use dftbp_common_environment
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
-  use dftbp_common_globalenv
+  use dftbp_common_accuracy, only : dp, lc, mc
+  use dftbp_common_atomicmass, only : getAtomicMass
+  use dftbp_common_constants, only : amu__au
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_common_status, only : TStatus
-  use dftbp_common_unitconversion
-  use dftbp_dftb_periodic
-  use dftbp_io_charmanip
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdutils2
-  use dftbp_io_message
-  use dftbp_io_tokenreader
-  use dftbp_io_xmlutils
-  use dftbp_math_simplealgebra
-  use dftbp_transport_negfvars
-  use dftbp_type_linkedlist
-  use dftbp_type_oldskdata
-  use dftbp_type_typegeometryhsd
-  use dftbp_type_wrappedintr
-  use xmlf90_flib_dom
+  use dftbp_common_unitconversion, only : energyUnits, lengthUnits
+  use dftbp_dftb_periodic, only : getCellTranslations, getNrOfNeighboursForAll, getSuperSampling,&
+      & TNeighbourList, TNeighbourlist_init, updateNeighbourList
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist, getItem1,&
+      & getLength, getNodeName, string, textNodeName
+  use dftbp_io_charmanip, only : i2c, tolower, unquote
+  use dftbp_io_hsdparser, only : dumpHSD, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
+      & getFirstTextChild, getSelectedAtomIndices, getSelectedIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes
+  use dftbp_io_message, only : error
+  use dftbp_io_tokenreader, only : getNextToken
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_transport_negfvars, only : ContactInfo, TNEGFtundos, TTransPar
+  use dftbp_type_linkedlist, only : append, asArray, asVector, destruct, get, init, len,&
+      & TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1, TListString
+  use dftbp_type_oldskdata, only : readFromFile, TOldSKData
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, TGeometry
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
   private
 

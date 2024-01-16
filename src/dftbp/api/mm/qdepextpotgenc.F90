@@ -7,7 +7,7 @@
 
 !> Simplified C-interface with callbacks for population dependant external potential generators.
 module dftbp_dftbplus_qdepextpotgenc
-  use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_c_binding, only : c_double, c_ptr
   use dftbp_common_accuracy, only : dp
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   implicit none

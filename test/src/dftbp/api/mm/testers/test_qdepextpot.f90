@@ -11,7 +11,7 @@
 !> Use it with the input in the test/api/mm/qdepextpot/ folder.
 !>
 program test_qdepextpot
-  use dftbplus
+  use dftbplus, only : getDftbPlusApi, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use extchargepot, only : getPointChargePotential
   use extchargepotgen, only : TExtChargePotGen, TExtChargePotGen_init
   ! Only needed for the internal test system

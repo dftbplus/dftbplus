@@ -10,15 +10,15 @@
 !> Module for initializing SCC part of the calculation.
 module dftbp_dftb_sccinit
   use dftbp_common_accuracy, only : dp, elecTolMax
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo
+  use dftbp_dftb_periodic, only : getSuperSampling
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
-  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo
-  use dftbp_dftb_periodic, only : getSuperSampling
   implicit none
 
   private

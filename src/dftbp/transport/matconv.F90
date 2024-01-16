@@ -17,9 +17,9 @@
 !> createEquivCSR routines.
 module dftbp_transport_matconv
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, imag
+  use dftbp_common_constants, only : imag, pi
+  use dftbp_extlibs_negf, only : create, destroy, r_CSR, r_DNS, z_CSR, z_DNS
   use dftbp_type_commontypes, only : TOrbitals
-  use libnegf, only: r_CSR, z_CSR, r_DNS, z_DNS, create, destroy
   implicit none
 
   private
