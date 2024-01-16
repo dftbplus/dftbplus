@@ -7,7 +7,7 @@
 
 !> Explicitly sets the neighbour list via the API and checks the result
 program test_neighbour_list
-  use dftbplus
+  use dftbplus, only : getDftbPlusApi, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none

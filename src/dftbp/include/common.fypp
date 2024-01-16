@@ -130,7 +130,7 @@ end block
 #! Simple macro printing out the position of a line
 #:def PRINT_POSITION()
 block
-  use iso_fortran_env, only : output_unit
+  use, intrinsic :: iso_fortran_env, only : output_unit
   write(output_unit, "(a)") "Reached line ${_LINE_}$ in ${_FILE_}$"
   flush(output_unit)
 end block

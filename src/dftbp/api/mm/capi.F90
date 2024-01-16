@@ -7,16 +7,17 @@
 
 !> Contains the C-API of DFTB+.
 module dftbp_capi
-  use, intrinsic :: iso_c_binding
-  use, intrinsic :: iso_fortran_env
+  use, intrinsic :: iso_c_binding, only : c_associated, c_bool, c_char, c_double, c_f_pointer,&
+      & c_f_procpointer, c_funptr, c_int, c_loc, c_null_char, c_null_ptr, c_ptr
+  use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile
+  use dftbp_common_file, only : openFile, TFileDescr
   use dftbp_common_globalenv, only : instanceSafeBuild
-  use dftbp_dftbplus_qdepextpotgenc, only :&
-      & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
-  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput,&
-      & TDftbPlusAtomList
-  use dftbp_type_linkedlist, only : TListString, append, init, destruct
+  use dftbp_dftbplus_qdepextpotgenc, only : getExtPotGradIfaceC, getExtPotIfaceC, TQDepExtPotGenC,&
+      & TQDepExtPotGenC_init
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusAtomList,&
+      & TDftbPlusInput
+  use dftbp_type_linkedlist, only : append, destruct, init, TListString
   implicit none
   private
 
