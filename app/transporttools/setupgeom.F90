@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 program setupgeom
-  use dftbp_common_globalenv
-  use dftbp_common_release, only : releaseYear
-  use dftbp_io_formatout, only : printDftbHeader
   use transporttools_inputdata, only : TInputData
   use transporttools_parser, only : parseHsdInput
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
+  use dftbp_common_release, only : releaseYear
+  use dftbp_io_formatout, only : printDftbHeader
 #:if WITH_MPI
-  use mpi, only : MPI_THREAD_FUNNELED, MPI_COMM_WORLD
+  use mpi, only : MPI_COMM_WORLD, MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_extlibs_mpifx, only : mpifx_finalize, mpifx_init_thread
 #:endif
   implicit none
 
