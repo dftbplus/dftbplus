@@ -448,16 +448,16 @@ contains
 
     ! Perform basic consistency checks for optional arguments
     if (tPeriodic .and. (.not. present(gSummationCutoff))) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Periodic systems require g-summation&
-          & cutoff, which is not present.")
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic systems require g-summation cutoff,&
+          & which is not present.")
     end if
     if ((.not. tRealHS) .and. (.not. present(coeffsDiag))) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: General k-point case requires supercell&
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: General k-point case requires supercell&
           & folding coefficients, which are not present.")
     end if
     if ((.not. tRealHS) .and. gammaType == hybridXcGammaTypes%mic&
         & .and. (.not. present(wignerSeitzReduction))) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: General k-point case with MIC algorithm&
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: General k-point case with MIC algorithm&
           & requires Wigner-Seitz reduction parameter, which is not present.")
     end if
 
@@ -469,18 +469,18 @@ contains
       allocate(THybridXcFunc_mic:: this)
     case (hybridXcGammaTypes%truncated)
       if (.not. present(gammaCutoff)) then
-        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Coulomb truncation requires cutoff,&
-            & which is not present.")
+        @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Coulomb truncation requires cutoff, which is&
+            & not present.")
       end if
       allocate(THybridXcFunc_truncated:: this)
     case (hybridXcGammaTypes%truncatedAndDamped)
       if (.not. present(gammaCutoff)) then
-        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Coulomb truncation requires cutoff,&
-            & which is not present.")
+        @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Coulomb truncation requires cutoff, which is&
+            & not present.")
       end if
       allocate(THybridXcFunc_truncatedAndDamped:: this)
     case default
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Invalid gamma function type obtained.")
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Invalid gamma function type obtained.")
     end select
 
     this%gammaType = gammaType
@@ -583,8 +583,8 @@ contains
     end if
 
     if (tPeriodic .and. (.not. present(latVecs))) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Periodic structure, but no lattice&
-          & vectors handed over.")
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic structure, but no lattice vectors&
+          & handed over.")
     end if
 
     if (present(coeffsDiag)) then
@@ -1235,8 +1235,8 @@ contains
     integer :: nAtom0
 
     if (.not. (allocated(this%squareOverEst) .and. allocated(this%overlapIndices))) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: 4-loop composite index construction&
-          & depends on overlap estimates, that are not allocated yet.")
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: 4-loop composite index construction depends on&
+          & overlap estimates, that are not allocated yet.")
     end if
 
     nAtom0 = size(this%species0)
@@ -1338,11 +1338,11 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Thresholded algorithm for non-periodic&
-          & or Gamma-only systems does not yet support MPI parallelism (choose matrix-based&
-          & algorithm instead).")
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Thresholded algorithm for non-periodic or&
+          & Gamma-only systems does not yet support MPI parallelism (choose matrix-based algorithm&
+          & instead).")
     case (hybridXcAlgo%neighbourBased)
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Neighbour-list based algorithm for&
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Neighbour-list based algorithm for&
           & non-periodic or Gamma-only systems does not yet support MPI parallelism (choose&
           & matrix-based algorithm instead).")
     case (hybridXcAlgo%matrixBased)
@@ -1408,8 +1408,8 @@ contains
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
       if (tPeriodic) then
-        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Thresholded algorithm not implemented&
-            & for Gamma-point periodic systems.")
+        @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Thresholded algorithm not implemented for&
+            & Gamma-point periodic systems.")
       else
         call addCamHamiltonianThreshold_cluster(this, SSqrReal, deltaRhoSqr, iNeighbour,&
             & nNeighbourCam, iSquare, HSqrReal, orb)
@@ -4104,7 +4104,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
-      @:RAISE_ERROR(errStatus, -1, "Range-separated Module: MPI parallelized force evaluation not&
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: MPI parallelized force evaluation not&
           & supported, choose matrix-based algorithm instead.")
     case (hybridXcAlgo%matrixBased)
       call addCamGradientsMatrix_real_blacs(this, env, parallelKS, deltaRhoSqr, SSqrReal,&
@@ -4184,8 +4184,8 @@ contains
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
       if (tPeriodic) then
         if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-          @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Gamma-only matrix-based force&
-              & algorithm requested but necessary inputs not present.")
+          @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Gamma-only matrix-based force algorithm&
+              & requested but necessary inputs not present.")
         end if
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
@@ -4195,8 +4195,8 @@ contains
       end if
     case (hybridXcAlgo%matrixBased)
       if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-        @:RAISE_ERROR(errStatus, -1, "Range-separated Module: Real matrix-based force algorithm&
-            & requested but necessary inputs not present.")
+        @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Real matrix-based force algorithm requested&
+            & but necessary inputs not present.")
       end if
       call addCamGradientsMatrix_real(this, deltaRhoSqr, SSqrReal, skOverCont,&
           & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)

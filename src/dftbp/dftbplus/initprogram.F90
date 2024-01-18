@@ -5731,9 +5731,15 @@ contains
       call error("Hybrid calculations not implemented for non-colinear calculations.")
     end if
 
-    if ((.not. this%tRealHS) .and. this%nSpin == 2) then
-      call error("Hybrid functionality currently does not yet support spin-polarization for&
-          & periodic systems beyond the Gamma-point.")
+    if ((.not. this%tRealHS) .and. this%nSpin == 2&
+        & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncated) then
+      call error("Hybrid functionality does not yet support spin-polarized calculations of periodic&
+          & systems beyond the Gamma-point for CoulombMatrix settings other than 'Truncated'.")
+    end if
+
+    if ((.not. this%tRealHS) .and. this%nSpin == 2 .and. this%tForces) then
+      call error("Hybrid functionality currently does not yet support spin-polarized gradient&
+          & evaluation for periodic systems beyond the Gamma-point.")
     end if
 
     if (this%tSpinOrbit) then
