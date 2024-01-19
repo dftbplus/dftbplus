@@ -6534,7 +6534,7 @@ contains
 
     call getChildValue(pNode, "OverrideBulkBC", pTmp, "none")
     poisson%overrBulkBC(:) = -1
-    if (associated(pNode)) then
+    if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp, [ 0, 1, 2 ], poisson%overrBulkBC)
     end if
 
