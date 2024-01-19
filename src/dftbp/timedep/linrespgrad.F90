@@ -2541,15 +2541,7 @@ contains
     allocate(tmp7(nSpin))
 
     allocate(Dens(norb, norb))
-    !! TO CHANGE: For tHybridXc density from call seems to be incorrect, have
-    !! to recreate it from eigenvectors.
-    Dens = 0._dp
-    if (tHybridXc) then
-      Dens = 0._dp
-      call herk(Dens, grndEigVecs(:,1:homo(1),1), alpha=2.0_dp)
-    else
-      Dens(:,:) = sum(rhoSqr, dim=3)
-    endif
+    Dens(:,:) = sum(rhoSqr, dim=3)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -4644,16 +4636,8 @@ contains
     xmy(:,1) = xmyn
     xmy(:,2) = xmym
 
-    allocate(Dens(norb,norb))
-    !! TO CHANGE: For tHybridXc density from call seems to be incorrect, have
-    !! to recreate it from eigenvectors.
-    Dens = 0._dp
-    if (tHybridXc) then
-      Dens = 0._dp
-      call herk(Dens, grndEigVecs(:,1:homo(1),1), alpha=2.0_dp)
-    else
-      Dens(:,:) = sum(rhoSqr, dim=3)
-    endif
+    allocate(Dens(norb, norb))
+    Dens(:,:) = sum(rhoSqr, dim=3)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))

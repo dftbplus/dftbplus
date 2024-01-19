@@ -116,6 +116,7 @@ hybrid/cluster/Benzene-Spinpol-matrix              #? MPI_PROCS <= 1
 hybrid/cluster/Benzene-Casida-S5-Force             #? not WITH_MPI
 hybrid/cluster/C4H6-TD-LC-Triplet                  #? not WITH_MPI
 hybrid/cluster/Benzene-TD-LC-Spinpol               #? not WITH_MPI
+hybrid/cluster/Benzene-TD-LC-Spinpol-Force         #? not WITH_MPI
 hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? not WITH_MPI
 
 hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
