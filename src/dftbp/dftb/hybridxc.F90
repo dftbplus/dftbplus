@@ -22,7 +22,7 @@ module dftbp_dftb_hybridxc
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dftb_periodic, only : TSymNeighbourList, getCellTranslations, cart2frac
   use dftbp_dftb_nonscc, only : buildS
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_common_parallel, only : getStartAndEndIndex
   use dftbp_math_wignerseitz, only : generateWignerSeitzGrid

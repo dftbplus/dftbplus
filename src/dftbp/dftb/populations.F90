@@ -17,7 +17,7 @@ module dftbp_dftb_populations
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral

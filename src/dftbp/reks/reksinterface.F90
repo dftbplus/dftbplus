@@ -35,7 +35,7 @@ module dftbp_reks_reksinterface
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_io_message, only : error
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_reks_rekscommon, only : getTwoIndices
   use dftbp_reks_rekscpeqn, only : cggrad
   use dftbp_reks_reksen, only : adjustEigenval, solveSecularEqn

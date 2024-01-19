@@ -31,7 +31,7 @@ module dftbp_transport_negfint
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_lapackroutines, only : gesvd
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
   use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
       & TElph

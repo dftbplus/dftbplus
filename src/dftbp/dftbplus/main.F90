@@ -96,7 +96,7 @@ module dftbp_dftbplus_main
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_blasroutines, only : hemm, symm
   use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
   use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale

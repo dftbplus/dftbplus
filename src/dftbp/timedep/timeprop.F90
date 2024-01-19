@@ -56,7 +56,7 @@ module dftbp_timedep_timeprop
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : matinv, gesv
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_md_dummytherm, only : TDummyThermostat

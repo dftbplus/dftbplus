@@ -17,7 +17,7 @@ module dftbp_io_formatout
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only: matinv
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   implicit none
 
   private

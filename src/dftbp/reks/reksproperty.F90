@@ -19,7 +19,7 @@ module dftbp_reks_reksproperty
   use dftbp_dftb_densitymatrix, only : makeDensityMatrix
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : triangleCopySquareMatrix
   use dftbp_reks_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
   use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
   use dftbp_reks_reksvar, only : reksTypes

@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Simple matrix operations for which LAPACK does not have a direct call
-module dftbp_math_matrixoperations
+module dftbp_math_matrixops
   use dftbp_common_accuracy, only : dp
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, MB_, NB_, pblasfx_ptranc,&
@@ -155,4 +155,4 @@ contains
 
 #:endif
 
-end module dftbp_math_matrixoperations
+end module dftbp_math_matrixops
