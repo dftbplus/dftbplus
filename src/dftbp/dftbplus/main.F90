@@ -782,7 +782,7 @@ contains
   end subroutine processPotentials
 
 
-  !> Processes derived charges and populations from the Mulliken populations
+  !> Processes derived charges and populations from the Mulliken populations.
   subroutine processOutputCharges(env, this)
 
     !> Environment settings
@@ -791,8 +791,8 @@ contains
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
 
-    ! Square dense overlap storage for calculating delta rho in Gamma-point case with
-    ! range-separated hybrid functionals
+    ! Square dense overlap storage for calculating delta rho in Gamma-point case with hybrid
+    ! xc-functionals
     real(dp), allocatable :: SSqrReal(:,:)
 
     ! CAM calculations need to deduct atomic charges from delta density matrix
@@ -3330,7 +3330,6 @@ contains
     eigen(:,:,:) = 0.0_dp
 
     if (allocated(hybridXc)) then
-      ! Pre-calculate CAM-Hamiltonian and overlap
       ! Get CAM-Hamiltonian contribution for all spins/k-points
       call hybridXc%getCamHamiltonian_kpts(env, densityMatrix%deltaRhoInCplxHS,&
           & symNeighbourList, nNeighbourCamSym, rCellVecs, cellVec, denseDesc%iAtomStart, orb,&
@@ -3340,7 +3339,9 @@ contains
 
     ! Loop over all spins/k-points associated with MPI group
     do iKS = 1, parallelKS%nLocalKS
+      ! Get global k-point index from local iKS composite
       iK = parallelKS%localKS(1, iKS)
+      ! Get global spin index from local iKS composite
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -3364,10 +3365,9 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-      ! Add CAM contribution to local Hamiltonian
+      ! Add pre-calculated CAM contribution to local, non-distributed Hamiltonian
       ! (Works only if total number of MPI processes matches number of MPI groups.)
       if (allocated(hybridXc)) then
-        ! Index iK at this point is only working for spin-restricted calculations
         HSqrCplx(:,:) = HSqrCplx + HSqrCplxCam(:,:, densityMatrix%iKiSToiGlobalKS(iK, iSpin))
       end if
 
@@ -3391,10 +3391,9 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-      ! Add CAM contribution to local Hamiltonian
+      ! Add pre-calculated CAM contribution to local, non-distributed Hamiltonian
       ! (Works only if total number of MPI processes matches number of MPI groups.)
       if (allocated(hybridXc)) then
-        ! Index iK at this point is only working for spin-restricted calculations
         HSqrCplx(:,:) = HSqrCplx + HSqrCplxCam(:,:, densityMatrix%iKiSToiGlobalKS(iK, iSpin))
       end if
 
@@ -3631,7 +3630,6 @@ contains
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       end if
     #:else
-      ! Either pack density matrix or delta density matrix
       if (.not. allocated(deltaRhoOut)) then
         call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -3644,7 +3642,8 @@ contains
         end if
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
-        ! Range-separated case: pack delta density matrix
+        ! Hybrid xc-functional: store density matrix in deltaRhoOut
+        ! (at this point, deltaRhoOut still contains the full density, not yet delta-density)
         call makeDensityMatrix(deltaRhoOut(:,:,iSpin), eigvecs(:,:,iKS), filling(:,iSpin))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
@@ -3659,6 +3658,9 @@ contains
       end if
     #:endif
 
+      ! Store full density matrix for linear-response excited gradient evaluation
+      ! (at this point equivalent to deltaRhoOut, but deltaRhoOut is later transformed into
+      ! delta-density, therefore we store it separately for now)
       if (allocated(rhoSqrReal)) then
         if (.not. allocated(deltaRhoOut)) then
           rhoSqrReal(:,:, iSpin) = work

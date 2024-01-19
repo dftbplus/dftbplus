@@ -129,6 +129,8 @@ hybrid/periodic/Acene-kpts-band-mpi                   #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-force-lc                   #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-restart                    #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-restart-mpi                #? MPI_PROCS == 2
+hybrid/periodic/Benzene-box-spin-neigh-ct-kpts        #? MPI_PROCS <= 1
+hybrid/periodic/Benzene-box-spin-neigh-ct-kpts-mpi    #? MPI_PROCS == 2
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp1  #? MPI_PROCS <= 9 and MPI_PROCS != 5 and MPI_PROCS != 7
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp2  #? MPI_PROCS == 2 or MPI_PROCS == 4
 hybrid/periodic/Benzene-gamma-neigh-spin-force        #? not WITH_MPI
