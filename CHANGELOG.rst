@@ -45,6 +45,9 @@ Fixed
 - Calls to setExternalCharges were failing if number of external charges
   changes.
 
+- Incorrect excited gradients for spin-polarized long-range corrected
+  linear-response TD-DFTB calculations.
+
 23.1 (2023-07-05)
 =================
 
