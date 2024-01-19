@@ -17,7 +17,7 @@ module dftbp_io_formatout
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only: matinv
-  use dftbp_math_matrixops, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   implicit none
 
   private
@@ -438,7 +438,7 @@ contains
 
     write (strForm, "(A,I0,A)") "(", nOrb, "ES24.15)"
     call unpackHS(square, sparse, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
-    call triangleCopySquareMatrix(square)
+    call adjointLowerTriangle(square)
     write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
     write(fd%unit, "(1X,I10,I10)") 1
     write(fd%unit, "(A1,A)") "#", " MATRIX"
@@ -507,7 +507,7 @@ contains
     do iK = 1, nKPoint
       call unpackHS(square, sparse, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec, cellVec,&
           & iAtomStart, iPair, img2CentCell)
-      call triangleCopySquareMatrix(square)
+      call adjointLowerTriangle(square)
       write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
       write(fd%unit, "(1X,I10,I10)") iK
       write(fd%unit, "(A1,A)") "#", " MATRIX"

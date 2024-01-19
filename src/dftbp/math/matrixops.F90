@@ -18,25 +18,25 @@ module dftbp_math_matrixops
   implicit none
 
   private
-  public :: triangleCopySquareMatrix
+  public :: adjointLowerTriangle
 #:if WITH_SCALAPACK
-  public :: triangleCopy_BLACS
+  public :: adjointLowerTriangle_BLACS
 
   !> Copy lower triangle of distributed matrix into the upper triangle, obeying hermitian symmetry
   !! if appropriate
-  interface triangleCopy_BLACS
+  interface adjointLowerTriangle_BLACS
     module procedure symmetrize_BLACS
     module procedure hermitian_BLACS
-  end interface triangleCopy_BLACS
+  end interface adjointLowerTriangle_BLACS
 
 #:endif
 
   !> Copy lower triangle into the upper triangle of a square matrix, obeying hermitian symmetry if
   !! appropriate
-  interface triangleCopySquareMatrix
+  interface adjointLowerTriangle
     module procedure symmetrizeSquareMatrix
     module procedure hermitianSquareMatrix
-  end interface triangleCopySquareMatrix
+  end interface adjointLowerTriangle
 
 
 contains

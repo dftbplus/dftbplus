@@ -35,7 +35,7 @@ module dftbp_reks_reksinterface
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_io_message, only : error
-  use dftbp_math_matrixops, only : triangleCopySquareMatrix
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices
   use dftbp_reks_rekscpeqn, only : cggrad
   use dftbp_reks_reksen, only : adjustEigenval, solveSecularEqn
@@ -204,7 +204,7 @@ module dftbp_reks_reksinterface
             call unpackHS(rhoL, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour, &
                 & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
             call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-            call triangleCopySquareMatrix(rhoL)
+            call adjointLowerTriangle(rhoL)
           end if
 
         end if

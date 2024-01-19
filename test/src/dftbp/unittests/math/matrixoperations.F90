@@ -9,7 +9,7 @@
 
 #:block TEST_SUITE("matrixoperations")
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_matrixoperations, only : triangleCopySquareMatrix
+  use dftbp_math_matrixoperations, only : adjointLowerTriangle
   implicit none
 
 #:contains
@@ -33,7 +33,7 @@
            matReal(jj, ii) = real(kk,dp)
          end do
        end do
-       call triangleCopySquareMatrix(matReal)
+       call adjointLowerTriangle(matReal)
        @:ASSERT(all(matReal > epsilon(0.0_dp)))
        @:ASSERT(all(abs(matReal - transpose(matReal)) < epsilon(0.0_dp)))
     #:endblock
@@ -55,7 +55,7 @@
            matCplx(jj, ii) = matCplx(jj, ii) + cmplx(0,kk,dp)
          end do
        end do
-       call triangleCopySquareMatrix(matCplx)
+       call adjointLowerTriangle(matCplx)
        @:ASSERT(all(abs(matCplx) > epsilon(0.0_dp)))
        @:ASSERT(all(abs(matCplx - transpose(conjg(matCplx))) < epsilon(0.0_dp)))
     #:endblock
