@@ -883,8 +883,8 @@ contains
 
     if (this%tIons) then
       if (.not. this%tRealHS) then
-        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for imaginary&
-            & Hamiltonians.")
+        @:RAISE_ERROR(errStatus, -1, "Ion dynamics is not implemented yet for complex&
+            & hamiltonians (k-points, spin-orbit, ...).")
       end if
       this%tForces = .true.
       this%indMovedAtom = inp%indMovedAtom
