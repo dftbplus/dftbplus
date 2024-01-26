@@ -5,8 +5,8 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-23.2
-====
+24.1 (2024-02-01)
+=================
 
 Added
 -----
@@ -16,9 +16,6 @@ Added
   (restricted to Mulliken populations at the moment)
 
 - CI optimizer to locate conical intersections
-
-Changed
--------
 
 
 Fixed
@@ -31,6 +28,7 @@ Fixed
 
 - Calls to setExternalCharges were failing if number of external charges
   changes.
+
 
 23.1 (2023-07-05)
 =================
@@ -543,4 +541,3 @@ Fixed
   modes.
 
 - Make geometry writing in gen and xyz files consistent.
-
