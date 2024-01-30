@@ -11,10 +11,6 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Added
 -----
 
-- Electronic constraints on arbitrary regions, targeting the electronic ground
-  state by determining a self-consistent constraint potential
-  (restricted to Mulliken populations at the moment)
-
 - CI optimizer to locate conical intersections
 
 
