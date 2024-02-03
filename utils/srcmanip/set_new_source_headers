@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+import sys
+import os
+import re
+import fnmatch
+import argparse
+
+if sys.hexversion < 0x03050000:
+    sys.stderr.write("Error: this script requires Python 3.5 or newer")
+    sys.exit(1)
+
+
+DESCRIPTION = "Creates the copyright header in all relevant source files."
+
+COPYRIGHT = """DFTB+: general package for performing fast atomistic simulations
+Copyright (C) 2006 - 2024  DFTB+ developers group
+
+See the LICENSE file for terms of usage and distribution."""
+
+
+FOLDERS = ["app/", "cmake/", "src/", "sys/", "test/", "tools/", "utils/"]
+
+FILE_TYPES = [
+    ("*.[fF]90", "fortran"),
+    ("*.[hc]", "c"),
+    ("*.fpp", "fortran"),
+    ("*.inc", "fortran"),
+    ("*.fypp", "fypp"),
+    ("make.*", "makefile"),
+    ("makefile", "makefile"),
+    ("*.sh", "shell"),
+    ("*.py", "python"),
+]
+
+
+def main():
+    """Main function"""
+    args = parse_arguments()
+    process_files(os.path.abspath(args.rootdir))
+
+
+def parse_arguments():
+    """Parses the arguments"""
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    msg = "Root directory of the project (default: current directory)"
+    parser.add_argument("--rootdir", default=os.getcwd(), help=msg)
+    args = parser.parse_args()
+    return args
+
+
+def find_files(rootdir):
+    """Walks through 'FOLDERS' and 'FILE_TYPES' in rootdir and adds them to
+    'file_list'"""
+    file_list = []
+    for folder in FOLDERS:
+        for root, _, files in os.walk(os.path.join(rootdir, folder)):
+            for file in files:
+                for fpattern, ftype in FILE_TYPES:
+                    if fnmatch.fnmatch(file, fpattern):
+                        file_list.append((os.path.join(root, file), ftype))
+    return file_list
+
+
+def process_files(rootdir):
+    """Iterates over files and inserts headers accordingly"""
+    file_list = find_files(rootdir)
+    for file, ftype in file_list:
+        headerpattern, newheader = HEADER_BY_TYPE[ftype]
+        set_header(file, headerpattern, newheader)
+
+
+def set_header(fname, headerpattern, header):
+    """Adds headers to files that do not contain headers"""
+    with open(fname, "r", encoding="utf-8") as fp:
+        txt = fp.readlines()
+    first_line = txt[0]
+    hit = headerpattern.search("".join(txt))
+    if not hit:
+        if SHEBANG.match(first_line) is None:
+            newtxt = header + "\n\n" + first_line + "".join(txt[1:])
+        else:
+            newtxt = first_line + header + "\n\n" + "".join(txt[1:])
+        with open(fname, "w", encoding="utf-8") as fp:
+            fp.write(newtxt)
+        print("Header added in: ", fname)
+
+
+def pretty_header(txt, commentbegin, commentend, marker, linelength):
+    """Creates 'pretty header'"""
+    commentlen = len(commentbegin) + len(commentend)
+    headerseparator = commentbegin + marker * (linelength - commentlen) + commentend
+    headerlines = [headerseparator]
+    for line in txt.split("\n"):
+        line = line.strip()
+        padding = linelength - commentlen - 2 - len(line)
+        headerlines.append(commentbegin + "  " + line + " " * padding + commentend)
+    headerlines.append(headerseparator)
+    return "\n".join(headerlines)
+
+
+RAWTEXT_HEADER_PATTERN = re.compile(
+    r"[ \t]*\|---+\|[ \t]*\n(?:[ \t]*\|.*\n)*?[ \t]*\|---+\|[ \t]*$", re.MULTILINE
+)
+RAWTEXT_HEADER = pretty_header(COPYRIGHT, "!", "!", "-", 80)
+
+FORTRAN_HEADER_PATTERN = re.compile(
+    r"[ \t]*!---+![ \t]*\n(?:[ \t]*!.*\n)*?[ \t]*!---+![ \t]*$", re.MULTILINE
+)
+FORTRAN_HEADER = pretty_header(COPYRIGHT, "!", "!", "-", 100)
+
+SCRIPT_HEADER_PATTERN = re.compile(
+    r"[ \t]*#---+#[ \t]*\n(?:[ \t]*#.*\n)*?[ \t]*#---+#[ \t]*$", re.MULTILINE
+)
+SCRIPT_HEADER = pretty_header(COPYRIGHT, "#", "#", "-", 80)
+
+FYPP_HEADER_PATTERN = re.compile(
+    r"[ \t]*#!---+![ \t]*\n(?:[ \t]*#!.*\n)*?[ \t]*#!---+![ \t]*$", re.MULTILINE
+)
+FYPP_HEADER = pretty_header(COPYRIGHT, "#!", "!", "-", 100)
+
+C_HEADER_PATTERN = re.compile(
+    r"[ \t]*/\*---+\*/[ \t]*\n(?:[ \t]*/\*.*\n)*?[ \t]*/\*---+\*/[ \t]*$", re.MULTILINE
+)
+C_HEADER = pretty_header(COPYRIGHT, "/*", "*/", "-", 100)
+
+SHEBANG = re.compile(r"^#!(.*)")
+
+
+HEADER_BY_TYPE = {
+    "fortran": (FORTRAN_HEADER_PATTERN, FORTRAN_HEADER),
+    "makefile": (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    "python": (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    "rawtext": (RAWTEXT_HEADER_PATTERN, RAWTEXT_HEADER),
+    "shell": (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
+    "fypp": (FYPP_HEADER_PATTERN, FYPP_HEADER),
+    "c": (C_HEADER_PATTERN, C_HEADER),
+}
+
+
+if __name__ == "__main__":
+    main()
