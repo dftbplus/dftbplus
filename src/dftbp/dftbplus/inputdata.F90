@@ -335,6 +335,8 @@ module dftbp_dftbplus_inputdata
 
     !> Whether to initialize internal state of the Nose-Hoover thermostat from input
     logical :: tInitNHC = .false.
+
+    !> Internal state variables for the Nose-Hoover chain thermostat
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
