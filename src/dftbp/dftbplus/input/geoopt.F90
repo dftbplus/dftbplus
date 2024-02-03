@@ -72,7 +72,10 @@ contains
 
     call readFilterInput(node, geom, input%filter, atomsRange)
 
-    call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
+    call getChild(node, "Convergence", child, requested=.false.)
+    if (.not.associated(child)) then
+      call setChild(node, "Convergence", child)
+    end if
     call readOptTolerance(child, input%tolerance)
 
     call getChildValue(node, "MaxSteps", input%nGeoSteps, 20*geom%nAtom)
