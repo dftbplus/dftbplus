@@ -4357,9 +4357,6 @@ contains
         @:RAISE_ERROR(errStatus, -1, "Coordinates and velocities were not set externally.")
       end if
 
-    end if
-
-    if (this%tIons) then
       select case(this%hamiltonianType)
       case default
         @:ASSERT(.false.)
