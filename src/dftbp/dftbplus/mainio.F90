@@ -45,6 +45,7 @@ module dftbp_dftbplus_mainio
   use dftbp_math_blasroutines, only : hemv
   use dftbp_math_eigensolver, only : heev
   use dftbp_md_mdintegrator, only : TMdIntegrator, state
+  use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_cosmo, only : TCosmo
@@ -2342,7 +2343,7 @@ contains
 
 
   !> Write the band structure data out
-  subroutine writeBandOut(fileName, eigen, filling, kWeight)
+  subroutine writeBandOut(fileName, eigen, filling, kWeight, isFileAppended)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2356,10 +2357,27 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> If true, append onto the file, if false replace the file
+    logical, intent(in), optional :: isFileAppended
+
     type(TFileDescr) :: fd
+    character(1) :: fileMode
+    logical :: isFileAppended_
     integer :: iSpin, iK, iEgy
 
-    call openFile(fd, fileName, mode="w")
+    if (present(isFileAppended)) then
+      isFileAppended_ = isFileAppended
+    else
+      isFileAppended_ = .false.
+    end if
+
+    if (isFileAppended_) then
+      fileMode = "a"
+    else
+      fileMode = "w"
+    end if
+
+    call openFile(fd, fileName, mode=fileMode)
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
         write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
@@ -3939,7 +3957,7 @@ contains
   subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
       & fixEf, printMulliken, dftbEnergy, energiesCasida, latVec, derivs, totalStress, cellVol,&
       & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage,&
-      & electronicSolver, deltaDftb)
+      & electronicSolver, deltaDftb,  mdOutput)
 
     !> File ID
     integer, intent(in) :: fd
@@ -4016,12 +4034,16 @@ contains
     !> type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
+    !> Control structure for which variables are written
+    type(TMDOutput), intent(in) :: mdOutput
+
     integer :: ii, iDet
     character(lc) :: strTmp
 
     iDet = deltaDftb%iFinal
 
-    if (printForces) then
+    if (printForces .and. mdOutput%printForces) then
+
       write(fd, "(A)") "Forces (au)"
       do ii = 1, size(derivs, dim=2)
         write(fd, "(3E24.8)") -derivs(:, ii)
@@ -4033,6 +4055,7 @@ contains
         end do
       end if
     end if
+
     if (isPeriodic) then
       if (withBarostat) then
         write(fd, "(A)") "Lattice vectors (A)"
@@ -4079,19 +4102,21 @@ contains
       end if
     end if
 
-    if (fixEf .and. printMulliken) then
-      write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
-    end if
-
-    if (allocated(dipoleMoment)) then
-      if (len(trim(dipoleMessage)) > 0) then
-        write(fd, "(A)") trim(dipoleMessage)
+    if (mdOutput%PrintCharges) then
+      if (fixEf .and. printMulliken) then
+        write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
       end if
-      ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
-      write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
+
+      if (allocated(dipoleMoment)) then
+        if (len(trim(dipoleMessage)) > 0) then
+          write(fd, "(A)") trim(dipoleMessage)
+        end if
+        ii = size(dipoleMoment, dim=2)
+        write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
+        write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
+      end if
     end if
 
     if (deltaDftb%nDeterminant() > 1) then

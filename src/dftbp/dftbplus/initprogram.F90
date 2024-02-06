@@ -101,7 +101,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
-  use dftbp_md_mdcommon, only : TMDCommon, init
+  use dftbp_md_mdcommon, only : TMDCommon, init, TMDOutput
   use dftbp_md_mdintegrator, only : TMDIntegrator, init
   use dftbp_md_nhctherm, only : TNHCThermostat, init
   use dftbp_md_tempprofile, only : TTempProfile, TempProfile_init
@@ -470,6 +470,9 @@ module dftbp_dftbplus_initprogram
 
     !> Is this a MD calculation?
     logical :: tMD
+
+    !> Output options for molecular dynamics data
+    type(TMDOutput), allocatable :: mdOutput
 
     !> Is this a derivatives calc?
     logical :: tDerivs
@@ -1941,6 +1944,7 @@ contains
     this%tAppendGeo = input%ctrl%tAppendGeo
     this%isSccConvRequired = input%ctrl%isSccConvRequired
     this%tMD = input%ctrl%tMD
+    if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile

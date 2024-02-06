@@ -1365,7 +1365,12 @@ contains
                 & allocated(this%thirdOrd), this%isHybridXc, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
-            call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+            if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
+                  & isFileAppended=this%mdOutput%bandStructure)
+            else
+              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+            end if
           end if
 
           exit lpSCC_REKS
@@ -1428,10 +1433,24 @@ contains
 
           if (this%tWriteBandDat) then
             if (this%deltaDftb%nDeterminant() == 1) then
-              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+                ! the iGeoStep test is so that the initial step has a new file
+                call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
+                    & isFileAppended=this%mdOutput%bandStructure)
+              else
+                call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+              end if
             else
-              call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) // '_'&
-                  & //  bandOut, this%eigen, this%filling, this%kWeight)
+              ! Multiple determinants
+              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+                ! the iGeoStep test is so that the initial step has a new file
+                call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
+                    & '_' //  bandOut, this%eigen, this%filling, this%kWeight,&
+                    & isFileAppended=this%mdOutput%bandStructure)
+              else
+                call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
+                    & '_' //  bandOut, this%eigen, this%filling, this%kWeight)
+              end if
             end if
           end if
 
@@ -1970,7 +1989,7 @@ contains
             & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
             & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%electronicSolver,&
-            & this%deltaDftb)
+            & this%deltaDftb, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
