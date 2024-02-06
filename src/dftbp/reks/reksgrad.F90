@@ -26,10 +26,11 @@ module dftbp_reks_reksgrad
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS, packHS
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_math_lapackroutines, only : getrf, getri
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
       & findShellOfAO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
@@ -135,7 +136,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the hamiltonians from AO basis to MO basis
         call matAO2MO(tmpHam, eigenvecs)
       end if
@@ -370,8 +371,8 @@ contains
 
       if (iL == 1) then
         do ii = 1, 3
-          call blockSymmetrizeHS(Hderiv(:,:,ii), iSquare)
-          call blockSymmetrizeHS(Sderiv(:,:,ii), iSquare)
+          call adjointLowerTriangle(Hderiv(:,:,ii))
+          call adjointLowerTriangle(Sderiv(:,:,ii))
         end do
       end if
 
@@ -478,7 +479,7 @@ contains
     ! get total gamma (gamma = 1/R - S)
     tmpGamma(:,:) = 0.0_dp
     call sccCalc%getAtomicGammaMatrix(tmpGamma, iNeighbour, img2CentCell)
-    call symmetrizeHS(tmpGamma)
+    call adjointLowerTriangle(tmpGamma)
     ! convert from atom to AO
     GammaAO(:,:) = 0.0_dp
     do iAt1 = 1, nAtom
@@ -491,7 +492,7 @@ contains
     ! get total gamma derivative (gamma = 1/R - S)
     call sccCalc%getGammaDeriv(env, species, iNeighbour, img2CentCell, GammaDeriv)
     do ii = 1, 3
-      call symmetrizeHS(GammaDeriv(:,:,ii))
+      call adjointLowerTriangle(GammaDeriv(:,:,ii))
     end do
 
     ! get spinW with respect to AO
@@ -532,7 +533,7 @@ contains
       LrGammaDeriv(:,:,:) = 0.0_dp
       call hybridXc%getCamGammaDerivCluster(LrGammaDeriv)
       do ii = 1, 3
-        call symmetrizeHS(LrGammaDeriv(:,:,ii))
+        call adjointLowerTriangle(LrGammaDeriv(:,:,ii))
       end do
 
     end if
@@ -776,7 +777,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1016,7 +1017,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1255,7 +1256,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -3805,7 +3806,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatDense_
@@ -3884,7 +3885,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatHalf_
@@ -4008,7 +4009,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatSparse_
@@ -4276,7 +4277,7 @@ contains
     end if
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatNoHxc_
