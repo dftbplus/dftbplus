@@ -1326,13 +1326,6 @@ contains
       ind = 1
     end do
 
-    write(*,*) this%loc%requiredkPoints
-    write(*,*) shape(this%loc%requiredKPointsForLevel)
-
-    write(strbuffer, "(I3)") size(this%loc%requiredKPointsForLevel, dim=2)
-    write(strbuffer, *) '(' // trim(strBuffer) // '(i6, 1X)/)'
-    write(*, strBuffer) transpose(this%loc%requiredKPointsForLevel)
-
   end subroutine getIndexMappings
 
 
