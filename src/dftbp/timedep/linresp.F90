@@ -242,12 +242,12 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
-      & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & taggedWriter, rangeSep, excEnergy, allExcEnergies)
+  subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal,&
+      & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
+      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
     
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
@@ -330,7 +330,7 @@ contains
       & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
     
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -427,14 +427,14 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       if (allocated(occNatural)) then
-        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
-            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
-            & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
+            & rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
-        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0, SSqrReal,&
-            & filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, rangeSep,&
-            & excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
+        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
+            & rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr)
       end if
 

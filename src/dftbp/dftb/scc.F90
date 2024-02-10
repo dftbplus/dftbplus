@@ -9,7 +9,6 @@
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_dftb_scc
-  use mpi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
@@ -25,8 +24,9 @@ module dftbp_dftb_scc
   use dftbp_type_commontypes, only : TOrbitals
   
 #:if WITH_SCALAPACK
-  
-  use dftbp_extlibs_scalapackfx, only : DLEN_, M_, N_, scalafx_infog2l
+
+  use mpi
+  use dftbp_extlibs_scalapackfx, only : MB_, NB_, CSRC_, RSRC_, scalafx_indxl2g
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip
 
 #:endif
@@ -560,7 +560,8 @@ contains
   end subroutine getAtomicGammaMatrix
 
 #:if WITH_SCALAPACK
-  
+
+  !> Returns a local copy of the lower triange of the whole gamma matrix to each processor
   subroutine getAtomicGammaMatrixBlacs(this, gammamat, iNeighbour, img2CentCell, env)
 
     !> Instance
@@ -585,16 +586,23 @@ contains
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
     gammamat(:,:) = 0.0_dp
-    do ii = 1, this%coulomb%descInvRMat_(M_)
-      do jj = 1, this%coulomb%descInvRMat_(N_)
-        call scalafx_infog2l(env%blacs%atomGrid, this%coulomb%descInvRMat_, ii, jj, iLoc, jLoc, rSrc, cSrc)
-        if(env%blacs%atomGrid%myrow == rSrc .and. env%blacs%atomGrid%mycol == cSrc) then
-          gammamat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
-        endif
-      enddo
-    enddo
+    if (env%blacs%atomGrid%iproc /= -1) then
+      ! holds part of the atom grid
+      do jLoc = 1, size(this%coulomb%invRMat, dim=2)
+        jj = scalafx_indxl2g(jLoc, this%coulomb%descInvRMat_(NB_), env%blacs%atomGrid%mycol,&
+            & this%coulomb%descInvRMat_(CSRC_), env%blacs%atomGrid%ncol)
+        do iLoc = 1, size(this%coulomb%invRMat, dim=1)
+          ii = scalafx_indxl2g(iLoc, this%coulomb%descInvRMat_(MB_), env%blacs%atomGrid%myrow,&
+              & this%coulomb%descInvRMat_(RSRC_), env%blacs%atomGrid%nrow)
+          if (ii >= jj) then
+            gammamat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
+            call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell, ii, jj)
+          end if
+        end do
+      end do
+    end if
+    ! Assemble and distribute to all processors in the global grid
     call mpifx_allreduceip(env%mpi%globalComm, gammamat, MPI_SUM)
-    call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
   end subroutine getAtomicGammaMatrixBlacs
 

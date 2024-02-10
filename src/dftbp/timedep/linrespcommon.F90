@@ -26,7 +26,8 @@ module dftbp_timedep_linrespcommon
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, N_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g,&
        & scalafx_getlocalshape
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
-  
+  use dftbp_math_scalafxext, only : distrib2replicated
+
 #:endif
   
   implicit none
@@ -471,7 +472,7 @@ contains
     integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -1177,7 +1178,7 @@ contains
     integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -1528,7 +1529,7 @@ contains
     integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1734,7 +1735,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -1963,7 +1964,7 @@ contains
       & ovrXev, grndEigVecs, ons_en, orb, vin, vout, indexOffSet)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
     
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -2281,7 +2282,7 @@ contains
     integer, intent(in) :: nmatup
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -2474,7 +2475,7 @@ contains
     & filling, ovrXev, grndEigVecs)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -2534,8 +2535,10 @@ contains
     !!eigVecGlb=0.0
     !!ovrXevGlb=0.0
     do ss = 1, 2
-      call local2GlobalBlacsArray(env, denseDesc, grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
-      call local2GlobalBlacsArray(env, denseDesc, ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
+          & grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
+          & ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
     end do
  
     do i = 1, nexc
@@ -3031,47 +3034,9 @@ contains
 
   end subroutine incMemStratmann
 
-#:if WITH_SCALAPACK
-  
-  !> Collect distributed BLACS orbitalGrid array into global one
-  !> Note: should maybe go into different module and be more general
-  subroutine local2GlobalBlacsArray(env, denseDesc, locArray, glbArray)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> Local part of the distributed array
-    real(dp), intent(in) :: locArray(:,:)
-
-    !> Global array, i.e. the whole array, but replicated on each member of the comm
-    real(dp), intent(out) :: glbArray(:,:)    
-    
-    integer :: desc(DLEN_), iLoc, jLoc, iGlb, jGlb, nLocalRows, nLocalCols, ierr 
-
-    desc(:) = denseDesc%blacsOrbSqr
-
-    call scalafx_getlocalshape(env%blacs%orbitalGrid, desc, nLocalRows, nLocalCols)
-
-    glbArray(:,:) = 0.0_dp
-    do iLoc = 1, nLocalRows
-      iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
-             & env%blacs%orbitalGrid%nrow)
-      do jLoc = 1, nLocalCols
-        jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
-             & env%blacs%orbitalGrid%ncol)
-        glbArray(iGlb,jGlb) = locArray(iLoc,jLoc)
-      end do
-    end do
-    call mpifx_allreduceip(env%mpi%groupComm, glbArray, MPI_SUM)
-    
-  end subroutine local2GlobalBlacsArray
-
 
   !> Determine size and offsets for distributed RPA/Casida vectors
-  subroutine localSizeCasidaVectors(nProcs, nDim, locSize, vOffSet)
+  pure subroutine localSizeCasidaVectors(nProcs, nDim, locSize, vOffSet)
     
     !> Number of processors
     integer, intent(in) :: nProcs
@@ -3101,7 +3066,5 @@ contains
     enddo
 
   end subroutine localSizeCasidaVectors
-  
-#:endif
-  
+
 end module dftbp_timedep_linrespcommon
