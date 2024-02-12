@@ -5,8 +5,29 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-23.1
-====
+24.1 (2024-02-12)
+=================
+
+Added
+-----
+
+- CI optimizer to locate conical intersections
+
+
+Fixed
+-----
+
+- Memory leak for MPI enabled code with many geometric steps.
+
+- API call to setExternalCharges was not marking calculation to be
+  re-evaluated.
+
+- Calls to setExternalCharges were failing if number of external charges
+  changes.
+
+
+23.1 (2023-07-05)
+=================
 
 Added
 -----

@@ -3,9 +3,7 @@ set(projectdir ${PROJECT_SOURCE_DIR})
 # Collect commonly used modules into object library to prevent .mod file renaming conflicts during
 # parallel compilation (see e.g. https://github.com/Unidata/netcdf-fortran/issues/64)
 add_library(test_api_mm_utils OBJECT testhelpers.f90 extchargepot.f90 extchargepotgen.f90)
-add_dependencies(test_api_mm_utils dftbplus)
-target_include_directories(test_api_mm_utils PUBLIC
-  $<TARGET_PROPERTY:dftbplus,INTERFACE_INCLUDE_DIRECTORIES>)
+target_link_libraries(test_api_mm_utils PUBLIC dftbplus)
 
 add_executable(test_fileinit test_fileinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_fileinit dftbplus)
@@ -14,6 +12,15 @@ if(WITH_C_EXECUTABLES)
   add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_fileinitc dftbplus)
   set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
+endif()
+
+if(WITH_C_EXECUTABLES)
+  if(WITH_MPI)
+    include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+    add_executable(test_mpic test_mpic.c $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_mpic dftbplus ${MPI_C_LIBRARIES})
+    set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
+  endif()
 endif()
 
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
@@ -27,6 +34,9 @@ target_link_libraries(test_extpot2 dftbplus)
 
 add_executable(test_extcharges test_extcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_extcharges dftbplus)
+
+add_executable(test_intcharges test_intcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_intcharges dftbplus)
 
 add_executable(test_qdepextpot test_qdepextpot.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpot dftbplus)

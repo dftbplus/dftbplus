@@ -4,7 +4,7 @@
 #
 # fypp -- Python powered Fortran preprocessor
 #
-# Copyright (c) 2016-2021 Bálint Aradi, Universität Bremen
+# Copyright (c) 2016-2023 Bálint Aradi, Universität Bremen
 #
 # All rights reserved.
 #
@@ -50,7 +50,7 @@ subclasses of `FyppError`_ is raised:
 * FyppStopRequest: Stop was triggered by an explicit request in the input
   (by a stop- or an assert-directive).
 '''
-
+import pathlib
 import sys
 import types
 import inspect
@@ -66,7 +66,7 @@ import builtins
 # Prevent cluttering user directory with Python bytecode
 sys.dont_write_bytecode = True
 
-VERSION = '3.1'
+VERSION = '3.2'
 
 STDIN = '<stdin>'
 
@@ -1323,10 +1323,12 @@ class Renderer:
             Format 'std' emits #line pragmas, 'cpp' resembles GNU cpps special
             format, and 'gfortran5' adds to cpp a workaround for a bug introduced in GFortran 5.
         linefolder (callable): Callable to use when folding a line.
+        filevarroot (str, optional): render _FILE_ and _THIS_FILE_ as paths relative to this
+            root directory (default: paths are not converted explicitely to relative paths)
     '''
 
     def __init__(self, evaluator=None, linenums=False, contlinenums=False,
-                 linenumformat=None, linefolder=None):
+                 linenumformat=None, linefolder=None, filevarroot=None):
         # Evaluator to use for Python expressions
         self._evaluator = Evaluator() if evaluator is None else evaluator
         self._evaluator.updateglobals(_SYSTEM_=platform.system(),
@@ -1359,6 +1361,13 @@ class Renderer:
             self._linefolder = lambda line: [line]
         else:
             self._linefolder = linefolder
+
+        if filevarroot is None:
+            self._convert_file_path = lambda path: path
+        else:
+            self._convert_file_path = (
+                lambda path: pathlib.Path(path).relative_to(filevarroot)
+            )
 
 
     def render(self, tree, divert=False, fixposition=False):
@@ -1739,6 +1748,7 @@ class Renderer:
 
 
     def _update_predef_globals(self, fname, linenr):
+        fname = self._convert_file_path(fname)
         self._evaluator.updatelocals(
             _DATE_=time.strftime('%Y-%m-%d'), _TIME_=time.strftime('%H:%M:%S'),
             _THIS_FILE_=fname, _THIS_LINE_=linenr + 1)
@@ -2528,7 +2538,8 @@ class Fypp:
         if inspect.signature(renderer_factory) == inspect.signature(Renderer):
             renderer = renderer_factory(
                 evaluator, linenums=linenums, contlinenums=contlinenums,
-                linenumformat=options.line_marker_format, linefolder=linefolder)
+                linenumformat=options.line_marker_format, linefolder=linefolder,
+                filevarroot=options.file_var_root)
         else:
             raise FyppFatalError('renderer_factory has incorrect signature')
         self._preprocessor = Processor(parser, builder, renderer)
@@ -2579,7 +2590,7 @@ class Fypp:
     @staticmethod
     def _apply_definitions(defines, evaluator):
         for define in defines:
-            words = define.split('=', 2)
+            words = define.split('=', 1)
             name = words[0]
             value = None
             if len(words) > 1:
@@ -2673,6 +2684,7 @@ class FyppOptions(optparse.Values):
         self.fixed_format = False
         self.encoding = 'utf-8'
         self.create_parent_folder = False
+        self.file_var_root = None
 
 
 class FortranLineFolder:
@@ -2892,6 +2904,12 @@ def get_option_parser():
     parser.add_option('-p', '--create-parents', action='store_true',
                       dest='create_parent_folder',
                       default=defs.create_parent_folder, help=msg)
+
+    msg = 'in variables _FILE_ and _THIS_FILE_, use relative paths with DIR '\
+          'as root directory. Note: the input file and all included files '\
+          'must be in DIR or in a directory below.'
+    parser.add_option('--file-var-root', metavar='DIR', dest='file_var_root',
+                      default=defs.file_var_root, help=msg)
 
     return parser
 

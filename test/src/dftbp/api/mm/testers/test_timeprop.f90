@@ -39,82 +39,93 @@ program test_timeprop
   real(dp), parameter :: fstrength = 0.001_dp
   integer, parameter :: nsteps = 1000
 
-  type(TDftbPlus) :: dftbp
-  type(TDftbPlusInput) :: input
+  call main_()
 
-  real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
-  type(fnode), pointer :: pPerturb, pKick
+contains
 
-  character(:), allocatable :: DftbVersion
-  integer :: major, minor, patch, istep, ii
+  !! Main test routine
+  !!
+  !! All non-constant variables must be defined here to ensure that they are all explicitely
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
+  !!
+  subroutine main_()
+
+    type(TDftbPlus) :: dftbp
+    type(TDftbPlusInput) :: input
+
+    real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
+    type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
+    type(fnode), pointer :: pPerturb, pKick
+
+    character(:), allocatable :: DftbVersion
+    integer :: major, minor, patch, istep, ii
 
 
-  call getDftbPlusBuild(DftbVersion)
-  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
-  call getDftbPlusApi(major, minor, patch)
-  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
+    call getDftbPlusBuild(DftbVersion)
+    write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+    call getDftbPlusApi(major, minor, patch)
+    write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-  call TDftbPlus_init(dftbp)
+    call TDftbPlus_init(dftbp)
 
-  call dftbp%getEmptyInput(input)
-  call input%getRootNode(pRoot)
-  call setChild(pRoot, "Geometry", pGeo)
-  call setChildValue(pGeo, "Periodic", .false.)
-  call setChildValue(pGeo, "TypeNames", ["C", "H"])
-  coords(:,:) = 0.0_dp
-  call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
-  call setChild(pRoot, "Hamiltonian", pHam)
-  call setChild(pHam, "Dftb", pDftb)
-  call setChildValue(pDftb, "Scc", .true.)
-  call setChildValue(pDftb, "SccTolerance", 1e-10_dp)
+    call dftbp%getEmptyInput(input)
+    call input%getRootNode(pRoot)
+    call setChild(pRoot, "Geometry", pGeo)
+    call setChildValue(pGeo, "Periodic", .false.)
+    call setChildValue(pGeo, "TypeNames", ["C", "H"])
+    coords(:,:) = 0.0_dp
+    call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
+    call setChild(pRoot, "Hamiltonian", pHam)
+    call setChild(pHam, "Dftb", pDftb)
+    call setChildValue(pDftb, "Scc", .true.)
+    call setChildValue(pDftb, "SccTolerance", 1e-10_dp)
 
-  call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
-  call setChildValue(pMaxAng, "C", "p")
-  call setChildValue(pMaxAng, "H", "s")
+    call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
+    call setChildValue(pMaxAng, "C", "p")
+    call setChildValue(pMaxAng, "H", "s")
 
-  call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChild(pSlakos, "Type2FileNames", pType2Files)
-  call setChildValue(pType2Files, "Prefix", "./")
-  call setChildValue(pType2Files, "Separator", "-")
-  call setChildValue(pType2Files, "Suffix", ".skf")
+    call setChild(pDftb, "SlaterKosterFiles", pSlakos)
+    call setChild(pSlakos, "Type2FileNames", pType2Files)
+    call setChildValue(pType2Files, "Prefix", "./")
+    call setChildValue(pType2Files, "Separator", "-")
+    call setChildValue(pType2Files, "Suffix", ".skf")
 
-  !  set up electron dynamics options
-  call setChild(pRoot, "ElectronDynamics", pElecDyn)
-  call setChildValue(pElecDyn, "Steps", nsteps)
-  call setChildValue(pElecDyn, "TimeStep", timestep)
-  call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au)
-  call setChild(pElecDyn, "Perturbation", pPerturb)
-  call setChild(pPerturb, "Kick", pKick)
-  call setChildValue(pKick, "PolarisationDirection", "z")
-  call setChildValue(pElecDyn, "WriteBondPopulation", .true.)
+    !  set up electron dynamics options
+    call setChild(pRoot, "ElectronDynamics", pElecDyn)
+    call setChildValue(pElecDyn, "Steps", nsteps)
+    call setChildValue(pElecDyn, "TimeStep", timestep)
+    call setChildValue(pElecDyn, "FieldStrength", fstrength*1.0e10_dp*V_m__au)
+    call setChild(pElecDyn, "Perturbation", pPerturb)
+    call setChild(pPerturb, "Kick", pKick)
+    call setChildValue(pKick, "PolarisationDirection", "z")
+    ! call setChildValue(pElecDyn, "WriteBondPopulation", .true.)
 
-  print "(A)", 'Input tree in HSD format:'
-  call dumpHsd(input%hsdTree, output_unit)
+    print "(A)", 'Input tree in HSD format:'
+    call dumpHsd(input%hsdTree, output_unit)
 
-  ! initialise the DFTB+ calculator
-  call dftbp%setupCalculator(input)
+    ! initialise the DFTB+ calculator
+    call dftbp%setupCalculator(input)
 
-  ! Replace coordinates
-  coords(:,:) = initialCoords*AA__Bohr
-  call dftbp%setGeometry(coords)
+    ! Replace coordinates
+    coords(:,:) = initialCoords*AA__Bohr
+    call dftbp%setGeometry(coords)
 
-  ! get ground state
-  call dftbp%getEnergy(merminEnergy)
+    ! get ground state
+    call dftbp%getEnergy(merminEnergy)
 
-  call dftbp%initializeTimeProp(timestep, .false., .false.)
+    call dftbp%initializeTimeProp(timestep, .false., .false.)
 
-  do istep = 1, nsteps
-    call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
-  end do
+    do istep = 1, nsteps
+      call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
+    end do
 
-  print "(A,F15.10)", 'Final SCC Energy:', energy
-  print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
-  print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
+    print "(A,F15.10)", 'Final SCC Energy:', energy
+    print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
+    print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
 
-  call TDftbPlus_destruct(dftbp)
+    ! Write file for internal test system
+    call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges)
 
-  ! Write file for internal test system
-  call writeAutotestTag(tdEnergy=energy, tdDipole=dipole, tdCharges=atomNetCharges)
+  end subroutine main_
 
 end program test_timeprop

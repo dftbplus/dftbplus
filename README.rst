@@ -123,7 +123,7 @@ Consult following resources for documentation:
   <http://dftbplus-recipes.readthedocs.io/>`_
 
 * `Reference manual describing all features (DFTB+ Manual)
-  <http://www.dftbplus.org/fileadmin/DFTBPLUS/public/dftbplus/latest/manual.pdf>`_
+  <https://github.com/dftbplus/dftbplus/releases/latest/download/manual.pdf>`_
 
 
 Citing
@@ -141,7 +141,7 @@ When publishing results obtained with DFTB+, please cite following works:
 * Methodological papers relevant to your calculations (e.g. excited states,
   electron-transport, third order DFTB etc.). References to these can be found
   in the `DFTB+ manual
-  <http://www.dftbplus.org/fileadmin/DFTBPLUS/public/dftbplus/latest/manual.pdf>`_.
+  <https://github.com/dftbplus/dftbplus/releases/latest/download/manual.pdf>`_.
 
 
 Contributing

@@ -22,11 +22,12 @@ module dftbp_mmapi
       & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
       & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
       & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
-      & setExternalCharges, setGeometry, setNeighbourList
+      & setExternalCharges, setGeometry, setNeighbourList, getRefCharges, setRefCharges
   use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild
+  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild,&
+      & destroyNode
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_message, only: error
@@ -38,7 +39,7 @@ module dftbp_mmapi
   public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusAtomList
-  public :: TDftbPlusInput
+  public :: TDftbPlusInput, TDftbPlusInput_destruct
   public :: TQDepExtPotGen
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
@@ -66,6 +67,8 @@ module dftbp_mmapi
   contains
     !> obtain the root of the tree of input
     procedure :: getRootNode => TDftbPlusInput_getRootNode
+    !> finaliser
+    final :: TDftbPlusInput_final
   end type TDftbPlusInput
 
 
@@ -74,7 +77,7 @@ module dftbp_mmapi
     private
     type(TEnvironment), allocatable :: env
     type(TDftbPlusMain), allocatable :: main
-    logical :: tInit = .false.
+    logical :: isInitialised = .false.
   contains
     !> read input from a file
     procedure :: getInputFromFile => TDftbPlus_getInputFromFile
@@ -104,12 +107,19 @@ module dftbp_mmapi
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
     !> get the CM5 DFTB+ charges
     procedure :: getCM5Charges => TDftbPlus_getCM5Charges
+    !> Get the reference charges for neutral DFTB+ atoms
+    procedure :: getRefCharges => TDftbPlus_getRefCharges
+    !> Set the reference charges for neutral DFTB+ atoms
+    procedure :: setRefCharges => TDftbPlus_setRefCharges
     !> get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
+    !> Return the number of spin channels in the DFTB+ calculation (1 if spin free, 2 for z spin
+    !> polarised and 4 for non-collinear/spin-orbit)
+    procedure :: nrOfSpinChannels => TDftbPlus_nrOfSpinChannels
     !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it
@@ -134,6 +144,8 @@ module dftbp_mmapi
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
     !> get the maximum cutoff distance
     procedure :: getCutOff => TDftbPlus_getCutOff
+    !> Finalizer
+    final :: TDftbPlus_final
   end type TDftbPlus
 
 
@@ -182,6 +194,31 @@ contains
     end if
 
   end subroutine getDftbPlusApi
+
+
+  !> Finalizer for the DFTB+ input type
+  subroutine TDftbPlusInput_final(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    call TDftbPlusInput_destruct(this)
+
+  end subroutine TDftbPlusInput_final
+
+
+  !> Destructs the DFTB+ input type
+  subroutine TDftbPlusInput_destruct(this)
+
+    !> Instance.
+    type(TDftbPlusInput), intent(inout) :: this
+
+    if (associated(this%hsdTree)) then
+      call destroyNode(this%hsdTree)
+      this%hsdTree => null()
+    end if
+
+  end subroutine TDftbPlusInput_destruct
 
 
   !> Returns the root node of the input, so that it can be further processed
@@ -273,7 +310,8 @@ contains
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between. Otherwise the subroutine will stop.
+  !> TDftbPlus_destruct() has been called in between the inits (or the instance had already been finalized).
+  !> Otherwise the subroutine will stop.
   !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
@@ -314,24 +352,36 @@ contains
     allocate(this%main)
     call TEnvironment_init(this%env)
     this%env%tAPICalculation = .true.
-    this%tInit = .true.
+    this%isInitialised = .true.
 
   end subroutine TDftbPlus_init
 
 
-  !> Destroys a DFTB+ instance
+  !> Finalizer for TDftbPlus.
+  subroutine TDftbPlus_final(this)
+
+    !> Instance
+    type(TDftbPlus), intent(inout) :: this
+
+    call TDftbPlus_destruct(this)
+
+  end subroutine TDftbPlus_final
+
+
+  !> Destroys a DFTB+ calculation instance
   subroutine TDftbPlus_destruct(this)
 
     !> Instance
     type(TDftbPlus), intent(inout) :: this
 
+    if (.not. this%isInitialised) return
     call this%checkInit()
 
     call this%main%destructProgramVariables()
     call this%env%destruct()
     deallocate(this%main, this%env)
     call destructGlobalEnv()
-    this%tInit = .false.
+    this%isInitialised = .false.
 
     #:if not INSTANCE_SAFE_BUILD
       nInstance_ = 0
@@ -602,7 +652,7 @@ contains
   end subroutine TDftbPlus_getExtChargeGradients
 
 
-  !> Returns the gross charges of each atom
+  !> Returns the gross (Mulliken) charges of each atom
   subroutine TDftbPlus_getGrossCharges(this, atomCharges)
 
     !> Instance
@@ -632,6 +682,60 @@ contains
     call getCM5Charges(this%env, this%main, atomCharges)
 
   end subroutine TDftbPlus_getCM5Charges
+
+
+  !> Get the reference atomic charges for the atoms of the system to be neutral
+  subroutine TDftbPlus_getRefCharges(this, z0)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Atomic valence reference charges
+    real(dp), intent(out) :: z0(:)
+
+    real(dp), allocatable :: q0(:, :, :)
+    integer :: mOrb, nAtom, nSpin
+
+    call this%checkInit()
+
+    if (this%main%uniqHubbU%mHubbU > 1) then
+      call error("Reference charge call unsupported for shell resolved models")
+    end if
+    mOrb = this%main%orb%mOrb
+    nAtom = nrOfAtoms(this%main)
+    nSpin = this%main%nSpin
+    allocate(q0(mOrb, nAtom, nspin))
+    call getRefCharges(this%main, q0)
+    z0(:) = sum(q0(:,:,1), dim=1)
+
+  end subroutine TDftbPlus_getRefCharges
+
+
+  !> Set the reference atomic charges for the atoms of the system to be neutral
+  subroutine TDftbPlus_setRefCharges(this, z0)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic valence reference charges
+    real(dp), intent(in) :: z0(:)
+
+    real(dp), allocatable :: q0(:, :, :)
+    integer :: mOrb, nAtom, nSpin
+
+    call this%checkInit()
+
+    if (this%main%uniqHubbU%mHubbU > 1) then
+      call error("Reference charge call unsupported for shell resolved models")
+    end if
+    mOrb = this%main%orb%mOrb
+    nAtom = nrOfAtoms(this%main)
+    nSpin = this%main%nSpin
+    allocate(q0(mOrb, nAtom, nspin), source=0.0_dp)
+    q0(1,:,1) = z0
+    call setRefCharges(this%env, this%main, q0)
+
+  end subroutine TDftbPlus_setRefCharges
 
 
   !> Returns electrostatic potential at specified points
@@ -683,6 +787,22 @@ contains
     nKpts = nrOfKPoints(this%main)
 
   end function TDftbPlus_nrOfKPoints
+
+
+  !> Returns the nr. of spin channels
+  function TDftbPlus_nrOfSpinChannels(this) result(nSpin)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of spin channels
+    integer :: nSpin
+
+    call this%checkInit()
+
+    nSpin = this%main%nSpin
+
+  end function TDftbPlus_nrOfSpinChannels
 
 
   !> Returns the atomic masses for each atom in the system.
@@ -737,7 +857,7 @@ contains
     !> Instance.
     class(TDftbPlus), intent(in) :: this
 
-    if (.not. this%tInit) then
+    if (.not. this%isInitialised) then
       call error("Received uninitialized TDftbPlus instance")
     end if
 

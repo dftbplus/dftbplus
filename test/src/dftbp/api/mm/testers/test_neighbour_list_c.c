@@ -27,6 +27,7 @@ int main()
 
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
   dftbp_process_input(&calculator, &input);
+  dftbp_input_final(&input);
 
   // setup all data for the neighbour list
   double cutoff = 6.0;

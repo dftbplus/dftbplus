@@ -8,20 +8,21 @@
 #:include 'common.fypp'
 
 !> A cache for calculating molecule orbitals on a grid.
-!> This object is responsible for reading in the eigenvectors from a specified file and passing the
-!> appropriate eigenvectors to the molecule orbital calculator.
+!! This object is responsible for reading in the eigenvectors from a specified file and passing the
+!! appropriate eigenvectors to the molecule orbital calculator.
 module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
-  use waveplot_molorb, only : TMolecularOrbital, init, getValue
+  use waveplot_molorb, only : TMolecularOrbital, getValue
   implicit none
 
   private
+  public :: TGridCache, TGridCache_init, next
 
-  !> Contains the data for a grid cache
+  !> Contains the data for a grid cache.
   type TGridCache
 
     !> Molecular orbital calculator
@@ -93,33 +94,24 @@ module waveplot_gridcache
     !> Initialised?
     logical :: tInitialised = .false.
 
-  end type TgridCache
-
-
-  !> Initialises a GridCache instance.
-  interface init
-    module procedure GridCache_init
-  end interface
+  end type TGridCache
 
 
   !> Delivers the next molecular orbital grid from the cache
   interface next
-    module procedure GridCache_next_real
-    module procedure GridCache_next_cmpl
+    module procedure TGridCache_next_real
+    module procedure TGridCache_next_cmpl
   end interface
 
-  public :: TgridCache
-  public :: init, next
 
 contains
 
-
-  !> Initialises a GridCache instance
-  !> Caveat: Level index is not allowed to contain duplicate entries!
-  subroutine GridCache_init(sf, levelIndex, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
+  !> Initialises a GridCache instance.
+  !! Caveat: Level index is not allowed to contain duplicate entries!
+  subroutine TGridCache_init(sf, levelIndex, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
       & nPoints, tVerbose, eigvecbin, gridVec, origin, kPointCoords, tReal, molorb)
 
-    !> The structure to initialise
+    !> Structure to initialise
     type(TgridCache), intent(inout) :: sf
 
     !> Contains indexes (spin, kpoint, state) of the levels which must be calculated
@@ -183,15 +175,15 @@ contains
     @:ASSERT(all(shape(kPointCoords) == [3, nAllKPoint]))
 
     sf%molorb => molorb
-    sf%gridVec(:,:) = gridVec(:,:)
-    sf%origin = origin(:)
+    sf%gridVec(:,:) = gridVec
+    sf%origin = origin
     sf%nOrb = nOrb
     sf%nAllLevel = nAllLevel
     sf%nAllKPoint = nAllKPoint
     sf%nAllSpin = nAllSpin
     sf%tVerbose = tVerbose
     allocate(sf%kPoints(3, nAllKPoint))
-    sf%kPoints(:,:) = 2.0_dp * pi * kPointCoords(:,:)
+    sf%kPoints(:,:) = 2.0_dp * pi * kPointCoords
     sf%nCached = nCached
     sf%tReal = tReal
     if (sf%tReal) then
@@ -218,7 +210,7 @@ contains
             end if
           end do lpLevelIndex
           if (tFound) then
-            sf%levelIndex(:, ind) = curVec(:)
+            sf%levelIndex(:, ind) = curVec
             ind = ind +1
           end if
         end do
@@ -237,11 +229,11 @@ contains
     read(sf%fdEigVec%unit) ii
     sf%tInitialised = .true.
 
-  end subroutine GridCache_init
+  end subroutine TGridCache_init
 
 
-  !> Returns the next entry from the cache
-  subroutine GridCache_next_real(sf, gridValReal, levelIndex, tFinished)
+  !> Returns the next entry from the cache (real version).
+  subroutine TGridCache_next_real(sf, gridValReal, levelIndex, tFinished)
 
     !> Gridcache instance
     type(TgridCache), intent(inout) :: sf
@@ -259,11 +251,11 @@ contains
 
     call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
-  end subroutine GridCache_next_real
+  end subroutine TGridCache_next_real
 
 
-  !> Returns the next entry from the cache
-  subroutine GridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
+  !> Returns the next entry from the cache (complex version).
+  subroutine TGridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
 
     !> Gridcache instance
     type(TgridCache), intent(inout) :: sf
@@ -281,10 +273,10 @@ contains
 
     call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
-  end subroutine GridCache_next_cmpl
+  end subroutine TGridCache_next_cmpl
 
 
-  !> Working subroutine for the GridCache_next_* subroutines
+  !> Working subroutine for the TGridCache_next_* subroutines.
   subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
     !> Gridcache instance

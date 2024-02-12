@@ -14,7 +14,8 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumber,&
+      & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
@@ -37,7 +38,7 @@ module dftbp_dftbplus_mainapi
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
   public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
   public :: setTdCoordsAndVelos, getTdForces
-
+  public :: getRefCharges, setRefCharges, setElectronNumber
 
 contains
 
@@ -264,6 +265,91 @@ contains
   end subroutine getCM5Charges
 
 
+  !> Get the reference charges for neutral atoms (shell resolved)
+  subroutine getRefCharges(main, q0)
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> Reference charges (atomic orbitals, atoms, spin channels)
+    real(dp), intent(out) :: q0(:,:,:)
+
+    q0(:,:,:) = main%q0
+
+  end subroutine getRefCharges
+
+
+  !> Set the reference charges for neutral atoms (shell resolved)
+  subroutine setRefCharges(env, main, q0)
+
+    !> Computational enviroment instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Reference charges (atomic orbitals, atoms, spin channels)
+    real(dp), intent(in) :: q0(:,:,:)
+
+    ! Check data is consistent across MPI processes
+  #:block DEBUG_CODE
+
+    character(*), parameter :: routine = 'setRefCharges'
+
+    call checkExactCoherence(env, q0, "Reference charges in "//routine)
+
+  #:endblock DEBUG_CODE
+
+    main%q0(:,:,:) = q0
+
+    call updateReferenceShellCharges(main%qShell0, main%q0, main%orb, main%nAtom, main%species0)
+
+    ! force a recalculation, as internal electrostatic potential and energies have changed
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
+    call recalcGeometry(env, main)
+
+  end subroutine setRefCharges
+
+
+  !> Updates the number of electrons to set a net charge
+  subroutine setElectronNumber(env, main, nrChrg, nrSpinPol)
+
+    !> Computational enviroment instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Total charge
+    real(dp), intent(in) :: nrChrg
+
+    !> Spin polarisation
+    real(dp), intent(in) :: nrSpinPol
+
+    ! Check data is consistent across MPI processes
+  #:block DEBUG_CODE
+
+    character(*), parameter :: routine = 'setElectronNumber'
+
+    call checkExactCoherence(env, nrChrg, "Reference net charge in "//routine)
+    call checkExactCoherence(env, nrSpinPol, "Spin polarisation in "//routine)
+
+  #:endblock DEBUG_CODE
+
+    call initElectronNumber(main%q0, nrChrg, nrSpinPol, main%nSpin, main%orb, main%nEl0, main%nEl)
+
+    ! force a recalculation, as internal electrostatic potential and energies have changed
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
+
+  end subroutine setElectronNumber
+
+
   !>  get electrostatic potential at specified points
   subroutine getElStatPotential(env, main, pot, locations)
 
@@ -369,11 +455,21 @@ contains
 
     main%tExtChrg = .true.
     if (main%tForces) then
+      if ( allocated(main%chrgForces) ) then
+         if ( size(main%chrgForces,2) /= size(chargeQs) ) then
+            deallocate(main%chrgForces)
+         end if
+      end if
       if (.not. allocated(main%chrgForces)) then
         allocate(main%chrgForces(3, size(chargeQs)))
       end if
     end if
     call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    ! flag ground state for recalculation as external charge geometries changed:
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
 
   end subroutine setExternalCharges
 
@@ -516,7 +612,7 @@ contains
     ! associated with each atom
     call initReferenceCharges(main%species0, main%orb, main%referenceN0, main%nSpin, main%q0,&
         & main%qShell0)
-    call initElectronNumbers(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
+    call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
     call main%initializeCharges()
 

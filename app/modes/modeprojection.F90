@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Removal of translation or rotation related modes
+!> Removal of translation or rotation related modes.
 module modes_modeprojection
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : warning
@@ -20,9 +20,10 @@ module modes_modeprojection
   private
   public :: project
 
+
 contains
 
-  !> Projection out of the space of the dynamical matrix
+  !> Projection out of the space of the dynamical matrix.
   subroutine project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
       & atomicMasses)
 
@@ -52,16 +53,9 @@ contains
     integer :: nToNull, ii, jj, iAt
 
     nToNull = 0
-    if (tRemoveTranslate) then
-      nToNull = nToNull + 3
-    end if
-    if (tRemoveRotate) then
-      nToNull = nToNull + 3
-    end if
-
-    if (nToNull == 0) then
-      return
-    end if
+    if (tRemoveTranslate) nToNull = nToNull + 3
+    if (tRemoveRotate) nToNull = nToNull + 3
+    if (nToNull == 0) return
 
     allocate(vectorsToNull(nDerivs, nToNull))
     allocate(projector(nDerivs, nDerivs))
@@ -114,8 +108,8 @@ contains
 
     ! Change from displacements to weighted displacements basis of the Hessian
     do iAt = 1, nMovedAtom
-      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) =&
-          & vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) * sqrt(atomicMasses(iAt))
+      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) = vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :)&
+          & * sqrt(atomicMasses(iAt))
     end do
 
     ! normalise non-null vectors
@@ -142,7 +136,7 @@ contains
   end subroutine project
 
 
-  !> Principle moment of inertia axes
+  !> Principle moment of inertia axes.
   subroutine getPrincipleAxes(inertia, ei, coords, masses, centreOfMass, nMovedAtom)
 
     !> Intertia axes
@@ -151,16 +145,16 @@ contains
     !> Moments
     real(dp), intent(out) :: ei(3)
 
-    !> coordinates
+    !> Coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> masses
+    !> Masses
     real(dp), intent(in) :: masses(:)
 
-    !> the centre of mass
+    !> The centre of mass
     real(dp), intent(in) :: centreOfMass(3)
 
-    !> number of moving atoms
+    !> Number of moving atoms
     integer, intent(in) :: nMovedAtom
 
     integer :: ii, jj, iAt
