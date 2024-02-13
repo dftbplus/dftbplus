@@ -103,6 +103,9 @@ module dftbp_dftb_hybridxc
   !> Enumerator for gamma function types.
   type :: THybridXcGammaTypesEnum
 
+    !> None
+    integer :: none = 0
+
     !> Full, unaltered gamma function (full)
     integer :: full = 1
 
@@ -205,10 +208,10 @@ module dftbp_dftb_hybridxc
     logical :: tREKS
 
     !> Algorithm for RSH-Hamiltonian construction (and, if applicable, force calculation)
-    integer :: hybridXcAlg
+    integer :: hybridXcAlg = hybridXcAlgo%none
 
     !> Hybrid xc-functional type, as extracted from SK-file(s)
-    integer :: hybridXcType
+    integer :: hybridXcType = hybridXcFunc%none
 
     !> Species-list of atoms in the central cell
     integer, allocatable :: species0(:)
@@ -245,7 +248,7 @@ module dftbp_dftb_hybridxc
     integer, allocatable :: coeffsDiag(:)
 
     !> Gamma function type (mostly for periodic cases; 'full' for non-periodic systems)
-    integer :: gammaType
+    integer :: gammaType = hybridXcGammaTypes%none
 
     !> Wigner-Seitz grid points in units of lattice vectors
     integer, allocatable :: wsVectors(:,:)
@@ -1553,10 +1556,7 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       end if
     case (hybridXcAlgo%matrixBased)
-      if (.not. present(SSqrCplxCam)) then
-        @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for matrix-multiplication based CAM&
-            & Hamiltonian construction.")
-      end if
+      @:ASSERT(present(SSqrCplxCam))
       call addCamHamiltonianMatrix_kpts(this, env, iSquare, densityMatrix%deltaRhoInCplx, kPoints,&
           & kWeights, densityMatrix%iKiSToiGlobalKS, SSqrCplxCam, HSqrCplxCam)
     end select
@@ -2649,6 +2649,7 @@ contains
     call mpifx_allreduceip(env%mpi%interGroupComm, HSqrCplxCam, MPI_SUM)
   #:endif
 
+    ! Safe for the serial case as well, since env%tGlobalLead = .true. for MPI-disabled binary
     if (env%tGlobalLead) then
       this%hprevCplxHS(:,:,:) = HSqrCplxCam
     end if
@@ -2975,6 +2976,7 @@ contains
     call mpifx_allreduceip(env%mpi%globalComm, HSqrCplxCam, MPI_SUM)
   #:endif
 
+    ! Safe for the serial case as well, since env%tGlobalLead = .true. for MPI-disabled binary
     if (env%tGlobalLead) then
       this%hprevCplxHS(:,:,:) = this%hprevCplxHS + HSqrCplxCam
       HSqrCplxCam(:,:,:) = this%hprevCplxHS
@@ -3294,6 +3296,7 @@ contains
     call mpifx_allreduceip(env%mpi%globalComm, HSqrCplxCam, MPI_SUM)
   #:endif
 
+    ! Safe for the serial case as well, since env%tGlobalLead = .true. for MPI-disabled binary
     if (env%tGlobalLead) then
       this%hprevCplxHS(:,:,:) = this%hprevCplxHS + HSqrCplxCam
       HSqrCplxCam(:,:,:) = this%hprevCplxHS
@@ -3897,7 +3900,7 @@ contains
     !! Distance between the two atoms
     real(dp) :: dist
 
-    !! k-point in relative coordinates multiplied by 2pi
+    !! Difference (k - k') with both k-points in relative coordinates, multiplied by 2pi
     real(dp) :: kPoint2p(3)
 
     !! Index of real-space \vec{g} summation
@@ -4532,10 +4535,7 @@ contains
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
       if (tPeriodic) then
-        if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-          @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Gamma-only matrix-based force algorithm&
-              & requested but necessary inputs not present.")
-        end if
+        @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
       else
@@ -4543,10 +4543,7 @@ contains
             & iSquare, SSqrReal, iNeighbour, nNeighbourSK, gradients)
       end if
     case (hybridXcAlgo%matrixBased)
-      if (.not. (present(symNeighbourList) .and. present(nNeighbourCamSym))) then
-        @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Real matrix-based force algorithm requested&
-            & but necessary inputs not present.")
-      end if
+      @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
       call addCamGradientsMatrix_real(this, deltaRhoSqr, SSqrReal, skOverCont,&
           & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
     end select

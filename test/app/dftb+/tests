@@ -123,11 +123,13 @@ hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? not WITH_MPI
 
 hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
 hybrid/periodic/Acene-gamma-matrix-restart            #? not WITH_MPI
+hybrid/periodic/Acene-gamma-matrix-restart-ascii      #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-cam           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-hyb           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-lc            #? not WITH_MPI
 hybrid/periodic/Acene-kpts-matrix-lc                  #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-matrix-restart             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-ascii       #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-matrix-restart-np2         #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-matrix-restart-np3         #? MPI_PROCS == 3
 hybrid/periodic/Acene-kpts-matrix-restart-np4         #? MPI_PROCS == 4
@@ -135,6 +137,7 @@ hybrid/periodic/Acene-kpts-neigh-band                 #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-neigh-band-mpi             #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-neigh-force-lc             #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-neigh-restart              #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart-ascii        #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-neigh-restart-mpi          #? MPI_PROCS == 2
 hybrid/periodic/Benzene-box-spin-matrix-ct-kpts       #? MPI_PROCS <= 1
 hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np2   #? MPI_PROCS == 2

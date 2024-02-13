@@ -1818,16 +1818,7 @@ contains
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
-      if (this%isHybridXc) then
-        if ((.not. this%tRealHS) .and. (input%ctrl%hybridXcInp%hybridXcAlg&
-            & == hybridXcAlgo%matrixBased)) then
-          tCmplxMixer = .true.
-        else
-          tCmplxMixer = .false.
-        end if
-      else
-        tCmplxMixer = .false.
-      end if
+      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)
       if (tCmplxMixer) then
         allocate(this%pChrgMixerCmplx)
         select case (iMixer)
@@ -2814,7 +2805,7 @@ contains
     end if
 
     call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
-        & initialCharges=input%ctrl%initialCharges, hybridXcAlg=input%ctrl%hybridXcInp%hybridXcAlg)
+        & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
     if (errStatus%hasError()) then
       call error(errStatus%message)
     end if

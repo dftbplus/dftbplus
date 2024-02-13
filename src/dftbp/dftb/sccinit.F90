@@ -25,8 +25,8 @@ module dftbp_dftb_sccinit
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
   public :: initQFromUsrChrg
 
-  !> version number for restart format, please increment if you change the interface.
-  integer, parameter :: restartFormat = 7
+  !> Version number for restart format, please increment if you change the interface.
+  integer, parameter :: restartFormat = 8
 
 contains
 
@@ -177,9 +177,9 @@ contains
 
 
   !> Initialise the charge vector from a named external file. Check the total
-  !> charge matches that expected for the calculation.
-  !> Should test of the input, if the number of orbital charges per atom match the number from the
-  !> angular momentum.
+  !! charge matches that expected for the calculation.
+  !! Should test of the input, if the number of orbital charges per atom match the number from the
+  !! angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
       & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
 
@@ -187,12 +187,12 @@ contains
     real(dp), intent(out) :: qq(:,:,:)
 
     !> The external file of charges for the orbitals, currently stored with each line containing the
-    !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
-    !> present)
+    !! per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
+    !! present)
     character(*), intent(in) :: fileName
 
     !> Should charges be read as ascii (cross platform, but potentially lower reproducibility) or
-    !> binary files
+    !! binary files
     logical, intent(in) :: tReadAscii
 
     !> Information about the orbitals in the system.
@@ -242,7 +242,7 @@ contains
     !! total charge is present at the top of the file
     real(dp) :: checkSum(size(qq, dim=3))
 
-    integer :: iOrb, iAtom, iSpin, ii, jj, kk, ll, mm, nn, nAtomInFile, nDipole, nQuadrupole
+    integer :: iOrb, iAtom, iSpin, ii, jj, kk, nAtomInFile, nDipole, nQuadrupole
 
     type(TFileDescr) :: file
 
@@ -347,7 +347,7 @@ contains
         read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
             & nAtomInFile, iSpin, checkSum
       end if
-    case(7)
+    case(7, 8)
       if (tReadAscii) then
         read(file%unit, *, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent,&
             & tKpointInfoPresent, isMultipolar, nAtomInFile, iSpin, checkSum
@@ -550,15 +550,11 @@ contains
       if (tKpointInfo) then
         coeffsAndShifts(:,:) = 0.0_dp
         if (tKpointInfoPresent) then
-          do jj = 1, size(coeffsAndShifts, dim=2)
-            do ii = 1, size(coeffsAndShifts, dim=1)
-              if (tReadAscii) then
-                read(file%unit, *, iostat=iErr) coeffsAndShifts(ii, jj)
-              else
-                read(file%unit, iostat=iErr) coeffsAndShifts(ii, jj)
-              end if
-            end do
-          end do
+          if (tReadAscii) then
+            read(file%unit, *, iostat=iErr) coeffsAndShifts
+          else
+            read(file%unit, iostat=iErr) coeffsAndShifts
+          end if
           call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
               & supercellFoldingDiagOut=supercellFoldingDiag)
           if (hybridXcAlg == hybridXcAlgo%matrixBased) then
@@ -577,48 +573,18 @@ contains
           ! general k-point case
           if (hybridXcAlg == hybridXcAlgo%matrixBased) then
             ! matrix-multiplication based algorithm
-            do ii = 1, size(densityMatrix%deltaRhoInCplx, dim=3)
-              do jj = 1, size(densityMatrix%deltaRhoInCplx, dim=2)
-                do kk = 1, size(densityMatrix%deltaRhoInCplx, dim=1)
-                  if (tReadAscii) then
-                    read(file%unit, *, iostat=iErr)&
-                        & densityMatrix%deltaRhoInCplx(kk, jj, ii)
-                  else
-                    read(file%unit, iostat=iErr)&
-                        & densityMatrix%deltaRhoInCplx(kk, jj, ii)
-                  end if
-                  if (iErr /= 0) then
-                    write(error_string, *) 'Failure to read file for delta density matrix.'
-                    call error(error_string)
-                  end if
-                end do
-              end do
-            end do
+            if (tReadAscii) then
+              read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx
+            else
+              read(file%unit, iostat=iErr) densityMatrix%deltaRhoInCplx
+            end if
           else
             ! neighbor-list based algorithm
-            do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
-              do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
-                do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
-                  do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
-                    do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
-                      do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
-                        if (tReadAscii) then
-                          read(file%unit, *, iostat=iErr)&
-                              & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                        else
-                          read(file%unit, iostat=iErr)&
-                              & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                        end if
-                        if (iErr /= 0) then
-                          write(error_string, *) 'Failure to read file for delta density matrix.'
-                          call error(error_string)
-                        end if
-                      end do
-                    end do
-                  end do
-                end do
-              end do
-            end do
+            if (tReadAscii) then
+              read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+            else
+              read(file%unit, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+            end if
           end if
         else
           ! cluster/Gamma-only case
@@ -630,13 +596,13 @@ contains
                 else
                   read(file%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
                 end if
-                if (iErr /= 0) then
-                  write(error_string, *) 'Failure to read file for delta density matrix.'
-                  call error(error_string)
-                end if
               end do
             end do
           end do
+        end if
+        if (iErr /= 0) then
+          write(error_string, *) 'Failure to read file for delta density matrix.'
+          call error(error_string)
         end if
       end if
     end if
@@ -692,7 +658,7 @@ contains
     character(len=120) :: error_string
 
     integer :: nAtom, nOrb, nSpin, nDipole, nQuadrupole
-    integer :: iAtom, iOrb, iSpin, ii, jj, kk, ll, mm, nn
+    integer :: iAtom, iOrb, iSpin, ii, jj, kk
     integer :: iErr
     logical :: tqBlock, tqiBlock, tRho
     type(TFileDescr) :: fd
@@ -887,11 +853,11 @@ contains
     if (tRho) then
       ! Write k-point set information to file, if CAM calculation with k-points is present
       if (present(coeffsAndShifts)) then
-        do jj = 1, size(coeffsAndShifts, dim=2)
-          do ii = 1, size(coeffsAndShifts, dim=1)
-            write(fd%unit, iostat=iErr) coeffsAndShifts(ii, jj)
-          end do
-        end do
+        if (tWriteAscii) then
+          write(fd%unit, *, iostat=iErr) coeffsAndShifts
+        else
+          write(fd%unit, iostat=iErr) coeffsAndShifts
+        end if
       end if
 
       if (tRealHS) then
@@ -904,10 +870,6 @@ contains
               else
                 write(fd%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
               end if
-              if (iErr /= 0) then
-                write(error_string, *) "Failure to write file for external density matrix"
-                call error(error_string)
-              end if
             end do
           end do
         end do
@@ -915,49 +877,23 @@ contains
         ! general k-point case
         if (hybridXcAlg == hybridXcAlgo%matrixBased) then
           ! matrix-multiplication based algorithm
-          do ii = 1, size(densityMatrix%deltaRhoInCplx, dim=3)
-            do jj = 1, size(densityMatrix%deltaRhoInCplx, dim=2)
-              do kk = 1, size(densityMatrix%deltaRhoInCplx, dim=1)
-                if (tWriteAscii) then
-                  write(fd%unit, *, iostat=iErr)&
-                      & densityMatrix%deltaRhoInCplx(kk, jj, ii)
-                else
-                  write(fd%unit, iostat=iErr)&
-                      & densityMatrix%deltaRhoInCplx(kk, jj, ii)
-                end if
-                if (iErr /= 0) then
-                  write(error_string, *) "Failure to write file for external density matrix"
-                  call error(error_string)
-                end if
-              end do
-            end do
-          end do
+          if (tWriteAscii) then
+            write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx
+          else
+            write(fd%unit, iostat=iErr) densityMatrix%deltaRhoInCplx
+          end if
         else
           ! neighbor-list based algorithm
-          do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
-            do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
-              do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
-                do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
-                  do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
-                    do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
-                      if (tWriteAscii) then
-                        write(fd%unit, *, iostat=iErr)&
-                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                      else
-                        write(fd%unit, iostat=iErr)&
-                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                      end if
-                      if (iErr /= 0) then
-                        write(error_string, *) "Failure to write file for external density matrix"
-                        call error(error_string)
-                      end if
-                    end do
-                  end do
-                end do
-              end do
-            end do
-          end do
+          if (tWriteAscii) then
+            write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+          else
+            write(fd%unit, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+          end if
         end if
+      end if
+      if (iErr /= 0) then
+        write(error_string, *) "Failure to write file for external density matrix"
+        call error(error_string)
       end if
     end if
 
