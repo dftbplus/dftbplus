@@ -2557,7 +2557,7 @@ contains
 
     !! Temporary storage
     complex(dp), allocatable :: tmp(:,:), tmp2(:,:)
-    complex(dp), allocatable :: Sp_dPp(:,:), dPp_Sp(:,:), Sp_dPp_cc(:,:), dPp_Sp_cc(:,:)
+    complex(dp), dimension(:,:), allocatable :: Sp_c, dPp_c, Sp_dPp, dPp_Sp, Sp_dPp_cc, dPp_Sp_cc
 
     !! Composite index for two nested loops over central cell
     integer, allocatable :: iKSComposite(:,:)
@@ -2636,6 +2636,9 @@ contains
     allocate(tmp(squareSize, squareSize))
     allocate(tmp2(squareSize, squareSize))
 
+    allocate(Sp_c(squareSize, squareSize))
+    allocate(dPp_c(squareSize, squareSize))
+
     allocate(Sp_dPp(squareSize, squareSize))
     allocate(dPp_Sp(squareSize, squareSize))
     allocate(Sp_dPp_cc(squareSize, squareSize))
@@ -2656,17 +2659,17 @@ contains
       iKPrime = iKSComposite(3, ii)
       iGlobalKPrimeS = iKPrimeiSToiGlobalKPrimeS(iKPrime, iS)
 
-      call gemm(Sp_dPp, SSqrCplxPrime(:,:, iKPrime),&
+      call hemm(Sp_dPp, 'l', SSqrCplxPrime(:,:, iKPrime),&
           & densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS))
-      call gemm(dPp_Sp, densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS),&
+      call hemm(dPp_Sp, 'l', densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS),&
           & SSqrCplxPrime(:,:, iKPrime))
 
       ! use conjg(S(k)) = transpose(S(k)) = S(-k)
       ! use conjg(dP(k)) = transpose(dP(k)) = dP(-k)
-      call gemm(Sp_dPp_cc, SSqrCplxPrime(:,:, iKPrime),&
-          & densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS), transA='t', transB='t')
-      call gemm(dPp_Sp_cc, densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS),&
-          & SSqrCplxPrime(:,:, iKPrime), transA='t', transB='t')
+      Sp_c(:,:) = conjg(SSqrCplxPrime(:,:, iKPrime))
+      dPp_c(:,:) = conjg(densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS))
+      call hemm(Sp_dPp_cc, 'l', Sp_c, dPp_c)
+      call hemm(dPp_Sp_cc, 'l', dPp_c, Sp_c)
 
       ! spin-polarized case: y-matrix constructed even if k and k' do not change
       call getCamGammaFourierSqr(this, denseDesc%iAtomStart, this%cellVecsG, this%rCellVecsG,&
@@ -2675,23 +2678,23 @@ contains
           & kPoints(:, iK), -kPointPrime(:, iKPrime), gammaSqrCc)
 
       ! Term 1
-      call gemm(tmp, Sp_dPp, SSqrCplxPrime(:,:, iKPrime))
+      call hemm(tmp, 'r', SSqrCplxPrime(:,:, iKPrime), Sp_dPp)
       tmp(:,:) = tmp * gammaSqr
       ! Term 1 (complex conjugated for inverse k-points)
       ! use conjg(S(k)) = transpose(S(k)) = S(-k)
-      call gemm(tmp2, Sp_dPp_cc, SSqrCplxPrime(:,:, iKPrime), transB='t')
+      call hemm(tmp2, 'r', Sp_c, Sp_dPp_cc)
       tmp2(:,:) = tmp2 * gammaSqrCc
       tmp(:,:) = tmp + tmp2
 
       ! Term 2
-      call gemm(tmp, Sp_dPp * gammaSqr, SSqrCplx(:,:, iK), beta=(1.0_dp, 0.0_dp))
+      call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp * gammaSqr, beta=(1.0_dp, 0.0_dp))
       ! Term 2 (complex conjugated for inverse k-points)
-      call gemm(tmp, Sp_dPp_cc * gammaSqrCc, SSqrCplx(:,:, iK), beta=(1.0_dp, 0.0_dp))
+      call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp_cc * gammaSqrCc, beta=(1.0_dp, 0.0_dp))
 
       ! Term 3
-      call gemm(tmp, SSqrCplx(:,:, iK), dPp_Sp * gammaSqr, beta=(1.0_dp, 0.0_dp))
+      call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp * gammaSqr, beta=(1.0_dp, 0.0_dp))
       ! Term 3 (complex conjugated for inverse k-points)
-      call gemm(tmp, SSqrCplx(:,:, iK), dPp_Sp_cc * gammaSqrCc, beta=(1.0_dp, 0.0_dp))
+      call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp_cc * gammaSqrCc, beta=(1.0_dp, 0.0_dp))
 
       ! Add terms 1-3
       ! (the factor 0.5 accounts for the additional -k' points)
@@ -2701,9 +2704,9 @@ contains
       ! Term 4
       tmp(:,:) = densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS) * gammaSqr
       tmp2(:,:) = tmp
-      call gemm(tmp, tmp2, SSqrCplx(:,:, iK))
+      call hemm(tmp, 'r', SSqrCplx(:,:, iK), tmp2)
       tmp2(:,:) = tmp
-      call gemm(tmp, SSqrCplx(:,:, iK), tmp2)
+      call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
       ! Add term 4
       ! (the factor 0.5 accounts for the additional -k' points)
@@ -2711,11 +2714,12 @@ contains
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
 
       ! Term 4 (complex conjugated for inverse k-points)
-      tmp(:,:) = conjg(densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS)) * gammaSqrCc
+      ! use conjg(dP(k)) = transpose(dP(k)) = dP(-k)
+      tmp(:,:) = dPp_c * gammaSqrCc
       tmp2(:,:) = tmp
-      call gemm(tmp, tmp2, SSqrCplx(:,:, iK))
+      call hemm(tmp, 'r', SSqrCplx(:,:, iK), tmp2)
       tmp2(:,:) = tmp
-      call gemm(tmp, SSqrCplx(:,:, iK), tmp2)
+      call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
       ! Add term 4
       ! (the factor 0.5 accounts for the additional -k' points)
