@@ -42,7 +42,8 @@ module dftbp_timedep_linrespgrad
   
 #:if WITH_SCALAPACK
   
-  use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, getExcSpin_MPI, local2GlobalBlacsArray, &
+  use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, actionAminusB_MPI,&
+      & initialSubSpaceMatrixApmB_MPI, getExcSpin_MPI, local2GlobalBlacsArray,& 
       & localSizeCasidaVectors
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
@@ -623,9 +624,10 @@ contains
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(this%tSpin, this%subSpaceFactorStratmann,&
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-            & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
-            & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, eval, xpy, xmy,&
-            & this%onSiteMatrixElements, orb, tRangeSep, lrGamma, tZVector)
+            & locSize, vOffSet, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, ovrXevGlb,&
+            & grndEigVecs, eigVecGlb, filling, sqrOccIA(:nxov_rd), gammaMat, species0,&
+            & this%spinW, transChrg, eval, xpy, xmy, this%onSiteMatrixElements, orb, tRangeSep,&
+            & lrGamma, tZVector)
       end select
 
       ! Excitation oscillator strengths for resulting states
@@ -969,13 +971,13 @@ contains
     real(dp), intent(in) :: ovrXev(:,:,:)
 
     !> overlap times ground state eigenvectors (global in case of MPI)  
-    real(dp), intent(in) :: ovrXevGlb(:,:,:)
+    real(dp), allocatable, intent(in) :: ovrXevGlb(:,:,:)
 
     !> ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> ground state eigenvectors (global in case of MPI)
-    real(dp), intent(in) :: eigVecGlb(:,:,:)
+    real(dp), allocatable, intent(in) :: eigVecGlb(:,:,:)
     
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
@@ -1150,7 +1152,7 @@ contains
 
       ! everything after the first 6 variables are passed directly to DSEUPD following the last call
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
-      ! call to DSEUPD.
+      ! call to DSEUPD.s
       ! Note: At this point xpy holds the hermitian eigenvectors F
     #:if WITH_SCALAPACK
 
@@ -1241,9 +1243,9 @@ contains
   !> Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !>
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-      & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, eval, xpy, xmy,&
-      & onsMEs, orb, tRangeSep, lrGamma, tZVector)
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, locSize, vOffSet, iaTrans, getIA, getIJ, getAB, env, &
+      & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
+      & spinW, transChrg, eval, xpy, xmy, onsMEs, orb, tRangeSep, lrGamma, tZVector)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -1277,6 +1279,12 @@ contains
 
     !> number of occupied-virtual transitions (possibly reduced by windowing)
     integer, intent(in) :: nxov_rd
+    
+    !> Local dimensions of RPA/Casida vectors under MPI per rank
+    integer, intent(in) :: locSize(:)
+
+    !> Rank dependent offset of RPA/Casida vectors under MPI
+    integer, intent(in) :: vOffSet(:)
 
     !> array from pairs of single particles states to compound index
     integer, intent(in) :: iaTrans(:,:,:)
@@ -1296,11 +1304,17 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
-    !> overlap times ground state eigenvectors
+    !> overlap times ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: ovrXev(:,:,:)
 
-    !> ground state eigenvectors
+    !> overlap times ground state eigenvectors (global in case of MPI)  
+    real(dp), allocatable, intent(in) :: ovrXevGlb(:,:,:)
+
+    !> ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> ground state eigenvectors (global in case of MPI)
+    real(dp), allocatable, intent(in) :: eigVecGlb(:,:,:)
 
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
@@ -1354,14 +1368,31 @@ contains
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal 
 
-    integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat
+    integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat, nRPA
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
     integer :: ii, jj
     character(lc) :: tmpStr
 
     logical :: didConverge
     external dsymm, dsyev, dgemm
+    
+  #:if WITH_SCALAPACK
+    
+    integer :: iGlb, fGlb, nLoc, iam, comm, myjj, myii
+    external mpi_allreduce, pdsaupd, pdseupd 
 
+    iam = env%mpi%globalComm%rank
+    comm = env%mpi%globalComm%id 
+    nLoc = locSize(iam+1)
+    iGlb = vOffset(iam+1) + 1 
+    fGlb = vOffset(iam+1) + nLoc
+
+  #:else
+      
+    iam = 0
+    
+  #:endif
+ 
     if (allocated(onsMEs)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
@@ -1380,16 +1411,16 @@ contains
     endif
     subSpaceDim = min(subSpaceFactor * nExc, nxov_rd)
     iterStrat = 1
-    write(*,'(A)')
-    write(*,'(A)') '>> Stratmann diagonalisation of response matrix'
-    write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
-        & subSpaceDim
+    if(iam == 0) then
+      write(*,'(A)')
+      write(*,'(A)') '>> Stratmann diagonalisation of response matrix'
+      write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
+          & subSpaceDim
+    end if
     ! Memory available for subspace calcs
     memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
     workDim = 3 * memDim + 1
-    allocate(vecB(nxov_rd, memDim))
-    allocate(vP(nxov_rd, memDim))
-    allocate(vM(nxov_rd, memDim))
+
     allocate(mP(memDim, memDim))
     allocate(mM(memDim, memDim))
     allocate(mMsqrt(memDim, memDim))
@@ -1401,13 +1432,37 @@ contains
     allocate(evecR(memDim, nExc))
     allocate(workArray(3 * memDim + 1))
     allocate(vecNorm(2 * memDim))
+
+  #:if WITH_SCALAPACK
+
+    allocate(vecB(nLoc, memDim))
+    allocate(vP(nLoc, memDim))
+    allocate(vM(nLoc, memDim))
+    nRPA = nLoc
+
+    ! set initial bs
+    vecB(:,:) = 0.0_dp
+    do myii = 1, nLoc
+      ii = vOffset(iam+1) + myii
+      if(ii > subSpaceDim) exit
+      vecB(myii, ii) = 1.0_dp
+    end do
+
+  #:else
     
+    allocate(vecB(nxov_rd, memDim))
+    allocate(vP(nxov_rd, memDim))
+    allocate(vM(nxov_rd, memDim))
+    nRPA = nxov_rd
+
     ! set initial bs
     vecB(:,:) = 0.0_dp
     do ii = 1, subSpaceDim
       vecB(ii, ii) = 1.0_dp
     end do
 
+  #:endif
+    
     if (tZVector) then
       xmy(:,:) = 0.0_dp
     end if
@@ -1421,16 +1476,50 @@ contains
       if (prevSubSpaceDim > 0) then
 
         ! Extend subspace matrices:
-        do ii = prevSubSpaceDim + 1, subSpaceDim      
-           call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+        do ii = prevSubSpaceDim + 1, subSpaceDim
+
+  #:if WITH_SCALAPACK
+          
+          call actionAplusB_MPI(locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
+            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
+            & spinW, onsMEs, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tRangeSep, lrGamma)
+          call actionAminusB_MPI(locSize, vOffset, tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud,&
+            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
+            & grndEigVecs, filling, sqrOccIA, transChrg, vecB(:,ii), vM(:,ii), tRangeSep,& 
+            & lrGamma)
+
+  #:else
+          
+          call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
             & vP(:,ii), tRangeSep, lrGamma)
           call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
             & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA,&
             & transChrg, vecB(:,ii), vM(:,ii), tRangeSep, lrGamma)
-        end do
 
+  #:endif          
+          
+        end do
+ 
+  #:if WITH_SCALAPACK
+
+       do ii = prevSubSpaceDim + 1, subSpaceDim
+          do jj = 1, ii
+            dummyReal = dot_product(vecB(:,jj), vP(:,ii))
+            call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+            mP(ii,jj) = dummyReal
+            mP(jj,ii) = mP(ii,jj)
+            dummyReal = dot_product(vecB(:,jj), vM(:,ii))
+            call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+            mM(ii,jj) = dummyReal
+            mM(jj,ii) = mM(ii,jj)
+          end do
+        end do
+        
+  #:else
+        
         do ii = prevSubSpaceDim + 1, subSpaceDim
           do jj = 1, ii
             mP(ii,jj) = dot_product(vecB(:,jj), vP(:,ii))
@@ -1439,20 +1528,36 @@ contains
             mM(jj,ii) = mM(ii,jj)
           end do
         end do
-
+        
+  #:endif  
+        
       else
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
-        call initialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
-            & nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ, getAB,&
-            & iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
+
+  #:if WITH_SCALAPACK
+
+        call initialSubSpaceMatrixApmB_MPI(locSize, vOffset, transChrg, subSpaceDim, wij, sym, &
+            & win, nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ,&
+            & getAB, iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
+
+  #:else
+
+        call initialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win,&
+            & nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ,&
+            & getAB, iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
+
+  #:endif
+        
       end if
 
       call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
+
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim,&
           & 0.0_dp, dummyM, memDim)
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
           & 0.0_dp, mH, memDim)
+ 
 
       ! Diagonalise in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
@@ -1481,16 +1586,16 @@ contains
       !see if more memory is needed to save extended basis. If so increase amount of memory.
       if (subSpaceDim + 2 * nExc > memDim) then
         call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
-             &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
+            &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
       end if
-
+ 
       ! Calculate the residual vectors
       !   calcs. all |R_n>
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecR, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1), nxov_rd)
+      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vecB, nRPA, evecR, memDim,&
+          & 0.0_dp, vecB(1,subSpaceDim+1), nRPA)
       !   calcs. all |L_n>
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecL, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nxov_rd)
+      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vecB, nRPA, evecL, memDim,&
+          & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nRPA)
 
       do ii = 1, nExc
         dummyReal = -sqrt(evalInt(ii))
@@ -1499,16 +1604,24 @@ contains
       end do
 
       ! (A-B)|L_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vM, nxov_rd, evecL, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1), nxov_rd)
+      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vM, nRPA, evecL, memDim, 1.0_dp,&
+          & vecB(1, subSpaceDim + 1), nRPA)
       ! (A+B)|R_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vP, nxov_rd, evecR, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1 + nExc), nxov_rd)
+      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vP, nRPA, evecR, memDim, 1.0_dp,&
+          & vecB(1, subSpaceDim + 1 + nExc), nRPA)
 
       ! calc. norms of residual vectors to check for convergence
       didConverge = .true.
       do ii = subSpaceDim + 1, subSpaceDim + nExc
-        vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+        dummyReal = dot_product(vecB(:,ii), vecB(:,ii))
+
+  #:if WITH_SCALAPACK
+
+        call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+
+  #:endif
+        
+        vecNorm(ii-subSpaceDim) = dummyReal
         if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
           didConverge = .false.
         end if
@@ -1516,13 +1629,21 @@ contains
 
       if (didConverge) then
         do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
-          vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+          dummyReal = dot_product(vecB(:,ii), vecB(:,ii))
+
+  #:if WITH_SCALAPACK
+
+          call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+
+  #:endif         
+
+          vecNorm(ii-subSpaceDim) = dummyReal
           if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
             didConverge = .false.
           end if
         end do
       end if
-
+      
       if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nxov_rd)) then
         write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
              & Increase SubspaceFactor.'
@@ -1532,13 +1653,30 @@ contains
       ! if converged then exit loop:
       if (didConverge) then
         eval(:) = evalInt(1:nExc)
+
+  #:if WITH_SCALAPACK
+        
+        ! Calc. X+Y
+        xpy(iGlb:fGlb,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+        call mpifx_allreduceip(env%mpi%globalComm, xpy, MPI_SUM)
+        ! Calc. X-Y, only when needed
+        if (tZVector) then
+          xmy(iGlb:fGlb,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
+          call mpifx_allreduceip(env%mpi%globalComm, xmy, MPI_SUM)
+        end if
+
+  #:else
+        
         ! Calc. X+Y
         xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
         ! Calc. X-Y, only when needed
         if (tZVector) then
           xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
         end if
-        write(*,'(A)') '>> Stratmann converged'
+        
+  #:endif
+        
+        if(iam == 0) write(*,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
       end if
 
@@ -1551,9 +1689,22 @@ contains
           dummyReal = sqrt(evalInt(ii))
           info = subSpaceDim + ii
           dummyInt = subSpaceDim + newVec
+
+  #:if WITH_SCALAPACK
+
+          do myjj = 1, nLoc
+            jj = vOffset(iam+1) + myjj
+            vecB(myjj,dummyInt) = vecB(myjj,info) / (dummyReal - wij(jj))
+          end do
+          
+  #:else
+          
           do jj = 1, nxov_rd
             vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
           end do
+
+  #:endif
+          
         end if
       end do
 
@@ -1562,24 +1713,38 @@ contains
           newVec = newVec + 1
           info = subSpaceDim + nExc + ii
           dummyInt = subSpaceDim + newVec
+
+  #:if WITH_SCALAPACK
+
+          do myjj = 1, nLoc
+            jj = vOffset(iam+1) + myjj
+            vecB(myjj,dummyInt) = vecB(myjj,info) / (dummyReal - wij(jj))
+          end do
+
+  #:else
+          
           do jj = 1, nxov_rd
             vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
           end do
-
+          
+  #:endif
+          
         end if
-      end do
-
+      end do 
+      
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
-      if(iterStrat == 1) then
-         write(*,'(3x,A)') 'Iteration  Subspace dimension'
-      end if
+      if(iam == 0) then
+        if(iterStrat == 1) then
+          write(*,'(3x,A)') 'Iteration  Subspace dimension'
+        end if
 
-      write(*,'(3x,i6,10x,i6)') iterStrat, subSpaceDim
+        write(*,'(3x,i6,10x,i6)') iterStrat, subSpaceDim
+      end if
       iterStrat = iterStrat + 1
 
       ! create orthogonal basis
-      call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, vecB)
+      call orthonormalizeVectors(env, prevSubSpaceDim + 1, subSpaceDim, vecB)
 
     end do solveLinResp
 
