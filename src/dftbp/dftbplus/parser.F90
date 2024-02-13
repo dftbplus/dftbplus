@@ -1400,13 +1400,14 @@ contains
       call setUnprocessed(value1)
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-              &// trim(geo%speciesNames(iSp2))
+          strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
-            call detailedError(child2, "Incorrect number of Slater-Koster &
-                &files")
+            write(errorStr, "(A,I0,A,I0)")"Incorrect number of Slater-Koster files for " //&
+                & trim(strTmp) // ", expected ", len(angShells(iSp1)) * len(angShells(iSp2)),&
+                & " but recieved ", len(lStr)
+            call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
             call get(lStr, strTmp, ii)
