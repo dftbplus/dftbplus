@@ -1412,6 +1412,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
     if (this%isLinResp) then
+      call env%globalTimer%startTimer(globalTimers%lrExcitation)
       call calculateLinRespExcitations(env, this%linearResponse, this%parallelKS, this%scc,&
           & this%qOutput, this%q0, this%ints, this%eigvecsReal, this%eigen(:,1,:),&
           & this%filling(:,1,:), this%coord, this%species, this%speciesName, this%orb,&
@@ -1421,6 +1422,7 @@ contains
           & this%tPrintExcitedEigvecs, this%tPrintEigvecsTxt, this%nonSccDeriv,&
           & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal, this%rhoSqrReal,&
           & this%deltaRhoOutSqr, this%excitedDerivs, this%occNatural, this%rangeSep)
+      call env%globalTimer%stopTimer(globalTimers%lrExcitation)
     end if
 
     if (allocated(this%ppRPA)) then
@@ -4405,7 +4407,7 @@ contains
       & excitedDerivs, occNatural, rangeSep)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> excited state settings
     type(TLinResp), intent(inout), allocatable :: linearResponse

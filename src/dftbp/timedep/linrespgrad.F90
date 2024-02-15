@@ -38,16 +38,16 @@ module dftbp_timedep_linrespgrad
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_environment, only : TEnvironment, globalTimers
   
 #:if WITH_SCALAPACK
-  
-  use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, actionAminusB_MPI,&
-      & initialSubSpaceMatrixApmB_MPI, getExcSpin_MPI, local2GlobalBlacsArray,& 
-      & localSizeCasidaVectors
+
+  use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, actionAminusB_MPI, getExcSpin_MPI,&
+      & initialSubSpaceMatrixApmB_MPI, localSizeCasidaVectors
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  
+  use dftbp_math_scalafxext, only : distrib2replicated
+
 #:endif
   
   implicit none
@@ -92,7 +92,7 @@ contains
       & naturalOrbs)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
     
     type(TLinResp), intent(inout) :: this
 
@@ -232,6 +232,8 @@ contains
         &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
         &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
+    call env%globalTimer%startTimer(globalTimers%lrSetup)
+
     if (withArpack) then
 
       ! ARPACK library variables
@@ -282,8 +284,10 @@ contains
     ! Should possibly not use allocation status but have a dedicated derived type variable?
     if(allocated(rangeSep)) then
        tRangeSep = .true.
+       call env%globalTimer%startTimer(globalTimers%lrCoulomb)
        allocate(lrGamma(this%nAtom, this%nAtom))
        call rangeSep%getLrGamma(lrGamma)
+       call env%globalTimer%stopTimer(globalTimers%lrCoulomb)
     endif
 
     ! Try to detect fractional occupations
@@ -435,19 +439,25 @@ contains
       allocate(eigVecGlb(norb,norb,nSpin))
       allocate(ovrXevGlb(norb,norb,nSpin))
       do ss = 1, nSpin
-        call local2GlobalBlacsArray(env, denseDesc, grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
-        call local2GlobalBlacsArray(env, denseDesc, ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
+        call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
+            & grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
+        call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
+            & ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
       end do
     end if
 
+    call env%globalTimer%startTimer(globalTimers%lrCoulomb)
     call sccCalc%getAtomicGammaMatrixBlacs(gammaMat, iNeighbour, img2CentCell, env)
+    call env%globalTimer%stopTimer(globalTimers%lrCoulomb)
     
   #:else
     
     do iSpin = 1, nSpin
       call symm(ovrXev(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
+    call env%globalTimer%startTimer(globalTimers%lrCoulomb)
     call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
+    call env%globalTimer%stopTimer(globalTimers%lrCoulomb)
    
   #:endif
 
@@ -473,6 +483,8 @@ contains
     ! Build square root of occupation difference between virtual and occupied states
     call getSqrOcc(filling, win, nxov_ud(1), nxov, getIA, this%tSpin, sqrOccIA)
 
+    call env%globalTimer%startTimer(globalTimers%lrTransCharges)
+
     ! First call to initialize charges for all occ-vir transitions
     call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, norb, nxov,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
@@ -481,7 +493,9 @@ contains
     ! dipole strength of transitions between K-S states
     call calcTransitionDipoles(coord0, win, norb, nSpin, nxov_ud(1), getIA, transChrg, env, &
         & denseDesc, ovrXev, grndEigVecs, snglPartTransDip)
-    
+
+    call env%globalTimer%stopTimer(globalTimers%lrTransCharges)
+
     ! single particle excitation oscillator strengths
     sposz(:) = twothird * wij(:) * sum(snglPartTransDip**2, dim=2)
 
@@ -538,9 +552,11 @@ contains
     
     ! Recompute occ-vir transition charges, since win/wij and number has changed
     if (nxov_rd /= nxov .or. this%tOscillatorWindow .or. this%tEnergyWindow) then
+      call env%globalTimer%startTimer(globalTimers%lrTransCharges)
       call TTransCharges_init(transChrg, env, denseDesc, ovrXev, grndEigVecs, norb, nxov_rd,&
         & nxov_ud(1), nxoo_ud, nxvv_ud, getIA, getIJ, getAB, win, this%tCacheChargesOccVir,&
         & this%tCacheChargesSame, .false.)
+      call env%globalTimer%stopTimer(globalTimers%lrTransCharges)
     end if
 
   #:if WITH_SCALAPACK
@@ -605,9 +621,12 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
+    call env%globalTimer%stopTimer(globalTimers%lrSetup)
+
     do isym = 1, size(symmetries)
 
       sym = symmetries(isym)
+      call env%globalTimer%startTimer(globalTimers%lrSolver)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
         call buildAndDiagExcMatrixArpack(this%tSpin, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud,&
@@ -623,6 +642,7 @@ contains
             & this%spinW, transChrg, eval, xpy, xmy, this%onSiteMatrixElements, orb, tRangeSep,&
             & lrGamma, tZVector)
       end select
+      call env%globalTimer%stopTimer(globalTimers%lrSolver)
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, this%tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy,&
@@ -680,6 +700,8 @@ contains
       end if
     else
       ! calculate Furche vectors and transition density matrix for various properties
+
+      call env%globalTimer%startTimer(globalTimers%lrZVector)
 
       if (nstat == 0) then
         nStartLev = 1
@@ -759,16 +781,20 @@ contains
         end if
 
         if (tForces) then
+          call env%globalTimer%startTimer(globalTimers%lrGradients)
           call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb, nocc_ud,&
               & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
               & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev), &
               & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
               & tRangeSep, rangeSep, excgrad)
+          call env%globalTimer%stopTimer(globalTimers%lrGradients)
         end if
 
       end do
 
       if (this%tNaCoupling) then
+
+        call env%globalTimer%startTimer(globalTimers%lrNAC)
 
         ! This overwrites T, RHS and W
         numNAC = this%indNACouplings(2) - this%indNACouplings(1) + 1
@@ -874,11 +900,15 @@ contains
 
         call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
 
+        call env%globalTimer%stopTimer(globalTimers%lrNAC)
+
       end if
 
       if (nstat == 0) then
         omega = 0.0_dp
       end if
+
+      call env%globalTimer%stopTimer(globalTimers%lrZVector)
 
     end if
 
@@ -956,7 +986,7 @@ contains
     integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1031,7 +1061,9 @@ contains
   #:if WITH_SCALAPACK
     
     integer :: iGlb, fGlb, nLoc, iam, comm
+  #:if WITH_ARPACK
     external mpi_allreduce, pdsaupd, pdseupd 
+  #:endif
 
     iam = env%mpi%globalComm%rank
     comm = env%mpi%globalComm%id 
@@ -1088,7 +1120,7 @@ contains
     do
 
       ! call the reverse communication interface from arpack
-    #:if WITH_SCALAPACK
+    #:if WITH_SCALAPACK and WITH_ARPACK
 
       call pdsaupd (comm, ido, "I", nLoc, "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam,&
           & ipntr, workd, workl, lworkl, info)
@@ -1148,7 +1180,7 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.s
       ! Note: At this point xpy holds the hermitian eigenvectors F
-    #:if WITH_SCALAPACK
+    #:if WITH_SCALAPACK and WITH_ARPACK
 
       call pdseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,& 
           & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
@@ -1295,7 +1327,7 @@ contains
     integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -1832,7 +1864,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -2308,7 +2340,7 @@ contains
     integer, intent(in) :: natom
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -2474,7 +2506,7 @@ contains
     integer, intent(in) :: iaTrans(:,:,:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -2721,7 +2753,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3670,7 +3702,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3769,7 +3801,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -3872,7 +3904,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -3997,7 +4029,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -4214,7 +4246,7 @@ contains
     integer, intent(in) :: win(:)
     
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -4384,7 +4416,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -4834,7 +4866,7 @@ contains
     integer, intent(in) :: species0(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -5461,7 +5493,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
@@ -5624,7 +5656,7 @@ contains
     integer, intent(in) :: win(:)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
