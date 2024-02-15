@@ -1406,7 +1406,7 @@ contains
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
             write(errorStr, "(A,I0,A,I0)")"Incorrect number of Slater-Koster files for " //&
                 & trim(strTmp) // ", expected ", len(angShells(iSp1)) * len(angShells(iSp2)),&
-                & " but recieved ", len(lStr)
+                & " but received ", len(lStr)
             call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
