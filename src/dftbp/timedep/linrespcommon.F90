@@ -2931,49 +2931,21 @@ contains
 
     integer :: ii, jj
     real(dp) :: dummyReal
-    real(dp), allocatable :: tmpMat(:,:), tmpVec(:), dummyVec(:)
 
   #:if WITH_SCALAPACK
 
-    ! allocate(dummyVec, mold=vec(:,1))
-    ! do ii = start, end
-    !   do jj = 1, ii - 1
-    !     dummyVec = dot_product(vec(:,ii), vec(:,jj)) * vec(:,jj)
-    !     call mpifx_allreduceip(env%mpi%globalComm, dummyVec, MPI_SUM)
-    !     vec(:,ii) = vec(:,ii) - dummyVec
-    !   end do
-    !   dummyReal = dot_product(vec(:,ii), vec(:,ii))
-    !   call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
-    !   vec(:,ii) = vec(:,ii) / sqrt(dummyReal)
-    ! end do
-
-    allocate(tmpMat(end, end))
-    allocate(tmpVec(end))
-  
-    do ii = start, end
-      do jj = 1, ii
-        tmpMat(ii,jj) = dot_product(vec(:,ii), vec(:,jj))
-      end do
-    end do
-    call mpifx_allreduceip(env%mpi%globalComm, tmpMat, MPI_SUM)
-    
+    !! Obviously, not optimal in terms of communication, can be optimized if necessary
     do ii = start, end
       do jj = 1, ii - 1
-        vec(:,ii) = vec(:,ii) - tmpMat(ii,jj) * vec(:,jj)
+        dummyReal = dot_product(vec(:,ii), vec(:,jj))
+        call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+        vec(:,ii) = vec(:,ii) - dummyReal * vec(:,jj)
       end do
+      dummyReal = dot_product(vec(:,ii), vec(:,ii))
+      call mpifx_allreduceip(env%mpi%globalComm, dummyReal, MPI_SUM)
+      vec(:,ii) = vec(:,ii) / sqrt(dummyReal)
     end do
-    
-    do ii = start, end
-      tmpVec(ii) = dot_product(vec(:,ii), vec(:,ii))
-    end do
-    call mpifx_allreduceip(env%mpi%globalComm, tmpVec, MPI_SUM)
-    
-    do ii = start, end
-      vec(:,ii) = vec(:,ii) / sqrt(tmpVec(ii))
-    end do   
-    
-    
-    
+            
   #:else
     
     do ii = start, end
@@ -3071,20 +3043,19 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Distributed array
+    !> Local part of the distributed array
     real(dp), intent(in) :: locArray(:,:)
 
-    !> Global array
+    !> Global array, i.e. the whole array, but replicated on each member of the comm
     real(dp), intent(out) :: glbArray(:,:)    
     
     integer :: desc(DLEN_), iLoc, jLoc, iGlb, jGlb, nLocalRows, nLocalCols, ierr 
 
     desc(:) = denseDesc%blacsOrbSqr
 
-    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows,&
-        & nLocalCols)
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, desc, nLocalRows, nLocalCols)
 
-    glbArray = 0.0_dp
+    glbArray(:,:) = 0.0_dp
     do iLoc = 1, nLocalRows
       iGlb = scalafx_indxl2g(iLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
              & env%blacs%orbitalGrid%nrow)

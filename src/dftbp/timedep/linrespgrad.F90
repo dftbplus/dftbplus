@@ -183,6 +183,7 @@ contains
     real(dp), allocatable :: xpym(:), xpyn(:), xmyn(:), xmym(:)
     real(dp), allocatable :: t(:,:,:), rhs(:), woo(:,:), wvv(:,:), wov(:)
     real(dp), allocatable :: eval(:),transitionDipoles(:,:), nacv(:,:,:)
+    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
     integer, allocatable :: win(:), getIA(:,:), getIJ(:,:), getAB(:,:)
 
     !> array from pairs of single particles states to compound index - should replace with a more
@@ -196,9 +197,10 @@ contains
     integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
-    integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev, ss
+    integer :: i, j, iSpin, nSpin, isym, iLev, nStartLev, nEndLev, ss
     integer :: nCoupLev, mCoupLev, numNAC, iNac
-    integer :: nSpin
+    integer :: iam, nProcs
+    integer, allocatable :: locSize(:), vOffset(:)
     character :: sym
     character(lc) :: tmpStr
 
@@ -223,14 +225,6 @@ contains
     integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
     integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
     integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
-
-  #:if WITH_SCALAPACK
-    
-    integer :: iam, nProcs
-    integer, allocatable :: locSize(:), vOffset(:)
-    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
-
-  #:endif      
 
     !> Common block of ARPACK variables
     common /debug/ logfil, ndigit, mgetv0,&
@@ -1157,7 +1151,9 @@ contains
     #:if WITH_SCALAPACK
 
       call pdseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,& 
-           & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
+          & "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
+
+      xpy(:,:) = 0.0_dp
       xpy(iGlb:fGlb,:nexc) = vv(:,:nexc)
       call mpifx_allreduceip(env%mpi%globalComm, xpy, MPI_SUM)
 
@@ -1370,7 +1366,7 @@ contains
 
     integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat, nRPA
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
-    integer :: ii, jj
+    integer :: ii, jj, iam
     character(lc) :: tmpStr
 
     logical :: didConverge
@@ -1378,7 +1374,7 @@ contains
     
   #:if WITH_SCALAPACK
     
-    integer :: iGlb, fGlb, nLoc, iam, comm, myjj, myii
+    integer :: iGlb, fGlb, nLoc, comm, myjj, myii
     external mpi_allreduce, pdsaupd, pdseupd 
 
     iam = env%mpi%globalComm%rank
@@ -1530,7 +1526,7 @@ contains
         end do
         
   #:endif  
-        
+
       else
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
@@ -1548,7 +1544,7 @@ contains
             & getAB, iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
 
   #:endif
-        
+
       end if
 
       call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
@@ -1557,7 +1553,6 @@ contains
           & 0.0_dp, dummyM, memDim)
       call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
           & 0.0_dp, mH, memDim)
- 
 
       ! Diagonalise in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
@@ -1585,10 +1580,11 @@ contains
 
       !see if more memory is needed to save extended basis. If so increase amount of memory.
       if (subSpaceDim + 2 * nExc > memDim) then
+        if(iam==0 .and. iterStrat==1) print *,'extending mem'
         call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
             &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
       end if
- 
+
       ! Calculate the residual vectors
       !   calcs. all |R_n>
       call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vecB, nRPA, evecR, memDim,&
@@ -2410,7 +2406,7 @@ contains
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
     do kk = 1, nxov**2
 
-       ! action of matrix on vector      
+      ! action of matrix on vector
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
          & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)

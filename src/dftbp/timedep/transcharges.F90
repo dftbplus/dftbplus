@@ -177,8 +177,6 @@ contains
       if (tFirstCall) then
         @:ASSERT(.not.allocated(this%qCacheOccVir))
       else
-        ! A simple deallocate gives me an error, why is this%qCacheOccVir
-        ! deallocated if routine is re-entered?
         if(allocated(this%qCacheOccVir)) deallocate(this%qCacheOccVir)
       end if
 
@@ -192,9 +190,9 @@ contains
 
       do iSpin = 1, nSpin
         do iAtom = 1, this%nAtom
-          workGlobal = 0.0_dp
-          workLocal = 0.0_dp
-          maskMat = 0.0_dp
+          workGlobal(:,:,:) = 0.0_dp
+          workLocal(:,:) = 0.0_dp
+          maskMat(:,:) = 0.0_dp
           
           do mLoc = 1, size(grndEigVecs, dim=1)
             mGlb = scalafx_indxl2g(mLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
@@ -279,11 +277,11 @@ contains
   #:else
 
     if (tStoreOccVir) then
-
-      if (tFirstCall) then
+      
+       if (tFirstCall) then
         @:ASSERT(.not.allocated(this%qCacheOccVir))
       else
-        deallocate(this%qCacheOccVir)
+        if(allocated(this%qCacheOccVir)) deallocate(this%qCacheOccVir)
       end if
       allocate(this%qCacheOccVir(this%nAtom, nTrans))
 
@@ -343,7 +341,6 @@ contains
     
   #:endif
       
-
   end subroutine TTransCharges_init
 
 
