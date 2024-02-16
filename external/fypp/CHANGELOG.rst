@@ -3,6 +3,16 @@ Change Log
 ==========
 
 
+3.2
+===
+
+Added
+-----
+
+* Option ``--file-var-root`` to render file variables (``_FILE_``,
+  ``_THIS_FILE``) as relative paths with respect to a specified root.
+
+
 3.1
 ===
 
@@ -22,11 +32,7 @@ Changed
 
 * Support for Python 2.7, 3.3 and 3.4 dropped, support for Python 3.9 added.
 
-
-Fixed
------
-
-
+  
 3.0
 ===
 
