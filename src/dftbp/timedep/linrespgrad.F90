@@ -1653,6 +1653,7 @@ contains
   #:if WITH_SCALAPACK
         
         ! Calc. X+Y
+        xpy(:,:) = 0.0_dp
         xpy(iGlb:fGlb,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
         call mpifx_allreduceip(env%mpi%globalComm, xpy, MPI_SUM)
         ! Calc. X-Y, only when needed
