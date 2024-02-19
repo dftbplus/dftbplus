@@ -3643,20 +3643,20 @@ contains
             write(stdOut, "(a)") trim(fileName)
             if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1)
+                    & splineRepInp=repSplineIn1)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1,&
                     & hybridXcSK=hybridXcSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, hybridXcSK=hybridXcSK)
+                    & splineRepInp=repSplineIn1, hybridXcSK=hybridXcSK)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, hybridXcSK=hybridXcSK)
               end if
@@ -3696,10 +3696,10 @@ contains
               call get(sKFiles(iSp1, iSp2), fileName, ind)
               if (readRep .and. repPoly(iSp1, iSp2)) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &polyRepIn=repPolyIn2)
+                    &polyRepInp=repPolyIn2)
               elseif (readRep) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &iSp2, iSp1, splineRepIn=repSplineIn2)
+                    &iSp2, iSp1, splineRepInp=repSplineIn2)
               else
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic)
               end if
