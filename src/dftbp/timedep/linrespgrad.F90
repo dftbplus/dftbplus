@@ -1062,7 +1062,7 @@ contains
     
     integer :: iGlb, fGlb, nLoc, iam, comm
   #:if WITH_ARPACK
-    external mpi_allreduce, pdsaupd, pdseupd 
+    external pdsaupd, pdseupd
   #:endif
 
     iam = env%mpi%globalComm%rank
@@ -1407,7 +1407,7 @@ contains
   #:if WITH_SCALAPACK
     
     integer :: iGlb, fGlb, nLoc, comm, myjj, myii
-    external mpi_allreduce, pdsaupd, pdseupd 
+    external pdsaupd, pdseupd
 
     iam = env%mpi%globalComm%rank
     comm = env%mpi%globalComm%id 
