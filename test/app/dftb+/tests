@@ -291,12 +291,12 @@ solvation/H2O_gb_rescale               #? MPI_PROCS <= 1
 derivatives/C6H6_Raman                 #? MPI_PROCS <= 1
 derivatives/gfn2_c6h6_dipole           #? WITH_TBLITE and MPI_PROCS <= 1
 
-timedep/2CH3-Temp                      #? WITH_ARPACK
-timedep/2CH3-Triplet-Temp              #? WITH_ARPACK
-timedep/NO                             #? WITH_ARPACK
-timedep/NO_onsite                      #? WITH_ARPACK
-timedep/N2_onsite                      #? WITH_ARPACK
-timedep/propadiene_OscWindow           #? WITH_ARPACK
+timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 8
+timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 8
+timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 8
+timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 8
+timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 8
+timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 8
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
 analysis/H2O_mdESP                     #? MPI_PROCS <= 2
