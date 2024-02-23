@@ -21,13 +21,14 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_derivs_numderivs2, only : TNumDerivs, create
   use dftbp_derivs_perturb, only : TResponse, TResponse_init, responseSolverTypes
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
-  use dftbp_dftb_dense, only :buildSquaredAtomIndex
+  use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
@@ -43,16 +44,19 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getCellTranslations
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, TSymNeighbourList,&
+      & getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc, rangeSepTypes, RangeSepFunc_init
+  use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo, hybridXcFunc, hybridXcGammaTypes,&
+      & THybridXcFunc_init, checkSupercellFoldingMatrix
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont, TRepulsiveCont_init
   use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
   use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep, TTwoBodyRep_init
+  use dftbp_dftb_rshgamma, only : getCoulombTruncationCutoff
   use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
   use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
       & initQFromShellChrg
@@ -61,9 +65,10 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
+  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInput
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, TRangeSepInp, TControl, TBlacsOpts
+  use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, THybridXcInp, TControl, TBlacsOpts
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&
       & resultsTag, userOut, fCharges, fStopDriver, fStopSCC
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
@@ -147,7 +152,7 @@ module dftbp_dftbplus_initprogram
 
   private
   public :: TDftbPlusMain, TCutoffs, TNegfInt
-  public :: initReferenceCharges, initElectronNumbers
+  public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
 #:endif
@@ -157,9 +162,26 @@ module dftbp_dftbplus_initprogram
 
   !> Interaction cutoff distances
   type :: TCutoffs
+
+    !> Cutoff for overlap and Hamiltonian according to SK-files
     real(dp) :: skCutOff
-    real(dp) :: lcCutOff
+
+    !> Cutoff for overlap and Hamiltonian according to SK-files minus possible cutoff reduction
+    real(dp) :: camCutOff
+
+    !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
+    real(dp), allocatable :: gSummationCutoff
+
+    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !! Wigner-Seitz cell construction
+    integer, allocatable :: wignerSeitzReduction
+
+    !> Cutoff for truncated long-range Gamma integral
+    real(dp), allocatable :: gammaCutoff
+
+    !> Max. of all cutoffs
     real(dp) :: mCutOff
+
   end type TCutoffs
 
 
@@ -251,7 +273,7 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: invLatVec(:,:)
 
     !> Cell volume
-    real(dp) :: CellVol
+    real(dp) :: cellVol
 
     !> Reciprocal cell volume
     real(dp) :: recCellVol
@@ -265,16 +287,20 @@ module dftbp_dftbplus_initprogram
     !> Index in cellVec for each atom
     integer, allocatable :: iCellVec(:)
 
-
     !> ADT for neighbour parameters
     type(TNeighbourList), allocatable :: neighbourList
+
+    !> ADT for neighbour parameters, symmetric version for CAM calculations
+    type(TSymNeighbourList), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
 
-    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
-    integer, allocatable :: nNeighbourLC(:)
+    !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
+    integer, allocatable :: nNeighbourCam(:)
+
+    !> Symmetric neighbour list version of nNeighbourCam
+    integer, allocatable :: nNeighbourCamSym(:)
 
     !> H/S sparse matrices indexing array for atomic blocks
     integer, allocatable :: iSparseStart(:,:)
@@ -318,11 +344,19 @@ module dftbp_dftbplus_initprogram
     !> Nr. of K-points
     integer :: nKPoint
 
-    !> K-points
+    !> The k-points
     real(dp), allocatable :: kPoint(:,:)
 
     !> Weight of the K-Points
     real(dp), allocatable :: kWeight(:)
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), allocatable :: supercellFoldingMatrix(:,:)
+
+    !> Three diagonal elements of supercell folding coefficient matrix
+    integer, allocatable :: supercellFoldingDiag(:)
 
     !> External pressure if periodic
     real(dp) :: extPressure
@@ -360,10 +394,10 @@ module dftbp_dftbplus_initprogram
     !> Fix Fermi energy at specified value
     logical :: tFixEf
 
-    !> Fermi energy per spin
+    !> Fermi energy for each spin
     real(dp), allocatable :: Ef(:)
 
-    !> Filling temp updated by MD.
+    !> Filling temp, as updated by MD.
     logical :: tSetFillingTemp
 
     !> Choice of electron distribution function, defaults to Fermi
@@ -386,6 +420,9 @@ module dftbp_dftbplus_initprogram
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer :: nSpin
+
+    !> Nr. of independent spin cases to diagonalise/solve independently (nSpin {1,4}:1, 2:2)
+    integer :: nIndepSpin
 
     !> Is there spin-orbit coupling
     logical :: tSpinOrbit
@@ -473,6 +510,9 @@ module dftbp_dftbplus_initprogram
 
     !> Is the contribution from an excited state needed for the forces
     logical :: tCasidaForces
+
+    !> Optimization of conical intersections
+    logical :: isCIopt = .false.
 
     !> Are forces being returned
     logical :: tPrintForces
@@ -736,7 +776,7 @@ module dftbp_dftbplus_initprogram
     logical :: isLinResp
 
     !> Calculate Z vector for excited properties
-    logical :: tLinRespZVect
+    logical :: tLinRespZVect = .false.
 
     !> Data type for pp-RPA
     type(TppRPAcal), allocatable :: ppRPA
@@ -747,26 +787,17 @@ module dftbp_dftbplus_initprogram
     !> Data type for linear response
     type(TLinResp), allocatable :: linearResponse
 
-    !> Whether to run a range separated calculation
-    logical :: isRangeSep
+    !> Whether to run a hybrid xc-functional calculation
+    logical :: isHybridXc
 
-    !> Range-separation data
-    type(TRangeSepFunc), allocatable :: rangeSep
+    !> Whether constraints are imposed on electronic ground state
+    logical :: isElecConstr
 
-    !> DeltaRho input for calculation of range separated Hamiltonian
-    real(dp), allocatable :: deltaRhoIn(:)
+    !> Hybrid xc-functional data
+    class(THybridXcFunc), allocatable :: hybridXc
 
-    !> DeltaRho output from calculation of range separated Hamiltonian
-    real(dp), allocatable :: deltaRhoOut(:)
-
-    !> Holds change in deltaRho between SCC steps for range separation
-    real(dp), allocatable :: deltaRhoDiff(:)
-
-    !> DeltaRho input for range separation in matrix form
-    real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
-
-    !> DeltaRho output from range separation in matrix form
-    real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
+    !> Holds real and complex delta density matrices and pointers
+    type(TDensityMatrix) :: densityMatrix
 
     !> Linear response calculation with range-separated functional
     logical :: isRS_LinResp
@@ -830,6 +861,9 @@ module dftbp_dftbplus_initprogram
 
     !> Write cavity information as cosmo file
     logical :: tWriteCosmoFile
+
+    !> Structure holding electronic constraints
+    type(TElecConstraint), allocatable :: elecConstraint
 
     !> Library interface handler
     type(TTBLite), allocatable :: tblite
@@ -936,8 +970,11 @@ module dftbp_dftbplus_initprogram
     !> Forces on any external charges
     real(dp), allocatable :: chrgForces(:,:)
 
-    !> Excited state force addition
-    real(dp), allocatable :: excitedDerivs(:,:)
+    !> Excited state force addition (xyz,atom,state)
+    real(dp), allocatable :: excitedDerivs(:,:,:)
+
+    !> Nonadiabatic coupling vectors
+    real(dp), allocatable :: naCouplings(:,:,:)
 
     !> Dipole moments, when available, for whichever determinants are present
     real(dp), allocatable :: dipoleMoment(:, :)
@@ -968,6 +1005,9 @@ module dftbp_dftbplus_initprogram
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS) :: parallelKS
+
+    !> True, if electron dynamics input block is present
+    logical :: isElecDyn
 
     !> Electron dynamics
     type(TElecDynamics), allocatable :: electronDynamics
@@ -1094,7 +1134,7 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: qBlockDets(:,:,:,:,:)
 
     !> Final density matrices if multiple determinants being used
-    real(dp), allocatable :: deltaRhoDets(:,:)
+    real(dp), allocatable :: deltaRhoDets(:,:,:,:)
 
     !> Data type for REKS
     type(TReksCalc), allocatable :: reks
@@ -1137,8 +1177,7 @@ module dftbp_dftbplus_initprogram
     procedure :: initDetArrays
     procedure :: allocateDenseMatrices
     procedure :: getDenseDescCommon
-    procedure :: ensureRangeSeparatedReqs
-    procedure :: initRangeSeparated
+    procedure :: ensureConstrainedDftbReqs
     procedure :: initPlumed
 
   end type TDftbPlusMain
@@ -1242,9 +1281,6 @@ contains
     !> Flag to check for first cycle through a loop
     logical :: tFirst
 
-    !> Nr. of Hamiltonians to diagonalise independently
-    integer :: nIndepHam
-
     real(dp) :: rTmp
 
     !> Flag if some files do exist or not
@@ -1284,9 +1320,9 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected
     type(TStatus) :: errStatus
+    integer :: nLocalRows, nLocalCols
 
     @:ASSERT(input%tInitialized)
-
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
@@ -1315,17 +1351,23 @@ contains
       ! unrestricted spin polarisation
       this%nSpin = 2
     end if
-    nIndepHam = this%nSpin
+    this%nIndepSpin = this%nSpin
 
     this%tSpinSharedEf = input%ctrl%tSpinSharedEf
     this%tSpinOrbit = input%ctrl%tSpinOrbit
     this%tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     this%t2Component = input%ctrl%t2Component
-    this%isRangeSep = allocated(input%ctrl%rangeSepInp)
+    this%isXlbomd = allocated(input%ctrl%xlbomd)
+    this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
+    this%isElecDyn = allocated(input%ctrl%elecDynInp)
+    this%isHybridXc = allocated(input%ctrl%hybridXcInp)
+    if (this%isHybridXc) then
+      allocate(this%symNeighbourList)
+    end if
 
     if (this%t2Component) then
       this%nSpin = 4
-      nIndepHam = 1
+      this%nIndepSpin = 1
     end if
 
     if (this%nSpin /= 2 .and. this%tSpinSharedEf) then
@@ -1397,14 +1439,14 @@ contains
       allocate(this%kPoint(size(input%ctrl%KPoint,dim=1), this%nKPoint))
       allocate(this%kWeight(this%nKPoint))
       this%kPoint(:,:) = input%ctrl%KPoint
-      if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
+      if (sum(input%ctrl%kWeight) < epsilon(1.0_dp)) then
         call error("Sum of k-point weights should be greater than zero!")
       end if
       this%kWeight(:) = input%ctrl%kWeight / sum(input%ctrl%kWeight)
       if (this%tHelical) then
-        if (any(abs(this%kPoint(2,:)*nint(this%latVec(3,1))&
-            & -nint(this%kPoint(2,:)*nint(this%latVec(3,1)))) > epsilon(1.0_dp))) then
-          call error("Specified k-value(s) incommensurate with C_n symmetry operation.")
+        if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
+            & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
+          call warning("Specified k-value(s) incommensurate with C_n symmetry operation.")
         end if
       end if
     else
@@ -1417,7 +1459,7 @@ contains
 
     this%tRealHS = .true.
     if (this%tPeriodic .or. this%tHelical) then
-      if ( size(this%kPoint,dim=2) == 1 .and. all(this%kPoint(:, 1) == 0.0_dp)) then
+      if (size(this%kPoint, dim=2) == 1 .and. all(this%kPoint(:, 1) == 0.0_dp)) then
         this%tRealHS = .true.
       else
         this%tRealHS = .false.
@@ -1425,18 +1467,27 @@ contains
     end if
 
   #:if WITH_MPI
-
-    if (input%ctrl%parallelOpts%nGroup > nIndepHam * this%nKPoint) then
-      write(stdOut, *)"Parallel groups only relevant for tasks split over sufficient spins and/or&
+    if (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint&
+        & .and. (.not. (this%isHybridXc .and. (.not. this%tRealHS)))) then
+      write(stdOut, *) "Parallel groups only relevant for tasks split over sufficient spins and/or&
           & k-points"
       write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
-          & input%ctrl%parallelOpts%nGroup, nIndepHam * this%nKPoint
+          & input%ctrl%parallelOpts%nGroup, this%nIndepSpin * this%nKPoint
       call error(trim(tmpStr))
     end if
 
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
-  #:endif
 
+    if (this%isHybridXc .and. (.not. this%tRealHS)&
+        & .and. (input%ctrl%parallelOpts%nGroup /= env%mpi%globalComm%size)) then
+      ! General k-point case (parallelized over k-points)
+      write(tmpStr, "(A,I0,A,I0,A)") 'For range-separated calculations beyond the Gamma point, the&
+          & number of MPI' // NEW_LINE('A') // '   groups must match the total number of MPI&
+          & processes.' // NEW_LINE('A') // '   Obtained (', input%ctrl%parallelOpts%nGroup, ')&
+          & groups for (', env%mpi%globalComm%size, ') total MPI processes!'
+      call error(trim(tmpStr))
+    end if
+  #:endif
 
   #:if WITH_SCALAPACK
     call initBlacs(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
@@ -1448,7 +1499,7 @@ contains
       call error(errStatus%message)
     end if
   #:endif
-    call TParallelKS_init(this%parallelKS, env, this%nKPoint, nIndepHam)
+    call TParallelKS_init(this%parallelKS, env, this%nKPoint, this%nIndepSpin)
 
     this%sccTol = input%ctrl%sccTol
     this%tShowFoldedCoord = input%ctrl%tShowFoldedCoord
@@ -1470,7 +1521,7 @@ contains
       call error("SCC iterations must be larger than 0")
     end if
     if (this%tSccCalc) then
-      if (allocated(input%ctrl%elecDynInp)) then
+      if (this%isElecDyn) then
         if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
           this%maxSccIter = 0
           this%isSccConvRequired = .false.
@@ -1501,8 +1552,6 @@ contains
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = input%slako%mass(:)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
       allocate(this%speciesMass(this%nType))
       this%speciesMass(:) = getAtomicMass(this%speciesName)
     end select
@@ -1549,8 +1598,6 @@ contains
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%repulsive%getRCutOff())
       end if
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
       this%cutOff%skCutoff = this%tblite%getRCutoff()
       this%cutOff%mCutoff = this%cutOff%skCutoff
     end select
@@ -1569,13 +1616,13 @@ contains
 
     this%nrChrg = input%ctrl%nrChrg
     this%nrSpinPol = input%ctrl%nrSpinPol
-    call initElectronNumbers(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
+    call initElectronNumber(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
         & this%nEl0, this%nEl)
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
         & this%tFixEf, this%tSetFillingTemp, this%tFillKSep)
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
-        & nIndepHam, this%tempElec)
+        & this%nIndepSpin, this%tempElec)
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
@@ -1593,7 +1640,10 @@ contains
     end if
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
-        & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS)
+        & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS, errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
@@ -1626,6 +1676,10 @@ contains
       this%nExtChrg = input%ctrl%nExtChrg
       this%tExtChrg = this%nExtChrg > 0
       this%tStress = this%tStress .and. .not. this%tExtChrg
+
+      if (this%tExtChrg .and. this%hamiltonianType == hamiltonianTypes%xtb) then
+        call error("External charges not currently supported for xTB hamiltonians")
+      end if
 
       ! Longest cut-off including the softening part of gamma
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%scc%getCutOff())
@@ -1695,11 +1749,19 @@ contains
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
 
+    if (allocated(this%symNeighbourList)) then
+      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
+      allocate(this%symNeighbourList%species(this%nAllAtom))
+      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
+      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
+      allocate(this%symNeighbourList%iPair(0, this%nAtom))
+    end if
+
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
     end if
-    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole, &
+    call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
     this%multipoleInp = this%multipoleOut
 
@@ -1710,7 +1772,7 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not.allocated(this%reks), this%tImHam, &
+    call TIntegral_init(this%ints, this%nSpin, .not. allocated(this%reks), this%tImHam,&
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 
@@ -1822,7 +1884,7 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%tSpinSharedEf .or. this%isRangeSep .or.&
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -1860,9 +1922,12 @@ contains
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
      end if
-
-     tRequireDerivator = this%tForces
-     if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
+     if (this%isLinResp) then
+       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
+     else
+       tRequireDerivator = this%tForces
+     end if
+     if (.not. tRequireDerivator .and. this%isElecDyn) then
        tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
      if (tRequireDerivator) then
@@ -1880,20 +1945,20 @@ contains
       end select
     end if
 
-    call this%getDenseDescCommon() !this%orb, this%nAtom, this%t2Component, this%denseDesc)
+    call this%getDenseDescCommon()
 
     if (this%electronicSolver%isElsiSolver) then
       @:ASSERT(this%parallelKS%nLocalKS == 1)
 
-      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * this%nKPoint) then
+      if (input%ctrl%parallelOpts%nGroup /= this%nIndepSpin * this%nKPoint) then
         if (this%nSpin == 2) then
           write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
-              & combinations. There are ", nIndepHam * this%nKPoint, " spin times k-point&
+              & combinations. There are ", this%nIndepSpin * this%nKPoint, " spin times k-point&
               & combinations and ", input%ctrl%parallelOpts%nGroup, " groups"
         else
           write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as k-points. There&
-              & are ", nIndepHam * this%nKPoint, " k-points and ", input%ctrl%parallelOpts%nGroup,&
-              & " groups"
+              & are ", this%nIndepSpin * this%nKPoint, " k-points and ",&
+              & input%ctrl%parallelOpts%nGroup, " groups"
         end if
         call error(tmpStr)
       end if
@@ -1940,8 +2005,11 @@ contains
       if (this%t3rdFull .or. this%t3rd) then
         call error ("Third order DFTB is not currently available for transport calculations")
       end if
-      if (this%isRangeSep) then
+      if (this%isHybridXc) then
         call error("Range separated calculations do not yet work with transport calculations")
+      end if
+      if (this%isElecConstr) then
+        call error("Constrained DFTB calculations do not yet support electron transport.")
       end if
     end if
   #:endif
@@ -2226,6 +2294,12 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%halogenXCorrection%getRCutOff())
     end if
 
+    if (allocated(input%ctrl%elecConstraintInp)) then
+      call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
+      allocate(this%elecConstraint)
+      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb)
+    end if
+
     this%tDipole = this%tMulliken
     if (this%tDipole) then
       block
@@ -2235,14 +2309,14 @@ contains
           call warning("Dipole printed for a charged system : origin dependent quantity")
           isDipoleDefined = .false.
         end if
-        if (this%tPeriodic.or.this%tHelical) then
+        if (this%tPeriodic .or. this%tHelical) then
           call warning("Dipole printed for extended system : value printed is not well defined")
           isDipoleDefined = .false.
         end if
-        if (.not.isDipoleDefined) then
-          write(this%dipoleMessage, "(A)")"Warning: dipole moment is not defined absolutely!"
+        if (.not. isDipoleDefined) then
+          write(this%dipoleMessage, "(A)") "Warning: dipole moment is not defined absolutely!"
         else
-          write(this%dipoleMessage, "(A)")""
+          write(this%dipoleMessage, "(A)") ""
         end if
       end block
     end if
@@ -2309,16 +2383,16 @@ contains
       this%isEResp = allocated(input%ctrl%perturbInp%dynEFreq)
       if (this%isEResp) then
         call move_alloc(input%ctrl%perturbInp%dynEFreq, this%dynRespEFreq)
-        if (this%isRangeSep .and. any(this%dynRespEFreq /= 0.0_dp)) then
-          call error("Finite frequency range separated calculation not currently supported")
+        if (this%isHybridXc .and. any(this%dynRespEFreq /= 0.0_dp)) then
+          call error("Finite frequency hybrid xc-functional calculation not currently supported.")
         end if
       end if
 
       this%isKernelResp = allocated(input%ctrl%perturbInp%dynKernelFreq)
       if (this%isKernelResp) then
         call move_alloc(input%ctrl%perturbInp%dynKernelFreq, this%dynKernelFreq)
-        if (this%isRangeSep .and. any(this%dynKernelFreq /= 0.0_dp)) then
-          call error("Finite frequency range separated calculation not currently supported")
+        if (this%isHybridXc .and. any(this%dynKernelFreq /= 0.0_dp)) then
+          call error("Finite frequency hybrid xc-functional calculation not currently supported.")
         end if
         this%isRespKernelRPA = input%ctrl%perturbInp%isRespKernelRPA
         if (.not.this%isRespKernelRPA .and. .not.this%tSccCalc) then
@@ -2360,7 +2434,7 @@ contains
         this%polarisability(:,:,:) = 0.0_dp
         if (input%ctrl%tWriteBandDat) then
           ! only one frequency at the moment if dynamic!
-          allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, nIndepHam, 3))
+          allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, this%nIndepSpin, 3))
           this%dEidE(:,:,:,:) = 0.0_dp
         end if
         ! only one frequency at the moment if dynamic!
@@ -2374,7 +2448,7 @@ contains
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
-    this%isRS_LinResp = this%isLinResp .and. this%isRangeSep
+    this%isRS_LinResp = this%isLinResp .and. this%isHybridXc
 
     if (this%isLinResp) then
 
@@ -2422,7 +2496,7 @@ contains
       this%tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
-          & input%ctrl%lrespini%tWriteDensityMatrix)
+          & input%ctrl%lrespini%tWriteDensityMatrix .or. input%ctrl%lrespini%tNaCoupling)
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -2449,8 +2523,8 @@ contains
         call error("PP-RPA does not support ${ERR}$")
       end if
     #:endfor
-    #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
-      & ("tDampH","H damping")]
+    #:for VAR, ERR in [("tShellResolved", "shell resolved hamiltonians"),&
+      & ("tDampH", "H damping")]
       if (input%ctrl%${VAR}$) then
         call error("PP-RPA does not support ${ERR}$")
       end if
@@ -2566,7 +2640,6 @@ contains
     call this%initPlumed(env, input%ctrl%tPlumed, this%tMD, this%plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
-    this%isXlbomd = allocated(input%ctrl%xlbomd)
     if (this%isXlbomd) then
       if (input%ctrl%iThermostat /= 0) then
         call error("XLBOMD does not work with thermostats yet")
@@ -2615,14 +2688,6 @@ contains
       call error("Charge restart not currently supported for Delta DFTB")
     end if
 
-    if (this%isRangeSep) then
-      call this%ensureRangeSeparatedReqs(input%ctrl%tShellResolved, input%ctrl%rangeSepInp)
-      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, this%cutOff)
-      call this%initRangeSeparated(this%nAtom, this%species0, hubbU, input%ctrl%rangeSepInp,&
-          & this%tSpin, allocated(this%reks), this%rangeSep, this%deltaRhoIn, this%deltaRhoOut,&
-          & this%deltaRhoDiff, this%deltaRhoInSqr, this%deltaRhoOutSqr, this%nMixElements)
-    end if
-
     this%tReadShifts = input%ctrl%tReadShifts
     this%tWriteShifts = input%ctrl%tWriteShifts
 
@@ -2630,11 +2695,128 @@ contains
     @:ASSERT(.not. this%tReadShifts)
     @:ASSERT(.not. this%tWriteShifts)
 
-    this%tReadChrgAscii  = input%ctrl%tReadChrgAscii
+    this%tReadChrgAscii = input%ctrl%tReadChrgAscii
     this%tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     this%tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. this%tNegf
 
-    call this%initializeCharges(input%ctrl%initialSpins, input%ctrl%initialCharges)
+  #:if WITH_SCALAPACK
+      associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+        call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
+            & this%isSparseReorderRequired)
+      end associate
+  #:endif
+
+    if (allocated(this%symNeighbourList)) then
+      if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
+        this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
+        this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
+      end if
+      if (this%isHybridXc) then
+        call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
+        if (.not. this%tReadChrg) then
+          if (this%tPeriodic .and. this%tRealHS) then
+            ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
+            call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
+                & input%ctrl%hybridXcInp%cutoffRed,&
+                & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
+                & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
+          elseif (.not. this%tRealHS) then
+            ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
+            call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
+                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+                & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
+                & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
+                & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
+          end if
+        end if
+
+        ! Non-periodic system (cluster)
+        if (.not. this%tPeriodic) then
+          call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
+        end if
+      end if
+
+    #:if WITH_SCALAPACK
+      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+          & nLocalCols)
+    #:else
+      nLocalRows = this%denseDesc%fullSize
+      nLocalCols = this%denseDesc%fullSize
+    #:endif
+
+      if (this%isHybridXc) then
+        ! allocation is necessary to hint "initializeCharges" what information to extract
+        call reallocateHybridXc(this, nLocalRows, nLocalCols,&
+            & size(this%parallelKS%localKS, dim=2))
+      end if
+
+    end if
+
+    call this%initializeCharges(errStatus, input%ctrl%initialSpins, input%ctrl%initialCharges)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
+
+    ! When restarting and reading charges from charges.bin, the supercell folding matrix of the
+    ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb
+    ! truncation cutoff, therefore calling getHybridXcCutoff(), needs this information.
+    if (this%isHybridXc .and. this%tReadChrg) then
+      ! First, check if supercell folding matrix is identical to previous run, if specified in input
+      if (allocated(input%ctrl%supercellFoldingMatrix)) then
+        if (any(abs(input%ctrl%supercellFoldingMatrix&
+            & - this%supercellFoldingMatrix) > 1e-06_dp)) then
+          write(tmpStr, "(A,3I5,A,3I5,A,3I5,A,3F10.6)")&
+              & 'Error while processing k-point sampling for range-separated run.'&
+              & // NEW_LINE('A')&
+              & // '   When restarting, only identical k-point samplings to previous run are'&
+              & // NEW_LINE('A') // '   supported. In this case this would correspond to the&
+              & following supercell' // NEW_LINE('A') // '   folding matrix:'&
+              & // NEW_LINE('A'),&
+              & nint(this%supercellFoldingMatrix(1, 1:3)), NEW_LINE('A'),&
+              & nint(this%supercellFoldingMatrix(2, 1:3)), NEW_LINE('A'),&
+              & nint(this%supercellFoldingMatrix(3, 1:3)), NEW_LINE('A'),&
+              & this%supercellFoldingMatrix(:, 4)
+          call error(trim(tmpStr))
+        end if
+      end if
+      if (this%tPeriodic .and. this%tRealHS) then
+        ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
+        call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
+            & input%ctrl%hybridXcInp%cutoffRed,&
+            & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
+      elseif (.not. this%tRealHS) then
+        ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
+        call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
+            & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+            & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
+            & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
+            & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
+      end if
+    end if
+
+    if (this%isHybridXc) then
+      call THybridXcFunc_init(this%hybridXc, this%nAtom, this%species0, hubbU(1, :),&
+          & input%ctrl%hybridXcInp%screeningThreshold, input%ctrl%hybridXcInp%omega,&
+          & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta,&
+          & this%tSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
+          & input%ctrl%hybridXcInp%hybridXcType, input%ctrl%hybridXcInp%gammaType, this%tPeriodic,&
+          & this%tRealHS, errStatus, coeffsDiag=this%supercellFoldingDiag,&
+          & gammaCutoff=this%cutOff%gammaCutoff,&
+          & gSummationCutoff=this%cutOff%gSummationCutoff,&
+          & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
+          & latVecs=input%geom%latVecs)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
+      end if
+      ! now all information is present to properly allocate density matrices and associate pointers
+      call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+      ! reset number of mixer elements, so that there is enough space for density matrices
+      if (this%tRealHS) then
+        this%nMixElements = size(this%densityMatrix%deltaRhoIn)
+      else
+        this%nMixElements = size(this%densityMatrix%deltaRhoInCplxHS)
+      end if
+    end if
 
     ! Initialise images (translations)
     if (this%tPeriodic .or. this%tHelical) then
@@ -2643,16 +2825,21 @@ contains
     else
       allocate(this%cellVec(3, 1))
       allocate(this%rCellVec(3, 1))
-      this%cellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
-      this%rCellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
+      this%cellVec(:, 1) = [0.0_dp, 0.0_dp, 0.0_dp]
+      this%rCellVec(:, 1) = [0.0_dp, 0.0_dp, 0.0_dp]
     end if
 
-    ! Initialize neighbourlist.
+    ! Initialize neighbourlist(s)
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    if (this%isRangeSep) then
-      allocate(this%nNeighbourLC(this%nAtom))
+    if (allocated(this%symNeighbourList)) then
+      allocate(this%symNeighbourList%neighbourList)
+      call TNeighbourlist_init(this%symNeighbourList%neighbourList, this%nAtom, nInitNeighbour)
+      if (this%isHybridXc) then
+        allocate(this%nNeighbourCam(this%nAtom))
+        allocate(this%nNeighbourCamSym(this%nAtom))
+      end if
     end if
 
     ! Set various options
@@ -2702,13 +2889,6 @@ contains
       call this%initOutputFiles(env)
     end if
 
-  #:if WITH_SCALAPACK
-    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
-          & this%isSparseReorderRequired)
-    end associate
-  #:endif
-
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
@@ -2718,11 +2898,11 @@ contains
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
           & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
-          & this%isRangeSep, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
+          & this%isHybridXc, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
           & this%tPeriodic, this%tStress, this%tDipole)
     end if
 
-    call this%initDetArrays()
+    call this%initDetArrays(nLocalRows, nLocalCols)
     call this%initArrays(env, input)
 
   #:if WITH_TRANSPORT
@@ -2818,6 +2998,7 @@ contains
     else
       this%pCoord0Out => this%coord0
     end if
+
 
     ! Projection of eigenstates onto specific regions of the system
     this%tProjEigenvecs = input%ctrl%tProjEigenvecs
@@ -2928,10 +3109,12 @@ contains
   #:endif
 
   #:if WITH_SCALAPACK
-    write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")env%blacs%orbitalGrid%nRow,&
-        & env%blacs%orbitalGrid%nCol
-    write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)")env%blacs%atomGrid%nRow,&
-        & env%blacs%atomGrid%nCol
+    if (.not. (this%isHybridXc .and. this%tRealHS .and. this%tPeriodic)) then
+      write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)")env%blacs%orbitalGrid%nRow,&
+          & env%blacs%orbitalGrid%nCol
+      write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)")env%blacs%atomGrid%nRow,&
+          & env%blacs%atomGrid%nCol
+    end if
   #:endif
 
     if (tRandomSeed) then
@@ -3026,7 +3209,7 @@ contains
     end if
 
     if (this%tSccCalc) then
-      if (.not.this%tRestartNoSC) then
+      if (.not. this%tRestartNoSC) then
         write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
         write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", this%sccTol
         write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", this%maxSccIter
@@ -3405,27 +3588,64 @@ contains
       end if
     end if
 
-    if (this%isRangeSep) then
-      write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
-      write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
-          & input%ctrl%rangeSepInp%omega
+    if (this%isHybridXc) then
+      if (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
+        write(stdOut, "(A,':',T30,A)") "Global hybrid", "Yes"
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Fraction of exchange",&
+            & input%ctrl%hybridXcInp%camAlpha
+      elseif (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%lc) then
+        write(stdOut, "(A,':',T30,A)") "Long-range corrected hybrid", "Yes"
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+            & input%ctrl%hybridXcInp%omega
+      elseif (input%ctrl%hybridXcInp%hybridXcType == hybridXcFunc%cam) then
+        write(stdOut, "(A,':',T30,A)") "CAM range-separated hybrid", "Yes"
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+            & input%ctrl%hybridXcInp%omega
+        write(stdOut, "(2X,A,':',T30,E14.6,E14.6)") "CAM parameters alpha/beta",&
+            & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta
+      end if
+      if (this%tPeriodic) then
+        if (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%full) then
+          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "full"
+        elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%mic) then
+          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "minimum image convention"
+          write(stdOut, "(2X,A,':',T30,2X,I0,A)") "Wigner-Seitz cell reduction",&
+              & this%cutOff%wignerSeitzReduction, " primitive cell(s)"
+        elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncated) then
+          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated"
+        elseif (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
+          write(stdOut, "(2X,A,':',T30,2X,A)") "Gamma function", "truncated+poly5zero"
+        end if
+        if (input%ctrl%hybridXcInp%gammaType /= hybridXcGammaTypes%mic) then
+          write(stdOut, "(2X,A,':',T30,E14.6,A)") "G-Summation Cutoff",&
+              & this%cutOff%gSummationCutoff, " Bohr"
+        end if
+        if (input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncated&
+            & .or. input%ctrl%hybridXcInp%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
+          write(stdOut, "(2X,A,':',T30,E14.6,A)") "Coulomb Truncation",&
+              & this%cutOff%gammaCutoff, " Bohr"
+        end if
+      end if
 
-      select case(input%ctrl%rangeSepInp%rangeSepAlg)
-      case (rangeSepTypes%neighbour)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "NeighbourBased"
-        write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
-            & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
-      case (rangeSepTypes%threshold)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "Thresholded"
+      select case(input%ctrl%hybridXcInp%hybridXcAlg)
+      case (hybridXcAlgo%neighbourBased)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "NeighbourBased"
+        write(stdOut, "(2X,A,':',T30,E14.6,A)") "Reduce neighlist cutoff by",&
+            & input%ctrl%hybridXcInp%cutoffRed * Bohr__AA, " A"
+        if (this%tPeriodic) then
+          write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
+              & input%ctrl%hybridXcInp%screeningThreshold
+        end if
+      case (hybridXcAlgo%thresholdBased)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "Thresholded"
         write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
-            & input%ctrl%rangeSepInp%screeningThreshold
-      case (rangeSepTypes%matrixBased)
-        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "MatrixBased"
+            & input%ctrl%hybridXcInp%screeningThreshold
+      case (hybridXcAlgo%matrixBased)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Screening algorithm", "MatrixBased"
       case default
-        call error("Unknown range separated hybrid method")
+        call error("Unknown hybrid xc-functional screening algorithm")
       end select
     end if
-
 
     write(stdOut, "(A,':')") "Extra options"
     if (this%tPrintMulliken) then
@@ -3559,7 +3779,7 @@ contains
     if (this%deltaDftb%isNonAufbau .and. allocated(this%ppRPA)) then
       call error("Delta DFTB incompatible with ppRPA")
     end if
-    if (this%deltaDftb%isNonAufbau .and. allocated(input%ctrl%elecDynInp)) then
+    if (this%deltaDftb%isNonAufbau .and. this%isElecDyn) then
       call error("Delta DFTB incompatible with electron dynamics")
     end if
     if (this%deltaDftb%isNonAufbau .and. this%tFixEf) then
@@ -3628,7 +3848,7 @@ contains
     end if
 
     ! Electron dynamics stuff
-    if (allocated(input%ctrl%elecDynInp)) then
+    if (this%isElecDyn) then
 
       if (this%t2Component) then
         call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
@@ -3654,7 +3874,7 @@ contains
         call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
       end if
 
-      if (this%isRangeSep) then
+      if (this%isHybridXc) then
         if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
           call error("Triplet perturbations currently disabled for electron dynamics with&
               & range-separated functionals")
@@ -3673,7 +3893,7 @@ contains
           & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
           & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isRangeSep, this%scc, this%tblite, this%eFieldScaling,&
+          & this%kPoint, this%kWeight, this%isHybridXc, this%scc, this%tblite, this%eFieldScaling,&
           & this%hamiltonianType, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -3756,7 +3976,6 @@ contains
 
 
   !> Create equivalency relations
-  ! Note, this routine should not be called
   subroutine setEquivalencyRelations(this)
 
     !> Instance
@@ -3888,10 +4107,13 @@ contains
 
   !> Initialise partial charges
   !>
-  subroutine initializeCharges(this, initialSpins, initialCharges)
+  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Initial spins
     real(dp), optional, intent(in) :: initialSpins(:,:)
@@ -3971,24 +4193,41 @@ contains
 
     if (.not. this%tSccCalc) return
 
+    if (this%isHybridXc .and. this%tReadChrg) then
+      allocate(this%supercellFoldingMatrix(3, 4))
+    end if
+
     ! Charges read from file
     if (this%tReadChrg) then
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-            & this%qiBlockIn, this%deltaRhoIn, multipoles=this%multipoleInp)
+            & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
+            & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+        @:PROPAGATE_ERROR(errStatus)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
-              & multipoles=this%multipoleInp)
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
+              & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+          @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
-              & this%qiBlockIn, this%deltaRhoIn, nEl = sum(this%nEl),&
-              & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp)
+              & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
+              & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
+              & coeffsAndShifts=this%supercellFoldingMatrix)
+          @:PROPAGATE_ERROR(errStatus)
         end if
+      end if
+
+      ! Check if obtained supercell folding matrix meets current requirements
+      if (this%isHybridXc .and. this%tPeriodic) then
+        allocate(this%supercellFoldingDiag(3))
+        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix, errStatus,&
+            & supercellFoldingDiagOut=this%supercellFoldingDiag)
+        @:PROPAGATE_ERROR(errStatus)
       end if
 
     #:if WITH_TRANSPORT
@@ -4010,8 +4249,6 @@ contains
       #:endfor
     end if
 
-
-    !TODO(Alex) Could definitely split the code here
     if (allocated(this%reks)) return
 
     ! Charges not read from file
@@ -4032,9 +4269,8 @@ contains
 
       if (.not. this%tSkipChrgChecksum) then
         ! Rescaling to ensure correct number of electrons in the system
-        this%qInput(:,:,1) = this%qInput(:,:,1) *  sum(this%nEl) / sum(this%qInput(:,:,1))
+        this%qInput(:,:,1) = this%qInput(:,:,1) * sum(this%nEl) / sum(this%qInput(:,:,1))
       end if
-
 
       select case (this%nSpin)
       case (1)
@@ -4147,16 +4383,32 @@ contains
   ! Assign reference charge arrays, q0 and qShell0
   subroutine initReferenceCharges(species0, orb, referenceN0, nSpin, q0, qShell0, customOccAtoms,&
       & customOccFillings)
+
+    !> Species of central cell atoms
     integer, intent(in) :: species0(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference neutral atom charges for each species
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
-    real(dp), allocatable, intent(out) :: q0(:,:,:), qShell0(:,:)
+
+    !> Reference 'neutral' charges for each atom orbital
+    real(dp), allocatable, intent(out) :: q0(:,:,:)
+
+    !> Shell resolved neutral reference
+    real(dp), allocatable, intent(out) :: qShell0(:,:)
+
+    !> Array of lists of atoms where the 'neutral' shell occupation is modified
     type(TWrappedInt1), optional, intent(in) :: customOccAtoms(:)
+
+    !> Modified occupations for shells of the groups atoms in customOccAtoms
     real(dp), optional, intent(in) :: customOccFillings(:,:)
 
     integer :: nAtom
-    integer :: iAt, iSp, iSh
 
     @:ASSERT(present(customOccAtoms) .eqv. present(customOccFillings))
 
@@ -4171,6 +4423,31 @@ contains
     end if
 
     allocate(qShell0(orb%mShell, nAtom))
+    call updateReferenceShellCharges(qShell0, q0, orb, nAtom, species0)
+
+  end subroutine initReferenceCharges
+
+
+  !> Updates the reference shell charges
+  subroutine updateReferenceShellCharges(qShell0, q0, orb, nAtom, species0)
+
+    !> Shell resolved neutral reference
+    real(dp), intent(out) :: qShell0(:,:)
+
+    !> Reference 'neutral' charges for each atom's orbitals
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atomic orbital data
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Species of central cell atoms
+    integer, intent(in) :: species0(:)
+
+    integer :: iAt, iSp, iSh
+
     do iAt = 1, nAtom
       iSp = species0(iAt)
       do iSh = 1, orb%nShell(iSp)
@@ -4178,16 +4455,31 @@ contains
       end do
     end do
 
-  end subroutine initReferenceCharges
+  end subroutine updateReferenceShellCharges
 
 
-  ! Set number of electrons
-  subroutine initElectronNumbers(q0, nChrg, nSpinPol, nSpin, orb, nEl0, nEl)
+  !> Set number of electrons
+  subroutine initElectronNumber(q0, nrChrg, nSpinPol, nSpin, orb, nEl0, nEl)
+
+    !> Reference 'neutral' charges for each atom's orbitals
     real(dp), intent(in) :: q0(:,:,:)
-    real(dp), intent(in) :: nChrg, nSpinPol
+
+    !> Total charge
+    real(dp), intent(in) :: nrChrg
+
+    !> Spin polarisation
+    real(dp), intent(in) :: nSpinPol
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Nr. of all electrons if neutral
     real(dp), intent(out) :: nEl0
+
+    !> Nr. of electrons
     real(dp), allocatable, intent(out) :: nEl(:)
 
     nEl0 = sum(q0(:,:,1))
@@ -4202,13 +4494,13 @@ contains
     end if
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
-      nEl(1) = nEl0 - nChrg
+      nEl(1) = nEl0 - nrChrg
       if(ceiling(nEl(1)) > 2.0_dp * orb%nOrb) then
         call error("More electrons than basis functions!")
       end if
     else
-      nEl(1) = 0.5_dp * (nEl0 - nChrg + nSpinPol)
-      nEl(2) = 0.5_dp * (nEl0 - nChrg - nSpinPol)
+      nEl(1) = 0.5_dp * (nEl0 - nrChrg + nSpinPol)
+      nEl(2) = 0.5_dp * (nEl0 - nrChrg - nSpinPol)
       if (any(ceiling(nEl) > orb%nOrb)) then
         call error("More electrons than basis functions!")
       end if
@@ -4218,7 +4510,7 @@ contains
       call error("Less than 0 electrons!")
     end if
 
-  end subroutine initElectronNumbers
+  end subroutine initElectronNumber
 
 
   ! Set up reference population
@@ -4248,12 +4540,30 @@ contains
   !> Initializes electron filling related variables
   subroutine initElectronFilling_(input, nSpin, Ef, iDistribFn, tempElec, tFixEf, tSetFillingTemp,&
       & tFillKSep)
+
+    !> Holds the parsed input data.
     type(TInputData), intent(in) :: input
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
+
+    !> Fermi energy for each spin
     real(dp), allocatable, intent(out) :: Ef(:)
+
+    !> Choice of electron distribution function, defaults to Fermi
     integer, intent(out) :: iDistribFn
+
+    !> Electron temperature
     real(dp), intent(out) :: tempElec
-    logical, intent(out) :: tFixEf, tSetFillingTemp, tFillKSep
+
+    !> Fix Fermi energy at specified value
+    logical, intent(out) :: tFixEf
+
+    !> Filling temp, as updated by MD.
+    logical, intent(out) :: tSetFillingTemp
+
+    !> If K points should filled separately
+    logical, intent(out) :: tFillKSep
 
     if (nSpin == 4) then
       allocate(Ef(1))
@@ -4297,8 +4607,7 @@ contains
       @:ASSERT(size(input%slako%skHubbU, dim=2) == nSpecies)
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      ! call error("xTB calculation currently not supported")
+      ! handled elsewhere
     end select
 
     if (allocated(input%ctrl%hubbU)) then
@@ -4460,7 +4769,8 @@ contains
 
   !> Initialise a transport calculation
   subroutine initTransport_(this, env, input, electronicSolver, nSpin, tempElec, tNegf,&
-      & isAContactCalc, mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS)
+      & isAContactCalc, mu, negfInt, ginfo, transpar, writeTunn, tWriteLDOS, regionLabelLDOS,&
+      & errStatus)
 
     !> Instance
     class(TDftbPlusMain), intent(in) :: this
@@ -4508,6 +4818,9 @@ contains
     !> Labels for different regions for DOS output
     character(lc), allocatable, intent(out) :: regionLabelLDOS(:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     logical :: tAtomsOutside
     integer :: iSpin
     integer :: nSpinChannels, iCont, jCont
@@ -4529,6 +4842,8 @@ contains
       ! calculation without spin (poisson does not support spin dependent
       ! built in potentials)
       if (transpar%ncont > 0) then
+        call testTransportAtoms_(transpar, this%nAtom, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         allocate(mu(transpar%ncont, nSpinChannels))
         mu(:,:) = 0.0_dp
         do iSpin = 1, nSpinChannels
@@ -4594,6 +4909,46 @@ contains
 
   end subroutine initTransport_
 
+
+  !> Checks for atoms in two regions or not in any region of a transport calculation
+  subroutine testTransportAtoms_(transpar, nAtom, errStatus)
+
+    !> Transport calculation parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> Number of atoms in the provided device + contacts
+    integer, intent(in) :: nAtom
+
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
+    logical, allocatable :: atomInRegion(:)
+    integer :: ii
+
+    allocate(atomInRegion(nAtom), source=.false.)
+
+    ! check for atoms in multiple contact ranges/device
+    atomInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .true.
+    do ii = 1, transpar%nCont
+      if (any(atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2))))&
+          & then
+        @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Contact ''', A,''' contains atom ', I0,&
+            & ' which is also in another contact or device region')",&
+            & trim(transpar%contacts(ii)%name),&
+            & findloc(atomInRegion(transpar%contacts(ii)%idxrange(1):&
+            & transpar%contacts(ii)%idxrange(2)), .true.) + transpar%contacts(ii)%idxrange(1))
+      end if
+      atomInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .true.
+    end do
+
+    ! Check for atoms missing from any of these regions
+    if (any(.not.atomInRegion)) then
+      @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Atom ',I0, ' not in any contact or the device')",&
+          & findloc(atomInRegion, .false.))
+    end if
+
+  end subroutine testTransportAtoms_
+
 #:endif
 
   !> Initialises (clears) output files.
@@ -4652,7 +5007,8 @@ contains
     type(TInputData), intent(in) :: input
 
     logical :: isREKS
-    integer :: nSpinHams, sqrHamSize, iDet
+    ! dLev is the number of states to include for non-adiabatic couplings
+    integer :: nSpinHams, sqrHamSize, iDet, dLev
 
     isREKS = allocated(this%reks)
 
@@ -4683,8 +5039,31 @@ contains
       if (this%tExtChrg) then
         allocate(this%chrgForces(3, this%nExtChrg))
       end if
-      if (this%tLinRespZVect .and. this%tCasidaForces) then
-        allocate(this%excitedDerivs(3, this%nAtom))
+
+      if (this%isLinResp) then
+        ! For CI optimization store gradient for several states,
+        ! otherwise store excited state gradient for state of interest only
+        if(this%linearResponse%isCIopt) then
+          if (.not. this%linearResponse%tNaCoupling) then
+            call error("Optimization of CI requires StateCouplings keyword.")
+          end if
+          dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+          if (this%linearResponse%indNACouplings(1) == 0) then
+            allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
+          else
+            allocate(this%excitedDerivs(3, this%nAtom, dLev))
+          end if
+          else  if (this%tLinRespZVect .and. this%tCasidaForces) then
+            allocate(this%excitedDerivs(3, this%nAtom, 1))
+        end if
+        this%isCIopt = this%linearResponse%isCIopt
+      end if
+    end if
+
+    if (this%isLinResp) then
+      if(this%linearResponse%tNaCoupling) then
+        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+        allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
       end if
     end if
 
@@ -4799,11 +5178,13 @@ contains
 
 
   !> Initialize storage for multi-determinantal calculations
-  subroutine initDetArrays(this)
+  subroutine initDetArrays(this, nLocalRows, nLocalCols)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols
 
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
@@ -4815,9 +5196,9 @@ contains
         allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
         this%qBlockDets(:,:,:,:,:) = 0.0_dp
       end if
-      if (this%isRangeSep) then
-        allocate(this%deltaRhoDets(this%nOrb * this%nOrb * this%nSpin, this%nDets))
-        this%deltaRhoDets(:,:) = 0.0_dp
+      if (this%isHybridXc) then
+        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets))
+        this%deltaRhoDets(:,:,:,:) = 0.0_dp
       end if
     end if
 
@@ -4875,15 +5256,29 @@ contains
     !> Computing environment
     type(TEnvironment), intent(in) :: env
 
+    !! True, if hybrid xc-functional calculation requested and MPI-ready algorithm
+    !! has been selected
+    logical :: hybridXcAlgoNonDistributed
+
     integer :: nLocalCols, nLocalRows, nLocalKS
+
+    if (this%isHybridXc) then
+      hybridXcAlgoNonDistributed = .not. (this%tRealHS&
+          & .and. (this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased))
+    else
+      hybridXcAlgoNonDistributed = .false.
+    end if
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
     
   #:if WITH_SCALAPACK
-    
-    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
-         & nLocalCols)
-
+    if (hybridXcAlgoNonDistributed) then
+      nLocalRows = this%denseDesc%fullSize
+      nLocalCols = this%denseDesc%fullSize
+    else
+      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+          & nLocalCols)
+    end if
   #:else
     
     nLocalRows = this%denseDesc%fullSize
@@ -4903,7 +5298,7 @@ contains
 
   #:if WITH_SCALAPACK
 
-    if (this%isSparseReorderRequired) then
+    if (this%isSparseReorderRequired .and. (.not. hybridXcAlgoNonDistributed)) then
       call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, this%denseDesc%blacsColumnSqr,&
           & nLocalRows, nLocalCols)
       if (this%t2Component .or. .not. this%tRealHS) then
@@ -5063,7 +5458,7 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, kPoints, parallelOpts, nIndepSpin, tempElec)
 
     !> Solver number (see dftbp_elecsolvers_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -5075,7 +5470,7 @@ contains
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
 
     !> Number of indepdent hamiltonian matrices at a given k-value
-    integer, intent(in) :: nIndepHam
+    integer, intent(in) :: nIndepSpin
 
     !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
@@ -5098,7 +5493,7 @@ contains
 
     nKPoint = size(kPoints, dim=2)
     if (withMpi) then
-      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepSpin * nKPoint) then
         call error("This solver requires as many parallel processor groups as there are independent&
             & spin and k-point combinations")
       end if
@@ -5241,66 +5636,142 @@ contains
   end function getMinSccIters
 
 
-  !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(this, tShellResolved, rangeSepInp)
+  !> Stop if any setting incompatible with the constrained DFTB formalism is found.
+  subroutine ensureConstrainedDftbReqs(this, elecConstraintInp)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
-    !> Is this a shell resolved calculation
-    logical, intent(in) :: tShellResolved
+    !> Input parameters for electronic constraints
+    type(TElecConstraintInput), intent(in) :: elecConstraintInp
 
-    !> Parameters for the range separated calculation
-    type(TRangeSepInp), intent(in) :: rangeSepInp
-
-    if (withMpi) then
-      call error("Range separated calculations do not work with MPI yet")
-    end if
-
-    if (this%tPeriodic) then
-      call error("Range separated functionality only works with non-periodic structures at the&
-          & moment")
-    end if
-
-    if (this%tHelical) then
-      call error("Range separated functionality only works with non-helical structures at the&
-          & moment")
-    end if
-
-    if (this%tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
-      call error("Restart on thresholded range separation not working correctly")
-    end if
-
-    if (tShellResolved) then
-      call error("Range separated functionality currently does not yet support shell-resolved scc")
-    end if
-
-    if (this%tAtomicEnergy) then
-      call error("Atomic resolved energies cannot be calculated with the range-separated&
-          & hybrid functional at the moment")
-    end if
-
-    if (this%nSpin > 2) then
-      call error("Range separated calculations not implemented for non-colinear calculations")
-    end if
-
-    if (this%tSpinOrbit) then
-      call error("Range separated calculations not currently implemented for spin orbit")
+    if (.not. this%tSccCalc) then
+      call error("Electronically constrained calculations do not yet support non-SCC calculations.")
     end if
 
     if (this%isXlbomd) then
-      call error("Range separated calculations not currently implemented for XLBOMD")
+      call error("Electronically constrained calculations do not yet support XLBOMD.")
+    end if
+
+    if (allocated(this%reks)) then
+      call error("Electronically constrained calculations do not yet support REKS.")
+    end if
+
+    if (this%deltaDftb%isNonAufbau) then
+      call error("Electronically constrained calculations do not yet support delta-DFTB.")
+    end if
+
+    if (this%isElecDyn) then
+      call error("Electronically constrained calculations do not yet support electron dynamics.")
+    end if
+
+  end subroutine ensureConstrainedDftbReqs
+
+
+  !> Stop if any setting incompatible with using hybrid xc-functionals are found.
+  subroutine ensureHybridXcReqs(this, tShellResolved, hybridXcInp)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: this
+
+    !> True, if this is a shell resolved calculation
+    logical, intent(in) :: tShellResolved
+
+    !> Parameters for the range separated calculation
+    type(THybridXcInp), intent(in) :: hybridXcInp
+
+    if (withMpi .and. (.not. this%tPeriodic) .and. (hybridXcInp%hybridXcAlg&
+        & /= hybridXcAlgo%matrixBased)) then
+      call error("MPI parallelized hybrid calculations of non-periodic systems only available for&
+          & the matrix-based algorithm.")
+    end if
+
+    if (withMpi .and. this%tRealHS .and. this%tReadChrg) then
+      call error("Hybrid functionality for non-periodic or Gamma-point only calculations does not&
+          & yet support restarts for MPI-enabled builds.")
+    end if
+
+    if (this%tPeriodic) then
+      if ((.not. this%tRealHS) .and. (hybridXcInp%hybridXcAlg /= hybridXcAlgo%neighbourBased)) then
+        call error("Hybrid functionality for periodic systems beyond the Gamma-point currently only&
+            & working for the neighbour list based algorithm.")
+      end if
+      if (this%tRealHS .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+        call error("Hybrid functionality at the Gamma-point not implemented for the threshold&
+            & algorithm.")
+      end if
+    end if
+
+    if ((.not. this%tRealHS) .and. this%tForces&
+        & .and. (hybridXcInp%gammaType /= hybridXcGammaTypes%truncated)) then
+      call error("Hybrid functionals don't yet support gradient calculations for periodic systems&
+          & beyond the Gamma point for CoulombMatrix settings other than 'Truncated'.")
+    end if
+
+    if (this%tPeriodic .and. this%tRealHS&
+        & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncated&
+        & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncatedAndDamped) then
+      call error("Hybrid functionals don't yet support Gamma point calculations for CoulombMatrix&
+          & types other than 'Truncated' or 'Truncated+Damping'.")
+    end if
+
+    if (this%tHelical) then
+      call error("Hybrid functionality only works with non-helical structures at the moment.")
+    end if
+
+    if (this%tReadChrg .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+      call error("Restart on thresholded range separation not working correctly.")
+    end if
+
+    if (tShellResolved) then
+      call error("Hybrid functionality currently does not yet support shell-resolved SCF.")
+    end if
+
+    if (this%tAtomicEnergy) then
+      call error("Atomic resolved energies cannot be calculated with hybrid functionals at the&
+          & moment.")
+    end if
+
+    if (this%nSpin > 2) then
+      call error("Hybrid calculations not implemented for non-colinear calculations.")
+    end if
+
+    if ((.not. this%tRealHS) .and. this%nSpin == 2&
+        & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncated) then
+      call error("Hybrid functionality does not yet support spin-polarized calculations of periodic&
+          & systems beyond the Gamma-point for CoulombMatrix settings other than 'Truncated'.")
+    end if
+
+    if ((.not. this%tRealHS) .and. this%nSpin == 2 .and. this%tForces) then
+      call error("Hybrid functionality currently does not yet support spin-polarized gradient&
+          & evaluation for periodic systems beyond the Gamma-point.")
+    end if
+
+    if (this%tSpinOrbit) then
+      call error("Hybrid calculations not currently implemented for spin orbit coupling.")
+    end if
+
+    if (this%isXlbomd) then
+      call error("Hybrid calculations not currently implemented for XLBOMD.")
     end if
 
     if (this%t3rd) then
-      call error("Range separated calculations not currently implemented for 3rd order DFTB")
+      call error("Hybrid calculations not currently implemented for 3rd-order DFTB.")
     end if
 
-  end subroutine ensureRangeSeparatedReqs
+    if (this%isRS_LinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
+      call error("General CAM functionals not currently implemented for linear response.")
+    end if
+
+    if (this%isRS_LinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
+      call error("Global hybrid functionals not currently implemented for linear response.")
+    end if
+
+  end subroutine ensureHybridXcReqs
 
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
-  !> features.
+  !! features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
       & isRS_LinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
 
@@ -5351,7 +5822,9 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      !!call error("Linear response calc. does not work with MPI yet")
+      if(.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
+        call error("Non-adiabatic coupling vectors not available under MPI")
+      end if
     end if
 
     if (.not. tSccCalc) then
@@ -5395,7 +5868,7 @@ contains
       call warning(tmpStr)
     end if
 
-    if (input%ctrl%lrespini%nstat == 0) then
+    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
       if (tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
@@ -5432,96 +5905,229 @@ contains
       end if
     end if
 
-    if(.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
-      call error("Non-adiabatic coupling vectors not available under MPI")
-    end if
-
-
   end subroutine ensureLinRespConditions
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+  subroutine getHybridXcCutOff_cluster(cutOff, cutoffRed)
 
-    !> Reduction in cut-off
-    real(dp), intent(in) :: cutoffRed
-
-    !> Resulting cut-off
+    !> Resulting cutoff
     type(TCutoffs), intent(inout) :: cutOff
 
-    cutOff%lcCutOff = 0.0_dp
+    !> CAM-neighbour list cutoff reduction
+    real(dp), intent(in) :: cutoffRed
+
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
     end if
-    cutOff%lcCutOff = cutOff%skCutOff - cutoffRed
-    if (cutOff%lcCutOff < 0.0_dp) then
+
+    cutOff%camCutOff = cutOff%skCutOff - cutoffRed
+
+    if (cutOff%camCutOff < 0.0_dp) then
       call error("Screening cutoff for range-separated neighbours too short.")
     end if
-    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcCutOff)
 
-  end subroutine getRangeSeparatedCutOff
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
+
+    ! dummy cutoff values
+    cutOff%gammaCutoff = 1.0_dp
+    cutOff%gSummationCutoff = 1.0_dp
+
+  end subroutine getHybridXcCutOff_cluster
 
 
-  !> Initialise range separated extension.
-  subroutine initRangeSeparated(this, nAtom, species0, hubbU, rangeSepInp, tSpin, isREKS, rangeSep,&
-      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+  !> Determine range separated cut-off and also update maximal cutoff
+  subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, gSummationCutoff,&
+      & gammaCutoff)
+
+    !> Resulting cutoff
+    type(TCutoffs), intent(inout) :: cutOff
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    !> CAM-neighbour list cutoff reduction
+    real(dp), intent(in) :: cutoffRed
+
+    !> Cutoff for real-space g-summation
+    real(dp), intent(in), optional :: gSummationCutoff
+
+    !> Coulomb truncation cutoff for Gamma electrostatics
+    real(dp), intent(in), optional :: gammaCutoff
+
+    !! Error status
+    type(TStatus) :: errStatus
+
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+    end if
+
+    cutOff%camCutOff = cutOff%skCutOff - cutoffRed
+
+    if (cutOff%camCutOff < 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours too short.")
+    end if
+
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
+
+    if (present(gammaCutoff)) then
+      cutOff%gammaCutoff = gammaCutoff
+    else
+      allocate(cutOff%gammaCutoff)
+      call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
+    end if
+
+    if (present(gSummationCutoff)) then
+      cutOff%gSummationCutoff = gSummationCutoff
+    else
+      ! This would correspond to "the safest option"
+      cutOff%gSummationCutoff = 2.0_dp * cutOff%gammaCutoff
+    end if
+
+  end subroutine getHybridXcCutOff_gamma
+
+
+  !> Determine range separated cut-off and also update maximal cutoff
+  subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag,&
+      & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
+
+    !> Resulting cutoff
+    type(TCutoffs), intent(inout) :: cutOff
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    !> CAM-neighbour list cutoff reduction
+    real(dp), intent(in) :: cutoffRed
+
+    !> Supercell folding coefficients and shifts
+    integer, intent(in) :: supercellFoldingDiag(:)
+
+    !> Cutoff for real-space g-summation
+    real(dp), intent(in), optional :: gSummationCutoff
+
+    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !! Wigner-Seitz cell construction
+    integer, intent(in), optional :: wignerSeitzReduction
+
+    !> Coulomb truncation cutoff for Gamma electrostatics
+    real(dp), intent(in), optional :: gammaCutoff
+
+    !! Error status
+    type(TStatus) :: errStatus
+
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+    end if
+
+    cutOff%camCutOff = cutOff%skCutOff - cutoffRed
+
+    if (cutOff%camCutOff < 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours too short.")
+    end if
+
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
+
+    if (present(gammaCutoff)) then
+      cutOff%gammaCutoff = gammaCutoff
+    else
+      allocate(cutOff%gammaCutoff)
+      call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus,&
+          & nK=supercellFoldingDiag)
+      @:PROPAGATE_ERROR(errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
+    end if
+
+    if (present(gSummationCutoff)) then
+      cutOff%gSummationCutoff = gSummationCutoff
+    else
+      ! This would correspond to "the safest option"
+      cutOff%gSummationCutoff = 2.0_dp * cutOff%gammaCutoff
+    end if
+
+    if (present(wignerSeitzReduction)) then
+      cutOff%wignerSeitzReduction = wignerSeitzReduction
+    else
+      cutOff%wignerSeitzReduction = 1
+    end if
+
+  end subroutine getHybridXcCutOff_kpts
+
+
+  !> Pre-allocate density matrix for range-separation.
+  subroutine reallocateHybridXc(this, nLocalRows, nLocalCols, nLocalKS)
 
     !> Instance
-    class(TDftbPlusMain), intent(inout) :: this
+    type(TDftbPlusMain), intent(inout) :: this
 
-    !> Number of atoms in the system
-    integer, intent(in) :: nAtom
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols, nLocalKS
 
-    !> Species of atoms
-    integer, intent(in) :: species0(:)
+    !! Global iKS composite index
+    integer :: iGlobalKS
 
-    !> Hubbard values for species
-    real(dp), intent(in) :: hubbU(:,:)
+    !! Spin and k-point indices
+    integer :: iSpin, iK
 
-    !> Input for range separated calculation
-    type(TRangeSepInp), intent(in) :: rangeSepInp
+    ! deallocate arrays, if already allocated
+    if (allocated(this%densityMatrix%deltaRhoOut)) deallocate(this%densityMatrix%deltaRhoOut)
+    if (allocated(this%densityMatrix%deltaRhoOutCplx))&
+        & deallocate(this%densityMatrix%deltaRhoOutCplx)
+    if (allocated(this%densityMatrix%iKiSToiGlobalKS))&
+        & deallocate(this%densityMatrix%iKiSToiGlobalKS)
+    if (allocated(this%densityMatrix%deltaRhoOutCplxHS))&
+        & deallocate(this%densityMatrix%deltaRhoOutCplxHS)
 
-    !> Is this spin restricted (F) or unrestricted (T)
-    logical, intent(in) :: tSpin
+    if (this%tRealHS) then
+      ! Prevent for deleting charges read in from file
+      if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
+        allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS))
+        this%densityMatrix%deltaRhoIn(:,:,:) = 0.0_dp
+      end if
+      allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS))
+      this%densityMatrix%deltaRhoOut(:,:,:) = 0.0_dp
+    elseif (this%tReadChrg .and. (.not. allocated(this%supercellFoldingDiag))) then
+      ! in case of k-points and restart from file, we have to wait until charges.bin was read
+      if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
+        allocate(this%densityMatrix%deltaRhoInCplxHS(0, 0, 0, 0, 0, 0))
+        this%densityMatrix%deltaRhoInCplxHS(:,:,:,:,:,:) = 0.0_dp
+      end if
+      allocate(this%densityMatrix%deltaRhoOutCplxHS(0, 0, 0, 0, 0, 0))
+      this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
+    else
+      ! normal k-point case, without restart from file
+      if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
+        allocate(this%densityMatrix%deltaRhoInCplxHS(this%nOrb, this%nOrb,&
+            & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
+            & this%supercellFoldingDiag(3), this%nIndepSpin))
+        this%densityMatrix%deltaRhoInCplxHS(:,:,:,:,:,:) = 0.0_dp
+      end if
+        allocate(this%densityMatrix%deltaRhoOutCplxHS(this%nOrb, this%nOrb,&
+            & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
+            & this%supercellFoldingDiag(3), this%nIndepSpin))
+        this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
+    end if
 
-    !> Is this DFTB/SSR formalism
-    logical, intent(in) :: isREKS
+    if (.not. this%tRealHS) then
 
-    !> Resulting settings for range separation
-    type(TRangeSepFunc), allocatable, intent(out) :: rangeSep
+      allocate(this%densityMatrix%deltaRhoOutCplx(this%nOrb, this%nOrb,&
+          & size(this%parallelKS%localKS, dim=2)))
+      this%densityMatrix%deltaRhoOutCplx(:,:,:) = 0.0_dp
 
-    !> Change in input density matrix flattened to 1D array
-    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:)
+      ! Build spin/k-point composite index for all spins and k-points (global)
+      iGlobalKS = 1
+      allocate(this%densityMatrix%iKiSToiGlobalKS(this%nKPoint, this%nSpin))
+      do iSpin = 1, this%nSpin
+        do iK = 1, this%nKPoint
+          this%densityMatrix%iKiSToiGlobalKS(iK, iSpin) = iGlobalKS
+          iGlobalKS = iGlobalKS + 1
+        end do
+      end do
+    end if
 
-    !> Change in output density matrix flattened to 1D array
-    real(dp), allocatable, target, intent(out) :: deltaRhoOut(:)
-
-    !> Change in density matrix between in and out
-    real(dp), allocatable, intent(out) :: deltaRhoDiff(:)
-
-    !> Change in input density matrix
-    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:)
-
-    !> Change in output density matrix
-    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
-
-    !> Number of mixer elements
-    integer, intent(out) :: nMixElements
-
-    allocate(rangeSep)
-    call RangeSepFunc_init(rangeSep, nAtom, species0, hubbU(1,:), rangeSepInp%screeningThreshold,&
-        & rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
-    allocate(deltaRhoIn(this%nOrb * this%nOrb * this%nSpin))
-    allocate(deltaRhoOut(this%nOrb * this%nOrb * this%nSpin))
-    allocate(deltaRhoDiff(this%nOrb * this%nOrb * this%nSpin))
-    deltaRhoInSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&
-        & deltaRhoIn(1 : this%nOrb * this%nOrb * this%nSpin)
-    deltaRhoOutSqr(1:this%nOrb, 1:this%nOrb, 1:this%nSpin) =>&
-        & deltaRhoOut(1 : this%nOrb * this%nOrb * this%nSpin)
-    nMixElements = this%nOrb * this%nOrb * this%nSpin
-    deltaRhoInSqr(:,:,:) = 0.0_dp
-
-  end subroutine initRangeSeparated
+  end subroutine reallocateHybridXc
 
 
   !> Initializes PLUMED calculator.
@@ -5596,7 +6202,7 @@ contains
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Nr. of electrons
@@ -5694,7 +6300,7 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep, isDispersion, isQNetAllocated,&
+      & hamiltonianType, nSpin, nExtChrg, is3rd, isHybridXc, isDispersion, isQNetAllocated,&
       & tForces, tPeriodic, tStress, tDipole)
 
     !> Data type for REKS
@@ -5734,7 +6340,7 @@ contains
     logical, intent(in) :: is3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Whether to run a dispersion calculation
     logical, intent(in) :: isDispersion
@@ -5769,7 +6375,7 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, isDispersion, isQNetAllocated, tForces,&
+            & blurWidths, is3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
             & tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
@@ -5802,106 +6408,105 @@ contains
     integer :: ii, iType
     character(lc) :: strTmp
 
-    write (stdOut,*)
-    write (stdOut,*)
-    write (stdOut, "(A,':',T30,A)") "REKS Calculation", "Yes"
+    write(stdOut,*)
+    write(stdOut,*)
+    write(stdOut, "(A,':',T30,A)") "REKS Calculation", "Yes"
 
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      write (stdOut, "(A,':',T30,A)") "SSR(2,2) Calculation", "Yes"
+      write(stdOut, "(A,':',T30,A)") "SSR(2,2) Calculation", "Yes"
       if (reks%Efunction == 1) then
-        write (stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
+        write(stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
       else if (reks%Efunction == 2) then
-        write (stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
+        write(stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
       end if
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    write (stdOut, "(A,':',T30,I14)") "Number of Core Orbitals", reks%Nc
-    write (stdOut, "(A,':',T30,I14)") "Number of Active Orbitals", reks%Na
-    write (stdOut, "(A,':',T30,I14)") "Number of Basis", orb%nOrb
-    write (stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
+    write(stdOut, "(A,':',T30,I14)") "Number of Core Orbitals", reks%Nc
+    write(stdOut, "(A,':',T30,I14)") "Number of Active Orbitals", reks%Na
+    write(stdOut, "(A,':',T30,I14)") "Number of Basis", orb%nOrb
+    write(stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
     do ii = 1, reks%SAstates
       if (ii == 1) then
-        write (strTmp, "(A,':')") "State-Averaging Weight"
+        write(strTmp, "(A,':')") "State-Averaging Weight"
       else
-        write (strTmp, "(A)") ""
+        write(strTmp, "(A)") ""
       end if
-      write (stdOut, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
+      write(stdOut, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
     end do
-    write (stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
+    write(stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
 
     if (reks%tReadMO) then
-      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
+      write(stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
     else
-      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
+      write(stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalise H0 matrix"
     end if
 
-    write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
-    write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
+    write(stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
+    write(stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
     if (reks%shift > epsilon(1.0_dp)) then
-      write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
+      write(stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
     else
-      write (stdOut, "(A,':',T30,A)") "Level Shifting", "No"
+      write(stdOut, "(A,':',T30,A)") "Level Shifting", "No"
     end if
-    write (stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
+    write(stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
 
     do iType = 1, nType
       if (iType == 1) then
-        write (strTmp, "(A,':')") "W Scale Factor"
+        write(strTmp, "(A,':')") "W Scale Factor"
       else
-        write (strTmp, "(A)") ""
+        write(strTmp, "(A)") ""
       end if
-      write (stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), &
-          & speciesName(iType), reks%Tuning(iType)
+      write(stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), speciesName(iType), reks%Tuning(iType)
     end do
 
     if (reks%tTDP) then
-      write (stdOut, "(A,':',T30,A)") "Transition Dipole", "Yes"
+      write(stdOut, "(A,':',T30,A)") "Transition Dipole", "Yes"
     else
-      write (stdOut, "(A,':',T30,A)") "Transition Dipole", "No"
+      write(stdOut, "(A,':',T30,A)") "Transition Dipole", "No"
     end if
 
     if (reks%tForces) then
 
       if (reks%Lstate > 0) then
-        write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
-        write (stdOut, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
+        write(stdOut, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
+        write(stdOut, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
       else
-        write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "No"
+        write(stdOut, "(A,':',T30,A)") "Gradient of Microstate", "No"
       end if
 
       if (reks%Efunction /= 1) then
         if (reks%Glevel == 1) then
-          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
-          write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-          write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
+          write(stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write(stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
           if (reks%tSaveMem) then
-            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
           else
-            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
           end if
-        else if (reks%Glevel == 2) then
-          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
-          write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-          write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+        elseif (reks%Glevel == 2) then
+          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
+          write(stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write(stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
           if (reks%tSaveMem) then
-            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
           else
-            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+            write(stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
           end if
-        else if (reks%Glevel == 3) then
-          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
+        elseif (reks%Glevel == 3) then
+          write(stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
         end if
         if (reks%tNAC) then
-          write (stdOut, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
+          write(stdOut, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
         end if
       end if
 
       if (reks%tRD) then
-        write (stdOut, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
+        write(stdOut, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
       end if
 
     end if
@@ -5960,7 +6565,7 @@ contains
       recVec = 2.0_dp * pi * invLatVec
       cellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
-    else if (tHelical) then
+    elseif (tHelical) then
       origin = input%geom%origin
       latVec = input%geom%latVecs
       allocate(recVec(1, 1))
@@ -6229,7 +6834,7 @@ contains
 
     @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
     if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont
+      do ii = 1, transpar%ncont, respectively
         iStart = transpar%contacts(ii)%idxrange(1)
         iEnd = transpar%contacts(ii)%idxrange(2)
         qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)

@@ -14,8 +14,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
-  use dftbp_mmapi, only :&
-      & TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput, TDftbPlusAtomList
   use dftbp_type_linkedlist, only : TListString, append, init, destruct
   implicit none
   private
@@ -23,13 +22,13 @@ module dftbp_capi
 
   !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
-    type(c_ptr) :: pDftbPlusInput
+    type(c_ptr) :: pDftbPlusInput = c_null_ptr
   end type c_DftbPlusInput
 
 
   !> DFTB+ calculation
   type, bind(C) :: c_DftbPlus
-    type(c_ptr) :: instance
+    type(c_ptr) :: instance = c_null_ptr
   end type c_DftbPlus
 
 
@@ -37,16 +36,35 @@ module dftbp_capi
   type, extends(TDftbPlus) :: TDftbPlusC
     private
     type(TFileDescr) :: outputFile
+  contains
+    final :: TDftbPlusC_final
   end type TDftbPlusC
 
 
 contains
 
+  !> Finalises a DFTB+ input instance
+subroutine c_DftbPlusInput_final(handler) bind(C, name='dftbp_input_final')
+
+  !> DFTB+ handler
+  type(c_DftbPlusInput), intent(inout) :: handler
+
+  !> The specific instance to be finalised
+  type(TDftbPlusInput), pointer :: instance
+
+  if (.not. c_associated(handler%pDftbPlusInput)) return
+  call c_f_pointer(handler%pDftbPlusInput, instance)
+  deallocate(instance)
+  handler%pDftbPlusInput = c_null_ptr
+
+end subroutine c_DftbPlusInput_final
+
+
 
   !> Returns the current API version
   subroutine c_DftbPlus_api(major, minor, patch) bind(C, name='dftbp_api')
 
-    !> makor.minor.patch
+    !> major.minor.patch
     integer(c_int), intent(out) :: major, minor, patch
 
     major = ${APIMAJOR}$
@@ -73,7 +91,7 @@ contains
     !> DFTB+ handler
     type(c_DftbPlus), intent(out) :: handler
 
-    !> output location
+    !> Output location
     type(c_ptr), value, intent(in) :: outputFileName
 
     type(TDftbPlusC), pointer :: instance
@@ -92,7 +110,7 @@ contains
     !> DFTB+ handler
     type(c_DftbPlus), intent(out) :: handler
 
-    !> output location
+    !> Output location
     type(c_ptr), value, intent(in) :: outputFileName
 
     !> MPI-communicator id
@@ -108,17 +126,17 @@ contains
   end subroutine c_DftbPlus_init_mpi
 
 
-  !> finalises a DFTB+ instance
+  !> Finalises a DFTB+ instance
   subroutine c_DftbPlus_final(handler) bind(C, name='dftbp_final')
 
     !> DFTB+ handler
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> the specific instance to be finalised
+    !> The specific instance to be finalised
     type(TDftbPlusC), pointer :: instance
 
+    if (.not. c_associated(handler%instance)) return
     call c_f_pointer(handler%instance, instance)
-    call TDftbPlus_destruct(instance%TDftbPlus)
     deallocate(instance)
     handler%instance = c_null_ptr
 
@@ -129,13 +147,13 @@ contains
   subroutine c_DftbPlus_getInputFromFile(handler, fileName, inputHandler)&
       & bind(C, name='dftbp_get_input_from_file')
 
-    !> handler for the input
+    !> Handler for the input
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> file to read
+    !> File to read
     character(c_char), intent(in) :: fileName(*)
 
-    !> handler for the resulting input
+    !> Handler for the resulting input
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     type(TDftbPlusC), pointer :: instance
@@ -154,10 +172,10 @@ contains
   !> Process a document tree to get settings for the calculation
   subroutine c_DftbPlus_processInput(handler, inputHandler) bind(C, name='dftbp_process_input')
 
-    !> handler for the calculation instance
+    !> Handler for the calculation instance
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> input tree handler
+    !> Input tree handler
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     type(TDftbPlusC), pointer :: instance
@@ -174,7 +192,7 @@ contains
   subroutine c_DftbPlus_get_elstat_potential(handler, nLocations, pot, locations)&
       & bind(C, name='dftbp_get_elstat_potential')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Number of requested points
@@ -199,13 +217,13 @@ contains
   subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
       & bind(C, name='dftbp_set_external_potential')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> externally set potential
+    !> Externally set potential
     real(c_double), intent(in) :: extPot(*)
 
-    !> gradient of the potential wrt to atom positions
+    !> Gradient of the potential wrt to atom positions
     type(c_ptr), value, intent(in) :: extPotGrad
 
     type(TDftbPlusC), pointer :: instance
@@ -229,16 +247,16 @@ contains
   subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
       & bind(C, name='dftbp_register_ext_pot_generator')
 
-    !> handler for the potential
+    !> Handler for the potential
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> pointer to the C routine for the external potential
+    !> Pointer to the C routine for the external potential
     type(c_ptr), value, intent(in) :: refPtr
 
-    !> function for the external potential
+    !> Function for the external potential
     type(c_funptr), value, intent(in) :: extPotFunc
 
-    !> function for the gradient of the potential
+    !> Function for the gradient of the potential
     type(c_funptr), value, intent(in) :: extPotGradFunc
 
     type(TDftbPlusC), pointer :: instance
@@ -258,10 +276,10 @@ contains
   !> Set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> coordinates, (xyz, :nAtom)
+    !> Coordinates, (xyz, :nAtom)
     real(c_double), intent(in) :: coords(3,*)
 
     type(TDftbPlusC), pointer :: instance
@@ -278,13 +296,13 @@ contains
   subroutine c_DftbPlus_setCoordsAndLatticeVecs(handler, coords, latVecs)&
       & bind(C, name='dftbp_set_coords_and_lattice_vecs')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> coordinates, row major format (xyz, :nAtom)
+    !> Coordinates, row major format (xyz, :nAtom)
     real(c_double), intent(in) :: coords(3,*)
 
-    !> lattice vectors, row major format
+    !> Lattice vectors, row major format
     real(c_double), intent(in) :: latvecs(3, *)
 
     type(TDftbPlusC), pointer :: instance
@@ -301,16 +319,16 @@ contains
   subroutine c_DftbPlus_setCoordsLatticeVecsOrigin(handler, coords, latVecs, origin)&
       & bind(C, name='dftbp_set_coords_lattice_origin')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> coordinates, row major format (xyz, :nAtom)
+    !> Coordinates, row major format (xyz, :nAtom)
     real(c_double), intent(in) :: coords(3,*)
 
-    !> lattice vectors, row major format
+    !> Lattice vectors, row major format
     real(c_double), intent(in) :: latvecs(3, *)
 
-    !> coordinate origin
+    !> Coordinate origin
     real(c_double), intent(in) :: origin(3)
 
     type(TDftbPlusC), pointer :: instance
@@ -328,31 +346,31 @@ contains
       & iNeighbour, neighDist, cutOff, coordNeighbours, neighbour2CentCell)&
       & bind(C, name='dftbp_set_neighbour_list')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> total number of neighbour atoms
+    !> Total number of neighbour atoms
     integer(c_int), value, intent(in) :: nAllAtom
 
-    !> maximum number of neighbours an atom in the central cell can have
+    !> Maximum number of neighbours an atom in the central cell can have
     integer(c_int), value, intent(in) :: nMaxNeighbours
 
-    !> number of neighbours for each atom in the central cell
+    !> Number of neighbours for each atom in the central cell
     integer(c_int), intent(in) :: nNeighbour(*)
 
-    !> references to the neighbour atoms for an atom in the central cell
+    !> References to the neighbour atoms for an atom in the central cell
     integer(c_int), intent(in) :: iNeighbour(nMaxNeighbours, *)
 
-    !> distances to the neighbour atoms for an atom in the central cell
+    !> Distances to the neighbour atoms for an atom in the central cell
     real(c_double), intent(in) :: neighDist(nMaxNeighbours, *)
 
-    !> cutoff distance used for this neighbour list
+    !> Cutoff distance used for this neighbour list
     real(c_double), value, intent(in) :: cutOff
 
-    !> coordinates of all neighbours
+    !> Coordinates of all neighbours
     real(c_double), intent(in) :: coordNeighbours(3, *)
 
-    !> mapping between neighbour reference and atom index in the central cell
+    !> Mapping between neighbour reference and atom index in the central cell
     integer(c_int), intent(in) :: neighbour2CentCell(*)
 
     type(TDftbPlusC), pointer :: instance
@@ -426,10 +444,10 @@ contains
   !> Retrieve the cutoff distance that is being used for interactions
   function c_DftbPlus_getCutOff(handler) result(cutOff) bind(C, name='dftbp_get_cutoff')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> cutoff distance
+    !> Cutoff distance
     real(dp) :: cutOff
 
     type(TDftbPlusC), pointer :: instance
@@ -443,10 +461,10 @@ contains
   !> Obtain the DFTB+ energy
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> resulting energy
+    !> Resulting energy
     real(c_double), intent(out) :: merminEnergy
 
     type(TDftbPlusC), pointer :: instance
@@ -460,10 +478,10 @@ contains
   !> Obtain the gradients wrt DFTB atom positions
   subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> gradients, row major format
+    !> Gradients, row major format
     real(c_double), intent(out) :: gradients(3, *)
 
     type(TDftbPlusC), pointer :: instance
@@ -480,10 +498,10 @@ contains
   subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
       & bind(C, name='dftbp_get_stress_tensor')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> gradients, row major format
+    !> Gradients, row major format
     real(c_double), intent(out) :: stresstensor(3, 3)
 
     type(TDftbPlusC), pointer :: instance
@@ -499,10 +517,10 @@ contains
   subroutine c_DftbPlus_getGrossCharges(handler, atomCharges)&
       & bind(C, name='dftbp_get_gross_charges')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> resulting atomic charges
+    !> Resulting atomic charges
     real(c_double), intent(out) :: atomCharges(*)
 
     type(TDftbPlusC), pointer :: instance
@@ -519,10 +537,10 @@ contains
   subroutine c_DftbPlus_getCM5Charges(handler, atomCharges)&
       & bind(C, name='dftbp_get_cm5_charges')
 
-    !> handler for the calculation
+    !> Handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
-    !> resulting atomic charges
+    !> Resulting atomic charges
     real(c_double), intent(out) :: atomCharges(*)
 
     !> f pointer of input arguments
@@ -530,13 +548,79 @@ contains
 
     integer :: nAtom
 
-    !> translate c to f objects
+    !> Translate c to f objects
     call c_f_pointer(handler%instance, instance)
 
     nAtom = instance%nrOfAtoms()
     call instance%getCM5Charges(atomCharges(1:nAtom))
 
   end subroutine c_DftbPlus_getCM5Charges
+
+
+  !> Obtain reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_getRefCharges(handler, refCharges)&
+      & bind(C, name='dftbp_get_ref_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Resulting atomic reference charges
+    real(c_double), intent(out) :: refCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%getRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_getRefCharges
+
+
+  !> Set reference atomic charge, the effective Z for the valence orbitals
+  subroutine c_DftbPlus_setRefCharge(handler, refCharges)&
+      & bind(C, name='dftbp_set_ref_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Provided atomic reference charges
+    real(c_double), intent(in) :: refCharges(*)
+
+    !> f pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    nAtom = instance%nrOfAtoms()
+    call instance%setRefCharges(refCharges(1:nAtom))
+
+  end subroutine c_DftbPlus_setRefCharge
+
+
+  !> Finalizer for TDftbPlusC
+  subroutine TDftbPlusC_final(this)
+
+    !> Instance
+    type(TDftbPlusC), intent(inout) :: this
+
+    ! Note: Fortran finalizes all components of a child class instance (TDftbPlusC) first and only
+    ! then the components of its parent (TDftbPlus). TDftbPlusC contains a descriptor connected to
+    ! an open file, whose unit had been passed to and stored by TDftbPlus. When TDftbPlusC is
+    ! finalized, the file is closed, so TDftbPlus will try to write the timings to an invalid unit
+    ! when finalized aftewards. Therefore, we call TDftbPlus_destruct explicitely before
+    ! finalization of TDftbPlusC happens.
+    !
+    call TDftbPlus_destruct(this%TDftbPlus)
+
+  end subroutine TDftbPlusC_final
 
 
   !> Converts a 0-char terminated C-type string into a Fortran string.

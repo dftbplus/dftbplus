@@ -12,6 +12,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
+  use dftbp_dftb_elecconstraints, only : TElecConstraintInput
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
@@ -50,7 +51,7 @@ module dftbp_dftbplus_inputdata
   private
   public :: TControl, TSlater, TInputData, TParallelOpts
   public :: TBlacsOpts
-  public :: TRangeSepInp
+  public :: THybridXcInp
   public :: init, destruct
   public :: TNEGFInfo
 
@@ -97,8 +98,8 @@ module dftbp_dftbplus_inputdata
   end type TLbfgsInput
 
 
-  !> Range separation input
-  type TRangeSepInp
+  !> Hybrid xc-functional input
+  type THybridXcInp
 
     !> Threshold for integral screening
     real(dp) :: screeningThreshold
@@ -109,13 +110,32 @@ module dftbp_dftbplus_inputdata
     !> Separation parameter
     real(dp) :: omega
 
-    !> Choice of range separation method
-    integer :: rangeSepAlg
+    !> CAM alpha parameter
+    real(dp) :: camAlpha
+
+    !> CAM beta parameter
+    real(dp) :: camBeta
+
+    !> Choice of hybrid xc-functional algorithm to build Hamiltonian
+    integer :: hybridXcAlg
 
     !> Hybrid xc-functional type, as extracted from SK-file(s)
-    integer :: rangeSepType
+    integer :: hybridXcType
 
-  end type TRangeSepInp
+    !> Choice of range separation gamma function type (periodic cases only)
+    integer :: gammaType
+
+    !> Cutoff for real-space g-summation
+    real(dp), allocatable :: gSummationCutoff
+
+    !> Number of unit cells along each supercell folding direction to subtract from minimum image
+    !! convention (MIC) Wigner-Seitz cell construction
+    integer, allocatable :: wignerSeitzReduction
+
+    !> Coulomb truncation cutoff of Gamma electrostatics
+    real(dp), allocatable :: gammaCutoff
+
+  end type THybridXcInp
 
 
   !> Main control data for program as extracted by the parser
@@ -315,6 +335,8 @@ module dftbp_dftbplus_inputdata
 
     !> Whether to initialize internal state of the Nose-Hoover thermostat from input
     logical :: tInitNHC = .false.
+
+    !> Internal state variables for the Nose-Hoover chain thermostat
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
@@ -353,7 +375,7 @@ module dftbp_dftbplus_inputdata
     !> Number of k-points for the calculation
     integer :: nKPoint = 0
 
-    !> K-points for the system (= 0 for molecular in free space and no symmetries)
+    !> The k-points for the system (= 0 for molecular in free space and no symmetries)
     real(dp), allocatable :: kPoint(:,:)
 
     !> Weights for the k-points
@@ -361,6 +383,18 @@ module dftbp_dftbplus_inputdata
 
     !> Are the k-points not suitable for integrals over the Brillouin zone
     logical :: poorKSampling = .false.
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), allocatable :: supercellFoldingMatrix(:,:)
+
+    !> Three diagonal elements of supercell folding coefficient matrix
+    integer, allocatable :: supercellFoldingDiag(:)
+
+    !> Tolerance for helical symmetry determination of acceptable k-points commensurate with the
+    !! C_n symmetry
+    real(dp) :: helicalSymTol = 1.0E-8_dp
 
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp
@@ -464,6 +498,9 @@ module dftbp_dftbplus_inputdata
     !> Solvation
     class(TSolvationInp), allocatable :: solvInp
 
+    !> Electronic constraints
+    type(TElecConstraintInput), allocatable :: elecConstraintInp
+
     !> Rescaling of electric fields (applied or dipole) if the system is solvated
     logical :: isSolvatedFieldRescaled = .false.
 
@@ -500,8 +537,8 @@ module dftbp_dftbplus_inputdata
     !> Geometry optimizer input
     type(TGeoOptInput), allocatable :: geoOpt
 
-    !> Range separated input
-    type(TRangeSepInp), allocatable :: rangeSepInp
+    !> Hybrid xc-functional input
+    type(THybridXcInp), allocatable :: hybridXcInp
 
   #:if WITH_SOCKETS
     !> Socket communication
@@ -513,8 +550,10 @@ module dftbp_dftbplus_inputdata
     !> Maximal timing level to show in output
     integer :: timingLevel
 
-    ! Custom occupations
+    !> Array of lists of atoms where the 'neutral' shell occupation is modified
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
+
+    !> Modified occupations for shells of the groups atoms in customOccAtoms
     real(dp), allocatable :: customOccFillings(:,:)
 
     ! TI-DFTB variables

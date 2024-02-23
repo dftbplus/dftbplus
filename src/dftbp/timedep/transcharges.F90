@@ -28,23 +28,23 @@ module dftbp_timedep_transcharges
   public :: TTransCharges, TTransCharges_init
   public :: transq
 
-  !> Internal data of the transition charges
+  !> Internal data of the transition charges.
   type :: TTransCharges
     private
 
-    !> should transition charges be cached in memory or evaluated when needed?
+    !> Should transition charges be cached in memory or evaluated when needed?
     logical :: tCacheChargesOccVir
 
-    !> same for occ-occ/vir-vir transitions
+    !> Same for occ-occ/vir-vir transitions
     logical :: tCacheChargesSame
 
-    !> storage if caching the occupied -> virtual transition charges
+    !> Storage if caching the occupied -> virtual transition charges
     real(dp), allocatable :: qCacheOccVir(:,:)
 
-    !> storage if caching the occupied -> occupied transition charges
+    !> Storage if caching the occupied -> occupied transition charges
     real(dp), allocatable :: qCacheOccOcc(:,:)
 
-    !> storage if caching the virtual -> virtual transition charges
+    !> Storage if caching the virtual -> virtual transition charges
     real(dp), allocatable :: qCacheVirVir(:,:)
 
     !> Number of occ-vir transitions in the cache
@@ -102,20 +102,20 @@ contains
     !> number of transitions in the system
     integer, intent(in) :: nTrans
 
-    !> number of up-up occ-vir excitations
+    !> Number of up-up occ-vir excitations
     integer, intent(in) :: nMatUp
 
-    !> number of occ-occ excitations per spin channel
+    !> Number of occ-occ excitations per spin channel
     integer, intent(in) :: nXooUD(:)
 
-    !> number of vir-vir excitations per spin channel
+    !> Number of vir-vir excitations per spin channel
     integer, intent(in) :: nXvvUD(:)
 
-    !> should occ-vir transitions be stored?
+    !> Should occ-vir transitions be stored?
     !> this is sufficient for single-point TD-DFTB
     logical, intent(in) :: tStoreOccVir
 
-    !> should also occ-occ and vir-vir transitions be stored?
+    !> Should also occ-occ and vir-vir transitions be stored?
     !> required for excited state forces and TD-LC-DFTB
     logical, intent(in) :: tStoreSame
 
@@ -126,13 +126,13 @@ contains
     !> index array for occ-vir single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for occ-occ single particle excitations
+    !> Index array for occ-occ single particle excitations
     integer, intent(in) :: getij(:,:)
 
-    !> index array for vir-vir single particle excitations
+    !> Index array for vir-vir single particle excitations
     integer, intent(in) :: getab(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     integer :: ia, ii, jj, ij, kk, ab, aa, bb, ss
@@ -288,13 +288,13 @@ contains
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,aa,kk,updwn) SCHEDULE(RUNTIME)
       do ia = 1, nTrans
         kk = win(ia)
-        ii = getia(kk,1)
-        aa = getia(kk,2)
+        ii = getia(kk, 1)
+        aa = getia(kk, 2)
         updwn = (kk <= this%nMatUp)
         this%qCacheOccVir(:,ia) = transq(ii, aa, env, denseDesc, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
-      !!$OMP  END PARALLEL DO
+      !!$OMP END PARALLEL DO
 
       this%tCacheChargesOccVir = .true.
 
@@ -313,23 +313,23 @@ contains
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn) SCHEDULE(RUNTIME)
       do ij = 1, sum(nXooUD)
-        ii = getij(ij,1)
-        jj = getij(ij,2)
+        ii = getij(ij, 1)
+        jj = getij(ij, 2)
         updwn = (ij <= nXooUD(1))
         this%qCacheOccOcc(:,ij) = transq(ii, jj, env, denseDesc, updwn,  sTimesGrndEigVecs,&
              & grndEigVecs)
       enddo
-      !!$OMP  END PARALLEL DO
+      !!$OMP END PARALLEL DO
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ab,aa,bb,updwn) SCHEDULE(RUNTIME)
       do ab = 1, sum(nXvvUD)
-        aa = getab(ab,1)
-        bb = getab(ab,2)
+        aa = getab(ab, 1)
+        bb = getab(ab, 2)
         updwn = (ab <= nXvvUD(1))
         this%qCacheVirVir(:,ab) = transq(aa, bb, env, denseDesc, updwn,  sTimesGrndEigVecs,&
             & grndEigVecs)
       end do
-      !!$OMP  END PARALLEL DO
+      !!$OMP END PARALLEL DO
 
       this%tCacheChargesSame = .true.
 
@@ -348,7 +348,7 @@ contains
   function TTransCharges_qTransIA(this, ij, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win) result(q)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Index of transition
@@ -365,10 +365,10 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for for single particle excitations
+    !> Index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
     !> Transition charge on exit. (nAtom)
@@ -393,7 +393,7 @@ contains
   function TTransCharges_qTransIJ(this, ij, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getij)&
       & result(q)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Index of transition
@@ -411,7 +411,7 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for occ-occ single particle excitations
+    !> Index array for occ-occ single particle excitations
     integer, intent(in) :: getij(:,:)
 
     !> Transition charge on exit. (nAtom)
@@ -423,8 +423,8 @@ contains
     if (allocated(this%qCacheOccOcc)) then
       q(:) = this%qCacheOccOcc(:, ij)
     else
-      ii = getij(ij,1)
-      jj = getij(ij,2)
+      ii = getij(ij, 1)
+      jj = getij(ij, 2)
       updwn = (ij <= this%nMatUpOccOcc)
       q(:) = transq(ii, jj, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
       
@@ -436,7 +436,7 @@ contains
   function TTransCharges_qTransAB(this, ab, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getab)&
       & result(q)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Index of transition
@@ -454,7 +454,7 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for occ-occ single particle excitations
+    !> Index array for occ-occ single particle excitations
     integer, intent(in) :: getab(:,:)
 
     !> Transition charge on exit. (nAtom)
@@ -466,8 +466,8 @@ contains
     if (allocated(this%qCacheVirVir)) then
       q(:) = this%qCacheVirVir(:, ab)
     else
-      aa = getab(ab,1)
-      bb = getab(ab,2)
+      aa = getab(ab, 1)
+      bb = getab(ab, 2)
       updwn = (ab <= this%nMatUpVirVir)
       q(:) = transq(aa, bb, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
@@ -480,7 +480,7 @@ contains
   subroutine TTransCharges_qMatVec(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Environment settings
@@ -495,13 +495,13 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for for single particle excitations
+    !> Index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    !> vector to product with the transition charges
+    !> Vector to product with the transition charges
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
@@ -553,7 +553,7 @@ contains
   subroutine TTransCharges_qVecMat(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct, indexOffSet)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Environment settings
@@ -568,13 +568,13 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for for single particle excitations
+    !> Index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    !> vector to product with the transition charges
+    !> Vector to product with the transition charges
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
@@ -613,7 +613,7 @@ contains
         qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
       end do
-      !!$OMP  END PARALLEL DO
+      !!$OMP END PARALLEL DO
 
       deallocate(qij)
 
@@ -628,7 +628,7 @@ contains
   subroutine TTransCharges_qMatVecDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Environment settings
@@ -643,13 +643,13 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for for single particle excitations
+    !> Index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    !> vector to product with the transition charges
+    !> Vector to product with the transition charges
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
@@ -665,8 +665,8 @@ contains
     !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
     do ij = 1, this%nTransitions
       kk = win(ij)
-      ii = getia(kk,1)
-      jj = getia(kk,2)
+      ii = getia(kk, 1)
+      jj = getia(kk, 2)
       updwn = (kk <= this%nMatUp)
       qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
@@ -675,7 +675,7 @@ contains
         qProduct(:) = qProduct - qij * vector(ij)
       end if
     end do
-    !!$OMP  END PARALLEL DO
+    !!$OMP END PARALLEL DO
 
     deallocate(qij)
 
@@ -688,7 +688,7 @@ contains
   subroutine TTransCharges_qVecMatDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 
-    !> instance of the transition charge object
+    !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
 
     !> Environment settings
@@ -703,13 +703,13 @@ contains
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> index array for for single particle excitations
+    !> Index array for for single particle excitations
     integer, intent(in) :: getia(:,:)
 
-    !> index array for single particle excitations that are included
+    !> Index array for single particle excitations that are included
     integer, intent(in) :: win(:)
 
-    !> vector to product with the transition charges
+    !> Vector to product with the transition charges
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
@@ -725,8 +725,8 @@ contains
     !!$OMP& SCHEDULE(RUNTIME)
     do ij = 1, this%nTransitions
       kk = win(ij)
-      ii = getia(kk,1)
-      jj = getia(kk,2)
+      ii = getia(kk, 1)
+      jj = getia(kk, 2)
       updwn = (kk <= this%nMatUp)
       qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
       if (updwn) then
@@ -735,7 +735,7 @@ contains
         qProduct(ij) = qProduct(ij) - dot_product(qij, vector)
       end if
     end do
-    !!$OMP  END PARALLEL DO
+    !!$OMP END PARALLEL DO
 
     deallocate(qij)
 
@@ -749,10 +749,10 @@ contains
   !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
   function transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
 
-    !> Index of initial state.
+    !> Index of initial state
     integer, intent(in) :: ii
 
-    !> Index of final state.
+    !> Index of final state
     integer, intent(in) :: jj
 
     !> Environment settings
@@ -761,10 +761,10 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
-    !> up spin channel (T) or down spin channel (F)
+    !> Up spin channel (T) or down spin channel (F)
     logical, intent(in) :: updwn
 
-    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb).
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
 
     !> Eigenvectors (nOrb, nOrb)

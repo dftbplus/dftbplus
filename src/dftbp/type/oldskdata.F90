@@ -13,7 +13,7 @@ module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcFunc
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
   use dftbp_io_message, only : error
@@ -21,7 +21,7 @@ module dftbp_type_oldskdata
   implicit none
 
   private
-  public :: TOldSKData, readFromFile, readSplineRep, inquireRangeSepTag
+  public :: TOldSKData, readFromFile, readSplineRep, inquireHybridXcTag
 
 
   !> Represents the Slater-Koster data in an SK file.
@@ -81,7 +81,7 @@ contains
 
   !> Reads the data from an SK-file.
   subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, splineRepIn, polyRepIn,&
-      & rangeSepSK)
+      & hybridXcSK)
 
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
@@ -104,8 +104,8 @@ contains
     !> Repulsive polynomial part of the SK-file.
     type(TPolyRepInp), intent(out), optional :: polyRepIn
 
-    !> Reads range-separated parameter(s) from SK file
-    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+    !> Reads hybrid xc-functional parameter(s) from SK file
+    type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
 
     type(TFileDescr) :: file
     character(lc) :: chDummy
@@ -182,16 +182,13 @@ contains
       end if
     end do
 
-    if (.not. present(splineRepIn)) then
-      call closeFile(file)
-      return
+    if (present(splineRepIn)) then
+      call readSplineRep(file%unit, fileName, splineRepIn, iSp1, iSp2)
     end if
 
-    call readSplineRep(file%unit, fileName, splineRepIn, iSp1, iSp2)
-
-    ! Read range-separated parameter(s)
-    if (present(rangeSepSK)) then
-      call readRangeSepParams(file%unit, fileName, rangeSepSK)
+    ! Read hybrid xc-functional parameter(s)
+    if (present(hybridXcSK)) then
+      call readHybridXcParams(file%unit, fileName, hybridXcSK)
     end if
 
     call closeFile(file)
@@ -199,8 +196,8 @@ contains
   end subroutine OldSKData_readFromFile
 
 
-  !> Reads range-separated parameter(s) from an open file.
-  subroutine readRangeSepParams(fp, fname, rangeSepSK)
+  !> Reads hybrid xc-functional parameter(s) from an open file.
+  subroutine readHybridXcParams(fp, fname, hybridXcSK)
 
     !> File identifier
     integer, intent(in) :: fp
@@ -208,8 +205,8 @@ contains
     !> File name
     character(len=*), intent(in) :: fname
 
-    !> range-separated parameter(s)
-    type(TRangeSepSKTag), intent(inout) :: rangeSepSK
+    !> Hybrid xc-functional parameter(s)
+    type(THybridXcSKTag), intent(inout) :: hybridXcSK
 
     !! Error status
     integer :: iErr
@@ -217,44 +214,54 @@ contains
     !! Temporary character storage
     character(lc) :: strDummy
 
-    !! True, if range-separated extra tag was found in SK-file
-    logical :: isRangeSepTag
+    !! True, if hybrid xc-functional extra tag was found in SK-file
+    logical :: isHybridXcTag
 
-    !! Extra tag in SK-files, defining the type of range-separated
-    integer :: rangeSepTag
+    !! Extra tag in SK-files, defining the type of hybrid xc-functional
+    integer :: hybridXcTag
 
-    call inquireRangeSepTag(fname, rangeSepTag, fp=fp)
+    call inquireHybridXcTag(fname, hybridXcTag, fp=fp)
     rewind(fp)
 
-    ! Seek range-separated section in SK file
+    ! Seek hybrid xc-functional section in SK file
     do
       read(fp, '(A)', iostat=iErr) strDummy
       if (iErr /= 0) then
-        isRangeSepTag = .false.
+        isHybridXcTag = .false.
         exit
-      elseif (strDummy == "RangeSep") then
-        isRangeSepTag = .true.
+      elseif (strDummy == "RangeSep" .or. strDummy == "GlobalHybrid") then
+        isHybridXcTag = .true.
         exit
       end if
     end do
 
-    if (.not. isRangeSepTag) then
-      write(strDummy, "(A,A,A)") "Range-separated calculation requested, but SK-file '",&
+    if (.not. isHybridXcTag) then
+      write(strDummy, "(A,A,A)") "Hybrid xc-functional calculation requested, but SK-file '",&
           & trim(fname), "' is not a suitable parametrization."
       call error(strDummy)
     end if
 
-    if (rangeSepTag == rangeSepFunc%lc) then
-      read(fp, *, iostat=iErr) strDummy, rangeSepSK%omega
-      call checkioerror(iErr, fname, "Error in reading range-separated parameter(s)")
+    if (hybridXcTag == hybridXcFunc%hyb) then
+      hybridXcSK%omega = 0.0_dp
+      hybridXcSK%camBeta = 0.0_dp
+      read(fp, *, iostat=iErr) strDummy, hybridXcSK%camAlpha
+      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
+    elseif (hybridXcTag == hybridXcFunc%lc) then
+      hybridXcSK%camAlpha = 0.0_dp
+      hybridXcSK%camBeta = 1.0_dp
+      read(fp, *, iostat=iErr) strDummy, hybridXcSK%omega
+      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
+    elseif (hybridXcTag == hybridXcFunc%cam) then
+      read(fp, *, iostat=iErr) strDummy, hybridXcSK%omega, hybridXcSK%camAlpha, hybridXcSK%camBeta
+      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
     end if
 
-    if (rangeSepSK%omega < 0.0_dp) then
+    if (hybridXcTag /= hybridXcFunc%hyb .and. hybridXcSK%omega < 0.0_dp) then
       write(strDummy, "(A)") "Range-separation parameter is negative."
       call error(strDummy)
     end if
 
-  end subroutine readRangeSepParams
+  end subroutine readHybridXcParams
 
 
   !> Reads the repulsive from an open file.
@@ -275,6 +282,8 @@ contains
     character(lc) :: chdummy
     logical :: hasspline
     real(dp), allocatable :: xend(:)
+
+    rewind(fp)
 
     ! Look for spline
     do
@@ -327,14 +336,14 @@ contains
   end subroutine OldSKData_readsplinerep
 
 
-  !> Inquires range-separated extra tag of SK-file.
-  subroutine inquireRangeSepTag(fname, rangeSepTag, fp)
+  !> Inquires hybrid xc-functional extra tag of SK-file.
+  subroutine inquireHybridXcTag(fname, hybridXcTag, fp)
 
     !> File name
     character(len=*), intent(in) :: fname
 
-    !> Range-separated extra tag, if allocated
-    integer, intent(out) :: rangeSepTag
+    !> Hybrid xc-functional extra tag, if allocated
+    integer, intent(out) :: hybridXcTag
 
     !> File identifier, if file is already open
     integer, intent(in), optional :: fp
@@ -348,11 +357,11 @@ contains
     !! Temporary character storage
     character(lc) :: strDummy
 
-    !! True, if range-separated extra tag was found in SK-file
-    logical :: isRangeSepTag
-
     !> File identifier
     integer :: fd
+
+    !! True, if hybrid xc-functional extra tag was found in SK-file
+    logical :: isHybridXcTag
 
     if (present(fp)) then
       fd = fp
@@ -362,37 +371,43 @@ contains
       call checkIoError(iErr, fname, "Unable to open file")
     end if
 
-    ! Seek range-separated extra tag in SK-file
+    rewind(fd)
+
+    ! Seek hybrid xc-functional extra tag in SK-file
     do
       read(fd, '(A)', iostat=iErr) strDummy
       if (iErr /= 0) then
-        isRangeSepTag = .false.
+        isHybridXcTag = .false.
         exit
-      elseif (strDummy == "RangeSep") then
-        isRangeSepTag = .true.
+      elseif (strDummy == "RangeSep" .or. strDummy == "GlobalHybrid") then
+        isHybridXcTag = .true.
         exit
       end if
     end do
 
-    if (isRangeSepTag) then
+    if (isHybridXcTag) then
       read(fd, *, iostat=iErr) strDummy
-      call checkIoError(iErr, fname, "Error in reading range-separated extra tag and method")
+      call checkIoError(iErr, fname, "Error in reading hybrid xc-functional extra tag and method.")
 
       select case(tolower(trim(strDummy)))
+      case ("hf")
+        hybridXcTag = hybridXcFunc%hyb
       case ("lc")
-        rangeSepTag = rangeSepFunc%lc
+        hybridXcTag = hybridXcFunc%lc
+      case ("cam")
+        hybridXcTag = hybridXcFunc%cam
       case default
-        write(strDummy, "(A,A,A)") "Unknown range-separated method in SK-file '",&
+        write(strDummy, "(A,A,A)") "Unknown hybrid xc-functional method in SK-file '",&
             & trim(fname), "'"
         call error(strDummy)
       end select
     else
-      rangeSepTag = rangeSepFunc%none
+      hybridXcTag = hybridXcFunc%none
     end if
 
     if (.not. present(fp)) call closeFile(file)
 
-  end subroutine inquireRangeSepTag
+  end subroutine inquireHybridXcTag
 
 
   !> Checks for IO errors and prints message.

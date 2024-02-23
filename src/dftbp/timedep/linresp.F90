@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> Linear response formulation of TD-DFTB as developed by Niehaus et al.
-!>
-!> The functionality of the module has some limitation:
-!> * Third order does not work.
-!> * Periodic system do not work yet apart from Gamma point.
-!> * Orbital potentials or spin-orbit does not work yet.
-!> * Only for closed shell or colinear spin polarization (excitation energies only in that
-!>   case).
-!> * Onsite corrections are not included in this version
+!!
+!! The functionality of the module has some limitation:
+!! * Third order does not work.
+!! * Periodic system do not work yet apart from Gamma point.
+!! * Orbital potentials or spin-orbit does not work yet.
+!! * Only for closed shell or colinear spin polarization (excitation energies only in that
+!!   case).
+!! * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr
@@ -23,13 +23,13 @@ module dftbp_timedep_linresp
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_extlibs_arpack, only : withArpack
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_common_environment, only : TEnvironment
   implicit none
 
@@ -37,10 +37,10 @@ module dftbp_timedep_linresp
   public :: TLinresp, TLinrespini
   public :: LinResp_init, linResp_calcExcitations, LinResp_addGradients
 
-  !> Data type for initial values for linear response calculations
+  !> Data type for initial values for linear response calculations.
   type :: TLinrespini
 
-    !> number of excitations to be found
+    !> Number of excitations to be found
     integer :: nExc
 
     !> Is an energy window being used?
@@ -49,29 +49,29 @@ module dftbp_timedep_linresp
     !> Is an oscillator window being used?
     logical :: tOscillatorWindow
 
-    !> transitions to include that have energies above the single particle transition nExc
+    !> Transitions to include that have energies above the single particle transition nExc
     real(dp) :: energyWindow
 
-    !> single particle transitions to be included above the energy window if they are brighter than
-    !> this state of interest
+    !> Single particle transitions to be included above the energy window if they are brighter than
+    !! this state of interest
     real(dp) :: oscillatorWindow
 
-    !> should transition charges be cached
+    !> Should transition charges be cached
     logical :: tCacheCharges
 
-    !> number of excited states to find
+    !> Number of excited states to find
     integer :: nStat
 
-    !> symmetry of states being calculated
+    !> Symmetry of states being calculated
     character :: sym
 
-    !> atom resolved Hubbard U
+    !> Atom resolved Hubbard U
     real(dp), allocatable :: HubbardU(:)
 
-    !> atom resolved spin constants
+    !> Atom resolved spinconstants
     real(dp), allocatable :: spinW(:)
 
-    !> print excited state mulliken populations
+    !> Print excited state mulliken populations
     logical :: tMulliken
 
     !> Write expansion coefficients of excited states
@@ -86,34 +86,43 @@ module dftbp_timedep_linresp
     !> Should the density matrix be stored to disc?
     logical :: tWriteDensityMatrix
 
-    !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
+    !> Write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
+
+    !> Should CI be optimized
+    logical :: isCIopt
+
+    !> Energy shift used in CI optimizer
+    real(dp) :: energyShiftCI
+
+    !> Should non-adiabatic couplings be computed
+    logical :: tNaCoupling
 
     !> Initial and final state for non-adiabatic coupling evaluation
     integer :: indNACouplings(2)
 
-    !> write single particle transitions
+    !> Write single particle transitions
     logical :: tSPTrans
 
-    !> write more detail on excited state transitions
+    !> Write more detail on excited state transitions
     logical :: tTrans
 
-    !> write excited state transition charges
+    !> Write excited state transition charges
     logical :: tTransQ
 
-    !> dipole strengths to excited states
+    !> Dipole strengths to excited states
     logical :: tTradip
 
     !> RPA solver choice
     integer :: iLinRespSolver
 
-    !> subspace dimension factor Stratmann diagonaliser
+    !> Subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
 
-    !> print state of Arnoldi solver
+    !> Print state of Arnoldi solver
     logical :: tArnoldi
 
-    !> diagnose output of Arnoldi solver
+    !> Diagnose output of Arnoldi solver
     logical :: tDiagnoseArnoldi
 
   end type TLinrespini
@@ -121,26 +130,25 @@ module dftbp_timedep_linresp
 
 contains
 
-
-  !> Initialize an internal data type for linear response excitations
+  !> Initialize an internal data type for linear response excitations.
   subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
 
-    !> data structure for linear response
+    !> Data structure for linear response
     type(TLinResp), intent(out) :: this
 
-    !> initial values for setting parameters
+    !> Initial values for setting parameters
     type(TLinrespini), intent(inout) :: ini
 
-    !> number of atoms in central cell
+    !> Number of atoms in central cell
     integer, intent(in) :: nAtom
 
-    !> number of electrons in total
+    !> Number of electrons in total
     real(dp), intent(in) :: nEl
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> onsite corrections if in use
+    !> Onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
     integer :: dLev
@@ -149,8 +157,7 @@ contains
 
     this%iLinRespSolver = ini%iLinRespSolver
 
-    if (any([linrespSolverTypes%Arpack, linrespSolverTypes%Stratmann] ==&
-        & this%iLinRespSolver)) then
+    if (any([linrespSolverTypes%Arpack, linrespSolverTypes%Stratmann] == this%iLinRespSolver)) then
       this%tinit = .true.
     else
       call error('Internal error: Illegal routine call to LinResp_init.')
@@ -188,9 +195,7 @@ contains
       call error("Excited energy window should be non-zero if used")
     end if
 
-    if(all(ini%indNACouplings == 0)) then
-      this%tNaCoupling = .false.
-    else
+    if (ini%tNaCoupling) then
       if (any(ini%indNACouplings < 0)) then
         call error("StateCouplings: Indices must be positive.")
       end if
@@ -203,11 +208,20 @@ contains
       if (this%tSpin) then
         call error('StateCouplings: Spin-polarized systems currently not available.')
       end if
+      if (ini%isCIopt .and. ini%indNACouplings(2)-ini%indNACouplings(1) > 1) then
+        call error("CI optimization: States must be neighbouring.")
+      end if
+      if (ini%isCIopt .and. ini%nstat /= 0) then
+        call warning("CI optimization: Setting of StateOfInterest will be ignored.")
+      end if
       this%tNaCoupling = .true.
       this%indNACouplings = ini%indNACouplings
       dLev = ini%indNACouplings(2) - ini%indNACouplings(1)
-    endif
-
+    else
+      this%tNaCoupling = .false.
+    end if
+    this%isCIopt = ini%isCIopt
+    this%energyShiftCI = ini%energyShiftCI
     this%writeMulliken = ini%tMulliken
     this%writeCoeffs = ini%tCoeffs
     this%tGrndState = ini%tGrndState
@@ -233,7 +247,7 @@ contains
     case(linrespSolverTypes%Arpack)
       this%testArnoldi = ini%tDiagnoseArnoldi
       this%tArnoldi = ini%tArnoldi
-    case (linrespSolverTypes%Stratmann)
+    case(linrespSolverTypes%Stratmann)
       this%subSpaceFactorStratmann = ini%subSpaceFactorStratmann
     end select
 
@@ -243,8 +257,8 @@ contains
 
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine linResp_calcExcitations(env, this, tSpin, denseDesc, eigVec, eigVal, SSqrReal,&
-      & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
-      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies)
+      & filling, coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb,&
+      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -252,25 +266,25 @@ contains
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
 
-    !> is this a spin-polarized calculation
+    !> Is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
     !> Indexing array for dense H and S
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in) :: eigVec(:,:,:)
 
-    !> ground state eigenvalues
+    !> Ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix
+    !> Square overlap matrix
     real(dp), intent(in) :: SSqrReal(:,:)
 
-    !> ground state occupations
+    !> Ground state occupations
     real(dp), intent(in) :: filling(:,:)
 
-    !> central cell atomic coordinates
+    !> Central cell atomic coordinates
     real(dp), intent(in) :: coords0(:,:)
 
     !> Self-consistent charge module settings
@@ -279,43 +293,38 @@ contains
     !> Gross Mulliken atomic charges for ground state
     real(dp), intent(in) :: dqAt(:,:)
 
-    !> chemical type of atoms in central cell
+    !> Chemical type of atoms in central cell
     integer, intent(in) :: species0(:)
 
-    !> index array for atomic neighbours
+    !> Index array for atomic neighbours
     integer, intent(in) :: img2CentCell(:)
 
-    !> folding back to the central cell
+    !> Folding back to the central cell
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> data type with atomic orbital information
+    !> Data type with atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> print tag information
-    logical, intent(in) :: tWriteTagged
-
-    !> file id for tagging information
+    !> File id for tagging information
     type(TFileDescr), intent(in) :: fdTagged
 
-    !> tagged writer
+    !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> Data for range separated calcualtion
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> excitation energy (only when nStat /=0, othewise set numerically 0)
+    !> Excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
-    !> energies of all solved states
+    !> Energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
-
-    real(dp), pointer :: dummyPtr(:,:,:) => null()
 
     if (this%tInit) then
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-          & rangeSep, excEnergy, allExcEnergies, dummyPtr)
+          & hybridXc, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations.')
     end if
@@ -326,8 +335,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(env, tSpin, this, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & fdTagged, taggedWriter, rangeSep, excEnergy, allExcEnergies, excgradient,&
-      & derivator, rhoSqr, deltaRho, occNatural, naturalOrbs)
+      & fdTagged, taggedWriter, hybridXc, excEnergy, allExcEnergies, excgradient, nacv, derivator,&
+      & rhoSqr, deltaRho, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -335,25 +344,25 @@ contains
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
-    !> data for the actual calculation
+    !> Data for the actual calculation
     type(TLinResp), intent(inout) :: this
 
     !> Indexing array for dense H and S
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in) :: eigVec(:,:,:)
 
-    !> ground state eigenvalues
+    !> Ground state eigenvalues
     real(dp), intent(in) :: eigVal(:,:)
 
-    !> square overlap matrix (must be symmetrised)
+    !> Square overlap matrix (must be symmetrised)
     real(dp), intent(in) :: SSqrReal(:,:)
 
-    !> ground state occupations
+    !> Ground state occupations
     real(dp), intent(in) :: filling(:,:)
 
-    !> central cell atomic coordinates
+    !> Central cell atomic coordinates
     real(dp), intent(in) :: coords0(:,:)
 
     !> Self-consistent charge module settings
@@ -362,56 +371,59 @@ contains
     !> Gross atomic charges in ground state
     real(dp), intent(in) :: dqAt(:,:)
 
-    !> chemical species of atoms in central cell
+    !> Chemical species of atoms in central cell
     integer, intent(in) :: species0(:)
 
-    !> index array for atoms within cutoff distances
+    !> Index array for atoms within cutoff distances
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> folding to central cell (not really needed for non-periodic systems)
+    !> Folding to central cell (not really needed for non-periodic systems)
     integer, intent(in) :: img2CentCell(:)
 
-    !> orbital data structure
+    !> Orbital data structure
     type(TOrbitals), intent(in) :: orb
 
-    !> non-SCC H0 data
+    !> Non-SCC H0 data
     type(TSlakoCont), intent(in) :: skHamCont
 
-    !> overlap data
+    !> Overlap data
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> method for calculating derivatives of S and H0 matrices
+    !> Method for calculating derivatives of S and H0 matrices
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> ground state density matrix (square matrix plus spin index)
+    !> Ground state density matrix (square matrix plus spin index)
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
-    !> difference density matrix (vs. uncharged atoms)
-    real(dp), intent(inout), pointer :: deltaRho(:,:,:)
+    !> Difference density matrix (vs. uncharged atoms)
+    real(dp), intent(inout), allocatable :: deltaRho(:,:,:)
 
-    !> file descriptor for tagged data
+    !> File descriptor for tagged data
     type(TFileDescr), intent(in) :: fdTagged
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> energy of particular excited state
+    !> Energy of particular excited state
     real(dp), intent(out) :: excenergy
 
-    !> energies of all solved states
+    !> Energies of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-    !> contribution to forces from derivative of excited state energy
-    real(dp), intent(inout), allocatable :: excgradient(:,:)
+    !> Contribution to forces from derivatives of excited state energy
+    real(dp), intent(inout), allocatable :: excgradient(:,:,:)
 
-    !> occupations of the natural orbitals from the density matrix
+    !> Non-adiabatic coupling vectors
+    real(dp), intent(inout), allocatable :: nacv(:,:,:)
+
+    !> Occupations of the natural orbitals from the density matrix
     real(dp), intent(inout), allocatable :: occNatural(:)
 
-    !> the natural orbitals of the excited state transition density matrix or the total density
-    !> matrix in the excited state
+    !> The natural orbitals of the excited state transition density matrix or the total density
+    !! matrix in the excited state
     real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
@@ -429,18 +441,20 @@ contains
       if (allocated(occNatural)) then
         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,& 
+            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,& 
+            & derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural, naturalOrbs=naturalOrbs)
       else
-        call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
+         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & rangeSep, excEnergy, allExcEnergies, deltaRho, shiftPerAtom, skHamCont, skOverCont,&
-            & excgradient, derivator, rhoSqr)
+            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
+            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
+            & derivator=derivator, rhoSqr=rhoSqr)
       end if
 
     else
       call error('Internal error: Illegal routine call to LinResp_addGradients.')
-    endif
+    end if
 
   end subroutine LinResp_addGradients
 

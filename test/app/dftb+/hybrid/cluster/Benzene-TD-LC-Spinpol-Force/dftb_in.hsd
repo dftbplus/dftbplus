@@ -1,0 +1,58 @@
+Geometry = GenFormat {
+  <<< "geo.gen"
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1e-12
+
+  Charge = 2
+
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 2
+  }
+
+  Filling = Fermi {Temperature [K] = 0}
+
+  Hybrid = LC {
+    Screening = MatrixBased {}
+  }
+
+  SpinConstants {
+    C = {-0.023} # HOMO Wpp
+    H = {-0.072} # HOMO Wss
+  }
+
+}
+
+ExcitedState {
+  Casida {
+    NrOfExcitations = 20
+    StateOfInterest = 1
+    Diagonaliser = Stratmann {SubSpaceFactor = 100}
+  }
+}
+
+Analysis {
+  PrintForces = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}

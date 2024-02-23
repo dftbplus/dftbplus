@@ -15,6 +15,7 @@ module dftbp_dftb_sparse2dense
   use dftbp_common_constants, only : pi, imag
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
@@ -25,7 +26,6 @@ module dftbp_dftb_sparse2dense
 
   private
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ
-  public :: blockSymmetrizeHS, blockHermitianHS, symmetrizeHS, hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
@@ -90,31 +90,10 @@ module dftbp_dftb_sparse2dense
   end interface packErho
 
 
-  !> Symmetrize the square matrix except the on-site blocks
-  interface blockSymmetrizeHS
-    module procedure blockSymmetrizeHS_real
-    module procedure blockSymmetrizeHS_cmplx
-  end interface blockSymmetrizeHS
-
-
-  !> Hermitian the square matrix except the on-site blocks
-  interface blockHermitianHS
-    module procedure blockSymmetrizeHS_real
-    module procedure blockHermitianHS_cmplx
-  end interface blockHermitianHS
-
-
-  !> Symmetrize the square matrix including the on-site blocks
-  interface symmetrizeHS
-    module procedure symmetrizeHS_real
-  end interface symmetrizeHS
-
-
 contains
 
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
-  !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
-  !> blockSymmetrizeHS subroutine.
+  !> filled in the lower triangle part of the matrix.
   subroutine unpackHS_cmplx_kpts(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iSparseStart, img2CentCell)
 
@@ -194,20 +173,19 @@ contains
 
 
   !> Unpacks sparse matrix to square form (real version for Gamma point)
-  !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !!
+  !! Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHS_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell)
 
     !> Square form matrix on exit.
-    real(dp), intent(out) :: square(:, :)
+    real(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
 
     !> Neighbour list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbour(0:, :)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Nr. of neighbours for each atom (incl. itself).
     integer, intent(in) :: nNeighbourSK(:)
@@ -216,7 +194,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(0:, :)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -235,7 +213,7 @@ contains
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-    square(:, :) = 0.0_dp
+    square(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
@@ -256,13 +234,12 @@ contains
 
 
   !> Unpacks sparse matrix to square form (complex version) for helical geometries. Note the non
-  !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
-  !> completely, apply the blockSymmetrizeHS subroutine.
+  !> on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHSHelical_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
       & cellVec, iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
 
     !> Square form matrix on exit.
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
@@ -280,7 +257,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -346,8 +323,7 @@ contains
 
   !> Unpacks sparse matrix to square form (real version for Gamma point) for helical geometry
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, orb, species, coord)
 
@@ -576,15 +552,14 @@ contains
 
   !> Unpacks sparse matrices to square form (2 component version for k-points)
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHPauli(ham, kPoint, iNeighbour, nNeighbourSK, iSparseStart, iAtomStart,&
       & img2CentCell, iCellVec, cellVec, HSqrCplx, iHam)
 
     !> sparse hamiltonian
     real(dp), intent(in) :: ham(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -705,15 +680,14 @@ contains
 
   !> Unpacks sparse overlap matrices to square form (2 component version for k-points)
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackSPauli(over, kPoint, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, SSqrCplx)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -762,7 +736,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
     real(dp), intent(in) :: kPoint(:)
@@ -771,7 +745,7 @@ contains
     real(dp), intent(in) :: kweight
 
     !> Neighbour list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbour(0:, :)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Nr. of neighbours for the atoms.
     integer, intent(in) :: nNeighbourSK(:)
@@ -783,13 +757,13 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(0:, :)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1899,128 +1873,6 @@ contains
   end subroutine packHSPauliERho_kpts
 
 
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone.  (Complex version)
-  subroutine blockSymmetrizeHS_cmplx(square, iAtomStart)
-
-    !> Square form matrix.
-    complex(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart, dim=1) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
-    @:ASSERT(size(square, dim=1) == mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb, iStart:iEnd))
-    end do
-
-  end subroutine blockSymmetrizeHS_cmplx
-
-
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone. (Complex version)
-  subroutine blockHermitianHS_cmplx(square, iAtomStart)
-
-    !> Square form matrix.
-    complex(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart, dim=1) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT((size(square, dim=1) == mOrb) .or. (size(square, dim=1) == 2*mOrb))
-    @:ASSERT(size(square, dim=1) == mOrb .or. size(square, dim=1) == 2*mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(conjg(square(iEnd+1:mOrb, iStart:iEnd)))
-    end do
-
-    if (size(square, dim=1) == 2*mOrb) then
-      ! 2 component matrix
-      do iAtom = 1, nAtom
-        iStart = iAtomStart(iAtom) + mOrb
-        iEnd = iAtomStart(iAtom+1) + mOrb - 1
-        square(iStart:iEnd, iEnd+1:) = transpose(conjg(square(iEnd+1:, iStart:iEnd)))
-      end do
-    end if
-
-  end subroutine blockHermitianHS_cmplx
-
-
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone.  (Real version)
-  subroutine blockSymmetrizeHS_real(square, iAtomStart)
-
-    !> Square form matrix.
-    real(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT(size(square, dim=1) == mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb, iStart:iEnd))
-    end do
-
-  end subroutine blockSymmetrizeHS_real
-
-
-  !> Copy lower triangle to upper for a square matrix. (Real version)
-  subroutine symmetrizeHS_real(matrix)
-
-    !> matrix to symmetrize
-    real(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = matrix(ii + 1 : matSize, ii)
-    end do
-
-  end subroutine symmetrizeHS_real
-
-
-  !> copy lower triangle to upper for a square matrix
-  subroutine hermitianSquareMatrix(matrix)
-
-    !> matrix to symmetrize
-    complex(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
-    end do
-
-  end subroutine hermitianSquareMatrix
-
-
 #:if WITH_SCALAPACK
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Scalapack routines
@@ -2192,7 +2044,7 @@ contains
     type(TBlacsEnv), intent(in) :: myBlacs
 
     !> sparse matrix
-    real(dp), intent(in) :: orig(:, :)
+    real(dp), intent(in) :: orig(:,:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
@@ -2222,12 +2074,12 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> local part of distributed whole dense matrix
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     !> imaginary part of sparse matrix
-    real(dp), intent(in), optional :: iorig(:, :)
+    real(dp), intent(in), optional :: iorig(:,:)
 
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
         & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
     if (present(iorig)) then
@@ -2253,7 +2105,7 @@ contains
     !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2379,7 +2231,7 @@ contains
     !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2544,7 +2396,7 @@ contains
     !> Distributed dense matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2647,7 +2499,7 @@ contains
     !> dense distributed matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2705,7 +2557,7 @@ contains
     !> distributed sparse matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2876,7 +2728,7 @@ contains
     !> local part of the distributed matrix
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight at this k-point
@@ -3239,7 +3091,7 @@ contains
     !> Distributed dense matrix to pack
     complex(dp), intent(in) :: square(:, :)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point

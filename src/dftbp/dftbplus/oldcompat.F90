@@ -81,13 +81,15 @@ contains
       case (12)
         call convert_12_13(root)
         version = 13
+      case (13)
+        call convert_13_14(root)
+        version = 14
       end select
     end do
 
     ! increase the parser version number in the tree - since the resulting dftb_pin would not work
     ! with the old parser as the options have changed to the new parser by now
-    call getChildValue(root, "ParserOptions", ch1, "", child=par, &
-        &allowEmptyValue=.true.)
+    call getChildValue(root, "ParserOptions", ch1, "", child=par, allowEmptyValue=.true.)
     call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
@@ -221,7 +223,7 @@ contains
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
-      call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
+      call detailedWarning(node, "Keyword renamed to 'InitialSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
 
@@ -830,6 +832,30 @@ contains
     end if
 
   end subroutine convert_12_13
+
+
+  !> Converts input from version 13 to 14. (Version 14 introduced in August 2023)
+  subroutine convert_13_14(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1
+
+    call getDescendant(root, "Analysis/CalculateForces", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'PrintForces'.")
+      call setNodeName(ch1, "PrintForces")
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
+          & 'Hamiltonian/DFTB/Hybrid'.")
+      call setNodeName(ch1, "Hybrid")
+    end if
+
+  end subroutine convert_13_14
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

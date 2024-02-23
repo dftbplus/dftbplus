@@ -18,8 +18,13 @@
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS_RELEASE "-O2 -ip"
-  CACHE STRING "Fortran compiler flags for Release build")
+if("${CMAKE_Fortran_COMPILER_ID}" MATCHES "IntelLLVM")
+  set(Fortran_FLAGS_RELEASE "-O2"
+    CACHE STRING "Fortran compiler flags for Release build")
+else()
+  set(Fortran_FLAGS_RELEASE "-O2 -ip"
+    CACHE STRING "Fortran compiler flags for Release build")
+endif()
 
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
@@ -39,8 +44,13 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 set(C_FLAGS "${CMAKE_C_FLAGS}"
   CACHE STRING "Build type independent C compiler flags")
 
-set(C_FLAGS_RELEASE "-O2 -ip"
-  CACHE STRING  "C compiler flags for Release build")
+if("${CMAKE_C_COMPILER_ID}" MATCHES "IntelLLVM")
+  set(C_FLAGS_RELEASE "-O2"
+    CACHE STRING  "C compiler flags for Release build")
+else()
+  set(C_FLAGS_RELEASE "-O2 -ip"
+    CACHE STRING  "C compiler flags for Release build")
+endif()
 
 set(C_FLAGS_DEBUG "-g -Wall"
   CACHE STRING "C compiler flags for Debug build")

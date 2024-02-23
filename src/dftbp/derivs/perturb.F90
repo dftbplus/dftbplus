@@ -9,7 +9,7 @@
 #:include 'error.fypp'
 
 !> Module for linear response derivative calculations using perturbation methods at q=0 for fixed
-!> structures
+!! structures
 module dftbp_derivs_perturb
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
@@ -18,23 +18,26 @@ module dftbp_derivs_perturb
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal,&
-      & dRhoCmplx, dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
+  use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
+      & dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
-  use dftbp_dftbplus_mainio, only : writeDerivBandOut
-  use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken, denseMulliken, getChargePerShell, getOnsitePopulation
+#:if WITH_SCALAPACK
+  use dftbp_dftb_populations, only : denseMulliken_real_blacs
+#:endif
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
+  use dftbp_dftbplus_mainio, only : writeDerivBandOut
+  use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
@@ -43,10 +46,9 @@ module dftbp_derivs_perturb
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
-#:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
-#:endif
-#:if not WITH_SCALAPACK
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
+#:else
   use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif
   implicit none
@@ -174,9 +176,9 @@ contains
   subroutine wrtEField(this, env, parallelKS, filling, eigvals, eigVecsReal, eigVecsCplx, ham,&
       & over, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
-      & nIneqMixElements, iEqOrbitals, tempElec, Ef, spinW, thirdOrd, dftbU, iEqBlockDftbu,&
-      & onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer, kPoint, kWeight, iCellVec,&
-      & cellVec, polarisability, dEi, dqOut, neFermi, dEfdE, errStatus, omega)
+      & nIneqMixElements, iEqOrbitals, tempElec, Ef, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
+      & iEqBlockOnSite, hybridXc, nNeighbourCam, pChrgMixer, kPoint, kWeight, iCellVec, cellVec,&
+      & polarisability, dEi, dqOut, neFermi, dEfdE, errStatus, omega)
 
     !> Instance
     class(TResponse), intent(in) :: this
@@ -184,7 +186,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Filling
@@ -193,16 +195,16 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Atomic orbital information
@@ -211,10 +213,10 @@ contains
     !> Number of central cell atoms
     integer, intent(in) :: nAtom
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -226,16 +228,16 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
     !> SCC module internal variables
     type(TScc), intent(inout), allocatable :: sccCalc
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
     !> Tolerance for SCC convergence
@@ -244,17 +246,17 @@ contains
     !> Use converged derivatives of charges
     logical, intent(in) :: isSccConvRequired
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Equivalence relations between orbitals
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
@@ -266,7 +268,7 @@ contains
     !> Fermi level(s)
     real(dp), intent(in) :: Ef(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -275,20 +277,19 @@ contains
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
-    integer, intent(inout), allocatable :: nNeighbourLC(:)
+    !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
+    integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -301,7 +302,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Electric polarisability
-    real(dp), intent(out) :: polarisability(:, :, :)
+    real(dp), intent(out) :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues, if required
     real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
@@ -335,7 +336,7 @@ contains
 
     ! matrices for derivatives of terms in hamiltonian and outputs
     real(dp), allocatable :: dHam(:,:), idHam(:,:), dRho(:,:), idRho(:,:)
-    real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
+    real(dp) :: dqIn(orb%mOrb,nAtom, size(ham, dim=2))
 
     real(dp), allocatable :: dqBlockIn(:,:,:,:), SSqrReal(:,:)
     real(dp), allocatable :: dqBlockOut(:,:,:,:)
@@ -362,7 +363,7 @@ contains
     write(stdOut,*)
 
     call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
-        & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal,&
+        & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
         & tempElec, Ef, kWeight)
@@ -432,7 +433,7 @@ contains
         call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
             & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
             & sccTol, isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements,&
-            & dqIn, dqOut(:,:,:,iCart), rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr,&
+            & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
             & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
             & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef,&
             & this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi, nFilled,&
@@ -490,7 +491,7 @@ contains
       & filling, eigvals, eigVecsReal, eigVecsCplx, ham, over, orb, nAtom, species, neighbourList,&
       & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, isRespKernelRPA, sccCalc, maxSccIter,&
       & sccTol, isSccConvRequired, nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef,&
-      & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC,&
+      & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, hybridXc, nNeighbourCam,&
       & pChrgMixer, kPoint, kWeight, iCellVec, cellVec, nEFermi, errStatus, omega, isHelical, coord)
 
     !> Instance
@@ -499,10 +500,10 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> should regression test data be written
+    !> Should regression test data be written
     logical, intent(in) :: isAutotestWritten
 
     !> Name of output file
@@ -529,16 +530,16 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Atomic orbital information
@@ -547,10 +548,10 @@ contains
     !> Number of central cell atoms
     integer, intent(in) :: nAtom
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -562,7 +563,7 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> SCC module internal variables
@@ -571,7 +572,7 @@ contains
     !> Should the kernel be evaluated at the RPA level (non-SCC) or self-consistent
     logical, intent(in) :: isRespKernelRPA
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
     !> Tolerance for SCC convergence
@@ -580,17 +581,17 @@ contains
     !> Use converged derivatives of charges
     logical, intent(in) :: isSccConvRequired
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Equivalence relations between orbitals
     integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
@@ -602,7 +603,7 @@ contains
     !> Fermi level(s)
     real(dp), intent(in) :: Ef(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -611,20 +612,19 @@ contains
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
-    integer, intent(inout), allocatable :: nNeighbourLC(:)
+    !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
+    integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -705,7 +705,7 @@ contains
     end if
 
     call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
-        & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal,&
+        & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
         & tempElec, Ef, kWeight)
@@ -774,7 +774,7 @@ contains
         call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
             & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
             & sccTol, isSccRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
-            & dqOut, rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut,&
+            & dqOut, hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut,&
             & nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
             & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, this%isEfFixed, dHam, idHam,&
             & dRho, idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
@@ -870,16 +870,16 @@ contains
   subroutine response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
       & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
-      & rangeSep, nNeighbourLC, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
+      & hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
-      & eigVals, transform, dEi, dEf, Ef, isEfFixed, dHam, idHam,  dRho, idRho, tempElec,&
-      & tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal,&
-      & eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus, omega, dDipole, isHelical, eta)
+      & eigVals, transform, dEi, dEf, Ef, isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic,&
+      & neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
+      & dPsiReal, dPsiCmplx, coord, errStatus, omega, dDipole, isHelical, eta)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     ! derivative of potentials
@@ -888,11 +888,11 @@ contains
     !> Charge mixing object
     type(TMixer), intent(inout), allocatable :: pChrgMixer
 
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
+    !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
     integer, intent(in) :: nMixElements
 
-    !> nr. of inequivalent charges
+    !> Nr. of inequivalent charges
     integer, intent(in) :: nIneqMixElements
 
     !> Number of central cell atoms
@@ -916,18 +916,17 @@ contains
     !> Derivative of imaginary part of sparse density matrix
     real(dp), intent(inout), allocatable :: idRho(:,:)
 
-    !> maximal number of SCC iterations
+    !> Maximal number of SCC iterations
     integer, intent(in) :: maxSccIter
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
-    integer, intent(inout), allocatable :: nNeighbourLC(:)
+    !> Number of neighbours for each of the atoms for the exchange contributions of CAM functionals
+    integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -935,13 +934,13 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
@@ -962,7 +961,7 @@ contains
     !> Maximum allowed number of electrons in a single particle state
     real(dp), intent(in) :: maxFill
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
     !> Equivalence relations between orbitals
@@ -977,16 +976,16 @@ contains
     !> Derivative of density matrix
     real(dp), target, allocatable, intent(inout) :: dRhoOut(:)
 
-    !> delta density matrix response for range separated calculations
+    !> Delta density matrix response for hybrid xc-functional calculations
     real(dp), pointer :: dRhoOutSqr(:,:,:)
 
-    !> delta density matrix input for range separated calculations
+    !> Delta density matrix input for hybrid xc-functional calculations
     real(dp), pointer :: dRhoInSqr(:,:,:)
 
     !> Are there orbital potentials present
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> equivalence mapping for dual charge blocks
+    !> Equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Levels with at least partial filling
@@ -1019,10 +1018,10 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> ground state eigenvectors
+    !> Ground state eigenvectors
     real(dp), intent(in), allocatable :: eigVecsReal(:,:,:)
 
-    !> ground state complex eigenvectors
+    !> Ground state complex eigenvectors
     complex(dp), intent(in), allocatable :: eigvecsCplx(:,:,:)
 
     !> Derivative of Fermi energy
@@ -1034,19 +1033,19 @@ contains
     !> Derivative of block charges (output)
     real(dp), allocatable, intent(inout) :: dqBlockOut(:,:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> Equivalences for onsite block corrections if needed
     integer, intent(in), allocatable :: iEqBlockOnSite(:,:,:,:)
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Square matrix for overlap (if needed)
     real(dp), allocatable, intent(inout) :: sSqrReal(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1129,7 +1128,7 @@ contains
     if (tSccCalc) then
       dqInpRed(:) = 0.0_dp
       dqPerShell(:,:,:) = 0.0_dp
-      if (allocated(rangeSep)) then
+      if (allocated(hybridXc)) then
         dRhoIn(:) = 0.0_dp
         dRhoOut(:) = 0.0_dp
       end if
@@ -1241,7 +1240,7 @@ contains
 
           call dRhoReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
               & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec,&
-              & orb, drho(:,iS), dRhoOutSqr, rangeSep, over, nNeighbourLC, transform(iKS),&
+              & orb, drho(:,iS), dRhoOutSqr, hybridXc, over, nNeighbourCam, transform(iKS),&
               & species, dEi, dPsiReal, coord, errStatus, omega, isHelical, eta=eta)
           if (errStatus%hasError()) then
             exit
@@ -1278,10 +1277,10 @@ contains
 
           iK = parallelKS%localKS(1, iKS)
 
-          call dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart,&
-              & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
-              & tempElec, orb, dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS),&
-              & species, coord, dEi, dPsiCmplx, errStatus, omega, isHelical, eta=eta)
+          call dRhoCmplx(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
+              & denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef, tempElec, orb,&
+              & dRho, kPoint, kWeight, iCellVec, cellVec, iKS, transform(iKS), species, coord, dEi,&
+              & dPsiCmplx, errStatus, omega, isHelical, eta=eta)
           if (errStatus%hasError()) then
             exit
           end if
@@ -1317,7 +1316,7 @@ contains
           call mulliken(env, dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
-          dEf(iS) = -sum(dqOut(:, :, iS)) / neFermi(iS)
+          dEf(iS) = -sum(dqOut(:,:, iS)) / neFermi(iS)
 
           if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
             ! Fermi level changes, so need to correct for the change in the number of charges
@@ -1393,7 +1392,7 @@ contains
 
       if (tSccCalc) then
 
-        if (allocated(rangeSep)) then
+        if (allocated(hybridXc)) then
           dqDiffRed(:) = dRhoOut - dRhoIn
         else
           dqOutRed(:) = 0.0_dp
@@ -1415,9 +1414,13 @@ contains
 
         if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
           if (iSCCIter == 1) then
-            if (allocated(rangeSep)) then
+            if (allocated(hybridXc)) then
               dRhoIn(:) = dRhoOut
+            #:if WITH_SCALAPACK
+              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+            #:else
               call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+            #:endif
             else
               dqIn(:,:,:) = dqOut
               dqInpRed(:) = dqOutRed
@@ -1428,15 +1431,18 @@ contains
 
           else
 
-            if (allocated(rangeSep)) then
+            if (allocated(hybridXc)) then
               call mix(pChrgMixer, dRhoIn, dqDiffRed)
+            #:if WITH_SCALAPACK
+              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+            #:else
               call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+            #:endif
             else
               call mix(pChrgMixer, dqInpRed, dqDiffRed)
-            #:if WITH_MPI
+            #:if WITH_SCALAPACK
               ! Synchronise charges in order to avoid mixers that store a history drifting apart
-              call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
-              dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
+              call mpifx_bcast(env%mpi%globalComm, dqInpRed)
             #:endif
 
               call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
@@ -1455,7 +1461,7 @@ contains
 
           end if
 
-          if (allocated(rangeSep)) then
+          if (allocated(hybridXc)) then
             call ud2qm(dqIn)
           end if
 
@@ -1517,12 +1523,12 @@ contains
 
   !> Initialise variables for perturbation
   subroutine init_perturbation(parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
-      & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, rangesep, sSqrReal,&
+      & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
       & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn,&
       & dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef,&
       & kWeight)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Tolerance for degeneracy between eigenvalues
@@ -1571,15 +1577,15 @@ contains
     type(TRotateDegen), intent(out), allocatable :: transform(:)
 
     !> Data for range-separated calculation
-    type(TRangeSepFunc), allocatable, intent(in) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(in) :: hybridXc
 
     !> Square matrix for overlap (if needed in range separated calculation)
     real(dp), allocatable, intent(out) :: sSqrReal(:,:)
 
-    !> sparse overlap matrix
+    !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> list of neighbours for each atom
+    !> List of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
@@ -1591,7 +1597,7 @@ contains
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> map from image atoms to the original unique atom
+    !> Map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
     !> Derivative of density matrix
@@ -1600,10 +1606,10 @@ contains
     !> Derivative of density matrix
     real(dp), target, allocatable, intent(out) :: dRhoOut(:)
 
-    !> delta density matrix for rangeseparated calculations
+    !> Delta density matrix for hybrid xc-functional calculations
     real(dp), pointer :: dRhoInSqr(:,:,:)
 
-    !> delta density matrix for rangeseparated calculations
+    !> Delta density matrix for hybrid xc-functional calculations
     real(dp), pointer :: dRhoOutSqr(:,:,:)
 
     ! derivative of potentials
@@ -1700,7 +1706,7 @@ contains
       call TRotateDegen_init(transform(ii), tolDegen)
     end do
 
-    if (allocated(rangeSep)) then
+    if (allocated(hybridXc)) then
       allocate(sSqrReal(nOrbs, nOrbs))
       sSqrReal(:,:) = 0.0_dp
     #:if not WITH_SCALAPACK

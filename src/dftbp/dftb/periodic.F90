@@ -18,7 +18,8 @@ module dftbp_dftb_periodic
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR
+  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR,&
+      & MPIFX_SIZE_T
 #:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
@@ -28,20 +29,22 @@ module dftbp_dftb_periodic
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
-  implicit none
 
+  implicit none
   private
+
   public :: getCellTranslations, getLatticePoints
   public :: getSuperSampling
   public :: frac2cart, cart2frac
-  public :: TNeighbourList, TNeighbourList_init
+  public :: TNeighbourList, TNeighbourList_init, TSymNeighbourList
   public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
 
-  ! NOTE: this entries are public only temporarily for unit testing purposes. Do not call them
+#:if WITH_UNIT_TESTS
+  ! NOTE: these entries are public only temporarily for unit testing purposes. Do not call them
   ! from the outside.
   public :: distributeAtoms, reallocateArrays2, allocateNeighbourArrays, fillNeighbourArrays
-
+#:endif
 
   !> Contains essential data for the neighbourlist
   type TNeighbourList
@@ -64,20 +67,26 @@ module dftbp_dftb_periodic
     !> whether the neighbour list has been set by an API call
     logical :: setExternally = .false.
 
-    ! Whether memory should be allocated via MPI-windows (or directly via allocate() otherwise)
+    !> Whether memory should be allocated via MPI-windows (or directly via allocate() otherwise)
+    !!
+    !! Note: this variable cannot be inside the MPI block below with current code, as the parser
+    !! uses this data structure before the MPI environment is set up (in addition to the main code
+    !! use). This leads to a fall back to the usual distributed case if MPI is enabled, instead of
+    !! the shared window in that case.
     logical, private :: useMpiWindows_ = .false.
 
-    ! memory allocated for the iNeighbour array
+    !> memory allocated for the iNeighbour array
     integer, pointer, private :: iNeighbourMem_(:) => null()
 
-    ! memory allocated for the neighDist2 array
+    !> memory allocated for the neighDist2 array
     real(dp), pointer, private :: neighDist2Mem_(:) => null()
 
   #:if WITH_MPI
-    ! MPI shared memory window handler for iNeighbour
+
+    !> MPI shared memory window handler for iNeighbour
     type(mpifx_win), private :: iNeighbourWin_
 
-    ! MPI shared memory window handler for neightDist2
+    !> MPI shared memory window handler for neightDist2
     type(mpifx_win), private :: neighDist2Win_
 
   #:endif
@@ -87,6 +96,40 @@ module dftbp_dftb_periodic
     final :: TNeighbourList_final
 
   end type TNeighbourList
+
+
+  !> Contains neighbour list instance and symmetry specific entries
+  type TSymNeighbourList
+
+    !> Neighbour list instance
+    type(TNeighbourList), allocatable :: neighbourList
+
+    !> Number of all interacting atoms, including periodic images
+    integer :: nAllAtom
+
+    !> Coordinates of all interacting atoms, including periodic images
+    real(dp), allocatable :: coord(:,:)
+
+    !> Species of all interacting atoms, including periodic images
+    integer, allocatable :: species(:)
+
+    !> Mapping of all atoms onto atoms in the central cell
+    integer, allocatable :: img2CentCell(:)
+
+    !> Shift vector index for every interacting atom, including periodic images
+    integer, allocatable :: iCellVec(:)
+
+    !> Sparse array indexing for the start of atomic blocks in data structures
+    integer, allocatable :: iPair(:,:)
+
+    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
+    integer :: sparseSize
+
+  contains
+
+    final :: TSymNeighbourList_final
+
+  end type TSymNeighbourList
 
 contains
 
@@ -123,24 +166,31 @@ contains
     type(TNeighbourList), intent(inout) :: this
 
     if (this%useMpiWindows_) then
-    #:if WITH_MPI
-      if (associated(this%iNeighbourMem_)) then
-        call this%iNeighbourWin_%free()
-      end if
-      if (associated(this%neighDist2Mem_)) then
-        call this%neighDist2Win_%free()
-      end if
-    #:endif
+  #:if WITH_MPI
+      if (associated(this%iNeighbourMem_)) call this%iNeighbourWin_%free()
+      if (associated(this%neighDist2Mem_)) call this%neighDist2Win_%free()
+  #:endif
     else
-      if (associated(this%iNeighbourMem_)) then
-        deallocate(this%iNeighbourMem_)
-      end if
-      if (associated(this%neighDist2Mem_)) then
-        deallocate(this%neighDist2Mem_)
-      end if
+      if (associated(this%iNeighbourMem_)) deallocate(this%iNeighbourMem_)
+      if (associated(this%neighDist2Mem_)) deallocate(this%neighDist2Mem_)
     end if
 
   end subroutine TNeighbourList_final
+
+
+  !> Finalizes the symmetric neighbour-list instance.
+  !!
+  !! Workaround: Intel oneAPI 2021/22
+  !! Without explicit deallocation, the oneAPI versions listed above do not correctly finalize the
+  !! MPI windows.
+  subroutine TSymNeighbourList_final(this)
+
+    !> TSymNeighbourList instance
+    type(TSymNeighbourList), intent(inout) :: this
+
+    if (allocated(this%neighbourList)) deallocate(this%neighbourList)
+
+  end subroutine TSymNeighbourList_final
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
@@ -151,7 +201,7 @@ contains
   subroutine getCellTranslations(cellVec, rCellVec, latVec, recVec2p, cutoff)
 
     !> Returns cell translation vectors in relative coordinates.
-    real(dp), allocatable, intent(out) :: cellVec(:, :)
+    real(dp), allocatable, intent(out) :: cellVec(:,:)
 
     !> Returns cell translation vectors in absolute units.
     real(dp), allocatable, intent(out) :: rCellVec(:,:)
@@ -453,6 +503,8 @@ contains
           & isParallelSetupError)
       isParallel = .not. isParallelSetupError
     end if
+
+    neigh%useMpiWindows_ = isParallel
   #:endif
 
     if (.not. isParallel) then
@@ -465,7 +517,7 @@ contains
     allocate(neighDist2(1:maxNeighbour, startAtom:endAtom))
 
     ! Clean arrays.
-    !  (Every atom is the 0th neighbour of itself with zero distance square.)
+    ! (Every atom is the 0th neighbour of itself with zero distance square.)
     neigh%nNeighbour(:) = 0
     iNeighbour(:,:) = 0
     neighDist2(:,:) = 0.0_dp
@@ -498,30 +550,30 @@ contains
           ! helical geometry
           if (size(helicalBoundConds,dim=1)==3) then
             ! an additional C rotation operation
-            call rotate3(rr,2.0_dp*pi*rCellVec(2, ii)/helicalBoundConds(3,1), zAxis)
+            call rotate3(rr, 2.0_dp * pi * rCellVec(2, ii) / helicalBoundConds(3, 1), zAxis)
           end if
           ! helical operation, note nint() not floor() as roundoff can cause problems for floor
           ! here.
-          call rotate3(rr,helicalBoundConds(2,1)*nint(rCellVec(1, ii)/helicalBoundConds(1,1)),&
+          call rotate3(rr, helicalBoundConds(2,1) * nint(rCellVec(1, ii) / helicalBoundConds(1,1)),&
               & zAxis)
         end if
         lpIAtom2: do iAtom2 = 1, iAtom2End
           !  If distance greater than cutoff -> skip
-          dist2 = sum((coord0(:, iAtom2) - rr(:))**2)
+          dist2 = sum((coord0(:, iAtom2) - rr)**2)
           if (dist2 > cutoff2) then
             cycle lpIAtom2
           end if
           ! New interacting atom -> append
           ! We need that before checking for interaction with dummy atom or
           ! with itself to make sure that atoms in the central cell are
-          ! appended  exactly in the same order as found in the coord0 array.
+          ! appended exactly in the same order as found in the coord0 array.
           if (iAtom1 /= oldIAtom1) then
             nAllAtom = nAllAtom + 1
             if (nAllAtom > mAtom) then
               mAtom = incrmntOfArray(mAtom)
               call reallocateArrays1(img2CentCell, iCellVec, coord, mAtom)
             end if
-            coord(:, nAllAtom) = rr(:)
+            coord(:, nAllAtom) = rr
             img2CentCell(nAllAtom) = iAtom1
             iCellVec(nAllAtom) = ii
             oldIAtom1 = iAtom1
@@ -557,7 +609,7 @@ contains
       isSetupError = .true.
     end if
   #:if WITH_MPI
-    if (isParallel) then
+    if (neigh%useMpiWindows_) then
       ! find if any of the processes in the node comm are in error state
       call mpifx_allreduceip(env%mpi%nodeComm, isSetupError, MPI_LOR)
       if (isSetupError) then
@@ -576,11 +628,11 @@ contains
 
     call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
-    if (isParallel) then
     #:if WITH_MPI
+    if (neigh%useMpiWindows_) then
       call mpifx_allreduceip(env%mpi%nodeComm, neigh%nNeighbour, MPI_MAX)
-    #:endif
     end if
+    #:endif
 
     maxNeighbour = maxval(neigh%nNeighbour(1:nAtom))
     maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
@@ -600,9 +652,9 @@ contains
 
     end do lpStoreAtoms
 
-    call allocateNeighbourArrays(neigh, maxNeighbour, nAtom, isParallel, env)
+    call allocateNeighbourArrays(neigh, maxNeighbour, nAtom, env)
     call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-        & nAtom, isParallel)
+        & nAtom)
 
   end subroutine updateNeighbourList
 
@@ -671,12 +723,11 @@ contains
     nAtom = size(nNeighbour)
 
     neigh%setExternally = .true.
+  #:if WITH_MPI
+    neigh%useMpiWindows_ = .true.
+  #:endif
 
-    #:if WITH_MPI
-      call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, .true., env)
-    #:else
-      call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, .false.)
-    #:endif
+    call allocateNeighbourArrays(neigh, nMaxNeighbours, nAtom, env)
 
     neigh%nNeighbour(:) = nNeighbour(:)
     neigh%cutoff = cutOff
@@ -731,13 +782,14 @@ contains
     end if
     species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
 
-    #:if WITH_MPI
+    copyData = .true.
+  #:if WITH_MPI
+    if (neigh%useMpiWindows_) then
       call neigh%iNeighbourWin_%lock()
       call neigh%neighDist2Win_%lock()
       copyData = env%mpi%nodeComm%lead
-    #:else
-      copyData = .true.
-    #:endif
+    end if
+  #:endif
 
     !> This is done only for task 0 on the node due to MPI shared memory: Copy to the actual
     !> neighbour arrays.
@@ -776,20 +828,21 @@ contains
       end do
     end if
 
-    #:if WITH_MPI
+  #:if WITH_MPI
+    if (neigh%useMpiWindows_) then
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
       call neigh%iNeighbourWin_%unlock()
       call neigh%neighDist2Win_%unlock()
-    #:endif
+    end if
+  #:endif
 
   end subroutine setNeighbourList
 
 
-
   !> Allocate arrays for type 'neigh'
-  subroutine allocateNeighbourArrays(neigh, maxNeighbour, nAtom, isParallel, env)
+  subroutine allocateNeighbourArrays(neigh, maxNeighbour, nAtom, env)
 
     !> Contains all neighbour information
     type(TNeighbourList), intent(inout) :: neigh
@@ -800,52 +853,42 @@ contains
     !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> Whether computation is done in parallel
-    logical, intent(in) :: isParallel
-
     !> Environment settings
     type(TEnvironment), intent(in), optional :: env
 
-  #:if WITH_MPI
     integer :: dataLength
-  #:endif
+    #:if WITH_MPI
+      integer(MPIFX_SIZE_T) :: longDataLength
+    #:endif
 
-    neigh%useMpiWindows_ = isParallel
+    dataLength = (maxNeighbour + 1) * nAtom
+
     if (neigh%useMpiWindows_) then
     #:if WITH_MPI
-      if (associated(neigh%iNeighbourMem_)) then
-        call neigh%iNeighbourWin_%free()
-      end if
-      if (associated(neigh%neighDist2Mem_)) then
-        call neigh%neighDist2Win_%free()
-      end if
-
-      dataLength = (maxNeighbour + 1) * nAtom
-
-      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%iNeighbourMem_)
-      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%neighDist2Mem_)
-
-      neigh%iNeighbour(0:maxNeighbour, 1:nAtom) => neigh%iNeighbourMem_(1:dataLength)
-      neigh%neighDist2(0:maxNeighbour, 1:nAtom) => neigh%neighDist2Mem_(1:dataLength)
+      longDataLength = int(dataLength, kind=MPIFX_SIZE_T)
+      if (associated(neigh%iNeighbourMem_)) call neigh%iNeighbourWin_%free()
+      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%iNeighbourMem_)
+      if (associated(neigh%neighDist2Mem_)) call neigh%neighDist2Win_%free()
+      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%neighDist2Mem_)
     #:endif
     else
-      if (associated(neigh%iNeighbour)) then
-        deallocate(neigh%iNeighbour)
-      end if
-      if (associated(neigh%neighDist2)) then
-        deallocate(neigh%neighDist2)
-      end if
-
-      allocate(neigh%iNeighbour(0:maxNeighbour,1:nAtom))
-      allocate(neigh%neighDist2(0:maxNeighbour,1:nAtom))
+      if (associated(neigh%iNeighbourMem_)) deallocate(neigh%iNeighbourMem_)
+      allocate(neigh%iNeighbourMem_(dataLength))
+      if (associated(neigh%neighDist2Mem_)) deallocate(neigh%neighDist2Mem_)
+      allocate(neigh%neighDist2Mem_(dataLength))
     end if
+
+    neigh%iNeighbour(0:maxNeighbour, 1:nAtom) => neigh%iNeighbourMem_(1:dataLength)
+    neigh%neighDist2(0:maxNeighbour, 1:nAtom) => neigh%neighDist2Mem_(1:dataLength)
 
   end subroutine allocateNeighbourArrays
 
 
   !> Collect all neighbour data and copy to neighbour arrays
   subroutine fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-      & nAtom, isParallel)
+      & nAtom)
 
     !> Contains all neighbour information
     type(TNeighbourList), intent(inout) :: neigh
@@ -865,16 +908,13 @@ contains
     !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> Whether computation is done in parallel
-    logical, intent(in) :: isParallel
-
     integer :: ii
 
   #:if WITH_MPI
     integer :: maxNeighbourLocal
   #:endif
 
-    if (isParallel) then
+    if (neigh%useMpiWindows_) then
     #:if WITH_MPI
       maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
 
@@ -891,6 +931,11 @@ contains
         neigh%neighDist2(maxNeighbourLocal + 1 : maxNeighbour, startAtom:endAtom) = 0.0_dp
       end if
 
+      do ii = 1, nAtom
+        neigh%iNeighbour(0, ii) = ii
+        neigh%neighDist2(0, ii) = 0.0_dp
+      end do
+
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
@@ -898,24 +943,15 @@ contains
       call neigh%neighDist2Win_%unlock()
     #:endif
     else
-      if (associated(neigh%iNeighbourMem_)) then
-        deallocate(neigh%iNeighbourMem_)
-      end if
-      if (associated(neigh%neighDist2Mem_)) then
-        deallocate(neigh%neighDist2Mem_)
-      end if
-
-      allocate(neigh%iNeighbour(0:maxNeighbour, 1:nAtom))
-      allocate(neigh%neighDist2(0:maxNeighbour, 1:nAtom))
-
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
       neigh%neighDist2(1:,:) = neighDist2(1:maxNeighbour,:)
-    end if
 
-    do ii = 1, nAtom
-      neigh%iNeighbour(0, ii) = ii
-      neigh%neighDist2(0, ii) = 0.0_dp
-    end do
+      do ii = 1, nAtom
+        neigh%iNeighbour(0, ii) = ii
+        neigh%neighDist2(0, ii) = 0.0_dp
+      end do
+
+    end if
 
   end subroutine fillNeighbourArrays
 
@@ -930,7 +966,7 @@ contains
     type(TNeighbourList), intent(in) :: neigh
 
     !> Maximal neighbour distance to consider.
-    real(dp),            intent(in) :: cutoff
+    real(dp), intent(in) :: cutoff
 
     integer :: nAtom, iAtom
 
@@ -995,14 +1031,14 @@ contains
     integer, allocatable, intent(inout) :: iCellVec(:)
 
     !> coordinates of all atoms (actual and image)
-    real(dp), allocatable, intent(inout) :: coord(:, :)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> maximum number of new atoms
     integer, intent(in) :: mNewAtom
 
     integer :: mAtom
     integer, allocatable :: tmpIntR1(:)
-    real(dp), allocatable :: tmpRealR2(:, :)
+    real(dp), allocatable :: tmpRealR2(:,:)
 
     mAtom = size(img2CentCell)
 

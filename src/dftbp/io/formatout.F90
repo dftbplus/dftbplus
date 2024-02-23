@@ -14,9 +14,10 @@ module dftbp_io_formatout
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
-  use dftbp_dftb_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only: matinv
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   implicit none
 
   private
@@ -350,13 +351,13 @@ contains
   end subroutine writeXYZFormat_fid
 
 
-  !> Writes the greeting message of dftb+ on stdout
-  subroutine printDFTBHeader(release, year)
+  !> Writes the greeting message of dftb+ code(s) on stdout
+  subroutine printDFTBHeader(text, year)
 
-    !> release version of the code
-    character(len=*), intent(in) :: release
+    !> Additional text to print next to project name
+    character(len=*), intent(in) :: text
 
-    !> release year
+    !> Release year
     integer, intent(in) :: year
 
     character, parameter :: verticalBar = '|'
@@ -364,7 +365,7 @@ contains
     integer, parameter :: headerWidth = 80
 
     write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
-    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
+    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(text)
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
         & '  DFTB+ developers group'
@@ -437,7 +438,7 @@ contains
 
     write (strForm, "(A,I0,A)") "(", nOrb, "ES24.15)"
     call unpackHS(square, sparse, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
-    call blockSymmetrizeHS(square, iAtomStart)
+    call adjointLowerTriangle(square)
     write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
     write(fd%unit, "(1X,I10,I10)") 1
     write(fd%unit, "(A1,A)") "#", " MATRIX"
@@ -506,7 +507,7 @@ contains
     do iK = 1, nKPoint
       call unpackHS(square, sparse, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec, cellVec,&
           & iAtomStart, iPair, img2CentCell)
-      call blockHermitianHS(square, iAtomStart)
+      call adjointLowerTriangle(square)
       write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
       write(fd%unit, "(1X,I10,I10)") iK
       write(fd%unit, "(A1,A)") "#", " MATRIX"

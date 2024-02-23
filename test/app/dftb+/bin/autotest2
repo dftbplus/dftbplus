@@ -339,9 +339,15 @@ do
 	test -n "$verbose" && echo_n " running .."
 
 	if [ -e "$TEST_SCRIPT" ]; then
-	    $TIME_CMD ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
+	    ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
 	else
-	    $TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
+	    $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
+	fi
+	# If run was not successful, make sure tagdiff fails by removing the tagged data file
+	runstatus=$?
+	if [ "$runstatus" != "0" ]; then
+	    echo -e "Test script returned non-zero exit code: $runstatus\n deleting file '${APP_TAGDATA}'" 1>&2
+	    rm -f ./${APP_TAGDATA}
 	fi
 
 	if [ -n "$app_globalpost" ]; then

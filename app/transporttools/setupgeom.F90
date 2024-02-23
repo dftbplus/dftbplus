@@ -9,6 +9,7 @@
 
 program setupgeom
   use dftbp_common_globalenv
+  use dftbp_common_release, only : releaseYear
   use dftbp_io_formatout, only : printDftbHeader
   use transporttools_inputdata, only : TInputData
   use transporttools_parser, only : parseHsdInput
@@ -18,9 +19,6 @@ program setupgeom
   use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
 #:endif
   implicit none
-
-  character(len=*), parameter :: releaseName = ''
-  integer, parameter :: releaseYear = 2020
 
   type(TInputData), allocatable :: input
 
@@ -37,7 +35,7 @@ program setupgeom
 #:else
   call initGlobalEnv()
 #:endif
-  call printDftbHeader(releaseName, releaseYear)
+  call printDftbHeader('(setupgeom)', releaseYear)
   allocate(input)
   call parseHsdInput(input)
   deallocate(input)
