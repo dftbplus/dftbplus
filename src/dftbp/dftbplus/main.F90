@@ -972,12 +972,6 @@ contains
       if (this%tNegf) then
         call printSccHeader()
       end if
-      call printSccInfo(allocated(this%dftbU), iSccIter,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, diffElec, sccErrorQ)
-
-      if (this%tNegf) then
-        call printBlankLine()
-      end if
 
       tWriteSccRestart = env%tGlobalLead .and. needsSccRestartWriting(this%restartFreq,&
           & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd, &
@@ -1021,6 +1015,14 @@ contains
 
     !> Self-consistency error
     real(dp), intent(in) :: sccErrorQ
+
+     if (this%tSccCalc) then
+      call printSccInfo(allocated(this%dftbU), iSccIter,&
+          & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, diffElec, sccErrorQ)
+      if (this%tNegf) then
+        call printBlankLine()
+      end if
+    end if
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
