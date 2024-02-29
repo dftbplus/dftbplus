@@ -984,10 +984,10 @@ contains
     integer, intent(in) :: nxov_rd
 
     !> Local dimensions of RPA/Casida vectors under MPI per rank
-    integer, intent(in) :: locSize(:)
+    integer, intent(in), allocatable :: locSize(:)
 
     !> Rank dependent offset of RPA/Casida vectors under MPI
-    integer, intent(in) :: vOffSet(:)
+    integer, intent(in), allocatable :: vOffSet(:)
 
     !> array from pairs of single particles states to compound index
     integer, intent(in) :: iaTrans(:,:,:)
@@ -1325,10 +1325,10 @@ contains
     integer, intent(in) :: nxov_rd
     
     !> Local dimensions of RPA/Casida vectors under MPI per rank
-    integer, intent(in) :: locSize(:)
+    integer, intent(in), allocatable :: locSize(:)
 
     !> Rank dependent offset of RPA/Casida vectors under MPI
-    integer, intent(in) :: vOffSet(:)
+    integer, intent(in), allocatable :: vOffSet(:)
 
     !> Array from pairs of single particles states to compound index
     integer, intent(in) :: iaTrans(:,:,:)
