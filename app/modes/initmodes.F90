@@ -162,6 +162,9 @@ contains
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
+    tPlotModes = .false.
+    nModesToPlot = 0
+    tAnimateModes = .false.
     call getChild(root, "DisplayModes",child=node,requested=.false.)
     if (associated(node)) then
       tPlotModes = .true.
@@ -169,10 +172,6 @@ contains
       call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
-    else
-      nModesToPlot = 0
-      tPlotModes = .false.
-      tAnimateModes = .false.
     end if
 
     ! oscillation cycles in an animation
