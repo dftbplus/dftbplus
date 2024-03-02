@@ -17,7 +17,7 @@ module dftbp_dftb_hybridxc
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_math_blasroutines, only : gemm, symm
+  use dftbp_math_blasroutines, only : gemm, symm, hemm
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_dftb_periodic, only : TSymNeighbourList, getCellTranslations, cart2frac
@@ -2209,22 +2209,20 @@ contains
       allocate(Hmat(nOrb, nOrb))
       allocate(tmpMat(nOrb, nOrb))
 
-      Hcam(:,:) = 0.0_dp
-
-      call gemm(tmpMat, Smat, Dmat)
-      call gemm(Hcam, tmpMat, Smat)
+      call symm(tmpMat, 'l', Smat, Dmat)
+      call symm(Hcam, 'r', Smat, tmpMat)
       Hcam(:,:) = Hcam * camGammaAO
 
       tmpMat(:,:) = tmpMat * camGammaAO
-      call gemm(Hcam, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+      call symm(Hcam, 'r', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       Hmat(:,:) = Dmat * camGammaAO
-      call gemm(tmpMat, Smat, Hmat)
-      call gemm(Hcam, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+      call symm(tmpMat, 'l', Smat, Hmat)
+      call symm(Hcam, 'r', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
-      call gemm(tmpMat, Dmat, Smat)
+      call symm(tmpMat, 'l', Dmat, Smat)
       tmpMat(:,:) = tmpMat * camGammaAO
-      call gemm(Hcam, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+      call symm(Hcam, 'l', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       if (this%tSpin .or. this%tREKS) then
         Hcam(:,:) = -0.25_dp * Hcam
@@ -2377,27 +2375,25 @@ contains
       !! Number of orbitals in square matrices
       integer :: nOrb
 
-      nOrb = size(Smat,dim=1)
+      nOrb = size(Smat, dim=1)
 
-      allocate(Hmat(nOrb,nOrb))
-      allocate(tmpMat(nOrb,nOrb))
+      allocate(Hmat(nOrb, nOrb))
+      allocate(tmpMat(nOrb, nOrb))
 
-      Hcam(:,:) = cmplx(0.0_dp,0.0_dp,dp)
-
-      call gemm(tmpMat, Smat, Dmat)
-      call gemm(Hcam, tmpMat, Smat)
+      call hemm(tmpMat, 'l', Smat, Dmat)
+      call hemm(Hcam, 'r', Smat, tmpMat)
       Hcam(:,:) = Hcam * gammaCmplx
 
       tmpMat(:,:) = tmpMat * gammaCmplx
-      call gemm(Hcam, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+      call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
       Hmat(:,:) = Dmat * gammaCmplx
-      call gemm(tmpMat, Smat, Hmat)
-      call gemm(Hcam, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+      call hemm(tmpMat, 'l', Smat, Hmat)
+      call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
-      call gemm(tmpMat, Dmat, Smat)
+      call hemm(tmpMat, 'l', Dmat, Smat)
       tmpMat(:,:) = tmpMat * gammaCmplx
-      call gemm(Hcam, Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+      call hemm(Hcam, 'l', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
       if (this%tSpin) then
         Hcam(:,:) = -0.25_dp * Hcam
