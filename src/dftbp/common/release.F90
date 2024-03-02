@@ -17,7 +17,7 @@ module dftbp_common_release
   character(len=*), parameter :: releaseName = '${RELEASE}$'
 
   !> Year of release
-  integer, parameter :: releaseYear = 2023
+  integer, parameter :: releaseYear = 2024
 
   !> Mapping between input version and parser version
   type :: TVersionMap

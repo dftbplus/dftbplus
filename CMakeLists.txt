@@ -7,7 +7,7 @@ include(DftbPlusUtils)
 dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
-set(DFTBPLUS_VERSION "23.1")
+set(DFTBPLUS_VERSION "24.1")
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
@@ -136,11 +136,13 @@ endif()
 #
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_add_fypp_defines(FYPP_FLAGS)
+set(FYPP_FLAGS "${FYPP_FLAGS}")
 
 set(FYPP_CONFIG_FLAGS "${FYPP_FLAGS}")
 # Make sure, the line-marker option is not set
 list(REMOVE_ITEM FYPP_CONFIG_FLAGS "-n")
-set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
+set(FYPP_BUILD_FLAGS "${FYPP_FLAGS}" "--file-var-root=${CMAKE_SOURCE_DIR}"
+  "$<IF:$<CONFIG:Debug>,-DDEBUG=1,-DDEBUG=0>")
 
 set(PYTHON_INTERPRETER "python3" CACHE STRING
   "Python interpreter to use for installing and test python components")
@@ -184,7 +186,7 @@ string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONF
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
-  set(MPIFX_GIT_TAG "fa41668e358f88dfaa55c31e8104d53850c7c4ef")  # do not change manually!
+  set(MPIFX_GIT_TAG "e6dbe2c82497f47b5da7436743ebba911e219662")  # do not change manually!
   dftbp_config_hybrid_dependency(MpiFx MpiFx::MpiFx "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mpifx "${exclude}" "${MPIFX_GIT_REPOSITORY}" "${MPIFX_GIT_TAG}")
 
@@ -202,7 +204,7 @@ endif()
 # MBD must be invoked *after* Scalapack has been found by ScalapackFx
 if(WITH_MBD)
   set(MBD_GIT_REPOSITORY "https://github.com/libmbd/libmbd.git")
-  set(MBD_GIT_TAG "ac4f811da9d4140ebfe3f2d913b33ebf8287488f")  # do not change manually!
+  set(MBD_GIT_TAG "ac4e807dbd97ec569f02b41b3ae1403097b187a1")  # do not change manually!
   dftbp_config_hybrid_dependency(Mbd Mbd::Mbd "${HYBRID_CONFIG_METHODS}" "QUIET" external/mbd
     "${exclude}" "${MBD_GIT_REPOSITORY}" "${MBD_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mbd)
@@ -210,7 +212,7 @@ endif()
 
 if(WITH_TRANSPORT)
   set(LIBNEGF_GIT_REPOSITORY "https://github.com/libnegf/libnegf.git")
-  set(LIBNEGF_GIT_TAG "a1db656ce1cf2f7fc50154ea57afc4bc2230fe37")  # do not change manually!
+  set(LIBNEGF_GIT_TAG "34db682aa7135e4ac98ddd25013bfbf0784d7ed2")  # do not change manually!
   dftbp_config_hybrid_dependency(Negf Negf::Negf "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/libnegf "${exclude}" "${LIBNEGF_GIT_REPOSITORY}" "${LIBNEGF_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES negf)
@@ -244,7 +246,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "d5b72de4bb0fe892410180a67c23556db6726e67")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "5ee8c4d71414bf54db0b680ee3c532215847e0f9")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -262,7 +264,7 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "056491b915204865bf5893b76eeb8ea32e1666ad")  # do not change manually!
+    set(DFTD4_GIT_TAG "3844dc141936e801ca059d1daea1773c3e6103ec")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)

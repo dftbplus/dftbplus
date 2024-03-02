@@ -120,7 +120,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("23.2", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
       & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
@@ -1400,13 +1400,14 @@ contains
       call setUnprocessed(value1)
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-              &// trim(geo%speciesNames(iSp2))
+          strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
-            call detailedError(child2, "Incorrect number of Slater-Koster &
-                &files")
+            write(errorStr, "(A,I0,A,I0)")"Incorrect number of Slater-Koster files for " //&
+                & trim(strTmp) // ", expected ", len(angShells(iSp1)) * len(angShells(iSp2)),&
+                & " but received ", len(lStr)
+            call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
             call get(lStr, strTmp, ii)
@@ -1715,13 +1716,13 @@ contains
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
-    ! Electronic constraints
-    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    if (associated(value1)) then
-      allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
-    end if
+    ! ! Electronic constraints
+    ! call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+    !     & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    ! if (associated(value1)) then
+    !   allocate(ctrl%elecConstraintInp)
+    !   call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+    ! end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
@@ -3642,20 +3643,20 @@ contains
             write(stdOut, "(a)") trim(fileName)
             if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1)
+                    & splineRepInp=repSplineIn1)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1,&
                     & hybridXcSK=hybridXcSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, hybridXcSK=hybridXcSK)
+                    & splineRepInp=repSplineIn1, hybridXcSK=hybridXcSK)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, hybridXcSK=hybridXcSK)
               end if
@@ -3695,10 +3696,10 @@ contains
               call get(sKFiles(iSp1, iSp2), fileName, ind)
               if (readRep .and. repPoly(iSp1, iSp2)) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &polyRepIn=repPolyIn2)
+                    &polyRepInp=repPolyIn2)
               elseif (readRep) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &iSp2, iSp1, splineRepIn=repSplineIn2)
+                    &iSp2, iSp1, splineRepInp=repSplineIn2)
               else
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic)
               end if
