@@ -161,7 +161,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
@@ -301,7 +301,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
+          phase = exp(imag * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
           iOldVec = iVec
         end if
         tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2, nOrb1/))
@@ -466,7 +466,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
@@ -609,10 +609,10 @@ contains
       call unpackHS(work, iHam(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
-          & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
+          & + 0.5_dp*imag*work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) =&
           & HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
-          & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
+          & + 0.5_dp*imag*work(1:nOrb, 1:nOrb)
     end if
 
     ! 0 1 x part
@@ -632,7 +632,7 @@ contains
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
       end do
       HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
-          & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & + 0.5_dp * imag * work(1:nOrb, 1:nOrb)
     end if
 
     ! 0 -i y part
@@ -670,9 +670,9 @@ contains
       call unpackHS(work, iHam(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
-          & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & + 0.5_dp * imag * work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
-          & - 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & - 0.5_dp * imag * work(1:nOrb, 1:nOrb)
     end if
 
   end subroutine unpackHPauli
@@ -809,7 +809,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
@@ -984,7 +984,7 @@ contains
         theta = mod(theta,2.0_dp*pi)
         call rotateZ(rotZ,lShellVals(:iSh), theta)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
@@ -1276,7 +1276,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -1314,7 +1314,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
@@ -1549,7 +1549,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -1588,7 +1588,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp)*dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
@@ -1851,7 +1851,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -2016,7 +2016,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_addl2g(myBlacs%orbitalGrid, phase&
@@ -2084,7 +2084,7 @@ contains
         & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
     if (present(iorig)) then
       call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-          & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc,&
+          & cellVec, iSparseStart, img2CentCell, mOrb, imag, cmplx(-1, 0, dp), desc,&
           & square)
     end if
 
@@ -2464,7 +2464,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
@@ -2536,7 +2536,7 @@ contains
         & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(1, 0, dp), .true., primitive)
     if (present(iprimitive)) then
       call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
-          & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(0, -1, dp),&
+          & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, -imag,&
           & .false., iprimitive)
     end if
 
@@ -2642,7 +2642,7 @@ contains
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
@@ -2680,7 +2680,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
@@ -2799,7 +2799,7 @@ contains
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
@@ -2969,7 +2969,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
 
@@ -3149,7 +3149,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&

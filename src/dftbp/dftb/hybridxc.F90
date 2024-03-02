@@ -12,7 +12,7 @@
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -2678,7 +2678,7 @@ contains
 
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
 
-            phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+            phase = exp(-imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                 & this%cellVecsG(:, iG) - vecL + vecH))
 
             ! term #1
@@ -2948,7 +2948,7 @@ contains
 
           loopKMN: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
-            phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+            phase = exp(-imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                 & this%cellVecsG(:, iGMN)))
 
             ! term #1
@@ -2971,7 +2971,7 @@ contains
 
           loopKMB: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
-            phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+            phase = exp(-imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                 & this%cellVecsG(:, iGMB) - vecL))
 
             ! term #2
@@ -2993,7 +2993,7 @@ contains
 
           loopKAN: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
-            phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+            phase = exp(-imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                 & this%cellVecsG(:, iGAN) + vecH))
 
             ! term #3
@@ -3015,7 +3015,7 @@ contains
 
           loopKAB: do iK = 1, nK
             iGlobalKS = iKiSToiGlobalKS(iK, iS)
-            phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+            phase = exp(-imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                 & this%cellVecsG(:, iGAB) - vecL + vecH))
 
             ! term #4
@@ -5652,7 +5652,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(vecH - vecL - this%cellVecsG(:, iGMK))
 
               loopKptsMK1: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGMK)))
                 phaseGammaMK = phase * cmplx(this%camGammaEvalG(iAtM, iAtK)%data(iG)&
                     & * kWeights(iK), 0, dp)
@@ -5688,7 +5688,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(vecH - this%cellVecsG(:, iGMB))
 
               loopKptsMB: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & vecL - this%cellVecsG(:, iGMB)))
                 phaseGammaMB = phase * cmplx(this%camGammaEvalG(iAtM, iAtBfold)%data(iG)&
                     & * kWeights(iK), 0, dp)
@@ -5724,7 +5724,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK) - vecL)
 
               loopKptsAK1: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGAK) - vecH))
                 phaseGammaAK = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtK)%data(iG)&
                     & * kWeights(iK), 0, dp)
@@ -5760,7 +5760,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAB))
 
               loopKptsAB1: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGAB) + vecL - vecH))
                 phaseGammaAB = phase * cmplx(this%camGammaEvalG(iAtAfold, iAtBfold)%data(iG)&
                     & * kWeights(iK), 0, dp)
@@ -5829,7 +5829,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(vecH - vecL - this%cellVecsG(:, iGMK))
 
               loopKptsMK: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGMK)))
                 phasedGammaMK(:) = phase * cmplx(dGammaMK(:, iG) * kWeights(iK), 0, dp)
 
@@ -5896,7 +5896,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(vecH - this%cellVecsG(:, iGKB))
 
               loopKptsKB: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & vecL - this%cellVecsG(:, iGKB)))
                 phasedGammaKB(:) = phase * cmplx(dGammaKB(:, iG) * kWeights(iK), 0, dp)
 
@@ -5963,7 +5963,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK) - vecL)
 
               loopKptsAK2: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & -this%cellVecsG(:, iGAK) - vecH))
                 phasedGammaAK(:) = phase * cmplx(dGammaAK(:, iG) * kWeights(iK), 0, dp)
 
@@ -6032,7 +6032,7 @@ contains
               bvKIndex(:) = this%foldToBvKIndex(-this%cellVecsG(:, iGAK))
 
               loopKptsAK3: do iK = 1, nK
-                phase = exp(cmplx(0, 1, dp) * dot_product(2.0_dp * pi * kPoints(:, iK),&
+                phase = exp(imag * dot_product(2.0_dp * pi * kPoints(:, iK),&
                     & vecL - this%cellVecsG(:, iGAK) - vecH))
                 phasedGammaAK(:) = phase * cmplx(dGammaAK(:, iG) * kWeights(iK), 0, dp)
 

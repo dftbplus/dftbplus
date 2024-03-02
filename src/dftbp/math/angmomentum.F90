@@ -218,8 +218,6 @@ contains
     real(dp), allocatable :: speciesL(:,:,:,:)
     real(dp), allocatable :: tmpBlock(:,:)
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-
     nAtom = size(LShell, dim=3)
     nSpecies = maxval(species(1:nAtom))
 
