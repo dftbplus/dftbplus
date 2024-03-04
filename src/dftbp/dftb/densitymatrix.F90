@@ -77,7 +77,7 @@ contains
 
   !> Transforms dense, square density matrix for all spins/k-points to real-space (BvK cell).
   subroutine transformDualSpaceToBvKRealSpace(rhoDual, parallelKS, kPoint, kWeight, bvKShifts,&
-      & coeffsDiag, rhoBvK)
+      & rhoBvK)
 
     !> Complex, dense, square dual-space rho of all spins/k-points
     complex(dp), intent(in) :: rhoDual(:,:,:)
@@ -93,9 +93,6 @@ contains
 
     !> The k-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
     real(dp), intent(in) :: bvKShifts(:,:)
-
-    !> Supercell folding coefficients (diagonal elements)
-    integer, intent(in) :: coeffsDiag(:)
 
     !> Real-space, dense, square rho for BvK cell
     real(dp), intent(inout) :: rhoBvK(:,:,:,:,:,:)
