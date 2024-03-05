@@ -769,13 +769,11 @@ contains
 
       if (geom%tPeriodic) then
 
+        ctrl%tBarostat = .false.
+        ctrl%pressure = 0.0_dp
+        ctrl%BarostatStrength = 0.0_dp
         call getChild(node, "Barostat", child, requested=.false.)
-        if (.not. associated(child)) then
-          call setChild(node, "Barostat", child)
-          ctrl%tBarostat = .false.
-          ctrl%pressure = 0.0_dp
-          ctrl%BarostatStrength = 0.0_dp
-        else
+        if (associated(child)) then
           if (ctrl%nrMoved /= geom%nAtom) then
             call error("Dynamics for a subset of atoms is not currently&
                 & possible when using a barostat")
@@ -3519,10 +3517,7 @@ contains
         call getChildValue(value1, "RScaling", h5Input%rScale, 0.714_dp)
         call getChildValue(value1, "WScaling", h5Input%wScale, 0.25_dp)
         allocate(h5Input%elementParams(geo%nSpecies))
-        call getChild(value1, "H5Scaling", child2, requested=.false.)
-        if (.not. associated(child2)) then
-          call setChild(value1, "H5scaling", child2)
-        end if
+        call getChild(value1, "H5Scaling", child2, requested=.false., emptyIfMissing=.true.)
         do iSp = 1, geo%nSpecies
           select case (geo%speciesNames(iSp))
           case ("O")
@@ -6501,7 +6496,7 @@ contains
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
     if (associated(pTmp) .and. associated(pTmp2)) then
-      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
+      call detailedError(pNode, "Only one of the tags AtomDensityCutoff or AtomDensityTolerance&
           & can be specified.")
     else if (associated(pTmp)) then
       call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
@@ -7650,10 +7645,7 @@ contains
 
     type(fnode), pointer :: node, pTmp
 
-    call getChild(root, "Parallel", child=node, requested=.false.)
-    if (withMpi .and. .not. associated(node)) then
-      call setChild(root, "Parallel", node)
-    end if
+    call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
     if (associated(node)) then
       if (.not. withMpi) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
@@ -7679,10 +7671,7 @@ contains
 
     type(fnode), pointer :: node
 
-    call getChild(root, "Blacs", child=node, requested=.false.)
-    if (withScalapack .and. .not. associated(node)) then
-      call setChild(root, "Blacs", node)
-    end if
+    call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
     if (associated(node)) then
       if (.not. withScalapack) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
