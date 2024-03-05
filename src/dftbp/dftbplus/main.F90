@@ -854,7 +854,7 @@ contains
         this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
         call transformDualSpaceToBvKRealSpace(this%densityMatrix%deltaRhoOutCplx,&
             & this%parallelKS, this%kPoint, this%kWeight, this%hybridXc%bvKShifts,&
-            & this%hybridXc%coeffsDiag, this%densityMatrix%deltaRhoOutCplxHS)
+            & this%densityMatrix%deltaRhoOutCplxHS)
       #:if WITH_MPI
         ! Distribute all square, real-space density matrices to all nodes via global summation
         call mpifx_allreduceip(env%mpi%interGroupComm, this%densityMatrix%deltaRhoOutCplxHS,&
