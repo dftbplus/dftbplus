@@ -1689,7 +1689,6 @@ contains
     
     ! orb. energy difference diagonal contribution
     vout(:) = vout + wij(iGlb:fGlb) * vin
-    
   end subroutine actionAminusB_MPI
 
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
@@ -2304,7 +2303,6 @@ contains
     integer :: indm, ii, jj, ss
     real(dp), allocatable :: qij(:)
     logical :: updwn
-    
     nxov = size(win)
     natom = size(coord0, dim=2)
 
@@ -2356,7 +2354,6 @@ contains
     integer, allocatable :: TDvin(:)
     logical :: ud_ia, ud_jb
     real(dp) :: s_iaja, s_iaib, s_iajb, tmp
-    
     nmat = size(xpy, dim=1)
     nexc = size(Ssq)
     nup = ceiling(sum(filling(:,1)))

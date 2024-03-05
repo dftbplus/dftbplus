@@ -1493,7 +1493,6 @@ contains
     end do
 
   #:else
-    
     allocate(vecB(nxov_rd, memDim))
     allocate(vP(nxov_rd, memDim))
     allocate(vM(nxov_rd, memDim))
@@ -2463,7 +2462,6 @@ contains
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, occNr, sqrOccIA,&
          & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tHybridXc, lrGamma)
-      
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
