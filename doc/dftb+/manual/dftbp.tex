@@ -2709,9 +2709,21 @@ Example (GaAs):
   }
 \end{verbatim}
 
+You can also set a \kw{Prefix} for the files, typically their path
+Example (C):
+  \invparskip
+\begin{verbatim}
+  SlaterKosterFiles = {
+    Prefix = "my_skfiles/mio-1-1/"
+    C-C = "C-C.skf"
+  }
+\end{verbatim}
+Which would specify the file's location as {\tt
+  ./my\_skfiles/mio-1-1/C-C.skf} inside the current directory.
+
 If you treat shells from different species as shells of one atom by
 using the \iscb{SelectedShells} keyword in the
-\iscb{MaxAngularMomentum} block, you have to specify more than one
+\iscb{MaxAngularMomentum} block, you will have to specify more than one
 file name for certain species pairs. (For details see the description
 about the \iscb{MaxAngularMomentum} keyword.)
 
