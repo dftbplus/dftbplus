@@ -754,7 +754,6 @@ contains
     type(fnode), pointer :: child, child2
     type(string) :: modif
     integer :: iSp
-    character(lc) :: strTmp
     real(dp) :: mass, defmass
 
     write(stdOut, "(/, A)") "set atomic masses as IUPAC defaults ..."
@@ -979,10 +978,13 @@ contains
     type(fnode), pointer :: child2
     type(string) :: filename
     logical :: texist
+    character(lc) :: strTmp
 
     call getChildValue(child, "Filename", filename, "hessian.out")
 
-    inquire(file=trim(char(filename)), exist=texist )
+    ! workaround for NAG7.1 Build 7148 in Debug build
+    strTmp = char(filename)
+    inquire(file=strTmp, exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
     else
@@ -1062,12 +1064,15 @@ contains
     integer ::  n, j1, j2,  p,  q
     type(string) :: filename
     logical :: texist
+    character(lc) :: strTmp
 
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
     call getChildValue(child, "Filename", filename, "hessian.cp2k")
-    inquire(file=trim(char(filename)), exist=texist )
+    ! workaround for NAG7.1 Build 7148 in Debug build
+    strTmp = char(filename)
+    inquire(file=strTmp, exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
     else
