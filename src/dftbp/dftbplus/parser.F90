@@ -1328,7 +1328,7 @@ contains
     type(TListIntR1), allocatable :: angShells(:)
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, ii
-    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
+    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp, str2Tmp
     character(lc) :: errorStr
     logical :: tLower, tExist
     integer, allocatable :: pTmpI1(:)
@@ -1396,6 +1396,9 @@ contains
       end do
     case default
       call setUnprocessed(value1)
+      call getChildValue(child, "Prefix", buffer2, "")
+      prefix = unquote(char(buffer2))
+
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
@@ -1408,7 +1411,8 @@ contains
             call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
-            call get(lStr, strTmp, ii)
+            call get(lStr, str2Tmp, ii)
+            strTmp = trim(prefix) // str2Tmp
             call findFile(searchPath, strTmp, strOut)
             if (allocated(strOut)) strTmp = strOut
             inquire(file=strTmp, exist=tExist)
