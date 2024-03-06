@@ -234,38 +234,34 @@ contains
 
     ! Read Transport block
     ! This defines system partitioning
+    tTransport = .false.
     call getChild(root, "Transport", child, requested=.false.)
     if (associated(child)) then
       tTransport = .true.
       call readTransportGeometry(child, geo, transpar)
-    else
-      tTransport = .false.
     end if
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
     call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
 
+    tCompModes = .false.
     call getChild(root, "ComputeModes",child=node,requested=.false.)
     if (associated(node)) then
       tCompModes = .true.
+      tPlotModes = .false.
+      nModesToPlot = 0
+      tAnimateModes = .false.
+      tXmakeMol = .false.
       call getChild(root, "DisplayModes",child=node,requested=.false.)
       if (associated(node)) then
         tPlotModes = .true.
-        call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, &
-            &multiple=.true.)
+        call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
         call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
         nModesToPlot = size(modesToPlot)
         call getChildValue(node, "Animate", tAnimateModes, .true.)
         call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
-      else
-        nModesToPlot = 0
-        tPlotModes = .false.
-        tAnimateModes = .false.
-        tXmakeMol = .false.
       end if
-    else
-      tCompModes = .false.
     end if
 
     if (tAnimateModes.and.tXmakeMol) then
@@ -275,6 +271,7 @@ contains
     end if
 
     ! Reading K-points for Phonon Dispersion calculation
+    tPhonDispersion = .false.
     call getChild(root, "PhononDispersion", child=node, requested=.false.)
     if  (associated(node))  then
       tPhonDispersion = .true.
@@ -291,8 +288,6 @@ contains
         call detailedError(node,"Unknown outputUnits "//trim(char(buffer)))
       end select
       call readKPoints(node, geo, tBadKpoints)
-    else
-      tPhonDispersion = .false.
     end if
 
     ! Read the atomic masses from SlaterKosterFiles or Masses

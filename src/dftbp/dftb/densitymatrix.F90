@@ -16,7 +16,7 @@
 !> instead of the conventional c*c)
 module dftbp_dftb_densitymatrix
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, imag
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
@@ -77,7 +77,7 @@ contains
 
   !> Transforms dense, square density matrix for all spins/k-points to real-space (BvK cell).
   subroutine transformDualSpaceToBvKRealSpace(rhoDual, parallelKS, kPoint, kWeight, bvKShifts,&
-      & coeffsDiag, rhoBvK)
+      & rhoBvK)
 
     !> Complex, dense, square dual-space rho of all spins/k-points
     complex(dp), intent(in) :: rhoDual(:,:,:)
@@ -93,9 +93,6 @@ contains
 
     !> The k-point compatible BvK real-space shifts in relative coordinates (units of latVecs)
     real(dp), intent(in) :: bvKShifts(:,:)
-
-    !> Supercell folding coefficients (diagonal elements)
-    integer, intent(in) :: coeffsDiag(:)
 
     !> Real-space, dense, square rho for BvK cell
     real(dp), intent(inout) :: rhoBvK(:,:,:,:,:,:)
@@ -117,7 +114,7 @@ contains
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         iSpin = parallelKS%localKS(2, iKS)
-        phase = exp(cmplx(0, -1, dp) * dot_product(2.0_dp * pi * kPoint(:, iK), bvKShifts(:, iG)))
+        phase = exp(-imag * dot_product(2.0_dp * pi * kPoint(:, iK), bvKShifts(:, iG)))
         rhoBvK(:,:, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
             & = rhoBvK(:,:, bvKIndex(1), bvKIndex(2), bvKIndex(3), iSpin)&
             & + kWeight(iK) * real(rhoDual(:,:, iKS) * phase, dp)

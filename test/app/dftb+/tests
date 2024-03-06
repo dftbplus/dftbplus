@@ -64,9 +64,9 @@ dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
 dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
-#! elecconstraints/H2O_scc                #? MPI_PROCS <= 1
-#! elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
-#! elecconstraints/Si8_spin               #? MPI_PROCS <= 1
+elecconstraints/H2O_scc                #? MPI_PROCS <= 1
+elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
+elecconstraints/Si8_spin               #? MPI_PROCS <= 1
 
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
@@ -380,6 +380,7 @@ spinorbit/Fe2                          #? MPI_PROCS <= 2
 analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
 non-scc/10-0Ctube_Efield               #? MPI_PROCS <= 4
 non-scc/10-10Ctube                     #? MPI_PROCS <= 4
+non-scc/10-10Ctube_MP                  #? MPI_PROCS <= 4
 non-scc/Ctube_Fermi                    #? MPI_PROCS <= 4
 analysis/10-0Ctube_ESP                 #? MPI_PROCS <= 4
 md/H2O-extfield                        #? MPI_PROCS <= 1
