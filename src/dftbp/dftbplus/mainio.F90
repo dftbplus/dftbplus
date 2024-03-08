@@ -1861,20 +1861,6 @@ contains
 #:endif
 
 
-  !> Open an output file and clear it
-  subroutine initOutputFile(fileName)
-
-    !> File name
-    character(*), intent(in) :: fileName
-
-    type(TFileDescr) :: fd
-
-    call openFile(fd, fileName, mode="w")
-    call closeFile(fd)
-
-  end subroutine initOutputFile
-
-
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
   subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
