@@ -42,12 +42,17 @@
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #! Check a condition if WITH_ASSERT is True and call assertError if condition is False.
-#:def ASSERT(cond)
+#! If an optional text string is included, print this in addition as an error
+#:def ASSERT(cond, *msg)
   #:if WITH_ASSERT
   if (.not. (${cond}$)) then
     block
       use dftbp_common_assert, only : assertError
+      #:if len(msg) > 0
+      call assertError("${_FILE_}$", ${_LINE_}$, "${' '.join(msg)}$")
+      #:else
       call assertError("${_FILE_}$", ${_LINE_}$)
+      #:endif
     end block
   end if
   #:endif
