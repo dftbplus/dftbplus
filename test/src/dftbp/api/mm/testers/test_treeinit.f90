@@ -9,7 +9,8 @@
 !> periodic geometry with k-points.
 program test_treeinit
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, setChild, setChildValue,&
+      & TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag

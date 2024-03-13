@@ -7,7 +7,8 @@
 
 !> Socket interface library
 module dftbp_extlibs_fsockets
-  use fsockets
+  use fsockets, only : close_socket, connect_inet_socket, connect_unix_socket, readbuffer,&
+      & writebuffer
   implicit none
 
 #:if WITH_SOCKETS
