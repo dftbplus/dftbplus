@@ -45,6 +45,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
+  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
@@ -2634,9 +2635,13 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_MAGMA
     case ("magma")
+  #:if WITH_MAGMA
       ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+      call getChildValue(value1, "DensityMatrixGPU", ctrl%isDmOnGpu, .true.)
+  #:else
+      call detailedError(node, "DFTB+ must be compiled with MAGMA support in order to enable&
+          & this solver")
   #:endif
 
     case ("elpa")
@@ -2774,6 +2779,7 @@ contains
           & (GreensFunction or TransportOnly required)")
     end if
   #:endif
+
   end subroutine readSolver
 
 

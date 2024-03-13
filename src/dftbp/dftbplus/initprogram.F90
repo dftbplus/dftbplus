@@ -1964,7 +1964,7 @@ contains
       end if
 
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
-        this%tWriteHS = .false.
+      this%tWriteHS = .false.
 
       call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi, env,&
           & this%denseDesc%fullSize, this%nEl, this%iDistribFn, this%nSpin,&
@@ -2705,6 +2705,8 @@ contains
             & this%isSparseReorderRequired)
       end associate
   #:endif
+
+    call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
     if (allocated(this%symNeighbourList)) then
       if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
@@ -6291,6 +6293,43 @@ contains
     end if
 
   end subroutine checkReksConsistency
+
+
+  !> Sets up how the density matrix is obtained
+  subroutine densityMatrixSource(densityMatrix, electronicSolver, isGpuUsed)
+    use dftbp_dftb_densitymatrix, only : TDensityMatrix_init
+    use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
+
+    !> Holds real and complex delta density matrices and pointers
+    type(TDensityMatrix), intent(out) :: densityMatrix
+
+    !> Electronic structure solver
+    type(TElectronicSolver) :: electronicSolver
+
+    !> Is the eigenvector -> density matrix on the GPU (if MAGMA)
+    logical, intent(in) :: isGpuUsed
+
+    integer :: iDm
+
+    iDm = densityMatrixTypes%none
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%omm,&
+        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%GF])) then
+      iDm = densityMatrixTypes%elecSolverProvided
+    end if
+    if (electronicSolver%providesEigenvals) then
+      iDm = densityMatrixTypes%fromEigenVecs
+    end if
+    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+      if (isGpuUsed) then
+        iDm = densityMatrixTypes%magma_fromEigenVecs
+      else
+        iDm = densityMatrixTypes%fromEigenVecs
+      end if
+    end if
+    call  TDensityMatrix_init(densityMatrix, iDm)
+
+  end subroutine densityMatrixSource
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&

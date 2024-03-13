@@ -26,6 +26,8 @@ Added
   state by determining a self-consistent constraint potential (restricted to
   Mulliken populations at the moment)
 
+- Density Matrix construction on GPU using MAGMA-BLAS routines
+
 
 Fixed
 -----
@@ -67,7 +69,6 @@ Added
 
 - Born charges and derivatives can now be calculated for a subset of the desired
   atoms (similar to the Hessian).
-
 
 Changed
 -------

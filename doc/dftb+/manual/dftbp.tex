@@ -2362,9 +2362,6 @@ available:
   other solvers)
 \item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
   states)
-\item \iscb{MAGMA}\\ (Only available for \dftbp{} binaries compiled with
-  MAGMA~\cite{tdb10, tnld10, dghklty14} GPU support. \textbf{WARNING:} this is
-  currently an experimental feature, so should be used with care.)
 \end{itemize}
 None of these solvers need any parameters or properties to be specified.
 
@@ -2373,18 +2370,36 @@ Example:\invparskip
   Solver = DivideAndConquer {}
 \end{verbatim}
 
-For ScaLAPACK enabled compilation, all three solvers are also available for MPI
-parallel use.
+For ScaLAPACK enabled compilation, all three of the LAPACK solvers are
+also available for MPI parallel use.
 
-If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
-the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
-become available.
+If the \dftbp{} binary is compiled with additional libraries, the
+following solvers become available:
+\begin{tabular}{|l|l|l|}
+  \hline Library & Solver(s) & Note\\ \hline
+  MAGMA~\cite{tdb10, tnld10, dghklty14,vuong2023accelerating} & \kwcb{MAGMA} & Serial \dftbp{}\\\hline
+  ELSI~\cite{YU2018267,yu2020elsi} & \kwcb{ELPA}, \kwcb{OMM}, \kwcb{PEXSI},
+  \kwcb{NTPoly} & MPI parallel \dftbp{}\\ \hline
+\end{tabular}
 
 Note: The ELSI-solvers are not tested with multiple OpenMP-threads. Therefore,
 {\dftbp} will stop with an error, if an ELSI-solver has been selected and the
 maximal number of allowed threads is greater than one. (You can control the
 number of allowed OpenMP-threads via the \verb|OMP_NUM_THREADS| environment
 variable.)
+
+\subsubsection{MAGMA}
+
+This uses available GPUs to accelerate eigensolution and (optionally)
+density matrix construction.
+It accepts following options:
+\begin{ptable}
+  \kw{DensityMatrixGPU} & l& & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{DensityMatrixGPU}] Use the GPU to construct the single
+  particle density matrix from the eigenvectors.
+\end{description}
 
 \subsubsection{ELPA}
 
