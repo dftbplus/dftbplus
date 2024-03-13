@@ -631,8 +631,10 @@ module dftbp_dftbplus_initprogram
     real(dp) :: elast
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
-    !> Charge mixer
+    !> Charge mixer for real matrices
     type(TMixerReal), allocatable :: pChrgMixerReal
+
+    !> Charge mixer for complex matrices
     type(TMixerCmplx), allocatable :: pChrgMixerCmplx
 
     !> MD Framework

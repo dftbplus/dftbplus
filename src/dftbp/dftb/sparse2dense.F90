@@ -3180,13 +3180,13 @@ contains
 
 
   !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
-  subroutine getSparseDescriptor(iNeighbour, nNeighbourSK, img2CentCell, orb, iPair, sparseSize)
+  subroutine getSparseDescriptor(iNeighbour, nNeighbour, img2CentCell, orb, iPair, sparseSize)
 
     !> Neighbours of each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Indexing for mapping image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
@@ -3217,7 +3217,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
+      do iNeigh1 = 0, nNeighbour(iAt1)
         iPair(iNeigh1, iAt1) = ind
         nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
         ind = ind + nOrb1 * nOrb2
@@ -3229,13 +3229,13 @@ contains
 
 
   !> Calculates number of elements in sparse arrays like the real space overlap.
-  subroutine getSparseSize(iNeighbour, nNeighbourSK, img2CentCell, orb, sparseSize)
+  subroutine getSparseSize(iNeighbour, nNeighbour, img2CentCell, orb, sparseSize)
 
     !> Neighbours of each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Indexing for mapping image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
@@ -3255,7 +3255,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
+      do iNeigh1 = 0, nNeighbour(iAt1)
         nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
         ind = ind + nOrb1 * nOrb2
       end do

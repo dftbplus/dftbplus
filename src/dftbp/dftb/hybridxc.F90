@@ -1219,13 +1219,7 @@ contains
     !! Start and end index for MPI parallelization, if applicable
     integer :: iParallelStart, iParallelEnd
 
-  #:if WITH_MPI
-    call getStartAndEndIndex(nS * nK * nKPrime, env%mpi%globalComm%size, env%mpi%globalComm%rank,&
-        & iParallelStart, iParallelEnd)
-  #:else
-    iParallelStart = 1
-    iParallelEnd = nS * nK * nKPrime
-  #:endif
+    call getStartAndEndIndex(env, nS * nK * nKPrime, iParallelStart, iParallelEnd)
 
     ! Composite index needs to be allocated on all ranks
     allocate(iKSComposite(3, iParallelEnd - iParallelStart + 1))
@@ -1328,12 +1322,9 @@ contains
 
   #:if WITH_MPI
     call mpifx_bcast(env%mpi%globalComm, ind)
-    call getStartAndEndIndex(ind, env%mpi%globalComm%size, env%mpi%globalComm%rank, iParallelStart,&
-        & iParallelEnd)
-  #:else
-    iParallelStart = 1
-    iParallelEnd = ind
   #:endif
+
+    call getStartAndEndIndex(env, ind, iParallelStart, iParallelEnd)
 
     ! Composite index needs to be allocated on all ranks
     allocate(compositeIndex(4, iParallelEnd - iParallelStart + 1))
@@ -2609,6 +2600,7 @@ contains
         & cellVec, iSparseStart, img2CentCell, kPoints, SSqrCplx)
 
     if (allocated(densityMatrix%kPointPrime)) then
+      @:ASSERT(allocated(densityMatrix%kWeightPrime))
       nKPrime = size(densityMatrix%kPointPrime, dim=2)
       kPointPrime => densityMatrix%kPointPrime
       kWeightPrime => densityMatrix%kWeightPrime
@@ -2800,13 +2792,7 @@ contains
     nKpoints = size(kPoint, dim=2)
     allocate(SSqrCplx(denseDesc%nOrb, denseDesc%nOrb, nKpoints), source=(0.0_dp, 0.0_dp))
 
-  #:if WITH_MPI
-    call getStartAndEndIndex(nKpoints, env%mpi%globalComm%size, env%mpi%globalComm%rank,&
-        & iParallelStart, iParallelEnd)
-  #:else
-    iParallelStart = 1
-    iParallelEnd = nKpoints
-  #:endif
+    call getStartAndEndIndex(env, nKpoints, iParallelStart, iParallelEnd)
 
     ! Pre-generate overlap matrix on all MPI processes
     do iK = iParallelStart, iParallelEnd
