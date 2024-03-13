@@ -289,8 +289,8 @@ contains
           @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for hybrid xc-functional&
               & calculation.")
         end if
-        call hybridXc%addCamEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS,&
-            & kWeights, densityMatrix%deltaRhoOutCplx, energy%Efock)
+        call hybridXc%addCamEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS, kWeights,&
+            & densityMatrix%deltaRhoOutCplx, energy%Efock)
       end if
     end if
 

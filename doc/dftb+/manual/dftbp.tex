@@ -4623,21 +4623,22 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
     \item[\is{Threshold}] See description in the \is{Thresholded} block.
     \end{description}
     
-  Note: The neighbour-list based algorithm is currently the only method available for
-    periodic systems treated beyond the $\Gamma$-point. For non-periodic systems or
-    calculations restricted to the $\Gamma$-point it is usually considerably slower
-    than the matrix-based (or thresholded) algorithm. For systems treated beyond the
-    $\Gamma$-point it supports MPI parallelism, however, colinear spin polarization
-    is not yet supported.
+  Note: Except for quasi-1D systems the neighbour-list based algorithm is usually
+    considerably slower than the matrix-based (or thresholded) algorithm. For systems
+    treated beyond the $\Gamma$-point the neighbour-list based algorithm supports MPI
+    parallelism. Collinear spin polarization and analytic energy gradients are available
+    throughout.
 
-  \item[\is{MatrixBased} \cb] Uses a matrix-matrix multiplication based algorithm. For
-    small to medium sized systems, this method is \emph{significantly faster} than the
-    other two algorithms.
+  \item[\is{MatrixBased} \cb] Based on the multiplication of dense, square, dual-space
+    density and overlap matrices. For small to medium sized systems, this method is
+    \emph{significantly faster} than the other two algorithms.
 
-  Note: The matrix-based algorithm is available and the recommended choice for non-periodic
-    systems or calculations restricted to the $\Gamma$-point. It supports analytic energy
-    gradients, colinear spin polarization and MPI parallelism. Restarting calculations
-    however is only possible with serial binaries at the moment.
+  Note: The matrix-based algorithm is available and is the \textbf{recommended choice} for
+    non-periodic and periodic systems, including calculations beyond the $\Gamma$-point.
+    It supports analytic energy gradients (molecular or $\Gamma$-point periodic only),
+    collinear spin polarization and MPI parallelism. Restarting calculations however is
+    not yet supported for MPI enabled binaries in combination with non-periodic systems
+    or $\Gamma$-point calculations.
 
   \end{description}
 \end{description}

@@ -123,27 +123,44 @@ hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? not WITH_MPI
 
 hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
 hybrid/periodic/Acene-gamma-matrix-restart            #? not WITH_MPI
+hybrid/periodic/Acene-gamma-matrix-restart-ascii      #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-cam           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-hyb           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-lc            #? not WITH_MPI
-hybrid/periodic/Acene-kpts-band                       #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-band-mpi                   #? MPI_PROCS == 2
-hybrid/periodic/Acene-kpts-force-lc                   #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-restart                    #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-restart-mpi                #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-lc                  #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-ascii       #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-np2         #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-restart-np3         #? MPI_PROCS == 3
+hybrid/periodic/Acene-kpts-matrix-restart-np4         #? MPI_PROCS == 4
+hybrid/periodic/Acene-kpts-neigh-band                 #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-band-mpi             #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-neigh-force-lc             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart              #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart-ascii        #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart-mpi          #? MPI_PROCS == 2
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts       #? MPI_PROCS <= 1
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np2   #? MPI_PROCS == 2
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np3   #? MPI_PROCS == 3
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np4   #? MPI_PROCS == 4
 hybrid/periodic/Benzene-box-spin-neigh-ct-kpts        #? MPI_PROCS <= 1
 hybrid/periodic/Benzene-box-spin-neigh-ct-kpts-mpi    #? MPI_PROCS == 2
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp1  #? MPI_PROCS <= 9 and MPI_PROCS != 5 and MPI_PROCS != 7
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp2  #? MPI_PROCS == 2 or MPI_PROCS == 4
 hybrid/periodic/Benzene-gamma-neigh-spin-force        #? not WITH_MPI
-hybrid/periodic/CN-chain_transl-inv-ct                #? MPI_PROCS <= 1
+hybrid/periodic/CN-chain_transl-inv-matrix-ct         #? MPI_PROCS <= 1
+hybrid/periodic/CN-chain_transl-inv-neigh-ct          #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-gamma-matrix                     #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-gamma-neigh                      #? not WITH_MPI
 hybrid/periodic/GaAs-gamma-restart                    #? not WITH_MPI
-hybrid/periodic/GaAs-kpts-ct                          #? MPI_PROCS <= 1
-hybrid/periodic/GaAs-kpts-ct-mpi                      #? MPI_PROCS == 2
-hybrid/periodic/GaAs-kpts-mic                         #? MPI_PROCS <= 1
-hybrid/periodic/GaAs-kpts-mic-mpi                     #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-matrix-ct                   #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-np2               #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-matrix-ct-np3               #? MPI_PROCS == 3
+hybrid/periodic/GaAs-kpts-matrix-ct-np4               #? MPI_PROCS == 4
+hybrid/periodic/GaAs-kpts-neigh-ct                    #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-neigh-ct-mpi                #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-neigh-mic                   #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-neigh-mic-mpi               #? MPI_PROCS == 2
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI

@@ -85,7 +85,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_geoopt_conjgrad, only : TConjGrad
   use dftbp_geoopt_filter, only : TFilter, TFilter_init
   use dftbp_geoopt_fire, only : TFire, TFire_init
-  use dftbp_geoopt_gdiis, only : TDIIS
+  use dftbp_geoopt_gdiis, only : TDiis
   use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
   use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
@@ -108,11 +108,14 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_thermostat, only : TThermostat, init
   use dftbp_md_velocityverlet, only : TVelocityVerlet, init
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_mixer_andersonmixer, only : TAndersonMixer, init
-  use dftbp_mixer_broydenmixer, only : TBroydenMixer, init
-  use dftbp_mixer_diismixer, only : TDIISMixer, init
-  use dftbp_mixer_mixer, only : TMixer, mixerTypes, init
-  use dftbp_mixer_simplemixer, only : TSimpleMixer, init
+  use dftbp_mixer_andersonmixer, only : TAndersonMixer, TAndersonMixer_init
+  use dftbp_mixer_broydenmixer, only : TBroydenMixerReal, TBroydenMixerReal_init,&
+      & TBroydenMixerCmplx, TBroydenMixerCmplx_init
+  use dftbp_mixer_diismixer, only : TDiisMixer, TDiisMixer_init
+  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, mixerTypes, TMixerReal_init,&
+      & TMixerCmplx_init
+  use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
+      & TSimpleMixerCmplx_init
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
@@ -629,7 +632,8 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer
-    type(TMixer), allocatable :: pChrgMixer
+    type(TMixerReal), allocatable :: pChrgMixerReal
+    type(TMixerCmplx), allocatable :: pChrgMixerCmplx
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -790,6 +794,9 @@ module dftbp_dftbplus_initprogram
     !> Whether to run a hybrid xc-functional calculation
     logical :: isHybridXc
 
+    !> Choice of hybrid xc-functional algorithm to build Hamiltonian
+    integer :: hybridXcAlg
+
     !> Whether constraints are imposed on electronic ground state
     logical :: isElecConstr
 
@@ -799,8 +806,8 @@ module dftbp_dftbplus_initprogram
     !> Holds real and complex delta density matrices and pointers
     type(TDensityMatrix) :: densityMatrix
 
-    !> Linear response calculation with range-separated functional
-    logical :: isRS_LinResp
+    !> Linear response calculation with hybrid xc-functional
+    logical :: isHybLinResp
 
     !> If initial charges/dens mtx. from external file.
     logical :: tReadChrg
@@ -1205,16 +1212,18 @@ contains
     integer :: iMixer
 
     !> Simple mixer (if used)
-    type(TSimpleMixer), allocatable :: pSimpleMixer
+    type(TSimpleMixerReal), allocatable :: pSimpleMixerReal
+    type(TSimpleMixerCmplx), allocatable :: pSimpleMixerCmplx
 
     !> Anderson mixer (if used)
     type(TAndersonMixer), allocatable :: pAndersonMixer
 
     !> Broyden mixer (if used)
-    type(TBroydenMixer), allocatable :: pBroydenMixer
+    type(TBroydenMixerReal), allocatable :: pBroydenMixerReal
+    type(TBroydenMixerCmplx), allocatable :: pBroydenMixerCmplx
 
     !> DIIS mixer (if used)
-    type(TDIISMixer), allocatable :: pDIISMixer
+    type(TDiisMixer), allocatable :: pDiisMixer
 
     ! Geometry optimiser related local variables
 
@@ -1231,7 +1240,7 @@ contains
     type(TSteepDescDepr), allocatable :: pSteepDescLat
 
     !> Gradient DIIS driver
-    type(TDIIS), allocatable :: pDIIS
+    type(TDiis), allocatable :: pDiis
 
     !> LBFGS driver for geometry optimisation
     type(TLbfgs), allocatable :: pLbfgs
@@ -1285,6 +1294,9 @@ contains
 
     !> Flag if some files do exist or not
     logical :: tExist
+
+    !> Whether a complex-valued mixer is required
+    logical :: tCmplxMixer
 
     ! Damped interactions
     type(TShortGammaDamp) :: shortGammaDamp
@@ -1363,6 +1375,9 @@ contains
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
+      this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
+    else
+      this%hybridXcAlg = hybridXcAlgo%none
     end if
 
     if (this%t2Component) then
@@ -1478,10 +1493,25 @@ contains
 
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
+    if (this%isHybridXc) then
+      if ((.not. this%tRealHS)&
+          & .and. (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint**2)&
+          & .and. input%ctrl%hybridXcInp%hybridXcAlg == hybridXcAlgo%matrixBased) then
+        ! General k-point case, matrix-multiplication based algorithm
+        ! (parallelized over iKS-iKSPrime summation)
+        write(tmpStr, "(A,I0,A,I0,A)") 'For hybrid calculations beyond the Gamma point using the&
+            & matrix-multiplication based algorithm, the number of MPI' // NEW_LINE('A')&
+            & // '   groups may not exceed nSpin * nKpoint^2 processes.' // NEW_LINE('A')&
+            & // '   Obtained (', input%ctrl%parallelOpts%nGroup, ') groups, upper bound is (',&
+            & this%nIndepSpin * this%nKPoint**2, ') groups!'
+        call error(trim(tmpStr))
+      end if
+    end if
+
     if (this%isHybridXc .and. (.not. this%tRealHS)&
         & .and. (input%ctrl%parallelOpts%nGroup /= env%mpi%globalComm%size)) then
       ! General k-point case (parallelized over k-points)
-      write(tmpStr, "(A,I0,A,I0,A)") 'For range-separated calculations beyond the Gamma point, the&
+      write(tmpStr, "(A,I0,A,I0,A)") 'For hybrid calculations beyond the Gamma point, the&
           & number of MPI' // NEW_LINE('A') // '   groups must match the total number of MPI&
           & processes.' // NEW_LINE('A') // '   Obtained (', input%ctrl%parallelOpts%nGroup, ')&
           & groups for (', env%mpi%globalComm%size, ') total MPI processes!'
@@ -1490,8 +1520,8 @@ contains
   #:endif
 
   #:if WITH_SCALAPACK
-    call initBlacs(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb,&
-        & this%t2Component, env, errStatus)
+    call initBlacs(input%ctrl%parallelOpts%blacsOpts, this%nAtom, this%nOrb, this%t2Component, env,&
+        & errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
         call warning("Insufficient atoms for this number of MPI processors")
@@ -1785,34 +1815,54 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
     if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      allocate(this%pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
+      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)
+      if (tCmplxMixer) then
+        allocate(this%pChrgMixerCmplx)
+        select case (iMixer)
+        case (mixerTypes%simple)
+          allocate(pSimplemixerCmplx)
+          call TSimpleMixerCmplx_init(pSimpleMixerCmplx, mixParam)
+          call TMixerCmplx_init(this%pChrgMixerCmplx, pSimpleMixerCmplx)
+        case (mixerTypes%broyden)
+          allocate(pBroydenMixerCmplx)
+          call TBroydenMixerCmplx_init(pBroydenMixerCmplx, this%maxSccIter, mixParam,&
+              & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
+              & input%ctrl%broydenWeightFac)
+          call TMixerCmplx_init(this%pChrgMixerCmplx, pBroydenMixerCmplx)
+        case default
+          call error("Unknown charge mixer type.")
+        end select
+      end if
+      allocate(this%pChrgMixerReal)
       select case (iMixer)
-      case (mixerTypes%simple)
-        allocate(pSimplemixer)
-        call init(pSimpleMixer, mixParam)
-        call init(this%pChrgMixer, pSimpleMixer)
-      case (mixerTypes%anderson)
+      case(mixerTypes%simple)
+        allocate(pSimplemixerReal)
+        call TSimpleMixerReal_init(pSimpleMixerReal, mixParam)
+        call TMixerReal_init(this%pChrgMixerReal, pSimpleMixerReal)
+      case(mixerTypes%anderson)
         allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
-          call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
-              & input%ctrl%andersonDynMixParams, input%ctrl%andersonOmega0)
+          call TAndersonMixer_init(pAndersonMixer, nGeneration, mixParam,&
+              & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
+              & input%ctrl%andersonOmega0)
         else
-          call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
-              & omega0=input%ctrl%andersonOmega0)
+          call TAndersonMixer_init(pAndersonMixer, nGeneration, mixParam,&
+              & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
         end if
-        call init(this%pChrgMixer, pAndersonMixer)
-      case (mixerTypes%broyden)
-        allocate(pBroydenMixer)
-        call init(pBroydenMixer, this%maxSccIter, mixParam, input%ctrl%broydenOmega0,&
-            & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
-        call init(this%pChrgMixer, pBroydenMixer)
+        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixer)
+      case(mixerTypes%broyden)
+        allocate(pBroydenMixerReal)
+        call TBroydenMixerReal_init(pBroydenMixerReal, this%maxSccIter, mixParam,&
+            & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
+            & input%ctrl%broydenWeightFac)
+        call TMixerReal_init(this%pChrgMixerReal, pBroydenMixerReal)
       case(mixerTypes%diis)
-        allocate(pDIISMixer)
-        call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
-        call init(this%pChrgMixer, pDIISMixer)
+        allocate(pDiisMixer)
+        call TDiisMixer_init(pDiisMixer,nGeneration, mixParam, input%ctrl%tFromStart)
+        call TMixerReal_init(this%pChrgMixerReal, pDiisMixer)
       case default
         call error("Unknown charge mixer type.")
       end select
@@ -2077,10 +2127,10 @@ contains
         call init(pConjGrad, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp)
         call init(this%pGeoCoordOpt, pConjGrad)
       case (geoOptTypes%diis)
-        allocate(pDIIS)
-        call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaGeoOpt,&
+        allocate(pDiis)
+        call init(pDiis, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaGeoOpt,&
             & input%ctrl%iGenGeoOpt)
-        call init(this%pGeoCoordOpt, pDIIS)
+        call init(this%pGeoCoordOpt, pDiis)
       case (geoOptTypes%lbfgs)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
@@ -2448,7 +2498,7 @@ contains
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
-    this%isRS_LinResp = this%isLinResp .and. this%isHybridXc
+    this%isHybLinResp = this%isLinResp .and. this%isHybridXc
 
     if (this%isLinResp) then
 
@@ -2459,7 +2509,7 @@ contains
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
-          & this%tPeriodic, this%tCasidaForces, this%solvation, this%isRS_LinResp, this%nSpin,&
+          & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
           & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
           & isOnsiteCorrected, input)
 
@@ -2748,13 +2798,14 @@ contains
 
       if (this%isHybridXc) then
         ! allocation is necessary to hint "initializeCharges" what information to extract
-        call reallocateHybridXc(this, nLocalRows, nLocalCols,&
+        call reallocateHybridXc(this, input%ctrl%hybridXcInp%hybridXcAlg, nLocalRows, nLocalCols,&
             & size(this%parallelKS%localKS, dim=2))
       end if
 
     end if
 
-    call this%initializeCharges(errStatus, input%ctrl%initialSpins, input%ctrl%initialCharges)
+    call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
+        & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
     if (errStatus%hasError()) then
       call error(errStatus%message)
     end if
@@ -2768,7 +2819,7 @@ contains
         if (any(abs(input%ctrl%supercellFoldingMatrix&
             & - this%supercellFoldingMatrix) > 1e-06_dp)) then
           write(tmpStr, "(A,3I5,A,3I5,A,3I5,A,3F10.6)")&
-              & 'Error while processing k-point sampling for range-separated run.'&
+              & 'Error while processing k-point sampling for hybrid run.'&
               & // NEW_LINE('A')&
               & // '   When restarting, only identical k-point samplings to previous run are'&
               & // NEW_LINE('A') // '   supported. In this case this would correspond to the&
@@ -2811,12 +2862,17 @@ contains
         call error(errStatus%message)
       end if
       ! now all information is present to properly allocate density matrices and associate pointers
-      call reallocateHybridXc(this, nLocalRows, nLocalCols, size(this%parallelKS%localKS, dim=2))
+      call reallocateHybridXc(this, input%ctrl%hybridXcInp%hybridXcAlg, nLocalRows, nLocalCols,&
+          & size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
       if (this%tRealHS) then
         this%nMixElements = size(this%densityMatrix%deltaRhoIn)
       else
-        this%nMixElements = size(this%densityMatrix%deltaRhoInCplxHS)
+        if (input%ctrl%hybridXcInp%hybridXcAlg == hybridXcAlgo%matrixBased) then
+          this%nMixElements = size(this%densityMatrix%deltaRhoInCplx)
+        else
+          this%nMixElements = size(this%densityMatrix%deltaRhoInCplxHS)
+        end if
       end if
     end if
 
@@ -2825,10 +2881,8 @@ contains
       call getCellTranslations(this%cellVec, this%rCellVec, this%latVec, this%invLatVec,&
           & this%cutOff%mCutOff)
     else
-      allocate(this%cellVec(3, 1))
-      allocate(this%rCellVec(3, 1))
-      this%cellVec(:, 1) = [0.0_dp, 0.0_dp, 0.0_dp]
-      this%rCellVec(:, 1) = [0.0_dp, 0.0_dp, 0.0_dp]
+      allocate(this%cellVec(3, 1), source=0.0_dp)
+      allocate(this%rCellVec(3, 1), source=0.0_dp)
     end if
 
     ! Initialize neighbourlist(s)
@@ -3878,14 +3932,14 @@ contains
 
       if (this%isHybridXc) then
         if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
-          call error("Triplet perturbations currently disabled for electron dynamics with&
-              & range-separated functionals")
+          call error("Triplet perturbations currently disabled for electron dynamics with hybrid&
+              & xc-functionals.")
         end if
         if (input%ctrl%elecDynInp%tForces) then
-          call error("Forces for time propagation currently disabled for range-separated")
+          call error("Forces for time propagation currently disabled for hybrid xc-functionals.")
         end if
         if (input%ctrl%elecDynInp%tIons) then
-          call error("Ion dynamics time propagation currently disabled for range-separated")
+          call error("Ion dynamics time propagation currently disabled for hybrid xc-functionals.")
         end if
       end if
 
@@ -4108,8 +4162,7 @@ contains
 
 
   !> Initialise partial charges
-  !>
-  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges)
+  subroutine initializeCharges(this, errStatus, initialSpins, initialCharges, hybridXcAlg)
 
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
@@ -4122,6 +4175,9 @@ contains
 
     !> Set of atom-resolved atomic charges
     real(dp), optional, intent(in) :: initialCharges(:)
+
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in), optional :: hybridXcAlg
 
     !> Tolerance in difference between total charge and sum of initial charges
     real(dp), parameter :: deltaChargeTol = 1.e-4_dp
@@ -4205,21 +4261,23 @@ contains
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus,&
-            & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+            & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
+            & coeffsAndShifts=this%supercellFoldingMatrix)
         @:PROPAGATE_ERROR(errStatus)
       else
         ! check number of electrons in file
         if (this%nSpin /= 2) then
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
-              & multipoles=this%multipoleInp, coeffsAndShifts=this%supercellFoldingMatrix)
+              & multipoles=this%multipoleInp, hybridXcAlg=hybridXcAlg,&
+              & coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         else
           ! check magnetisation in addition
           call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
               & this%qiBlockIn, this%densityMatrix, this%tRealHS, errStatus, nEl=sum(this%nEl),&
               & magnetisation=this%nEl(1)-this%nEl(2), multipoles=this%multipoleInp,&
-              & coeffsAndShifts=this%supercellFoldingMatrix)
+              & hybridXcAlg=hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix)
           @:PROPAGATE_ERROR(errStatus)
         end if
       end if
@@ -5688,21 +5746,21 @@ contains
           & yet support restarts for MPI-enabled builds.")
     end if
 
-    if (this%tPeriodic) then
-      if ((.not. this%tRealHS) .and. (hybridXcInp%hybridXcAlg /= hybridXcAlgo%neighbourBased)) then
-        call error("Hybrid functionality for periodic systems beyond the Gamma-point currently only&
-            & working for the neighbour list based algorithm.")
-      end if
-      if (this%tRealHS .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-        call error("Hybrid functionality at the Gamma-point not implemented for the threshold&
-            & algorithm.")
-      end if
+    if (this%tPeriodic .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+      call error("Hybrid functionality for periodic systems currently not implemented for the&
+          & threshold algorithm.")
     end if
 
     if ((.not. this%tRealHS) .and. this%tForces&
         & .and. (hybridXcInp%gammaType /= hybridXcGammaTypes%truncated)) then
       call error("Hybrid functionals don't yet support gradient calculations for periodic systems&
           & beyond the Gamma point for CoulombMatrix settings other than 'Truncated'.")
+    end if
+
+    if ((.not. this%tRealHS) .and. this%tForces&
+        & .and. (hybridXcInp%hybridXcAlg /= hybridXcAlgo%neighbourBased)) then
+      call error("Hybrid functionals don't yet support gradient calculations for periodic systems&
+          & beyond the Gamma point for HFX construction algorithms other than 'NeighbourBased'.")
     end if
 
     if (this%tPeriodic .and. this%tRealHS&
@@ -5756,11 +5814,11 @@ contains
       call error("Hybrid calculations not currently implemented for 3rd-order DFTB.")
     end if
 
-    if (this%isRS_LinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
+    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
       call error("General CAM functionals not currently implemented for linear response.")
     end if
 
-    if (this%isRS_LinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
+    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
       call error("Global hybrid functionals not currently implemented for linear response.")
     end if
 
@@ -5770,7 +5828,7 @@ contains
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !! features.
   subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
-      & isRS_LinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
+      & isHybLinResp, nSpin, tHelical, tSpinOrbit, isDftbU, tempElec, isOnsiteCorrected, input)
 
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
@@ -5791,7 +5849,7 @@ contains
     class(TSolvation), allocatable :: solvation
 
     !> Is this an excited state calculation with range separation
-    logical, intent(in) :: isRS_LinResp
+    logical, intent(in) :: isHybLinResp
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
@@ -5877,7 +5935,7 @@ contains
       call error("Onsite corrections not implemented for Stratmann diagonaliser.")
     end if
 
-    if (isRS_LinResp) then
+    if (isHybLinResp) then
       if (input%ctrl%lrespini%iLinRespSolver /= linRespSolverTypes%Stratmann) then
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
@@ -5914,13 +5972,13 @@ contains
     real(dp), intent(in) :: cutoffRed
 
     if (cutoffRed < 0.0_dp) then
-      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+      call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
     end if
 
     cutOff%camCutOff = cutOff%skCutOff - cutoffRed
 
     if (cutOff%camCutOff < 0.0_dp) then
-      call error("Screening cutoff for range-separated neighbours too short.")
+      call error("Screening cutoff for hybrid xc-functional neighbours too short.")
     end if
 
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
@@ -5955,13 +6013,13 @@ contains
     type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
-      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+      call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
     end if
 
     cutOff%camCutOff = cutOff%skCutOff - cutoffRed
 
     if (cutOff%camCutOff < 0.0_dp) then
-      call error("Screening cutoff for range-separated neighbours too short.")
+      call error("Screening cutoff for hybrid xc-functional neighbours too short.")
     end if
 
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
@@ -6015,13 +6073,13 @@ contains
     type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
-      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+      call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
     end if
 
     cutOff%camCutOff = cutOff%skCutOff - cutoffRed
 
     if (cutOff%camCutOff < 0.0_dp) then
-      call error("Screening cutoff for range-separated neighbours too short.")
+      call error("Screening cutoff for hybrid xc-functional neighbours too short.")
     end if
 
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
@@ -6053,10 +6111,13 @@ contains
 
 
   !> Pre-allocate density matrix for range-separation.
-  subroutine reallocateHybridXc(this, nLocalRows, nLocalCols, nLocalKS)
+  subroutine reallocateHybridXc(this, hybridXcAlg, nLocalRows, nLocalCols, nLocalKS)
 
     !> Instance
     type(TDftbPlusMain), intent(inout) :: this
+
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in) :: hybridXcAlg
 
     !> Size descriptors for MPI parallel execution
     integer, intent(in) :: nLocalRows, nLocalCols, nLocalKS
@@ -6067,8 +6128,9 @@ contains
     !! Spin and k-point indices
     integer :: iSpin, iK
 
-    ! deallocate arrays, if already allocated
-    if (allocated(this%densityMatrix%deltaRhoOut)) deallocate(this%densityMatrix%deltaRhoOut)
+    ! Deallocate arrays, if already allocated
+    if (allocated(this%densityMatrix%deltaRhoOut))&
+        & deallocate(this%densityMatrix%deltaRhoOut)
     if (allocated(this%densityMatrix%deltaRhoOutCplx))&
         & deallocate(this%densityMatrix%deltaRhoOutCplx)
     if (allocated(this%densityMatrix%iKiSToiGlobalKS))&
@@ -6079,38 +6141,50 @@ contains
     if (this%tRealHS) then
       ! Prevent for deleting charges read in from file
       if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
-        allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS))
-        this%densityMatrix%deltaRhoIn(:,:,:) = 0.0_dp
+        allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
       end if
-      allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS))
-      this%densityMatrix%deltaRhoOut(:,:,:) = 0.0_dp
+      allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
     elseif (this%tReadChrg .and. (.not. allocated(this%supercellFoldingDiag))) then
       ! in case of k-points and restart from file, we have to wait until charges.bin was read
-      if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
-        allocate(this%densityMatrix%deltaRhoInCplxHS(0, 0, 0, 0, 0, 0))
-        this%densityMatrix%deltaRhoInCplxHS(:,:,:,:,:,:) = 0.0_dp
+      if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplx)) then
+          allocate(this%densityMatrix%deltaRhoInCplx(0, 0, 0), source=(0.0_dp, 0.0_dp))
+        end if
+      else
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
+          allocate(this%densityMatrix%deltaRhoInCplxHS(0, 0, 0, 0, 0, 0), source=0.0_dp)
+        end if
+        allocate(this%densityMatrix%deltaRhoOutCplxHS(0, 0, 0, 0, 0, 0), source=0.0_dp)
       end if
-      allocate(this%densityMatrix%deltaRhoOutCplxHS(0, 0, 0, 0, 0, 0))
-      this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
     else
-      ! normal k-point case, without restart from file
-      if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
-        allocate(this%densityMatrix%deltaRhoInCplxHS(this%nOrb, this%nOrb,&
-            & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
-            & this%supercellFoldingDiag(3), this%nIndepSpin))
-        this%densityMatrix%deltaRhoInCplxHS(:,:,:,:,:,:) = 0.0_dp
-      end if
+      ! Normal k-point case, without restart from file
+      if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplx)) then
+          allocate(this%densityMatrix%deltaRhoInCplx(this%nOrb, this%nOrb,&
+              & this%nKPoint * this%nSpin), source=(0.0_dp, 0.0_dp))
+        end if
+      else
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplxHS)) then
+          allocate(this%densityMatrix%deltaRhoInCplxHS(this%nOrb, this%nOrb,&
+              & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
+              & this%supercellFoldingDiag(3), this%nIndepSpin), source=0.0_dp)
+        end if
         allocate(this%densityMatrix%deltaRhoOutCplxHS(this%nOrb, this%nOrb,&
             & this%supercellFoldingDiag(1), this%supercellFoldingDiag(2),&
-            & this%supercellFoldingDiag(3), this%nIndepSpin))
-        this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
+            & this%supercellFoldingDiag(3), this%nIndepSpin), source=0.0_dp)
+      end if
     end if
 
+    ! For all complex cases, allocate required deltaRhoOut
     if (.not. this%tRealHS) then
 
-      allocate(this%densityMatrix%deltaRhoOutCplx(this%nOrb, this%nOrb,&
-          & size(this%parallelKS%localKS, dim=2)))
-      this%densityMatrix%deltaRhoOutCplx(:,:,:) = 0.0_dp
+      if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+        allocate(this%densityMatrix%deltaRhoOutCplx(this%nOrb, this%nOrb,&
+            & this%nKPoint * this%nSpin), source=(0.0_dp, 0.0_dp))
+      else
+        allocate(this%densityMatrix%deltaRhoOutCplx(this%nOrb, this%nOrb,&
+            & size(this%parallelKS%localKS, dim=2)), source=(0.0_dp, 0.0_dp))
+      end if
 
       ! Build spin/k-point composite index for all spins and k-points (global)
       iGlobalKS = 1

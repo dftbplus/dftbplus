@@ -8,29 +8,28 @@
 #:include 'common.fypp'
 
 !> Contains an Anderson mixer
-!>
-!>   The Anderson mixing is done by building a special average over the
-!>   previous input charges and over the previous charge differences
-!>   separately and then linear mixing the two averaged vectors with a given
-!>   mixing parameter. Only a specified amount of previous charges are
-!>   considered.
-!> In order to use the mixer you have to create and reset it.
+!!
+!!   The Anderson mixing is done by building a special average over the
+!!   previous input charges and over the previous charge differences
+!!   separately and then linear mixing the two averaged vectors with a given
+!!   mixing parameter. Only a specified amount of previous charges are
+!!   considered.
+!! In order to use the mixer you have to create and reset it.
 module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
   implicit none
 
   private
-  public :: TAndersonMixer
-  public :: init, reset, mix
+  public :: TAndersonMixer, TAndersonMixer_init, TAndersonMixer_mix, TAndersonMixer_reset
 
 
   !> Contains the necessary data for an Anderson mixer
-  !>
-  !> For efficiency reasons this derived type also contains the data for the limited memory storage,
-  !> which stores a given number of recent vector pairs. The storage should be accessed as an array
-  !> with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
-  !> pairs. (LIFO)
+  !!
+  !! For efficiency reasons this derived type also contains the data for the limited memory storage,
+  !! which stores a given number of recent vector pairs. The storage should be accessed as an array
+  !! with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
+  !! pairs. (LIFO)
   type TAndersonMixer
     private
 
@@ -72,28 +71,10 @@ module dftbp_mixer_andersonmixer
   end type TAndersonMixer
 
 
-  !> Creates an AndersonMixer instance
-  interface init
-    module procedure AndersonMixer_init
-  end interface init
-
-
-  !> Resets the mixer
-  interface reset
-    module procedure AndersonMixer_reset
-  end interface reset
-
-
-  !> Does the mixing
-  interface mix
-    module procedure AndersonMixer_mix
-  end interface mix
-
 contains
 
-
   !> Creates an Andersom mixer instance.
-  subroutine AndersonMixer_init(this, nGeneration, mixParam, initMixParam, convMixParam, omega0)
+  subroutine TAndersonMixer_init(this, nGeneration, mixParam, initMixParam, convMixParam, omega0)
 
     !> Initialized Anderson mixer on exit
     type(TAndersonMixer), intent(out) :: this
@@ -107,15 +88,15 @@ contains
     !> Mixing parameter for the first nGeneration-1 cycles
     real(dp), intent(in) :: initMixParam
 
-    !> Convergence dependent mixing parameters. Given as 2 by n array of tolerance and mixing
-    !> factors pairs. The tolerances (Euclidean norm of the charge diff. vector) must follow each
+    !! Convergence dependent mixing parameters. Given as 2 by n array of tolerance and mixing
+    !! factors pairs. The tolerances (Euclidean norm of the charge diff. vector) must follow each
 
     !> other in decreasing order. Mixing parameters given here eventually override mixParam or
-    !> initMixParam.
+    !! initMixParam.
     real(dp), intent(in), optional :: convMixParam(:,:)
 
     !> Symmetry breaking parameter. Diagonal elements of the system of linear equations are
-    !> multiplied by (1.0+omega0**2).
+    !! multiplied by (1.0+omega0**2).
     real(dp), intent(in), optional :: omega0
 
     @:ASSERT(nGeneration >= 2)
@@ -145,11 +126,11 @@ contains
       this%tBreakSym = .false.
     end if
 
-  end subroutine AndersonMixer_init
+  end subroutine TAndersonMixer_init
 
 
   !> Makes the mixer ready for a new SCC cycle
-  subroutine AndersonMixer_reset(this, nElem)
+  subroutine TAndersonMixer_reset(this, nElem)
 
     !> Anderson mixer instance
     type(TAndersonMixer), intent(inout) :: this
@@ -174,11 +155,11 @@ contains
       this%indx(ii) = this%mPrevVector + 1 - ii
     end do
 
-  end subroutine AndersonMixer_reset
+  end subroutine TAndersonMixer_reset
 
 
   !> Mixes charges according to the Anderson method
-  subroutine AndersonMixer_mix(this, qInpResult, qDiff)
+  subroutine TAndersonMixer_mix(this, qInpResult, qDiff)
 
     !> Anderson mixer
     type(TAndersonMixer), intent(inout) :: this
@@ -236,15 +217,15 @@ contains
     ! Mix averaged input charge and average charge difference
     qInpResult(:) = qInpMiddle(:) + mixParam * qDiffMiddle(:)
 
-  end subroutine AndersonMixer_mix
+  end subroutine TAndersonMixer_mix
 
 
   !> Calculates averages input charges and average charge differences according to the Anderson
-  !> method.
-  !>
-  !> Note: The symmetry breaking is not exactly the same as in the paper of Eyert, because here it
-  !> is applied to the diagonal of the "original" matrix built from the Fs and not of the "modified"
-  !> matrix built from the DFs.
+  !! method.
+  !!
+  !! Note: The symmetry breaking is not exactly the same as in the paper of Eyert, because here it
+  !! is applied to the diagonal of the "original" matrix built from the Fs and not of the "modified"
+  !! matrix built from the DFs.
   subroutine calcAndersonAverages(qInpMiddle, qDiffMiddle, qInput, qDiff, prevQInp, prevQDiff, &
       & nElem, nPrevVector, indx, tBreakSym, omega02)
 
@@ -340,7 +321,7 @@ contains
 
 
   !> Stores a vector pair in a limited storage. If the stack is full, the oldest vector pair is
-  !> overwritten.
+  !! overwritten.
   subroutine storeVectors(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
 
     !> Contains previous vectors of the first type

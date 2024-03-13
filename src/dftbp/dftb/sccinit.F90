@@ -16,16 +16,17 @@ module dftbp_dftb_sccinit
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix
   use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo
+  use dftbp_dftb_periodic, only : getSuperSampling
   implicit none
 
   private
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
   public :: initQFromUsrChrg
 
-  !> version number for restart format, please increment if you change the interface.
-  integer, parameter :: restartFormat = 7
+  !> Version number for restart format, please increment if you change the interface.
+  integer, parameter :: restartFormat = 8
 
 contains
 
@@ -176,22 +177,22 @@ contains
 
 
   !> Initialise the charge vector from a named external file. Check the total
-  !> charge matches that expected for the calculation.
-  !> Should test of the input, if the number of orbital charges per atom match the number from the
-  !> angular momentum.
+  !! charge matches that expected for the calculation.
+  !! Should test of the input, if the number of orbital charges per atom match the number from the
+  !! angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
-      & errStatus, magnetisation, nEl, coeffsAndShifts, multipoles)
+      & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> The charges per lm,atom,spin
     real(dp), intent(out) :: qq(:,:,:)
 
     !> The external file of charges for the orbitals, currently stored with each line containing the
-    !> per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
-    !> present)
+    !! per-orbital charges in order of increasing m and l. Alternating lines give the spin case (if
+    !! present)
     character(*), intent(in) :: fileName
 
     !> Should charges be read as ascii (cross platform, but potentially lower reproducibility) or
-    !> binary files
+    !! binary files
     logical, intent(in) :: tReadAscii
 
     !> Information about the orbitals in the system.
@@ -218,6 +219,9 @@ contains
     !> Nr. of electrons for each spin channel
     real(dp), intent(in), optional :: nEl
 
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in), optional :: hybridXcAlg
+
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice
     !! vectors (between 0.0 and 1.0)
@@ -238,7 +242,7 @@ contains
     !! total charge is present at the top of the file
     real(dp) :: checkSum(size(qq, dim=3))
 
-    integer :: iOrb, iAtom, iSpin, ii, jj, kk, ll, mm, nn, nAtomInFile, nDipole, nQuadrupole
+    integer :: iOrb, iAtom, iSpin, ii, jj, kk, nAtomInFile, nDipole, nQuadrupole
 
     type(TFileDescr) :: file
 
@@ -258,8 +262,13 @@ contains
 
     tBlock = allocated(qBlock)
     tiBlock = allocated(qiBlock)
-    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplxHS)
+    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplx)&
+        & .or. allocated(densityMatrix%deltaRhoInCplxHS)
     tKpointInfo = present(coeffsAndShifts)
+
+    if (tRho .and. (.not. present(hybridXcAlg))) then
+      call error("Missing hybrid xc-functional algorithm information.")
+    end if
 
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
@@ -338,7 +347,7 @@ contains
         read(file%unit, iostat=iErr)tBlockPresent, tiBlockPresent, tRhoPresent, isMultipolar,&
             & nAtomInFile, iSpin, checkSum
       end if
-    case(7)
+    case(7, 8)
       if (tReadAscii) then
         read(file%unit, *, iostat=iErr) tBlockPresent, tiBlockPresent, tRhoPresent,&
             & tKpointInfoPresent, isMultipolar, nAtomInFile, iSpin, checkSum
@@ -533,52 +542,50 @@ contains
     if (allocated(densityMatrix%deltaRhoInCplxHS) .and. tKpointInfo .and. tKpointInfoPresent) then
       deallocate(densityMatrix%deltaRhoInCplxHS)
     end if
+    if (allocated(densityMatrix%deltaRhoInCplx) .and. tKpointInfo .and. tKpointInfoPresent) then
+      deallocate(densityMatrix%deltaRhoInCplx)
+    end if
 
     if (tRho) then
       if (tKpointInfo) then
         coeffsAndShifts(:,:) = 0.0_dp
         if (tKpointInfoPresent) then
-          do jj = 1, size(coeffsAndShifts, dim=2)
-            do ii = 1, size(coeffsAndShifts, dim=1)
-              if (tReadAscii) then
-                read(file%unit, *, iostat=iErr) coeffsAndShifts(ii, jj)
-              else
-                read(file%unit, iostat=iErr) coeffsAndShifts(ii, jj)
-              end if
-            end do
-          end do
+          if (tReadAscii) then
+            read(file%unit, *, iostat=iErr) coeffsAndShifts
+          else
+            read(file%unit, iostat=iErr) coeffsAndShifts
+          end if
           call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
               & supercellFoldingDiagOut=supercellFoldingDiag)
-          allocate(densityMatrix%deltaRhoInCplxHS(orb%nOrb, orb%nOrb, supercellFoldingDiag(1),&
-              & supercellFoldingDiag(2), supercellFoldingDiag(3), nSpin))
+          if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+            call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+                & densityMatrix%kPointPrime, densityMatrix%kWeightPrime, reduceByInversion=.true.)
+            allocate(densityMatrix%deltaRhoInCplx(orb%nOrb, orb%nOrb,&
+                & size(densityMatrix%kPointPrime, dim=2) * nSpin))
+          else
+            allocate(densityMatrix%deltaRhoInCplxHS(orb%nOrb, orb%nOrb, supercellFoldingDiag(1),&
+                & supercellFoldingDiag(2), supercellFoldingDiag(3), nSpin))
+          end if
         end if
       end if
       if (tRhoPresent) then
         if (.not. tRealHS) then
           ! general k-point case
-          do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
-            do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
-              do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
-                do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
-                  do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
-                    do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
-                      if (tReadAscii) then
-                        read(file%unit, *, iostat=iErr)&
-                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                      else
-                        read(file%unit, iostat=iErr)&
-                            & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                      end if
-                      if (iErr /= 0) then
-                        write(error_string, *) 'Failure to read file for delta density matrix.'
-                        call error(error_string)
-                      end if
-                    end do
-                  end do
-                end do
-              end do
-            end do
-          end do
+          if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+            ! matrix-multiplication based algorithm
+            if (tReadAscii) then
+              read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx
+            else
+              read(file%unit, iostat=iErr) densityMatrix%deltaRhoInCplx
+            end if
+          else
+            ! neighbor-list based algorithm
+            if (tReadAscii) then
+              read(file%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+            else
+              read(file%unit, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+            end if
+          end if
         else
           ! cluster/Gamma-only case
           do ii = 1, size(densityMatrix%deltaRhoIn, dim=3)
@@ -589,13 +596,13 @@ contains
                 else
                   read(file%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
                 end if
-                if (iErr /= 0) then
-                  write(error_string, *) 'Failure to read file for delta density matrix.'
-                  call error(error_string)
-                end if
               end do
             end do
           end do
+        end if
+        if (iErr /= 0) then
+          write(error_string, *) 'Failure to read file for delta density matrix.'
+          call error(error_string)
         end if
       end if
     end if
@@ -607,7 +614,7 @@ contains
 
   !> Write the current charges to an external file
   subroutine writeQToFile(qq, fileName, tWriteAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
-      & nAtInCentralRegion, coeffsAndShifts, multipoles)
+      & nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> Array containing the charges
     real(dp), intent(in) :: qq(:,:,:)
@@ -637,6 +644,9 @@ contains
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in), optional :: hybridXcAlg
+
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice
     !! vectors (between 0.0 and 1.0)
@@ -648,7 +658,7 @@ contains
     character(len=120) :: error_string
 
     integer :: nAtom, nOrb, nSpin, nDipole, nQuadrupole
-    integer :: iAtom, iOrb, iSpin, ii, jj, kk, ll, mm, nn
+    integer :: iAtom, iOrb, iSpin, ii, jj, kk
     integer :: iErr
     logical :: tqBlock, tqiBlock, tRho
     type(TFileDescr) :: fd
@@ -661,13 +671,14 @@ contains
     @:ASSERT(size(qq, dim=2) >= nAtInCentralRegion)
 
     if (present(coeffsAndShifts)) then
-      ! corresponds to RSH-DFTB case
+      ! corresponds to Hybrid-DFTB case
       @:ASSERT(all(shape(coeffsAndShifts) == [3, 4]))
     end if
 
     tqBlock = allocated(qBlock)
     tqiBlock = allocated(qiBlock)
-    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplxHS)
+    tRho = allocated(densityMatrix%deltaRhoIn) .or. allocated(densityMatrix%deltaRhoInCplx)&
+        & .or. allocated(densityMatrix%deltaRhoInCplxHS)
 
     if (tRho .and. (.not. allocated(densityMatrix%deltaRhoIn))&
         & .and. (.not. present(coeffsAndShifts))) then
@@ -676,7 +687,8 @@ contains
     end if
 
     if (present(coeffsAndShifts) .and. (.not. tRealHS)&
-        & .and. (.not. allocated(densityMatrix%deltaRhoInCplxHS))) then
+        & .and. (.not. (allocated(densityMatrix%deltaRhoInCplx)&
+        & .or. allocated(densityMatrix%deltaRhoInCplxHS)))) then
       call error("Failure while writing restart file: Supercell folding coefficients and shifts&
           & present, but the associated density matrix is missing.")
     end if
@@ -841,11 +853,11 @@ contains
     if (tRho) then
       ! Write k-point set information to file, if CAM calculation with k-points is present
       if (present(coeffsAndShifts)) then
-        do jj = 1, size(coeffsAndShifts, dim=2)
-          do ii = 1, size(coeffsAndShifts, dim=1)
-            write(fd%unit, iostat=iErr) coeffsAndShifts(ii, jj)
-          end do
-        end do
+        if (tWriteAscii) then
+          write(fd%unit, *, iostat=iErr) coeffsAndShifts
+        else
+          write(fd%unit, iostat=iErr) coeffsAndShifts
+        end if
       end if
 
       if (tRealHS) then
@@ -858,38 +870,30 @@ contains
               else
                 write(fd%unit, iostat=iErr) densityMatrix%deltaRhoIn(kk, jj, ii)
               end if
-              if (iErr /= 0) then
-                write(error_string, *) "Failure to write file for external density matrix"
-                call error(error_string)
-              end if
             end do
           end do
         end do
       else
         ! general k-point case
-        do ii = 1, size(densityMatrix%deltaRhoInCplxHS, dim=6)
-          do jj = 1, size(densityMatrix%deltaRhoInCplxHS, dim=5)
-            do kk = 1, size(densityMatrix%deltaRhoInCplxHS, dim=4)
-              do ll = 1, size(densityMatrix%deltaRhoInCplxHS, dim=3)
-                do mm = 1, size(densityMatrix%deltaRhoInCplxHS, dim=2)
-                  do nn = 1, size(densityMatrix%deltaRhoInCplxHS, dim=1)
-                    if (tWriteAscii) then
-                      write(fd%unit, *, iostat=iErr)&
-                          & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                    else
-                      write(fd%unit, iostat=iErr)&
-                          & densityMatrix%deltaRhoInCplxHS(nn, mm, ll, kk, jj, ii)
-                    end if
-                    if (iErr /= 0) then
-                      write(error_string, *) "Failure to write file for external density matrix"
-                      call error(error_string)
-                    end if
-                  end do
-                end do
-              end do
-            end do
-          end do
-        end do
+        if (hybridXcAlg == hybridXcAlgo%matrixBased) then
+          ! matrix-multiplication based algorithm
+          if (tWriteAscii) then
+            write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplx
+          else
+            write(fd%unit, iostat=iErr) densityMatrix%deltaRhoInCplx
+          end if
+        else
+          ! neighbor-list based algorithm
+          if (tWriteAscii) then
+            write(fd%unit, *, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+          else
+            write(fd%unit, iostat=iErr) densityMatrix%deltaRhoInCplxHS
+          end if
+        end if
+      end if
+      if (iErr /= 0) then
+        write(error_string, *) "Failure to write file for external density matrix"
+        call error(error_string)
       end if
     end if
 
