@@ -158,9 +158,12 @@ hybrid/periodic/GaAs-gamma-matrix                     #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-gamma-neigh                      #? not WITH_MPI
 hybrid/periodic/GaAs-gamma-restart                    #? not WITH_MPI
 hybrid/periodic/GaAs-kpts-matrix-ct                   #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-anderson          #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-diis              #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-kpts-matrix-ct-np2               #? MPI_PROCS == 2
 hybrid/periodic/GaAs-kpts-matrix-ct-np3               #? MPI_PROCS == 3
 hybrid/periodic/GaAs-kpts-matrix-ct-np4               #? MPI_PROCS == 4
+hybrid/periodic/GaAs-kpts-matrix-ct-simple            #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-kpts-neigh-ct                    #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-kpts-neigh-ct-mpi                #? MPI_PROCS == 2
 hybrid/periodic/GaAs-kpts-neigh-mic                   #? MPI_PROCS <= 1
