@@ -69,11 +69,11 @@ module dftbp_dftb_densitymatrix
     !> Composite index for mapping iK/iS --> iGlobalKS for arrays present at every MPI rank
     integer, allocatable :: iKiSToiGlobalKS(:,:)
 
-    !> The k' k-points that are possibly different from the current ones in case of a
+    !> The k'-points that are possibly different from the current k-points in case of a
     !! bandstructure calculation
     real(dp), allocatable :: kPointPrime(:,:)
 
-    !> Weights of k' k-points
+    !> Weights of the k'-points
     real(dp), allocatable :: kWeightPrime(:)
 
   contains

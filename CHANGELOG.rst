@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Generalization of mixers to also handle complex density matrices
+
 - General range-separated, long-range corrected CAM hybrid functionals for
   ground-state periodic systems (MPI-parallel Fock-type exchange and energy
   gradient construction by neighbour-list and matrix-multiplication based

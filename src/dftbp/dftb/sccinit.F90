@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Module for initializing SCC part of the calculation
+!> Module for initializing SCC part of the calculation.
 module dftbp_dftb_sccinit
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
@@ -31,7 +31,7 @@ module dftbp_dftb_sccinit
 contains
 
 
-  !> Initialise the charge vector from the reference atomic charges
+  !> Initialise the charge vector from the reference atomic charges.
   subroutine initQFromAtomChrg(fOrb, qAtom, fRefShell, species, speciesNames, orb)
 
     !> The number of electrons per lm,atom,spin
@@ -92,8 +92,8 @@ contains
 
 
   !> Initialise the charge vector from the reference atomic charges results in a set of charges
-  !> appropriate for the neutral spin unpolarised atom reference system that DFTB assumes for
-  !> SCC/spin extensions
+  !! appropriate for the neutral spin unpolarised atom reference system that DFTB assumes for
+  !! SCC/spin extensions.
   subroutine initQFromShellChrg(qq, qShell, species, orb)
 
     !> The charges per lm,atom,spin
@@ -176,9 +176,9 @@ contains
   end subroutine initQFromUsrChrg
 
 
-  !> Initialise the charge vector from a named external file. Check the total
-  !! charge matches that expected for the calculation.
-  !! Should test of the input, if the number of orbital charges per atom match the number from the
+  !> Initialise the charge vector from a named external file.
+  !! Checks that the total charge matches the expected value for the calculation.
+  !! Should test the input, if the number of orbital charges per atom matches the number from the
   !! angular momentum.
   subroutine initQFromFile(qq, fileName, tReadAscii, orb, qBlock, qiBlock, densityMatrix, tRealHS,&
       & errStatus, magnetisation, nEl, hybridXcAlg, coeffsAndShifts, multipoles)
@@ -198,10 +198,10 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block Mulliken population for LDA+U etc
+    !> Block Mulliken population for LDA+U etc
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
-    !> block Mulliken imagninary population for LDA+U and L.S
+    !> Block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> Holds real and complex delta density matrices
@@ -213,7 +213,7 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    !> magnetisation checksum for regular spin polarization total magnetic moment
+    !> Magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
 
     !> Nr. of electrons for each spin channel
@@ -233,13 +233,13 @@ contains
     !! Diagonal elements of supercell folding matrix
     integer :: supercellFoldingDiag(3)
 
-    !! nr. of orbitals / atoms / spin channels
+    !! Nr. of orbitals / atoms / spin channels
     integer :: nOrb, nAtom, nSpin
 
-    !! error returned by the io commands
+    !! Error returned by the io commands
     integer :: iErr
 
-    !! total charge is present at the top of the file
+    !! Total charge is present at the top of the file
     real(dp) :: checkSum(size(qq, dim=3))
 
     integer :: iOrb, iAtom, iSpin, ii, jj, kk, nAtomInFile, nDipole, nQuadrupole
