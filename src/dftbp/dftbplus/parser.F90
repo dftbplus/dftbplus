@@ -5134,7 +5134,7 @@ contains
     type(TListRealR1) :: lr1
     type(TListReal) :: lr
     logical :: tPipekDense
-    logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
+    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
@@ -5228,12 +5228,12 @@ contains
       call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
 
     #:if WITH_SOCKETS
-      tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+      tWriteBandDatDefault = .not. allocated(ctrl%socketInput)
     #:else
-      tWriteBandDatDef = .true.
+      tWriteBandDatDefault = .true.
     #:endif
 
-      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)

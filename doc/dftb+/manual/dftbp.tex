@@ -5085,8 +5085,16 @@ calculation and/or calculate properties.
   text version of the data should be printed in \verb|eigenvec.out|. For a
   description of the file format see p.~\pref{sec:dftbp.eigenvec}.
 
-\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
-  which contains the band structure in a more or less human friendly format.
+\item[\is{WriteBandOut}] Controls the creation of the file
+  \verb|band.out| which contains the band structure in a more or less
+  human friendly format.
+
+  Note: in the case of \iscb{nonAufbau} calculations (See
+  p.~\pref{sec:dftbp.NonAufbau}), separate files are written for each
+  configuration, prepended by the name of the state. The $s_1$ state
+  will be spin contaminated, so if used for density of states will
+  require processing according to the Ziegler sum
+  rule.\cite{baerends-TCA-43-261}
 
 \item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
@@ -5296,7 +5304,8 @@ Evaluates electric polarisability using coupled-perturbed linear
 response (hence can only be used with cases initially evaluating
 unperturbed eigenvalues/band structure). Currently only the DFTB
 hamiltonian is supported (see section~\ref{sec:dftbp.DFTB}, REKS and
-Delta-DFTB calculations are also not currently supported).
+Delta-DFTB (\iscb{nonAufbau}) calculations are also not currently
+supported).
 
 In the case of degenerate single particle levels, the reported level
 derivatives (see p.~\pref{sec:dftbp.bandout}) for those states are
@@ -5347,8 +5356,8 @@ Evaluates responses to potentials added at individual atomic sites,
 using coupled-perturbed linear response (hence can only be used with
 cases initially evaluating unperturbed eigenvalues/band
 structure). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB calculations are
-also not currently supported).
+section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB (\iscb{nonAufbau})
+calculations are also not currently supported).
 
 The same options as \is{Polarisability} are supported, but in
 addition:
