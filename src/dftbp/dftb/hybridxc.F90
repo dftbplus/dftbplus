@@ -14,36 +14,35 @@ module dftbp_dftb_hybridxc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_schedule, only : getStartAndEndIndex
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
-  use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_math_blasroutines, only : gemm, symm, hemm
-  use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_dftb_sparse2dense, only : unpackHS
-  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, getCellTranslations, cart2frac
-  use dftbp_dftb_nonscc, only : buildS
-  use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_math_simplealgebra, only : determinant33
-  use dftbp_common_parallel, only : getStartAndEndIndex
-  use dftbp_math_wignerseitz, only : generateWignerSeitzGrid
   use dftbp_dftb_rshgamma, only : getCamAnalyticalGammaValue_workhorse,&
       & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
       & getddLrNumericalGammaValue_workhorse
+  use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_math_blasroutines, only : gemm, symm, hemm
+  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_math_wignerseitz, only : generateWignerSeitzGrid
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_integral, only : TIntegral
   use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send
 #:endif
-  use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_integral, only : TIntegral
 #:if WITH_SCALAPACK
-  use dftbp_math_bisect, only : bisection
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
       & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g,&
       & scalafx_getdescriptor, scalafx_getlocalshape, scalafx_addl2g, linecomm
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
+  use dftbp_math_bisect, only : bisection
 #:endif
 
   implicit none
