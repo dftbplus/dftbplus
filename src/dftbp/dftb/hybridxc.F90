@@ -4631,7 +4631,7 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
-      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, errStatus, symNeighbourList,&
+      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
@@ -4666,9 +4666,6 @@ contains
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
-
-    !> Error status
-    type(TStatus), intent(inout) :: errStatus
 
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in), optional :: symNeighbourList
