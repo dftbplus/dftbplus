@@ -6666,7 +6666,7 @@ contains
         end if
         call hybridXc%addCamGradients_real(deltaRhoOut, SSqrReal, skOverCont, orb,&
             & denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, nonSccDeriv,&
-            & tPeriodic, derivs, errStatus, symNeighbourList=symNeighbourList,&
+            & tPeriodic, derivs, symNeighbourList=symNeighbourList,&
             & nNeighbourCamSym=nNeighbourCamSym)
       #:endif
         @:PROPAGATE_ERROR(errStatus)
