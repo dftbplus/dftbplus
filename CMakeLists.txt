@@ -170,6 +170,8 @@ endif()
 # Add external model from a library
 #
 if (EXTERNALMODEL_LIBRARY)
+  set(DFTBP_EXTMODEL_GIT_REPOSITORY "git@github.com:bhourahine/dftbp-extmodel.git")
+  set(DFTBP_EXTMODEL_GIT_TAG "547b0c7e76af019223faefe5a8d53607f9f071ce")  # do not change manually!
   find_package(CustomExternalModel REQUIRED)
   list(APPEND PKG_CONFIG_REQUIRES externalmodel)
 else()
