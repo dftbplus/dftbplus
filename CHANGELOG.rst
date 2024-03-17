@@ -11,6 +11,11 @@ Unreleased
 Added
 -----
 
+- External models (electronic for the moment) from linked (static or
+  dynamic) library outside the code base.
+
+- Rename "Hamiltonian" to "Model" in input, as more descriptive
+
 - Generalization of mixers to also handle complex density matrices
 
 - General range-separated, long-range corrected CAM hybrid functionals for
@@ -45,6 +50,12 @@ Fixed
   is not formally derived in the general case.
 
 - DeltaDFTB purified forces used correctly.
+
+Changed
+-------
+
+- Updated parser version to 15.
+
 
 24.1 (2024-02-12)
 =================
@@ -107,11 +118,6 @@ Added
 - Spin-orbit coupling for xTB
 
 - Dual American and British English spelling for various input keywords
-
-- External models (electronic or energy based) from linked (static or
-  dynamic) library outside the code base.
-
-- Rename "Hamiltonian" to "Model" in input, as more descriptive
 
 
 Fixed

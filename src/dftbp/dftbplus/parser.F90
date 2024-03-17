@@ -121,7 +121,7 @@ module dftbp_dftbplus_parser
   end type TParserFlags
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
-  type(TVersionMap), parameter :: versionMaps(*) = [&
+  type(TVersionMap), parameter :: versionMaps(*) = [TVersionMap("24.2", 15),&
       & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
@@ -2019,9 +2019,9 @@ contains
 
   !> Reads externally provided hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readExternalHam(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readExternalHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readExternalHam(node, ctrl, geo, poisson)
+  subroutine readExternalHam(node, ctrl, geo, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -2044,6 +2044,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(TStatus) :: status
     type(fnode), pointer :: intModelNode, value1, child
@@ -2139,7 +2142,8 @@ contains
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&

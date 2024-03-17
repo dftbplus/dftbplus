@@ -625,37 +625,6 @@ end subroutine c_DftbPlusInput_final
   end subroutine TDftbPlusC_final
 
 
-  !> Converts a 0-char terminated C-type string into a Fortran string.
-  function fortranChar(cstring, maxlen)
-
-    !> C-type string as array
-    character(kind=c_char), intent(in) :: cstring(*)
-
-    !> Maximal string length. If C-string is longer, it will be chopped.
-    integer, intent(in), optional  :: maxlen
-
-    !> Resulting Fortran string
-    character(:, kind=c_char), allocatable :: fortranChar
-
-    integer :: ii, maxlen0
-
-    if (present(maxlen)) then
-      maxlen0 = maxlen
-    else
-      maxlen0 = huge(maxlen0) - 1
-    end if
-
-    do ii = 1, maxlen0
-      if (cstring(ii) == c_null_char) then
-        exit
-      end if
-    end do
-    allocate(character(ii - 1) :: fortranChar)
-    fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
-
-  end function fortranChar
-
-
   ! Returns a unit for an opened output file.
   !
   ! If outputFileName is associated, a file with that name will be created (and returned), otherwise
