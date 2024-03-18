@@ -1513,9 +1513,10 @@ contains
             & sqrt(this%extModel%environmentCutoff**2 + (this%cutOff%skCutoff**2)/4.0_dp)&
             & + epsilon(0.0_rsp))
 
+        allocate(this%orb)
+        allocate(this%orb%nshell(input%geom%nSpecies), source=0)
         this%orb%nshell = this%extModel%nShellsOnSpecies
-        allocate(this%orb%nOrbSpecies(input%geom%nSpecies))
-        this%orb%nOrbSpecies(:) = 0
+        allocate(this%orb%nOrbSpecies(input%geom%nSpecies), source=0)
         do iSp = 1, input%geom%nSpecies
           do iSh = 1, this%orb%nshell(iSp)
             this%orb%nOrbSpecies(iSp) = this%orb%nOrbSpecies(iSp)&
