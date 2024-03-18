@@ -137,6 +137,10 @@ hybrid/periodic/Acene-kpts-matrix-band                #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-matrix-band-np2            #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-matrix-band-np3            #? MPI_PROCS == 3
 hybrid/periodic/Acene-kpts-matrix-band-np4            #? MPI_PROCS == 4
+hybrid/periodic/Acene-kpts-matrix-force-lc            #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-force-lc-np2        #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-force-lc-np3        #? MPI_PROCS == 3
+hybrid/periodic/Acene-kpts-matrix-force-lc-np4        #? MPI_PROCS == 4
 hybrid/periodic/Acene-kpts-neigh-band                 #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-neigh-band-mpi             #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-neigh-force-lc             #? MPI_PROCS <= 1
