@@ -5,6 +5,8 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+externalmodel/CH4_huckel               #? MPI_PROCS <= 1
+
 extpot/CH4_gross                       #? MPI_PROCS <= 1
 extpot/CH4_net                         #? MPI_PROCS <= 1
 extpot/CH4_gross2                      #? MPI_PROCS <= 1
