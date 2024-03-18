@@ -6440,18 +6440,18 @@ contains
         wk_wkp = kWeights(iK) * kWeights(iKPrime)
 
         ! dP(k)@S(k)
-        call gemm(dP_S, densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS), SSqrCplx(:,:, iK))
+        call hemm(dP_S, 'l', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS), SSqrCplx(:,:, iK))
         dP_S_cc(:,:) = conjg(dP_S)
 
         ! dP(k')@S(k')
-        call gemm(dPp_Sp, densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
+        call hemm(dPp_Sp, 'l', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
             & SSqrCplx(:,:, iKPrime))
 
         ! [dP(k')@S(k')]^T
         dPp_Sp_T(:,:) = transpose(dPp_Sp)
 
         ! [S(k')@dP(k')@S(k')]^T = [S(k')@dP(k')@S(k')]*
-        call gemm(tmp, SSqrCplx(:,:, iKPrime), dPp_Sp)
+        call hemm(tmp, 'l', SSqrCplx(:,:, iKPrime), dPp_Sp)
         Sp_dPp_Sp_T(:,:) = conjg(tmp)
 
         ! dP(-k)
@@ -6477,14 +6477,13 @@ contains
             & overSqrPrime)
 
         ! Term 1
-        call gemm(tmp, dPp_Sp, densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS) * gammaAO)
-        call gemm(tmp, dP_S * gammaAO, densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
+        call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS) * gammaAO, dPp_Sp)
+        call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS), dP_S * gammaAO,&
             & beta=(1.0_dp, 0.0_dp))
         ! Term 1 (complex conjugated for inverse k-points, k -> -k)
-        call gemm(tmp, dPp_Sp, dPm * gammaAOCc,&
-            & beta=(1.0_dp, 0.0_dp))
-        call gemm(tmp, dP_S_cc * gammaAOCc, densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
-            & beta=(1.0_dp, 0.0_dp))
+        call hemm(tmp, 'r', dPm * gammaAOCc, dPp_Sp, beta=(1.0_dp, 0.0_dp))
+        call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
+            & dP_S_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
         ! [...]^adj = 0.5 * [(...) + (...)^adj]
         ! we actually calculate ([...]^adj)^T here, so that the transpose in dS(k') * tmp^T can be
         ! omitted when adding the contribution to tmpGradients below
