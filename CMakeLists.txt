@@ -170,7 +170,7 @@ endif()
 # Add external model from a library
 #
 #if (WITH_EXTERNALMODEL)
-set(DFTBP_EXTMODEL_GIT_REPOSITORY "git@github.com:bhourahine/dftbp-extmodel.git")
+set(DFTBP_EXTMODEL_GIT_REPOSITORY "https://github.com/bhourahine/dftbp-extmodel.git")
 set(DFTBP_EXTMODEL_GIT_TAG "fd98f0bdf42ee2dbb1e1a3bfa2d3ff4f159b0fea")  # do not change manually!
 dftbp_config_hybrid_dependency(ExternalModel ExternalModel::ExternalModel "${HYBRID_CONFIG_METHODS}" "QUIET"
   external/dftbp-extmodel "${exclude}" "${DFTBP_EXTMODEL_GIT_REPOSITORY}" "${DFTBP_EXTMODEL_GIT_TAG}")
