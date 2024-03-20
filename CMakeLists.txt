@@ -182,7 +182,12 @@ endif()
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated
 string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
 
-# Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+
+#
+# Add external components (optional)
+# Note 1 : GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+# Note 2 : GIT_REPOSITORY URLs should be to https// addresses for the CI pipelines to see them
+#
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
