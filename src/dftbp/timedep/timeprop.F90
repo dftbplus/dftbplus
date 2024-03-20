@@ -32,15 +32,13 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
   use dftbp_dftb_hamiltonian, only : TRefExtPot, resetExternalPotentials, resetInternalPotentials,&
       & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildH0, buildS
   use dftbp_dftb_onsitecorrection, only : addOnsShift
   use dftbp_dftb_periodic, only : TNeighbourList, updateNeighbourListAndSpecies,&
       & getNrOfNeighboursForAll
-  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtoms,&
-      & denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks,&
-      & denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks
+  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtomsCmplxNonperiodic
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
@@ -65,8 +63,8 @@ module dftbp_timedep_timeprop
   use dftbp_md_thermostat, only : TThermostat
   use dftbp_md_velocityverlet, only : TVelocityVerlet
   use dftbp_reks_reks, only : TReksCalc
-  use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_fieldscaling, only : TScaleExtEField
+  use dftbp_solvation_solvation, only : TSolvation
   use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_integral, only : TIntegral
@@ -1545,8 +1543,7 @@ contains
       if (this%nSpin > 2) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
       end if
-      ! denseSubtractDensityOfAtoms_cmplx_nonperiodic
-      call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
+      call denseSubtractDensityOfAtomsCmplxNonperiodic(q0, iSquare, deltaRho)
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
         call hybridXc%addCamHamiltonianMatrix_cluster_cmplx(iSquare, sSqr(:,:, iSpin),&

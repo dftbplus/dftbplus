@@ -23,15 +23,13 @@ module dftbp_derivs_perturb
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_populations, only : mulliken, denseMulliken, getChargePerShell, getOnsitePopulation
-#:if WITH_SCALAPACK
-  use dftbp_dftb_populations, only : denseMulliken_real_blacs
-#:endif
+  use dftbp_dftb_populations, only : mulliken, denseMullikenReal, getChargePerShell,&
+      & getOnsitePopulation
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
@@ -47,6 +45,7 @@ module dftbp_derivs_perturb
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
 #:if WITH_SCALAPACK
+  use dftbp_dftb_populations, only : denseMullikenRealBlacs
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
 #:else
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -1417,9 +1416,9 @@ contains
             if (allocated(hybridXc)) then
               dRhoIn(:) = dRhoOut
             #:if WITH_SCALAPACK
-              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+              call denseMullikenRealBlacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
             #:else
-              call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              call denseMullikenReal(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             #:endif
             else
               dqIn(:,:,:) = dqOut
@@ -1434,9 +1433,9 @@ contains
             if (allocated(hybridXc)) then
               call TMixerReal_mix(pChrgMixer, dRhoIn, dqDiffRed)
             #:if WITH_SCALAPACK
-              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+              call denseMullikenRealBlacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
             #:else
-              call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              call denseMullikenReal(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             #:endif
             else
               call TMixerReal_mix(pChrgMixer, dqInpRed, dqDiffRed)

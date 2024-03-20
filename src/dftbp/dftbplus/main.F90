@@ -17,11 +17,11 @@ module dftbp_dftbplus_main
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd, polAdd
   use dftbp_derivs_perturb, only : TResponse
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -34,24 +34,19 @@ module dftbp_dftbplus_main
   use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
       & getSccHamiltonian, mergeExternalPotentials, resetExternalPotentials,&
       & addBlockChargePotentials, constrainSccHamiltonian
+  use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, updateNeighbourListAndSpecies,&
       & cart2frac, frac2cart, getNrOfNeighboursForAll, getCellTranslations
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
-  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtoms, mulliken,&
-      & denseMulliken, denseBlockMulliken, skewMulliken, getOnsitePopulation, &
-      & getAtomicMultipolePopulation, denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks,&
-      & denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks
-#:if WITH_SCALAPACK
-  use dftbp_dftb_populations, only : denseMulliken_real_blacs
-#:endif
+  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtomsReal,&
+      & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
+      & denseSubtractDensityOfAtomsNospinRealNonperiodicReks,&
+      & denseSubtractDensityOfAtomsSpinRealNonperiodicReks, mulliken, denseMullikenReal,&
+      & denseBlockMulliken, skewMulliken, getOnsitePopulation, getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo
-#:if WITH_SCALAPACK
-  use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
-#:endif
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, addAtomicMultipoleShift
@@ -121,6 +116,10 @@ module dftbp_dftbplus_main
   use dftbp_type_multipole, only : TMultipole
 #:if WITH_SCALAPACK
   use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
+  use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
+  use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
+      & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
+      & denseSubtractDensityOfAtomsRealPeriodicBlacs
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
       & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
@@ -132,8 +131,8 @@ module dftbp_dftbplus_main
   use dftbp_math_scalafxext, only : phermatinv, psymmatinv
 #:endif
 #:if WITH_SOCKETS
-  use dftbp_io_ipisocket, only : IpiSocketComm
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
+  use dftbp_io_ipisocket, only : IpiSocketComm
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_initprogram, only : overrideContactCharges
@@ -799,64 +798,43 @@ contains
     ! CAM calculations need to deduct atomic charges from delta density matrix
     if (this%isHybridXc) then
 
-      if (this%tRealHS .and. this%tPeriodic) then
+      if (this%tRealHS) then
         allocate(SSqrReal, mold=this%SSqrReal)
       #:if WITH_SCALAPACK
-        if (this%tHelical) then
-          call unpackHSHelicalRealBlacs(env%blacs, this%ints%overlap,&
-              & this%neighbourList%iNeighbour, this%nNeighbourSK, this%iSparseStart,&
-              & this%img2CentCell, this%orb, this%species, this%coord, this%denseDesc, SSqrReal)
-        else
-          call unpackHSRealBlacs(env%blacs, this%ints%overlap, this%neighbourList%iNeighbour,&
-              & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%denseDesc, SSqrReal)
-        end if
+        call unpackHSRealBlacs(env%blacs, this%ints%overlap, this%neighbourList%iNeighbour,&
+            & this%nNeighbourSK, this%iSparseStart, this%img2CentCell, this%denseDesc, SSqrReal)
       #:else
-        if (this%tHelical) then
-          call unpackHelicalHS(SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
-              & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
-              & this%img2CentCell, this%orb, this%species, this%coord)
-        else
-          call unpackHS(SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
-              & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
-              & this%img2CentCell)
-        end if
+        call unpackHS(SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
+            & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
       #:endif
       end if
 
     #:if WITH_SCALAPACK
       if (this%tRealHS .and. this%tPeriodic) then
-        ! denseSubtractDensityOfAtoms_real_periodic_blacs
-        call denseSubtractDensityOfAtoms(env, this%parallelKS, this%q0, this%denseDesc, SSqrReal,&
-            & this%densityMatrix%deltaRhoOut)
+        call denseSubtractDensityOfAtomsRealPeriodicBlacs(env, this%parallelKS, this%q0,&
+            & this%denseDesc, SSqrReal, this%densityMatrix%deltaRhoOut)
       elseif (this%tRealHS .and. (.not. this%tPeriodic)) then
-        ! denseSubtractDensityOfAtoms_real_nonperiodic_blacs
-        call denseSubtractDensityOfAtoms(env, this%parallelKS, this%q0, this%denseDesc,&
-            & this%densityMatrix%deltaRhoOut)
+        call denseSubtractDensityOfAtomsRealNonperiodicBlacs(env, this%parallelKS, this%q0,&
+            & this%denseDesc, this%densityMatrix%deltaRhoOut)
       end if
     #:else
-      if (this%tRealHS .and. this%tPeriodic) then
-        ! denseSubtractDensityOfAtoms_real_periodic
-        call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart,&
+      if (this%tRealHS) then
+        call denseSubtractDensityOfAtomsReal(this%q0, this%denseDesc%iAtomStart,&
             & SSqrReal, this%densityMatrix%deltaRhoOut)
-      elseif (this%tRealHS .and. (.not. this%tPeriodic)) then
-        ! denseSubtractDensityOfAtoms_real_nonperiodic
-        call denseSubtractDensityOfAtoms(this%q0, this%denseDesc%iAtomStart,&
-            & this%densityMatrix%deltaRhoOut)
       end if
     #:endif
 
       if (.not. this%tRealHS) then
         if (this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
-          ! denseSubtractDensityOfAtoms_cmplx_periodic_global()
-          call denseSubtractDensityOfAtoms(env, this%ints, this%denseDesc, this%neighbourList,&
-              & this%kPoint, this%densityMatrix%iKiSToiGlobalKS, this%nNeighbourSK, this%iCellVec,&
+          call denseSubtractDensityOfAtomsCmplxPeriodicGlobal(env, this%ints, this%denseDesc,&
+              & this%neighbourList, this%kPoint, this%densityMatrix%iKiSToiGlobalKS,&
+              & this%nNeighbourSK, this%iCellVec, this%cellVec, this%iSparseStart,&
+              & this%img2CentCell, this%q0, this%densityMatrix%deltaRhoOutCplx)
+        else
+          call denseSubtractDensityOfAtomsCmplxPeriodic(env, this%ints, this%denseDesc,&
+              & this%parallelKS, this%neighbourList, this%kPoint, this%nNeighbourSK, this%iCellVec,&
               & this%cellVec, this%iSparseStart, this%img2CentCell, this%q0,&
               & this%densityMatrix%deltaRhoOutCplx)
-        else
-          ! denseSubtractDensityOfAtoms_cmplx_periodic()
-          call denseSubtractDensityOfAtoms(env, this%ints, this%denseDesc, this%parallelKS,&
-              & this%neighbourList, this%kPoint, this%nNeighbourSK, this%iCellVec, this%cellVec,&
-              & this%iSparseStart, this%img2CentCell, this%q0, this%densityMatrix%deltaRhoOutCplx)
           ! Build real-space delta rho from k-space density matrix:
           ! Also, zero-out deltaRhoOutCplxHS, because of internal summation.
           this%densityMatrix%deltaRhoOutCplxHS(:,:,:,:,:,:) = 0.0_dp
@@ -870,7 +848,7 @@ contains
         #:endif
         end if
       end if
-      if (this%tRealHS .and. this%tPeriodic) deallocate(SSqrReal)
+      if (this%tRealHS) deallocate(SSqrReal)
     end if
 
     ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
@@ -1300,7 +1278,7 @@ contains
         @:PROPAGATE_ERROR(errStatus)
         ! For hybrid xc-functional calculations deduct atomic charges from deltaRho
         if (this%isHybridXc) then
-          call denseSubtractDensityOfAtoms_nospin_real_nonperiodic_reks(this%q0,&
+          call denseSubtractDensityOfAtomsNospinRealNonperiodicReks(this%q0,&
               & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut)
         end if
         call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
@@ -2655,7 +2633,6 @@ contains
       & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, eigen, filling, rhoPrim,&
       & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
       & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
-
     use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
 
     !> Environment settings
@@ -4609,7 +4586,7 @@ contains
                 & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           end if
           call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
-          call denseMulliken(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
+          call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
         else
         #:if WITH_SCALAPACK
           ! collect full, square delta density matrix for mixing from MPI ranks
@@ -4636,7 +4613,7 @@ contains
             call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
                 & iSparseStart, img2CentCell, denseDesc, SSqrReal)
           end if
-          call denseMulliken_real_blacs(env, parallelKS, denseDesc, densityMatrix%deltaRhoIn,&
+          call denseMullikenRealBlacs(env, parallelKS, denseDesc, densityMatrix%deltaRhoIn,&
               & SSqrReal, qInput)
         #:else
           if (tHelical) then
@@ -4647,7 +4624,7 @@ contains
                 & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           end if
           call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
-          call denseMulliken(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
+          call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
         #:endif
         end if
 
@@ -7851,7 +7828,7 @@ contains
       end if
       if (reks%isHybridXc) then
         call adjointLowerTriangle(reks%deltaRhoSqrL(:,:,1,iL))
-        call denseSubtractDensityOfAtoms_spin_real_nonperiodic_reks(q0, denseDesc%iAtomStart,&
+        call denseSubtractDensityOfAtomsSpinRealNonperiodicReks(q0, denseDesc%iAtomStart,&
             & reks%deltaRhoSqrL(:,:,:,iL), 1)
       end if
 
