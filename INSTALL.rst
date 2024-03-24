@@ -467,8 +467,8 @@ create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
 the DFTB+ source to find those libraries (and to define the corresponding
 targets) or create your own, provided they define the appropriate CMake
-targets. The ELSI library offers a CMake export file providing the
-``elsi::elsi`` target. Make sure, that CMake can find this export file if the
+targets. The  arpack-ng and the ELSI library offer a CMake export file providing the
+``ARPACK::ARPACK`` and ``elsi::elsi`` targets, respectively. Make sure, that CMake can find this export file if the
 DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
 Note: you may need to install ELSI (not just point the prefix path to its build system) to generate

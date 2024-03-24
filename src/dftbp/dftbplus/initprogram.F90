@@ -5260,7 +5260,9 @@ contains
 
     if (this%isLinResp) then
       if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+        if (this%tLinRespZVect) then
+          call error("Excited state gradients do not work with MPI yet")
+        end if
       end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
@@ -5383,6 +5385,7 @@ contains
     end if
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
+    
   #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
@@ -5392,8 +5395,10 @@ contains
           & nLocalCols)
     end if
   #:else
+    
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
+    
   #:endif
 
     if (this%t2Component .or. .not. this%tRealHS) then
@@ -5932,7 +5937,9 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      call error("Linear response calc. does not work with MPI yet")
+      if(.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
+        call error("Non-adiabatic coupling vectors not available under MPI")
+      end if
     end if
 
     if (.not. tSccCalc) then
@@ -6012,7 +6019,6 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
-
 
   end subroutine ensureLinRespConditions
 
@@ -6996,7 +7002,7 @@ contains
 
     @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
     if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont
+      do ii = 1, transpar%ncont, respectively
         iStart = transpar%contacts(ii)%idxrange(1)
         iEnd = transpar%contacts(ii)%idxrange(2)
         qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)

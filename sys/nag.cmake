@@ -65,10 +65,6 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 #set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries to link")
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
-# ARPACK -- only needed when built with ARPACK support
-#set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack library")
-#set(ARPACK_LIBRARY_DIR "" CACHE STRING "Directories where Arpack library can be found")
-
 # ScaLAPACK -- only needed for MPI-parallel build
 #set(SCALAPACK_LIBRARY "scalapack" CACHE STRING "Scalapack libraries to link")
 #set(SCALAPACK_LIBRARY_DIR "" CACHE STRING

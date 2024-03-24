@@ -35,6 +35,9 @@ module dftbp_common_blacsenv
     !> Note: the grid always contains all processes in the group
     type(blacsgrid) :: rowOrbitalGrid
 
+    !> Processor grid for excitation vectors (size ~nOrb^2)
+    type(blacsgrid) :: excVectorGrid
+
     !> Row block size for square matrices
     integer :: rowBlockSize
 
@@ -96,7 +99,12 @@ contains
     ! rectangular grid for the rowBlock
     call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
     call this%rowOrbitalGrid%initmappedgrids(gridMap)
-
+    
+    ! rectangular grid for the orbital^2 sized excitation vectors
+    ! currently identical to rowOrbitalGrid, might change in the future
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow * nProcCol, 1, gridMap)
+    call this%excVectorGrid%initmappedgrids(gridMap)
+    
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
     maxProcColMax = (nAtom - 1) / colBlock + 1
