@@ -270,7 +270,7 @@ contains
     call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value, buffer)
     select case (char(buffer))
-    case ("fromfile")
+    case ("directread")
       call getChildValue(value, "File", buffer2, child=child2)
       hessianFile = trim(unquote(char(buffer2)))
       call openFile(file, hessianFile, mode="r", iostat=iErr)

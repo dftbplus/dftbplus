@@ -11,7 +11,7 @@ SlaterKosterFiles = Type2FileNames {
 }
 
 # Include the Hessian, which was calculated by DFTB+
-Hessian = FromFile {
+Hessian = DirectRead {
   File = "hessian.out"
 }
 
