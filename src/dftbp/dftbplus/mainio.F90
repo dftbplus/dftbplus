@@ -4358,7 +4358,6 @@ contains
     !> atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
-    real(dp), allocatable :: tmpMatrix(:,:)
     integer :: nAtom
     integer :: ii, jj
     character(lc) :: comment, fname
@@ -4385,31 +4384,18 @@ contains
     if (tPrintMulliken) then
       ! For non-colinear spin without velocities write magnetisation into the velocity field
       if (nSpin == 4 .and. .not. allocated(velocities)) then
-        allocate(tmpMatrix(3, nAtom))
-        do jj = 1, nAtom
-          do ii = 1, 3
-            tmpMatrix(ii,jj) = sum(qOutput(:, jj, ii + 1))
-          end do
-        end do
-        ! convert by the inverse of the scaling used in writeXYZFormat
-        tmpMatrix(:,:) = tmpMatrix * au__fs / (1000_dp * Bohr__AA)
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
-            & append=tAppendGeo)
-      else if (allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & charges=sum(qOutput(:,:,1), dim=1),&
+            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
             & append=tAppendGeo)
       else
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), comment=comment, append=tAppendGeo)
+            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & append=tAppendGeo)
       end if
-    else if (allocated(velocities)) then
+    else
       call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
           & comment=comment, append=tAppendGeo)
-    else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, comment=comment,&
-          & append=tAppendGeo)
     end if
 
   end subroutine writeCurrentGeometry

@@ -231,7 +231,7 @@ contains
 
   !> Writes coordinates in the XYZ format
   subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities,&
-      & comment, append)
+      & vectors, comment, append)
 
     !> File name of a file to be created
     character(len=*), intent(in) :: fileName
@@ -248,8 +248,11 @@ contains
     !> Optional vector with charges for each atom.
     real(dp), intent(in), optional :: charges(:)
 
-    !> Optional array of velocity vectors for each atom.
+    !> Optional array of velocities for each atom, printed in units of AA/ps
     real(dp), intent(in), optional :: velocities(:,:)
+
+    !> Optional array of vectors for each atom, printed unscaled
+    real(dp), intent(in), optional :: vectors(:,:)
 
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
@@ -273,14 +276,15 @@ contains
       mode = "w"
     end if
     call openFile(fd, fileName, mode=mode)
-    call writeXYZFormat(fd%unit, coord, species, speciesName, charges, velocities, comment)
+    call writeXYZFormat(fd%unit, coord, species, speciesName, charges, velocities, vectors, comment)
     call closeFile(fd)
 
   end subroutine writeXYZFormat_fname
 
 
   !> Writes coordinates in the XYZ format with additional charges and vectors
-  subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, comment)
+  subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, vectors,&
+      & comment)
 
     !> File id of an open file where output should be written
     integer, intent(in) :: fd
@@ -294,11 +298,14 @@ contains
     !> Name of the different species
     character(mc), intent(in) :: speciesNames(:)
 
-    !> Optional vector with charges for each atom.
+    !> Optional vector with charges for each atom, printed in units of electron charge
     real(dp), intent(in), optional :: charges(:)
 
-    !> Optional array of velocity vectors for each atom.
+    !> Optional array of velocities for each atom, printed in units of AA/ps
     real(dp), intent(in), optional :: velocities(:,:)
+
+    !> Optional array of vectors for each atom, printed unscaled
+    real(dp), intent(in), optional :: vectors(:,:)
 
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
@@ -320,8 +327,12 @@ contains
     if (present(charges)) then
       @:ASSERT(size(charges) == nAtom)
     end if
+    @:ASSERT(.not. (present(velocities) .and. present(vectors)))
     if (present(velocities)) then
       @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
+    end if
+    if (present(vectors)) then
+      @:ASSERT(all(shape(vectors) == (/ 3, nAtom /)))
     end if
   #:endblock DEBUG_CODE
 
@@ -334,18 +345,43 @@ contains
       write(fd, *) ""
     end if
 
-    if (present(charges) .and. present(velocities)) then
-      write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
-    elseif (present(charges) .and. .not. present(velocities)) then
-      write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & charges(ii), ii = 1, nAtom)
-    elseif (.not. present(charges) .and. present(velocities)) then
-      write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+    if (present(charges)) then
+
+      if (present(velocities)) then
+
+        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+
+      else if (present(vectors)) then
+
+        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & charges(ii), vectors(:,ii) * Bohr__AA, ii = 1, nAtom)
+
+      else
+
+        write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
+            & ii = 1, nAtom)
+
+      end if
+
     else
-      write(fd, 201) (trim(speciesNames(species(ii))),&
-          & coords(:, ii) * Bohr__AA, ii = 1, nAtom)
+
+      if (present(velocities)) then
+
+        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+
+      else if (present(vectors)) then
+
+        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & vectors(:,ii), ii = 1, nAtom)
+
+      else
+
+        write(fd, 201) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, ii = 1, nAtom)
+
+      end if
+
     end if
 
   end subroutine writeXYZFormat_fid
