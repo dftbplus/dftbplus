@@ -200,7 +200,7 @@ program modes
         iMode = modesToPlot(ii)
         write(lcTmp2, *) "Eigenmode", iMode, eigenValues(iMode) * Hartree__cm, "cm-1"
         call writeXYZFormat(lcTmp, geo%coords, geo%species, geo%speciesNames,&
-            & velocities=displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
+            & vectors=displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
       end do
     end if
   end if
