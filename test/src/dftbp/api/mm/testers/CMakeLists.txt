@@ -78,7 +78,6 @@ if(WITH_MPI)
   target_link_libraries(test_setspeciesanddependents PRIVATE ${MPI_Fortran_LIBRARIES})
 
   add_executable(test_mpisubgrids test_mpisubgrids.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
-  target_link_libraries(test_mpisubgrids PRIVATE dftbplus)
   target_include_directories(test_mpisubgrids PRIVATE ${MPI_Fortran_MODULE_DIR})
   target_link_libraries(test_mpisubgrids PRIVATE ${MPI_Fortran_LIBRARIES})
 

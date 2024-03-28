@@ -98,6 +98,7 @@ module dftbp_dftbplus_main
   use dftbp_md_xlbomd, only : TXLBOMD
   use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, TMixerReal_reset, TMixerCmplx_reset,&
       & TMixerReal_mix, TMixerCmplx_mix, TMixerReal_getInverseJacobian
+  use dftbp_modelindependent_localclusters, only : TLocalClusters
   use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
       & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
       & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
@@ -1087,9 +1088,16 @@ contains
     ! Whether constraints are converged
     logical :: constrConverged
 
+    ! Local environments around atomic sites
+    type(TLocalClusters), allocatable, target :: localClusters
+
     integer :: iKS, iConstrIter, nConstrIter
 
     if (this%tDipole) allocate(dipoleTmp(3))
+
+    if (allocated(this%localClusters)) then
+      localClusters = this%localClusters
+    end if
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
@@ -1124,6 +1132,11 @@ contains
         @:PROPAGATE_ERROR(errStatus)
     end if
 
+    if (allocated(localClusters) .and. (this%tLatticeChanged .or. this%tCoordsChanged)) then
+      call localClusters%updateGeometry(this%coord, this%neighbourList,&
+          & this%img2CentCell, this%species)
+    end if
+
   #:if WITH_TRANSPORT
     if (this%tNegf) then
       call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
@@ -1151,6 +1164,16 @@ contains
           & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
     end if
 
+    if (allocated(localClusters)) then
+      call localClusters%generateClusters(this%coord, this%nNeighbourSK, this%neighbourList,&
+          & this%img2CentCell, this%species, this%speciesName)
+    end if
+    if (this%hamiltonianType == hamiltonianTypes%api) then
+      call this%extModel%update(this%species, localClusters, this%iSparseStart, this%nNeighbourSK,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
     call env%globalTimer%startTimer(globalTimers%sparseH0S)
     select case(this%hamiltonianType)
     case default
@@ -1162,10 +1185,14 @@ contains
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
     case(hamiltonianTypes%xtb)
       @:ASSERT(allocated(this%tblite))
-      call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
-          & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
-          & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet, &
+      call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk,&
+          & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart,&
+          & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet,&
           & this%ints%quadrupoleBra, this%ints%quadrupoleKet)
+    case(hamiltonianTypes%api)
+      call this%extModel%buildSH0(env, this%H0, this%ints%overlap, this%nAtom, this%species,&
+          & this%iSparseStart, this%orb, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
