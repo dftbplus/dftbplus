@@ -4575,18 +4575,28 @@ contains
           qBlockIn(:,:,:,:) = qBlockOut
         end if
       else
-        if (hybridXc%hybridXcAlg == hybridXcAlgo%neighbourBased) then
-          if (tHelical) then
-            call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-          else
-            call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-          end if
-          call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
-          call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
+
+      #:if WITH_SCALAPACK
+        if (tHelical) then
+          call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc,&
+              & SSqrReal)
         else
+          call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+        end if
+      #:else
+        if (tHelical) then
+          call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
+      #:endif
+
         #:if WITH_SCALAPACK
+        if (hybridXc%hybridXcAlg /= hybridXcAlgo%neighbourBased) then
           ! collect full, square delta density matrix for mixing from MPI ranks
           ! (workaround, due to serial mixers)
           call getFullFromDistributed(env, denseDesc, parallelKS, densityMatrix%deltaRhoIn,&
@@ -4603,28 +4613,13 @@ contains
           call scatterFullToDistributed(env, denseDesc, parallelKS, collectedDeltaRhoInSqr,&
               & densityMatrix%deltaRhoIn)
 
-          if (tHelical) then
-            call unpackHSHelicalRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour,&
-                & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, denseDesc,&
-                & SSqrReal)
-          else
-            call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-                & iSparseStart, img2CentCell, denseDesc, SSqrReal)
-          end if
           call denseMullikenRealBlacs(env, parallelKS, denseDesc, densityMatrix%deltaRhoIn,&
               & SSqrReal, qInput)
-        #:else
-          if (tHelical) then
-            call unpackHelicalHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-          else
-            call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-          end if
-          call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
-          call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
-        #:endif
         end if
+      #:else
+        call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
+        call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
+      #:endif
 
         ! HybridXc: For spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
