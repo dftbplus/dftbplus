@@ -1510,6 +1510,12 @@ contains
             & this%nIndepSpin * this%nKPoint**2, ') groups!'
         call error(trim(tmpStr))
       end if
+      if (this%tSpinOrbit) then
+        call error("Spin orbit coupling not currently available for hybrid functionals")
+      end if
+      if (this%nSpin == 4 .and. input%ctrl%hybridXcInp%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+        call error("MatrixBased screening required for hybrids with non-collinear spin")
+      end if
     end if
 
     if (this%isHybridXc .and. (.not. this%tRealHS)&
@@ -1828,7 +1834,8 @@ contains
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
-      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)
+      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
+          & .or. (this%t2Component .and. this%isHybridXc)
       if (tCmplxMixer) then
         allocate(this%pChrgMixerCmplx)
         select case (iMixer)
@@ -2915,7 +2922,7 @@ contains
       call THybridXcFunc_init(this%hybridXc, this%nAtom, this%species0, hubbU(1, :),&
           & input%ctrl%hybridXcInp%screeningThreshold, input%ctrl%hybridXcInp%omega,&
           & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta,&
-          & this%tSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
+          & this%tSpin, this%nSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
           & input%ctrl%hybridXcInp%hybridXcType, input%ctrl%hybridXcInp%gammaType, this%tPeriodic,&
           & this%tRealHS, errStatus, coeffsDiag=this%supercellFoldingDiag,&
           & gammaCutoff=this%cutOff%gammaCutoff,&
@@ -2928,7 +2935,11 @@ contains
           & size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
       if (this%tRealHS) then
-        this%nMixElements = size(this%densityMatrix%deltaRhoIn)
+        if (this%t2Component) then
+          this%nMixElements = size(this%densityMatrix%deltaRhoInCplx)
+        else
+          this%nMixElements = size(this%densityMatrix%deltaRhoIn)
+        end if
       else
         if (input%ctrl%hybridXcInp%hybridXcAlg == hybridXcAlgo%matrixBased) then
           this%nMixElements = size(this%densityMatrix%deltaRhoInCplx)
@@ -5881,17 +5892,17 @@ contains
           & moment.")
     end if
 
-    if (this%nSpin > 2) then
-      call error("Hybrid calculations not implemented for non-colinear calculations.")
+    if (this%nSpin > 2 .and. .not. this%tRealHS) then
+      call error("Hybrid calculations not implemented for non-colinear calculations in this case.")
     end if
 
-    if ((.not. this%tRealHS) .and. this%nSpin == 2&
+    if ((.not. this%tRealHS) .and. this%nSpin > 1&
         & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncated) then
       call error("Hybrid functionality does not yet support spin-polarized calculations of periodic&
           & systems beyond the Gamma-point for CoulombMatrix settings other than 'Truncated'.")
     end if
 
-    if ((.not. this%tRealHS) .and. this%nSpin == 2 .and. this%tForces) then
+    if ((.not. this%tRealHS) .and. this%nSpin > 1 .and. this%tForces) then
       call error("Hybrid functionality currently does not yet support spin-polarized gradient&
           & evaluation for periodic systems beyond the Gamma-point.")
     end if
@@ -5906,6 +5917,15 @@ contains
 
     if (this%t3rd) then
       call error("Hybrid calculations not currently implemented for 3rd-order DFTB.")
+    end if
+
+    if (this%nSpin == 4 .and. hybridXcInp%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+      call error("Non-collinear spin only available for matrix alogorithm hybrids at present.")
+    end if
+
+    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster)&
+        & then
+      call error("Non-collinear spin only available for hybrids with molecular systems at present.")
     end if
 
     if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
@@ -6244,10 +6264,19 @@ contains
 
     if (this%tRealHS) then
       ! Prevent for deleting charges read in from file
-      if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
-        allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
+      if (this%t2Component) then
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplx)) then
+          allocate(this%densityMatrix%deltaRhoInCplx(nLocalRows, nLocalCols, nLocalKS),&
+              & source=(0.0_dp,0.0_dp))
+        end if
+        allocate(this%densityMatrix%deltaRhoOutCplx(nLocalRows, nLocalCols, nLocalKS),&
+            & source=(0.0_dp,0.0_dp))
+      else
+        if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
+          allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
+        end if
+        allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
       end if
-      allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
     elseif (this%tReadChrg .and. (.not. allocated(this%supercellFoldingDiag))) then
       ! in case of k-points and restart from file, we have to wait until charges.bin was read
       if (hybridXcAlg == hybridXcAlgo%matrixBased) then

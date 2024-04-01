@@ -124,6 +124,7 @@ hybrid/cluster/C4H6-TD-LC-Triplet                  #? MPI_PROCS <= 4
 hybrid/cluster/Benzene-TD-LC-Spinpol               #? MPI_PROCS <= 4
 hybrid/cluster/Benzene-TD-LC-Spinpol-Force         #? not WITH_MPI
 hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? MPI_PROCS <= 4
+hybrid/cluster/As                                  #? not WITH_MPI
 
 hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
 hybrid/periodic/Acene-gamma-matrix-restart            #? not WITH_MPI

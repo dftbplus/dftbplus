@@ -50,7 +50,7 @@ module dftbp_dftb_hybridxc
   implicit none
 
 #! Routine NAME label, main variable TYPE
-#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex')]
+#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex'), ('pauli', 'complex')]
 
   private
 
@@ -163,10 +163,16 @@ module dftbp_dftb_hybridxc
     real(dp), allocatable :: rCoords(:,:)
 
     !> Evaluated (long-range + HF full-range) gamma of Atom1 and Atom2 (central cell only)
-    real(dp), allocatable :: camGammaEval0(:,:), camdGammaEval0(:,:,:)
+    real(dp), allocatable :: camGammaEval0(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative of Atom1 and Atom2 (central cell
+    !! only)
+    real(dp), allocatable :: camdGammaEval0(:,:,:)
 
     !> Evaluated (long-range + HF full-range) gamma in the general k-point case
     type(TWrappedReal1), allocatable :: camGammaEvalG(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative in the general k-point case
     type(TWrappedReal2), allocatable :: camdGammaEvalG(:,:)
 
     !> Number of numerically non-zero gamma's
@@ -209,7 +215,10 @@ module dftbp_dftb_hybridxc
     real(dp) :: camEnergy
 
     !> Is this a spin restricted (false) or unrestricted (true) calculation?
-    logical :: tSpin
+    logical :: isSpin
+
+    !> Number of independent spin channels
+    integer :: nSpin
 
     !> Is this a DFTB/REKS calculation (true)?
     logical :: tREKS
@@ -280,6 +289,8 @@ module dftbp_dftb_hybridxc
     procedure :: addCamHamiltonianMatrix_cmplx_blacs
   #:else
     procedure :: addCamHamiltonianMatrix_cmplx
+    procedure :: addCamHamiltonianMatrix_pauli
+    procedure :: addCamGradients_pauli
   #:endif
 
     procedure :: getHybridEnergy_real
@@ -389,8 +400,8 @@ contains
 
   !> Intitializes the range-separated hybrid DFTB module.
   subroutine THybridXcFunc_init(this, nAtom0, species0, hubbu, screeningThreshold, omega, camAlpha,&
-      & camBeta, tSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, tPeriodic, tRealHS, errStatus,&
-      & gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
+      & camBeta, isSpin, nSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, isPeriodic, tRealHS,&
+      & errStatus, gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
 
     !> Class instance
     class(THybridXcFunc), intent(out), allocatable :: this
@@ -417,7 +428,10 @@ contains
     real(dp), intent(in) :: camBeta
 
     !> Is this spin restricted (F) or unrestricted (T)
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: isSpin
+
+    !> Number of indepdendent spin channels (1, 2 or 4)
+    integer, intent(in) :: nSpin
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: tREKS
@@ -432,7 +446,7 @@ contains
     integer, intent(in) :: gammaType
 
     !> True, if system is periodic (i.e. Gamma-only or k-points)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> True, if overlap and Hamiltonian are real-valued
     logical, intent(in) :: tRealHS
@@ -466,7 +480,7 @@ contains
     integer :: nUniqueSpecies
 
     ! Perform basic consistency checks for optional arguments
-    if (tPeriodic .and. (.not. present(gSummationCutoff))) then
+    if (isPeriodic .and. (.not. present(gSummationCutoff))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic systems require g-summation cutoff,&
           & which is not present.")
     end if
@@ -510,7 +524,9 @@ contains
     this%omega = omega
     this%hybridXcAlg = hybridXcAlg
     this%hybridXcType = hybridXcType
-    this%tSpin = tSpin
+    this%isSpin = isSpin
+    this%nSpin = nSpin
+    @:ASSERT(this%isSpin .eqv. this%nSpin > 1)
     this%tREKS = tREKS
     this%camAlpha = camAlpha
     this%camBeta = camBeta
@@ -576,7 +592,7 @@ contains
     allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
-    if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+    if (this%isSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
       @:RAISE_ERROR(errStatus, -1, "Spin-unrestricted calculation for thresholded range-separation&
           & not yet implemented!")
     end if
@@ -592,7 +608,7 @@ contains
           & range-separation!")
     end if
 
-    if (tPeriodic .and. (.not. present(latVecs))) then
+    if (isPeriodic .and. (.not. present(latVecs))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic structure, but no lattice vectors&
           & handed over.")
     end if
@@ -1275,7 +1291,7 @@ contains
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
 
-    !! Max estimate for delta-delta density matrix
+    !> Max estimate for delta-delta density matrix
     real(dp), intent(in) :: pMax
 
     !> Composite index for four nested loops
@@ -1429,7 +1445,7 @@ contains
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (non-periodic and Gamma-only version)
   subroutine addCamHamiltonian_real(this, env, deltaRhoSqr, SSqrReal, overSparse, iNeighbour,&
-      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, tPeriodic, HSqrReal, errStatus)
+      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, isPeriodic, HSqrReal, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1466,7 +1482,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
@@ -1478,7 +1494,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Thresholded algorithm not implemented for&
             & Gamma-point periodic systems.")
       else
@@ -1826,7 +1842,7 @@ contains
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       tmpHH(:,:) = 0.25_dp * tmpHH
     else
       tmpHH(:,:) = 0.125_dp * tmpHH
@@ -2152,7 +2168,7 @@ contains
       call pblasfx_pgemm(sSqr, desc, tmpMat, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
         hamCamSqr(:,:) = -0.125_dp * hamCamSqr
@@ -2167,7 +2183,7 @@ contains
 
 #:for NAME, TYPE in FLAVOURS
 
-#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
+#:set LABEL = 'two component' if NAME == 'pauli' else 'complex' if NAME == 'cmplx' else 'real'
 #:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
 #:set MATOP = 'hemm' if TYPE == 'complex' else 'symm'
 
@@ -2204,7 +2220,7 @@ contains
 
     !! Square matrix filled with orbital-resolved gamma values
     !! Actually, the diatomic gamma elements are just spread to all orbitals
-    ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
+    real(dp), allocatable :: camGammaAO(:,:)
 
     !! Number of orbitals in square matrices
     integer :: nOrb
@@ -2213,19 +2229,24 @@ contains
 
     allocate(sSqrTri(nOrb, nOrb))
     allocate(rhoSqrTri(nOrb, nOrb))
-    allocate(camGammaAO(nOrb, nOrb))
     allocate(hamCamSqr(nOrb, nOrb))
 
-    call allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    if (this%nSpin == 4) then
+      allocate(camGammaAO(nOrb/2, nOrb/2))
+    else
+      allocate(camGammaAO(nOrb, nOrb))
+    end if
+
+    call init(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
     call evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
     hamSqr(:,:) = hamSqr + hamCamSqr
-    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqrTri)
+    this%camEnergy = this%camEnergy + evaluateEnergy_${CONV}$(hamCamSqr, rhoSqrTri)
 
   contains
 
     !> Sets up matrices with both triangles filled and the orbital-by-orbital gamma matrix.
-    subroutine allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    subroutine init(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
 
       !> Class instance
       class(THybridXcFunc), intent(in) :: this
@@ -2249,7 +2270,7 @@ contains
       ${TYPE}$(dp), intent(out) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
+      real(dp), intent(out) :: camGammaAO(:,:)
 
       !! Number of atoms in the central cell
       integer :: nAtom
@@ -2267,7 +2288,7 @@ contains
       call adjointLowerTriangle(rhoSqrTri)
 
       ! Get orbital-resolved CAM gamma matrix
-      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
+      camGammaAO(:,:) = 0.0_dp
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           camGammaAO(iSquare(jAt):iSquare(jAt+1)-1, iSquare(iAt):iSquare(iAt+1)-1)&
@@ -2275,7 +2296,7 @@ contains
         end do
       end do
 
-    end subroutine allocateAndInit
+    end subroutine init
 
 
     !> Evaluates the HFX Hamiltonian contributions, using ${MATOP}$ operations.
@@ -2291,7 +2312,7 @@ contains
       ${TYPE}$(dp), intent(in) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
+      real(dp), intent(in) :: camGammaAO(:,:)
 
       !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
       ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
@@ -2304,28 +2325,28 @@ contains
 
       nOrb = size(sSqrTri, dim=1)
 
-      allocate(Hmat(nOrb, nOrb))
-      allocate(tmpMat(nOrb, nOrb))
+      allocate(Hmat(nOrb, nOrb), source=${CONV}$(0, kind=dp))
+      allocate(tmpMat(nOrb, nOrb), source=${CONV}$(0, kind=dp))
 
       call ${MATOP}$(tmpMat, 'l', sSqrTri, rhoSqrTri)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat)
-      hamCamSqr(:,:) = hamCamSqr * camGammaAO
+      call hadamardProduct(hamCamSqr, hamCamSqr, camGammaAO)
 
-      tmpMat(:,:) = tmpMat * camGammaAO
+      call hadamardProduct(tmpMat, tmpMat, camGammaAO)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      Hmat(:,:) = rhoSqrTri * camGammaAO
+      call hadamardProduct(Hmat, rhoSqrTri, camGammaAO)
       call ${MATOP}$(tmpMat, 'l', sSqrTri, Hmat)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
       call ${MATOP}$(tmpMat, 'l', rhoSqrTri, sSqrTri)
-      tmpMat(:,:) = tmpMat * camGammaAO
+      call hadamardProduct(tmpMat, tmpMat, camGammaAO)
       call ${MATOP}$(hamCamSqr, 'l', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
         hamCamSqr(:,:) = -0.125_dp * hamCamSqr
@@ -2333,11 +2354,56 @@ contains
 
     end subroutine evaluateHamiltonian
 
+  #:if NAME == 'pauli'
+
+    !> Hadamard product C = A * B, allowing for the possibility of 2-component matrices
+    pure subroutine hadamardProduct(C, A, B)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(inout) :: C(:,:)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(in) :: A(:,:)
+
+      !> Square matrix to multiply
+      real(dp), intent(in) :: B(:,:)
+
+      integer :: nBasis
+
+      nBasis = size(A, dim=2)/2
+      C(:nBasis, :nBasis) = A(:nBasis, :nBasis) * B
+      C(nBasis+1:, :nBasis) = A(nBasis+1:, :nBasis) * B
+      C(nBasis+1:, nBasis+1:) = A(nBasis+1:, nBasis+1:) * B
+      C(:nBasis, nBasis+1:) = A(:nBasis, nBasis+1:) * B
+
+    end subroutine hadamardProduct
+
+  #:else
+
+    !> Hadamard product C = A * B
+    pure subroutine hadamardProduct(C, A, B)
+
+      !> Square matrix to multiply and accumulate into
+      ${TYPE}$(dp), intent(inout) :: C(:,:)
+
+      !> Square matrix to multiply and accumulate into
+      ${TYPE}$(dp), intent(in) :: A(:,:)
+
+      !> Square matrix to multiply
+      real(dp), intent(in) :: B(:,:)
+
+      C(:,:) = A * B
+
+    end subroutine hadamardProduct
+
+  #:endif
+
   end subroutine addCamHamiltonianMatrix_${NAME}$
 
 #:endfor
 
 #:endif
+
 
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
@@ -2439,7 +2505,7 @@ contains
     !! bandstructure calculation
     real(dp), pointer :: kPointPrime(:,:)
 
-    !> Pointer to weights of k' k-points
+    !! Pointer to weights of k' k-points
     real(dp), pointer :: kWeightPrime(:)
 
     !! Auxiliary variable
@@ -2586,7 +2652,7 @@ contains
 
     end do
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -2985,7 +3051,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3307,7 +3373,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3450,7 +3516,7 @@ contains
 #:endfor
 
 
-  !! Returns either f(x) or f'(x) for the unique 5th-degree polynomial that satisfies:
+  !> Returns either f(x) or f'(x) for the unique 5th-degree polynomial that satisfies:
   !!   f(rDamp) = y0
   !!   f'(rDamp) = y0p
   !!   f''(rDamp) = y0pp
@@ -4563,8 +4629,8 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, parallelKS, deltaRhoSqr, SSqrReal, skOverCont,&
-      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, gradients,&
-      & errStatus)
+      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, isPeriodic,&
+      & gradients, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -4603,7 +4669,7 @@ contains
     integer, intent(in) :: nSpin
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4611,7 +4677,7 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma(env)
     else
       call this%tabulateCamdGammaEval0_cluster(env)
@@ -4634,7 +4700,7 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
-      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
+      & iNeighbour, nNeighbourSK, derivator, isPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
@@ -4668,7 +4734,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4679,7 +4745,7 @@ contains
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma(env)
     else
       call this%tabulateCamdGammaEval0_cluster(env)
@@ -4687,7 +4753,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
@@ -4702,6 +4768,76 @@ contains
     end select
 
   end subroutine addCamGradients_real
+
+
+  !> Interface routine to add gradients due to CAM range-separated contributions.
+  !! (non-periodic and Gamma-only version)
+  subroutine addCamGradients_pauli(this, env, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
+      & iNeighbour, nNeighbourSK, derivator, isPeriodic, gradients, errStatus, symNeighbourList,&
+      & nNeighbourCamSym)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Square (unpacked) delta density matrix
+    complex(dp), intent(in) :: deltaRhoSqr(:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Sparse overlap part
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Orbital information for system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index for dense arrays
+    integer, intent(in) :: iSquare(:)
+
+    !> Neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Number of atoms neighbouring each site where the overlap is non-zero
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> True, if system is periodic (i.e. Gamma-only)
+    logical, intent(in) :: isPeriodic
+
+    !> Energy gradients
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+
+    !> Nr. of neighbours for each atom
+    integer, intent(in), optional :: nNeighbourCamSym(:)
+
+    if (isPeriodic) then
+      call this%tabulateCamdGammaEval0_gamma(env)
+    else
+      call this%tabulateCamdGammaEval0_cluster(env)
+    end if
+
+    select case(this%hybridXcAlg)
+    case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Pauli matrix forces not implemented for&
+          & non-matrix based algorithms")
+    case (hybridXcAlgo%matrixBased)
+      @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
+      call addCamGradientsMatrix_pauli(this, deltaRhoSqr, SSqrReal, skOverCont,&
+          & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
+    end select
+
+  end subroutine addCamGradients_pauli
 
 #:endif
 
@@ -5696,7 +5832,7 @@ contains
     real(dp), allocatable :: deltaRhoSqrSym(:,:,:)
 
     !! Temporary storages
-    real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:), symSqrMat2Tmp(:,:)
+    real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:), symSqrMat2Tmp(:,:,:)
     real(dp), allocatable :: deltaRhoOverlap(:,:,:)
 
     !! Spin index and total number of spin channels
@@ -5741,13 +5877,10 @@ contains
     ! calculate first symmetrized square matrix of Eq.(B5)
     allocate(symSqrMat1, mold=deltaRhoSqrSym)
     do iSpin = 1, nSpin
-      call gemm(symSqrMat1(:,:, iSpin),&
-          & deltaRhoOverlap(:,:, iSpin),&
+      call gemm(symSqrMat1(:,:, iSpin), deltaRhoOverlap(:,:, iSpin),&
           & deltaRhoSqrSym(:,:, iSpin) * camGammaAO)
-      call gemm(symSqrMat1(:,:, iSpin),&
-          & deltaRhoOverlap(:,:, iSpin) * camGammaAO,&
-          & deltaRhoSqrSym(:,:, iSpin),&
-          & beta=1.0_dp)
+      call gemm(symSqrMat1(:,:, iSpin), deltaRhoOverlap(:,:, iSpin) * camGammaAO,&
+          & deltaRhoSqrSym(:,:, iSpin), beta=1.0_dp)
       ! symmetrize temporary storage
       symSqrMat1(:,:, iSpin) = 0.5_dp * (symSqrMat1(:,:, iSpin) + transpose(symSqrMat1(:,:, iSpin)))
     end do
@@ -5758,11 +5891,12 @@ contains
     ! calculate second symmetrized square matrix of Eq.(B5)
     ! this term is already symmetric, therefore drop the symmetrization operation at the end
     allocate(symSqrMat2, mold=deltaRhoSqrSym)
-    allocate(symSqrMat2Tmp(size(symSqrMat2, dim=1), size(symSqrMat2, dim=1)))
+    allocate(symSqrMat2Tmp(size(symSqrMat2, dim=1), size(symSqrMat2, dim=1), 2))
     do iSpin = 1, nSpin
       symSqrMat2(:,:, iSpin) = transpose(deltaRhoOverlap(:,:, iSpin)) * deltaRhoOverlap(:,:, iSpin)
-      call gemm(symSqrMat2Tmp, overlapSym, deltaRhoOverlap(:,:, iSpin))
-      symSqrMat2(:,:, iSpin) = symSqrMat2(:,:, iSpin) + symSqrMat2Tmp * deltaRhoSqrSym(:,:, iSpin)
+      call gemm(symSqrMat2Tmp(:,:,iSpin), overlapSym, deltaRhoOverlap(:,:, iSpin))
+      symSqrMat2(:,:, iSpin) = symSqrMat2(:,:, iSpin)&
+          & + symSqrMat2Tmp(:,:,iSpin) * deltaRhoSqrSym(:,:, iSpin)
     end do
 
     ! free some memory
@@ -5783,10 +5917,10 @@ contains
         do iCoord = 1, 3
           ! first term of Eq.(B5)
           tmpGradients(iCoord, iAtForce) = tmpGradients(iCoord, iAtForce)&
-              & - sum(overSqrPrime(iCoord, :,:) * symSqrMat1(:,:, iSpin))
+              & - sum(overSqrPrime(iCoord, :, :) * symSqrMat1(:, :, iSpin))
           ! second term of Eq.(B5)
           tmpGradients(iCoord, iAtForce) = tmpGradients(iCoord, iAtForce)&
-              & - 0.5_dp * sum(camdGammaAO(:,:, iCoord) * symSqrMat2(:,:, iSpin))
+              & - 0.5_dp * sum(camdGammaAO(:, :, iCoord) * symSqrMat2(:, :, iSpin))
         end do
       end do
     end do loopForceAtom
@@ -5798,6 +5932,228 @@ contains
     end if
 
   end subroutine addCamGradientsMatrix_real
+
+
+  !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
+  !! (non-periodic and Gamma-only version)
+  !!
+  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
+  subroutine addCamGradientsMatrix_pauli(this, deltaRhoSqr, overlap, skOverCont, symNeighbourList,&
+      & nNeighbourCamSym, iSquare, orb, derivator, gradients)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout), target :: this
+
+    !> Square (unpacked) delta density matrix
+    complex(dp), intent(in) :: deltaRhoSqr(:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> Energy gradients
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !! Temporary energy gradients
+    real(dp), allocatable :: tmpGradients(:,:)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Number of atoms in central cell
+    integer :: nAtom0
+
+    !! Overlap derivative
+    real(dp), allocatable :: overSqrPrime(:,:,:)
+
+    !! Atom indices (central cell)
+    integer :: iAtForce, iAt1, iAt2
+
+    !! CAM gamma matrix, including periodic images
+    real(dp), allocatable :: camGammaAO(:,:), camdGammaAO(:,:,:)
+
+    !! Symmetrized, square (unpacked) overlap matrix
+    real(dp), allocatable :: overlapSym(:,:)
+
+    !! Symmetrized, square (unpacked) delta density matrix
+    complex(dp), allocatable :: deltaRhoSqrSym(:,:)
+
+    !! Temporary storages
+    complex(dp), allocatable :: symSqrMat1(:,:), symSqrMat2(:,:), symSqrMat2Tmp(:,:)
+    complex(dp), allocatable :: deltaRhoOverlap(:,:)
+    real(dp), allocatable :: tmpSqr(:,:,:), tmpSqr2(:,:,:)
+
+    !! Spin index and total number of spin channels
+    integer :: iSpin, nSpin
+
+    !! Number of orbitals in square matrices
+    integer :: nOrb
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    nAtom0 = size(this%species0)
+    nOrb = size(overlap, dim=1)
+
+    ! allocate CAM \tilde{gamma}
+    allocate(camGammaAO(nOrb, nOrb))
+    allocate(camdGammaAO(nOrb, nOrb, 3))
+
+    ! symmetrize square overlap and density matrix
+    overlapSym = overlap
+    call adjointLowerTriangle(overlapSym)
+    deltaRhoSqrSym = deltaRhoSqr
+    call adjointLowerTriangle(deltaRhoSqrSym)
+
+    ! get CAM \tilde{gamma} super-matrix
+    do iAt2 = 1, nAtom0
+      do iAt1 = 1, nAtom0
+        camGammaAO(iSquare(iAt1):iSquare(iAt1 + 1) - 1, iSquare(iAt2):iSquare(iAt2 + 1) - 1)&
+            & = this%camGammaEval0(iAt1, iAt2)
+      end do
+    end do
+
+    ! pre-calculate deltaRho * overlap
+    allocate(deltaRhoOverlap, mold=deltaRhoSqrSym)
+    deltaRhoOverlap(:nOrb,:nOrb) = matmul(deltaRhoSqrSym(:nOrb,:nOrb), overlapSym)
+    deltaRhoOverlap(nOrb+1:,:nOrb) = matmul(deltaRhoSqrSym(nOrb+1:,:nOrb), overlapSym)
+    deltaRhoOverlap(:nOrb,nOrb+1:) = matmul(deltaRhoSqrSym(:nOrb,nOrb+1:), overlapSym)
+    deltaRhoOverlap(nOrb+1:,nOrb+1:) = matmul(deltaRhoSqrSym(nOrb+1:,nOrb+1:), overlapSym)
+
+    ! calculate first symmetrized square matrix of Eq.(B5)
+    allocate(symSqrMat1, mold=deltaRhoSqrSym)
+    allocate(symSqrMat2Tmp, mold=deltaRhoSqrSym)
+    symSqrMat2Tmp(:,:) = deltaRhoSqrSym
+    symSqrMat2Tmp(:nOrb,:nOrb) = symSqrMat2Tmp(:nOrb,:nOrb) * camGammaAO
+    symSqrMat2Tmp(nOrb+1:,:nOrb) = symSqrMat2Tmp(nOrb+1:,:nOrb) * camGammaAO
+    symSqrMat2Tmp(:nOrb,nOrb+1:) = symSqrMat2Tmp(:nOrb,nOrb+1:) * camGammaAO
+    symSqrMat2Tmp(nOrb+1:,nOrb+1:) = symSqrMat2Tmp(nOrb+1:,nOrb+1:) * camGammaAO
+    call gemm(symSqrMat1, deltaRhoOverlap, symSqrMat2Tmp)
+    symSqrMat2Tmp(:,:) = deltaRhoOverlap
+    symSqrMat2Tmp(:nOrb,:nOrb) = symSqrMat2Tmp(:nOrb,:nOrb) * camGammaAO
+    symSqrMat2Tmp(nOrb+1:,:nOrb) = symSqrMat2Tmp(nOrb+1:,:nOrb) * camGammaAO
+    symSqrMat2Tmp(:nOrb,nOrb+1:) = symSqrMat2Tmp(:nOrb,nOrb+1:) * camGammaAO
+    symSqrMat2Tmp(nOrb+1:,nOrb+1:) = symSqrMat2Tmp(nOrb+1:,nOrb+1:) * camGammaAO
+    call gemm(symSqrMat1, symSqrMat2Tmp, deltaRhoSqrSym, beta=(1.0_dp,0.0_dp))
+    ! free some memory
+    deallocate(camGammaAO)
+    deallocate(symSqrMat2Tmp)
+
+    ! symmetrize temporary storage
+    symSqrMat1(:,:) = 0.5_dp * (symSqrMat1 + conjg(transpose(symSqrMat1)))
+
+    ! calculate second symmetrized square matrix of Eq.(B5)
+    allocate(symSqrMat2(2*nORb, 2*nOrb), source=(0.0_dp,0.0_dp))
+    allocate(tmpSqr(nOrb, nOrb, 0:3), source=0.0_dp)
+    call pauli2components(tmpSqr, deltaRhoOverlap)
+    symSqrMat2(:nOrb,:nOrb) = 0.25_dp * (transpose(tmpSqr(:,:,0))*tmpSqr(:,:,0)&
+        & + transpose(tmpSqr(:,:,1))*tmpSqr(:,:,1) + transpose(tmpSqr(:,:,2))*tmpSqr(:,:,2)&
+        & + transpose(tmpSqr(:,:,3))*tmpSqr(:,:,3))
+    symSqrMat2(nOrb+1:,nOrb+1:) = symSqrMat2(:nOrb,:nOrb)
+    symSqrMat2(nOrb+1:,:nOrb) = symSqrMat2(nOrb+1:,:nOrb) + 0.25*&
+        & (transpose(tmpSqr(:,:,0))*cmplx(tmpSqr(:,:,1),tmpSqr(:,:,2),dp) +&
+        & tmpSqr(:,:,0)*cmplx(transpose(tmpSqr(:,:,1)),transpose(tmpSqr(:,:,2)),dp))
+    symSqrMat2(:nOrb,:nOrb) = symSqrMat2(:nOrb,:nOrb) +0.25_dp *&
+        & (transpose(tmpSqr(:,:,0))*tmpSqr(:,:,3) + transpose(tmpSqr(:,:,3))*tmpSqr(:,:,0))
+    symSqrMat2(nOrb+1:,nOrb+1:) = symSqrMat2(nOrb+1:,nOrb+1:) -0.25_dp *&
+        & (transpose(tmpSqr(:,:,0))*tmpSqr(:,:,3) + transpose(tmpSqr(:,:,3))*tmpSqr(:,:,0))
+    call adjointLowerTriangle(symSqrMat2)
+
+
+    allocate(symSqrMat2Tmp(2*nOrb,2*nOrb), source=(0.0_dp,0.0_dp))
+    symSqrMat2Tmp(:nOrb,:nOrb) = matmul(overlapSym, deltaRhoOverlap(:nOrb,:nOrb))
+    symSqrMat2Tmp(nOrb+1:,:nOrb) = matmul(overlapSym, deltaRhoOverlap(nOrb+1:,:nOrb))
+    symSqrMat2Tmp(:nOrb,nOrb+1:) = matmul(overlapSym, deltaRhoOverlap(:nOrb,nOrb+1:))
+    symSqrMat2Tmp(nOrb+1:,nOrb+1:) = matmul(overlapSym, deltaRhoOverlap(nOrb+1:,nOrb+1:))
+
+    allocate(tmpSqr2(nOrb, nOrb, 0:3), source=0.0_dp)
+    call pauli2components(tmpSqr, symSqrMat2Tmp)
+    call pauli2components(tmpSqr2, deltaRhoSqrSym)
+
+    symSqrMat2(:nOrb,:nOrb) = symSqrMat2(:nOrb,:nOrb) + 0.25_dp * sum(tmpSqr*tmpSqr2,dim=3)
+    symSqrMat2(nOrb+1:,nOrb+1:) = symSqrMat2(nOrb+1:,nOrb+1:) + 0.25_dp * sum(tmpSqr*tmpSqr2,dim=3)
+    symSqrMat2(nOrb+1:,:nOrb) = symSqrMat2(nOrb+1:,:nOrb)&
+        & + 0.25_dp * (tmpSqr(:,:,0)*cmplx(tmpSqr2(:,:,1),tmpSqr2(:,:,2),dp)&
+        & + tmpSqr2(:,:,0)*cmplx(tmpSqr(:,:,1),tmpSqr(:,:,2),dp))
+    symSqrMat2(:nOrb,:nOrb) = symSqrMat2(:nOrb,:nOrb) + 0.25_dp *&
+        & (tmpSqr(:,:,0)*tmpSqr2(:,:,3) + tmpSqr2(:,:,0)*tmpSqr(:,:,3))
+    symSqrMat2(nOrb+1:,nOrb+1:) = symSqrMat2(nOrb+1:,nOrb+1:) -0.25_dp * &
+        & (tmpSqr(:,:,0)*tmpSqr2(:,:,3) + tmpSqr2(:,:,0)*tmpSqr(:,:,3))
+    call adjointLowerTriangle(symSqrMat2)
+
+    ! free some memory
+    deallocate(overlapSym)
+    deallocate(deltaRhoSqrSym)
+    deallocate(symSqrMat2Tmp)
+    deallocate(deltaRhoOverlap)
+
+    call pauli2components(tmpSqr, symSqrMat1)
+    call pauli2components(tmpSqr2, symSqrMat2)
+
+    allocate(overSqrPrime(3, nOrb, nOrb))
+    allocate(tmpGradients, mold=gradients)
+    tmpGradients(:,:) = 0.0_dp
+
+    loopForceAtom: do iAtForce = 1, nAtom0
+      call getUnpackedOverlapPrime_real(iAtForce, skOverCont, orb, derivator, symNeighbourList,&
+          & nNeighbourCamSym, iSquare, this%rCoords, overSqrPrime)
+      call getUnpackedCamGammaAOPrime(iAtForce, this%camdGammaEval0, iSquare, camdGammaAO)
+      do iCoord = 1, 3
+        ! first term of Eq.(B5)
+        tmpGradients(iCoord, iAtForce) = tmpGradients(iCoord, iAtForce)&
+            & - sum(overSqrPrime(iCoord, :, :) * tmpSqr(:,:,0))
+        ! second term of Eq.(B5)
+        tmpGradients(iCoord, iAtForce) = tmpGradients(iCoord, iAtForce)&
+            & - 0.5_dp * sum(camdGammaAO(:, :, iCoord) * tmpSqr2(:,:,0))
+      end do
+    end do loopForceAtom
+
+    deallocate(tmpSqr)
+    deallocate(tmpSqr2)
+
+    gradients(:,:) = gradients + tmpGradients
+
+  end subroutine addCamGradientsMatrix_pauli
+
+
+  subroutine pauli2components(channels, matrix)
+
+    real(dp), intent(out) :: channels(:,:,:)
+    complex(dp), intent(in) :: matrix(:,:)
+
+    integer :: nOrb
+    nOrb = size(channels, dim=1)
+    @:ASSERT(all(shape(channels) == [nOrb, nOrb, 4]))
+    @:ASSERT(all(shape(matrix) == [2*nOrb, 2*nOrb]))
+
+    channels(:,:,1) = real(matrix(:nOrb,:nOrb) + matrix(nOrb+1:,nOrb+1:), dp)
+    channels(:,:,2) = real(matrix(nOrb+1:,:nOrb) + matrix(:nOrb,nOrb+1:), dp)
+    channels(:,:,3) = aimag(matrix(nOrb+1:,:nOrb) - matrix(:nOrb,nOrb+1:))
+    channels(:,:,4) = real(matrix(:nOrb,:nOrb) - matrix(nOrb+1:,nOrb+1:), dp)
+
+  end subroutine pauli2components
 
 
   !> Calculates derivative of the (long-range + HF full-range) gamma interaction w.r.t. given atom.
