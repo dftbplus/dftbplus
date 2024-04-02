@@ -4107,7 +4107,7 @@ contains
   end subroutine getCamGammaFourierAO
 
 
-  !> Returns pseudo Fourier transform of long-range and full-range Hartree-Fock gamma's.
+  !> Returns pseudo Fourier transform of long-range and full-range Hartree-Fock gammas.
   function getCamGammaFourier(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(gamma)
 
@@ -4167,7 +4167,8 @@ contains
   end function getCamGammaFourier
 
 
-  !> Calculates derivative of pseudo Fourier transform of square CAM y-matrix w.r.t. given atom.
+  !> Calculates derivatives w.r.t. given atom of the pseudo Fourier transformed square CAM y-matrix
+  !! with shape [nOrb, nOrb].
   subroutine getCamGammaFourierAOPrime(this, iAtomPrime, iSquare, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime, camdGammaAO)
 
@@ -4233,7 +4234,7 @@ contains
   end subroutine getCamGammaFourierAOPrime
 
 
-  !> Returns pseudo Fourier transform of long-range and full-range Hartree-Fock gamma's.
+  !> Calculates derivative w.r.t. given atom of the pseudo Fourier transformed square CAM y-matrix.
   function getCamGammaFourierPrime(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(dGamma)
 
