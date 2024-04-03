@@ -5813,9 +5813,9 @@ contains
     end if
 
     if ((.not. this%tRealHS) .and. this%tForces&
-        & .and. (hybridXcInp%hybridXcAlg /= hybridXcAlgo%neighbourBased)) then
+        & .and. (hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased)) then
       call error("Hybrid functionals don't yet support gradient calculations for periodic systems&
-          & beyond the Gamma point for HFX construction algorithms other than 'NeighbourBased'.")
+          & beyond the Gamma point using the thresholded HFX construction algorithm.")
     end if
 
     if (this%tPeriodic .and. this%tRealHS&
