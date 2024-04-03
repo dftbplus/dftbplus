@@ -272,8 +272,8 @@ module dftbp_dftb_hybridxc
 
     procedure :: addCamHamiltonianMatrix_cluster_cmplx
 
-    procedure :: addCamEnergy_real
-    procedure :: addCamEnergy_kpts
+    procedure :: addHybridEnergy_real
+    procedure :: addHybridEnergy_kpts
 
     procedure :: tabulateCamdGammaEval0_cluster
     procedure :: tabulateCamdGammaEval0_gamma
@@ -3459,8 +3459,8 @@ contains
   end subroutine addCamHamiltonianNeighbour_kpts_ct
 
 
-  !> Adds the CAM-energy contribution to the total energy.
-  subroutine addCamEnergy_real(this, env, energy)
+  !> Adds the hybrid functional contribution to the total energy.
+  subroutine addHybridEnergy_real(this, env, energy)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -3481,11 +3481,11 @@ contains
     ! probably broken for MPI groups over spin
     this%camEnergy = 0.0_dp
 
-  end subroutine addCamEnergy_real
+  end subroutine addHybridEnergy_real
 
 
-  !> Adds the CAM-energy contribution to the total energy.
-  subroutine addCamEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
+  !> Adds the hybrid functional contribution to the total energy.
+  subroutine addHybridEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
       & energy)
 
     !> Class instance
@@ -3539,7 +3539,7 @@ contains
     ! hack for spin unrestricted calculation
     this%camEnergy = 0.0_dp
 
-  end subroutine addCamEnergy_kpts
+  end subroutine addHybridEnergy_kpts
 
 
   !> Finds location of relevant atomic block indices in a dense matrix.
@@ -7165,7 +7165,7 @@ contains
   end subroutine addCamGradientsNeighbour_kpts_ct
 
 
-  !> Explicitly evaluates the LR-Energy contribution (very slow, use addLrEnergy instead).
+  !> Explicitly evaluates the LR-Energy contribution (very slow, use addHybridEnergy_* instead).
   function evaluateLrEnergyDirect_cluster(this, env, deltaRho, overlap, iSquare) result(energy)
 
     !> Instance of LR

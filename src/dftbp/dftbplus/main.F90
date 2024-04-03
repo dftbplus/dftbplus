@@ -8164,8 +8164,8 @@ contains
             & iSparseStart, orb, img2CentCell, reks%tPeriodic, reks%hamSqrL(:,:, 1, iL), errStatus)
       #:endif
         @:PROPAGATE_ERROR(errStatus)
-        ! Calculate range-separated exchange energy for spin up
-        call hybridXc%addCamEnergy_real(env, tmpEn(iL))
+        ! Calculate hybrid functional exchange energy
+        call hybridXc%addHybridEnergy_real(env, tmpEn(iL))
       end do
     end if
 

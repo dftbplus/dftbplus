@@ -1340,7 +1340,7 @@ contains
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut
 
-    !> For range separation
+    !> For hybrid functional calculations
     type(THybridXcSKTag) :: hybridXcSK
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
@@ -3558,7 +3558,7 @@ contains
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established.
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, hybridXcSK, tHyb, tLc, tCam)
+      & truncationCutOff, hybridXcSK)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3588,17 +3588,9 @@ contains
     !> Distances to artificially truncate tables of SK integrals
     real(dp), intent(in), optional :: truncationCutOff
 
-    !> if calculation range separated then read omega from end of SK file
+    !> If calculation uses a hybrid functional, try to read extra data from end of SK file and
+    !> confirm is is a suitable parameterisation
     type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
-
-    !> True, if global hybrid functional is requested
-    logical, intent(in), optional :: tHyb
-
-    !> True, if purely long-range corrected functional is requested
-    logical, intent(in), optional :: tLc
-
-    !> True, if CAM range-separation is requested
-    logical, intent(in), optional :: tCam
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
