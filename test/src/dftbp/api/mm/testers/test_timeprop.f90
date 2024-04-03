@@ -55,7 +55,7 @@ contains
 
     real(dp) :: coords(3, nAtom), merminEnergy, dipole(3, 1), energy, atomNetCharges(nAtom, 1)
     type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
-    type(fnode), pointer :: pPerturb, pKick
+    type(fnode), pointer :: pPerturb, pKick, pParserOpt
 
     character(:), allocatable :: DftbVersion
     integer :: major, minor, patch, istep, ii
@@ -70,6 +70,10 @@ contains
 
     call dftbp%getEmptyInput(input)
     call input%getRootNode(pRoot)
+
+    call setChild(pRoot, "ParserOptions", pParserOpt)
+    call setChildValue(pParserOpt, "ParserVersion", 13)
+
     call setChild(pRoot, "Geometry", pGeo)
     call setChildValue(pGeo, "Periodic", .false.)
     call setChildValue(pGeo, "TypeNames", ["C", "H"])

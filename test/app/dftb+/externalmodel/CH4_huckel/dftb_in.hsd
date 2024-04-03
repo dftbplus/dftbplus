@@ -1,0 +1,28 @@
+Geometry = GenFormat {
+    5  C
+  C  H
+    1 1    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    2 2    0.6287614522E+00    0.6287614522E+00    0.6287614522E+00
+    3 2   -0.6287614522E+00   -0.6287614522E+00    0.6287614522E+00
+    4 2   -0.6287614522E+00    0.6287614522E+00   -0.6287614522E+00
+    5 2    0.6287614522E+00   -0.6287614522E+00   -0.6287614522E+00
+}
+
+Model = External {
+#  Charge = 0.0
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 15
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
