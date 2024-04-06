@@ -1066,14 +1066,14 @@ contains
 
   contains
 
-    !> Returns the number of non-zero elements in a descending array of reals.
+    !> Returns the number of non-zero elements in a descending array of non-negative reals.
     function getNumberOfNonZeroElements(array) result(nNonZeroEntries)
 
       !> Descending, one-dimensional, real-valued array to search
       real(dp), intent(in) :: array(:)
 
       !> Number of non-zero entries
-      real(dp) :: nNonZeroEntries
+      integer :: nNonZeroEntries
 
       !! iterates over all array elements
       integer :: ii
@@ -1081,7 +1081,10 @@ contains
       nNonZeroEntries = 0
 
       do ii = 1, size(array)
-        if (array(ii) < 1e-16_dp) return
+        if (array(ii) < epsilon(1.0_dp)) then
+          @:ASSERT(all(array(ii:) >= 0.0_dp))
+          return
+        end if
         nNonZeroEntries = ii
       end do
 
