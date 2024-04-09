@@ -3589,7 +3589,7 @@ contains
     real(dp), intent(in), optional :: truncationCutOff
 
     !> If calculation uses a hybrid functional, try to read extra data from end of SK file and
-    !> confirm is is a suitable parameterisation
+    !! confirm it is a suitable parameterisation
     type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
