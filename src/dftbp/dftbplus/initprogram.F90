@@ -4297,7 +4297,7 @@ contains
 
     if (.not. this%tSccCalc) return
 
-    if (this%isHybridXc .and. this%tReadChrg) then
+    if (this%isHybridXc .and. this%tReadChrg .and. this%tPeriodic) then
       allocate(this%supercellFoldingMatrix(3, 4))
     end if
 
