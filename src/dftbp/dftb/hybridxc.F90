@@ -992,7 +992,9 @@ contains
 
     if (this%tScreeningInited) then
       this%hPrevCplxHS(:,:,:) = 0.0_dp
-      this%dRhoPrevCplxHS(:,:,:,:,:,:) = 0.0_dp
+      ! Note, this is only allocated if passing through addCamHamiltonianNeighbour_kpts_mic or
+      ! addCamHamiltonianNeighbour_kpts_ct :
+      if (allocated(this%dRhoPrevCplxHS)) this%dRhoPrevCplxHS(:,:,:,:,:,:) = 0.0_dp
       this%camEnergy = 0.0_dp
     end if
 
@@ -2961,7 +2963,6 @@ contains
     if (.not. this%tScreeningInited) then
       allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
       this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
-      this%dRhoPrevCplxHS = deltaRhoSqr
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -3271,7 +3272,6 @@ contains
     if (.not. this%tScreeningInited) then
       allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
       this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
-      this%dRhoPrevCplxHS = deltaRhoSqr
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.

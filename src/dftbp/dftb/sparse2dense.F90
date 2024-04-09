@@ -28,7 +28,7 @@ module dftbp_dftb_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
-  public :: getSparseDescriptor, getSparseSize
+  public :: getSparseDescriptor
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -3226,42 +3226,5 @@ contains
     sparseSize = ind
 
   end subroutine getSparseDescriptor
-
-
-  !> Calculates number of elements in sparse arrays like the real space overlap.
-  subroutine getSparseSize(iNeighbour, nNeighbour, img2CentCell, orb, sparseSize)
-
-    !> Neighbours of each atom
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> Indexing for mapping image atoms to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
-    integer, intent(out) :: sparseSize
-
-    integer :: nAtom, mNeighbour
-    integer :: ind, iAt1, nOrb1, iNeigh1, nOrb2
-
-    nAtom = size(iNeighbour, dim=2)
-    mNeighbour = size(iNeighbour, dim=1)
-
-    ind = 0
-    do iAt1 = 1, nAtom
-      nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbour(iAt1)
-        nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
-        ind = ind + nOrb1 * nOrb2
-      end do
-    end do
-    sparseSize = ind
-
-  end subroutine getSparseSize
 
 end module dftbp_dftb_sparse2dense

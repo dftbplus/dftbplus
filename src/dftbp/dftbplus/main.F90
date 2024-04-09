@@ -53,7 +53,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, packHS, packHS, unpackHelicalHS,&
       & packerho, packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli,&
-      & getSparseDescriptor, getSparseSize
+      & getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
@@ -4760,10 +4760,6 @@ contains
     !! Number of spins and spin index
     integer :: nSpin
 
-    !! Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
-    !! sparsity pattern
-    integer :: sparseSize
-
     !! Sparse density matrix storage
     real(dp), allocatable :: rhoPrim(:,:)
 
@@ -4817,9 +4813,7 @@ contains
         #:endif
 
           ! Construct sparse density matrix for later Mulliken analysis
-          call getSparseSize(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
-              & sparseSize)
-          allocate(rhoPrim(sparseSize, nSpin), source=0.0_dp)
+          allocate(rhoPrim(size(ints%overlap), nSpin), source=0.0_dp)
 
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
