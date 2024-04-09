@@ -283,13 +283,13 @@ contains
     if (allocated(hybridXc) .and. .not. allocated(reks)) then
       energy%Efock = 0.0_dp
       if (tRealHS) then
-        call hybridXc%addCamEnergy_real(env, energy%Efock)
+        call hybridXc%addHybridEnergy_real(env, energy%Efock)
       else
         if ((.not. present(densityMatrix)) .or. (.not. present(kWeights))) then
           @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for hybrid xc-functional&
               & calculation.")
         end if
-        call hybridXc%addCamEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS, kWeights,&
+        call hybridXc%addHybridEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS, kWeights,&
             & densityMatrix%deltaRhoOutCplx, energy%Efock)
       end if
     end if
