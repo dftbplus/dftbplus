@@ -1161,7 +1161,7 @@ contains
       call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
           & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
     case(hamiltonianTypes%xtb)
-      @:ASSERT(allocated(this%tblite))
+      @:ASSERT(allocated(this%tblite), "Compiled without TBLITE included")
       call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
           & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
           & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet, &
