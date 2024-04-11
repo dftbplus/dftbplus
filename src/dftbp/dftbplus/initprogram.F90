@@ -2092,7 +2092,8 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    this%tStress = (this%tPeriodic .and. this%tForces .and. .not.this%tNegf .and. this%tStress)
+    this%tStress = (this%tPeriodic .and. this%tForces .and. .not.this%tNegf .and. this%tStress&
+        & .and. .not. this%isHybridXc)
 
     this%nMovedAtom = input%ctrl%nrMoved
     this%nMovedCoord = 3 * this%nMovedAtom

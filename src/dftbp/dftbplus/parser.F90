@@ -775,6 +775,9 @@ contains
         ctrl%BarostatStrength = 0.0_dp
         call getChild(node, "Barostat", child, requested=.false.)
         if (associated(child)) then
+          if (allocated(ctrl%hybridXcInp)) then
+            call detailedError(node, "Barostating not currently implemented for hybrid functionals")
+          end if
           if (ctrl%nrMoved /= geom%nAtom) then
             call error("Dynamics for a subset of atoms is not currently&
                 & possible when using a barostat")
@@ -953,6 +956,10 @@ contains
 
     call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
     if (ctrl%tLatOpt) then
+      if (allocated(ctrl%hybridXcInp)) then
+        call detailedError(node, "Lattice optimisation not currently implemented for hybrid&
+            & functionals")
+      end if
       call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), pressureUnits, child, ctrl%pressure)
       call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
