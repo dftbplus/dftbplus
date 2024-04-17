@@ -753,7 +753,7 @@ contains
 
       call addChargePotentials(env, this%scc, this%tblite, updateScc, q, this%q0,&
           & this%chargePerShell, this%orb, this%multipoleIn, this%species, this%neighbourList,&
-          & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%multipole,&
+          & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%dftbMultiPole,&
           & this%dispersion, this%potential)
 
       call addBlockChargePotentials(qBlock, qiBlock, this%dftbU, this%tImHam,&
@@ -943,7 +943,7 @@ contains
       tStopScc = hasStopFile(fStopScc)
 
       ! Mix charges Input/Output
-      if (this%isHybridXc .or. allocated(this%multipole)) then
+      if (this%isHybridXc .or. allocated(this%dftbMultiPole)) then
         if (this%tRealHS) then
           call getNextInputDensityReal(env, this%parallelKS, this%SSqrReal, this%ints,&
               & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
@@ -961,10 +961,10 @@ contains
               & this%cellVec, this%hybridXc, this%qInput, sccErrorQ, tConverged,&
               & this%densityMatrix, this%qBlockIn, this%qBlockOut)
         end if
-        if (allocated(this%multipole)) then
+        if (allocated(this%dftbMultiPole)) then
           call unpackHS(this%SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
               & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
-          call this%multiPole%updateDeltaDQAtom(this%densityMatrix%deltaRhoIn(:,:,1),&
+          call this%dftbMultiPole%updateDeltaDQAtom(this%densityMatrix%deltaRhoIn(:,:,1),&
               & this%denseDesc%iAtomStart, this%orb, this%SSqrReal)
         end if
       else
@@ -1138,7 +1138,7 @@ contains
       call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
           & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tRealHS, this%tHelical,&
           & this%scc, this%tblite, this%repulsive, this%dispersion,this%solvation, this%thirdOrd,&
-          & this%hybridXc, this%reks, this%multiPole, this%img2CentCell, this%iCellVec,&
+          & this%hybridXc, this%reks, this%dftbMultiPole, this%img2CentCell, this%iCellVec,&
           & this%neighbourList, this%symNeighbourList, this%nAllAtom, this%coord0Fold, this%coord,&
           & this%species, this%cellVec, this%rCellVec, this%denseDesc, this%nNeighbourSk,&
           & this%nNeighbourCam, this%nNeighbourCamSym, this%ints, this%H0, this%rhoPrim,&
@@ -1281,7 +1281,7 @@ contains
             & this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
             & this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%dispersion, tConverged,&
             & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut,&
-            & this%multiPole, this%reks, errStatus)
+            & this%dftbMultiPole, this%reks, errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
 
@@ -1407,18 +1407,18 @@ contains
               & this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep,&
               & this%tFixEf, this%tMulliken, this%iDistribFn, this%tempElec, this%nEl,&
               & this%parallelKS, this%Ef, this%mu, this%dftbEnergy(this%deltaDftb%iDeterminant),&
-              & this%hybridXc, this%multiPole, this%eigen, this%filling, this%rhoPrim, this%xi,&
+              & this%hybridXc, this%dftbMultiPole, this%eigen, this%filling, this%rhoPrim, this%xi,&
               & this%orbitalL, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim,&
               & this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal,&
               & this%densityMatrix, this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb,&
               & errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
-          if (allocated(this%multiPole)) then
+          if (allocated(this%dftbMultiPole)) then
             call unpackHS(this%SSqrReal, this%ints%overlap, this%neighbourList%iNeighbour,&
                 & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart,&
                 & this%img2CentCell)
-            call this%multiPole%updateDeltaDQAtom(this%densityMatrix%deltaRhoOut(:,:,1),&
+            call this%dftbMultiPole%updateDeltaDQAtom(this%densityMatrix%deltaRhoOut(:,:,1),&
                 & this%denseDesc%iAtomStart, this%orb, this%SSqrReal)
           end if
 
@@ -1437,7 +1437,7 @@ contains
           end if
 
           call calcEnergies(env, this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
-              & this%multipoleOut, this%multipole, this%species, this%isExtField,&
+              & this%multipoleOut, this%dftbMultipole, this%species, this%isExtField,&
               & this%isXlbomd, this%dftbU, this%tDualSpinOrbit, this%rhoPrim, this%H0, this%orb,&
               & this%neighbourList, this%nNeighbourSk, this%img2CentCell, this%iSparseStart,&
               & this%cellVol, this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS,&
@@ -1648,16 +1648,16 @@ contains
             & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
             & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
       #:endblock DEBUG_CODE
-        if (allocated(this%multiPole)) then
-          call this%multiPole%addAtomicDipoleMoment(&
+        if (allocated(this%dftbMultiPole)) then
+          call this%dftbMultiPole%addAtomicDipoleMoment(&
               & this%dipoleMoment(:,this%deltaDftb%iDeterminant))
         end if
       end if
 
-      if (allocated(this%multiPole)) then
+      if (allocated(this%dftbMultiPole)) then
         call getQuadrupoleMoment(this%qOutput, this%q0, this%coord, this%quadrupoleMoment,&
             & this%iAtInCentralRegion)
-        call this%multiPole%addAtomicQuadrupoleMoment(this%quadrupoleMoment)
+        call this%dftbMultiPole%addAtomicQuadrupoleMoment(this%quadrupoleMoment)
       end if
 
     end if
@@ -1709,7 +1709,7 @@ contains
             & this%iSparseStart, this%orb, this%potential, this%coord, this%derivs,&
             & this%groundDerivs, this%tripletderivs, this%mixedderivs, this%iRhoPrim,&
             & this%thirdOrd, this%solvation, this%qDepExtPot, this%chrgForces, this%dispersion,&
-            & this%hybridXc, this%multiPole, this%densityMatrix%deltaRhoOut, this%SSqrReal,&
+            & this%hybridXc, this%dftbMultiPole, this%densityMatrix%deltaRhoOut, this%SSqrReal,&
             & this%ints, this%denseDesc, this%halogenXCorrection, this%tHelical, this%coord0,&
             & this%deltaDftb, this%tPeriodic, this%tRealHS, this%kPoint, this%kWeight, errStatus,&
             & deltaRhoOut=this%densityMatrix%deltaRhoOut,&

@@ -285,12 +285,12 @@ contains
 
     ! Add contribution for DFTB multipole calculations
     if (allocated(dftbMultiPole)) then
-      call dftbMultiPole%addMultiPoleEnergy(energy%atomMultiPole, energy%EMultiPoleMD,&
-          & energy%EMultiPoleDD, energy%EMultiPoleMQ, energy%EMultiPoleDQ,  energy%EMultiPoleQQ,&
-          & energy%EMultiPole)
+      call dftbMultiPole%addMultiPoleEnergy(energy%atomDftbMultiPole, energy%EDftbMultiPoleMD,&
+          & energy%EDftbMultiPoleDD, energy%EDftbMultiPoleMQ, energy%EDftbMultiPoleDQ,&
+          & energy%EDftbMultiPoleQQ, energy%EDftbMultiPole)
     else
-      energy%EMultiPole = 0.0_dp
-      energy%atomMultiPole(:) = 0.0_dp
+      energy%EDftbMultiPole = 0.0_dp
+      energy%atomDftbMultiPole(:) = 0.0_dp
     end if
 
     ! Add exchange contribution for range separated calculations
@@ -367,11 +367,11 @@ contains
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock&
-        & + energy%EMultiPole
+        & + energy%EDftbMultiPole
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
-        & + energy%atomSolv + energy%atomMultiPole
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite&
+        & + energy%atomSolv + energy%atomDftbMultiPole
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(energy%TS)

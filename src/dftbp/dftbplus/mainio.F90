@@ -3359,18 +3359,18 @@ contains
       end if
 
       if (isDftbMultiPole) then
-        write(fd, format2U) 'Energy Monopole-Dipole', energy%EMultiPoleMD, 'H',&
-            & energy%EMultiPoleMD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Dipole', energy%EMultiPoleDD, 'H',&
-            & energy%EMultiPoleDD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EMultiPoleMQ, 'H',&
-            & energy%EMultiPoleMQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EMultiPoleDQ, 'H',&
-            & energy%EMultiPoleDQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EMultiPoleQQ, 'H',&
-            & energy%EMultiPoleQQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Multipole', energy%EMultiPole, 'H',&
-            & energy%EMultiPole * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Monopole-Dipole', energy%EDftbMultiPoleMD, 'H',&
+            & energy%EDftbMultiPoleMD * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Dipole-Dipole', energy%EDftbMultiPoleDD, 'H',&
+            & energy%EDftbMultiPoleDD * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EDftbMultiPoleMQ, 'H',&
+            & energy%EDftbMultiPoleMQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EDftbMultiPoleDQ, 'H',&
+            & energy%EDftbMultiPoleDQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EDftbMultiPoleQQ, 'H',&
+            & energy%EDftbMultiPoleQQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Multipole', energy%EDftbMultiPole, 'H',&
+            & energy%EDftbMultiPole * Hartree__eV, 'eV'
       end if
 
       if (tDFTBU) then
@@ -5850,18 +5850,18 @@ contains
       end if
 
       if (isDftbMultiPole) then
-        write(fd, format2U) 'Energy Monopole-Dipole', energy%EMultiPoleMD, 'H',&
-            & energy%EMultiPoleMD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Dipole', energy%EMultiPoleDD, 'H',&
-            & energy%EMultiPoleDD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EMultiPoleMQ, 'H',&
-            & energy%EMultiPoleMQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EMultiPoleDQ, 'H',&
-            & energy%EMultiPoleDQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EMultiPoleQQ, 'H',&
-            & energy%EMultiPoleQQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Multipole', energy%EMultiPole, 'H',&
-            & energy%EMultiPole * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Monopole-Dipole', energy%EDftbMultiPoleMD, 'H',&
+            & energy%EDftbMultiPoleMD * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Dipole-Dipole', energy%EDftbMultiPoleDD, 'H',&
+            & energy%EDftbMultiPoleDD * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EDftbMultiPoleMQ, 'H',&
+            & energy%EDftbMultiPoleMQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EDftbMultiPoleDQ, 'H',&
+            & energy%EDftbMultiPoleDQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EDftbMultiPoleQQ, 'H',&
+            & energy%EDftbMultiPoleQQ * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy Multipole', energy%EDftbMultiPole, 'H',&
+            & energy%EDftbMultiPole * Hartree__eV, 'eV'
       end if
 
     end if

@@ -542,7 +542,7 @@ module dftbp_dftbplus_inputdata
 
 
     !> Multipole expansion
-    logical :: isMultiPole = .false.
+    logical :: isDftbMultiPole = .false.
     real(dp), allocatable :: atomicDIntgrlScaling(:)
     real(dp), allocatable :: atomicQIntgrlScaling(:)
     real(dp), allocatable :: atomicOnsiteScaling(:)

@@ -1735,16 +1735,16 @@ contains
   #:endif
 
     ! Multipole expansion
-    ctrl%isMultiPole = .false.
+    ctrl%isDftbMultiPole = .false.
     if (ctrl%tSCC) then
-      !call getChildValue(node, "Multipole", ctrl%isMultiPole, .false.)
+      !call getChildValue(node, "Multipole", ctrl%isDftbMultiPole, .false.)
       call getChildValue(node, "Multipole", value1, "", child=child, allowEmptyValue=.true.,&
           & dummyValue=.true.)
       if (associated(value1)) then
         call getNodeName(value1, buffer)
         select case(char(buffer))
         case("onecenterapproximation")
-          ctrl%isMultiPole = .true.
+          ctrl%isDftbMultiPole = .true.
           allocate(ctrl%atomicDIntgrlScaling(geo%nSpecies))
           allocate(ctrl%atomicQIntgrlScaling(geo%nSpecies))
           allocate(ctrl%atomicOnsiteScaling(geo%nSpecies))

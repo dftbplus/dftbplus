@@ -807,13 +807,13 @@ module dftbp_dftbplus_initprogram
     logical :: isRS_LinResp
 
     !> Multipole DFTB
-    logical :: isMultiPole
+    logical :: isDftbMultiPole
 
     !> input data structure for multipole
-    type(TDftbMultiPoleInp) :: multiPoleInp
+    type(TDftbMultiPoleInp) :: dftbMultiPoleInp
 
     !> data structure for multipole
-    type(TDftbMultiPole), allocatable :: multiPole
+    type(TDftbMultiPole), allocatable :: dftbMultiPole
 
     !> If initial charges/dens mtx. from external file.
     logical :: tReadChrg
@@ -1380,7 +1380,7 @@ contains
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
     end if
-    this%isMultiPole = input%ctrl%isMultiPole
+    this%isDftbMultiPole = input%ctrl%isDftbMultiPole
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1901,7 +1901,7 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isMultiPole .or.&
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isDftbMultiPole .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -2352,7 +2352,7 @@ contains
         end if
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%cm5Cont%getRCutOff())
       end if
-      this%tQuadrupole = input%ctrl%isMultiPole
+      this%tQuadrupole = input%ctrl%isDftbMultiPole
     else
       this%tNetAtomCharges = .false.
       this%tQuadrupole = .false.
@@ -2756,73 +2756,73 @@ contains
       end if
     end if
 
-    if (this%isMultiPole) then
+    if (this%isDftbMultiPole) then
       ! Initialize multipole module
       @:ASSERT(this%tSccCalc)
-      this%multiPoleInp%orb => this%orb
-      this%multiPoleInp%nOrb = this%nOrb
-      this%multiPoleInp%nSpin = this%nSpin
-      this%multiPoleInp%nSpecies = this%nType
+      this%dftbMultiPoleInp%orb => this%orb
+      this%dftbMultiPoleInp%nOrb = this%nOrb
+      this%dftbMultiPoleInp%nSpin = this%nSpin
+      this%dftbMultiPoleInp%nSpecies = this%nType
 
-      allocate(this%multiPoleInp%atomicDIntgrlScaling(this%nType))
-      allocate(this%multiPoleInp%atomicQIntgrlScaling(this%nType))
-      allocate(this%multiPoleInp%atomicOnsiteScaling(this%nType))
-      allocate(this%multiPoleInp%atomicSXPxIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPxXDxxyyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPxXDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPyYDxxyyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPzZDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicSXXSIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPxXXPxIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicPyXXPyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicSXXDxxyyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicSXXDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicSYYDxxyyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicSZZDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDxyXXDxyIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDyzXXDyzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDxxyyXXDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDzzXXDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDxxyyYYDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDzzZZDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDxzXZDzzIntgrl(this%nType))
-      allocate(this%multiPoleInp%atomicDyzYZDxxyyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDIntgrlScaling(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicQIntgrlScaling(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicOnsiteScaling(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSXPxIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPxXDxxyyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPxXDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPyYDxxyyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPzZDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSXXSIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPxXXPxIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicPyXXPyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSXXDxxyyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSXXDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSYYDxxyyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicSZZDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDxyXXDxyIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDyzXXDyzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDxxyyXXDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDzzXXDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDxxyyYYDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDzzZZDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDxzXZDzzIntgrl(this%nType))
+      allocate(this%dftbMultiPoleInp%atomicDyzYZDxxyyIntgrl(this%nType))
 
-      this%multiPoleInp%atomicDIntgrlScaling(:) = input%ctrl%atomicDIntgrlScaling
-      this%multiPoleInp%atomicQIntgrlScaling(:) = input%ctrl%atomicQIntgrlScaling
-      this%multiPoleInp%atomicOnsiteScaling(:) = input%ctrl%atomicOnsiteScaling
-      this%multiPoleInp%atomicSXPxIntgrl(:) = input%ctrl%atomicSXPxIntgrl
-      this%multiPoleInp%atomicPxXDxxyyIntgrl(:) = input%ctrl%atomicPxXDxxyyIntgrl
-      this%multiPoleInp%atomicPxXDzzIntgrl(:) = input%ctrl%atomicPxXDzzIntgrl
-      this%multiPoleInp%atomicPyYDxxyyIntgrl(:) = input%ctrl%atomicPyYDxxyyIntgrl
-      this%multiPoleInp%atomicPzZDzzIntgrl(:) = input%ctrl%atomicPzZDzzIntgrl
-      this%multiPoleInp%atomicSXXSIntgrl(:) = input%ctrl%atomicSXXSIntgrl
-      this%multiPoleInp%atomicPxXXPxIntgrl(:) = input%ctrl%atomicPxXXPxIntgrl
-      this%multiPoleInp%atomicPyXXPyIntgrl(:) = input%ctrl%atomicPyXXPyIntgrl
-      this%multiPoleInp%atomicSXXDxxyyIntgrl(:) = input%ctrl%atomicSXXDxxyyIntgrl
-      this%multiPoleInp%atomicSXXDzzIntgrl(:) = input%ctrl%atomicSXXDzzIntgrl
-      this%multiPoleInp%atomicSYYDxxyyIntgrl(:) = input%ctrl%atomicSYYDxxyyIntgrl
-      this%multiPoleInp%atomicSZZDzzIntgrl(:) = input%ctrl%atomicSZZDzzIntgrl
-      this%multiPoleInp%atomicDxyXXDxyIntgrl(:) = input%ctrl%atomicDxyXXDxyIntgrl
-      this%multiPoleInp%atomicDyzXXDyzIntgrl(:) = input%ctrl%atomicDyzXXDyzIntgrl
-      this%multiPoleInp%atomicDxxyyXXDzzIntgrl(:) = input%ctrl%atomicDxxyyXXDzzIntgrl
-      this%multiPoleInp%atomicDzzXXDzzIntgrl(:) = input%ctrl%atomicDzzXXDzzIntgrl
-      this%multiPoleInp%atomicDxxyyYYDzzIntgrl(:) = input%ctrl%atomicDxxyyYYDzzIntgrl
-      this%multiPoleInp%atomicDzzZZDzzIntgrl(:) = input%ctrl%atomicDzzZZDzzIntgrl
-      this%multiPoleInp%atomicDxzXZDzzIntgrl(:) = input%ctrl%atomicDxzXZDzzIntgrl
-      this%multiPoleInp%atomicDyzYZDxxyyIntgrl(:) = input%ctrl%atomicDyzYZDxxyyIntgrl
+      this%dftbMultiPoleInp%atomicDIntgrlScaling(:) = input%ctrl%atomicDIntgrlScaling
+      this%dftbMultiPoleInp%atomicQIntgrlScaling(:) = input%ctrl%atomicQIntgrlScaling
+      this%dftbMultiPoleInp%atomicOnsiteScaling(:) = input%ctrl%atomicOnsiteScaling
+      this%dftbMultiPoleInp%atomicSXPxIntgrl(:) = input%ctrl%atomicSXPxIntgrl
+      this%dftbMultiPoleInp%atomicPxXDxxyyIntgrl(:) = input%ctrl%atomicPxXDxxyyIntgrl
+      this%dftbMultiPoleInp%atomicPxXDzzIntgrl(:) = input%ctrl%atomicPxXDzzIntgrl
+      this%dftbMultiPoleInp%atomicPyYDxxyyIntgrl(:) = input%ctrl%atomicPyYDxxyyIntgrl
+      this%dftbMultiPoleInp%atomicPzZDzzIntgrl(:) = input%ctrl%atomicPzZDzzIntgrl
+      this%dftbMultiPoleInp%atomicSXXSIntgrl(:) = input%ctrl%atomicSXXSIntgrl
+      this%dftbMultiPoleInp%atomicPxXXPxIntgrl(:) = input%ctrl%atomicPxXXPxIntgrl
+      this%dftbMultiPoleInp%atomicPyXXPyIntgrl(:) = input%ctrl%atomicPyXXPyIntgrl
+      this%dftbMultiPoleInp%atomicSXXDxxyyIntgrl(:) = input%ctrl%atomicSXXDxxyyIntgrl
+      this%dftbMultiPoleInp%atomicSXXDzzIntgrl(:) = input%ctrl%atomicSXXDzzIntgrl
+      this%dftbMultiPoleInp%atomicSYYDxxyyIntgrl(:) = input%ctrl%atomicSYYDxxyyIntgrl
+      this%dftbMultiPoleInp%atomicSZZDzzIntgrl(:) = input%ctrl%atomicSZZDzzIntgrl
+      this%dftbMultiPoleInp%atomicDxyXXDxyIntgrl(:) = input%ctrl%atomicDxyXXDxyIntgrl
+      this%dftbMultiPoleInp%atomicDyzXXDyzIntgrl(:) = input%ctrl%atomicDyzXXDyzIntgrl
+      this%dftbMultiPoleInp%atomicDxxyyXXDzzIntgrl(:) = input%ctrl%atomicDxxyyXXDzzIntgrl
+      this%dftbMultiPoleInp%atomicDzzXXDzzIntgrl(:) = input%ctrl%atomicDzzXXDzzIntgrl
+      this%dftbMultiPoleInp%atomicDxxyyYYDzzIntgrl(:) = input%ctrl%atomicDxxyyYYDzzIntgrl
+      this%dftbMultiPoleInp%atomicDzzZZDzzIntgrl(:) = input%ctrl%atomicDzzZZDzzIntgrl
+      this%dftbMultiPoleInp%atomicDxzXZDzzIntgrl(:) = input%ctrl%atomicDxzXZDzzIntgrl
+      this%dftbMultiPoleInp%atomicDyzYZDxxyyIntgrl(:) = input%ctrl%atomicDyzYZDxxyyIntgrl
 
-      allocate(this%multiPoleInp%hubbU(size(hubbU, dim=2)))
-      this%multiPoleInp%hubbU = hubbU(1,:)
-      allocate(this%multiPoleInp%species(this%nAtom))
-      this%multiPoleInp%species(:) = input%geom%species
-      allocate(this%multiPole)
-      call dftbMultiPole_init(this%multiPole, this%multiPoleInp)
+      allocate(this%dftbMultiPoleInp%hubbU(size(hubbU, dim=2)))
+      this%dftbMultiPoleInp%hubbU = hubbU(1,:)
+      allocate(this%dftbMultiPoleInp%species(this%nAtom))
+      this%dftbMultiPoleInp%species(:) = input%geom%species
+      allocate(this%dftbMultiPole)
+      call dftbMultiPole_init(this%dftbMultiPole, this%dftbMultiPoleInp)
       allocate(this%quadrupoleMoment(3,3))
       this%nMixElements = max(this%nOrb * this%nOrb * this%nSpin, this%nMixElements)
     end if
 
-    if (this%isHybridXc .or. this%isMultiPole) then
+    if (this%isHybridXc .or. this%isDftbMultiPole) then
 
     #:if WITH_SCALAPACK
       call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
@@ -3303,7 +3303,7 @@ contains
       !if (this%tPeriodic) then
       !  write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
       !end if
-      if (this%isMultiPole) then
+      if (this%isDftbMultiPole) then
         write(stdOut, "(A,':',T30,A)") "MultiPole expansion", "Yes"
       end if
       if (input%ctrl%tShellResolved) then
@@ -5238,7 +5238,7 @@ contains
       end if
     end if
 
-    if (this%tLinRespZVect .or. this%isMultiPole) then
+    if (this%tLinRespZVect .or. this%isDftbMultiPole) then
       allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
     end if
 
