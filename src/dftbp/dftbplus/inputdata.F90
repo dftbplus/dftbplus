@@ -299,6 +299,10 @@ module dftbp_dftbplus_inputdata
     !> Electronic/eigenvalue solver options
     type(TElectronicSolverInp) :: solver
 
+    !> If using the GPU as
+    logical :: isDmOnGpu = .false.
+
+    !> Choice of SCC mixer
     integer :: iMixSwitch = 0
 
     !> Maximum number of self-consitent iterations

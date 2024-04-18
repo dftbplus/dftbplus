@@ -37,6 +37,8 @@ contributed to DFTB+ :
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
+* Roberto Andrés González-León (University of Costa Rica)
+
 * Sebastian Ehlert (University of Bonn, Germany)
 
 * Tammo van der Heide (University of Bremen, Germany)

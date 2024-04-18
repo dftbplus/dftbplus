@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Generalization of mixers to also handle complex density matrices
+
 - General range-separated, long-range corrected CAM hybrid functionals for
   ground-state periodic systems (MPI-parallel Fock-type exchange and energy
   gradient construction by neighbour-list and matrix-multiplication based
@@ -25,6 +27,8 @@ Added
 - Electronic constraints on arbitrary regions, targeting the electronic ground
   state by determining a self-consistent constraint potential (restricted to
   Mulliken populations at the moment)
+
+- Density Matrix construction on GPU using MAGMA-BLAS routines
 
 
 Fixed
@@ -67,7 +71,6 @@ Added
 
 - Born charges and derivatives can now be calculated for a subset of the desired
   atoms (similar to the Hessian).
-
 
 Changed
 -------

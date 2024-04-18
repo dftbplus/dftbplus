@@ -190,7 +190,8 @@ contains
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
+      call detailedError(child, "Unknown method '"//char(buffer)//&
+          & "' to generate descreening parameters")
     case("defaults")
       if (.not.allocated(defaults)) then
         call detailedError(child, "No defaults available for descreening parameters")
@@ -237,7 +238,8 @@ contains
         call getNodeName(value1, buffer)
         select case(char(buffer))
         case default
-          call detailedError(child, "Unknown method '"//char(buffer)//"' to generate H-bond parameters")
+          call detailedError(child, "Unknown method '"//char(buffer)//&
+              & "' to generate H-bond parameters")
         case("defaults")
           if (allocated(defaults)) then
             if (.not.allocated(defaults%hBondPar)) then

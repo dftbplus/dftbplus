@@ -349,7 +349,11 @@ contains
     ! Boundary condition label
     character(1) :: boundary
 
-    integer :: io_unit, ii, ierr
+    integer :: io_unit, ii
+
+  #:if WITH_MPI
+    integer :: ierr
+  #:endif
 
     if (IO) then
       open(newunit=io_unit,file=fname)

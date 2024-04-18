@@ -23,7 +23,7 @@ contains
 
 
   !> Prints assertion error and abort program execution.
-  subroutine assertError(fileName, lineNr)
+  subroutine assertError(fileName, lineNr, message)
 
     !> Name of the file in which the error occurred.
     character(*), intent(in) :: fileName
@@ -31,9 +31,15 @@ contains
     !> Nr. of the line at which the error occurred.
     integer, intent(in) :: lineNr
 
+    !> Additional message for error
+    character(*), intent(in), optional :: message
+
     write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
     write(stdout, '(A,A)') "!!! FILE:      ", fileName
     write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
+    if (present(message)) then
+      write(stdout, '(A,A,A)') '!!! MESSAGE:  "', trim(message), '"'
+    end if
     call abortProgram()
 
   end subroutine assertError
