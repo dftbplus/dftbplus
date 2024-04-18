@@ -28,7 +28,7 @@ module dftbp_dftb_hybridxc
   use dftbp_math_blasroutines, only : gemm, symm, hemm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
-  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_math_sorting, only : heap_sort, index_heap_sort
   use dftbp_math_wignerseitz, only : generateWignerSeitzGrid
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
@@ -615,18 +615,17 @@ contains
       !! Auxiliary variables
       integer :: ii, jj, tmp(size(array))
 
-      nUnique = 1
-      tmp(1) = array(1)
+      tmp(:) = array
+      call heap_sort(tmp)
 
-      outerLoop: do ii = 2, size(array)
-        do jj = 1, nUnique
-          if (tmp(jj) == array(ii)) then
-            cycle outerLoop
-          end if
-        end do
-        nUnique = nUnique + 1
-        tmp(nUnique) = array(ii)
-      end do outerLoop
+      nUnique = 1
+      jj = tmp(1)
+      do ii = 2, size(tmp)
+        if (tmp(ii) /= jj) then
+          jj = tmp(ii)
+          nUnique = nUnique + 1
+        end if
+      end do
 
     end function getNumberOfUniqueInt
 
