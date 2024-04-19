@@ -1,0 +1,47 @@
+Geometry = GenFormat {
+    2  C
+    Fe
+    1  1    0 0 0
+    2  1    0.2318977740E+01 0 0
+}
+
+Hamiltonian = xTB {
+    Method = "GFN2-xTB"
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    Filling = Fermi {
+        Temperature [K] = 200
+    }
+    MaxSccIterations = 1000
+    Charge = 0.0
+    SpinPolarisation = NonColinear {
+        InitialSpins = {
+            AtomSpin = {
+                Atoms = Fe
+                SpinPerAtom = {
+                    1 0 0
+                }
+            }
+        }
+    }
+    SpinOrbit = {
+        Dual = Yes
+        Fe [eV] = {
+            # 3d  4s  4p
+            0.058 0.0 0.0 # dummy values, should be fitted for GFN2
+        }
+    }
+    SpinConstants {
+        Fe { # 3d     4s     4p
+            -0.015 -0.003 -0.001  # 3d
+            -0.003 -0.013 -0.009  # 4s
+            -0.001 -0.009 -0.011  # 4p
+            # dummy values, should be fitted for GFN1
+        }
+    }
+}
+
+Options { WriteAutotestTag = Yes }
+Analysis { CalculateForces = Yes }
+ParserOptions { ParserVersion = 12 }
+Parallel { UseOmpThreads = Yes }

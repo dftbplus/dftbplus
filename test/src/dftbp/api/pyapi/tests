@@ -1,0 +1,10 @@
+#! This file will be preprocessed using the same preprocessor options as used
+#! for the compilation and additionally setting MPI_PROCS equal to the make variable
+#! $(TEST_MPI_PROCS) and OMP_THREADS to $(TEST_OMP_THREADS).
+
+#:include 'common.fypp'
+
+fileinit            #? not WITH_MPI and not BUILD_SHARED_LIBS
+geodisp             #? not WITH_MPI and not BUILD_SHARED_LIBS
+extpot              #? not WITH_MPI and not BUILD_SHARED_LIBS
+qdepextpot          #? not WITH_MPI and not BUILD_SHARED_LIBS

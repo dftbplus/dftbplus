@@ -1,0 +1,62 @@
+Geometry = VaspFormat {
+   <<< POSCAR_Primitive_Cell
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  MaxSccIterations = 100
+  SccTolerance = 1e-08
+
+  Mixer = Anderson {}
+
+  Filling = Fermi {
+    Temperature [K] = 0.0
+  }
+
+  MaxAngularMomentum = {
+    Ga = "d"
+    As = "d"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/hybrid/lc/GaAs/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Hybrid = LC {
+    CoulombMatrix = Truncated {
+      CoulombCutoff = 0.703465E+01
+      GSummationCutoff = 0.140693E+02
+    }
+    Screening = MatrixBased {}
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     3   0   0
+     0   3   0
+     0   0   3
+    0.0 0.0 0.0
+  }
+
+}
+
+Analysis {
+  PrintForces = No
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}
+
+Parallel {
+  Groups = 1
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

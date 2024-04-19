@@ -12,9 +12,9 @@ implicit none
 
 private
 
-  !-------------------------------------------------------   
+  !-------------------------------------------------------
   ! METHODS FOR ELEMENT NODES
-  !-------------------------------------------------------   
+  !-------------------------------------------------------
   public :: getTagName
   public :: getElementsByTagName
   public :: getAttribute
@@ -31,11 +31,11 @@ CONTAINS
   !  METHODS FOR ELEMENT NODES
   !-----------------------------------------------------------
   subroutine getTagName(element, tagName)
-    type(fnode), intent(in) :: element   
+    type(fnode), intent(in) :: element
     type(string), intent(inout) :: tagName
 
     if (element % nodeType == ELEMENT_NODE) then
-      tagName = element % nodeName 
+      tagName = element % nodeName
     else
       tagName = ''
     endif
@@ -46,7 +46,7 @@ CONTAINS
   function getElementsByTagName(element, tag) result(nodelist)
     type(fnode), pointer         :: element
     character(len=*), intent(in) :: tag
-    type(fnodeList), pointer     :: nodelist 
+    type(fnodeList), pointer     :: nodelist
 
     type(fnode), pointer        :: np
 
@@ -64,15 +64,15 @@ CONTAINS
     type(string)                :: name
 
     !
-    ! Could replace the calls to helper methods by direct lookups of node 
+    ! Could replace the calls to helper methods by direct lookups of node
     ! components to make it faster.
-    ! 
+    !
     do
        if (.not. associated(np)) exit
        select case(np%nodeType)
 
-          case(DOCUMENT_NODE) 
-             ! special case ... search its children 
+          case(DOCUMENT_NODE)
+             ! special case ... search its children
              if (hasChildNodes(np)) call search(getFirstChild(np))
              ! will exit for lack of siblings
           case(ELEMENT_NODE)
@@ -86,7 +86,7 @@ CONTAINS
              if (hasChildNodes(np)) call search(getFirstChild(np))
 
           case default
-             
+
              ! do nothing
 
         end select
@@ -115,14 +115,14 @@ CONTAINS
     nn => getNamedItem(element%attributes,name)
     if (.not. associated(nn)) RETURN
     attribute = nn%nodeValue
-        
+
   end subroutine getAttribute
-  
+
 
   !-----------------------------------------------------------
 
   function getAttributeNode(element, name)
-    
+
     type(fnode), intent(in) :: element
     type(fnode), pointer    :: getAttributeNode
     character(len=*), intent(in) :: name
@@ -132,7 +132,7 @@ CONTAINS
     getAttributeNode => getNamedItem(element%attributes,name)
 
   end function getAttributeNode
-  
+
   !-----------------------------------------------------------
 
   subroutine setAttributeNode(element, newattr)
@@ -147,7 +147,7 @@ CONTAINS
     endif
 
     dummy => setNamedItem(element%attributes,newattr)
-     
+
   end subroutine setAttributeNode
 
 !-------------------------------------------------------------------
@@ -176,7 +176,9 @@ CONTAINS
     if (.not. associated(element%attributes)) RETURN
 
     dummy => removeNamedItem(element%attributes,name)
-     
+    ! removeNamedItem only destroys the wrapper, but not the item itself
+    if (associated(dummy)) call destroyNode(dummy)
+
   end subroutine removeAttribute
 
 
@@ -270,22 +272,22 @@ CONTAINS
     endif
     call destroyNode(np)
     head%nodeValue = buffer
-    
+
   end subroutine concatenateText
 
-  
+
 
   !!* Sets a new name for a given tag.
   !!* @param element Tag to rename.
   !!* @param tagName New name
   subroutine setTagName(element, tagName)
-    type(fnode), intent(inout) :: element   
+    type(fnode), intent(inout) :: element
     character(len=*), intent(in) :: tagName
-    
+
     if (element%nodeType == ELEMENT_NODE) then
       element%nodeName = tagName
     end if
-    
+
   end subroutine setTagName
 
 

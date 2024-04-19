@@ -1,0 +1,10 @@
+if(WITH_UNIT_TESTS)
+  add_subdirectory(unittests)
+endif()
+
+if(WITH_API)
+  add_subdirectory(api/mm)
+  if(BUILD_SHARED_LIBS AND ENABLE_DYNAMIC_LOADING)
+    add_subdirectory(api/pyapi)
+  endif()
+endif()

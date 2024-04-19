@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -211,7 +211,7 @@ class Grid:
 
 
     def has_gridcoord(self, gridcoord):
-        """Cheks whether a given position is within the boundaries of the grid.
+        """Checks whether a given position is within the boundaries of the grid.
 
         Args:
             gridcoord: Grid coordinates. Shape: (-1, ndim) or (ndim,)
@@ -261,7 +261,7 @@ class GridData:
         subgrid_ranges = self.grid.get_subgrid_ranges(subgrid)
         relative_ranges = subgrid_ranges - self.grid.lower_bounds[:, np.newaxis]
         sliceobj = [slice(*relrange) for relrange in relative_ranges]
-        return self.data[sliceobj]
+        return self.data[tuple(sliceobj)]
 
 
     def get_value(self, gridcoords):

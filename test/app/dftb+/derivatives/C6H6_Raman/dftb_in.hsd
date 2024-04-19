@@ -1,0 +1,57 @@
+Geometry = GenFormat {
+ 12  C
+ C H
+    1  1   -0.2021531088E-13    0.4172715399E+00    0.1340349942E+01
+    2  1    0.1941851731E-12    0.1362769905E+01    0.3126425358E+00
+    3  1    0.8878102366E-13    0.9454983684E+00   -0.1020036768E+01
+    4  1   -0.1808112897E-12   -0.4172715322E+00   -0.1325008674E+01
+    5  1    0.4808967731E-13   -0.1362769903E+01   -0.2973012684E+00
+    6  1   -0.1747214485E-13   -0.9454983648E+00    0.1035378041E+01
+    7  2   -0.9788567195E-13    0.7454953086E+00    0.2388629033E+01
+    8  2   -0.1714860769E-13    0.2434718110E+01    0.5525319623E+00
+    9  2    0.1140745823E-13    0.1689222803E+01   -0.1828426434E+01
+   10  2   -0.3189358904E-16   -0.7454953080E+00   -0.2373287763E+01
+   11  2   -0.3559958167E-14   -0.2434718113E+01   -0.5371906931E+00
+   12  2   -0.5338455503E-14   -0.1689222804E+01    0.1843767707E+01
+}
+
+Driver = SecondDerivatives {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    Charge = 0.0
+    Filling = Fermi {
+        Temperature [Kelvin] = 273.15
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = {slakos/origin/mio-1-1/}
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Analysis = {
+    Polarisability = {
+        Static = Yes
+        #Frequencies [eV] = 6.792 # matching a dipole allowed excitation energy
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 12
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

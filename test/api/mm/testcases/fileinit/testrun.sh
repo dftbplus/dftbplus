@@ -1,1 +1,0 @@
-../../testers/test_fileinit

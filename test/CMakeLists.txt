@@ -1,5 +1,3 @@
-add_subdirectory(prog/dftb+)
-if(WITH_API)
-  add_subdirectory(api/mm)
-endif()
+add_subdirectory(src/dftbp)
+add_subdirectory(app)
 add_subdirectory(tools/dptools)

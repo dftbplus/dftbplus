@@ -1,0 +1,53 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = Cosmo {
+    Solvent = fromConstants {
+      Epsilon =  79.8
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    Radii = vanDerWaalsRadiiCosmo {}
+    RadiiScaling = 1.0
+    AngularGrid = 110
+    Solver = DomainDecomposition {
+      MaxMoment = 7
+      Accuracy = 1e-10
+    }
+  }
+  SCC = Yes
+  SccTolerance = 1e-8
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+    N = "p"
+    C = "p"
+    S = "d"
+  }
+  SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/mio-1-1/}
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}
+

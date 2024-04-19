@@ -1,0 +1,62 @@
+Geometry = GenFormat {
+ 6  C
+ C H
+    1  1    0.4682053268E-01   -0.4157402516E-10   -0.2089753853E-11
+    2  1   -0.1373995990E+01    0.2843708212E-10   -0.2577001194E-10
+    3  2    0.6337363363E+00    0.9349896145E+00   -0.4289412964E-09
+    4  2    0.6337363362E+00   -0.9349896144E+00    0.4283618438E-09
+    5  2   -0.1960911747E+01    0.9349896174E+00   -0.4253969181E-09
+    6  2   -0.1960911747E+01   -0.9349896173E+00    0.4314535043E-09
+}
+
+Hamiltonian = DFTB { 
+  SCC = Yes
+  SCCTolerance = 1e-8
+  MaxSCCIterations = 1000
+  Charge = 0.0
+  SpinConstants = {
+    ShellResolvedSpin = Yes
+    H = { -0.072 }
+    C = { -0.031 -0.025 -0.025 -0.023 }
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = {
+    C-C = "C-C.skf"
+    C-H = "C-H.skf"
+    H-C = "H-C.skf"
+    H-H = "H-H.skf"
+  }
+}
+
+REKS = SSR22 {
+  Energy = {
+    Functional = { "PPS" "OSS" }
+  }
+  TargetState = 1
+  ReadEigenvectors = Yes
+  FonMaxIter = 100
+  Shift = 1.0
+  Gradient = ConjugateGradient {
+    CGmaxIter = 100
+    Tolerance = 1.0E-8
+    Preconditioner = Yes
+    SaveMemory = Yes
+  }
+  VerbosityLevel = 1
+}
+
+Analysis {
+  CalculateForces = Yes
+  WriteEigenvectors = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}

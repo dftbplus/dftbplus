@@ -2,17 +2,18 @@
 \chapter{Description of the gen format}
 \label{app:gen}
 
-The general (gen) format can be used to describe clusters and
-supercells. It is based on the xyz format introduced with xmol, and
-extended to periodic structures. Unlike some earlier implementations
-of gen, the format should not include any neighbour mapping
+The general (gen) format can be used to describe clusters, supercells and more
+exotic boundary conditions. It is based on the xyz format introduced with xmol,
+and extended to periodic and helical structures. Unlike some earlier
+implementations of gen, the format should not include any neighbour mapping
 information.
 
-The first line of the file contains the number of atoms, $n$, followed
-by the type of geometry. \is{C} for cluster (non-periodic), \is{S} for
-supercell in Cartesian coordinates or \is{F} for supercell in
-fractions of the lattice vectors. The supercells are periodic in 3
-dimensions.
+The first line of the file contains the number of atoms, $n$, followed by the
+type of geometry. \is{C} for cluster (non-periodic), \is{S} for supercell in
+Cartesian coordinates or \is{F} for supercell in fractions of the lattice
+vectors and \is{H} for one-dimensional periodic helical cells. The supercells
+are periodic in 3 dimensions, while helical cells repeat along the $z$ direction
+(eventually) in addition to an optional rotational symmetry around that axis.
 
 The second line contains the chemical symbols of the elements present
 separated by one or more spaces.  The following $n$ lines contain a
@@ -23,10 +24,15 @@ follow the coordinates. For \is{S} and \is{C} format, these are $x$,
 $y$, $z$ in {\AA}, but for \is{F} they are fractions of the three
 lattice vectors.
 
-If the structure is a supercell, the next line after the atomic
-coordinates contains the coordinate origin in {\AA} (this is ignored
-by the parser). The last three lines are the supercell vectors in
-{\AA}. These four lines are not present for clusters.
+If the structure is a supercell, the next line after the atomic coordinates
+contains a coordinate origin in {\AA}. The last three lines are the supercell
+vectors in {\AA}. For helical cells, there is a an origin line, and then an
+extra line containing three numbers (the repeat length of the cell along $z$ in
+{\AA}, the helical angle in degrees and the order of the $C_n$ rotational
+symmetry around that axis). The symmetry of the resulting structure is the
+tensor product of the helical translation/twist axis and the $C_n$ rotation
+operation. It is assumed that the screw axis is aligned parallel to $z$. These
+boundary condition lines are not present for cluster geometries.
 
 Example: Geometry of GaAs with 2 atoms in the fractional supercell
 format
@@ -42,5 +48,18 @@ format
   2.713546     0.           2.713546
 \end{verbatim}
 
+A single CH$_2$ chain deformed into a helix with a 1.25~{\AA} cell
+height, twisting by 30$^\circ$ for each translation along $z$ by this
+ammount.
+\begin{verbatim}
+    3  H
+  C  H
+    1 1    1.016566615    1.777924612    0.000000000
+    2 2    1.960988580    2.020972633    0.5133666820
+    3 2    0.751006714    2.717254122   -0.5117698570
+    0 0 0
+    1.250  30.0 1
+\end{verbatim}
+
 {\bf Note} The \dftbp{} input parser as well as the dptools utilities will
-ignore any lines starting with the \# comment mark.
+ignore any lines starting with a \# comment mark.

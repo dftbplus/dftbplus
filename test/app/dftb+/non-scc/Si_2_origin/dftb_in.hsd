@@ -1,0 +1,52 @@
+Geometry = GenFormat {
+2  S
+ Si
+     1    1    0.10000000 0.20000000 0.30000000
+     2    1    1.45677300 1.55677300 1.65677300
+   0.10 0.20 0.30
+   0.2713546E+01   0.2713546E+01   0.0000000E+00
+   0.0000000E+00   0.2713546E+01   0.2713546E+01
+   0.2713546E+01   0.0000000E+00   0.2713546E+01
+}
+
+Driver = LBFGS {}
+
+Hamiltonian = DFTB {
+  SCC = No
+  MaxAngularMomentum = {
+    Si = "p"
+  }
+  Charge = 0.0
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.0E-8
+  }
+  SlaterKosterFiles = {
+    Si-Si = "./Si-Si.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   6 0 0
+   0 6 0
+   0 0 6
+   0.5 0.5 0.5
+  }
+}
+
+Analysis = {
+  CalculateForces = Yes
+  MullikenAnalysis = Yes
+  AtomResolvedEnergies = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

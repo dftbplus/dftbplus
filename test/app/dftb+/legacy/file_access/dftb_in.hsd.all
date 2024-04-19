@@ -1,0 +1,75 @@
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "stream"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "stream" "stream"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "stream" "sequential"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "sequential"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "sequential" "sequential"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  BinaryAccessTypes = "sequential" "stream"
+}
+
+%
+
++Hamiltonian = +Dftb {
+  ReadInitialCharges = Yes
+}
+
++Options {
+  WriteAutotestTag = Yes
+}

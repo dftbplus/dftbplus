@@ -1,0 +1,61 @@
+Geometry = GenFormat {
+8  S
+ Si
+     1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     2    1    0.13567730000E+01   0.13567730000E+01   0.13567730000E+01
+     3    1    0.27135460000E+01   0.27135460000E+01   0.00000000000E+00
+     4    1    0.40703190000E+01   0.40703190000E+01   0.13567730000E+01
+     5    1    0.27135460000E+01   0.00000000000E+00   0.27135460000E+01
+     6    1    0.40703190000E+01   0.13567730000E+01   0.40703190000E+01
+     7    1    0.00000000000E+00   0.27135460000E+01   0.27135460000E+01
+     8    1    0.13567730000E+01   0.40703190000E+01   0.40703190000E+01
+   0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+   0.54270920000E+01   0.00000000000E+00   0.00000000000E+00
+   0.00000000000E+00   0.54270920000E+01   0.00000000000E+00
+   0.00000000000E+00   0.00000000000E+00   0.54270920000E+01
+}
+
+Driver = VelocityVerlet {  
+  TimeStep [Femtosecond] = 1.0
+  Thermostat = Andersen {
+    Temperature [Kelvin] = TemperatureProfile {
+      linear       5   1300.0
+    }
+    ReselectProbability = 0.2
+    ReselectIndividually = No
+    AdaptFillingTemp = Yes
+  }
+  OutputPrefix = "geo_end"
+}
+
+Hamiltonian = DFTB {
+  SCC = No
+  MaxAngularMomentum = {
+    Si = "p"
+  }
+  Filling = Fermi {}
+  SlaterKosterFiles = {
+    Si-Si = "./Si-Si.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5 0.5
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  RandomSeed = 12459
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

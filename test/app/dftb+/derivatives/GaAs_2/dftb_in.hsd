@@ -1,0 +1,76 @@
+Geometry = GenFormat {
+    2  F
+    Ga As
+    1  1    -.1000000000E+00    0.0000000000E+00    0.0000000000E+00
+    2  2    0.1500000000E+00    0.2500000000E+00    0.2500000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    0.2924064588E+01    0.2924064588E+01    0.0000000000E+00
+    0.0000000000E+00    0.2924064588E+01    0.2924064588E+01
+    0.2924064588E+01    0.0000000000E+00    0.2924064588E+01
+}
+
+#Driver = LBFGS{
+#  LatticeOpt = Yes
+#  Isotropic = Yes
+#  MovedAtoms {}
+#  MaxForceComponent = 1.0E-8
+#}
+
+Driver = SecondDerivatives {}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1.0E-10
+
+  MaxAngularMomentum = {
+      Ga = "d"
+      As = "p"
+  }
+
+  Filling = Fermi {
+      Temperature [Kelvin] = 300.0
+  }
+
+  SlaterKosterFiles = {
+      Ga-Ga = "slakos/origin/hyb-0-2/Ga-Ga.skf"
+      Ga-As = "slakos/origin/hyb-0-2/Ga-As.skf"
+      As-Ga = "slakos/origin/hyb-0-2/As-Ga.skf"
+      As-As = "slakos/origin/hyb-0-2/As-As.skf"
+  }
+
+  KPointsAndWeights = SupercellFolding {
+      6 0 0
+      0 6 0
+      0 0 6
+      0.5 0.5 0.5
+  }
+
+  #ElectricField = {
+  #  External = {
+  #    Direction = 1.0 0.0 0.0
+  #    Strength = -5E-6
+  #  }
+  #}
+
+}
+
+Analysis = {
+    MullikenAnalysis = Yes
+    CalculateForces = Yes
+    AtomResolvedEnergies = Yes
+}
+
+Options = {
+    WriteResultsTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 11
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

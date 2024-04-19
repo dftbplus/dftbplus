@@ -1,0 +1,12 @@
+*._tmp_
+*.aux
+*.bbl
+*.blg
+*.brf
+*.idx
+*.ilg
+*.ind
+*.log
+*.out
+*.toc
+/manual.pdf

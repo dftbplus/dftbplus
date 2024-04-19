@@ -1,0 +1,53 @@
+Geometry = GenFormat {
+  <<<supercell.gen
+}
+
+Driver = ConjugateGradient{
+  LatticeOpt = Yes
+  FixAngles = Yes
+  MaxForceComponent = 1e-5
+}
+
+!Driver = SecondDerivatives{}
+
+Hamiltonian = DFTB {
+    SCC = No
+    MaxAngularMomentum = {
+        Si = "p"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100
+        IndependentKFilling = Yes
+    }
+    SlaterKosterFiles = {
+        Si-Si = "./Si-Si.skf"
+    }
+    KPointsAndWeights = SupercellFolding {
+        4 0 0
+        0 4 0
+        0 0 4
+        0.0 0.0 0.0
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes    
+}
+
+Analysis = {
+    CalculateForces = Yes
+    MullikenAnalysis = Yes
+    AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
+
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

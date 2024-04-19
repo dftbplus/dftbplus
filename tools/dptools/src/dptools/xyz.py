@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -12,6 +12,10 @@ from dptools.common import openfile
 from dptools.geometry import Geometry
 
 __all__ = ["Xyz"]
+
+
+_TOLERANCE = 1E-10
+
 
 class Xyz:
     """Representation of an XYZ-file.
@@ -80,3 +84,18 @@ class Xyz:
             fp.write("{0:3s} {1:18.10E} {2:18.10E} {3:18.10E}\n".format(
                 geo.specienames[geo.indexes[ii]], *geo.coords[ii]))
         fp.close()
+
+    def equals(self, other, tolerance=_TOLERANCE, check_comment=False):
+        '''Checks whether object equals to an other one.
+
+        Args:
+            other (Xyz): Other Xyz object.
+            tolerance (float): Maximal allowed deviation in floating point
+                numbers (e.g. coordinates).
+        '''
+        if not self.geometry.equals(other.geometry, tolerance):
+            return False
+        if check_comment:
+            if self.comment != other.comment:
+                return False
+        return True

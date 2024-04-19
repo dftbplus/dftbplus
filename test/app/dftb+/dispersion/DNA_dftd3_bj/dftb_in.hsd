@@ -1,0 +1,57 @@
+# The choosen periodic boundary condition is artificial and serves only the
+# testing of the dispersion and damped H interaction in periodic systems.
+Geometry = GenFormat {
+<<< "dna.gen"
+}
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-5
+  MaxSCCIterations = 100
+  Filling = Fermi {
+    Temperature [K] = 300
+  }
+  KPointsAndWeights {
+    0.0 0.0 0.0  1.0
+  }
+  MaxAngularMomentum {
+    O = "p"
+    H = "s"
+    N = "p"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+Prefix = {slakos/origin/mio-1-1/}
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  # Warning, the DftD3 parameters below are fake ones for test purposes only!
+  Dispersion = DftD3 {
+    Damping = BeckeJohnson {
+      a1 = 0.52
+      a2 = 3.6
+    }
+    s6 = 1.0
+    s8 = 0.61
+    Cutoff = 60
+    CutoffCN = 34 
+    Threebody = Yes
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 4
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

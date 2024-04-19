@@ -1,0 +1,52 @@
+@startuml repulsive
+skinparam dpi 150
+hide empty field
+
+abstract class TRepulsive {
+    + {abstract} getRCutoff()
+    + {abstract} updateLatVecs()
+    + {abstract} updateCoords()
+    + {abstract} getEnergy()
+    + {abstract} getGradients()
+    + {abstract} getStress()
+}
+
+class TTwoBodyRep {
+    - pairRepulsives
+}
+
+class TChimesRep
+
+class TRepulsiveCont {
+    - repulsives: TRepulsiveList
+}
+
+class TRepulsiveList
+
+class TPairRepulsiveItem {
+    + item: TPairRepulsive
+}
+
+abstract class TPairRepulsive {
+    + {abstract} getCutoff()
+    + {abstract} getValue(rr, energy, dEnergy)
+}
+
+class TSplineRep
+
+class TPolyRep
+
+TRepulsive <|.. TRepulsiveCont
+TRepulsive "0..*" -o  TRepulsiveList
+TRepulsiveList --* TRepulsiveCont
+TRepulsive <|.. TTwoBodyRep
+TRepulsive <|.. TChimesRep
+
+TTwoBodyRep *-- "(nSpecies, nSpecies)" TPairRepulsiveItem
+
+TPairRepulsiveItem *-- TPairRepulsive : wraps >
+
+TPairRepulsive <|.. TSplineRep
+TPairRepulsive <|.. TPolyRep
+
+@enduml

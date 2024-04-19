@@ -15,10 +15,26 @@ _VERSION_PATTERN = r'\d+\.\d+(?:\.\d+)?(?:-\w+)?'
 
 _FILES_AND_PATTERNS = [
     #
+    ('CMakeLists.txt',
+     r'set\(DFTBPLUS_VERSION\s+["\']{}["\']\s*\)'.format(_VERSION_PATTERN),
+     'set(DFTBPLUS_VERSION "{version}")'),
+    #
     ('doc/dftb+/doxygen/Doxyfile',
      r'^PROJECT_NUMBER\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
      "PROJECT_NUMBER = {version}"),
     #
+    ('doc/api/doxygen/Doxyfile',
+     r'^PROJECT_NUMBER\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
+     "PROJECT_NUMBER = {version}"),
+    #
+    ('doc/dftb+/ford/dftbplus-project-file.md',
+     r'^\s*RELEASE\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
+     '        RELEASE={shortversion}'),
+    #
+    ('doc/api/ford/dftbplus-api.md',
+     r'^\s*RELEASE\s*=\s*{}\s*$'.format(_VERSION_PATTERN),
+     '        RELEASE={shortversion}'),
+
     ('doc/dftb+/manual/manual.tex',
      r'Version[ ]*{}'.format(_VERSION_PATTERN),
      'Version {shortversion}'),
@@ -47,6 +63,7 @@ def main():
 
     _replace_in_registered_files(rootdir, version, shortversion)
     _replace_in_changelog(rootdir, version)
+    _warn_about_manual_changes()
 
 
 def _parse_arguments():
@@ -103,6 +120,24 @@ def _replace_in_changelog(rootdir, version):
     fp = open(fname, 'w')
     fp.write(newtxt)
     fp.close()
+
+
+def _warn_about_manual_changes():
+    '''Warn about changes which must be made manually'''
+
+    txt = """
+Make sure to check that the table in doc/dftb+/manual/releases.tex has been
+updated.
+
+Make sure to update input version table in src/dftbp/dftbplus/parser.F90
+"""
+    print(txt)
+
+
+def _fatal_error(msg):
+    '''Writes error message and exits.'''
+    sys.stderr.write(msg + "\n")
+    sys.exit(1)
 
 
 if __name__ == '__main__':

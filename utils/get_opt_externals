@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -12,11 +12,11 @@ Downloads optional external components
 from __future__ import print_function
 import sys
 import os
-import optparse
+import argparse
 import subprocess as sub
 import shutil
 
-USAGE = '''usage: %prog [options] [OPTEXT [OPTEXT ...]]
+USAGE = '''%(prog)s [options] [OPTEXT [OPTEXT ...]]
 
 Downloads optional external components.
 
@@ -38,7 +38,7 @@ Possible choices for OPTEXT:
 
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
-  dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
+  gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
 
 RESTRICTED_WARNING = """WARNING:
@@ -100,13 +100,13 @@ def main():
 
 def parse_cmdline_args():
     '''Parses and returns command line arguments.'''
-    parser = optparse.OptionParser(usage=USAGE)
+    parser = argparse.ArgumentParser(usage=USAGE)
     msg = 'Exclude certain externals (mostly useful when downloading all '\
           'optional externals except a few)'
-    parser.add_option(
+    parser.add_argument(
         '-e', '--exclude', dest='excluded', metavar='EXCLUDED',
         choices=EXTERNALS, default=None, action='append', help=msg)
-    opts, args = parser.parse_args()
+    opts, args = parser.parse_known_args()
 
     argchoices = ['UNRESTRICTED', 'RESTRICTED', 'ALL'] + EXTERNALS
     if not args:
@@ -128,9 +128,9 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    url = 'https://github.com/dftbplus/testparams/archive/26439495c4b5b0d07be6ceec4dade3d149425465.tar.gz'
+    url = 'https://github.com/dftbplus/testparams/archive/6165104e60efbdb3ad05d005c282ada50f12dfef.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
-    unpackname = os.path.join(destdir, 'testparams-26439495c4b5b0d07be6ceec4dade3d149425465')
+    unpackname = os.path.join(destdir, 'testparams-6165104e60efbdb3ad05d005c282ada50f12dfef')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)
@@ -140,6 +140,7 @@ def get_slakos(destdir):
     unpack_file(fname)
     os.remove(fname)
     os.rename(unpackname, targetname)
+
 
     '''Download additional parameters to test mDFTB'''
     url = 'https://github.com/v2quan89/testparams4mdftb/raw/main/test3obp.tar.gz'
@@ -156,27 +157,21 @@ def get_slakos(destdir):
     os.rename(unpackname, targetname)
 
 
-def get_dftd3(destdir):
-    '''Downloads the dftd3 library.'''
+def get_gbsa(destdir):
+    '''Downloads and extracts parametrizations for gbsa.'''
 
-    #url = 'https://github.com/dftbplus/dftd3-lib/archive/dftbplus-18.2.tar.gz'
-    url = "http://github.com/aradi/dftd3-lib/archive/cmake.tar.gz"
-    #fname = os.path.join(destdir, 'dftd3-lib.tar.gz')
-    fname = os.path.join(destdir, 'dftd3-lib-cmake.tar.gz')
-    #unpackname = os.path.join(destdir, 'dftd3-lib-dftbplus-18.2')
-    unpackname = os.path.join(destdir, 'dftd3-lib-cmake')
+    url = 'https://github.com/grimme-lab/gbsa-parameters/archive/6836c4d997e4135e418cfbe273c96b1a3adb13e2.tar.gz'
+    fname = os.path.join(destdir, 'gbsa-parameters.tar.gz')
+    unpackname = os.path.join(destdir, 'gbsa-parameters-6836c4d997e4135e418cfbe273c96b1a3adb13e2')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)
     if os.path.exists(targetname):
         shutil.rmtree(targetname)
-    if query_download_confirmation('dftd3', False):
-        download_file(url, fname)
-        unpack_file(fname)
-        os.remove(fname)
-        os.rename(unpackname, targetname)
-    else:
-        sys.stdout.write("    Skipping dftd3 download")
+    download_file(url, fname)
+    unpack_file(fname)
+    os.remove(fname)
+    os.rename(unpackname, targetname)
 
 
 def download_file(url, fname):
@@ -255,7 +250,7 @@ def read_input():
 # Contains (function, targetfolder, restriction) tuples
 GETTERS = {
     'slakos': (get_slakos, 'slakos', UNRESTRICTED_EXTERNAL),
-    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL)
+    'gbsa': (get_gbsa, 'gbsa', UNRESTRICTED_EXTERNAL),
 }
 
 # All externals

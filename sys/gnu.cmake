@@ -1,92 +1,97 @@
 #
-# Toolchain file example for
+# Toolchain file for
 #
 # GNU compiler
 #
-# Note the CMake format: Command line options (e.g. compiler flags) space separated, other kind
-# of lists semicolon separated.
+# Notes:
 #
+#  * Settings here should work out of the box on Ubuntu (tested on 18.4). Other build environments
+#    may need some fine tuning.
+#
+#  * CMake format: Command line options (e.g. compiler flags) space separated, other kind
+#    of lists semicolon separated.
+#
+#  * Variables containing library search paths are empty by default. The CMAKE_PREFIX_PATH
+#    environment variable should be set up correctly, so that CMake can find those libraries
+#    automatically. If that is not the case, override those variables to add search paths
+#    manually
+#
+
 
 #
 # Fortran compiler settings
 #
-if(WITH_MPI)
-  set(CMAKE_Fortran_COMPILER "mpifort" CACHE STRING "Fortran compiler")
-else()
-  set(CMAKE_Fortran_COMPILER "gfortran" CACHE STRING "Fortran compiler")
-endif()
+set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS}"
+  CACHE STRING "Build type independent Fortran compiler flags")
 
-set(CMAKE_Fortran_FLAGS "" CACHE STRING "General Fortran flags")
+set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops"
+  CACHE STRING "Fortran compiler flags for Release build")
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING
-  "Specific Fortran flags for Release (production) mode")
+set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
+  CACHE STRING "Fortran compiler flags for Release build")
 
-set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
+set(Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -fbounds-check"
+  CACHE STRING "Fortran compiler flags for Debug build")
+
+set(Fortran_FLAGS_COVERAGE "-O0 -g --coverage")
+
+# Use intrinsic Fortran 2008 erf/erfc functions
+set(INTERNAL_ERFC CACHE BOOL 0)
+
+set(FYPP_FLAGS "-n" CACHE STRING "Fypp preprocessor flags")
 
 
 #
 # C compiler settings
 #
-set(CMAKE_C_COMPILER "gcc" CACHE STRING "C compiler")
+set(C_FLAGS "${CMAKE_C_FLAGS}"
+  CACHE STRING "Build type independent C compiler flags")
 
-set(CMAKE_C_FLAGS "" CACHE STRING "General C flags")
+set(C_FLAGS_RELEASE "-O2 -funroll-all-loops"
+  CACHE STRING  "C compiler flags for Release build")
 
-set(CMAKE_C_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING "Specific C flags for Release mode")
+set(C_FLAGS_RELWITDEBINFO "-g ${C_FLAGS_RELEASE}"
+  CACHE STRING  "C compiler flags for RelWithDebInfo build")
+
+set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
+  CACHE STRING "C compiler flags for Debug build")
+
+set(C_FLAGS_COVERAGE "-O0 -g --coverage")
 
 
 #
 # External libraries
 #
 
+# NOTE: Libraries with CMake export files (e.g. ELSI and if the HYBRID_CONFIG_METHODS variable
+# contains the "Find" method also libNEGF, libMBD, ScalapackFx and MpiFx) are included by searching
+# for the export file in the paths defined in the CMAKE_PREFIX_PATH **environment** variable. Make
+# sure your CMAKE_PREFIX_PATH variable is set up accordingly.
+
 # LAPACK and BLAS
-if(WITH_MPI)
-  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
-else()
-  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
-endif()
-set(LAPACK_LIBRARY_DIRS "" CACHE STRING
-  "Directories where LAPACK and BLAS libraries can be found")
+# (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
+#set(BLAS_LIBRARY "openblas" CACHE STRING "BLAS libraries to link")
+#set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
+#set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries to link")
+#set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
-set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack libraries")
-set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be found")
+#set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack libraries")
+#set(ARPACK_LIBRARY_DIR "" CACHE STRING "Directories where Arpack library can be found")
 
 # ScaLAPACK -- only needed for MPI-parallel build
-set(SCALAPACK_LIBRARIES "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
-set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING
-  "Directories where Scalapack libraries can be found")
+#set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
+#set(SCALAPACK_LIBRARY_DIR "" CACHE STRING "Directories where Scalapack libraries can be found")
 
-# ELSI -- only needed when compiled with ELSI support
-set(ELSI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI installation")
-
-set(ELSI_EXTERNAL_LIBRARIES "" CACHE STRING
-  "Any EXTERNAL libraries ELSI needs apart of its own libraries (and scalapack)")
-set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
-  "Directories where ELSI external libraries can be found")
-
-# PEXSI -- only needed when ELSI was compiled with PEXSI support
-# Note: PEXSI usually needs explicit linking of the standard C++ library. Make sure to
-#     provide the library path to that C++ standard library, which was used to compile PEXSI.
-set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
-  "Any EXTERNAL libraries PEXSI needs apart of its own libraries")
-set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
-  "Directories with PEXSI external libraries")
+# NOTE: The libraries below provide Pkg-Conf export files.  If your PKG_CONFIG_PATH environment
+# variable has been set up correctly (containing the paths to these libraries), no adjustment should
+# be necessary below.
 
 # PLUMED -- only needed when compiled with PLUMED support
-set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
-set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")
+#set(PLUMED_LIBRARY "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
+#set(PLUMED_LIBRARY_DIR "" CACHE STRING "Directories to scan for PLUMED libraries")
 
-# Any other library needed to be linked or considered as include
-set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
-set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
-set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
-
-
-#
-# Debug settings (for developers)
-#
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check" CACHE STRING
-  "Specific Fortran flags for Debug mode")
-
-set(CMAKE_C_FLAGS_DEBUG "-g -Wall -pedantic -fall-intrinsics -fbounds-check" CACHE STRING
-  "Specific C flags for Debug mode")
+# MAGMA -- only needed when compiled with GPU support
+#set(MAGMA_LIBRARY "magma" CACHE STRING "Magma library")
+#set(MAGMA_LIBRARY_DIR "" CACHE STRING "Directories to scan for MAGMA library")
+#set(MAGMA_INCLUDE_DIRECTORY "" CACHE STRING "Directories to scan for MAGMA include files")

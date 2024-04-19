@@ -1,0 +1,38 @@
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-8
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix  = ".skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteDetailedOut=Yes
+  TimingVerbosity = 1
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  Blacs = BlockSize {
+    # reduce block size to allow this small a case on multiple processors
+    4
+  }
+}

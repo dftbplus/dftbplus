@@ -1,0 +1,46 @@
+Geometry = GenFormat {
+3  C
+ O H
+     1    1    0.00000000000E+00  -0.10000000000E+01   0.00000000000E+00
+     2    2    0.00000000000E+00   0.00000000000E+00   0.78306400000E+00
+     3    2    0.00000000000E+00   0.00000000000E+00  -0.78306400000E+00
+}
+
+Driver = Fire {
+  MaxForceComponent = 1.0E-8  # Extremely small!
+  MaxSteps = 200
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-10  # Extremely small!
+  MaxSCCIterations = 1000
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+  Charge = 0.0
+  Filling = Fermi {
+    Temperature [Kelvin] = 100
+  }
+  SlaterKosterFiles = {
+    O-O = "O-O.skf"
+    O-H = "O-H.skf"
+    H-O = "O-H.skf"
+    H-H = "H-H.skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

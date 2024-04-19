@@ -1,0 +1,70 @@
+Geometry = GenFormat {
+  <<< Si8.gen
+}
+
+Hamiltonian = DFTB {
+
+  Charge = -1
+
+  SCC = Yes
+  SccTolerance = 1.0e-08
+
+  Filling = Fermi {
+    Temperature [K] = 100.0
+  }
+
+  MaxAngularMomentum = {
+    Si = "p"
+  }
+
+  SlaterKosterFiles {
+    Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     4   0   0
+     0   4   0
+     0   0   4
+    0.5 0.5 0.5
+  }
+
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 1
+    RelaxTotalSpin = No
+    InitialSpins = {}
+  }
+
+  SpinConstants {
+    ShellResolvedSpin = No
+    Si = -0.0144
+  }
+
+  ElectronicConstraints {
+    Regions {
+      Atoms {
+        Domain = 8
+        Population = 5.0
+      }
+    }
+    Optimiser = SteepestDescent {ScalingFactor = 0.07}
+    ConstrTolerance = 1.0e-08
+    MaxConstrIterations = 100
+    ConvergentConstrOnly = Yes
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = No
+}
+
+ParserOptions {
+  ParserVersion = 13
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

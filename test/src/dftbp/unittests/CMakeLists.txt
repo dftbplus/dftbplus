@@ -1,0 +1,6 @@
+set(unit-test-prefix "unittests")
+add_subdirectory(common)
+add_subdirectory(dftb)
+add_subdirectory(io)
+add_subdirectory(include)
+add_subdirectory(type)

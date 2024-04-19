@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -111,7 +111,7 @@ class Gen:
         lines.append(" ".join(line) + "\n")
         lines.append(" ".join(geo.specienames) + "\n")
         for ii in range(geo.natom):
-            lines.append("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n"\
+            lines.append("{0:6d} {1:3d} {2:18.10E} {3:18.10E} {4:18.10E}\n"
                          .format(ii + 1, geo.indexes[ii] + 1, *coords[ii]))
         if geo.periodic:
             origin = _round_to_zero(geo.origin, _TOLERANCE)

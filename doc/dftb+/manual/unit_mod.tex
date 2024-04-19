@@ -7,16 +7,18 @@ energy unit). The value of every numerical property in the input is
 interpreted to be in atomic units (au), unless the property carries a
 modifier.
 
-The allowed modifiers and the corresponding conversion factors are
-given below.\footnote{The conversion factors listed here were
-  calculated with double precision on i686-linux architecture.
-  Depending on your architecture, the values used there may deviate
-  slightly.}  (The modifiers are case insensitive).
+The allowed modifiers and the corresponding conversion factors are given
+below.\footnote{The conversion factors listed here were calculated with double
+  precision on i686-linux architecture.  Depending on your architecture, the
+  values used there may deviate slightly.}  (The modifiers are case
+insensitive). The symbol $\left[x^{-1}\right]$ indicates conversions, where
+not the value, but the reciprocal of the quantity is used in the conversion.
 
+{\AA}ngstr{\"o}ms may be listed as any of ``a'', ``aa'' or ``angstrom'' in the
+unit modifiers.
 
 \begin{unittable}{Length}
-  \is{Angstrom}, \is{AA} (for {\AA}ngstr\"om) & 0.188972598857892E+01
-  \\
+  \is{Angstrom}, \is{AA}, \is{A} (for {\AA}ngstr\"om) & 0.188972598857892E+01 \\
   \is{Meter}, \is{m} &  0.188972598857892E+11 \\
   \is{pm}            &  0.188972598857892E-01 \\
   \is{Bohr}, \is{au} &  1.000000000000000E+00 \\
@@ -31,7 +33,7 @@ given below.\footnote{The conversion factors listed here were
 
 
 \begin{unittable}{Volume}
-  \is{Angstrom$^{{\wedge}}$3}, \is{AA$^{{\wedge}}$3} &
+  \is{Angstrom$^{{\wedge}}$3}, \is{AA$^{{\wedge}}$3}, \is{A$^{{\wedge}}$3} &
   0.674833303710415E+01 \\
   \is{meter$^{{\wedge}}$3}, \is{m$^{{\wedge}}$3} &
   0.674833303710415E+31 \\
@@ -49,10 +51,11 @@ given below.\footnote{The conversion factors listed here were
   \is{cm\^{}-1} & 0.455633507361033E-05 \\
   \is{Joule}, \is{J} &  0.229371256497309E+18\\
   \is{Hartree}, \is{Ha}, \is{au} & 1.000000000000000E+00 \\
+  \is{nm} $\left[x^{-1}\right]$ & 0.45563355817434E+02
 \end{unittable}
 
 \begin{unittable}{Force}
-  \is{eV/Angstrom}, \is{eV/AA} & 0.194469064593167E-01 \\
+  \is{eV/Angstrom}, \is{eV/AA}, \is{eV/A} & 0.194469064593167E-01 \\
   \is{Joule/meter}, \is{J/m} & 0.121378050512919E+08\\
   \is{Hartree/Bohr}, \is{Ha/Bohr}, \is{au} & 1.000000000000000E+00 \\
 \end{unittable}
@@ -73,7 +76,9 @@ given below.\footnote{The conversion factors listed here were
   \is{au} & 1.000000000000000E+00 \\
   \is{m/s} & 0.457102857516272E-06 \\
   \is{pm/fs} & 0.457102857516272E-03\\
-  \is{AA/ps} & 0.457102857516272E-04\\
+  \is{a/ps} & 0.457102857516272E-04\\
+  \is{aa/ps} & 0.457102857516272E-04\\
+  \is{angstrom/ps} & 0.457102857516272E-04\\
 \end{unittable}
 
 \begin{unittable}{Pressure}
@@ -94,7 +99,14 @@ given below.\footnote{The conversion factors listed here were
 \end{unittable}
 
 \begin{unittable}{Dipole moment}
-\is{CoulombMeter},\is{Cm} & 0.117947426715764E+30 \\
+\is{CoulombMeter}, \is{Cm} & 0.117947426715764E+30 \\
 \is{Debye} & 0.393430238326893E+00 \\
 \is{au}    & 1.000000000000000E+00 \\
+\end{unittable}
+
+\begin{unittable}{Angular units}
+\is{degrees}, \is{deg}  & 1.745329251994330E-02 \\
+\is{turns} & 6.283185307179586 \\
+\is{gradians} & 1.570796326794897E-002 \\
+\is{radians}, \is{rad} & 1.000000000000000E+00 \\
 \end{unittable}

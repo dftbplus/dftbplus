@@ -3,6 +3,36 @@ Change Log
 ==========
 
 
+3.2
+===
+
+Added
+-----
+
+* Option ``--file-var-root`` to render file variables (``_FILE_``,
+  ``_THIS_FILE``) as relative paths with respect to a specified root.
+
+
+3.1
+===
+
+Added
+-----
+
+* Global variables _SYSTEM_ and _MACHINE_ to query environment.
+
+* Emission of standard (#line pragma styled) line directives.
+
+* Factory method arguments in Fypp constructor: evaluator_factory,
+  parser_factor, builder_factory and renderer_factory.
+
+
+Changed
+-------
+
+* Support for Python 2.7, 3.3 and 3.4 dropped, support for Python 3.9 added.
+
+  
 3.0
 ===
 
@@ -13,7 +43,7 @@ Added
 
 * Add block / contains / endblock construct as alternative for call / nextarg /
   endcall.
-  
+
 * Escaping of preprocessor comments
 
 * Possibility of specifying character encoding for file I/O with UTF-8 as
@@ -104,7 +134,7 @@ Added
 * Python-like consistent global and local scopes and scope lookup rules.
 
 * Predefined variables _THIS_FILE_ and _THIS_LINE_.
-    
+
 * Additional flags in line numbering directives when opening a file or returning
   to a previous file.
 
@@ -135,7 +165,7 @@ Changed
 
 * Function setvar() accepts arbitrary number of argument pairs.
 
-* Reverse order exception printing, exception first occuring printed as last.
+* Reverse order exception printing, exception first occurring printed as last.
 
 * Command line tool formats error messages in GNU-like format.
 

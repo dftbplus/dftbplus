@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# utility to setup a partial calculation of the Hessian and rejoin all files
+# set up the 'dftb_in.hsd' input file with appropriate computation options.
+
+
+if [ $# -lt 2 -o "$NP" = "0" -o "$NATOMS" = "0" -a "$FILE" = "" ]; then
+  echo ""
+  echo "set_partial_hessian -np ntasks --file struture.gen [--exec-batch batchscript  --gather]"
+  echo " "
+  echo "              -np:  Sets the number of tasks to distribute the job"
+  echo "      --file, -f :  Calculated geometry. Used to obtain the number of atoms"
+  echo "    --natoms, -n :  Alternative to --file used to set the number of atoms"
+  echo "--exec-batch, -e :  Optional batch script to submit the jobs automatically"
+  echo "                    If the batch script contains Slurm '#SBATCH' commands the script is"
+  echo "                    launched with the command 'sbatch batchscript' "
+  echo "    --gather, -g :  Gather the partial Hessians and assemble a complete file"
+  echo " USE: "
+  echo " The script requires to prepare a file named 'dftb_in.in' with all options for a dftb+ run"
+  echo " and with MovedAtoms = @MOVED_ATOMS@ in the block SecondDerivatives like, "
+  echo " "
+  echo " Driver = SecondDerivatives{"
+  echo "   Delta = 1e-4  # (set this parameter as needed)"
+  echo "   Atoms = 1:-1  "
+  echo "   MovedAtoms = @MOVED_ATOMS@"
+  echo " }"
+fi
+
+FILE=""
+NATOMS="0"
+NP="0"
+BATCH=""
+SETJOB=1
+
+while [ True ]; do
+if [ "$1" = "--file" -o "$1" = "-f" ]; then
+   FILE=$2
+   shift 2
+elif [ "$1" = "--natoms" -o "$1" = "-n" ]; then
+   NATOMS=$2
+   shift 2
+elif [ "$1" = "-np" ]; then
+   NP=$2
+   shift 2
+elif [ "$1" = "--exec-batch" -o "$1" = "-e" ]; then
+   COUNT=`grep -c '#SBATCH' $2`
+   if [ "$COUNT" -gt 0 ]; then
+     BATCHCOMM="sbatch"
+     BATCHFILE="$2"
+   else
+     BATCHCOMM=""
+     BATCHFILE="./$2"
+   fi
+   echo "BATCH command applied: " $BATCH
+   shift 2
+elif [ "$1" = "--gather" -o "$1" = "-g" ]; then
+   SETJOB=0
+   shift 1
+else
+   break
+fi
+done
+
+# CHECKS THAT dftb_in.in exists and is set correctly
+if [ -f dftb_in.in ]; then
+  NC=`grep -c '@MOVED_ATOMS@' dftb_in.in`
+  if [ "$NC" -eq 0 ]; then
+    echo "ERROR: @MOVED_ATOMS@ not found in dftb_in.in"
+    exit
+  fi
+else
+  echo "ERROR: file dftb_in.in not found"
+  exit
+fi
+
+# SETS NATOMS from file
+if [ "$NATOMS" = "0" -a "$FILE" != "" ]; then
+  NATOMS=`awk '{if(NR==1){print $1}}' $FILE`
+fi
+
+echo "NATOMS=" $NATOMS
+echo "NPROCESSES=" $NP
+
+# Compute atoms per process
+NEACH=""
+NLEFT=$NATOMS
+while [ $NLEFT -gt 0 ]; do
+  NN=`echo "scale=0; $NLEFT / $NP" | bc -l`
+  NLEFT=`echo "$NLEFT - $NN" | bc -l`
+  NEACH+="$NN "
+  let "NP--"
+done
+
+# prepare the assembled Hessian
+if [ $SETJOB -eq 0 ]; then
+  rm -f hessian.combined
+  touch hessian.combined
+fi
+
+# Create folders and optionally execute jobs
+# or gather partial Hessians into one
+NSTART=1
+for i in $NEACH; do
+  NSTOP=`echo "$NSTART + $i - 1" | bc -l`
+  FOLDER="partial."$NSTART"-"$NSTOP
+  if [ $SETJOB -eq 1 ]; then
+     echo "mkdir " $FOLDER
+     mkdir -p $FOLDER
+     if [ "$FILE" != "" ]; then
+       cp -p $FILE $FOLDER
+     fi
+     sed 's/@MOVED_ATOMS@/'$NSTART":"$NSTOP'/' dftb_in.in > $FOLDER/dftb_in.hsd
+     if [ "$BATCHFILE" != "" ]; then
+       cp $BATCHFILE $FOLDER
+       cd $FOLDER
+       echo $BATCHCOMM " " $BATCHFILE
+       $BATCHCOMM $BATCHFILE
+       cd ..
+     fi
+  else
+     cat $FOLDER"/hessian.out."$NSTART"-"$NSTOP >> hessian.combined
+  fi
+  NSTART=`echo "$NSTOP + 1" | bc -l`
+done

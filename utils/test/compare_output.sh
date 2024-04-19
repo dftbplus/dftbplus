@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 refdir=$1
 curdir=$2
