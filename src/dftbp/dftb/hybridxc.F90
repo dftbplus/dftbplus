@@ -527,6 +527,9 @@ contains
       allocate(this%lrGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       allocate(this%lrdGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       allocate(this%lrddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
+      allocate(this%hfGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
+      allocate(this%hfdGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
+      allocate(this%hfddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
           this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
@@ -536,23 +539,14 @@ contains
               & this%omega, this%gammaDamping)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping, 1e-08_dp)
-        end do
-      end do
-
-      nUniqueSpecies = getNumberOfUniqueInt(this%species0)
-      allocate(this%hfGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
-      allocate(this%hfdGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
-      allocate(this%hfddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
-      do iSp2 = 1, nUniqueSpecies
-        do iSp1 = 1, nUniqueSpecies
+              & this%omega, this%gammaDamping, 1.0E-8_dp)
           this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
               & this%hubbu(iSp2), this%gammaDamping)
           this%hfdGammaAtDamping(iSp1, iSp2)&
               & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%gammaDamping)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
-              & this%gammaDamping, 1e-08_dp)
+              & this%gammaDamping, 1.0E-8_dp)
         end do
       end do
     end if
