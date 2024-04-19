@@ -118,6 +118,7 @@ module dftbp_dftbplus_initprogram
       & TMixerCmplx_init
   use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
       & TSimpleMixerCmplx_init
+  use dftbp_plugins_plugin, only: TPlugin
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
@@ -1170,6 +1171,9 @@ module dftbp_dftbplus_initprogram
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
     !> of the atoms via the API is forbidden.
     logical :: atomOrderMatters = .false.
+
+    !> External plugin
+    type(TPlugin) :: plugin
 
   #:if WITH_SCALAPACK
 
@@ -4038,6 +4042,15 @@ contains
 
     if (allocated(this%reks)) then
       call printReksInitInfo(this%reks, this%orb, this%speciesName, this%nType)
+    end if
+
+    if (len_trim(input%ctrl%pluginFile) > 0) then
+      strTmp = adjustl(input%ctrl%pluginFile)
+      if (this%plugin%init(strTmp)) then
+        write(stdOut, "(A,':',T30,A)") "Plugin loaded", trim(strTmp)
+      else
+        call error("Could not load the plugin " // strTmp)
+      end if
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
