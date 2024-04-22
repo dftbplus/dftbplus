@@ -30,6 +30,8 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- Onsite corrected hamiltonian for range separated functional
+
 
 Fixed
 -----
@@ -101,8 +103,6 @@ Added
 - Spin-orbit coupling for xTB
 
 - Dual American and British English spelling for various input keywords
-
-- Onsite corrected hamiltonian for range separated functional
 
 
 Fixed
