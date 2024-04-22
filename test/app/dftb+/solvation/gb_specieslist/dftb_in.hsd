@@ -12,7 +12,7 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(Toluene)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(Toluene)
     Solvent = fromConstants {
       Epsilon =    7.00000000
       MolecularMass [amu] =   92.14000000
@@ -130,4 +130,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

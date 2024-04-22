@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,7 +37,7 @@ contains
 
 
   !> Signed determinant of a 3x3 matrix
-  function  determinant33(matrix)
+  function determinant33(matrix)
 
     !> The matrix for which to calculate the determinant.
     real(dp), intent(in) :: matrix(:,:)
@@ -62,7 +62,7 @@ contains
 
 
   !> Derivative of determinant of a 3x3 matrix
-  subroutine  derivDeterminant33(deriv,matrix)
+  subroutine derivDeterminant33(deriv,matrix)
 
     !> derivative of the determinant
     real(dp), intent(out) :: deriv(:, :)

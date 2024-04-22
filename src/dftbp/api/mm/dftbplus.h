@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2023  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -107,6 +107,15 @@ void dftbp_api(int *major, int *minor, int *patch);
  */
 _Bool dftbp_is_instance_safe();
 
+
+/**
+ * Finalizes a DftbPlusInput instance.
+ *
+ * \param[inout] instance Handler of the DftbPlusInput instance.
+*/
+void dftbp_input_final(DftbPlusInput *instance);
+
+
 /**
  * Initializes a DFTB+ calculator.
  *
@@ -114,7 +123,7 @@ _Bool dftbp_is_instance_safe();
  *
  * \param[in] outputfilename Name of the file, where the DFTB+ screen output should be written.
  *     If you pass NULL, it will be written to standard output. If you pass any other file name as a
- *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to 
+ *     C string, it will be opened, and the output will be written there. Pass "/dev/null" to
  *     suppress output.
  */
 void dftbp_init(DftbPlus *instance, const char *outputfilename);
@@ -142,13 +151,6 @@ void dftbp_init_mpi(DftbPlus *instance, const char *outputfilename, int mpiComm)
  * \param[inout] instance Handler of the DFTB+ instance.
  */
 void dftbp_final(DftbPlus *instance);
-
-
-/**
- * Obtain nr. of atoms and list of species from the MM program.
- */
-void dftbp_get_atom_list(DftbPlusAtomList *atomListHandler, int *nAtomC, int *nSpeciesC,
-                         char *elementC, int *species);
 
 
 /**
@@ -250,6 +252,41 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
                                        const double *latvecs, const double *origin);
 
 /**
+ * Sets the neighbour list.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nAllAtom Number of neighbour atoms in all interacting cells, which is usually much
+ *     larger than natom
+ *
+ * \param[in] nMaxNeighbours Maximum number of neighbours an atom can have
+ *
+ * \param[in] nNeighbours Number of neighbours of an atom Shape: [natom].
+ *
+ * \param[in] neighbourIndex References to neighbour atoms for an atom in the central cell. This
+ *     index is used to query the values of coordNeighbours and neighbour2CentCell
+ *     Shape: [nMaxNeighbours, natom].
+ *
+ * \param[in] neighbourDistance Distances to neighbour atoms for an atom in the central cell
+ *     Shape: [nMaxNeighbours, natom].
+ *
+ * \param[in] cutoff Cutoff used to compute the neighbour list Unit: Bohr.
+ *
+ * \param[in] coordNeighbours Coordinates of all neighbour atom in all cells
+ *     Shape: [3, nAllAtom]. Unit: Bohr.
+ *
+ * \param[in] neighbour2CentCell Index of the atom in the central cell a neighbour atom corresponds
+ *     to Shape: [nAllAtom].
+ *
+ */
+void dftbp_set_neighbour_list(DftbPlus *instance, const int nAllAtom, const int nMaxNeighbours,
+                                       const int *nNeighbours, const int *neighbourIndex,
+                                       const double *neighbourDistance, const double cutoff,
+                                       const double *coordNeighbours,
+                                       const int *neighbour2CentCell);
+
+
+/**
  * Queries the nr. of atoms in the system.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -310,6 +347,16 @@ void dftbp_get_masses(DftbPlus *instance, double *masses);
 
 
 /**
+ * Queries the maximum cutoff distance used for interactions.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Cutoff distance Unit: Bohr.
+ */
+double dftbp_get_cutoff(DftbPlus *instance);
+
+
+/**
  * Queries the stress tensor of the current periodic box.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -339,6 +386,26 @@ void dftbp_get_gross_charges(DftbPlus *instance, double *charges);
  *     negative charge, so negative values indicate electron excess.
  */
 void dftbp_get_cm5_charges(DftbPlus *instance, double *charges);
+
+
+/**
+ * Queries the reference valence charges of the atoms (effective Z).
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] charges reference charges on each atom. Shape: [natom].
+ */
+void dftbp_get_ref_charges(DftbPlus *instance, double *charges);
+
+
+/**
+ * Sets the reference valence charges of the atoms (effective Z).
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] charges reference charges on each atomic shell. Shape: [natom].
+ */
+void dftbp_set_ref_charges(DftbPlus *instance, double *charges);
 
 
 /**

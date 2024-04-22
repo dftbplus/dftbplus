@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@
 module dftbp_common_gpuenv
   use iso_c_binding, only :  c_int
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested
+  use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested, gpusInit
   implicit none
 
   private
@@ -39,6 +39,7 @@ contains
 
     integer(c_int) :: nGpuReq
 
+    call gpusInit()
     call getGpusAvailable(this%nGpu)
     call getGpusRequested(nGpuReq)
     write(stdOut, *) "Number of GPUs requested:", nGpuReq

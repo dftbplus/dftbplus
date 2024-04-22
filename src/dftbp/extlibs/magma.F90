@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ module dftbp_extlibs_magma
   private
   public :: withGpu
 #:if WITH_MAGMA
-  public :: getGpusAvailable, getGpusRequested
+  public :: getGpusAvailable, getGpusRequested, gpusInit
   public :: magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m, magmaf_zhegvd_m
 #:endif
 
@@ -28,6 +28,14 @@ module dftbp_extlibs_magma
 #:if WITH_MAGMA
 
   interface
+
+    !> Initialises magma.
+    subroutine  gpusInit() bind(C, name='magma_init')
+
+      implicit none
+
+    end subroutine gpusInit
+
 
     !> Initialises magma and queries the nr. of available GPUs.
     subroutine  getGpusAvailable(nGpu) bind(C, name='dftbp_extlibs_magma_get_gpus_available')

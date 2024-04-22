@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(benzene)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(benzene)
     Solvent = fromConstants {
       Epsilon = 7.00
       MolecularMass [amu] = 78.11

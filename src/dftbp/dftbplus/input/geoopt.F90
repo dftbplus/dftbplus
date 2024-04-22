@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,16 +12,16 @@ module dftbp_dftbplus_input_geoopt
   use dftbp_common_unitconversion, only : timeUnits, lengthUnits, energyUnits, forceUnits
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getNodeName
   use dftbp_geoopt_package, only : TFilterInput, TOptimizerInput, TRationalFuncInput,&
-      & TLbfgsInput, TFireInput, TOptTolerance
+      & TLbfgsInput, TFireInput, TSteepdescInput, TOptTolerance
   use dftbp_io_charmanip, only : unquote
-  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
-      & detailedWarning, getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : convertUnitHsd
+  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, detailedWarning,&
+      & getSelectedAtomIndices
+  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private
-  public :: readGeoOptInput, TGeoOptInput
+  public :: readGeoOptInput, readOptimizerInput, TGeoOptInput
 
 
   !> General input wrapper for optimisers in this package
@@ -66,12 +66,16 @@ contains
     type(fnode), pointer :: child, value1
     type(string) :: buffer
 
+    call renameChildren(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child, "Rational")
     call readOptimizerInput(child, input%optimiser)
 
     call readFilterInput(node, geom, input%filter, atomsRange)
 
-    call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
+    call getChild(node, "Convergence", child, requested=.false.)
+    if (.not.associated(child)) then
+      call setChild(node, "Convergence", child)
+    end if
     call readOptTolerance(child, input%tolerance)
 
     call getChildValue(node, "MaxSteps", input%nGeoSteps, 20*geom%nAtom)
@@ -91,6 +95,7 @@ contains
     !> Control structure to be filled
     class(TOptimizerInput), allocatable, intent(out) :: input
 
+    type(TSteepDescInput), allocatable :: steepDescInput
     type(TFireInput), allocatable :: fireInput
     type(TLbfgsInput), allocatable :: lbfgsInput
     type(TRationalFuncInput), allocatable :: rationalFuncInput
@@ -100,6 +105,10 @@ contains
     select case (char(buffer))
     case default
       call detailedError(node, "Invalid optimiser name.")
+    case("steepestdescent")
+        allocate(steepDescInput)
+        call readSteepDescInput(node, steepDescInput)
+        call move_alloc(steepDescInput, input)
     case("fire")
         allocate(fireInput)
         call readFireInput(node, fireInput)
@@ -181,6 +190,20 @@ contains
     call convertUnitHsd(char(modifier), lengthUnits, field, input%dispElem)
 
   end subroutine readOptTolerance
+
+
+  !> Entry point for reading input for SteepestDescent
+  subroutine readSteepDescInput(node, input)
+
+    !> Node to get the information from
+    type(fnode), intent(in), pointer :: node
+
+    !> Control structure to be filled
+    type(TSteepDescInput), intent(out) :: input
+
+    call getChildValue(node, "ScalingFactor", input%scalingFactor, 1.0_dp)
+
+  end subroutine readSteepDescInput
 
 
   !> Entry point for reading input for FIRE

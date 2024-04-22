@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -487,6 +487,12 @@ contains
 
     !> Spatial extension of external charge distribution
     real(dp), intent(in), optional :: blurWidths(:)
+
+    if ( allocated(this%extCharges) ) then
+       if ( this%extCharges%getNumCharges() /= size(chargeQs) ) then
+          deallocate(this%extCharges)
+       end if
+    end if
 
     if (.not. allocated(this%extCharges)) then
       allocate(this%extCharges)

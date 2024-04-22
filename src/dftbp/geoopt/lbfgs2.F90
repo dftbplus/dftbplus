@@ -1,9 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
+
+#:include 'common.fypp'
 
 module dftbp_geoopt_lbfgs2
   use dftbp_common_accuracy, only : dp
@@ -42,10 +44,10 @@ module dftbp_geoopt_lbfgs2
     real(dp), allocatable :: hdiag(:)
 
     !> LBFGS scratch array of former displacements
-    real(dp), allocatable :: s(:, :)
+    real(dp), allocatable :: s(:,:)
 
     !> LBFGS scratch array of former gradient changes
-    real(dp), allocatable :: y(:, :)
+    real(dp), allocatable :: y(:,:)
 
     !> LBFGS scratch array of dot products between s and y
     real(dp), allocatable :: rho(:)
@@ -54,6 +56,9 @@ module dftbp_geoopt_lbfgs2
 
     !> Calculate displacement from gradient
     procedure :: step
+
+    !> Reset optimizer
+    procedure :: reset
 
   end type TLbfgs
 
@@ -107,6 +112,22 @@ contains
     this%gLast(:) = grad
 
   end subroutine step
+
+
+  !> Reset optimizer
+  subroutine reset(this)
+
+    !> Instance of geometry optimization driver
+    class(TLbfgs), intent(inout) :: this
+
+    this%iter = 0
+    this%gLast(:) = 0.0_dp
+    this%hdiag(:) = 1.0_dp
+    this%s(:,:) = 0.0_dp
+    this%y(:,:) = 0.0_dp
+    this%rho(:) = 0.0_dp
+
+  end subroutine reset
 
 
   !> Updates displacement using the formula given by Nocedal, generally known

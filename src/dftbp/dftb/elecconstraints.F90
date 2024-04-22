@@ -1,434 +1,430 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
-!> Constraints on the electronic ground state
+!> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_angmomentum, only : getLOperators
   use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_extlibs_xmlf90, only : fnode, string, char, getLength, getItem1, fnodeList
+  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
+  use dftbp_geoopt_package, only : TOptimizer, TOptimizerInput, createOptimizer
+  use dftbp_io_hsdutils, only : getChildValue, getChildren, getSelectedAtomIndices
+  use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
+  use dftbp_extlibs_xmlf90, only : destroyNodeList
   implicit none
 
   private
-  public :: constrainQ, constrainS, constrainL, constrainJ, constrainMj
+  public :: TElecConstraint, TElecConstraint_init, TElecConstraintInput
+  public :: readElecConstraintInput
+
+
+  !> Contains input data for electronic constraints.
+  type TElecConstraintInput
+
+    !> Optimiser input choice
+    class(TOptimizerInput), allocatable :: optimiser
+
+    !> Group of atoms in a constraint
+    type(TWrappedInt1), allocatable :: atomGrp(:)
+
+    !> Constraint targets for atom groups
+    real(dp), allocatable :: atomNc(:)
+
+    !> Direction of constraint in (q,m) space
+    type(TWrappedReal1), allocatable :: atomSpinDir(:)
+
+    !> Derivative tolerance for constraint
+    real(dp) :: constrTol
+
+    !> Number of iterations for enforcing constraint
+    integer :: nConstrIter
+
+    !> True, if converged micro-iterations are required
+    logical :: isConstrConvRequired
+
+  end type TElecConstraintInput
+
+
+  !> Represents electronic contraints.
+  type TElecConstraint
+
+    !> Value of the constraint
+    real(dp), allocatable :: Nc(:)
+
+    !> Potential
+    real(dp), allocatable :: Vc(:)
+
+    !> Contribution to free energy functional from constraint
+    real(dp), allocatable :: deltaW(:)
+
+    !> Derivative of energy functional with respect to Vc
+    real(dp), allocatable :: dWdVc(:)
+
+    ! Weighting function for constraint
+
+    !> Atom(s) involved in each constraint
+    type(TWrappedInt1), allocatable :: wAt(:)
+
+    !> Atomic orbital(s) involved in each constraint
+    type(TWrappedInt1), allocatable :: wAtOrb(:)
+
+    !> Atomic orbital qm-values  involved in each constraint
+    !> ([q] for spin unpolarized case, [q, m] for colinear spin)
+    type(TWrappedReal2), allocatable :: wAtSpin(:)
+
+    !> General optimiser
+    class(TOptimizer), allocatable :: potOpt
+
+    !> Derivative tolerance for constraint
+    real(dp) :: constrTol
+
+    !> Number of iterations for enforcing constraint
+    integer :: nConstrIter
+
+    !> True, if converged micro-iterations are required
+    logical :: isConstrConvRequired
+
+  contains
+
+    procedure :: getConstraintShift
+    procedure :: propagateConstraints
+    procedure :: getMaxIter
+    procedure :: getFreeEnergy
+    procedure :: getMaxEnergyDerivWrtVc
+
+  end type TElecConstraint
 
 
 contains
 
 
-  !> Quadratic constraint on atomic charge
-  subroutine constrainQ(shift, qIn, orb, species, conAt, conSh, Qtarget, V)
+  !> General entry point to read constraint on the electronic ground state.
+  subroutine readElecConstraintInput(node, geo, input, isSpinPol)
 
-    !> shift to append contribution
-    real(dp), intent(inout) :: shift(:,:,:,:)
+    !> Node to get the information from
+    type(fnode), pointer, intent(in) :: node
 
-    !> charges
-    real(dp), intent(in) :: qIn(:,:,:)
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
 
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
+    !> Control structure to be filled
+    type(TElecConstraintInput), intent(out) :: input
 
-    !> Chemical species of atoms
-    integer, intent(in) :: species(:)
+    !> True, if this is a spin polarized calculation
+    logical, intent(in) :: isSpinPol
 
-    !> atom to be constrained
-    integer, intent(in) :: conAt
+    type(fnode), pointer :: val, child1, child2, child3
+    type(fnodeList), pointer :: children
+    type(string) :: buffer
+    integer :: iConstr, nConstr
 
-    !> shell of atom to be constrained
-    integer, intent(in) :: conSh
+    call getChildValue(node, "Optimiser", child1, "FIRE")
+    call readOptimizerInput(child1, input%optimiser)
 
-    !> target value
-    real(dp), intent(in) :: Qtarget
+    call getChildValue(node, "ConstrTolerance", input%constrTol, 1.0e-08_dp)
+    call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
+    call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, .true.)
 
-    !> weight of the constraint
-    real(dp), intent(in) :: V
+    call getChildValue(node, "Regions", val, "", child=child1, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
 
-    integer :: iOrb
-    real(dp) :: Qshell
+    ! Read specification for regions of atoms
+    call getChildren(child1, "Atoms", children)
+    nConstr = getLength(children)
 
-    Qshell = sum(qIn(orb%posShell(conSh,species(conAt)):orb%posShell(conSh+1,species(conAt))-1, &
-        & conAt,1))
+    allocate(input%atomGrp(nConstr))
+    allocate(input%atomNc(nConstr))
+    allocate(input%atomSpinDir(nConstr))
 
-    ! Push q towards required value
-    do iOrb = orb%posShell(conSh,species(conAt)), orb%posShell(conSh+1,species(conAt))-1
-      shift(iOrb,iOrb,conAt,1) = shift(iOrb,iOrb,conAt,1) + V * 0.5_dp*(Qshell - Qtarget)
+    do iConstr = 1, nConstr
+      call getItem1(children, iConstr, child2)
+      call getChildValue(child2, "Domain", buffer, child=child3, multiple=.true.)
+      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species,&
+          & input%atomGrp(iConstr)%data)
+      call getChildValue(child2, "Population", input%atomNc(iConstr))
+      ! Functionality currently restricted to charges
+      if (isSpinPol) then
+        input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
+      else
+        input%atomSpinDir(iConstr)%data = [1.0_dp]
+      end if
     end do
 
-  end subroutine constrainQ
+    call destroyNodeList(children)
+
+  end subroutine readElecConstraintInput
 
 
-  !> Quadratic constraint on local spin (non-colinear)
-  subroutine constrainS(shift, qIn, orb, species, conAt, conSh, Starget, V, vec)
+  !> Initialises the constraints structure.
+  subroutine TElecConstraint_init(this, input, orb)
 
-    !> shift to append contribution
-    real(dp), intent(inout) :: shift(:,:,:,:)
+    !> Constraint structure instance
+    type(TElecConstraint), intent(out) :: this
 
-    !> charges
-    real(dp), intent(in) :: qIn(:,:,:)
+    !> Input data structure
+    type(TElecConstraintInput), intent(inout) :: input
 
-    !> atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Chemical species of atoms
-    integer, intent(in) :: species(:)
+    integer :: iConstr, nConstr, ii, jj, iAt, nOrb, nSpin
 
-    !> atom to be constrained
-    integer, intent(in) :: conAt
+    nConstr = size(input%atomGrp)
 
-    !> shell of atom to be constrained
-    integer, intent(in) :: conSh
+    ! We should enable optional initialization of Vc from input at some point.
+    allocate(this%Vc(nConstr), source=0.0_dp)
 
-    !> target value
-    real(dp), intent(in) :: Starget
+    allocate(this%dWdVc(nConstr), source=0.0_dp)
+    allocate(this%deltaW(nConstr), source=0.0_dp)
 
-    !> weight of the constraint
-    real(dp), intent(in) :: V
+    call createOptimizer(input%optimiser, nConstr, this%potOpt)
 
-    !> direction of spin
-    real(dp), intent(in) :: vec(3)
+    this%nConstrIter = input%nConstrIter
+    this%isConstrConvRequired = input%isConstrConvRequired
+    this%constrTol = input%constrTol
+    this%Nc = input%AtomNc
 
-    integer :: iOrb, nSpin, iSpin
-    real(dp) :: Sshell(3), W, vecNorm(3)
+    allocate(this%wAt(nConstr))
+    allocate(this%wAtOrb(nConstr))
+    allocate(this%wAtSpin(nConstr))
 
-    nSpin = size(shift,dim=4)
-
-    vecNorm = vec / sqrt(sum(vec**2))
-
-    Sshell = sum(qIn(orb%posShell(conSh,species(conAt)):orb%posShell(conSh+1,species(conAt))-1, &
-        & conAt,2:4),dim=1)
-
-    if (sqrt(sum(Sshell**2)) < 1.0E-8_dp) then
-      Sshell = Sshell + 1.0E-8_dp*(/1,1,1/)
-    end if
-
-    vecNorm = Sshell  / sqrt(sum(Sshell**2))
-
-    ! Push S towards required value
-    w = V * 0.5_dp*(dot_product(Sshell,vecNorm) - Starget)
-
-    do iSpin = 2, nSpin
-      do iOrb = orb%posShell(conSh,species(conAt)),orb%posShell(conSh+1,species(conAt))-1
-        shift(iOrb,iOrb,conAt,iSpin) = shift(iOrb,iOrb,conAt,iSpin) + w * vecNorm(iSpin-1)
+    ! Allocate + initialize arrays and build index mappings
+    do iConstr = 1, nConstr
+      ! Count orbitals subject to constraints
+      nOrb = 0
+      do ii = 1, size(input%atomGrp(iConstr)%data)
+        iAt = input%atomGrp(iConstr)%data(ii)
+        nOrb = nOrb + orb%nOrbAtom(iAt)
+      end do
+      allocate(this%wAt(iConstr)%data(nOrb), source=0)
+      allocate(this%wAtOrb(iConstr)%data(nOrb), source=0)
+      nSpin = size(input%atomSpinDir(iConstr)%data)
+      allocate(this%wAtSpin(iConstr)%data(nOrb, nSpin), source=0.0_dp)
+      nOrb = 0
+      do ii = 1, size(input%atomGrp(iConstr)%data)
+        iAt = input%atomGrp(iConstr)%data(ii)
+        do jj = 1, orb%nOrbAtom(iAt)
+          this%wAt(iConstr)%data(nOrb+jj) = iAt
+          this%wAtOrb(iConstr)%data(nOrb+jj) = jj
+          this%wAtSpin(iConstr)%data(nOrb+jj,:) = input%atomSpinDir(iConstr)%data
+        end do
+        nOrb = nOrb + orb%nOrbAtom(iAt)
       end do
     end do
 
-  end subroutine constrainS
+  end subroutine TElecConstraint_init
 
 
-  !> Quadratic constraint on orbital angular momentum
-  subroutine constrainL(iShift,qBlockSkew, orb, species, conAt, conSh, Ltarget, V, vec)
+  !> Returns maximum number of iterations for constraint driver.
+  pure function getMaxIter(this) result(maxIter)
 
-    !> shift block shift
-    real(dp), intent(inout) :: iShift(:,:,:,:)
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
 
-    !> Antisymmetric Mulliken block populations for imaginary coefficients of
-  !> Pauli matrics
-    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+    !> Obtained maximum number of iterations
+    integer :: maxIter
 
-    !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
+    maxIter = this%nConstrIter
 
-    !> Species of the atoms
-    integer, intent(in) :: species(:)
+  end function getMaxIter
 
-    !> Atom for constraint
-    integer, intent(in) :: conAt
 
-    !> Shell for constraint
-    integer, intent(in) :: conSh
+  !> Returns total contribution to free energy functional from constraints.
+  pure function getFreeEnergy(this) result(deltaWTotal)
 
-    !> value of L
-    real(dp), intent(in) :: Ltarget
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
 
-    !> strength of constraint
-    real(dp), intent(in) :: V
+    !> Summed up contribution to free energy functional from constraints
+    real(dp) :: deltaWTotal
 
-    !> direction of constrain
-    real(dp), intent(in) :: vec(3)
+    deltaWTotal = sum(this%deltaW)
 
-    integer :: ii, iSp, iSh, iOrb, iStart, iEnd
-    real(dp), allocatable :: SpeciesL(:,:,:)
-    complex(dp), allocatable :: Lz(:,:)
-    complex(dp), allocatable :: Lplus(:,:)
-    real(dp), allocatable :: tmpBlock(:,:)
-    real(dp) :: Lshell(3), W, vecNorm(3)
+  end function getFreeEnergy
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
-    vecNorm = vec / sqrt(sum(vec**2))
+  !> Returns maximum derivative of energy functional with respect to Vc.
+  pure function getMaxEnergyDerivWrtVc(this) result(dWdVcMax)
 
-    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
-    SpeciesL = 0.0_dp
-    allocate(Lz(orb%mOrb,orb%mOrb))
-    allocate(Lplus(orb%mOrb,orb%mOrb))
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
 
-    iSp = species(conAt)
-    Lz = 0.0_dp
-    Lplus = 0.0_dp
-    iSh = orb%angShell(conSh,iSp)
-    call getLoperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
+    !> Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
 
-    allocate(tmpBlock(orb%mOrb,orb%mOrb))
+    dWdVcMax = maxval(abs(this%dWdVc))
 
-    Lshell = 0.0_dp
+  end function getMaxEnergyDerivWrtVc
 
-    iOrb = orb%nOrbSpecies(iSp)
-    tmpBlock(:,:) = 0.0_dp
-    ! identity part
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
-    iStart = orb%posShell(conSh,iSp)
-    iEnd = orb%posShell(conSh+1,iSp)-1
-    do ii = 1, 3
-      Lshell(ii) = &
-          & - sum(SpeciesL(iStart:iEnd,iStart:iEnd,ii) &
-          &  * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
+
+  !> Applies electronic constraints to system.
+  subroutine propagateConstraints(this, qq, energy, tConverged)
+
+    !> Class instance
+    class(TElecConstraint), intent(inout) :: this
+
+    !> Mulliken populations
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Energy
+    real(dp), intent(in) :: energy
+
+    !> Gradient convergence achieved
+    logical, intent(out) :: tConverged
+
+    ! Summed up contribution to free energy functional from constraints
+    real(dp) :: deltaWTotal
+
+    ! Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    ! Potential displacement proposed by optimizer
+    real(dp) :: potDisplace(size(this%Vc))
+
+    integer :: iConstr, nConstr
+
+    nConstr = size(this%wAt)
+
+    do iConstr = 1, nConstr
+      call getConstraintEnergyAndPotQ(this%Vc(iConstr), this%Nc(iConstr), this%wAt(iConstr)%data,&
+          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data, qq, this%deltaW(iConstr),&
+          & this%dWdVc(iConstr))
     end do
 
-    if (sqrt(sum(Lshell**2)) < 1.0E-8_dp) then
-      Lshell = Lshell + 1.0E-8_dp*(/1,1,1/)
-    end if
+    ! Sum up all free energy contributions
+    deltaWTotal = this%getFreeEnergy()
 
-    vecNorm = Lshell / sqrt(sum(Lshell**2))
+    ! Get maximum derivative of energy functional with respect to Vc
+    dWdVcMax = this%getMaxEnergyDerivWrtVc()
 
-    ! Push L towards required value
-    w = V * 0.5_dp*(dot_product(lshell,vecNorm)-Ltarget)
+    call this%potOpt%step(energy + deltaWTotal, -this%dWdVc, potDisplace)
+    this%Vc(:) = this%Vc + potDisplace
 
-    do ii = 1, 3
-      iShift(iStart:iEnd,iStart:iEnd,conAt,1) = &
-          & iShift(iStart:iEnd,iStart:iEnd,conAt,1) &
-          & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
-    end do
+    ! In this case dWdVc is equivalent to the condition itself,
+    ! so we can use it to measure convergence.
+    tConverged = dWdVcMax < this%constrTol
 
-  end subroutine constrainL
+  end subroutine propagateConstraints
 
 
-  !> Quadratic constraint on total angular momentum
-  subroutine constrainJ(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, Jtarget, V, &
-      & vec)
-    real(dp), intent(inout) :: shift(:,:,:,:)
+  !> Calculate artificial potential to realize constraint on atomic charge.
+  subroutine getConstraintEnergyAndPotQ(Vc, Nc, wAt, wOrb, wSp, qq, deltaW, dWdV)
 
-    !> charges
-    real(dp), intent(in) :: qIn(:,:,:)
+    !> Potential / Lagrange multiplier
+    real(dp), intent(in) :: Vc
 
-    !> Imaginary block shift
-    real(dp), intent(inout) :: iShift(:,:,:,:)
+    !> Target population
+    real(dp), intent(in) :: Nc
 
-    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
-    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+    !> Atom(s) involved in current constrain
+    integer, intent(in) :: wAt(:)
 
-    !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
+    !> Orbital(s) involved in current constrain
+    integer, intent(in) :: wOrb(:)
 
-    !> Species of the atoms
-    integer, intent(in) :: species(:)
+    !> Spin(s) involved in current constrain
+    real(dp), intent(in) :: wSp(:,:)
 
-    !> Atom for constraint
-    integer, intent(in) :: conAt
+    !> Mulliken populations
+    real(dp), intent(in) :: qq(:,:,:)
 
-    !> Shell for constraint
-    integer, intent(in) :: conSh
+    !> Free energy contribution from current contraint
+    real(dp), intent(out) :: deltaW
 
-    !> value of J
-    real(dp), intent(in) :: Jtarget
+    !> Derivative of free energy with respect to potential
+    real(dp), intent(out) :: dWdV
 
-    !> strength of constraint
-    real(dp), intent(in) :: V
+    ! Number of spin channels to be constrained
+    integer :: nSpin
 
-    !> direction of constrain
-    real(dp), intent(in) :: vec(3)
+    ! Index of spin channel
+    integer :: iSpin
 
-    integer :: ii, iSp, iSh, iOrb, iStart, iEnd, nSpin, iSpin
-    real(dp), allocatable :: SpeciesL(:,:,:)
-    complex(dp), allocatable :: Lz(:,:)
-    complex(dp), allocatable :: Lplus(:,:)
-    real(dp), allocatable :: tmpBlock(:,:)
-    real(dp) :: Lshell(3), Sshell(3), W, vecNorm(3)
+    ! Index of atomic orbital
+    integer :: iW
 
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
+    ! Present population
+    real(dp) :: wn
 
-    nSpin = size(shift,dim=4)
-
-    vecNorm = vec / sqrt(sum(vec**2))
-
-    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
-    SpeciesL = 0.0_dp
-    allocate(Lz(orb%mOrb,orb%mOrb))
-    allocate(Lplus(orb%mOrb,orb%mOrb))
-
-    iSp = species(conAt)
-    Lz = 0.0_dp
-    Lplus = 0.0_dp
-    iSh = orb%angShell(conSh,iSp)
-    call getLoperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
-
-    allocate(tmpBlock(orb%mOrb,orb%mOrb))
-
-    Lshell = 0.0_dp
-
-    iOrb = orb%nOrbSpecies(iSp)
-    tmpBlock(:,:) = 0.0_dp
-
-    ! identity part
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
-    iStart = orb%posShell(conSh,iSp)
-    iEnd = orb%posShell(conSh+1,iSp)-1
-    do ii = 1, 3
-      Lshell(ii) = -sum(SpeciesL(iStart:iEnd,iStart:iEnd,ii) &
-          & * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
-    end do
-
-    Sshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
-        & orb%posShell(conSh+1,species(conAt))-1,conAt,2:4),dim=1)
-
-    if ( sqrt(sum((lshell + 0.5_dp*Sshell)**2)) < 1.0E-8_dp) then
-      Sshell = Sshell + 1.0E-8_dp*(/1,1,1/)
-    end if
-
-    vecNorm = (lshell + 0.5_dp*Sshell) / sqrt(sum((lshell + 0.5_dp*Sshell)**2))
-
-    ! Push J towards required value
-    w = V * 0.5_dp*(dot_product(lshell,vecNorm)+ &
-        & 0.5_dp*dot_product(Sshell,vecNorm) -Jtarget)
-
-    do ii = 1, 3
-      iShift(iStart:iEnd,iStart:iEnd,conAt,1) = &
-          & iShift(iStart:iEnd,iStart:iEnd,conAt,1) &
-          & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
-    end do
-
-    do iSpin = 2, nSpin
-      do iOrb = orb%posShell(conSh,species(conAt)), &
-          & orb%posShell(conSh+1,species(conAt))-1
-        shift(iOrb,iOrb,conAt,iSpin) = shift(iOrb,iOrb,conAt,iSpin) &
-            & + w * vecNorm(iSpin-1)
+    nSpin = size(wSp, dim=2)
+    wn = 0.0_dp
+    do iSpin = 1, nSpin
+      do iW = 1, size(wAt)
+        wn = wn + wSp(iW, iSpin) * qq(wOrb(iW), wAt(iW), iSpin)
       end do
     end do
 
-  end subroutine constrainJ
+    dWdV = wn - Nc
+    deltaW = Vc * dWdV
+
+  end subroutine getConstraintEnergyAndPotQ
 
 
-  !> Quadratic constraint on projection of angular momentum
-  subroutine constrainMj(shift, qIn, iShift, qBlockSkew, orb, species, conAt, conSh, MjTarget, V, &
-      & vec)
+  !> Get total shift of all constraints.
+  subroutine getConstraintShift(this, shift)
 
-    !> block shift
+    !> Class instance
+    class(TElecConstraint), intent(inout) :: this
+
+    !> Total shift of all constraints
+    real(dp), intent(out) :: shift(:,:,:,:)
+
+    integer :: iConstr, nConstr
+
+    shift(:,:,:,:) = 0.0_dp
+    nConstr = size(this%wAt)
+
+    do iConstr = 1, nConstr
+      call getConstraintShiftQ(shift, this%Vc(iConstr), this%wAt(iConstr)%data,&
+          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data)
+    end do
+
+  end subroutine getConstraintShift
+
+
+  !> Get shift for atomic charge constraint.
+  subroutine getConstraintShiftQ(shift, Vc, wAt, wOrb, wSp)
+
+    !> Shift to which contribution is appended
     real(dp), intent(inout) :: shift(:,:,:,:)
 
-    !> charges
-    real(dp), intent(in) :: qIn(:,:,:)
+    !> Potential / Lagrange multiplier
+    real(dp), intent(in) :: Vc
 
-    !> Imaginary block shift
-    real(dp), intent(inout) :: iShift(:,:,:,:)
+    !> Atom(s) involved in current constrain
+    integer, intent(in) :: wAt(:)
 
-    !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
-    real(dp), intent(in) :: qBlockSkew(:,:,:,:)
+    !> Orbital(s) involved in current constrain
+    integer, intent(in) :: wOrb(:)
 
-    !> Information about the orbitals in the system.
-    type(TOrbitals), intent(in) :: orb
+    !> Spin(s) involved in current constrain
+    real(dp), intent(in) :: wSp(:,:)
 
-    !> Species of the atoms
-    integer, intent(in) :: species(:)
+    ! Number of spin channels to be constrained
+    integer :: nSpin
 
-    !> Atom for constraint
-    integer, intent(in) :: conAt
+    ! Index of spin channel
+    integer :: iSpin
 
-    !> Shell for constraint
-    integer, intent(in) :: conSh
+    ! Index of atomic orbital
+    integer :: iW
 
-    !> value of Mj
-    real(dp), intent(in) :: MjTarget
+    nSpin = size(wSp, dim=2)
 
-    !> strength of constraint
-    real(dp), intent(in) :: V
-
-    !> direction of constrain
-    real(dp), intent(in) :: vec(3)
-
-    integer :: ii, iSp, iSh, iOrb, iStart, iEnd, nSpin, iSpin
-    real(dp), allocatable :: SpeciesL(:,:,:)
-    complex(dp), allocatable :: Lz(:,:)
-    complex(dp), allocatable :: Lplus(:,:)
-    real(dp), allocatable :: tmpBlock(:,:)
-    real(dp) :: Lshell(3), Sshell(3), W, vecNorm(3)
-
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
-
-    nSpin = size(shift,dim=4)
-
-    vecNorm = vec / sqrt(sum(vec**2))
-
-    allocate(SpeciesL(orb%mOrb,orb%mOrb,3))
-    SpeciesL = 0.0_dp
-    allocate(Lz(orb%mOrb,orb%mOrb))
-    allocate(Lplus(orb%mOrb,orb%mOrb))
-
-    iSp = species(conAt)
-    Lz = 0.0_dp
-    Lplus = 0.0_dp
-    iSh = orb%angShell(conSh,iSp)
-    call getLOperators(iSh, Lplus(1:2*iSh+1,1:2*iSh+1),Lz(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,1) = aimag(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,2) = -real(Lplus(1:2*iSh+1,1:2*iSh+1))
-    speciesL(orb%posShell(conSh,iSp):orb%posShell(conSh+1,iSp)-1,orb%posShell(conSh,iSp): &
-        & orb%posShell(conSh+1,iSp)-1,3) = aimag(Lz(1:2*iSh+1,1:2*iSh+1))
-
-    allocate(tmpBlock(orb%mOrb,orb%mOrb))
-
-    Lshell = 0.0_dp
-
-    iOrb = orb%nOrbSpecies(iSp)
-    tmpBlock(:,:) = 0.0_dp
-
-    ! identity part
-    tmpBlock(1:iOrb,1:iOrb) = qBlockSkew(1:iOrb,1:iOrb,conAt,1)
-    iStart = orb%posShell(conSh,iSp)
-    iEnd = orb%posShell(conSh+1,iSp)-1
-    do ii = 1, 3
-      Lshell(ii) = &
-          & - sum(SpeciesL(iStart:iEnd,iStart:iEnd,ii) &
-          &  * transpose(tmpBlock(iStart:iEnd,iStart:iEnd)))
-    end do
-
-    Sshell = sum(qIn(orb%posShell(conSh,species(conAt)): &
-        & orb%posShell(conSh+1,species(conAt))-1,conAt,2:4),dim=1)
-
-    ! Push Mj towards required value
-    w = V * 0.5_dp*(dot_product(lshell,vecNorm)+ &
-        & 0.5_dp*dot_product(Sshell,vecNorm)-MjTarget)
-
-    do ii = 1, 3
-      iShift(iStart:iEnd,iStart:iEnd,conAt,1) = &
-          & iShift(iStart:iEnd,iStart:iEnd,conAt,1) &
-          & + w * vecNorm(ii) * SpeciesL(iStart:iEnd,iStart:iEnd,ii)
-    end do
-
-    do iSpin = 2, nSpin
-      do iOrb = orb%posShell(conSh,species(conAt)), &
-          & orb%posShell(conSh+1,species(conAt))-1
-        shift(iOrb,iOrb,conAt,iSpin) = shift(iOrb,iOrb,conAt,iSpin) &
-            & + w * vecNorm(iSpin-1)
+    do iSpin = 1, nSpin
+      do iW = 1, size(wAt)
+        shift(wOrb(iW), wOrb(iW), wAt(iW), iSpin) = shift(wOrb(iW), wOrb(iW), wAt(iW), iSpin)&
+            & + Vc * wSp(iW, iSpin)
       end do
     end do
 
-  end subroutine constrainMj
+  end subroutine getConstraintShiftQ
 
 end module dftbp_dftb_elecconstraints

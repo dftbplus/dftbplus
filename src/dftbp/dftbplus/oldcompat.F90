@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -78,13 +78,18 @@ contains
       case (11)
         call convert_11_12(root)
         version = 12
+      case (12)
+        call convert_12_13(root)
+        version = 13
+      case (13)
+        call convert_13_14(root)
+        version = 14
       end select
     end do
 
     ! increase the parser version number in the tree - since the resulting dftb_pin would not work
     ! with the old parser as the options have changed to the new parser by now
-    call getChildValue(root, "ParserOptions", ch1, "", child=par, &
-        &allowEmptyValue=.true.)
+    call getChildValue(root, "ParserOptions", ch1, "", child=par, allowEmptyValue=.true.)
     call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
@@ -218,7 +223,7 @@ contains
     call getDescendant(root, "Hamiltonian/DFTB/SpinPolarisation/Colinear&
         &/InitialSpin", node)
     if (associated(node)) then
-      call detailedWarning(node, "Keyword renamed to 'InitalSpins'.")
+      call detailedWarning(node, "Keyword renamed to 'InitialSpins'.")
       call setNodeName(node, "InitialSpins")
     end if
 
@@ -749,31 +754,6 @@ contains
     type(fnode), pointer :: ch1, ch2
     type(string) :: buffer
 
-    call getDescendant(root, "Driver/GeometryOptimization", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'GeometryOptimisation'.")
-      call setNodeName(ch1, "GeometryOptimisation")
-      call getDescendant(root, "Driver/GeometryOptimisation/Optimizer", ch2)
-      if (associated(ch2)) then
-        call detailedWarning(ch2, "Keyword renamed to 'Optimiser'.")
-        call setNodeName(ch2, "Optimiser")
-      end if
-    end if
-
-  #:for LABEL in [("Kick"), ("Laser")]
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
-      call setNodeName(ch1, "PolarisationDirection")
-    end if
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
-        & ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
-      call setNodeName(ch1, "ImagPolarisationDirection")
-    end if
-  #:endfor
-
     call getDescendant(root, "Transport", ch1)
     if (associated(ch1)) then
       call getChildValue(root, "Transport/Task", ch1, child=ch2, default='uploadcontacts')
@@ -791,6 +771,91 @@ contains
     end if
 
   end subroutine convert_11_12
+
+
+  !> Converts input from version 12 to 13. (Version 13 introduced in February 2023)
+  subroutine convert_12_13(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2, ch3, par1
+    integer :: maxIter
+    logical :: isPerturb, isConvRequired
+    real(dp) :: sccTol
+
+    call getDescendant(root, "Analysis/Polarisability", ch1)
+    isPerturb = associated(ch1)
+    if (.not.isPerturb) then
+      call getDescendant(root, "Analysis/ResponseKernel", ch1)
+      isPerturb = associated(ch1)
+    end if
+
+    if (isPerturb) then
+
+      call getDescendant(root, "Analysis/Eta", ch1)
+      if (associated(ch1)) then
+        call detailedWarning(ch1, "Keyword renamed to 'PerturbEta'.")
+        call setNodeName(ch1, "PerturbEta")
+      end if
+
+      call getDescendant(root, "Analysis/DegeneracyTolerance", ch1)
+      if (associated(ch1)) then
+        call detailedWarning(ch1, "Keyword renamed to 'PerturbDegenTol'.")
+        call setNodeName(ch1, "PertubDegenTol")
+      end if
+
+      call getDescendant(root, "Hamiltonian/DFTB/MaxSCCIterations", ch1, parent=par1)
+      if (associated(ch1)) then
+        call getChildValue(par1, "MaxSCCIterations", maxIter)
+        call getDescendant(root, "Analysis", ch1)
+        call setChildValue(ch1, "MaxPerturbIter", maxIter, child=ch2)
+        call setUnprocessed(ch2)
+      end if
+
+      call getDescendant(root, "Hamiltonian/DFTB/ConvergentSCCOnly", ch1, parent=par1)
+      if (associated(ch1)) then
+        call getChildValue(par1, "ConvergentSCCOnly", isConvRequired)
+        call getDescendant(root, "Analysis", ch1)
+        call setChildValue(ch1, "ConvergedPerturb", isConvRequired, child=ch2)
+        call setUnprocessed(ch2)
+      end if
+
+      call getDescendant(root, "Hamiltonian/DFTB/SccTolerance", ch1, parent=par1)
+      if (associated(ch1)) then
+        call getChildValue(par1, "SccTolerance", sccTol)
+        call getDescendant(root, "Analysis", ch1)
+        call setChildValue(ch1, "PerturbSccTol", sccTol, child=ch2)
+        call setUnprocessed(ch2)
+      end if
+
+    end if
+
+  end subroutine convert_12_13
+
+
+  !> Converts input from version 13 to 14. (Version 14 introduced in August 2023)
+  subroutine convert_13_14(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1
+
+    call getDescendant(root, "Analysis/CalculateForces", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'PrintForces'.")
+      call setNodeName(ch1, "PrintForces")
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
+          & 'Hamiltonian/DFTB/Hybrid'.")
+      call setNodeName(ch1, "Hybrid")
+    end if
+
+  end subroutine convert_13_14
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

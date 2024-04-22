@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -155,7 +155,7 @@ contains
     ${TYPE}$, intent(in) :: data${SHAPE}$
   #:endif
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Error code return, 0 if no problems
@@ -251,7 +251,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Tolerance for comparison, if absent use eps

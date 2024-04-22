@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1295,11 +1295,11 @@ contains
   end subroutine getrs_dble
 
 
-  !> Solves a system of linear equations with one right hand sides
+  !> Solves a system of linear equations with one right hand side
   subroutine getrs1_dble(amat, ipiv, bvec, trans, iError)
 
     !> Matrix of the linear system
-    real(rdp), intent(in) :: amat(:, :)
+    real(rdp), intent(in) :: amat(:,:)
 
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(in) :: ipiv(:)
@@ -1313,7 +1313,7 @@ contains
     !> Error flag, zero on successful exit
     integer, intent(out), optional :: iError
 
-    real(rdp), pointer :: bptr(:, :)
+    real(rdp), pointer :: bptr(:,:)
 
     bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
     call getrs(amat, ipiv, bptr, trans, iError)

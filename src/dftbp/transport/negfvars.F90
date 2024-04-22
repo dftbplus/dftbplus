@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -248,6 +248,9 @@ module dftbp_transport_negfvars
 
     !> type of phonon modes (Longitudinal, transverse)
     integer :: typeModes
+
+    !> Tolerance for contact vectors being distorted
+    real(dp) :: contactLayerTol
 
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

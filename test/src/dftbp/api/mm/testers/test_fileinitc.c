@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2023  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -147,6 +147,7 @@ int main()
       dftbp_get_input_from_file(&calculator, "dftb_in.H2O.hsd", &input);
     }
     dftbp_process_input(&calculator, &input);
+    dftbp_input_final(&input);
 
     /* Check whether the calculator was initialized with the correct nr. of atoms */
     natom = dftbp_get_nr_atoms(&calculator);

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,11 +18,13 @@ module dftbp_dftbplus_mainio
   use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
       & Boltzmann, gfac, spinName, quaternionName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFile, TFile_create, TFileOptions
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_dftb_elecconstraints, only: TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_extfields, only : TEField
@@ -34,8 +36,8 @@ module dftbp_dftbplus_mainio
   use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
       & xml_EndElement, xml_Close
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatGeoOut, format1U, format2U,&
-      & format1Ue, format2Ue, format1U1e
+  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
+      & format1U, format2U, format1Ue, format2Ue, format1U1e
   use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
@@ -75,8 +77,8 @@ module dftbp_dftbplus_mainio
   public :: writeCplxEigvecsBinSerial, writeCplxEigvecsTxtSerial
 #:endif
   public :: writeProjectedEigenvectors
-  public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
-  public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut
+  public :: writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
+  public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
@@ -86,7 +88,8 @@ module dftbp_dftbplus_mainio
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
-  public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
+  public :: printSccHeader, printElecConstrHeader
+  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printForceNorm, printLatticeForceNorm
   public :: printMdInfo, printBlankLine
@@ -162,13 +165,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -240,7 +243,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -314,13 +317,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -385,22 +388,23 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
     type(linecomm) :: collector
+    type(TFileDescr) :: fd
     ${DTYPE}$(dp), allocatable :: localEigvec(:)
     integer :: nOrb
-    integer :: iKS, iGroup, iEig, fd
+    integer :: iKS, iGroup, iEig
 
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
 
     if (env%mpi%tGlobalLead) then
-      call prepareEigvecFileBin(fd, runId, fileName)
+      call createEigvecFileBin(fd, runId, fileName)
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
@@ -423,10 +427,11 @@ contains
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
             end if
-            write(fd) localEigvec
+            write(fd%unit) localEigvec
           end do
         end do group
       end do
+      call closeFile(fd)
     else
       do iKS = 1, parallelKS%nLocalKS
         do iEig = 1, nOrb
@@ -441,10 +446,6 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      close(fd)
-    end if
-
   end subroutine write${NAME}$EigvecsBinBlacs
 
 #:else
@@ -458,23 +459,24 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
     character(len=*), intent(in), optional :: fileName
 
+    type(TFileDescr) :: fd
     integer :: iKS
-    integer :: ii, fd
+    integer :: ii
 
-    call prepareEigvecFileBin(fd, runId, fileName)
+    call createEigvecFileBin(fd, runId, fileName)
     ! By construction of parallelKS, iKS runs over (iK, iS) with iK growing faster
     do iKS = 1, parallelKS%nLocalKS
       do ii = 1, size(eigvecs, dim=2)
-        write(fd) eigvecs(:, ii, iKS)
+        write(fd%unit) eigvecs(:, ii, iKS)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine write${NAME}$EigvecsBinSerial
 
@@ -498,7 +500,7 @@ contains
     !> Square Hamiltonian (or work array)
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -532,7 +534,8 @@ contains
     real(dp), allocatable :: localEigvec(:), localFrac(:)
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:)
     integer :: nOrb, nAtom
-    integer :: iKS, iS, iGroup, iEig, fd
+    integer :: iKS, iS, iGroup, iEig
+    type(TFileDescr) :: fd
 
     nOrb = denseDesc%fullSize
     nAtom = size(nNeighbourSK)
@@ -602,9 +605,7 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      close(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writeRealEigvecsTxtBlacs
 
@@ -641,7 +642,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -653,9 +654,10 @@ contains
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
+    type(TFileDescr) :: fd
     real(dp), allocatable :: rVecTemp(:)
     integer :: nAtom
-    integer :: iKS, iS, iEig, fd
+    integer :: iKS, iS, iEig
 
     nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, .false., fileName)
@@ -671,7 +673,7 @@ contains
             & speciesName, nAtom)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeRealEigvecsTxtSerial
 
@@ -694,7 +696,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -734,11 +736,12 @@ contains
     character(len=*), intent(in), optional :: fileName
 
     type(linecomm) :: collector
+    type(TFileDescr) :: fd
     complex(dp), allocatable :: localEigvec(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: localFrac(:), globalFrac(:,:)
     integer :: nEigvec, nAtom
-    integer :: iKS, iK, iS, iGroup, iEig, fd
+    integer :: iKS, iK, iS, iGroup, iEig
 
     nEigvec = denseDesc%nOrb
     nAtom = size(nNeighbourSK)
@@ -807,9 +810,7 @@ contains
       end do
     end if
 
-    if (env%mpi%tGlobalLead) then
-      close(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writeCplxEigvecsTxtBlacs
 
@@ -853,7 +854,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -868,10 +869,11 @@ contains
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
+    type(TFileDescr) :: fd
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iS, iEig, fd
+    integer :: iKS, iK, iS, iEig
 
     nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
@@ -891,7 +893,7 @@ contains
             & speciesName, nAtom)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeCplxEigvecsTxtSerial
 
@@ -914,7 +916,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -958,7 +960,8 @@ contains
     complex(dp), allocatable :: localEigvec(:), localSDotC(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nAtom, nOrb
-    integer :: iKS, iK, iGroup, iEig, fd
+    integer :: iKS, iK, iGroup, iEig
+    type(TFileDescr) :: fd
 
     nOrb = denseDesc%fullSize
     nAtom = size(nNeighbourSK)
@@ -1031,9 +1034,7 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      close(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writePauliEigvecsTxtBlacs
 
@@ -1077,7 +1078,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -1092,10 +1093,11 @@ contains
     !> optional alternative file pre-fix
     character(len=*), intent(in), optional :: fileName
 
+    type(TFileDescr) :: fd
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:,:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iEig, fd
+    integer :: iKS, iK, iEig
 
     nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
@@ -1114,7 +1116,7 @@ contains
             & species, speciesName, nAtom, denseDesc%nOrb)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writePauliEigvecsTxtSerial
 
@@ -1162,7 +1164,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1171,7 +1173,7 @@ contains
     !> Orbital regions to project
     type(TListIntR1), intent(inout) :: iOrbRegion
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Storage for eigenvectors (real)
@@ -1248,7 +1250,7 @@ contains
     !> Eigenvectors
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Sparse overlap
@@ -1270,7 +1272,7 @@ contains
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:), localFrac(:)
     integer :: nOrb, nReg
     integer :: iKS, iS, iGroup, iEig
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     nReg = len(iOrbRegion)
     allocate(fd(nReg))
@@ -1334,9 +1336,7 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      call finishProjEigvecFiles(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writeProjRealEigvecsBlacs
 
@@ -1370,7 +1370,7 @@ contains
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -1384,7 +1384,7 @@ contains
 
     integer :: iKS, iS, iEig
     real(dp), allocatable :: rVecTemp(:)
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     allocate(fd(len(iOrbRegion)))
 
@@ -1404,7 +1404,7 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
-    call finishProjEigvecFiles(fd)
+    call closeFile(fd)
 
   end subroutine writeProjRealEigvecsSerial
 
@@ -1436,10 +1436,10 @@ contains
     !> Eigenvectors
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1471,7 +1471,7 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nOrb, nReg
     integer :: iKS, iK, iS, iGroup, iEig
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     nReg = len(iOrbRegion)
     allocate(fd(nReg))
@@ -1538,9 +1538,7 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      call finishProjEigvecFiles(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writeProjCplxEigvecsBlacs
 
@@ -1587,7 +1585,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigen vectors
@@ -1601,7 +1599,7 @@ contains
 
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     nOrb = denseDesc%fullSize
     allocate(fd(len(iOrbRegion)))
@@ -1623,7 +1621,7 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
-    call finishProjEigvecFiles(fd)
+    call closeFile(fd)
 
   end subroutine writeProjCplxEigvecsSerial
 
@@ -1658,10 +1656,10 @@ contains
     !> Basis orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1694,7 +1692,7 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iGroup, iEig
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
@@ -1770,9 +1768,7 @@ contains
       end do
     end if leadOrFollow
 
-    if (env%mpi%tGlobalLead) then
-      call finishProjEigvecFiles(fd)
-    end if
+    call closeFile(fd)
 
   end subroutine writeProjPauliEigvecsBlacs
 
@@ -1819,7 +1815,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
@@ -1835,7 +1831,7 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iEig
-    integer, allocatable :: fd(:)
+    type(TFileDescr), allocatable :: fd(:)
 
     allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
@@ -1858,25 +1854,11 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
-    call finishProjEigvecFiles(fd)
+    call closeFile(fd)
 
   end subroutine writeProjPauliEigvecsSerial
 
 #:endif
-
-
-  !> Open an output file and clear it
-  subroutine initOutputFile(fileName)
-
-    !> File name
-    character(*), intent(in) :: fileName
-
-    integer :: fd
-
-    open(newUnit=fd, file=fileName, action="write", status="replace")
-    close(fd)
-
-  end subroutine initOutputFile
 
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
@@ -1911,7 +1893,7 @@ contains
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
 
     !> Excited state forces on atoms (allocation status used as a flag)
-    real(dp), allocatable, intent(in) :: excitedDerivs(:,:)
+    real(dp), allocatable, intent(in) :: excitedDerivs(:,:,:)
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -1965,88 +1947,88 @@ contains
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
+    type(TFileDescr) :: fd
     real(dp), allocatable :: qOutputUpDown(:,:,:)
-    integer :: fd
 
-    open(newunit=fd, file=fileName, action="write", status="old", position="append")
+    call openFile(fd, fileName, mode="a")
     if (tPeriodic) then
-      call taggedWriter%write(fd, tagLabels%volume, cellVol)
+      call taggedWriter%write(fd%unit, tagLabels%volume, cellVol)
     end if
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
-      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
+      call taggedWriter%write(fd%unit, tagLabels%qOutput, qOutputUpDown(:,:,1))
     end if
     if (allocated(derivs)) then
-      call taggedWriter%write(fd, tagLabels%forceTot, -derivs)
+      call taggedWriter%write(fd%unit, tagLabels%forceTot, -derivs)
     end if
     if (allocated(chrgForces)) then
-      call taggedWriter%write(fd, tagLabels%chrgForces, -chrgForces)
+      call taggedWriter%write(fd%unit, tagLabels%chrgForces, -chrgForces)
     end if
+    !> If CI is optimized, lowest coupled state is printed, otherwise the state of interest
     if (allocated(excitedDerivs)) then
       if (size(excitedDerivs) > 0) then
-        call taggedWriter%write(fd, tagLabels%excForce, -excitedDerivs)
+        call taggedWriter%write(fd%unit, tagLabels%excForce, -excitedDerivs(:,:,1))
       end if
     end if
     if (tStress) then
-      call taggedWriter%write(fd, tagLabels%stressTot, totalStress)
+      call taggedWriter%write(fd%unit, tagLabels%stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
-      call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
+      call taggedWriter%write(fd%unit, tagLabels%HessianNum, pDynMatrix)
     end if
     if (electronicSolver%providesElectronEntropy) then
       ! Mermin electronic free energy
-      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
+      call taggedWriter%write(fd%unit, tagLabels%freeEgy, energy%EMermin)
     else
-      call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+      call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
     end if
     if (pressure /= 0.0_dp) then
       ! Gibbs free energy
-      call taggedWriter%write(fd, tagLabels%gibbsfree, energy%EGibbs)
+      call taggedWriter%write(fd%unit, tagLabels%gibbsfree, energy%EGibbs)
     end if
-    call taggedWriter%write(fd, tagLabels%endCoord, endCoords)
+    call taggedWriter%write(fd%unit, tagLabels%endCoord, endCoords)
     if (tLocalise) then
-      call taggedWriter%write(fd, tagLabels%pmlocalise, localisation)
+      call taggedWriter%write(fd%unit, tagLabels%pmlocalise, localisation)
     end if
 
     if (allocated(esp)) then
-      call taggedWriter%write(fd, tagLabels%internfield, -esp%intPotential)
+      call taggedWriter%write(fd%unit, tagLabels%internfield, -esp%intPotential)
       if (allocated(esp%extPotential)) then
-        call taggedWriter%write(fd, tagLabels%externfield, -esp%extPotential)
+        call taggedWriter%write(fd%unit, tagLabels%externfield, -esp%extPotential)
       end if
     end if
 
     if (allocated(tunneling)) then
       if (size(tunneling, dim=1) > 0) then
-        call taggedWriter%write(fd, tagLabels%tunn, tunneling)
+        call taggedWriter%write(fd%unit, tagLabels%tunn, tunneling)
       end if
     end if
 
     if (allocated(ldos)) then
       if (size(ldos,1) > 0) then
-        call taggedWriter%write(fd, tagLabels%ldos, ldos)
+        call taggedWriter%write(fd%unit, tagLabels%ldos, ldos)
       end if
     end if
 
     if (allocated(lCurrArray)) then
-      call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
+      call taggedWriter%write(fd%unit, tagLabels%localCurrents, lCurrArray)
     end if
 
     if (allocated(polarisability)) then
-      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+      call taggedWriter%write(fd%unit, tagLabels%dmudEPerturb, polarisability)
     end if
 
     if (allocated(dEidE)) then
-      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+      call taggedWriter%write(fd%unit, tagLabels%dEigenDE, dEidE)
     end if
 
     if (allocated(dipoleMoment)) then
-      call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+      call taggedWriter%write(fd%unit, tagLabels%dipoleMoment, dipoleMoment)
+      call taggedWriter%write(fd%unit, tagLabels%scaledDipole,&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
-
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeAutotestTag
 
@@ -2142,104 +2124,104 @@ contains
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
     real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
-    integer :: fd
+    type(TFileDescr) :: fd
 
-    open(newunit=fd, file=fileName, action="write", status="old", position="append")
+    call openFile(fd, fileName, mode="a")
 
-    call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
     if (electronicSolver%elecChemPotAvailable) then
-      call taggedWriter%write(fd, tagLabels%fermiLvl, Ef)
+      call taggedWriter%write(fd%unit, tagLabels%fermiLvl, Ef)
     end if
-    call taggedWriter%write(fd, tagLabels%nElec, nEl)
+    call taggedWriter%write(fd%unit, tagLabels%nElec, nEl)
 
     if (electronicSolver%providesFreeEnergy) then
-      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EForceRelated)
+      call taggedWriter%write(fd%unit, tagLabels%freeEgy, energy%EForceRelated)
     elseif (electronicSolver%providesElectronEntropy) then
-      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
+      call taggedWriter%write(fd%unit, tagLabels%freeEgy, energy%EMermin)
     else
-      call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+      call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
     end if
 
     if (electronicSolver%providesFreeEnergy .or. electronicSolver%providesElectronEntropy) then
       ! extrapolated zero temperature energy (the chemical potential and electron number are assumed
       ! to be temperature independent, as just extrapolates the Mermin energy)
-      call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
+      call taggedWriter%write(fd%unit, tagLabels%egy0Total, energy%Ezero)
     end if
 
     if (electronicSolver%providesEigenvals) then
-      call taggedWriter%write(fd, tagLabels%eigvals, eigen)
-      call taggedWriter%write(fd, tagLabels%eigFill, filling)
+      call taggedWriter%write(fd%unit, tagLabels%eigvals, eigen)
+      call taggedWriter%write(fd%unit, tagLabels%eigFill, filling)
     end if
 
     if (electronicSolver%providesFreeEnergy) then
       ! energy connected to the evaluated force/stress (differs for various free energies)
-      call taggedWriter%write(fd, tagLabels%egyForceRelated, energy%EForceRelated)
+      call taggedWriter%write(fd%unit, tagLabels%egyForceRelated, energy%EForceRelated)
     end if
 
     if (allocated(derivs)) then
-      call taggedWriter%write(fd, tagLabels%forceTot, -derivs)
+      call taggedWriter%write(fd%unit, tagLabels%forceTot, -derivs)
     end if
     if (allocated(chrgForces)) then
-      call taggedWriter%write(fd, tagLabels%chrgForces, -chrgForces)
+      call taggedWriter%write(fd%unit, tagLabels%chrgForces, -chrgForces)
     end if
     if (tStress) then
-      call taggedWriter%write(fd, tagLabels%stressTot, totalStress)
+      call taggedWriter%write(fd%unit, tagLabels%stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
-      call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
+      call taggedWriter%write(fd%unit, tagLabels%HessianNum, pDynMatrix)
     end if
     if (associated(pBornMatrix)) then
-      call taggedWriter%write(fd, tagLabels%BorndDipNum,&
+      call taggedWriter%write(fd%unit, tagLabels%BorndDipNum,&
           & eFieldScaling%scaledSoluteDipole(pBornMatrix))
     end if
     if (tPeriodic) then
-      call taggedWriter%write(fd, tagLabels%volume, cellVol)
+      call taggedWriter%write(fd%unit, tagLabels%volume, cellVol)
     end if
 
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
       qDiff = qOutput - q0
-      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown)
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, -sum(qDiff(:,:,1), dim=1))
+      call taggedWriter%write(fd%unit, tagLabels%qOutput, qOutputUpDown)
+      call taggedWriter%write(fd%unit, tagLabels%qOutAtGross, -sum(qDiff(:,:,1), dim=1))
       if (size(qDiff, dim=3) > 1) then
-        call taggedWriter%write(fd, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
+        call taggedWriter%write(fd%unit, tagLabels%spinOutAtGross, sum(qDiff(:, :, 2:), dim=1))
       end if
       if (allocated(cm5Cont)) then
-        call taggedWriter%write(fd, tagLabels%qOutAtCM5, -sum(qDiff(:,:,1), dim=1) + cm5Cont%cm5)
+        call taggedWriter%write(fd%unit, tagLabels%qOutAtCM5, cm5Cont%cm5 - sum(qDiff(:,:,1),dim=1))
       end if
     end if
 
     if (allocated(dipoleMoment)) then
-      call taggedWriter%write(fd, tagLabels%dipoleMoment, dipoleMoment)
-      call taggedWriter%write(fd, tagLabels%scaledDipole,&
+      call taggedWriter%write(fd%unit, tagLabels%dipoleMoment, dipoleMoment)
+      call taggedWriter%write(fd%unit, tagLabels%scaledDipole,&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment))
     end if
 
     if (allocated(multipole%dipoleAtom)) then
-      call taggedWriter%write(fd, tagLabels%dipoleAtom,&
+      call taggedWriter%write(fd%unit, tagLabels%dipoleAtom,&
           & eFieldScaling%scaledSoluteDipole(multipole%dipoleAtom))
     end if
 
     if (allocated(polarisability)) then
-      call taggedWriter%write(fd, tagLabels%dmudEPerturb, polarisability)
+      call taggedWriter%write(fd%unit, tagLabels%dmudEPerturb, polarisability)
     end if
     if (allocated(dEidE)) then
-      call taggedWriter%write(fd, tagLabels%dEigenDE, dEidE)
+      call taggedWriter%write(fd%unit, tagLabels%dEigenDE, dEidE)
     end if
     if (allocated(dqOut)) then
-      call taggedWriter%write(fd, tagLabels%dqdEPerturb, sum(dqOut, dim = 1))
+      call taggedWriter%write(fd%unit, tagLabels%dqdEPerturb, sum(dqOut, dim = 1))
     end if
 
     if (allocated(neFermi)) then
-      call taggedWriter%write(fd, tagLabels%neFermi, neFermi)
+      call taggedWriter%write(fd%unit, tagLabels%neFermi, neFermi)
     end if
 
     if (allocated(dEfdE)) then
-      call taggedWriter%write(fd, tagLabels%dEfdE, dEfdE)
+      call taggedWriter%write(fd%unit, tagLabels%dEfdE, dEfdE)
     end if
 
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeResultsTag
 
@@ -2287,7 +2269,7 @@ contains
     !> Number of atomic orbitals (may not match nStates if non-collinear)
     integer, intent(in) :: nOrb
 
-    !> k-points in the system
+    !> The k-points in the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights of the k-points
@@ -2374,21 +2356,22 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy, fd
+    type(TFileDescr) :: fd
+    integer :: iSpin, iK, iEgy
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
+    call openFile(fd, fileName, mode="w")
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
-        write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
+        write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
           ! meV accuracy for eigenvalues
-          write(fd, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+          write(fd%unit, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
               & filling(iEgy, iK, iSpin)
         end do
-        write(fd,*)
+        write(fd%unit, *)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeBandOut
 
@@ -2408,7 +2391,9 @@ contains
     !> If true, append onto the file, if false replace the file
     logical, intent(in), optional :: isFileAppended
 
-    integer :: iSpin, iK, iEgy, fd, iCart
+    type(TFileDescr) :: fd
+    character(1) :: fileMode
+    integer :: iSpin, iK, iEgy, iCart
     logical :: isFileAppended_
 
     @:ASSERT(size(dEigen, dim=4) == 3)
@@ -2420,23 +2405,24 @@ contains
     end if
 
     if (isFileAppended_) then
-      open(newunit=fd, file=fileName, action="write", status="old", position="append")
+      fileMode = "a"
     else
-      open(newunit=fd, file=fileName, action="write", status="replace")
+      fileMode = "w"
     end if
+    call openFile(fd, fileName, mode=fileMode)
     do iCart = 1, 3
       do iSpin = 1, size(dEigen, dim=3)
         do iK = 1, size(dEigen, dim=2)
-          write(fd, *) 'DIR ', quaternionName(iCart+1), ' KPT ', iK, ' SPIN ', iSpin,&
+          write(fd%unit, *) 'DIR ', quaternionName(iCart+1), ' KPT ', iK, ' SPIN ', iSpin,&
               & ' KWEIGHT ', kWeight(iK)
           do iEgy = 1, size(dEigen, dim=1)
-            write(fd, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin, iCart)
+            write(fd%unit, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin, iCart)
           end do
-          write(fd,*)
+          write(fd%unit,*)
         end do
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeDBandCart
 
@@ -2459,7 +2445,9 @@ contains
     !> Extra text to print at start of data
     character(*), intent(in), optional :: preLabel
 
-    integer :: iSpin, iK, iEgy, fd
+    type(TFileDescr) :: fd
+    character(1) :: fileMode
+    integer :: iSpin, iK, iEgy
     logical :: isFileAppended_
 
     if (present(isFileAppended)) then
@@ -2469,23 +2457,24 @@ contains
     end if
 
     if (isFileAppended_) then
-      open(newunit=fd, file=fileName, action="write", status="old", position="append")
+      fileMode = "a"
     else
-      open(newunit=fd, file=fileName, action="write", status="replace")
+      fileMode = "w"
     end if
+    call openFile(fd, fileName, mode=fileMode)
     do iSpin = 1, size(dEigen, dim=3)
       do iK = 1, size(dEigen, dim=2)
         if (present(preLabel)) then
-          write(fd, "(A)", advance="NO")trim(preLabel) // " "
+          write(fd%unit, "(A)", advance="NO")trim(preLabel) // " "
         end if
-        write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
+        write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(dEigen, dim=1)
-          write(fd, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin)
+          write(fd%unit, "(I6, E16.6)") iEgy, Hartree__eV * dEigen(iEgy, iK, iSpin)
         end do
-        write(fd,*)
+        write(fd%unit,*)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeDBand
 
@@ -2505,7 +2494,8 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
-    integer :: ii, fd
+    type(TFileDescr) :: fd
+    integer :: ii
     character(10) :: suffix1, suffix2
     logical :: tPartialHessian = .false.
 
@@ -2521,17 +2511,16 @@ contains
     if (tPartialHessian) then
       write(suffix1,'(I10)') indMovedAtoms(1)
       write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
-      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
-          & action="write", status="replace")
+      call openFile(fd,&
+          & fileName // "." // trim(adjustl(suffix1)) // "-" // trim(adjustl(suffix2)),&
+          & mode="w")
     else
-      open(newunit=fd, file=fileName, action="write", status="replace")
+      call openFile(fd, fileName, mode="w")
     end if
 
     do ii = 1, size(pDynMatrix, dim=2)
-      write(fd, formatHessian) pDynMatrix(:, ii)
+      write(fd%unit, formatHessian) pDynMatrix(:, ii)
     end do
-
-    close(fd)
 
     if (tPartialHessian) then
       write(stdOut, "(2A)") 'Hessian matrix written to ',&
@@ -2540,12 +2529,13 @@ contains
       write(stdOut, "(2A)") 'Hessian matrix written to ', fileName
     end if
 
+    call closeFile(fd)
+
   end subroutine writeHessianOut
 
 
   !> Write the dipole derivative wrt.coordinates matrix/Born charges
-  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nAtInCentralRegion,&
-      & errStatus)
+  subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2556,39 +2546,37 @@ contains
     !> Indices of moved atoms
     integer, intent(in) :: indMovedAtoms(:)
 
-    !> Number of atoms in central region
-    integer, intent(in) :: nAtInCentralRegion
+    !> Number of atoms for which derivatives should be calculated (>= size(indMovedAtoms))
+    integer, intent(in) :: nDerivAtoms
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
-    integer :: ii, fd
+    type(TFileDescr) :: fd
+    integer :: ii
     character(10) :: suffix1, suffix2
-    logical :: tPartialMatrix = .false.
+    logical :: tPartialMatrix
 
     ! Sanity check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
-    ! It is a partial matrix Calculation if BornMatrix is not squared
-    if (size(pBornMatrix, dim=2) > 3*nAtInCentralRegion) then
-      tPartialMatrix = .true.
-    end if
 
+    tPartialMatrix = size(pBornMatrix, dim=2) < 3 * nDerivAtoms
     if (tPartialMatrix) then
       write(suffix1,'(I10)') indMovedAtoms(1)
       write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
-      open(newunit=fd, file=fileName//"."//trim(adjustl(suffix1))//"-"//trim(adjustl(suffix2)),&
-          & action="write", status="replace")
+      call openFile(fd, fileName // "." // trim(adjustl(suffix1)) // "-" // trim(adjustl(suffix2)),&
+          & mode="w")
     else
-      open(newunit=fd, file=fileName, action="write", status="replace")
+      call openFile(fd, fileName, mode="w")
     end if
 
     do ii = 1, size(pBornMatrix, dim=2)
-      write(fd, formatBorn) pBornMatrix(:, ii)
+      write(fd%unit, formatBorn) pBornMatrix(:, ii)
     end do
 
-    close(fd)
+    call closeFile(fd)
 
     if (tPartialMatrix) then
       write(stdOut, "(2A)") 'Born charges matrix written to ',&
@@ -2598,6 +2586,55 @@ contains
     end if
 
   end subroutine writeBornChargesOut
+
+
+  !> Write the Derivatives of the polarizability
+  subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
+
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Born (dipole derivatives or force wrt electric field)
+    real(dp), intent(in) :: pdBornMatrix(:, :, :)
+
+    !> Indices of moved atoms
+    integer, intent(in) :: indMovedAtoms(:)
+
+    !> Number of atoms for which derivatives should be calculated (>= size(indMovedAtoms))
+    integer, intent(in) :: nDerivAtoms
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    type(TFileDescr) :: fd
+    character(:), allocatable :: file
+    integer :: ii
+    character(10) :: suffix1, suffix2
+    logical :: tPartialMatrix
+
+    ! Sanity check in case some bug is introduced
+    if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
+      @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
+    end if
+
+    tPartialMatrix = size(pdBornMatrix, dim=3) < 3 * nDerivAtoms
+    if (tPartialMatrix) then
+      write(suffix1,'(I10)') indMovedAtoms(1)
+      write(suffix2,'(I10)') indMovedAtoms(size(indMovedAtoms))
+      file = fileName // "." // trim(adjustl(suffix1)) // "-" // trim(adjustl(suffix2))
+    else
+      file = fileName
+    end if
+    call openFile(fd, file, mode="w")
+
+    do ii = 1, size(pdBornMatrix, dim=3)
+      write(fd%unit, formatdBorn) pdBornMatrix(:, :, ii)
+    end do
+
+    call closeFile(fd)
+    write(stdOut, "(2A)") 'Born charge derivative matrix written to ', file
+
+  end subroutine writeBornDerivs
 
 
   !> Opens an output file or uses the its current unit number, if the file is already open.
@@ -2610,13 +2647,13 @@ contains
     logical, intent(in) :: append
 
     !> File descriptor
-    type(TFile), allocatable, intent(inout) :: fd
+    type(TFileDescr), intent(inout) :: fd
 
-    if (allocated(fd) .and. .not. append) then
-      deallocate(fd)
+    if (fd%isConnected() .and. .not. append) then
+      call closeFile(fd)
     end if
-    if (.not. allocated(fd)) then
-      call TFile_create(fd, fileName, TFileOptions(status="replace", action="write"))
+    if (.not. fd%isConnected()) then
+      call openFile(fd, fileName, mode="w")
     end if
 
   end subroutine openOutputFile
@@ -2684,7 +2721,7 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
     integer :: nKPoint, nMovedAtom, iAt, iK
@@ -2935,7 +2972,7 @@ contains
 
       if (tImHam .and. tPrintMulliken) then
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2949,7 +2986,7 @@ contains
           end do
         end do
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
         do ii = 1, size(iAtInCentralRegion)
           iAt = iAtInCentralRegion(ii)
@@ -2963,7 +3000,7 @@ contains
 
         write(fd, *)
         write(fd, "(A)") 'Total angular momentum (mu_B/hbar)'
-        write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
+        write(fd, "(2X, A5, T9, A3, T13, A1, T19, A1, T34, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
         do ii = 1, size(iAtInCentralRegion)
@@ -3067,7 +3104,7 @@ contains
       & iAtInCentralRegion, tPrintMulliken, cm5Cont)
 
     !> File ID
-    type(TFile), allocatable, intent(inout) :: fdDetailedOut
+    type(TFileDescr), intent(inout) :: fdDetailedOut
 
     !> File name for output
     character(*), intent(in) :: userOut
@@ -3161,7 +3198,7 @@ contains
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
       & tSpinOrbit, tScc, tOnSite, iAtInCentralRegion, electronicSolver, tHalogenX,&
-      & tRangeSep, isRS_OnsCorr, t3rd, tSolv)
+      & tHybridXc, isRS_OnsCorr, t3rd, tSolv)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3230,7 +3267,7 @@ contains
     logical, intent(in) :: tHalogenX
 
     !> Is this a range separation calculation?
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: tHybridXc
 
     !> Whether to run onsite correction with range-separated functional
     logical, intent(in) :: isRS_OnsCorr
@@ -3303,14 +3340,14 @@ contains
       if (t3rd) then
         write(fd, format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV, 'eV'
       end if
-      if (tRangeSep) then
+      if (tHybridXc) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
       if (tDFTBU) then
         write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
       end if
       if (tOnSite) then
-        write (fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
+        write(fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
       end if
       if (isRS_OnsCorr) then
         write (fd,format2U) 'Energy Fock onsite', energy%EfockOnSite, 'H', energy%EfockOnSite*Hartree__eV, 'eV'
@@ -3391,9 +3428,9 @@ contains
 
 
   !> Fourth group of data for detailed.out
-  subroutine writeDetailedOut4(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
-      & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
-      & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
+  subroutine writeDetailedOut4(fd, tScc, tConstr, tConverged, constrConverged, tXlbomd, isLinResp,&
+      & tGeoOpt, tMd, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs,&
+      & chrgForces, indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3401,8 +3438,14 @@ contains
     !> Charge self consistent?
     logical, intent(in) :: tScc
 
+    !> Electronic constraints?
+    logical, intent(in) :: tConstr
+
     !> Has the SCC cycle converged?
     logical, intent(in) :: tConverged
+
+    !> Have all constraint cycles converged?
+    logical, intent(in) :: constrConverged
 
     !> Is the extended Lagrangian in use for MD
     logical, intent(in) :: tXlbomd
@@ -3456,6 +3499,19 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     integer :: iAt, ii
+
+    if (tConstr) then
+      if (constrConverged) then
+        write(fd, "(A)") "Constraints converged"
+        write(fd, *)
+      else
+        write(fd, "(A)") "Constraints did NOT converge, maximal micro-iterations exceeded"
+        write(fd, *)
+      end if
+    else
+      write(fd, "(A)") "Non-constrained calculation"
+      write(fd, *)
+    end if
 
     if (tScc) then
       if (tConverged) then
@@ -3779,9 +3835,9 @@ contains
     if (allocated(neFermi)) then
       write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
       if (size(neFermi)==2) then
-        write(fd,"(E12.6,A,E12.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+        write(fd,"(E13.6,A,E13.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
       else
-        write(fd,"(E12.6)")neFermi
+        write(fd,"(E13.6)")neFermi
       end if
     end if
 
@@ -3885,42 +3941,51 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, eField, tFixEf,&
-      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
-      & qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
+  subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
+      & fixEf, printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol,&
+      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
 
     !> File ID
     integer, intent(in) :: fd
 
+    !> Is this a periodic geometry?
+    logical, intent(in) :: isPeriodic
+
     !> Is the stress tensor to be printed?
-    logical, intent(in) :: tStress
+    logical, intent(in) :: printForces
 
-    !> Is this a periodic geometry
-    logical, intent(in) :: tPeriodic
+    !> Is the stress tensor to be printed?
+    logical, intent(in) :: hasStress
 
-    !> Is a barostat in use
-    logical, intent(in) :: tBarostat
+    !> Is a barostat in use?
+    logical, intent(in) :: withBarostat
 
-    !> Is linear response excitation being used
+    !> Is linear response excitation being used?
     logical, intent(in) :: isLinResp
 
     !> External electric field (if allocated)
     type(TEField), intent(in), allocatable :: eField
 
-    !> Is the  Fermi level fixed
-    logical, intent(in) :: tFixEf
+    !> Is the Fermi level fixed?
+    logical, intent(in) :: fixEf
 
-    !> Should Mulliken charges be printed, hence total charge here
-    logical, intent(in) :: tPrintMulliken
+    !> Should Mulliken charges be printed?
+    logical, intent(in) :: printMulliken
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(in) :: energy
 
-    !> excitation energies, if allocated
-    real(dp), allocatable, intent(inout) :: energiesCasida(:)
+    !> Excitation energies, if allocated
+    real(dp), intent(inout), allocatable :: energiesCasida(:)
 
     !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Derivatives of energy wrt to atomic positions
+    real(dp), intent(in) :: derivs(:,:)
+
+    !> Stress tensor if periodic
+    real(dp), intent(in) :: totalStress(:,:)
 
     !> Unit cell volume
     real(dp), intent(in) :: cellVol
@@ -3940,7 +4005,7 @@ contains
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> dipole moment if available
+    !> Dipole moment if available
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
     !> Any dielectric environment scaling
@@ -3952,24 +4017,35 @@ contains
     integer :: ii
     character(lc) :: strTmp
 
-    if (tStress) then
-      if (tBarostat) then
-        write(fd, "(A)") 'Lattice vectors (A)'
-        do ii = 1, 3
-          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+    if (printForces) then
+      write(fd, "(A)") "Forces (au)"
+      do ii = 1, size(derivs, dim=2)
+        write(fd, "(3E24.8)") -derivs(:, ii)
+      end do
+      if (hasStress) then
+        write(fd, "(A)") "Total stress (au)"
+        do ii = 1, size(totalStress, dim=2)
+          write(fd, "(3E24.8)") totalStress(:,ii)
         end do
-        write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
-      end if
-      if (tPeriodic) then
-        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-        if (pressure /= 0.0_dp) then
-          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-              & Hartree__eV * energy%EGibbs,'eV'
-          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-              & Hartree__eV * energy%EGibbsKin, 'eV'
-        end if
       end if
     end if
+    if (isPeriodic) then
+      if (withBarostat) then
+        write(fd, "(A)") "Lattice vectors (A)"
+        do ii = 1, size(latVec, dim=2)
+          write(fd, "(3E24.8)") latVec(:,ii) * Bohr__AA
+        end do
+      end if
+      write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
+      write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
+      if (abs(pressure) < 1.0e-16_dp) then
+        write(fd, format2U) "Gibbs free energy", energy%EGibbs, "H",&
+            & Hartree__eV * energy%EGibbs, "eV"
+        write(fd, format2U) "Gibbs free energy including KE", energy%EGibbsKin, "H",&
+            & Hartree__eV * energy%EGibbsKin, "eV"
+      end if
+    end if
+
     if (isLinResp) then
       if (energy%Eexcited /= 0.0_dp) then
         write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
@@ -3977,43 +4053,47 @@ contains
       end if
       if (allocated(energiesCasida)) then
         do ii = 1, size(energiesCasida)
-          write(strTmp,"('Excitation ',I0)")ii
+          write(strTmp, "('Excitation ',I0)") ii
           write(fd, format2U) trim(strTmp), energiesCasida(ii), "H",&
               & Hartree__eV * energiesCasida(ii), "eV"
         end do
       end if
     end if
-    write(fd, format2U) 'Potential Energy', energy%EMermin,'H', energy%EMermin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total MD Energy', energy%EMerminKin, 'H',&
-        & energy%EMerminKin * Hartree__eV, 'eV'
-    write(fd, format2U) 'MD Temperature', tempIon, 'au', tempIon / Boltzmann, 'K'
+
+    write(fd, format2U) "Potential Energy", energy%EMermin, "H", energy%EMermin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Kinetic Energy", energy%Ekin, "H", energy%Ekin * Hartree__eV, "eV"
+    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
+        & energy%EMerminKin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Temperature", tempIon, "au", tempIon / Boltzmann, "K"
+
     if (allocated(eField)) then
       if (allocated(eField%EFieldStrength)) then
-        write(fd, format1U1e) 'External E field', eField%absEField, 'au',&
-            & eField%absEField * au__V_m, 'V/m'
+        write(fd, format1U1e) "External E field", eField%absEField, "au",&
+            & eField%absEField * au__V_m, "V/m"
       end if
     end if
-    if (tFixEf .and. tPrintMulliken) then
-      write(fd, "(A, F14.8)") 'Net charge: ', sum(q0(:, :, 1) - qOutput(:, :, 1))
+
+    if (fixEf .and. printMulliken) then
+      write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
     end if
+
     if (allocated(dipoleMoment)) then
-      if (len(trim(dipoleMessage))>0) then
-        write(fd, "(A)")trim(dipoleMessage)
+      if (len(trim(dipoleMessage)) > 0) then
+        write(fd, "(A)") trim(dipoleMessage)
       end if
       ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, 1X,A)") 'Dipole moment:',&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)),  'au'
-      write(fd, "(A, 3F14.8, 1X, A)") 'Dipole moment:',&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye,  'Debye'
+      write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
+      write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
+          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
     end if
 
   end subroutine writeMdOut2
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
-      & nAtInCentralRegion, multipoles)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, densityMatrix,&
+      & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -4033,22 +4113,34 @@ contains
     !> Imaginary part of block populations if present
     real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
-    !> Full density matrix with on-diagonal adjustment
-    real(dp), intent(in), allocatable :: deltaRhoIn(:)
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(in) :: densityMatrix
+
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
 
     !> Number of atoms in central region (atoms outside this will have charges suplied from
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in), optional :: hybridXcAlg
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), intent(in), optional :: coeffsAndShifts(:,:)
+
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(in), optional :: multipoles
 
-    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
-        & nAtInCentralRegion, multipoles)
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, densityMatrix,&
+        & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts=coeffsAndShifts,&
+        & multipoles=multipoles)
     if (tWriteAscii) then
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.dat'
     else
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.bin'
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.bin'
     end if
 
   end subroutine writeCharges
@@ -4088,7 +4180,7 @@ contains
     !> Image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> index  for which unit cell an atom is in
@@ -4272,7 +4364,6 @@ contains
     !> atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
-    real(dp), allocatable :: tmpMatrix(:,:)
     integer :: nAtom
     integer :: ii, jj
     character(lc) :: comment, fname
@@ -4299,31 +4390,18 @@ contains
     if (tPrintMulliken) then
       ! For non-colinear spin without velocities write magnetisation into the velocity field
       if (nSpin == 4 .and. .not. allocated(velocities)) then
-        allocate(tmpMatrix(3, nAtom))
-        do jj = 1, nAtom
-          do ii = 1, 3
-            tmpMatrix(ii,jj) = sum(qOutput(:, jj, ii + 1))
-          end do
-        end do
-        ! convert by the inverse of the scaling used in writeXYZFormat
-        tmpMatrix(:,:) = tmpMatrix * au__fs / (1000_dp * Bohr__AA)
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
-            & append=tAppendGeo)
-      else if (allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & charges=sum(qOutput(:,:,1), dim=1),&
+            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
             & append=tAppendGeo)
       else
         call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), comment=comment, append=tAppendGeo)
+            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & append=tAppendGeo)
       end if
-    else if (allocated(velocities)) then
+    else
       call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
           & comment=comment, append=tAppendGeo)
-    else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, comment=comment,&
-          & append=tAppendGeo)
     end if
 
   end subroutine writeCurrentGeometry
@@ -4401,6 +4479,16 @@ contains
 
   end subroutine printSccHeader
 
+
+  !> Prints the line above the start of the electronic constraints cycle data
+  subroutine printElecConstrHeader()
+
+    write(stdOut, "(A6,A5,3A18)") repeat(" ", 6), "iConst", "  Total electronic",&
+        & "     max(dW/dVc)  ", "     dW           "
+
+  end subroutine printElecConstrHeader
+
+
   !> Prints the line above the start of the REKS SCC cycle data
   subroutine printReksSccHeader(reks)
 
@@ -4418,9 +4506,11 @@ contains
 
   end subroutine printReksSccHeader
 
+
   subroutine printBlankLine()
-    write(stdOut,*)
+    write(stdOut, *)
   end subroutine printBlankLine
+
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
@@ -4447,6 +4537,35 @@ contains
     end if
 
   end subroutine printSccInfo
+
+
+  !> Prints info about electronic constraint convergence.
+  subroutine printElecConstrInfo(elecConstraint, iConstrIter, Eelec)
+
+    !> Represents electronic contraints
+    type(TElecConstraint), intent(in) :: elecConstraint
+
+    !> Iteration count
+    integer, intent(in) :: iConstrIter
+
+    !> Electronic energy
+    real(dp), intent(in) :: Eelec
+
+    !> Total contribution to free energy functional from constraint(s)
+    real(dp) :: deltaWTotal
+
+    !> Maximum derivative of energy functional with respect to Vc
+    real(dp) :: dWdVcMax
+
+    ! Sum up all free energy contributions
+    deltaWTotal = elecConstraint%getFreeEnergy()
+
+    ! Get maximum derivative of energy functional with respect to Vc
+    dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
+
+    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
+
+  end subroutine printElecConstrInfo
 
 
   !> Prints info about scc convergence.
@@ -4816,11 +4935,11 @@ contains
 #:endif
 
 
-  !> Prepares binary eigenvector file for writing.
-  subroutine prepareEigvecFileBin(fd, runId, fileName)
+  !> Creates and prepares binary eigenvector file for writing.
+  subroutine createEigvecFileBin(file, runId, fileName)
 
     !> New file ID for the results
-    integer, intent(out) :: fd
+    type(TFileDescr), intent(out) :: file
 
     !> Run id to write into the file header
     integer, intent(in) :: runId
@@ -4828,24 +4947,24 @@ contains
     !> Name of the file
     character(*), intent(in), optional :: fileName
 
-    character(lc) :: tmpStr
+    character(:), allocatable :: fileName_
 
     if (present(fileName)) then
-      write(tmpStr, "(A,A)") trim(fileName), ".bin"
-      open(newunit=fd, file=tmpStr, action="write", status="replace", form="unformatted")
+      fileName_ = trim(fileName) // ".bin"
     else
-      open(newunit=fd, file=eigvecBin, action="write", status="replace", form="unformatted")
+      fileName_ = eigvecBin
     end if
-    write(fd) runId
+    call openFile(file, fileName_, mode="wb")
+    write(file%unit) runId
 
-  end subroutine prepareEigvecFileBin
+  end subroutine createEigvecFileBin
 
 
   !> Prepares text eigenvector file for writing.
   subroutine prepareEigvecFileTxt(fd, t2Component, fileName)
 
     !> New file ID for the results
-    integer, intent(out) :: fd
+    type(TFileDescr), intent(out) :: fd
 
     !> Whether eigenvectors present 2-component Pauli vectors
     logical, intent(in) :: t2Component
@@ -4857,13 +4976,13 @@ contains
 
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".out"
-      open(newunit=fd, file=tmpStr, action="write", status="replace", position="rewind")
+      call openFile(fd, tmpStr, mode="w")
     else
-      open(newunit=fd, file=eigvecOut, action="write", status="replace", position="rewind")
+      call openFile(fd, eigvecOut, mode="w")
     end if
-    write(fd, "(A/)") "Coefficients and Mulliken populations of the atomic orbitals"
+    write(fd%unit, "(A/)") "Coefficients and Mulliken populations of the atomic orbitals"
     if (t2Component) then
-      write(fd,"(A/)")"   Atom   Orb         up spin coefficients   down spin coefficients  &
+      write(fd%unit, "(A/)")"   Atom   Orb         up spin coefficients   down spin coefficients  &
           &  charge    x         y         z"
     end if
 
@@ -4875,7 +4994,7 @@ contains
       & nAtom)
 
     !> File descriptor of open file
-    integer, intent(in) :: fd
+    type(TFileDescr), intent(in) :: fd
 
     !> Eigenvector to write
     real(dp), intent(in) :: eigvec(:)
@@ -4906,7 +5025,7 @@ contains
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
-    write(fd, "('Eigenvector:',I4,4X,'(',A,')'/)") iEigvec, trim(spinName(iS))
+    write(fd%unit, "('Eigenvector:',I4,4X,'(',A,')'/)") iEigvec, trim(spinName(iS))
     ind = 0
     do iAt = 1, nAtom
       iSp = species(iAt)
@@ -4925,12 +5044,13 @@ contains
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,T22,1X,F10.6,1X,F10.6)") trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
+          write(fd%unit , "(A,T22,1X,F10.6,1X,F10.6)")&
+              & trim(tmpStr) // trim(orbitalNames(iOrb-ang-1, ang)),&
               & eigvec(ind), fracs(ind)
         end do
       end do
       deallocate(shellNamesTmp)
-      write(fd,*)
+      write(fd%unit,*)
     end do
 
   end subroutine writeSingleRealEigvecTxt
@@ -4941,7 +5061,7 @@ contains
       & speciesName, nAtom)
 
     !> File descriptor of open file
-    integer, intent(in) :: fd
+    type(TFileDescr), intent(in) :: fd
 
     !> Eigenvector to write
     complex(dp), intent(in) :: eigvec(:)
@@ -4952,7 +5072,7 @@ contains
     !> Spin index of the eigenvector
     integer, intent(in) :: iS
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -4975,7 +5095,7 @@ contains
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
-    write(fd, "(A,I4,4X,A,I4,4X,'(',A,')'/)") "K-point: ", iK, "Eigenvector: ", iEigvec,&
+    write(fd%unit, "(A,I4,4X,A,I4,4X,'(',A,')'/)") "K-point: ", iK, "Eigenvector: ", iEigvec,&
         & trim(spinName(iS))
     ind = 0
     do iAt = 1, nAtom
@@ -4995,13 +5115,13 @@ contains
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,T22,1X,'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
-              & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
+          write(fd%unit, "(A,T22,1X,'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
+              & trim(tmpStr) // trim(orbitalNames(iOrb-ang-1, ang)),&
               & real(eigvec(ind)), aimag(eigvec(ind)), fracs(ind)
         end do
       end do
       deallocate(shellNamesTmp)
-      write(fd,*)
+      write(fd%unit,*)
     end do
 
   end subroutine writeSingleCplxEigvecTxt
@@ -5012,7 +5132,7 @@ contains
       & nAtom, nOrb)
 
     !> File descriptor of open file
-    integer, intent(in) :: fd
+    type(TFileDescr), intent(in) :: fd
 
     !> Eigenvector to write
     complex(dp), intent(in) :: eigvec(:)
@@ -5020,7 +5140,7 @@ contains
     !> Fraction of each orbital in the eigenvector, decomposed into 4 components.
     real(dp), intent(in) :: fracs(:,:)
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -5046,7 +5166,7 @@ contains
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
-    write(fd, "(A,I4,4X,A,I4)") "K-point: ", ik, "Eigenvector: ", iEigvec
+    write(fd%unit, "(A,I4,4X,A,I4)") "K-point: ", ik, "Eigenvector: ", iEigvec
     ind = 0
     do iAt = 1, nAtom
       iSp = species(iAt)
@@ -5065,14 +5185,14 @@ contains
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,T22,1X,'(',F10.6,',',F10.6,')','(',F10.6,',',F10.6,')',1X,4F10.6)")&
-              & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)), real(eigvec(ind)),&
+          write(fd%unit, "(A,T22,1X,'(',F10.6,',',F10.6,')','(',F10.6,',',F10.6,')',1X,4F10.6)")&
+              & trim(tmpStr) // trim(orbitalNames(iOrb-ang-1, ang)), real(eigvec(ind)),&
               & aimag(eigvec(ind)), real(eigvec(ind + nOrb)), aimag(eigvec(ind + nOrb)),&
               & fracs(:, ind)
         end do
       end do
       deallocate(shellNamesTmp)
-      write(fd,*)
+      write(fd%unit, *)
     end do
 
   end subroutine writeSinglePauliEigvecTxt
@@ -5082,7 +5202,7 @@ contains
   subroutine writeProjEigvecData(fd, iOrbRegion, eigval, fracs)
 
     !> File descriptor for each region
-    integer, intent(in) :: fd(:)
+    type(TFileDescr), intent(in) :: fd(:)
 
     !> List of orbital for each region
     type(TListIntR1), intent(inout) :: iOrbRegion
@@ -5101,7 +5221,7 @@ contains
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
       call intoArray(iOrbRegion, iOrbs, dummy, iReg)
-      write(fd(iReg), "(f13.6,f10.6)") Hartree__eV * eigval, sum(fracs(iOrbs))
+      write(fd(iReg)%unit, "(f13.6,f10.6)") Hartree__eV * eigval, sum(fracs(iOrbs))
       deallocate(iOrbs)
     end do
 
@@ -5112,7 +5232,7 @@ contains
   subroutine writeProjPauliEigvecData(fd, iOrbRegion, eigval, fracs)
 
     !> File descriptor for each region
-    integer, intent(in) :: fd(:)
+    type(TFileDescr), intent(in) :: fd(:)
 
     !> List of orbital for each region
     type(TListIntR1), intent(inout) :: iOrbRegion
@@ -5131,7 +5251,7 @@ contains
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
       call intoArray(iOrbRegion, iOrbs, dummy, iReg)
-      write(fd(iReg), "(f13.6,4f10.6)") Hartree__eV * eigval, sum(fracs(:,iOrbs), dim=2)
+      write(fd(iReg)%unit, "(f13.6,4f10.6)") Hartree__eV * eigval, sum(fracs(:,iOrbs), dim=2)
       deallocate(iOrbs)
     end do
 
@@ -5142,7 +5262,7 @@ contains
   subroutine writeProjEigvecHeader(fd, iS, iK, kWeight)
 
     !> File descriptor for each region
-    integer, intent(in) :: fd(:)
+    type(TFileDescr), intent(in) :: fd(:)
 
     !> Index fo current spin
     integer, intent(in) :: iS
@@ -5160,9 +5280,9 @@ contains
 
     do iReg = 1, size(fd)
       if (present(iK)) then
-        write(fd(iReg), formatHeader) 'KPT', iK, 'SPIN', iS, 'KWEIGHT', kWeight
+        write(fd(iReg)%unit, formatHeader) 'KPT', iK, 'SPIN', iS, 'KWEIGHT', kWeight
       else
-        write(fd(iReg), formatHeader) 'KPT', 1, 'SPIN', iS, 'KWEIGHT', 1.0_dp
+        write(fd(iReg)%unit, formatHeader) 'KPT', 1, 'SPIN', iS, 'KWEIGHT', 1.0_dp
       end if
     end do
 
@@ -5173,12 +5293,12 @@ contains
   subroutine writeProjEigvecFooter(fd)
 
     !> File descriptor for each region
-    integer, intent(in) :: fd(:)
+    type(TFileDescr), intent(in) :: fd(:)
 
     integer :: iReg
 
     do iReg = 1, size(fd)
-      write(fd(iReg), "(A)") ""
+      write(fd(iReg)%unit, "(A)") ""
     end do
 
   end subroutine writeProjEigvecFooter
@@ -5215,10 +5335,10 @@ contains
 
 
   !> Prepare projected eigenvector file for each region
-  subroutine prepareProjEigvecFiles(fd, fileNames)
+  subroutine prepareProjEigvecFiles(fileItems, fileNames)
 
     !> File descriptor for a not yet opened file for each region
-    integer, intent(out) :: fd(:)
+    type(TFileDescr), intent(inout) :: fileItems(:)
 
     !> List of region file names
     type(TListCharLc), intent(inout) :: fileNames
@@ -5226,27 +5346,12 @@ contains
     integer :: iReg
     character(lc) :: tmpStr
 
-    do iReg = 1, size(fd)
+    do iReg = 1, size(fileItems)
       call get(fileNames, tmpStr, iReg)
-      open(newunit=fd(iReg), file=tmpStr, action="write", status="replace", form="formatted")
+      call openFile(fileItems(iReg), tmpStr, mode="w")
     end do
 
   end subroutine prepareProjEigvecFiles
-
-
-  !> Finish projected eigenvector file for each region
-  subroutine finishProjEigvecFiles(fd)
-
-    !> File descriptor for opened file for each region
-    integer, intent(in) :: fd(:)
-
-    integer :: iReg
-
-    do iReg = 1, size(fd)
-      close(fd(iReg))
-    end do
-
-  end subroutine finishProjEigvecFiles
 
 
   !> Electrostatic potential at specified points
@@ -5264,24 +5369,25 @@ contains
     !> Number of geometry steps
     integer, intent(in) :: nGeoSteps
 
-    integer :: ii, fdEsp
+    type(TFileDescr) :: fdEsp
+    integer :: ii
     character(lc) :: tmpStr
 
     if (env%tGlobalLead) then
       if (esp%tAppendEsp) then
-        open(newunit=fdEsp, file=trim(esp%EspOutFile), position="append")
+        call openFile(fdEsp, trim(esp%EspOutFile), mode="a")
       else
-        open(newunit=fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
+        call openFile(fdEsp, trim(esp%EspOutFile), mode="w")
       end if
       ! Header with presence of external field and regular grid size
       write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
           & esp%gridDimensioning, size(esp%intPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
-        write(fdEsp,"(A)")trim(tmpStr)
+        write(fdEsp%unit, "(A)") trim(tmpStr)
         if (all(esp%gridDimensioning > 0)) then
-          write(fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
+          write(fdEsp%unit, "(A,3E20.12)") '#', esp%origin * Bohr__AA
           do ii = 1, 3
-            write(fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
+            write(fdEsp%unit, "(A,3E20.12)") '#', esp%axes(:,ii) * Bohr__AA
           end do
         end if
       end if
@@ -5297,37 +5403,39 @@ contains
       if (all(esp%gridDimensioning > 0)) then
         ! Regular point distribution, do not print positions
         if (allocated(esp%extPotential)) then
-          write(fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
+          write(fdEsp%unit, "(A,A)") '# Internal (V)        External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
+            write(fdEsp%unit, "(2E20.12)") -esp%intPotential(ii) * Hartree__eV,&
                 & -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
+          write(fdEsp%unit, "(A,A)") '# Internal (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
+            write(fdEsp%unit, "(E20.12)") -esp%intPotential(ii) * Hartree__eV
           end do
         end if
       else
         ! Scattered points, print locations
         if (allocated(esp%extPotential)) then
-          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)        External&
-              & (V)', trim(tmpStr)
+          write(fdEsp%unit ,"(A,A)")&
+              & '#           Location (AA)             Internal (V)        External (V)',&
+              & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp%unit, "(3E12.4,2E20.12)") esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV, -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
+          write(fdEsp%unit, "(A,A)") '#           Location (AA)             Internal (V)',&
               & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp%unit, "(3E12.4,E20.12)") esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV
           end do
         end if
       end if
-      close(fdEsp)
     end if
+
+    call closeFile(fdEsp)
 
   end subroutine writeEsp
 
@@ -5349,25 +5457,23 @@ contains
 
   #:else
 
-    integer :: funit, iMO, nOrb, dummy
-    logical :: exst
+    type(TFileDescr) :: file
+    integer :: iMO, nOrb, dummy, ioStat
 
     nOrb = size(eigenvecs,dim=1)
 
-    inquire(file=eigvecBin, exist=exst)
-    if (exst) then
-      open(newunit=funit, file=eigvecBin, action="read", form="unformatted", position='rewind')
-      read(funit) dummy
-      if (present(jobId)) then
-        jobId = dummy
-      end if
-      do iMO = 1, nOrb
-        read(funit) eigenvecs(:,iMO)
-      end do
-      close(funit)
-    else
+    call openFile(file, eigvecBin, mode="rb", ioStat=ioStat)
+    if (ioStat /= 0) then
       call error('no ' // eigvecBin // ' file!')
     end if
+    read(file%unit) dummy
+    if (present(jobId)) then
+      jobId = dummy
+    end if
+    do iMO = 1, nOrb
+      read(file%unit) eigenvecs(:,iMO)
+    end do
+    call closeFile(file)
 
   #:endif
 
@@ -5381,7 +5487,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure,&
       & cellVol, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isHybridXc, qNetAtom)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5461,7 +5567,7 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
     !> atoms in the central cell (or device region if transport)
@@ -5474,7 +5580,7 @@ contains
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
@@ -5653,9 +5759,9 @@ contains
       write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
       write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
       if (t3rd) then
-        write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
+        write(fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
-      if (isRangeSep) then
+      if (isHybridXc) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
     end if
@@ -5741,15 +5847,16 @@ contains
     !> Total energy
     real(dp), intent(in) :: energy
 
-    integer :: unit
+    type(TFileDescr) :: file
 
     select type(solvation)
     class is (TCosmo)
       write(stdOut, '(*(a:, 1x))') "Cavity information written to", cosmoFile
-      open(newunit=unit, file=cosmoFile)
-      call solvation%writeCosmoFile(unit, species0, speciesNames, coords0, energy)
-      close(unit)
+      call openFile(file, cosmoFile, mode="w")
+      call solvation%writeCosmoFile(file%unit, species0, speciesNames, coords0, energy)
+      call closeFile(file)
     end select
 
   end subroutine writeCosmoFile
+
 end module dftbp_dftbplus_mainio

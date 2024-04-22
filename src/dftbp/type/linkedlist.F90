@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,6 +11,9 @@
 !> initialized with init, and destroyed with destroy.
 module dftbp_type_linkedlist
   use dftbp_common_accuracy, only : mc, lc
+  use dftbp_type_linkedlistc0, only : TListComplex, append, init, len, destruct, asArray
+  use dftbp_type_linkedlistc1, only : TListComplexR1, append, len, init, asArray, destruct,&
+      & asVector, intoArray
   use dftbp_type_linkedlisti0, only : TListInt, append, destruct, asArray, init, len
   use dftbp_type_linkedlisti1, only : TListIntR1, append, len, destruct, init, asArray, asVector,&
       & intoArray, get, elemShape
@@ -26,6 +29,7 @@ module dftbp_type_linkedlist
 
   private
   !> Expose the used linked list content
+  public :: TListComplex, TListComplexR1
   public :: TListReal, TListRealR1, TListRealR2
   public :: TListCharMc, TListCharLc, TListInt, TListIntR1
   public :: TListString

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,14 +8,15 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> routines for the restart of the time propagation of the density matrix/atoms
+!> Routines for the restart of the time propagation of the density matrix/atoms
 module dftbp_timedep_dynamicsrestart
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_common_status, only : TStatus
   implicit none
 
-  !> version number for restart format, please increment if you change the file format (and consider
-  !> adding backward compatibility functionality)
+  !> Version number for restart format, please increment if you change the file format (and consider
+  !! adding backward compatibility functionality)
   integer, parameter :: iDumpFormat = 1
 
   private
@@ -23,7 +24,7 @@ module dftbp_timedep_dynamicsrestart
 
 contains
 
-  !> Write to a restart file
+  !> Write to a restart file.
   subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density matrix
@@ -32,38 +33,38 @@ contains
     !> Density matrix at previous time step
     complex(dp), intent(in) :: rhoOld(:,:,:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(in) :: veloc(:,:)
 
-    !> simulation time (in atomic units)
+    !> Simulation time (in atomic units)
     real(dp), intent(in) :: time
 
-    !> time step being used (in atomic units)
+    !> Time step being used (in atomic units)
     real(dp), intent(in) :: dt
 
-    !> name of the dump file
+    !> Name of the dump file
     character(len=*), intent(in) :: fileName
 
     !> Should restart data be written as ascii (cross platform, but potentially lower
-    !> reproducibility) or binary files
+    !! reproducibility) or binary files
     logical, intent(in) :: isAsciiFile
 
-    !> operation status
+    !> Operation status
     type(TStatus), intent(out) :: errStatus
 
-    integer :: fd, ii, jj, kk, iErr
+    type(TFileDescr) :: fd
+    integer :: ii, jj, kk, iErr
     character(len=120) :: error_string
 
-
     if (isAsciiFile) then
-      open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
-          & iostat=iErr)
+      call openFile(fd, trim(fileName) // '.dat', mode="w", iostat=iErr)
     else
-      open(newunit=fd, file=trim(fileName) // '.bin', form='unformatted', access='stream',&
-          & action='write', iostat=iErr)
+      ! Set to stream explicitely, as it was written as stream from the beginning
+      call openFile(fd, trim(fileName) // '.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='write'), iostat=iErr)
     end if
 
     if (iErr /= 0) then
@@ -79,43 +80,43 @@ contains
 
     if (isAsciiFile) then
 
-      write(fd, *)iDumpFormat
-      write(fd, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      write(fd%unit, *)iDumpFormat
+      write(fd%unit, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
       do ii = 1, size(rho, dim=3)
         do jj = 1, size(rho, dim=2)
           do kk = 1, size(rho, dim=1)
-            write(fd, *)rho(kk,jj,ii)
+            write(fd%unit, *)rho(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(rhoOld, dim=3)
         do jj = 1, size(rhoOld, dim=2)
           do kk = 1, size(rhoOld, dim=1)
-            write(fd, *)rhoOld(kk,jj,ii)
+            write(fd%unit, *)rhoOld(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(coord, dim=2)
-        write(fd, *)coord(:,ii)
+        write(fd%unit, *)coord(:,ii)
       end do
       do ii = 1, size(veloc, dim=2)
-        write(fd, *)veloc(:,ii)
+        write(fd%unit, *)veloc(:,ii)
       end do
 
     else
 
-      write(fd)iDumpFormat
-      write(fd)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
-      write(fd) rho, rhoOld, coord, veloc
+      write(fd%unit) iDumpFormat
+      write(fd%unit) size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      write(fd%unit) rho, rhoOld, coord, veloc
 
     end if
 
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeRestartFile
 
 
-  !> read a restart file containing density matrix, overlap, coordinates and time step
+  !> Read a restart file containing density matrix, overlap, coordinates and time step
   subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density Matrix
@@ -124,29 +125,30 @@ contains
     !> Previous density Matrix
     complex(dp), intent(out) :: rhoOld(:,:,:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(out) :: coord(:,:)
 
     !> Previous simulation elapsed time until restart file writing
     real(dp), intent(out) :: time
 
-    !> time step being currently used (in atomic units) for checking compatibility
+    !> Time step being currently used (in atomic units) for checking compatibility
     real(dp), intent(in) :: dt
 
     !> Name of the file to open
     character(*), intent(in) :: fileName
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(out) :: veloc(:,:)
 
     !> Should restart data be read as ascii (cross platform, but potentially lower reproducibility)
-    !> or binary files
+    !! or binary files
     logical, intent(in) :: isAsciiFile
 
-    !> operation status
+    !> Operation status
     type(TStatus), intent(out) :: errStatus
 
-    integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
+    type(TFileDescr) :: fd
+    integer :: ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
     real(dp) :: deltaT
     logical :: isExisting
     character(len=120) :: error_string
@@ -166,10 +168,12 @@ contains
     end if
 
     if (isAsciiFile) then
-      open(newunit=fd, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
+      call openFile(fd, trim(fileName)//'.dat', mode="r", iostat=iErr)
     else
-      open(newunit=fd, file=trim(fileName)//'.bin', form='unformatted', access='stream',&
-          & action='read', iostat=iErr)
+      ! Set to stream explicitely, as it was written as stream from the beginning
+      call openFile(fd, file=trim(fileName)//'.bin',&
+          & options=TOpenOptions(form='unformatted', access='stream', action='read',&
+          & position="rewind"), iostat=iErr)
     end if
 
     if (iErr /= 0) then
@@ -180,14 +184,13 @@ contains
       end if
       @:RAISE_ERROR(errStatus, -1, error_string)
     end if
-    rewind(fd)
 
     if (isAsciiFile) then
-      read(fd, *)version
+      read(fd%unit, *)version
       if (version /= iDumpFormat) then
         @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
-      read(fd, *) nOrb, nSpin, nAtom, time, deltaT
+      read(fd%unit, *) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
@@ -210,29 +213,29 @@ contains
       do ii = 1, size(rho, dim=3)
         do jj = 1, size(rho, dim=2)
           do kk = 1, size(rho, dim=1)
-            read(fd, *)rho(kk,jj,ii)
+            read(fd%unit, *)rho(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(rhoOld, dim=3)
         do jj = 1, size(rhoOld, dim=2)
           do kk = 1, size(rhoOld, dim=1)
-            read(fd, *)rhoOld(kk,jj,ii)
+            read(fd%unit, *)rhoOld(kk,jj,ii)
           end do
         end do
       end do
       do ii = 1, size(coord, dim=2)
-        read(fd, *)coord(:,ii)
+        read(fd%unit, *)coord(:,ii)
       end do
       do ii = 1, size(veloc, dim=2)
-        read(fd, *)veloc(:,ii)
+        read(fd%unit, *)veloc(:,ii)
       end do
     else
-      read(fd)version
+      read(fd%unit)version
       if (version /= iDumpFormat) then
         @:RAISE_ERROR(errStatus, -1, "Unknown TD restart format")
       end if
-      read(fd) nOrb, nSpin, nAtom, time, deltaT
+      read(fd%unit) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
@@ -252,9 +255,9 @@ contains
         write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
             & deltaT, " instead of current timestep of", dt
       end if
-      read(fd) rho, rhoOld, coord, veloc
+      read(fd%unit) rho, rhoOld, coord, veloc
     end if
-    close(fd)
+    call closeFile(fd)
 
   end subroutine readRestartFile
 

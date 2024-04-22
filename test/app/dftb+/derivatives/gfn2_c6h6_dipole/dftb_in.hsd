@@ -20,7 +20,7 @@ Driver = SecondDerivatives {}
 Hamiltonian = xtb {
   Method = "GFN2-xTB"
   SCCTolerance = 1.0E-10
-  Solvation = GeneralizedBorn {
+  Solvation = GeneralisedBorn {
     ParamFile = "param_gbsa_benzene.txt"
   }
   Filling = Fermi {

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,6 +13,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -33,6 +34,7 @@ module dftbp_dftb_hamiltonian
   public :: resetExternalPotentials, getSccHamiltonian, mergeExternalPotentials
   public :: resetInternalPotentials, addChargePotentials
   public :: addBlockChargePotentials, TRefExtPot
+  public :: constrainSccHamiltonian
 
   !> Container for external potentials
   type :: TRefExtPot
@@ -322,10 +324,13 @@ contains
 
 
   !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, ints, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-      & img2CentCell, potential, isREKS, ham, iHam)
+  subroutine getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, species, orb,&
+      & iSparseStart, img2CentCell, potential, isREKS, ham, iHam)
 
-    !> non-SCC hamiltonian (sparse)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
 
     !> Integral container
@@ -334,76 +339,122 @@ contains
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> list of atomic neighbours
+    !> List of atomic neighbours
     type(TNeighbourList), intent(in) :: neighbourList
 
-    !> species of atoms
+    !> Species of atoms
     integer, intent(in) :: species(:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Index for atomic blocks in sparse data
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> image atoms to central cell atoms
+    !> Image atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> potential acting on sustem
+    !> Potential acting on system
     type(TPotentials), intent(in) :: potential
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
 
-    !> resulting hamitonian (sparse)
+    !> Resulting hamitonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
-    !> imaginary part of hamiltonian (if required, signalled by being allocated)
+    !> Imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom
-    real(dp), allocatable :: dipoleAtom(:, :)
+    real(dp), allocatable :: dipoleAtom(:,:)
 
     nAtom = size(orb%nOrbAtom)
 
     if (.not. isREKS) then
       ham(:,:) = 0.0_dp
-      ham(:,1) = h0
     end if
 
-    call addShift(ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
-        & nAtom, img2CentCell, potential%intBlock)
+    call addShift(env, ham, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+        & iSparseStart, nAtom, img2CentCell, potential%intBlock, .not. isREKS)
+
+    if (.not. isREKS) then
+      ham(:,1) = ham(:,1) + h0
+    end if
 
     if (allocated(potential%intOnSiteAtom)) then
-      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%intOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom,&
+          & potential%intOnSiteAtom)
     end if
     if (allocated(potential%extOnSiteAtom)) then
-      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom, potential%extOnSiteAtom)
+      call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom,&
+          & potential%extOnSiteAtom)
     end if
 
     if (allocated(potential%dipoleAtom)) then
       dipoleAtom = potential%dipoleAtom
       if (allocated(potential%extDipoleAtom)) then
-        dipoleAtom(:, :) = dipoleAtom + potential%extDipoleAtom
+        dipoleAtom(:,:) = dipoleAtom + potential%extDipoleAtom
       end if
-      call addAtomicMultipoleShift(ham, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
-          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+      call addAtomicMultipoleShift(ham, ints%dipoleBra, ints%dipoleKet, nNeighbourSK,&
+          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell,&
           & dipoleAtom)
     end if
 
     if (allocated(potential%quadrupoleAtom)) then
-      call addAtomicMultipoleShift(ham, ints%quadrupoleBra, ints%quadrupoleKet, nNeighbourSK, &
-          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+      call addAtomicMultipoleShift(ham, ints%quadrupoleBra, ints%quadrupoleKet, nNeighbourSK,&
+          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell,&
           & potential%quadrupoleAtom)
     end if
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
-      call addShift(iHam, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
+      call addShift(env, iHam, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock, .true.)
     end if
 
   end subroutine getSccHamiltonian
 
+
+  !> Adds shift due to electronic constraints to SCC Hamiltonian.
+  subroutine constrainSccHamiltonian(env, ints, nNeighbourSK, neighbourList, species, orb,&
+      & iSparseStart, img2CentCell, constrShift)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Integral container
+    type(TIntegral), intent(inout) :: ints
+
+    !> Number of atomic neighbours
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of atomic neighbours
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index for atomic blocks in sparse data
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Image atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Shift due to electronic constraints
+    real(dp), intent(in) :: constrShift(:,:,:,:)
+
+    !! Number of atoms in central cell
+    integer :: nAtom
+
+    nAtom = size(orb%nOrbAtom)
+
+    call addShift(env, ints%hamiltonian, ints%overlap, nNeighbourSK, neighbourList%iNeighbour,&
+        & species, orb, iSparseStart, nAtom, img2CentCell, constrShift, .false.)
+
+  end subroutine constrainSccHamiltonian
 
 end module dftbp_dftb_hamiltonian

@@ -25,8 +25,10 @@ The preferred way of obtaining DFTB+ is to install it via the conda package
 management framework using `Miniconda
 <https://docs.conda.io/en/latest/miniconda.html>`_ or `Anaconda
 <https://www.anaconda.com/products/individual>`_. Make sure to add/enable the
-``conda-forge`` channel in order to be able to access DFTB+. (Please consult the
-conda documentation for how to set-up your conda environment.)
+``conda-forge`` channel in order to be able to access DFTB+, and ensure that
+the ``conda-forge`` channel is the first repository to be searched for
+packages. (Please consult the conda documentation for how to set-up your conda
+environment.)
 
 We recommend the use of the `mamba installer <https://mamba.readthedocs.io/>`_,
 as we have experienced dependency resolution problems with the original conda
@@ -47,9 +49,9 @@ or ::
 
   mamba install 'dftbplus=*=mpi_openmpi_*'
 
-to get the last stable release of DFTB+ with, respectively,
-serial (OpenMP-threaded) build or with MPI-parallelized build using either the
-MPICH or the Open MPI framework.
+to get the last stable release of DFTB+ with, respectively, serial
+(OpenMP-threaded) build or with MPI-parallelized build using either the MPICH or
+the Open MPI framework.
 
 
 Downloading the binary
@@ -80,7 +82,7 @@ command::
 
 Start CMake by passing your compilers as environment variables (``FC`` and
 ``CC``), and the location where the code should be installed and the build
-directory (``_build``) and als options::
+directory (``_build``) as options::
 
   FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ -B _build .
 
@@ -88,10 +90,15 @@ If the configuration was successful, start the build with::
 
   cmake --build _build -- -j
 
-After successful build, you should test the code. First download the SK-files
+After successful build, you should test the code. First download the files
 needed for the test ::
 
   ./utils/get_opt_externals slakos
+  ./utils/get_opt_externals gbsa
+
+or ::
+  
+  ./utils/get_opt_externals ALL
 
 and then run the tests with ::
 
@@ -121,7 +128,7 @@ Consult following resources for documentation:
   <http://dftbplus-recipes.readthedocs.io/>`_
 
 * `Reference manual describing all features (DFTB+ Manual)
-  <http://www.dftbplus.org/fileadmin/DFTBPLUS/public/dftbplus/latest/manual.pdf>`_
+  <https://github.com/dftbplus/dftbplus/releases/latest/download/manual.pdf>`_
 
 
 Citing
@@ -137,9 +144,9 @@ When publishing results obtained with DFTB+, please cite following works:
   used. (See `dftb.org <https://dftb.org>`_ for the references.)
 
 * Methodological papers relevant to your calculations (e.g. excited states,
-  electron-transport, third order DFTB etc.). References to these can be found in
-  the `DFTB+ manual
-  <http://www.dftbplus.org/fileadmin/DFTBPLUS/public/dftbplus/latest/manual.pdf>`_.
+  electron-transport, third order DFTB etc.). References to these can be found
+  in the `DFTB+ manual
+  <https://github.com/dftbplus/dftbplus/releases/latest/download/manual.pdf>`_.
 
 
 Contributing

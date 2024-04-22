@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -36,6 +36,10 @@ module dftbp_dftb_determinants
 
   !> Actual values for elecSolverTypes.
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
+
+
+  !> Names of the determinants, matching TDeterminantsEnum
+  character(len=2), parameter :: detNames(0:2) = ['s0', 't1', 's1']
 
 
   !> Control type for Delta DFTB / TI-DFTB
@@ -80,6 +84,7 @@ module dftbp_dftb_determinants
     procedure :: nDeterminant
     procedure :: whichDeterminant
     procedure :: detFilling
+    procedure :: determinantName
 
   end type TDftbDeterminants
 
@@ -117,6 +122,26 @@ contains
     det = this%determinants(iDet)
 
   end function whichDeterminant
+
+
+  !> Converts determinant number into what it is called
+  function determinantName(this, iDet) result(det)
+
+    !> Instance
+    class(TDftbDeterminants), intent(in) :: this
+
+    !> Number of current determinant
+    integer, intent(in) :: iDet
+
+    character(2) :: det
+
+    if (iDet > size(this%determinants)) then
+      call error("Internal error: invalid determinant")
+    endif
+
+    det = detNames(this%determinants(iDet))
+
+  end function determinantName
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces

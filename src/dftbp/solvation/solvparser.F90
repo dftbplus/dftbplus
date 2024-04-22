@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,7 +23,7 @@ module dftbp_solvation_solvparser
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
       & detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd
+  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_math_bisect, only : bisection
   use dftbp_solvation_born, only : TGBInput, fgbKernel
   use dftbp_solvation_cm5, only : TCM5Input
@@ -63,13 +63,14 @@ contains
     type(fnode), pointer :: solvModel
     type(string) :: buffer
 
+    call renameChildren(node, "GeneralizedBorn", "GeneralisedBorn")
     call getChildValue(node, "", solvModel)
     call getNodeName(solvModel, buffer)
 
     select case (char(buffer))
     case default
       call detailedError(node, "Invalid solvation model name.")
-    case ("generalizedborn")
+    case ("generalisedborn")
       allocate(input%GBInp)
       call readSolvGB(solvModel, geo, input%GBInp)
     case ("cosmo")
@@ -105,7 +106,7 @@ contains
     character(len=:), allocatable :: paramFile, paramTmp
 
     if (geo%tPeriodic .or. geo%tHelical) then
-      call detailedError(node, "Generalized Born model currently not available with the&
+      call detailedError(node, "Generalised Born model currently not available with the&
          & selected boundary conditions")
     end if
 
@@ -189,7 +190,8 @@ contains
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
+      call detailedError(child, "Unknown method '"//char(buffer)//&
+          & "' to generate descreening parameters")
     case("defaults")
       if (.not.allocated(defaults)) then
         call detailedError(child, "No defaults available for descreening parameters")
@@ -236,7 +238,8 @@ contains
         call getNodeName(value1, buffer)
         select case(char(buffer))
         case default
-          call detailedError(child, "Unknown method '"//char(buffer)//"' to generate H-bond parameters")
+          call detailedError(child, "Unknown method '"//char(buffer)//&
+              & "' to generate H-bond parameters")
         case("defaults")
           if (allocated(defaults)) then
             if (.not.allocated(defaults%hBondPar)) then
@@ -329,6 +332,7 @@ contains
     type(fnode), pointer :: child
 
     call getChildValue(node, "MaxMoment", input%lmax, child=child)
+    call renameChildren(node, "Regularization", "Regularisation")
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
     call getChildValue(node, "Accuracy", input%conv, child=child)
 

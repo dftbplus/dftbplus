@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,16 +9,19 @@
 
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
-  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_accuracy, only : dp, mc, tolSameDist
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumbers
+  use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumber,&
+      & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_timedep_timeprop, only : initializeDynamics, doTdStep
+  use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_timedep_timeprop, only : initializeDynamics, finalizeDynamics, doTdStep
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
   use dftbp_type_wrappedintr, only : TWrappedInt1
@@ -31,10 +34,11 @@ module dftbp_dftbplus_mainapi
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
-  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses
+  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, doOneTdStep, setTdElectricField, setTdCoordsAndVelos, getTdForces
-
+  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
+  public :: setTdCoordsAndVelos, getTdForces
+  public :: getRefCharges, setRefCharges, setElectronNumber
 
 contains
 
@@ -90,6 +94,52 @@ contains
     end if
 
   end subroutine setGeometry
+
+
+  !> Explicitly set the neighbour list instead of calculating it in DFTB+
+  subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
+      & coordNeighbours, neighbour2CentCell)
+
+    !> Instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), target, intent(inout) :: main
+
+    !> number of neighbours of an atom in the central cell
+    integer, intent(in) :: nNeighbour(:)
+
+    !> references to the neighbour atoms for an atom in the central cell
+    integer, intent(in) :: iNeighbour(:,:)
+
+    !> distances to the neighbour atoms for an atom in the central cell
+    real(dp), intent(in) :: neighDist(:,:)
+
+    !> cutoff distance used for this neighbour list
+    real(dp), intent(in) :: cutOff
+
+    !> coordinates of all neighbours
+    real(dp), intent(in) :: coordNeighbours(:,:)
+
+    !> mapping between neighbour reference and atom index in the central cell
+    integer, intent(in) :: neighbour2CentCell(:)
+
+    @:ASSERT(size(nNeighbour) == main%nAtom)
+    @:ASSERT(size(neighbour2CentCell) == size(coordNeighbours, dim=2))
+
+    if (allocated(main%electronDynamics)) then
+      call error("Not implemented: Cannot set the neighbour list when time propagation is enabled")
+    end if
+    if (main%tLocalCurrents) then
+      call error("Not implemented: Cannot set the neighbour list when local bond-currents should be&
+          & computed")
+    end if
+
+    call setNeighbourListOrig(main%neighbourList, env, nNeighbour, iNeighbour, neighDist, cutOff,&
+        & main%coord0, main%species0, coordNeighbours, neighbour2CentCell, main%rCellVec,&
+        & main%nAllAtom, main%img2CentCell, main%iCellVec, main%coord, main%species)
+
+  end subroutine setNeighbourList
 
 
   !> Returns the free energy of the system at finite temperature
@@ -215,6 +265,91 @@ contains
   end subroutine getCM5Charges
 
 
+  !> Get the reference charges for neutral atoms (shell resolved)
+  subroutine getRefCharges(main, q0)
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> Reference charges (atomic orbitals, atoms, spin channels)
+    real(dp), intent(out) :: q0(:,:,:)
+
+    q0(:,:,:) = main%q0
+
+  end subroutine getRefCharges
+
+
+  !> Set the reference charges for neutral atoms (shell resolved)
+  subroutine setRefCharges(env, main, q0)
+
+    !> Computational enviroment instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Reference charges (atomic orbitals, atoms, spin channels)
+    real(dp), intent(in) :: q0(:,:,:)
+
+    ! Check data is consistent across MPI processes
+  #:block DEBUG_CODE
+
+    character(*), parameter :: routine = 'setRefCharges'
+
+    call checkExactCoherence(env, q0, "Reference charges in "//routine)
+
+  #:endblock DEBUG_CODE
+
+    main%q0(:,:,:) = q0
+
+    call updateReferenceShellCharges(main%qShell0, main%q0, main%orb, main%nAtom, main%species0)
+
+    ! force a recalculation, as internal electrostatic potential and energies have changed
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
+    call recalcGeometry(env, main)
+
+  end subroutine setRefCharges
+
+
+  !> Updates the number of electrons to set a net charge
+  subroutine setElectronNumber(env, main, nrChrg, nrSpinPol)
+
+    !> Computational enviroment instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance of DFTB+ calculator
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Total charge
+    real(dp), intent(in) :: nrChrg
+
+    !> Spin polarisation
+    real(dp), intent(in) :: nrSpinPol
+
+    ! Check data is consistent across MPI processes
+  #:block DEBUG_CODE
+
+    character(*), parameter :: routine = 'setElectronNumber'
+
+    call checkExactCoherence(env, nrChrg, "Reference net charge in "//routine)
+    call checkExactCoherence(env, nrSpinPol, "Spin polarisation in "//routine)
+
+  #:endblock DEBUG_CODE
+
+    call initElectronNumber(main%q0, nrChrg, nrSpinPol, main%nSpin, main%orb, main%nEl0, main%nEl)
+
+    ! force a recalculation, as internal electrostatic potential and energies have changed
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
+
+  end subroutine setElectronNumber
+
+
   !>  get electrostatic potential at specified points
   subroutine getElStatPotential(env, main, pot, locations)
 
@@ -320,11 +455,21 @@ contains
 
     main%tExtChrg = .true.
     if (main%tForces) then
+      if ( allocated(main%chrgForces) ) then
+         if ( size(main%chrgForces,2) /= size(chargeQs) ) then
+            deallocate(main%chrgForces)
+         end if
+      end if
       if (.not. allocated(main%chrgForces)) then
         allocate(main%chrgForces(3, size(chargeQs)))
       end if
     end if
     call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    ! flag ground state for recalculation as external charge geometries changed:
+    main%tCoordsChanged = .true.
+    if (main%tPeriodic) then
+      main%tLatticeChanged = .true.
+    end if
 
   end subroutine setExternalCharges
 
@@ -425,6 +570,9 @@ contains
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
 
+    !> Error status
+    type(TStatus) :: errStatus
+
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
 
@@ -467,9 +615,12 @@ contains
     ! associated with each atom
     call initReferenceCharges(main%species0, main%orb, main%referenceN0, main%nSpin, main%q0,&
         & main%qShell0)
-    call initElectronNumbers(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
+    call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -512,11 +663,11 @@ contains
           & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
           & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
           & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
-          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
-          & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
-          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
-          & main%electronicSolver, errStatus)
+          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%hybridXc,&
+          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%densityMatrix,&
+          & main%eigvecsReal, main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf,&
+          & main%Ef, main%latVec, main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec,&
+          & main%species, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -526,6 +677,19 @@ contains
     end if
 
   end subroutine initializeTimeProp
+
+
+  !> Finalizes the dynamics (releases memory, closes eventual open files)
+  subroutine finalizeTimeProp(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    if (allocated(main%electronDynamics)) then
+      call finalizeDynamics(main%electronDynamics)
+    end if
+
+  end subroutine finalizeTimeProp
 
 
   !> After calling initializeTimeProp, this subroutine performs one timestep of
@@ -568,7 +732,7 @@ contains
           & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
           & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
           & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
-          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
+          & main%hybridXc, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
           & main%electronicSolver, main%qDepExtPot, errStatus)
 
       if (errStatus%hasError()) then
@@ -660,6 +824,21 @@ contains
     outMass = main%mass
 
   end subroutine getAtomicMasses
+
+
+  !> Returns the cutoff distance for interactions
+  function getCutOff(main) result(cutOff)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Cutoff distance
+    real(dp) :: cutOff
+
+    cutOff = main%cutOff%mCutOff
+
+  end function getCutOff
+
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

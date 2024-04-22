@@ -132,7 +132,7 @@ if(WITH_CHIMES)
 endif()
 
 if(WITH_MPI)
-  target_link_libraries(dftbplus PUBLIC MPI::MPI_Fortran)
+  target_link_libraries(dftbplus PRIVATE MPI::MPI_Fortran)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
 endif()
 
@@ -161,7 +161,7 @@ endif()
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
 
-  if(WITH_API OR BUILD_SHARED_LIBS)
+  if(WITH_API)
     CONFIGURE_FILE(
       "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
       "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"

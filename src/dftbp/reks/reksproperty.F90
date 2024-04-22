@@ -1,9 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
+
+#:include 'error.fypp'
 
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
@@ -16,10 +18,11 @@
 module dftbp_reks_reksproperty
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_densitymatrix, only : makeDensityMatrix
-  use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
   use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
   use dftbp_reks_reksvar, only : reksTypes
@@ -36,7 +39,7 @@ module dftbp_reks_reksproperty
   !> SA-REKS or SSR state (or L-th state)
   subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoL, FONs, &
       & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
-      & unrelRhoSqr, unrelTdm)
+      & unrelRhoSqr, unrelTdm, densityMatrix, errStatus)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -83,6 +86,12 @@ module dftbp_reks_reksproperty
     !> unrelaxed transition density matrix between SSR or SA-REKS states
     real(dp), allocatable, intent(inout) :: unrelTdm(:,:,:)
 
+    !> Holds density matrix settings and pointers
+    type(TDensityMatrix), intent(inout) :: densityMatrix
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     real(dp), allocatable :: rhoX(:,:,:)
     real(dp), allocatable :: rhoXdel(:,:,:)
     real(dp), allocatable :: tmpRho(:,:)
@@ -126,13 +135,15 @@ module dftbp_reks_reksproperty
     rhoX(:,:,:) = 0.0_dp
     if (tSSR) then
       do ist = 1, nstates
-        call makeDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist))
-        call symmetrizeHS(rhoX(:,:,ist))
+        call densityMatrix%getDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        call adjointLowerTriangle(rhoX(:,:,ist))
       end do
     else
       if (Lstate == 0) then
-        call makeDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,rstate))
-        call symmetrizeHS(rhoX(:,:,1))
+        call densityMatrix%getDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,rstate), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        call adjointLowerTriangle(rhoX(:,:,1))
       else
         ! find proper index for up+down in rhoSqrL
         rhoX(:,:,1) = rhoL

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2021  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -38,6 +38,9 @@ module dftbp_dftbplus_outputfiles
   !> First derivative of the dipole moment with respect to atomic positions, equivalently forces
   !> with respect to external electric field
   character(*), parameter :: bornChargesOut = "born.out"
+
+  !> Second derivative of the dipole moment with respect to atomic positions and electric field
+  character(*), parameter :: bornDerivativesOut = "bornderiv.out"
 
   !> file name prefix for charge data
   character(*), parameter :: fCharges = "charges"

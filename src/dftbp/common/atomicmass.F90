@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,11 @@
 !> Atomic masses for each element known in the PSE
 module dftbp_common_atomicmass
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : amu__au, symbolToNumber
+  use dftbp_common_constants, only : amu__au, symbolToNumber, elementSymbol
   implicit none
 
   private
-  public :: getAtomicMass
+  public :: getAtomicMass, getAtomicSymbol
 
 
   !> Get atomic mass for a species
@@ -67,7 +67,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     mass = getAtomicMass(symbolToNumber(symbol))
@@ -81,7 +81,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     if (number > 0 .and. number <= size(atomicMassNist, dim=1)) then
@@ -91,6 +91,34 @@ contains
     end if
 
   end function getAtomicMassNumber
+
+
+  !> Get the atomic symbol given the approximate atomic mass
+  elemental function getAtomicSymbol(mass) result(symbol)
+
+    !> Approximate atomic mass given in a.m.u.
+    real(dp), intent(in) :: mass
+
+    !> Element symbol
+    character(len=2) :: symbol
+
+    integer, parameter :: offset = iachar('a') - iachar('A')
+    integer :: iMin
+    real(dp) :: deltas(size(elementSymbol))
+
+    symbol = '??'
+    if (mass <= 0.0_dp) then
+      return
+    end if
+
+    deltas(:) = abs(getAtomicMass(elementSymbol) / amu__au - mass)
+    iMin = minloc(deltas, dim=1)
+    if (deltas(iMin) <= 20.0_dp) then
+      symbol = elementSymbol(iMin)
+      symbol(1:1) = achar(iachar(symbol(1:1)) - offset)
+    end if
+
+  end function getAtomicSymbol
 
 
 end module dftbp_common_atomicmass

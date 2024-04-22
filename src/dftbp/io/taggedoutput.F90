@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -76,6 +76,9 @@ module dftbp_io_taggedoutput
 
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
+
+    !> nonadiabatic coupling vector TD-DFTB
+    character(lenLabel) :: nacv = 'nac_vectors'
 
     !> ground state total forces
     character(lenLabel) :: forceTot = 'forces'

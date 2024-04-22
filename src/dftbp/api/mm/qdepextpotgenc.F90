@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -53,7 +53,7 @@ module dftbp_dftbplus_qdepextpotgenc
   end interface
 
 
-  !> builds on the charge dependent external interface type from dftbp_dftbplus_qdepextpotgen for
+  !> Builds on the charge dependent external interface type from dftbp_dftbplus_qdepextpotgen for
   !> the C API
   type, extends(TQDepExtPotGen) :: TQDepExtPotGenC
     private
@@ -75,13 +75,13 @@ contains
     !> Instance
     type(TQDepExtPotGenC), intent(out) :: this
 
-    !> pointer to the C routine for the external potential
+    !> Pointer to the C routine for the external potential
     type(c_ptr), intent(in) :: refPtr
 
-    !> function for the potential evaluation
+    !> Function for the potential evaluation
     procedure(getExtPotIfaceC), pointer, intent(in) :: extPotFunc
 
-    !> function for the gradient of the potential
+    !> Function for the gradient of the potential
     procedure(getExtPotGradIfaceC), pointer, intent(in) :: extPotGradFunc
 
     this%getExtPot => extPotFunc
@@ -92,7 +92,7 @@ contains
 
 
 
-  !> extra routine a charge dependent external potential
+  !> Extra routine a charge dependent external potential
   subroutine TDepExtPotGenC_getExternalPot(this, chargePerAtom, chargePerShell, extPotAtom,&
       & extPotShell)
 
@@ -120,7 +120,7 @@ contains
 
 
 
-  !> extra routine for interfacing gradients from a charge dependent external potential
+  !> Extra routine for interfacing gradients from a charge dependent external potential
   subroutine TQDepExtPotGenC_getExternalPotGrad(this, chargePerAtom, chargePerShell, extPotGrad)
 
     !> Class instance.

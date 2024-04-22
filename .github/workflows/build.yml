@@ -29,41 +29,46 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
-        version: [9]
+        version: [11]
         include:
           - os: ubuntu-latest
             mpi: nompi
             config: Coverage
-            version: 9
+            version: 11
         exclude:
           - os: macos-latest
             mpi: openmpi
             config: Debug
-            version: 9
+            version: 11
+
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
-    - uses: actions/setup-python@v1
+    - name: Set up python
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
+    # Note: xcode version 14.0 (default on macos-latest @ 2022-11-23) fails to link gfortran compiled
+    # code. Therefore, 14.1 is selected below (which seems to be installed.)
     - name: Install GCC (OSX)
       if: ${{ contains(matrix.os, 'macos') }}
       run: |
-        brew install gcc@${{ matrix.version }} openblas
+        brew install gcc@${{ matrix.version }} openblas pkg-config
         ln -s /usr/local/bin/gfortran-${{ matrix.version }} /usr/local/bin/gfortran
         ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
         ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++
         echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+        xcversion select 14.1
 
     - name: Install GCC (Linux)
       if: ${{ contains(matrix.os, 'ubuntu') }}
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get update
-        sudo apt-get install -y gcc-${{ matrix.version}} gfortran-${{ matrix.version }}
+        sudo apt-get install -y gcc-${{ matrix.version}} gfortran-${{ matrix.version }} g++-${{ matrix.version }}
         sudo update-alternatives \
           --install /usr/bin/gcc gcc /usr/bin/gcc-${{ matrix.version }} 100 \
           --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ matrix.version }} \
@@ -83,12 +88,14 @@ jobs:
       run: |
         echo "FC=gfortran" >> $GITHUB_ENV
         echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
 
     - name: Set Compiler (OSX)
       if: contains(matrix.os, 'macos')
       run: |
-        echo "FC=gfortran-9" >> $GITHUB_ENV
-        echo "CC=gcc-9" >> $GITHUB_ENV
+        echo "FC=gfortran-${{ matrix.version }}" >> $GITHUB_ENV
+        echo "CC=gcc-${{ matrix.version }}" >> $GITHUB_ENV
+        echo "CXX=g++-${{ matrix.version }}" >> $GITHUB_ENV
 
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
@@ -179,16 +186,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04]
-        fc: [ifort]
-        cc: [icc]
+        os: [ubuntu-latest]
+        fc: [ifx]
+        cc: [icx]
     env:
       FC: ${{ matrix.fc }}
       CC: ${{ matrix.cc }}
       WITH_MPI: false
       APT_PACKAGES: >-
         intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+        intel-oneapi-compiler-dpcpp-cpp
         intel-oneapi-mkl
         intel-oneapi-mkl-devel
       CMAKE_OPTIONS: >-
@@ -201,20 +208,18 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Setup Python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: 3.x
 
     - name: Add Intel repository
       if: contains(matrix.os, 'ubuntu')
       run: |
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt-get update
 
     - name: Install Intel oneAPI compiler

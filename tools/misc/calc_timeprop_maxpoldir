@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -11,45 +11,39 @@ Get direction of maximum polarizability from DFTB+ TD data
 '''
 
 import numpy as np
-import optparse
+import argparse
 from scipy import linalg, constants
 import sys
 hplanck = constants.physical_constants['Planck constant in eV s'][0] * 1.0E15
 
-USAGE = """usage: %prog [options]
-
-Reads output from TD calculation (after kick) and excitation energy (or wavelength)
-of interest and diagonalizes polarizability tensor, to calculate direction of maximum
-polarizability of that particular excitation.
-
-Needs mux.dat, muy.dat and muz.dat files in workind directory."""
+DESCRIPTION = """Reads output from TD calculation (after kick) and excitation energy
+(or wavelength) of interest and diagonalizes polarizability tensor, to
+calculate direction of maximum polarizability of that particular excitation.
+Needs mux.dat, muy.dat and muz.dat files in working directory."""
 
 def main():
-    parser = optparse.OptionParser(usage=USAGE)
-    parser.add_option("-d", "--damping", action="store", dest="tau",
-                      help="damping constant in fs")
-    parser.add_option("-e", "--energy", action="store", dest="energy",
-                      help="excitation energy in eV")
-    parser.add_option("-w", "--wavelength", action="store", dest="wvlength",
-                      help="wavelength of excitation in nm")
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument("-d", "--damping", dest="tau", required=True,
+                        type=float, help="damping constant in fs")
 
-    (options, args) = parser.parse_args()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-e", "--energy", dest="energy", type=float,
+                       help="excitation energy in eV")
+    group.add_argument("-w", "--wavelength", dest="wvlength", type=float,
+                       help="wavelength of excitation in nm")
 
-    if len(args) != 0:
-        parser.error("You must specify exactly two arguments, the damping constant in fs and either the excitation energy in eV or the excitation wavelength in nm")
+    args = parser.parse_args()
 
-    if options.energy and options.wvlength:
-         parser.error("Options -e and -w are mutually exclusive")
-
-    if options.energy is not None:
-        energy = float(options.energy)
-    elif options.wvlength is not None:
+    if args.energy is not None:
+        energy = args.energy
+    elif args.wvlength is not None:
         cspeednm = constants.speed_of_light * 1.0e9 / 1.0e15
-        energy = hplanck * cspeednm / float(options.wvlength)
+        energy = hplanck * cspeednm / args.wvlength
 
     mux = np.loadtxt('mux.dat')
     muy = np.loadtxt('muy.dat')
     muz = np.loadtxt('muz.dat')
+
     time = mux[:,0]
 
     mu = np.zeros((3, 3, mux.shape[0]))
@@ -92,7 +86,7 @@ def main():
         mu[2,1] += factor * muz[:,5]
         mu[2,2] += factor * muz[:,6]
 
-    damp = np.exp(-time/float(options.tau))
+    damp = np.exp(-time/ args.tau)
     energsev = np.fft.rfftfreq(10*time.shape[0],time[1]-time[0]) * hplanck
     idx = (np.abs(energsev-energy)).argmin()
 

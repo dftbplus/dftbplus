@@ -5,7 +5,7 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(dmso)
+  Solvation = GeneralisedBorn { # GFN2-xTB/GBSA(dmso)
     ParamFile = "param_gbsa_dmso.txt"
     State = "reference"
     Temperature [K] = 273.15

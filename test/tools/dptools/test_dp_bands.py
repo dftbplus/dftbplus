@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -60,12 +60,40 @@ class DpbandsTest(common.TestWithWorkDir):
         self.assertTrue(common.nxy_file_equals(outfile_s1, reffile_s1))
         self.assertTrue(common.nxy_file_equals(outfile_s2, reffile_s2))
 
+    def test_auto_alignment(self):
+        '''Single spin channel, multiple enumerated k-points, auto-aligned.'''
+        infile = self.get_input('band-opt-args.out')
+        reffile = self.get_input('band_auto-align_tot.dat')
+        outfile = self.get_output('band_auto-align_tot.dat')
+        outprefix = self.get_output('band_auto-align')
+        cmdargs = ['-A', infile, outprefix]
+        dp_bands.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
+    def test_manual_alignment(self):
+        '''Single spin channel, multiple enum. k-points, manually-aligned.'''
+        infile = self.get_input('band-opt-args.out')
+        reffile = self.get_input('band_manual-align_tot.dat')
+        outfile = self.get_output('band_manual-align_tot.dat')
+        outprefix = self.get_output('band_manual-align')
+        cmdargs = ['-a -1.0', infile, outprefix]
+        dp_bands.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
         tempname = common.get_temporary_filename(self.workroot)
         nonexisting_infile = os.path.join(self.workdir, tempname)
         outprefix = self.get_output('band')
         cmdargs = [nonexisting_infile, outprefix]
+        with self.assertRaises(ScriptError):
+            dp_bands.main(cmdargs)
+
+    def test_fail_incompatible_args(self):
+        '''Failing due to incompatible (optional) arguments.'''
+        infile = self.get_input('band.out')
+        outprefix = self.get_output('band')
+        cmdargs = ['-A', '-a 1.0', infile, outprefix]
         with self.assertRaises(ScriptError):
             dp_bands.main(cmdargs)
 

@@ -62,6 +62,7 @@ Hamiltonian = xtb {
   KPointsAndWeights {
     0.0 0.0 0.0  1.0
   }
+  SCCTolerance = 1.0E-7
 }
 
 Options { WriteAutotestTag = Yes }

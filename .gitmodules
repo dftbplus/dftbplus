@@ -15,25 +15,25 @@
 	url = https://github.com/aradi/fytest.git
 [submodule "external/tblite/origin"]
 	path = external/tblite/origin
-	url = https://github.com/awvwgk/tblite.git
+	url = https://github.com/tblite/tblite.git
 [submodule "external/mctc-lib/origin"]
 	path = external/mctc-lib/origin
-	url = https://github.com/grimme-lab/mctc-lib
+	url = https://github.com/grimme-lab/mctc-lib.git
 [submodule "external/s-dftd3/origin"]
 	path = external/s-dftd3/origin
-	url = https://github.com/awvwgk/simple-dftd3
+	url = https://github.com/dftd3/simple-dftd3.git
 [submodule "external/dftd4/origin"]
 	path = external/dftd4/origin
-	url = https://github.com/dftd4/dftd4
+	url = https://github.com/dftd4/dftd4.git
 [submodule "external/multicharge/origin"]
 	path = external/multicharge/origin
-	url = https://github.com/grimme-lab/multicharge
+	url = https://github.com/grimme-lab/multicharge.git
 [submodule "external/mstore/origin"]
 	path = external/mstore/origin
-	url = https://github.com/grimme-lab/mstore
+	url = https://github.com/grimme-lab/mstore.git
 [submodule "external/toml-f/origin"]
 	path = external/toml-f/origin
-	url = https://github.com/toml-f/toml-f
+	url = https://github.com/toml-f/toml-f.git
 [submodule "external/chimes/origin"]
 	path = external/chimes/origin
-	url = https://github.com/rk-lindsey/chimes_calculator
+	url = https://github.com/rk-lindsey/chimes_calculator.git

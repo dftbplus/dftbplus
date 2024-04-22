@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -82,7 +82,7 @@ contains
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
@@ -236,7 +236,7 @@ contains
     !> scheme
     integer, intent(in) :: distrib
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     integer :: MPorder
@@ -322,7 +322,7 @@ contains
     !> Fermi supported.
     real(dp), intent(in) :: kWeight(:)
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp) :: w
     integer i, j, ispin
     real(dp) :: x
@@ -390,7 +390,7 @@ contains
     !> scheme
     integer, intent(in) :: distrib
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
     integer :: MPorder

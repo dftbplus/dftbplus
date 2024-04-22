@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -79,6 +79,9 @@ module dftbp_dftb_extcharges
 
     !> Copy Q * inverse R contribution for the point charges
     procedure :: copyInvRvec
+
+    !> Returns the number of external charges
+    procedure :: getNumCharges
 
   end type TExtCharges
 
@@ -315,6 +318,19 @@ contains
     qInvR(:) = this%shift
 
   end subroutine copyInvRvec
+
+
+  !> Returns the number of external charges
+  pure function getNumCharges(this) result(n)
+
+    !> Instance of SCC calculation
+    class(TExtCharges), intent(in) :: this
+
+    integer :: n
+
+    n = this%nChrg
+
+  end function getNumCharges
 
 
 end module dftbp_dftb_extcharges

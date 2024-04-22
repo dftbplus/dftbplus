@@ -7,6 +7,8 @@ set(sources-fpp
   ${curdir}/latpointiter.F90
   ${curdir}/integral.F90
   ${curdir}/linkedlist.F90
+  ${curdir}/linkedlistc0.F90
+  ${curdir}/linkedlistc1.F90
   ${curdir}/linkedlisti0.F90
   ${curdir}/linkedlisti1.F90
   ${curdir}/linkedlistlc0.F90

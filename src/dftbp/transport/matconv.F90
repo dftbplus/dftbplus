@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@
 !> createEquivCSR routines.
 module dftbp_transport_matconv
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, imag
   use dftbp_type_commontypes, only : TOrbitals
   use libnegf, only: r_CSR, z_CSR, r_DNS, z_DNS, create, destroy
   implicit none
@@ -563,7 +563,7 @@ contains
     ! Create necessary phase factors
     allocate(phases(nCellVec))
     do ii = 1, nCellVec
-      phases(ii) = exp(2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
+      phases(ii) = exp(2.0_dp * pi * imag * dot_product(kPoint, cellVec(:,ii)))
     end do
 
     allocate(tmpCol(csr%nRow, orb%mOrb))   ! One atomic block column.
@@ -677,7 +677,7 @@ contains
     nCellVec = size(cellVec, dim=2)
     allocate(phases(nCellVec))
     do ii = 1, nCellVec
-      phases(ii) = exp(-2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
+      phases(ii) = exp(-2.0_dp * pi * imag * dot_product(kPoint, cellVec(:,ii)))
     end do
 
     do iAt1 = 1, nAtom

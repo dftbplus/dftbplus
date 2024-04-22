@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -217,8 +217,6 @@ contains
     complex(dp), allocatable :: L(:,:,:)
     real(dp), allocatable :: speciesL(:,:,:,:)
     real(dp), allocatable :: tmpBlock(:,:)
-
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
     nAtom = size(LShell, dim=3)
     nSpecies = maxval(species(1:nAtom))

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,6 +16,7 @@
 module dftbp_reks_reksio
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : au__Debye
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only: stdOut
   use dftbp_io_message, only : error
   use dftbp_reks_rekscommon, only : getTwoIndices, getSpaceSym
@@ -53,7 +54,7 @@ module dftbp_reks_reksio
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (this%isRangeSep) then
+      if (this%isHybridXc) then
         write(stdOut,'(1(f13.8))',advance="no") this%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
@@ -365,8 +366,7 @@ module dftbp_reks_reksio
     real(dp), intent(in) :: tdp(:,:)
 
     character(len=16), parameter :: fname = "tdp.dat"
-    integer :: funit
-
+    type(TFileDescr) :: fd
     real(dp) :: tmp
     integer :: ia, ib, ist, nstates, nstHalf
 
@@ -375,21 +375,20 @@ module dftbp_reks_reksio
     tmp = 0.5_dp * (1.0_dp + sqrt(1.0_dp + 8.0_dp*real(nstHalf,dp)))
     nstates = nint(tmp)
 
-    open(newunit=funit,file=fname,position="rewind",status="replace")
-    write(funit,*)
+    call openFile(fd, fname, mode="w")
+    write(fd%unit,*)
     do ist = 1, nstHalf
 
       call getTwoIndices(nstates, ist, ia, ib, 1)
-
-      write(funit,'(A4,I1,A8,I1,A2)') " < S", ia - 1, " | r | S", ib - 1, " >"
-      write(funit,'(A)',advance="no") "Transition Dipole moment (au)    : "
-      write(funit,'(3(f12.6))') tdp(:,ist)
-      write(funit,'(A)',advance="no") "Transition Dipole moment (Debye) : "
-      write(funit,'(3(f12.6))') tdp(:,ist) * au__Debye
-      write(funit,*)
+      write(fd%unit,'(A4,I1,A8,I1,A2)') " < S", ia - 1, " | r | S", ib - 1, " >"
+      write(fd%unit,'(A)',advance="no") "Transition Dipole moment (au)    : "
+      write(fd%unit,'(3(f12.6))') tdp(:,ist)
+      write(fd%unit,'(A)',advance="no") "Transition Dipole moment (Debye) : "
+      write(fd%unit,'(3(f12.6))') tdp(:,ist) * au__Debye
+      write(fd%unit,*)
 
     end do
-    close(funit)
+    call closeFile(fd)
 
   end subroutine writeReksTDP
 
@@ -411,24 +410,24 @@ module dftbp_reks_reksio
 
     character(len=20), parameter :: fname = "relaxed_charge.dat"
     integer :: iAt, nAtom
-    integer :: funit
+    type(TFileDescr) :: fd
 
     nAtom = size(qOutput,dim=2)
 
-    open(newunit=funit,file=fname,position="rewind",status="replace")
-    write(funit,'(A13,1X,F15.8,A4)') "total charge:", &
+    call openFile(fd, fname, mode="w")
+    write(fd%unit,'(A13,1X,F15.8,A4)') "total charge:", &
         & -sum(qOutput(:,:,1) - q0(:,:,1)), " (e)"
-    write(funit,'(1X)')
+    write(fd%unit,'(1X)')
     if (Lstate == 0) then
-      write(funit,'(A9,I1,A18)') "relaxed S", rstate - 1, " atomic charge (e)"
+      write(fd%unit,'(A9,I1,A18)') "relaxed S", rstate - 1, " atomic charge (e)"
     else
-      write(funit,'(I3,A11,A18)') Lstate, " microstate", " atomic charge (e)"
+      write(fd%unit,'(I3,A11,A18)') Lstate, " microstate", " atomic charge (e)"
     end if
-    write(funit,'(3X,A18)') "atom        charge"
+    write(fd%unit,'(3X,A18)') "atom        charge"
     do iAt = 1, nAtom
-      write(funit,'(2X,I5,2X,F15.8)') iAt, -sum(qOutput(:,iAt,1) - q0(:,iAt,1))
+      write(fd%unit,'(2X,I5,2X,F15.8)') iAt, -sum(qOutput(:,iAt,1) - q0(:,iAt,1))
     end do
-    close(funit)
+    call closeFile(fd)
 
   end subroutine writeReksRelaxedCharge
 

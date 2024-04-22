@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,6 +17,7 @@
 !>
 !> For the specification of the HSD format see the sample input
 module dftbp_io_hsdparser
+  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_extlibs_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
       & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
       & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&
@@ -156,16 +157,17 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
-    integer :: fd
+    type(TFileDescr) :: fd
     integer :: iostat
 
-    open(newunit=fd, file=file, status='old', action='read', access='stream', form="formatted",&
-        & iostat=iostat)
+    ! Explicitely setting "stream" access to avoid record length issues
+    call openFile(fd, file,&
+        & options=TOpenOptions(status='old', action='read', access='stream'), iostat=iostat)
     if (iostat /= 0) then
       call parsingError("Error in opening file '" // trim(file) //"'.", file, -1)
     end if
-    call parseHSD_opened(initRootName, fd, file, xmlDoc)
-    close(fd, iostat=iostat)
+    call parseHSD_opened(initRootName, fd%unit, file, xmlDoc)
+    call closeFile(fd)
 
   end subroutine parseHSD_file
 
@@ -185,6 +187,7 @@ contains
     !> DOM-tree of the parsed input on exit
     type(fnode), pointer :: xmlDoc
 
+    logical, parameter :: parsedTypes(nSeparator) = .true.
     type(fnode), pointer :: rootNode, dummy
     logical :: tFinished
     integer :: curLine
@@ -204,7 +207,7 @@ contains
     curLine = 0
     lineReader = TLineReader(fd)
     tFinished = parse_recursive(rootNode, 0, residual, .false., lineReader, curFile, 0, curLine,&
-        & [.true., .true., .true., .true., .true., .true., .true.], .false.)
+        & parsedTypes, .false.)
 
   end subroutine parseHSD_opened
 
@@ -249,7 +252,7 @@ contains
 
     type(fnode), pointer :: childNode, dummy
     type(string) :: buffer
-    integer :: newFile
+    type(TFileDescr) :: newFile
     type(TLineReader) :: newLineReader
     integer :: iostat
     integer :: iType, sepPos
@@ -387,12 +390,13 @@ contains
                 &operator.", curFile, curLine)
           end if
 
-          open(newunit=newFile, file=word, status='old', action='read', access='stream',&
-              & form='formatted', iostat=iostat)
+          ! Explicitely setting "stream" access to avoid record length issues
+          call openFile(newFile, word,&
+              & options=TOpenOptions(status='old', action='read', access='stream'), iostat=iostat)
           if (iostat /= 0) then
             call parsingError("Error in opening file '" // trim(word) // "'.", curFile, curLine)
           end if
-          newLineReader = TLineReader(newFile)
+          newLineReader = TLineReader(newFile%unit)
           strLine = ""
           newCurLine = 0
           if (iType == 2) then
@@ -406,7 +410,7 @@ contains
           end if
           tFinished = parse_recursive(curNode, 0, strLine, .false., newLineReader,&
               & word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
-          close(newFile, iostat=iostat)
+          call closeFile(newFile)
         end if
 
       case(4)
@@ -673,16 +677,17 @@ contains
     !> Default: .false.
     logical, optional, intent(in) :: subnode
 
-    integer :: fd
+    type(TFileDescr) :: fd
     integer :: iostat
 
-    open(newunit=fd, file=file, status='replace', action='write', access='stream',&
-        & form='formatted', iostat=iostat)
+    ! Explicitely setting "stream" access to avoid record length issues
+    call openFile(fd, file,&
+        & options=TOpenOptions(status='replace', action='write', access='stream'), iostat=iostat)
     if (iostat /= 0) then
       call parsingError("Error in opening file for the HSD output.", file, -1)
     end if
-    call dumpHSD_opened(myDoc, fd, subnode)
-    close(fd)
+    call dumpHSD_opened(myDoc, fd%unit, subnode)
+    call closeFile(fd)
 
   end subroutine dumpHSD_file
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -38,7 +38,7 @@ module dftbp_reks_rekscpeqn
       & HxcHalfD, HxcSpS, HxcSpD, Fc, Fa, omega, SAweight, FONs, G1, GammaAO, &
       & SpinAO, LrGammaAO, overSqr, over, eigenvecs, fillingL, weight, &
       & ConvergeLimit, orderRmatL, getDenseAO, Lpaired, Nc, Na, maxIter, Glevel, &
-      & reksAlg, tSaveMem, isRangeSep, ZT, RmatL, ZmatL, Q2mat)
+      & reksAlg, tSaveMem, isHybridXc, ZT, RmatL, ZmatL, Q2mat)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -168,7 +168,7 @@ module dftbp_reks_rekscpeqn
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
 
     !> solution of A * Z = X equation with X is XT
@@ -227,7 +227,7 @@ module dftbp_reks_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
     call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
         & Nc, Na, reksAlg, shift2e)
 
@@ -263,7 +263,7 @@ module dftbp_reks_rekscpeqn
           & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
           & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
           & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-          & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
+          & Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
       call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
           & Nc, Na, reksAlg, shift2e)
 
@@ -328,7 +328,7 @@ module dftbp_reks_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
     write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
     write(stdOut,"(A)") repeat("-", 82)

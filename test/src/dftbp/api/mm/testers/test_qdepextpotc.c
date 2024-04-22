@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2022  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2023  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -225,6 +225,7 @@ int main()
 
   /* Set up the calculator by processing the input tree */
   dftbp_process_input(&calculator, &input);
+  dftbp_input_final(&input);
 
   /* Register the callback functions calculating population dependent external potential */
   dftbp_register_ext_pot_generator(&calculator, &cont, get_external_potential,

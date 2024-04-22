@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -19,11 +19,12 @@ module dftbp_reks_reksen
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_sparse2dense, only : unpackHS, symmetrizeHS, BlocksymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_eigensolver, only : heev
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
   use dftbp_reks_reksio, only : printReksSSRInfo
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
@@ -133,7 +134,7 @@ module dftbp_reks_reksen
     if (this%t3rd) then
       energy%e3rd = sum(this%weightL(this%rstate,:)*this%enL3rd(:))
     end if
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
     if (this%isDispersion) then
@@ -212,7 +213,7 @@ module dftbp_reks_reksen
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, this%hamSqrL, this%hamSpL, this%weight, &
-        & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isRangeSep, &
+        & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isHybridXc, &
         & orbFON, this%fockFc, this%fockFa)
 
     call matAO2MO(this%fockFc, eigenvecs(:,:,1))
@@ -334,7 +335,7 @@ module dftbp_reks_reksen
     call getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, eigenvecs(:,:,1), this%hamSqrL, &
         & this%hamSpL, this%weight, this%fillingL, this%Nc, this%Na, &
-        & this%Lpaired, this%isRangeSep, Wab)
+        & this%Lpaired, this%isHybridXc, Wab)
 
     select case (this%reksAlg)
     case (reksTypes%noReks)
@@ -408,7 +409,7 @@ module dftbp_reks_reksen
       if (this%t3rd) then
         energy%e3rd = this%enL3rd(this%Lstate)
       end if
-      if (this%isRangeSep) then
+      if (this%isHybridXc) then
         energy%Efock = this%enLfock(this%Lstate)
       end if
       if (this%isDispersion) then
@@ -652,7 +653,7 @@ module dftbp_reks_reksen
   !> Calculate Fc and Fa from Hamiltonian of each microstate
   subroutine getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, hamSqrL, hamSpL, weight, fillingL, &
-      & Nc, Na, Lpaired, isRangeSep, orbFON, Fc, Fa)
+      & Nc, Na, Lpaired, isHybridXc, orbFON, Fc, Fa)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -703,7 +704,7 @@ module dftbp_reks_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     real(dp), allocatable :: tmpHam(:,:)
 
@@ -712,7 +713,7 @@ module dftbp_reks_reksen
     nOrb = size(Fc,dim=1)
     Lmax = size(weight,dim=1)
 
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -722,7 +723,7 @@ module dftbp_reks_reksen
     Fa(:,:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (.not. isRangeSep) then
+      if (.not. isHybridXc) then
         tmpHam(:,:) = 0.0_dp
         ! convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
@@ -730,11 +731,11 @@ module dftbp_reks_reksen
         call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
       end if
 
       ! compute the Fock operator with core, a, b orbitals in AO basis
-      if (isRangeSep) then
+      if (isHybridXc) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
             & Nc, Na, Lpaired, iL, Fa)
@@ -817,7 +818,7 @@ module dftbp_reks_reksen
       end do
     end do
 
-    call symmetrizeHS(fock)
+    call adjointLowerTriangle(fock)
 
   end subroutine getPseudoFock_
 
@@ -997,7 +998,7 @@ module dftbp_reks_reksen
   !> Calculate converged Lagrangian values
   subroutine getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, weight, &
-      & fillingL, Nc, Na, Lpaired, isRangeSep, Wab)
+      & fillingL, Nc, Na, Lpaired, isHybridXc, Wab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1042,7 +1043,7 @@ module dftbp_reks_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> converged Lagrangian values within active space
     real(dp), intent(out) :: Wab(:,:)
@@ -1057,7 +1058,7 @@ module dftbp_reks_reksen
     Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
     allocate(tmpHamL(nActPair,1,Lmax))
@@ -1069,7 +1070,7 @@ module dftbp_reks_reksen
 
       do iL = 1, Lmax
 
-        if (isRangeSep) then
+        if (isHybridXc) then
           ! convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then
@@ -1085,7 +1086,7 @@ module dftbp_reks_reksen
               & neighbourList%iNeighbour, nNeighbourSK, &
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-          call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+          call adjointLowerTriangle(tmpHam)
           ! convert tmpHam from AO basis to MO basis
           call matAO2MO(tmpHam, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis

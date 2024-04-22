@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,6 +12,7 @@ module phonons_initphonons
   use dftbp_common_atomicmass
   use dftbp_common_constants
   use dftbp_common_environment
+  use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion
@@ -233,38 +234,34 @@ contains
 
     ! Read Transport block
     ! This defines system partitioning
+    tTransport = .false.
     call getChild(root, "Transport", child, requested=.false.)
     if (associated(child)) then
       tTransport = .true.
       call readTransportGeometry(child, geo, transpar)
-    else
-      tTransport = .false.
     end if
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
     call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
 
+    tCompModes = .false.
     call getChild(root, "ComputeModes",child=node,requested=.false.)
     if (associated(node)) then
       tCompModes = .true.
+      tPlotModes = .false.
+      nModesToPlot = 0
+      tAnimateModes = .false.
+      tXmakeMol = .false.
       call getChild(root, "DisplayModes",child=node,requested=.false.)
       if (associated(node)) then
         tPlotModes = .true.
-        call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, &
-            &multiple=.true.)
+        call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
         call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
         nModesToPlot = size(modesToPlot)
         call getChildValue(node, "Animate", tAnimateModes, .true.)
         call getChildValue(node, "XMakeMol", tXmakeMol, .true.)
-      else
-        nModesToPlot = 0
-        tPlotModes = .false.
-        tAnimateModes = .false.
-        tXmakeMol = .false.
       end if
-    else
-      tCompModes = .false.
     end if
 
     if (tAnimateModes.and.tXmakeMol) then
@@ -274,6 +271,7 @@ contains
     end if
 
     ! Reading K-points for Phonon Dispersion calculation
+    tPhonDispersion = .false.
     call getChild(root, "PhononDispersion", child=node, requested=.false.)
     if  (associated(node))  then
       tPhonDispersion = .true.
@@ -290,8 +288,6 @@ contains
         call detailedError(node,"Unknown outputUnits "//trim(char(buffer)))
       end select
       call readKPoints(node, geo, tBadKpoints)
-    else
-      tPhonDispersion = .false.
     end if
 
     ! Read the atomic masses from SlaterKosterFiles or Masses
@@ -758,7 +754,6 @@ contains
     type(fnode), pointer :: child, child2
     type(string) :: modif
     integer :: iSp
-    character(lc) :: strTmp
     real(dp) :: mass, defmass
 
     write(stdOut, "(/, A)") "set atomic masses as IUPAC defaults ..."
@@ -978,14 +973,18 @@ contains
     integer :: iCount, jCount, ii, kk, jj, ll
     integer :: nDerivs
 
-    integer ::  n, j1, j2, fu
+    type(TFileDescr) :: fd
+    integer ::  n, j1, j2
     type(fnode), pointer :: child2
     type(string) :: filename
     logical :: texist
+    character(lc) :: strTmp
 
     call getChildValue(child, "Filename", filename, "hessian.out")
 
-    inquire(file=trim(char(filename)), exist=texist )
+    ! workaround for NAG7.1 Build 7148 in Debug build
+    strTmp = char(filename)
+    inquire(file=strTmp, exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
     else
@@ -995,10 +994,11 @@ contains
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
-    open(newunit=fu, file=trim(char(filename)), action='read')
+    call openFile(fd, trim(char(filename)))
     do ii = 1,  nDerivs
-        read(fu,'(4f16.10)') dynMatrix(1:nDerivs,ii)
+        read(fd%unit,'(4f16.10)') dynMatrix(1:nDerivs,ii)
     end do
+    call closeFile(fd)
 
     ! Note: we read the transpose matrix to avoid temporary arrays (ifort warnings).
     ! It should be symmetric or could be symmetrized here
@@ -1018,9 +1018,6 @@ contains
         end do
       end do
     end do
-
-
-  close(fu)
 
   end subroutine readDftbHessian
 
@@ -1062,16 +1059,20 @@ contains
     integer :: iCount, jCount, ii, kk, jj, ll
     integer :: nDerivs, nBlocks
 
+    type(TFileDescr) :: fd
     real, dimension(:,:), allocatable :: HessCp2k
-    integer ::  n, j1, j2,  p,  q, fu
+    integer ::  n, j1, j2,  p,  q
     type(string) :: filename
     logical :: texist
+    character(lc) :: strTmp
 
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
     call getChildValue(child, "Filename", filename, "hessian.cp2k")
-    inquire(file=trim(char(filename)), exist=texist )
+    ! workaround for NAG7.1 Build 7148 in Debug build
+    strTmp = char(filename)
+    inquire(file=strTmp, exist=texist )
     if (texist) then
       write(stdOut, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
     else
@@ -1085,14 +1086,14 @@ contains
     ! ---------- + --------- + --------- + ---------- + ---------- +...
     ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
 
-    open(newunit=fu, file=trim(char(filename)), action='read')
     nBlocks = nDerivs/5.0
-
     allocate(HessCp2k(nDerivs*nBlocks,5))
 
+    call openFile(fd, trim(char(filename)))
     do  ii  = 1,  nDerivs*nBlocks
-        read(fu,*) HessCp2k(ii,1:5)
+      read(fd%unit, *) HessCp2k(ii,1:5)
     end do
+    call closeFile(fd)
 
     do ii = 1,  nBlocks
         do  jj  = 1, nDerivs
@@ -1118,8 +1119,6 @@ contains
       end do
     end do
 
-
-  close(fu)
 
   end subroutine readCp2kHessian
 

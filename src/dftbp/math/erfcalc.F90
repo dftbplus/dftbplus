@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -63,7 +63,7 @@ contains
 
 #:for VC, LABEL in [('sp', 'single'), ('dp', 'double')]
 
-  !> Calculates the appropriate function in double precision.
+  !> Calculates the appropriate function in ${LABEL}$ precision.
   elemental function erfcalc_calc${LABEL}$(arg, jint) result(res)
 
     !> Where to evaluate the function (x).

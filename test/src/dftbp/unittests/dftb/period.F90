@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,8 +9,8 @@
 
 #:block TEST_SUITE("period")
   use dftbp_common_accuracy, only : dp, minNeighDist
-  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, fillNeighbourArrays,&
-      & TNeighbourList, updateNeighbourList, TNeighbourlist_init
+  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
+      & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
   implicit none
 
@@ -139,8 +139,10 @@
 
       call createTestArray(neighDist2)
 
+      call allocateNeighbourArrays(neigh, maxNeighbour, nAtom)
+
       call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-          & nAtom, .false.)
+          & nAtom)
 
       @:ASSERT(lbound(neigh%iNeighbour, dim=1) == 0)
       @:ASSERT(ubound(neigh%iNeighbour, dim=1) == maxNeighbour)

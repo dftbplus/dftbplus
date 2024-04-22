@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -107,7 +107,7 @@ module dftbp_common_environment
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
-      & TTimerItem("Range separated Hamiltonian", 4),&
+      & TTimerItem("Hybrid Hamiltonian", 4),&
       & TTimerItem("Range-sep onsite-corr Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
@@ -136,7 +136,7 @@ module dftbp_common_environment
     integer :: diagonalization = 12
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
-    integer :: rangeSeparatedH = 15
+    integer :: hybridXcH = 15
     integer :: rangeSepOnsCorrH = 16
     integer :: densityMatrix = 17
     integer :: energyEval = 18

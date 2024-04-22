@@ -1,16 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include "common.fypp"
+#:include 'error.fypp'
 
 !> Provides data structure for evaluated electrostatic potentials
 module dftbp_dftb_elstatpot
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_scc, only : TScc
   implicit none
@@ -20,6 +23,7 @@ module dftbp_dftb_elstatpot
   public :: TElStatPotentials, TElStatPotentials_init
 
 
+  !> Electrostatic potential evaluator
   type :: TElStatPotentialsInp
 
     !> File to store the resulting points
@@ -70,8 +74,10 @@ module dftbp_dftb_elstatpot
     !> should the file be appended or overwritten
     logical :: tAppendEsp
 
+    !> Internal electrostatic potential from DFTB model
     real(dp), allocatable :: intPotential(:)
 
+    !> Contribution from external potential(s)
     real(dp), allocatable :: extPotential(:)
 
   contains
@@ -84,17 +90,34 @@ module dftbp_dftb_elstatpot
 
 contains
 
-  !> Initialises calculator instance.
-  subroutine TElStatPotentials_init(this, input, tExtPotential)
 
-    !> Instance of this
+  !> Initialises calculator instance.
+  subroutine TElStatPotentials_init(this, input, isAnExtPotential, iHamiltonianType, errStatus)
+
+    !> Instance of this calculator
     type(TElStatPotentials), intent(out) :: this
 
     !> Input data
     type(TElStatPotentialsInp), intent(inout) :: input
 
     !> Is an external potential being evaluated
-    logical, intent(in) :: tExtPotential
+    logical, intent(in) :: isAnExtPotential
+
+    !> Choice of electronic hamiltonian
+    integer, intent(in) :: iHamiltonianType
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    select case(iHamiltonianType)
+    case default
+      @:RAISE_ERROR(errStatus, -1, "Unknown hamiltonian type")
+    case(hamiltonianTypes%dftb)
+
+    case(hamiltonianTypes%xtb)
+      @:RAISE_ERROR(errStatus, -1, "Electrostatic potential plotting not currently available for&
+          & xTB")
+    end select
 
     this%espOutFile = input%espOutFile
     this%tAppendEsp = input%tAppendEsp
@@ -104,12 +127,13 @@ contains
     this%axes = input%axes
     this%softenEsp = input%softenEsp
     allocate(this%intPotential(size(this%espGrid,dim=2)))
-    if (tExtPotential) then
+    if (isAnExtPotential) then
       allocate(this%extPotential(size(this%espGrid,dim=2)))
     end if
 
 
   end subroutine TElStatPotentials_init
+
 
   !> Evaluate the electrostatic potential at specified points.
   !>

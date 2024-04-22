@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -224,7 +224,7 @@ module dftbp_reks_reksvar
     logical :: t3rd
 
     !> Whether to run a range separated calculation
-    logical :: isRangeSep
+    logical :: isHybridXc
 
     !> Whether to run a dispersion calculation
     logical :: isDispersion
@@ -546,7 +546,7 @@ module dftbp_reks_reksvar
 
   !> Initialize REKS data from REKS input
   subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
-      & t3rd, isRangeSep, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
+      & t3rd, isHybridXc, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -579,7 +579,7 @@ module dftbp_reks_reksvar
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Whether to run a dispersion calculation
     logical, intent(in) :: isDispersion
@@ -663,7 +663,7 @@ module dftbp_reks_reksvar
     nType = size(inp%Tuning,dim=1)
 
     this%t3rd = t3rd
-    this%isRangeSep = isRangeSep
+    this%isHybridXc = isHybridXc
     this%isDispersion = isDispersion
     this%isQNetAllocated = isQNetAllocated
 
@@ -709,7 +709,7 @@ module dftbp_reks_reksvar
       allocate(this%rhoSpL(0,1,Lmax))
     end if
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       allocate(this%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
     end if
 
@@ -723,7 +723,7 @@ module dftbp_reks_reksvar
     allocate(this%intShellL(mShell,nAtom,nSpin,Lmax))
     allocate(this%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       allocate(this%hamSqrL(nOrb,nOrb,1,Lmax))
     else
       allocate(this%hamSpL(0,1,Lmax))
@@ -743,7 +743,7 @@ module dftbp_reks_reksvar
       allocate(this%enL3rd(Lmax))
     end if
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       allocate(this%enLfock(Lmax))
     end if
 
@@ -777,7 +777,7 @@ module dftbp_reks_reksvar
         allocate(this%GammaDeriv(nAtom,nAtom,3))
         allocate(this%SpinAO(nOrb,nOrb))
 
-        if (this%isRangeSep) then
+        if (this%isHybridXc) then
           allocate(this%LrGammaAO(nOrb,nOrb))
           allocate(this%LrGammaDeriv(nAtom,nAtom,3))
         end if
@@ -790,7 +790,7 @@ module dftbp_reks_reksvar
 
         if (this%Glevel == 1 .or. this%Glevel == 2) then
           if (this%tSaveMem) then
-            if (this%isRangeSep) then
+            if (this%isHybridXc) then
               allocate(this%HxcHalfS(nOrbHalf,nOrbHalf))
               allocate(this%HxcHalfD(nOrbHalf,nOrbHalf))
             else
@@ -903,7 +903,7 @@ module dftbp_reks_reksvar
       this%rhoSpL(:,:,:) = 0.0_dp
     end if
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       this%deltaRhoSqrL(:,:,:,:) = 0.0_dp
     end if
 
@@ -917,7 +917,7 @@ module dftbp_reks_reksvar
     this%intShellL(:,:,:,:) = 0.0_dp
     this%intBlockL(:,:,:,:,:) = 0.0_dp
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       this%hamSqrL(:,:,:,:) = 0.0_dp
     else
       this%hamSpL(:,:,:) = 0.0_dp
@@ -937,7 +937,7 @@ module dftbp_reks_reksvar
       this%enL3rd(:) = 0.0_dp
     end if
 
-    if (this%isRangeSep) then
+    if (this%isHybridXc) then
       this%enLfock(:) = 0.0_dp
     end if
 
@@ -969,7 +969,7 @@ module dftbp_reks_reksvar
         this%GammaDeriv(:,:,:) = 0.0_dp
         this%SpinAO(:,:) = 0.0_dp
 
-        if (this%isRangeSep) then
+        if (this%isHybridXc) then
           this%LrGammaAO(:,:) = 0.0_dp
           this%LrGammaDeriv(:,:,:) = 0.0_dp
         end if
@@ -982,7 +982,7 @@ module dftbp_reks_reksvar
 
         if (this%Glevel == 1 .or. this%Glevel == 2) then
           if (this%tSaveMem) then
-            if (this%isRangeSep) then
+            if (this%isHybridXc) then
               this%HxcHalfS(:,:) = 0.0_dp
               this%HxcHalfD(:,:) = 0.0_dp
             else
@@ -1246,7 +1246,7 @@ module dftbp_reks_reksvar
     if (.not. this%tForces) then
       deallocate(this%rhoSpL)
     end if
-    if (.not. this%isRangeSep) then
+    if (.not. this%isHybridXc) then
       deallocate(this%hamSpL)
     end if
 
@@ -1255,7 +1255,7 @@ module dftbp_reks_reksvar
       if (this%Efunction > 1) then
         if (this%Glevel == 1 .or. this%Glevel == 2) then
           if (this%tSaveMem) then
-            if (.not. this%isRangeSep) then
+            if (.not. this%isHybridXc) then
               deallocate(this%HxcSpS)
               deallocate(this%HxcSpD)
             end if
@@ -1268,7 +1268,7 @@ module dftbp_reks_reksvar
     if (.not. this%tForces) then
       allocate(this%rhoSpL(sparseSize,1,this%Lmax))
     end if
-    if (.not. this%isRangeSep) then
+    if (.not. this%isHybridXc) then
       allocate(this%hamSpL(sparseSize,1,this%Lmax))
     end if
 
@@ -1277,7 +1277,7 @@ module dftbp_reks_reksvar
       if (this%Efunction > 1) then
         if (this%Glevel == 1 .or. this%Glevel == 2) then
           if (this%tSaveMem) then
-            if (.not. this%isRangeSep) then
+            if (.not. this%isHybridXc) then
               allocate(this%HxcSpS(sparseSize,sparseSize))
               allocate(this%HxcSpD(sparseSize,sparseSize))
             end if
@@ -1290,7 +1290,7 @@ module dftbp_reks_reksvar
     if (.not. this%tForces) then
       this%rhoSpL = 0.0_dp
     end if
-    if (.not. this%isRangeSep) then
+    if (.not. this%isHybridXc) then
       this%hamSpL = 0.0_dp
     end if
 
@@ -1299,7 +1299,7 @@ module dftbp_reks_reksvar
       if (this%Efunction > 1) then
         if (this%Glevel == 1 .or. this%Glevel == 2) then
           if (this%tSaveMem) then
-            if (.not. this%isRangeSep) then
+            if (.not. this%isHybridXc) then
               this%HxcSpS = 0.0_dp
               this%HxcSpD = 0.0_dp
             end if

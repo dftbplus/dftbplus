@@ -1,56 +1,41 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2022  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
-from numpy import *
-from math import *
+"""
+Broadens the eigenvalues with Gaussians of given width
+"""
+
+from numpy import size, arange
+from math import pi, sqrt, exp
 import re
-import getopt, sys
+import argparse
+import sys
 
-sigma = 0.1 # Generally looks OK
-weight = False
-outfile = None
-infile = None
-norm = True
 
-def usage():
-    print("--broaden -b broadening width")
-    print("--help    -h this message")
-    print("--input   -i input file name")
-    print("--unnorm  -u don't normalize by number of spins/kpoints")
-    print("--output  -o output file name")
-    print("--weight  -w weight data present")
-    sys.exit(2)
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", dest="infile", required=True,
+                    help="input file name")
+parser.add_argument("-o", "--output", dest="outfile", required=True,
+                    help="output file name")
+parser.add_argument("-b", "--broaden", dest="sigma", type=float, default=0.1,
+                    help="broadening width")
+parser.add_argument("-u", "--unnorm", dest="norm", action="store_false",
+                    help="don't normalize by number of spins/kpoints")
+parser.add_argument("-w", "--weight", dest="weight", action="store_true",
+                    help="weight data present")
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "o:i:b:hwu", ["output=", "input=", "broaden=", "help","weight","unnorm"])
-except getopt.GetoptError as err:
-    print(str(err)) # will print something like "option -a not recognized"
-    usage()
-output = None
-input = None
-for options, argument in opts:
-    if options in ("-h", "--help"):
-        usage()
-    elif options in ("-o", "--output"):
-        outfile = argument
-    elif options in ("-b", "--broaden"):
-        sigma = float(argument)
-    elif options in ("-i", "--input"):
-        infile = argument
-    elif options in ("-w", "--weight"):
-        weight = True
-    elif options in ("-u", "--unnorm"):
-        norm = None
-    else:
-        assert False, "unhandled option"
+args = parser.parse_args()
 
-if outfile is None or infile is None:
-    usage()
+outfile = args.outfile
+infile = args.infile
+sigma = args.sigma
+norm = args.norm
+weight = args.weight
 
 # returns numeric matches as a number
 def numGrep(pattern,fileObj):

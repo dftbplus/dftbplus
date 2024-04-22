@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,22 +12,18 @@ module dftbp_io_formatout
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : au__fs, Bohr__AA, pi
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
-  use dftbp_dftb_sparse2dense, only : unpackHS, blockHermitianHS, blockSymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_lapackroutines, only: matinv
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   implicit none
 
   private
-  public :: clearFile, writeGenFormat, writeXYZFormat
+  public :: writeGenFormat, writeXYZFormat
   public :: printDFTBHeader
   public :: writeSparseAsSquare, writeSparse
-
-
-  !> Clears contents of a file
-  interface clearFile
-    module procedure clearFile_fname
-  end interface clearFile
 
 
   !> Writes geometry information in gen format to a file
@@ -51,20 +47,6 @@ module dftbp_io_formatout
   end interface writeSparseAsSquare
 
 contains
-
-
-  !> Clears contents of file
-  subroutine clearFile_fname(fileName)
-
-    !> name of the file which should be cleared
-    character(len=*), intent(in) :: fileName
-
-    integer :: fd
-
-    open(newunit=fd, file=fileName, status="replace", position="rewind")
-    close(fd)
-
-  end subroutine clearFile_fname
 
 
   !> A wrapper around writeGenFormat_fid to open a file first.
@@ -95,7 +77,8 @@ contains
     !> Whether geometry should be appended (default: it is overwritten)
     logical, intent(in), optional :: append
 
-    integer :: fd
+    type(TFileDescr) :: fd
+    character(1) :: mode
 
     logical :: append0
 
@@ -109,13 +92,13 @@ contains
     @:ASSERT(present(latVec) .eqv. present(origin))
 
     if (append0) then
-      open(newunit=fd, file=fileName, form="formatted", action="write", status="old",&
-          & position="append")
+      mode = "a"
     else
-      open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
+      mode = "w"
     end if
-    call writeGenFormat_fid(fd, coord, species, speciesName, latVec, origin, tFracCoord)
-    close(fd)
+    call openFile(fd, fileName, mode=mode)
+    call writeGenFormat_fid(fd%unit, coord, species, speciesName, latVec, origin, tFracCoord)
+    call closeFile(fd)
 
   end subroutine writeGenFormat_fname
 
@@ -248,7 +231,7 @@ contains
 
   !> Writes coordinates in the XYZ format
   subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities,&
-      & comment, append)
+      & vectors, comment, append)
 
     !> File name of a file to be created
     character(len=*), intent(in) :: fileName
@@ -265,8 +248,11 @@ contains
     !> Optional vector with charges for each atom.
     real(dp), intent(in), optional :: charges(:)
 
-    !> Optional array of velocity vectors for each atom.
+    !> Optional array of velocities for each atom, printed in units of AA/ps
     real(dp), intent(in), optional :: velocities(:,:)
+
+    !> Optional array of vectors for each atom, printed unscaled
+    real(dp), intent(in), optional :: vectors(:,:)
 
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
@@ -274,7 +260,8 @@ contains
     !> Whether geometry should be appended (default: it is overwritten)
     logical, intent(in), optional :: append
 
-    integer :: fd
+    type(TFileDescr) :: fd
+    character(1) :: mode
     logical :: append0
 
     if (present(append)) then
@@ -284,19 +271,20 @@ contains
     end if
 
     if (append0) then
-      open(newunit=fd, file=fileName, action="write", form="formatted", status="old",&
-          & position="append")
+      mode = "a"
     else
-      open(newunit=fd, file=fileName, action="write", form="formatted", status="replace")
+      mode = "w"
     end if
-    call writeXYZFormat(fd, coord, species, speciesName, charges, velocities, comment)
-    close(fd)
+    call openFile(fd, fileName, mode=mode)
+    call writeXYZFormat(fd%unit, coord, species, speciesName, charges, velocities, vectors, comment)
+    call closeFile(fd)
 
   end subroutine writeXYZFormat_fname
 
 
   !> Writes coordinates in the XYZ format with additional charges and vectors
-  subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, comment)
+  subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, vectors,&
+      & comment)
 
     !> File id of an open file where output should be written
     integer, intent(in) :: fd
@@ -310,11 +298,14 @@ contains
     !> Name of the different species
     character(mc), intent(in) :: speciesNames(:)
 
-    !> Optional vector with charges for each atom.
+    !> Optional vector with charges for each atom, printed in units of electron charge
     real(dp), intent(in), optional :: charges(:)
 
-    !> Optional array of velocity vectors for each atom.
+    !> Optional array of velocities for each atom, printed in units of AA/ps
     real(dp), intent(in), optional :: velocities(:,:)
+
+    !> Optional array of vectors for each atom, printed unscaled
+    real(dp), intent(in), optional :: vectors(:,:)
 
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
@@ -336,8 +327,12 @@ contains
     if (present(charges)) then
       @:ASSERT(size(charges) == nAtom)
     end if
+    @:ASSERT(.not. (present(velocities) .and. present(vectors)))
     if (present(velocities)) then
       @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
+    end if
+    if (present(vectors)) then
+      @:ASSERT(all(shape(vectors) == (/ 3, nAtom /)))
     end if
   #:endblock DEBUG_CODE
 
@@ -350,30 +345,55 @@ contains
       write(fd, *) ""
     end if
 
-    if (present(charges) .and. present(velocities)) then
-      write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
-    elseif (present(charges) .and. .not. present(velocities)) then
-      write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & charges(ii), ii = 1, nAtom)
-    elseif (.not. present(charges) .and. present(velocities)) then
-      write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+    if (present(charges)) then
+
+      if (present(velocities)) then
+
+        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+
+      else if (present(vectors)) then
+
+        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & charges(ii), vectors(:,ii) * Bohr__AA, ii = 1, nAtom)
+
+      else
+
+        write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
+            & ii = 1, nAtom)
+
+      end if
+
     else
-      write(fd, 201) (trim(speciesNames(species(ii))),&
-          & coords(:, ii) * Bohr__AA, ii = 1, nAtom)
+
+      if (present(velocities)) then
+
+        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+
+      else if (present(vectors)) then
+
+        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+            & vectors(:,ii), ii = 1, nAtom)
+
+      else
+
+        write(fd, 201) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, ii = 1, nAtom)
+
+      end if
+
     end if
 
   end subroutine writeXYZFormat_fid
 
 
-  !> Writes the greeting message of dftb+ on stdout
-  subroutine printDFTBHeader(release, year)
+  !> Writes the greeting message of dftb+ code(s) on stdout
+  subroutine printDFTBHeader(text, year)
 
-    !> release version of the code
-    character(len=*), intent(in) :: release
+    !> Additional text to print next to project name
+    character(len=*), intent(in) :: text
 
-    !> release year
+    !> Release year
     integer, intent(in) :: year
 
     character, parameter :: verticalBar = '|'
@@ -381,7 +401,7 @@ contains
     integer, parameter :: headerWidth = 80
 
     write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
-    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
+    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(text)
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
         & '  DFTB+ developers group'
@@ -438,7 +458,8 @@ contains
     !> Mapping of the atoms to the central cell.
     real(dp), allocatable :: square(:,:)
     character(mc) :: strForm
-    integer :: fd, nOrb
+    integer :: nOrb
+    type(TFileDescr) :: fd
 
     if (withMpi) then
       call error("Writing of HS not working with MPI yet")
@@ -447,18 +468,18 @@ contains
     nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1
 
     allocate(square(nOrb, nOrb))
-    open(newunit=fd, file=fname, form="formatted", status="replace")
-    write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
-    write(fd, "(1X,L10,I10,I10,I10)") .true., nOrb, 1
+    call openFile(fd, fname, mode="w")
+    write(fd%unit, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
+    write(fd%unit, "(1X,L10,I10,I10,I10)") .true., nOrb, 1
 
     write (strForm, "(A,I0,A)") "(", nOrb, "ES24.15)"
     call unpackHS(square, sparse, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
-    call blockSymmetrizeHS(square, iAtomStart)
-    write(fd, "(A1,A10,A10)") "#", "IKPOINT"
-    write(fd, "(1X,I10,I10)") 1
-    write(fd, "(A1,A)") "#", " MATRIX"
-    write(fd, strForm) square
-    close(fd)
+    call adjointLowerTriangle(square)
+    write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
+    write(fd%unit, "(1X,I10,I10)") 1
+    write(fd%unit, "(A1,A)") "#", " MATRIX"
+    write(fd%unit, strForm) square
+    call closeFile(fd)
 
   end subroutine writeSparseAsSquare_real
 
@@ -500,9 +521,10 @@ contains
     !> Cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
 
+    type(TFileDescr) :: fd
     complex(dp), allocatable :: square(:,:)
     character(mc) :: strForm
-    integer :: fd, nOrb, nKPoint
+    integer :: nOrb, nKPoint
     integer :: iK
 
     if (withMpi) then
@@ -513,21 +535,21 @@ contains
     nKPoint = size(kPoints, dim =2)
 
     allocate(square(nOrb, nOrb))
-    open(newunit=fd, file=fname, form="formatted", status="replace")
-    write(fd, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
-    write(fd, "(1X,L10,I10,I10)") .false., nOrb, nKPoint
+    call openFile(fd, fname, mode="w")
+    write(fd%unit, "(A1,A10,A10,A10,A10)") "#", "REAL", "NALLORB", "NKPOINT"
+    write(fd%unit, "(1X,L10,I10,I10)") .false., nOrb, nKPoint
 
     write (strForm, "(A,I0,A)") "(", 2 * nOrb, "ES24.15)"
     do iK = 1, nKPoint
       call unpackHS(square, sparse, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec, cellVec,&
           & iAtomStart, iPair, img2CentCell)
-      call blockHermitianHS(square, iAtomStart)
-      write(fd, "(A1,A10,A10)") "#", "IKPOINT"
-      write(fd, "(1X,I10,I10)") iK
-      write(fd, "(A1,A)") "#", " MATRIX"
-      write(fd, strForm) square
+      call adjointLowerTriangle(square)
+      write(fd%unit, "(A1,A10,A10)") "#", "IKPOINT"
+      write(fd%unit, "(1X,I10,I10)") iK
+      write(fd%unit, "(A1,A)") "#", " MATRIX"
+      write(fd%unit, strForm) square
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeSparseAsSquare_cplx
 
@@ -563,7 +585,8 @@ contains
     !> Cell translation vectors.
     real(dp), intent(in) :: cellVec(:,:)
 
-    integer :: fd, nAtom
+    type(TFileDescr) :: fd
+    integer :: nAtom
     integer :: iAt1, iAt2, iAt2f, iNeigh, iOrig, nOrb1, nOrb2
     character(mc) :: strForm
 
@@ -573,12 +596,12 @@ contains
 
     nAtom = size(nNeighbourSK)
 
-    open(newunit=fd, file=fname, form="formatted", status="replace")
-    write(fd, "(A1,A10)") "#", "NATOM"
-    write(fd, "(1X,I10)") nAtom
-    write(fd, "(A1,A10,A10,A10)") "#", "IATOM", "NNEIGH", "NORB"
+    call openFile(fd, fname, mode="w")
+    write(fd%unit, "(A1,A10)") "#", "NATOM"
+    write(fd%unit, "(1X,I10)") nAtom
+    write(fd%unit, "(A1,A10,A10,A10)") "#", "IATOM", "NNEIGH", "NORB"
     do iAt1 = 1, nAtom
-      write(fd, "(1X,I10,I10,I10)") iAt1, nNeighbourSK(iAt1) + 1, iAtomStart(iAt1+1)&
+      write(fd%unit, "(1X,I10,I10,I10)") iAt1, nNeighbourSK(iAt1) + 1, iAtomStart(iAt1+1)&
           & - iAtomStart(iAt1)
     end do
 
@@ -590,14 +613,14 @@ contains
         iAt2f = img2CentCell(iAt2)
         nOrb2 = iAtomStart(iAt2f+1) - iAtomStart(iAt2f)
         write(strForm, "(A,I0,A)") "(", nOrb2, "ES24.15)"
-        write(fd, "(A1,A10,A10,A10,3A10)") "#", "IATOM1", "INEIGH", "IATOM2F", "ICELL(1)",&
+        write(fd%unit, "(A1,A10,A10,A10,3A10)") "#", "IATOM1", "INEIGH", "IATOM2F", "ICELL(1)",&
             & "ICELL(2)", "ICELL(3)"
-        write(fd, "(1X,I10,I10,I10,3I10)") iAt1, iNeigh, iAt2f, int(cellVec(:,iCellVec(iAt2)))
-        write(fd, "(A1,A)") "#", " MATRIX"
-        write(fd, strForm) sparse(iOrig:iOrig+nOrb1*nOrb2-1)
+        write(fd%unit, "(1X,I10,I10,I10,3I10)") iAt1, iNeigh, iAt2f, int(cellVec(:,iCellVec(iAt2)))
+        write(fd%unit, "(A1,A)") "#", " MATRIX"
+        write(fd%unit, strForm) sparse(iOrig:iOrig+nOrb1*nOrb2-1)
       end do
     end do
-    close(fd)
+    call closeFile(fd)
 
   end subroutine writeSparse
 

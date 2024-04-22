@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2022  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_common_constants
 
   !! Natural constants
 
-  !> pi
+  !> Pi
   real(dp), parameter :: pi = 3.14159265358979323846_dp
 
   !> Bohr->Angstrom
@@ -30,7 +30,7 @@ module dftbp_common_constants
   !> Angstrom->Bohr
   real(dp), parameter :: AA__Bohr = 1.0_dp / Bohr__AA
 
-  !> Hartre -> eV
+  !> Hartree -> eV
   real(dp), parameter :: Hartree__eV = 27.2113845_dp
 
   !> eV->Hartree
@@ -39,13 +39,13 @@ module dftbp_common_constants
   !> Hartree/K
   real(dp), parameter :: Boltzmann = 0.00000316681534524639_dp
 
-  !> electron rest mass (NIST CODATA 2019), atomic mass a.u. -> kg
+  !> Electron rest mass (NIST CODATA 2019), atomic mass a.u. -> kg
   real(dp), parameter :: au__kg = 9.10938356e-31_dp
 
   !> kg -> atomic mass a.u.)
   real(dp), parameter :: kg__au = 1.0_dp / au__kg
 
-  !> atomic mass -> a.m.u.
+  !> Atomic mass -> a.m.u.
   real(dp), parameter :: e__amu = 0.00054857990945_dp
 
   !> a.m.u. -> atomic mass a.u.
@@ -54,16 +54,16 @@ module dftbp_common_constants
   !> a.u. -> femtoseconds
   real(dp), parameter :: au__fs = 0.02418884326505_dp
 
-  !> femtoseconds -> a.u.
+  !> Femtoseconds -> a.u.
   real(dp), parameter :: fs__au = 1.0_dp/au__fs
 
-  !> fine structure constant
+  !> Fine structure constant
   real(dp), parameter :: alpha_fs = 0.007297352568_dp
 
-  !> speed of light in a.u. ~137
+  !> Speed of light in a.u. ~137
   real(dp), parameter :: c = 1.0_dp/alpha_fs
 
-  !> atomic units -> SI
+  !> Atomic units -> SI
   real(dp), parameter :: au__Coulomb = 1.60217653e-19_dp
 
   !> SI -> a.u.
@@ -78,7 +78,7 @@ module dftbp_common_constants
   !> hbar in SI units
   real(dp), parameter :: hbar = 1.054571726e-34_dp
 
-  !> electron g factor
+  !> Electron g factor
   real(dp), parameter :: gfac = 2.00231930436153_dp
 
   !> Bohr magneton atomic CGS units
@@ -128,19 +128,19 @@ module dftbp_common_constants
   !> Avogadros constant
   real(dp), parameter :: avogadConst = 6.022140857e23_dp
 
-  !> hartree to kj/mol
+  !> Hartree to kj/mol
   real(dp), parameter :: Hartree__kJ_mol = (Hartree__J * avogadConst) / 1000.0_dp
 
-  !> bohr to nm
+  !> Bohr to nm
   real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
 
-  !> nm to bohr
+  !> nm to Bohr
   real(dp), parameter :: nm__Bohr = 1.0_dp / Bohr__nm
 
   !> a.u. to ps
   real(dp), parameter :: au__ps = au__fs / 1000.0_dp
 
-  !> fraction of Hartree-Fock exchange in LC functionals
+  !> Fraction of Hartree-Fock exchange in LC functionals
   real(dp), parameter :: cExchange = 1.0_dp
 
   !> Golden mean plus one
@@ -191,7 +191,7 @@ module dftbp_common_constants
 contains
 
 
-  !> get atomic number from element symbol.
+  !> Get atomic number from element symbol.
   elemental function symbolToNumber(symbol) result(number)
 
     !> Element symbol
