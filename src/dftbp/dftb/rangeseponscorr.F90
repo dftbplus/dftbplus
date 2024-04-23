@@ -67,7 +67,7 @@ contains
       hybridXcAlg, hybridXcType, gammaType)
 
     !> class instance
-    type(TRangeSepOnsCorrFunc), intent(out) :: this
+    type(TRangeSepOnsCorrFunc), intent(inout) :: this
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -93,18 +93,16 @@ contains
     !> Gamma function type (mostly for periodic cases)
     integer, intent(in) :: gammaType
 
-    call checkRequirements(this, orb)
-    call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, hybridXcAlg,&
-        hybridXcType, gammaType)
+    call checkRequirements(this, orb, hybridXcAlg, hybridXcType, gammaType)
+    call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin)
 
   contains
 
     !> initialise data structures
-    subroutine initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin,&
-        hybridXcAlg, hybridXcType, gammaType)
+    subroutine initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin)
 
       !> class instance
-      class(TRangeSepOnsCorrFunc), intent(out) :: this
+      class(TRangeSepOnsCorrFunc), intent(inout) :: this
 
       !> Atomic orbital information
       type(TOrbitals), intent(in) :: orb
@@ -121,15 +119,6 @@ contains
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
 
-      !> lr-Hamiltonian construction algorithm
-      integer, intent(in) :: hybridXcAlg
-
-      !> Hybrid xc-functional type, as extracted from SK-file(s)
-      integer, intent(in) :: hybridXcType
-
-      !> Gamma function type (mostly for periodic cases)
-      integer, intent(in) :: gammaType
-
       real(dp) :: fac
       integer :: nAtom, iAtom, nOrb, ii, jj, iOrb, jOrb, iSh1, iSh2
 
@@ -137,9 +126,6 @@ contains
       nAtom = size(iSquare,dim=1) - 1
 
       this%lrOcEnergy = 0.0_dp
-      this%hybridXcAlg = hybridXcAlg
-      this%hybridXcType = hybridXcType
-      this%gammaType = gammaType
       this%tSpin = tSpin
 
       ! Set onsite constant matrices
@@ -188,13 +174,26 @@ contains
 
 
     !> Test for option consistency
-    subroutine checkRequirements(this, orb)
+    subroutine checkRequirements(this, orb, hybridXcAlg, hybridXcType, gammaType)
 
       !> class instance
       class(TRangeSepOnsCorrFunc), intent(inout) :: this
 
       !> Atomic orbital information
       type(TOrbitals), intent(in) :: orb
+
+      !> lr-Hamiltonian construction algorithm
+      integer, intent(in) :: hybridXcAlg
+
+      !> Hybrid xc-functional type, as extracted from SK-file(s)
+      integer, intent(in) :: hybridXcType
+
+      !> Gamma function type (mostly for periodic cases)
+      integer, intent(in) :: gammaType
+
+      this%hybridXcAlg = hybridXcAlg
+      this%hybridXcType = hybridXcType
+      this%gammaType = gammaType
 
       ! Check for current restrictions
       if (orb%mOrb > 4) then
