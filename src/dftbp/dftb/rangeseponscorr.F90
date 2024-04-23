@@ -13,9 +13,9 @@ module dftbp_dftb_rangeseponscorr
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_rangeseparated, only : rangeSepTypes
+  use dftbp_dftb_hybridxc, only : hybridXcFunc, hybridXcAlgo, hybridXcGammaTypes
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : symmetrizeHS
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_type_commontypes, only : TOrbitals
@@ -41,8 +41,14 @@ module dftbp_dftb_rangeseponscorr
     !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
 
-    !> algorithm for range separation screening
-    integer :: rsAlg
+    !> Algorithm for RSH-Hamiltonian construction (and, if applicable, force calculation)
+    integer :: hybridXcAlg
+
+    !> Hybrid xc-functional type, as extracted from SK-file(s)
+    integer :: hybridXcType
+
+    !> Gamma function type (mostly for periodic cases; 'full' for non-periodic systems)
+    integer :: gammaType
 
   contains
 
@@ -57,7 +63,8 @@ contains
 
 
   !> Intitialize the onsite correction with range-separated hybrid functional module
-  subroutine RangeSepOnsCorrFunc_init(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
+  subroutine RangeSepOnsCorrFunc_init(this, orb, iSquare, species, onSiteElements, tSpin,&
+      hybridXcAlg, hybridXcType, gammaType)
 
     !> class instance
     type(TRangeSepOnsCorrFunc), intent(out) :: this
@@ -77,16 +84,24 @@ contains
     !> Is this spin restricted (F) or unrestricted (T)
     logical, intent(in) :: tSpin
 
-    !> algorithm for range separation screening
-    integer, intent(in) :: rsAlg
+    !> lr-Hamiltonian construction algorithm
+    integer, intent(in) :: hybridXcAlg
+
+    !> Hybrid xc-functional type, as extracted from SK-file(s)
+    integer, intent(in) :: hybridXcType
+
+    !> Gamma function type (mostly for periodic cases)
+    integer, intent(in) :: gammaType
 
     call checkRequirements(this, orb)
-    call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
+    call initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, hybridXcAlg,&
+        hybridXcType, gammaType)
 
   contains
 
     !> initialise data structures
-    subroutine initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin, rsAlg)
+    subroutine initAndAllocate(this, orb, iSquare, species, onSiteElements, tSpin,&
+        hybridXcAlg, hybridXcType, gammaType)
 
       !> class instance
       class(TRangeSepOnsCorrFunc), intent(out) :: this
@@ -106,8 +121,14 @@ contains
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
 
-      !> algorithm for range separation screening
-      integer, intent(in) :: rsAlg
+      !> lr-Hamiltonian construction algorithm
+      integer, intent(in) :: hybridXcAlg
+
+      !> Hybrid xc-functional type, as extracted from SK-file(s)
+      integer, intent(in) :: hybridXcType
+
+      !> Gamma function type (mostly for periodic cases)
+      integer, intent(in) :: gammaType
 
       real(dp) :: fac
       integer :: nAtom, iAtom, nOrb, ii, jj, iOrb, jOrb, iSh1, iSh2
@@ -116,7 +137,9 @@ contains
       nAtom = size(iSquare,dim=1) - 1
 
       this%lrOcEnergy = 0.0_dp
-      this%rsAlg = rsAlg
+      this%hybridXcAlg = hybridXcAlg
+      this%hybridXcType = hybridXcType
+      this%gammaType = gammaType
       this%tSpin = tSpin
 
       ! Set onsite constant matrices
@@ -179,14 +202,17 @@ contains
             & the system consisting of up to p orbitals")
       end if
 
-      if (.not. this%rsAlg == rangeSepTypes%matrixBased) then
+      if (.not. this%hybridXcType == hybridXcFunc%lc) then
+        call error("Long-range corrected functional only works with onsite corrections")
+      end if
+
+      if (.not. this%hybridXcAlg == hybridXcAlgo%matrixBased) then
         call error("Onsite correction with range separated functional only works with&
             & matrix based algorithm")
       end if
 
-      if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
-            & rangeSepTypes%matrixBased] == this%rsAlg)) then
-        call error("Unknown algorithm for screening the exchange in range separation")
+      if (.not. this%gammaType == hybridXcGammaTypes%full) then
+        call error("Full, unaltered gamma function only works with onsite corrections")
       end if
 
     end subroutine checkRequirements
@@ -213,12 +239,12 @@ contains
     real(dp), intent(inout) :: HH(:,:)
 
     call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
-    select case(this%rsAlg)
-    case (rangeSepTypes%threshold)
+    select case(this%hybridXcAlg)
+    case (hybridXcAlgo%thresholdBased)
       ! not supported at the moment
-    case (rangeSepTypes%neighbour)
+    case (hybridXcAlgo%neighbourBased)
       ! not supported at the moment
-    case (rangeSepTypes%matrixBased)
+    case (hybridXcAlgo%matrixBased)
       call addLrOcHamiltonianMatrix(this, overlap, densSqr, HH)
     end select
     call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
@@ -287,9 +313,9 @@ contains
 
       ! Symmetrize overlap and density matrices
       Smat(:,:) = overlap
-      call symmetrizeHS(Smat)
+      call adjointLowerTriangle(Smat)
       Dmat(:,:) = densSqr
-      call symmetrizeHS(Dmat)
+      call adjointLowerTriangle(Dmat)
 
     end subroutine allocateAndInit
 
@@ -674,10 +700,10 @@ contains
 
       ! Symmetrize overlap and density matrices
       Smat(:,:) = overlap
-      call symmetrizeHS(Smat)
+      call adjointLowerTriangle(Smat)
       Dmat(:,:,:) = densSqr
       do iSpin = 1, nSpin
-        call symmetrizeHS(Dmat(:,:,iSpin))
+        call adjointLowerTriangle(Dmat(:,:,iSpin))
       end do
 
     end subroutine allocateAndInit

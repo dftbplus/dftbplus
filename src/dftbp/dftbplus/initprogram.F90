@@ -2940,10 +2940,11 @@ contains
     if (this%isRS_OnsCorr) then
       call ensureRangeSepOnsCorrReqs(this%tPeriodic, this%tHelical, this%tAtomicEnergy,&
           & this%nSpin, this%tSpinOrbit, this%isXlbomd, this%t3rd.or.this%t3rdFull,&
-          & this%isLinResp, this%isDFTBPT, this%solvation, this%reks)
+          & this%isLinResp, this%doPerturbation, this%solvation, this%reks)
       allocate(this%rsOnsCorr)
       call RangeSepOnsCorrFunc_init(this%rsOnsCorr, this%orb, this%denseDesc%iAtomStart,&
-          & this%species0, this%onSiteElements, this%tSpin, input%ctrl%rangeSepInp%rangeSepAlg)
+          & this%species0, this%onSiteElements, this%tSpin, input%ctrl%hybridXcInp%hybridXcAlg,&
+          & input%ctrl%hybridXcInp%hybridXcType, input%ctrl%hybridXcInp%gammaType)
     end if
 
     ! Initialise images (translations)
@@ -6287,7 +6288,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSepOnsCorrReqs(tPeriodic, tHelical, tAtomicEnergy, nSpin, tSpinOrbit,&
-      & isXlbomd, is3rd, isLinResp, isDFTBPT, solvation, reks)
+      & isXlbomd, is3rd, isLinResp, doPerturbation, solvation, reks)
 
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
@@ -6314,7 +6315,7 @@ contains
     logical, intent(in) :: isLinResp
 
     !> Density functional tight binding perturbation theory
-    logical, intent(in) :: isDFTBPT
+    logical, intent(in) :: doPerturbation
 
     !> Solvation data and calculations
     class(TSolvation), allocatable, intent(in) :: solvation
@@ -6366,7 +6367,7 @@ contains
           & implemented for linear response excitation")
     end if
 
-    if (isDFTBPT) then
+    if (doPerturbation) then
       call error("Perturbation calculations not currently implemented for linear response&
           & excitation")
     end if
