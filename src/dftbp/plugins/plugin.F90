@@ -96,7 +96,8 @@ contains
     this%initialized = c_associated(this%handle%cptr)
 
     if (this%initialized) then
-      this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals" // char(0))
+      this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals" // char(0))&
+          & == 1
     end if
 
     success = this%initialized
