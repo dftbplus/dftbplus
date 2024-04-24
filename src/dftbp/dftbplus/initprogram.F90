@@ -4047,6 +4047,8 @@ contains
     if (len_trim(input%ctrl%pluginFile) > 0) then
       strTmp = adjustl(input%ctrl%pluginFile)
       if (this%plugin%init(strTmp)) then
+        this%skHamCont%plugin => this%plugin
+        this%skOverCont%plugin => this%plugin
         write(stdOut, "(A,':',T30,A)") "Plugin loaded", trim(strTmp)
       else
         call error("Could not load the plugin " // strTmp)
