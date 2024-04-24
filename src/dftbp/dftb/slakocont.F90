@@ -38,7 +38,7 @@ module dftbp_dftb_slakocont
     real(dp) :: cutoff
     logical :: tDataOK
     logical :: tInit = .false.
-    type(TPlugin), pointer, public :: plugin
+    type(TPlugin), pointer, public :: plugin => null()
   end type TSlakoCont
 
 
