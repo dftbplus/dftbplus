@@ -5867,11 +5867,14 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
 \item[\is{WriteAtomicEnergies}] If the atom-resolved contributions to the total energy
 shpuld be written to the \verb|atomenergies.dat| file.
 
-\item[\is{FillingsFromFile}] If the initial fillings (molecular
-  orbital occupations) should be read from a file named
-  ``fillings.ini'' present in the working directory. If used, the
-  ground state fillings are replaced by these and used to build the
-  initial density matrix.
+\item[\is{FillingsFromFile}] Whether to read the initial molecular orbital
+    occupations from a file. When set to \is{Yes}, place a file named
+    ``fillings.in'' in the working directory. This file will override the
+    default ground state fillings when constructing the initial density matrix.
+    The file should list one occupation per line for each orbital in each spin
+    channel, starting with all the orbitals for the first spin channel. For
+    spin-polarized calculations with collinear spin, the occupations for the
+    second spin channel should follow sequentially.
 
 \end{description}
 
