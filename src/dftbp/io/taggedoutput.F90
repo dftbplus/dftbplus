@@ -167,6 +167,9 @@ module dftbp_io_taggedoutput
     !> total internal energy
     character(lenLabel) :: egyTotal   = 'total_energy'
 
+    !> total internal energy for averaged state in REKS
+    character(lenLabel) :: egyAvg   = 'averaged_energy'
+
     !> total internal energy extrapolated to 0 K
     character(lenLabel) :: egy0Total   = 'extrapolated0_energy'
 
