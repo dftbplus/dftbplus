@@ -175,6 +175,7 @@ contains
     if (associated(this%plugin)) then
       if (this%plugin%provides_getSKIntegrals) then
         call this%plugin%getSKIntegrals(sk, dist, sp1, sp2)
+        return
       end if
     end if
 

@@ -569,3 +569,5 @@ transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 pp-RPA/ethene                          #? not WITH_MPI
 pp-RPA/benzene_TammDancoff             #? not WITH_MPI
 pp-RPA/furan_OrbConst                  #? not WITH_MPI
+
+plugins/Fe2                            #? MPI_PROCS == 1 or not WITH_MPI
