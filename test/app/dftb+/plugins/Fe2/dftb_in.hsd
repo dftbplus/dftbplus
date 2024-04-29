@@ -19,5 +19,5 @@ Hamiltonian = DFTB {
 
 Options {
   WriteAutotestTag = Yes
-  Plugin = libplugin_Fe2.so
+  Plugin = "./libplugin_Fe2.so"
 }
