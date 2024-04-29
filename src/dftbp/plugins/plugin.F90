@@ -70,7 +70,7 @@ module dftbp_plugins_plugin
         & bind(C, name='call_getSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
-      real(c_double), intent(out) :: sk(:)
+      real(c_double), intent(out) :: sk(*)
       real(c_double), intent(in) :: dist
       integer(c_int), intent(in) :: sp1, sp2
       integer(c_int) :: success
