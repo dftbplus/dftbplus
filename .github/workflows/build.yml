@@ -33,11 +33,11 @@ jobs:
         mpi: [nompi, openmpi]
         config: [Debug]
         version: [13]
-        include:
-          - os: ubuntu-latest
-            mpi: nompi
-            config: Coverage
-            version: 13
+        # include:
+        #   - os: ubuntu-latest
+        #     mpi: nompi
+        #     config: Coverage
+        #     version: 13
 
     steps:
     - name: Checkout code
@@ -133,12 +133,12 @@ jobs:
       if: contains(matrix.config, 'Coverage')
       run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
 
-    - name: Upload coverage report
-      if: contains(matrix.config, 'Coverage')
-      uses: codecov/codecov-action@v1
-      with:
-        directory: _build/gcovs
-        functionalities: gcov
+    # - name: Upload coverage report
+    #   if: contains(matrix.config, 'Coverage')
+    #   uses: codecov/codecov-action@v1
+    #   with:
+    #     directory: _build/gcovs
+    #     functionalities: gcov
 
     - name: Run integration CMake test
       run: >-
