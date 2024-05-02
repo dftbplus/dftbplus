@@ -21,26 +21,28 @@ env:
     -DWITH_PYTHON=true
 
 jobs:
+
   gcc-build:
+
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
-        version: [11]
+        version: [13]
         include:
           - os: ubuntu-latest
             mpi: nompi
             config: Coverage
-            version: 11
+            version: 13
         exclude:
           - os: macos-latest
             mpi: openmpi
             config: Debug
-            version: 11
-
+            version: 13
 
     steps:
     - name: Checkout code
@@ -51,8 +53,6 @@ jobs:
       with:
         python-version: '3.x'
 
-    # Note: xcode version 14.0 (default on macos-latest @ 2022-11-23) fails to link gfortran compiled
-    # code. Therefore, 14.1 is selected below (which seems to be installed.)
     - name: Install GCC (OSX)
       if: ${{ contains(matrix.os, 'macos') }}
       run: |
@@ -61,7 +61,6 @@ jobs:
         ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
         ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++
         echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
-        xcversion select 14.1
 
     - name: Install GCC (Linux)
       if: ${{ contains(matrix.os, 'ubuntu') }}
@@ -181,23 +180,15 @@ jobs:
         PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
         ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
+
   intel-build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        fc: [ifx]
-        cc: [icx]
+
+    runs-on: ubuntu-latest
+
     env:
-      FC: ${{ matrix.fc }}
-      CC: ${{ matrix.cc }}
+      FC: ifx
+      CC: icx
       WITH_MPI: false
-      APT_PACKAGES: >-
-        intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp
-        intel-oneapi-mkl
-        intel-oneapi-mkl-devel
       CMAKE_OPTIONS: >-
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DWITH_API=true
@@ -215,22 +206,22 @@ jobs:
       with:
         python-version: 3.x
 
-    - name: Add Intel repository
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo apt-get update
+    - name: Setup Intel compiler
+      uses: rscohn2/setup-oneapi@v0
+      with:
+        components: |
+          icx@2024.0.0
+          ifx@2024.0.0
+          mkl@2024.0.0
 
-    - name: Install Intel oneAPI compiler
-      if: contains(matrix.os, 'ubuntu')
+    - name: Setup Intel environment
       run: |
-        sudo apt-get update
-        sudo apt-get install ${APT_PACKAGES}
         source /opt/intel/oneapi/setvars.sh
-        printenv >> $GITHUB_ENV
+        printenv >> ${GITHUB_ENV}
+        echo "FC=ifx" >> ${GITHUB_ENV}
+        echo "CC=icx" >> ${GITHUB_ENV}
 
-    - name: Install cmake
+    - name: Install tools via pip
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
