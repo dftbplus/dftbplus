@@ -2136,7 +2136,6 @@ contains
     if (allocated(reks)) then
       call taggedWriter%write(fd%unit, tagLabels%egyAvg, energy%Eavg)
     end if
-    call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
     if (electronicSolver%elecChemPotAvailable) then
       call taggedWriter%write(fd%unit, tagLabels%fermiLvl, Ef)
     end if
