@@ -1606,6 +1606,7 @@ contains
 
     call allocateAndInit()
     call evaluateHamiltonian(tmpDHam)
+    call adjointLowerTriangle(tmpDHam)
     this%hprev(:,:) = this%hprev + tmpDHam
     hamiltonian(:,:) = hamiltonian + this%hprev
     this%camEnergy = this%camEnergy + evaluateEnergy_real(this%hprev, tmpDRho)
@@ -2034,7 +2035,9 @@ contains
     call evaluateHamiltonian(this, denseDesc%blacsOrbSqr, overlap, densSqr, camGammaAO, Hcam)
 
     HH(:,:) = HH + Hcam
-    Etmp = 0.5_dp * sum(densSqr * Hcam)
+
+    ! Locally stored part of the energy, will collect over rank later:
+    Etmp = evaluateEnergy_real(Hcam, densSqr)
 
     this%camEnergy = this%camEnergy + Etmp
 
@@ -2189,7 +2192,7 @@ contains
     call evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
 
     HH(:,:) = HH + Hcam
-    this%camEnergy = this%camEnergy + 0.5_dp * sum(Dmat * Hcam)
+    this%camEnergy = this%camEnergy + evaluateEnergy_real(Hcam, Dmat)
 
   contains
 
@@ -3553,7 +3556,7 @@ contains
   end function getDescriptor
 
 
-  !> Evaluates energy from triangles of the Hamiltonian and density matrix (real version).
+  !> Evaluates energy from Hamiltonian and density matrix (real version).
   pure function evaluateEnergy_real(hamiltonian, densityMat) result(energy)
 
     !> Hamiltonian matrix
@@ -3567,19 +3570,12 @@ contains
 
     integer :: mu
 
-    energy = 0.0_dp
-
-    do mu = 1, size(hamiltonian, dim=2)
-      energy = energy + hamiltonian(mu, mu) * densityMat(mu, mu)&
-          & + 2.0_dp * sum(hamiltonian(mu + 1 :, mu) * densityMat(mu + 1 :, mu))
-    end do
-
-    energy = 0.5_dp * energy
+    energy = 0.5_dp * sum(hamiltonian * densityMat)
 
   end function evaluateEnergy_real
 
 
-  !> Evaluates energy from triangles of the Hamiltonian and density matrix (complex version).
+  !> Evaluates energy from the Hamiltonian and density matrix (complex version).
   pure function evaluateEnergy_cplx(hamiltonian, kWeight, densityMat) result(energy)
 
     !> Hamiltonian matrix
