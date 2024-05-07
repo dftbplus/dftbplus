@@ -28,8 +28,11 @@ module dftbp_plugins_plugin
     !> Handle to the plugin
     type(c_handle), private :: handle
 
-    !> Whether the plugin provides certain features
+    !> Whether the plugin provides SK data
     logical :: provides_getSKIntegrals = .false.
+
+    !> Whether the plugin needs the neighbour list
+    logical :: provides_setNeighbourList = .false.
 
     !> Whether the plugin is initialized
     logical :: initialized = .false.
@@ -38,6 +41,7 @@ module dftbp_plugins_plugin
 
     procedure :: init => TPlugin_init
     procedure :: getSKIntegrals => TPlugin_getSKIntegrals
+    procedure :: setNeighbourList => TPlugin_setNeighbourList
     final :: TPlugin_final
 
   end type TPlugin
@@ -66,15 +70,27 @@ module dftbp_plugins_plugin
     end function provides_plugin_c
 
     !> Call the implemented function
-    function call_getSKIntegrals_c(handle, sk, dist, atom1, atom2, sp1, sp2) result(success)&
+    function call_getSKIntegrals_c(handle, nSk, sk, dist, atom1, atom2, sp1, sp2) result(success)&
         & bind(C, name='call_getSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
+      integer(c_int), value, intent(in) :: nSk
       real(c_double), intent(out) :: sk(*)
-      real(c_double), intent(in) :: dist
-      integer(c_int), intent(in) :: atom1, atom2, sp1, sp2
+      real(c_double), value, intent(in) :: dist
+      integer(c_int), value, intent(in) :: atom1, atom2, sp1, sp2
       integer(c_int) :: success
     end function call_getSKIntegrals_c
+
+    !> Call the implemented function
+    function call_setNeighbourList_c(handle, nAtoms, coords, img2CentCell) result(success)&
+        & bind(C, name='call_setNeighbourList')
+      import c_handle, c_double, c_int
+      type(c_handle), value, intent(in) :: handle
+      integer(c_int), value, intent(in) :: nAtoms
+      real(c_double), intent(in) :: coords(*)
+      integer(c_int), intent(in) :: img2CentCell(*)
+      integer(c_int) :: success
+    end function call_setNeighbourList_c
 
   end interface
 
@@ -96,7 +112,9 @@ contains
     this%initialized = c_associated(this%handle%cptr)
 
     if (this%initialized) then
-      this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals" // char(0))&
+      this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals"//char(0))&
+          & == 1
+      this%provides_setNeighbourList = provides_plugin_c(this%handle, "setNeighbourList"//char(0))&
           & == 1
     end if
 
@@ -150,8 +168,33 @@ contains
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    success = call_getSKIntegrals_c(this%handle, sk, dist, atom1, atom2, sp1, sp2)
+    success = call_getSKIntegrals_c(this%handle, size(sk), sk, dist, atom1, atom2, sp1, sp2)
 
   end subroutine TPlugin_getSKIntegrals
+
+  !> Sets the neighbour list
+  subroutine TPlugin_setNeighbourList(this, coords, img2CentCell)
+
+    !> Instance
+    class(TPlugin), intent(in) :: this
+
+    !> Atom coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Mapping of atom number to central cell atom number
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: success
+
+    if (.not. this%initialized) then
+      call error("Trying to call a function in an uninitialized plugin")
+    end if
+    if (.not. this%provides_setNeighbourList) then
+      call error("Trying to call a function not provided by the plugin")
+    end if
+
+    success = call_setNeighbourList_c(this%handle, size(coords, dim=2), coords, img2CentCell)
+
+  end subroutine TPlugin_setNeighbourList
 
 end module dftbp_plugins_plugin

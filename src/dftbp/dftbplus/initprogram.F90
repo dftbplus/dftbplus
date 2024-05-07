@@ -4054,6 +4054,7 @@ contains
       if (this%plugin%init(strTmp)) then
         this%skHamCont%plugin => this%plugin
         this%skOverCont%plugin => this%plugin
+        this%neighbourList%plugin => this%plugin
         write(stdOut, "(A,':',T30,A)") "Plugin loaded", trim(strTmp)
       else
         call error("Could not load the plugin " // strTmp)

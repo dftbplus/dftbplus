@@ -14,7 +14,9 @@ extern "C" {
 void init();
 void final();
 
-void getSKIntegrals(double*, double, int, int, int, int);
+void getSKIntegrals(int, double*, double, int, int, int, int);
+
+void setNeighbourList(int, double**, int*);
 
 #ifdef __cplusplus
 }

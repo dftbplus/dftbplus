@@ -35,11 +35,23 @@ int provides_plugin(void *handle, const char *func) {
   return funcpointer == NULL ? 0 : 1;
 }
 
-int call_getSKIntegrals(void *handle, double *sk, double dist, int atom1, int atom2, int sp1, int sp2) {
-  void (*func)(double *, double, int, int, int, int);
+int call_getSKIntegrals(void *handle, int nSk, double *sk, double dist, int atom1, int atom2,
+    int sp1, int sp2) {
+  void (*func)(int, double *, double, int, int, int, int);
   func = dlsym(handle, "getSKIntegrals");
   if (func != NULL) {
-    (*func)(sk, dist, atom1, atom2, sp1, sp2);
+    (*func)(nSk, sk, dist, atom1, atom2, sp1, sp2);
+    return 1;
+  }
+
+  return 0;
+}
+
+int call_setNeighbourList(void *handle, int nAtoms, double **coords, int *img2CentCell) {
+  void (*func)(int, double *, int *);
+  func = dlsym(handle, "setNeighbourList");
+  if (func != NULL) {
+    (*func)(nAtoms, coords, img2CentCell);
     return 1;
   }
 
