@@ -4099,8 +4099,10 @@ contains
       call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
     end if
 
+  #:if WITH_PLUGINS
     call getChildValue(node, "Plugin", strBuffer, "")
     ctrl%pluginFile = unquote(char(strBuffer))
+  #:endif
 
     call readBinaryAccessTypes(node, ctrl%binaryAccessTypes)
 

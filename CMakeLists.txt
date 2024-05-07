@@ -134,6 +134,12 @@ if(WITH_MAGMA)
   list(APPEND PKG_CONFIG_REQUIRES magma)
 endif()
 
+if(BUILD_SHARED_LIBS)
+  set(WITH_PLUGINS true)
+else()
+  set(WITH_PLUGINS false)
+endif()
+
 
 #
 # Preprocessor details
