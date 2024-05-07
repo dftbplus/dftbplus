@@ -66,13 +66,13 @@ module dftbp_plugins_plugin
     end function provides_plugin_c
 
     !> Call the implemented function
-    function call_getSKIntegrals_c(handle, sk, dist, sp1, sp2) result(success)&
+    function call_getSKIntegrals_c(handle, sk, dist, atom1, atom2, sp1, sp2) result(success)&
         & bind(C, name='call_getSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       real(c_double), intent(out) :: sk(*)
       real(c_double), intent(in) :: dist
-      integer(c_int), intent(in) :: sp1, sp2
+      integer(c_int), intent(in) :: atom1, atom2, sp1, sp2
       integer(c_int) :: success
     end function call_getSKIntegrals_c
 
@@ -118,7 +118,7 @@ contains
   end subroutine TPlugin_final
 
   !> Returns the Slater-Koster integrals for a given distance for a given atom pair
-  subroutine TPlugin_getSKIntegrals(this, sk, dist, sp1, sp2)
+  subroutine TPlugin_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -128,6 +128,12 @@ contains
 
     !> Distance of the two atoms
     real(dp), intent(in) :: dist
+
+    !> Index of the first atom
+    integer, intent(in) :: atom1
+
+    !> Index of the second atom
+    integer, intent(in) :: atom2
 
     !> Index of the first interacting species
     integer, intent(in) :: sp1
@@ -144,7 +150,7 @@ contains
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    success = call_getSKIntegrals_c(this%handle, sk, dist, sp1, sp2)
+    success = call_getSKIntegrals_c(this%handle, sk, dist, atom1, atom2, sp1, sp2)
 
   end subroutine TPlugin_getSKIntegrals
 
