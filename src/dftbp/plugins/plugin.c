@@ -35,11 +35,11 @@ int provides_plugin(void *handle, const char *func) {
   return funcpointer == NULL ? 0 : 1;
 }
 
-int call_getSKIntegrals(void *handle, double *sk, double dist, int sp1, int sp2) {
-  void (*func)(double *, double, int, int);
+int call_getSKIntegrals(void *handle, double *sk, double dist, int atom1, int atom2, int sp1, int sp2) {
+  void (*func)(double *, double, int, int, int, int);
   func = dlsym(handle, "getSKIntegrals");
   if (func != NULL) {
-    (*func)(sk, dist, sp1, sp2);
+    (*func)(sk, dist, atom1, atom2, sp1, sp2);
     return 1;
   }
 

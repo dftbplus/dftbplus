@@ -159,7 +159,7 @@ contains
 
 
   !> Returns the Slater-Koster integrals for a given distance for a given species pair.
-  subroutine SlakoCont_getSKIntegrals(this, sk, dist, sp1, sp2)
+  subroutine SlakoCont_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
 
     !> SlakoCont instance
     type(TSlakoCont), intent(in) :: this
@@ -170,6 +170,12 @@ contains
     !> Distance of the two atoms
     real(dp), intent(in) :: dist
 
+    !> Index of the first atom
+    integer, intent(in) :: atom1
+
+    !> Index of the second atom
+    integer, intent(in) :: atom2
+
     !> Index of the first interacting species.
     integer, intent(in) :: sp1
 
@@ -179,7 +185,7 @@ contains
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%provides_getSKIntegrals) then
-        call this%plugin%getSKIntegrals(sk, dist, sp1, sp2)
+        call this%plugin%getSKIntegrals(sk, dist, atom1, atom2, sp1, sp2)
         return
       end if
     end if
