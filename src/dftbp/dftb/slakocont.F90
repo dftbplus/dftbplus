@@ -15,7 +15,9 @@
 module dftbp_dftb_slakocont
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
+#:if WITH_PLUGINS
   use dftbp_plugins_plugin, only: TPlugin
+#:endif
   implicit none
 
   private
@@ -38,7 +40,9 @@ module dftbp_dftb_slakocont
     real(dp) :: cutoff
     logical :: tDataOK
     logical :: tInit = .false.
+  #:if WITH_PLUGINS
     type(TPlugin), pointer, public :: plugin => null()
+  #:endif
   end type TSlakoCont
 
 
@@ -172,12 +176,14 @@ contains
     !> Index of the second interacting species.
     integer, intent(in) :: sp2
 
+  #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%provides_getSKIntegrals) then
         call this%plugin%getSKIntegrals(sk, dist, sp1, sp2)
         return
       end if
     end if
+  #:endif
 
     @:ASSERT(this%tInit .and. this%tDataOK)
     call getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
