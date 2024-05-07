@@ -2037,7 +2037,7 @@ contains
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
       & tMulliken, qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi,&
-      & dEfdE, dipoleMoment, multipole, eFieldScaling)
+      & dEfdE, dipoleMoment, multipole, eFieldScaling, reks)
 
     !> Name of output file
     character(len=*), intent(in) :: fileName
@@ -2123,11 +2123,17 @@ contains
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
+    !> Data type for REKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
+
     real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     type(TFileDescr) :: fd
 
     call openFile(fd, fileName, mode="a")
 
+    if (allocated(reks)) then
+      call taggedWriter%write(fd%unit, tagLabels%egyAvg, energy%Eavg)
+    end if
     call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
     if (electronicSolver%elecChemPotAvailable) then
       call taggedWriter%write(fd%unit, tagLabels%fermiLvl, Ef)
