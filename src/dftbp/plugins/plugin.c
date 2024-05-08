@@ -14,8 +14,8 @@ void *init_plugin(const char *filename) {
   int (*initfunc)();
   initfunc = dlsym(handle, "init");
   if (initfunc != NULL) {
-    int ret = (*initfunc)();
-    if (ret != 0) {
+    int success = (*initfunc)();
+    if (success != 1) {
       return NULL;
     }
   }
@@ -39,22 +39,20 @@ int provides_plugin(void *handle, const char *func) {
 }
 
 int call_getSKIntegrals(void *handle, int nSk, double *sk, double dist, int atom1, int atom2,
-    int sp1, int sp2) {
+    int species1, int species2) {
   int (*func)(int, double *, double, int, int, int, int);
   func = dlsym(handle, "getSKIntegrals");
   if (func != NULL) {
-    return (*func)(nSk, sk, dist, atom1, atom2, sp1, sp2);
+    return (*func)(nSk, sk, dist, atom1, atom2, species1, species2);
   }
 
   return 0;
 }
 
-int call_setNeighbourList(void *handle, int nAtoms, double *coords, int *img2CentCell) {
+void call_setNeighbourList(void *handle, int nAtoms, double *coords, int *img2CentCell) {
   int (*func)(int, double *, int *);
   func = dlsym(handle, "setNeighbourList");
   if (func != NULL) {
-    return (*func)(nAtoms, coords, img2CentCell);
+    (*func)(nAtoms, coords, img2CentCell);
   }
-
-  return 0;
 }

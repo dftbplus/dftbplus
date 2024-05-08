@@ -15,6 +15,7 @@
 module dftbp_dftb_slakocont
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
+  use dftbp_io_message, only : error
 #:if WITH_PLUGINS
   use dftbp_plugins_plugin, only: TPlugin
 #:endif
@@ -185,7 +186,9 @@ contains
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%provides_getSKIntegrals) then
-        call this%plugin%getSKIntegrals(sk, dist, atom1, atom2, sp1, sp2)
+        if (.not. this%plugin%getSKIntegrals(sk, dist, atom1, atom2, sp1, sp2)) then
+          call error("Cannot fetch SK integrals from plugin")
+        end if
         return
       end if
     end if

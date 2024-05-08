@@ -16,7 +16,7 @@ void final();
 
 int getSKIntegrals(int, double*, double, int, int, int, int);
 
-int setNeighbourList(int, double*, int*);
+void setNeighbourList(int, double*, int*);
 
 #ifdef __cplusplus
 }
