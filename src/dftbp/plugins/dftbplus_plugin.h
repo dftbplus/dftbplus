@@ -11,12 +11,12 @@
 extern "C" {
 #endif
 
-void init();
+int init();
 void final();
 
-void getSKIntegrals(int, double*, double, int, int, int, int);
+int getSKIntegrals(int, double*, double, int, int, int, int);
 
-void setNeighbourList(int, double**, int*);
+int setNeighbourList(int, double*, int*);
 
 #ifdef __cplusplus
 }

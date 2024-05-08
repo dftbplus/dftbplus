@@ -4,22 +4,27 @@
 int counter = -1;
 int nAtoms = 0;
 
-void init() {
+int init() {
     counter = 0;
+    return 0;
 }
 
-void setNeighbourList(int n, double **coords, int *img2CentCell) {
+int setNeighbourList(int n, double *coords, int *img2CentCell) {
     nAtoms = n;
+    return 0;
 }
 
-void getSKIntegrals(int nSk, double *sk, double dist, int atom1, int atom2, int sp1, int sp2) {
+int getSKIntegrals(int nSk, double *sk, double dist, int atom1, int atom2, int sp1, int sp2) {
     sk[0] = 0.0;
-    if (nAtoms == 2 && sp1 == 1 && sp2 == 1) {
-        if (counter == 0) {
-            sk[0] = -0.08;
-        } else if (counter == 1) {
-            sk[0] = 0.2;
-        }
+    if (nAtoms != 2 || sp1 != 1 || sp2 != 1) {
+        return 1;
+    }
+
+    if (counter == 0) {
+        sk[0] = -0.08;
+    } else if (counter == 1) {
+        sk[0] = 0.2;
     }
     counter++;
+    return 0;
 }
