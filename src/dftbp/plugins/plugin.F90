@@ -69,7 +69,7 @@ module dftbp_plugins_plugin
       integer(c_int) :: success
     end function provides_plugin_c
 
-    !> Call the implemented function
+    !> Call the implemented function for SK integrals
     function call_getSKIntegrals_c(handle, nSk, sk, dist, atom1, atom2, sp1, sp2) result(success)&
         & bind(C, name='call_getSKIntegrals')
       import c_handle, c_double, c_int
@@ -81,7 +81,7 @@ module dftbp_plugins_plugin
       integer(c_int) :: success
     end function call_getSKIntegrals_c
 
-    !> Call the implemented function
+    !> Call the implemented function for setting the neighbour list
     function call_setNeighbourList_c(handle, nAtoms, coords, img2CentCell) result(success)&
         & bind(C, name='call_setNeighbourList')
       import c_handle, c_double, c_int
