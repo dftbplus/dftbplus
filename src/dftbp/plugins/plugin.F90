@@ -70,27 +70,26 @@ module dftbp_plugins_plugin
     end function provides_plugin_c
 
     !> Call the implemented function for SK integrals
-    function call_getSKIntegrals_c(handle, nSk, sk, dist, atom1, atom2, sp1, sp2) result(success)&
-        & bind(C, name='call_getSKIntegrals')
+    function call_getSKIntegrals_c(handle, nSk, sk, dist, atom1, atom2, species1, species2)&
+          & result(success) bind(C, name='call_getSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nSk
       real(c_double), intent(out) :: sk(*)
       real(c_double), value, intent(in) :: dist
-      integer(c_int), value, intent(in) :: atom1, atom2, sp1, sp2
+      integer(c_int), value, intent(in) :: atom1, atom2, species1, species2
       integer(c_int) :: success
     end function call_getSKIntegrals_c
 
     !> Call the implemented function for setting the neighbour list
-    function call_setNeighbourList_c(handle, nAtoms, coords, img2CentCell) result(success)&
-        & bind(C, name='call_setNeighbourList')
+    subroutine call_setNeighbourList_c(handle, nAtoms, coords, img2CentCell)&
+          & bind(C, name='call_setNeighbourList')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nAtoms
       real(c_double), intent(in) :: coords(*)
       integer(c_int), intent(in) :: img2CentCell(*)
-      integer(c_int) :: success
-    end function call_setNeighbourList_c
+    end subroutine call_setNeighbourList_c
 
   end interface
 
@@ -136,7 +135,7 @@ contains
   end subroutine TPlugin_final
 
   !> Returns the Slater-Koster integrals for a given distance for a given atom pair
-  subroutine TPlugin_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
+  function TPlugin_getSKIntegrals(this, sk, dist, atom1, atom2, species1, species2) result(success)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -154,12 +153,12 @@ contains
     integer, intent(in) :: atom2
 
     !> Index of the first interacting species
-    integer, intent(in) :: sp1
+    integer, intent(in) :: species1
 
     !> Index of the second interacting species
-    integer, intent(in) :: sp2
+    integer, intent(in) :: species2
 
-    integer :: success
+    logical :: success
 
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
@@ -168,9 +167,10 @@ contains
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    success = call_getSKIntegrals_c(this%handle, size(sk), sk, dist, atom1, atom2, sp1, sp2)
+    success = call_getSKIntegrals_c(this%handle, size(sk), sk, dist, atom1, atom2, species1,&
+        & species2) == 1
 
-  end subroutine TPlugin_getSKIntegrals
+  end function TPlugin_getSKIntegrals
 
   !> Sets the neighbour list
   subroutine TPlugin_setNeighbourList(this, coords, img2CentCell)
@@ -184,8 +184,6 @@ contains
     !> Mapping of atom number to central cell atom number
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: success
-
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
@@ -193,7 +191,7 @@ contains
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    success = call_setNeighbourList_c(this%handle, size(coords, dim=2), coords, img2CentCell)
+    call call_setNeighbourList_c(this%handle, size(coords, dim=2), coords, img2CentCell)
 
   end subroutine TPlugin_setNeighbourList
 
