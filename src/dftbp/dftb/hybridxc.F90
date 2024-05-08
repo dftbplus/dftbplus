@@ -2019,9 +2019,6 @@ contains
     !! Number of local rows and columns
     integer :: nLocRow, nLocCol
 
-    !! Local energy contribution
-    real(dp) :: Etmp
-
     nLocRow = size(overlap, dim=1)
     nLocCol = size(overlap, dim=2)
 
@@ -2036,10 +2033,8 @@ contains
 
     HH(:,:) = HH + Hcam
 
-    ! Locally stored part of the energy, will collect over rank later:
-    Etmp = evaluateEnergy_real(Hcam, densSqr)
-
-    this%camEnergy = this%camEnergy + Etmp
+    ! Locally collect part of the energy, will sum over MPI rank later:
+    this%camEnergy = this%camEnergy + evaluateEnergy_real(Hcam, densSqr)
 
   contains
 
@@ -2360,7 +2355,7 @@ contains
 
     HH(:,:) = HH + Hcam
 
-    this%camEnergy = this%camEnergy + 0.5_dp * real(sum(Dmat * Hcam), dp)
+    this%camEnergy = this%camEnergy + evaluateEnergy_cplx(Hcam, Dmat)
 
   contains
 
@@ -3522,9 +3517,9 @@ contains
       else
         iDensMatKS = iLocalKS
       end if
-      this%camEnergy = this%camEnergy&
-          & + evaluateEnergy_cplx(this%hprevCplxHS(:,:, iGlobalKS), kWeights(iK),&
-          & transpose(deltaRhoOutCplx(:,:, iDensMatKS)))
+
+      this%camEnergy = this%camEnergy + kWeights(iK) *&
+          & evaluateEnergy_cplx(this%hprevCplxHS(:,:, iGlobalKS), deltaRhoOutCplx(:,:, iDensMatKS))
     end do
 
   #:if WITH_MPI
@@ -3576,13 +3571,10 @@ contains
 
 
   !> Evaluates energy from the Hamiltonian and density matrix (complex version).
-  pure function evaluateEnergy_cplx(hamiltonian, kWeight, densityMat) result(energy)
+  pure function evaluateEnergy_cplx(hamiltonian, densityMat) result(energy)
 
     !> Hamiltonian matrix
     complex(dp), intent(in) :: hamiltonian(:,:)
-
-    !> The k-point weight (for energy contribution)
-    real(dp), intent(in) :: kWeight
 
     !> Density matrix in k-space
     complex(dp), intent(in) :: densityMat(:,:)
@@ -3590,7 +3582,8 @@ contains
     !> Resulting energy due to CAM contribution
     real(dp) :: energy
 
-    energy = 0.5_dp * real(sum(hamiltonian * densityMat), dp) * kWeight
+    ! Conjugation as this is equivalent to Tr(matmul(H,rho)) = sum(H * rho^dag)
+    energy = 0.5_dp * real(sum(hamiltonian * conjg(densityMat)), dp)
 
   end function evaluateEnergy_cplx
 
