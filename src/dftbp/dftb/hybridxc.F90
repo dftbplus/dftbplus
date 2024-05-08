@@ -272,8 +272,8 @@ module dftbp_dftb_hybridxc
 
     procedure :: addCamHamiltonianMatrix_cluster_cmplx
 
-    procedure :: addHybridEnergy_real
-    procedure :: addHybridEnergy_kpts
+    procedure :: getHybridEnergy_real
+    procedure :: getHybridEnergy_kpts
 
     procedure :: tabulateCamdGammaEval0_cluster
     procedure :: tabulateCamdGammaEval0_gamma
@@ -2354,7 +2354,6 @@ contains
     call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hcam)
 
     HH(:,:) = HH + Hcam
-
     this%camEnergy = this%camEnergy + evaluateEnergy_cplx(Hcam, Dmat)
 
   contains
@@ -3451,8 +3450,8 @@ contains
   end subroutine addCamHamiltonianNeighbour_kpts_ct
 
 
-  !> Adds the hybrid functional contribution to the total energy.
-  subroutine addHybridEnergy_real(this, env, energy)
+  !> Returns the Fock-type exchange contribution to the total energy (real version).
+  subroutine getHybridEnergy_real(this, env, camEnergy)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -3460,25 +3459,24 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> Total energy
-    real(dp), intent(inout) :: energy
+    !> Total Fock-type exchange energy contribution
+    real(dp), intent(out) :: camEnergy
 
   #:if WITH_MPI
     call mpifx_allreduceip(env%mpi%globalComm, this%camEnergy, MPI_SUM)
   #:endif
 
-    energy = energy + this%camEnergy
+    camEnergy = this%camEnergy
 
-    ! hack for spin unrestricted calculation
-    ! probably broken for MPI groups over spin
+    ! reset for next self-consistent iteration
     this%camEnergy = 0.0_dp
 
-  end subroutine addHybridEnergy_real
+  end subroutine getHybridEnergy_real
 
 
-  !> Adds the hybrid functional contribution to the total energy.
-  subroutine addHybridEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
-      & energy)
+  !> Returns the Fock-type exchange contribution to the total energy (complex version).
+  subroutine getHybridEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
+      & camEnergy)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -3499,14 +3497,16 @@ contains
     !> Complex, dense, square k-space delta density matrix of all spins/k-points
     complex(dp), intent(in) :: deltaRhoOutCplx(:,:,:)
 
-    !> Total energy
-    real(dp), intent(inout) :: energy
+    !> Total Fock-type exchange energy contribution
+    real(dp), intent(out) :: camEnergy
 
     !! Spin and k-point indices
     integer :: iS, iK
 
     !! Local and global iKS for arrays present at every MPI rank
     integer :: iLocalKS, iGlobalKS, iDensMatKS
+
+    camEnergy = 0.0_dp
 
     do iLocalKS = 1, size(localKS, dim=2)
       iK = localKS(1, iLocalKS)
@@ -3518,20 +3518,16 @@ contains
         iDensMatKS = iLocalKS
       end if
 
-      this%camEnergy = this%camEnergy + kWeights(iK) *&
-          & evaluateEnergy_cplx(this%hprevCplxHS(:,:, iGlobalKS), deltaRhoOutCplx(:,:, iDensMatKS))
+      camEnergy = camEnergy + kWeights(iK)&
+          & * evaluateEnergy_cplx(this%hprevCplxHS(:,:, iGlobalKS),&
+          & deltaRhoOutCplx(:,:, iDensMatKS))
     end do
 
   #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%globalComm, this%camEnergy, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%globalComm, camEnergy, MPI_SUM)
   #:endif
 
-    energy = energy + this%camEnergy
-
-    ! hack for spin unrestricted calculation
-    this%camEnergy = 0.0_dp
-
-  end subroutine addHybridEnergy_kpts
+  end subroutine getHybridEnergy_kpts
 
 
   !> Finds location of relevant atomic block indices in a dense matrix.
