@@ -285,8 +285,6 @@ module dftbp_dftb_hybridxc
     procedure :: getCamGammaCluster
     procedure :: getCamGammaDerivCluster
 
-    procedure :: evaluateLrEnergyDirect_cluster
-
     procedure(gammaFunc), deferred :: getLrGammaValue
     procedure(gammaFunc), deferred :: getLrGammaPrimeValue
 
@@ -1608,6 +1606,7 @@ contains
 
     call allocateAndInit()
     call evaluateHamiltonian(tmpDHam)
+    call adjointLowerTriangle(tmpDHam)
     this%hprev(:,:) = this%hprev + tmpDHam
     hamiltonian(:,:) = hamiltonian + this%hprev
     this%camEnergy = this%camEnergy + evaluateEnergy_real(this%hprev, tmpDRho)
@@ -2036,7 +2035,9 @@ contains
     call evaluateHamiltonian(this, denseDesc%blacsOrbSqr, overlap, densSqr, camGammaAO, Hcam)
 
     HH(:,:) = HH + Hcam
-    Etmp = 0.5_dp * sum(densSqr * Hcam)
+
+    ! Locally stored part of the energy, will collect over rank later:
+    Etmp = evaluateEnergy_real(Hcam, densSqr)
 
     this%camEnergy = this%camEnergy + Etmp
 
@@ -2191,7 +2192,7 @@ contains
     call evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
 
     HH(:,:) = HH + Hcam
-    this%camEnergy = this%camEnergy + 0.5_dp * sum(Dmat * Hcam)
+    this%camEnergy = this%camEnergy + evaluateEnergy_real(Hcam, Dmat)
 
   contains
 
@@ -3555,7 +3556,7 @@ contains
   end function getDescriptor
 
 
-  !> Evaluates energy from triangles of the Hamiltonian and density matrix (real version).
+  !> Evaluates energy from Hamiltonian and density matrix (real version).
   pure function evaluateEnergy_real(hamiltonian, densityMat) result(energy)
 
     !> Hamiltonian matrix
@@ -3569,19 +3570,12 @@ contains
 
     integer :: mu
 
-    energy = 0.0_dp
-
-    do mu = 1, size(hamiltonian, dim=2)
-      energy = energy + hamiltonian(mu, mu) * densityMat(mu, mu)&
-          & + 2.0_dp * sum(hamiltonian(mu + 1 :, mu) * densityMat(mu + 1 :, mu))
-    end do
-
-    energy = 0.5_dp * energy
+    energy = 0.5_dp * sum(hamiltonian * densityMat)
 
   end function evaluateEnergy_real
 
 
-  !> Evaluates energy from triangles of the Hamiltonian and density matrix (complex version).
+  !> Evaluates energy from the Hamiltonian and density matrix (complex version).
   pure function evaluateEnergy_cplx(hamiltonian, kWeight, densityMat) result(energy)
 
     !> Hamiltonian matrix
@@ -7159,74 +7153,6 @@ contains
     gradients(:,:) = gradients + tmpGradients
 
   end subroutine addCamGradientsNeighbour_kpts_ct
-
-
-  !> Explicitly evaluates the LR-Energy contribution (very slow, use addHybridEnergy_* instead).
-  function evaluateLrEnergyDirect_cluster(this, env, deltaRho, overlap, iSquare) result(energy)
-
-    !> Instance of LR
-    class(THybridXcFunc), intent(in) :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Square density matrix
-    real(dp), intent(in) :: deltaRho(:,:)
-
-    !> Square overlap matrix
-    real(dp), intent(in) :: overlap(:,:)
-
-    !> Dense matrix atom indexing
-    integer, intent(in) :: iSquare(:)
-
-    !> Resulting energy
-    real(dp) :: energy
-
-    !! Number of atoms in central cell
-    integer :: nAtom0
-
-    !! Atom indices, where orbitals \mu and \nu are located
-    integer :: iAt1, iAt2, mu, nu, alpha, beta
-
-    !!
-    real(dp), allocatable :: tmpOvr(:,:), tmpDRho(:,:)
-    real(dp) :: tmp
-
-    call env%globalTimer%startTimer(globalTimers%energyEval)
-
-    nAtom0 = size(this%species0)
-
-    allocate(tmpOvr(size(overlap, dim=1), size(overlap, dim=1)))
-    allocate(tmpDRho(size(deltaRho, dim=1), size(deltaRho, dim=1)))
-    tmpOvr(:,:) = overlap
-    tmpDRho(:,:) = deltaRho
-
-    call adjointLowerTriangle(tmpOvr)
-    call adjointLowerTriangle(tmpDRho)
-
-    energy = 0.0_dp
-    do iAt1 = 1, nAtom0
-      do iAt2 = 1, nAtom0
-        tmp = 0.0_dp
-        do mu = iSquare(iAt1), iSquare(iAt1 + 1) - 1
-          do nu = iSquare(iAt2), iSquare(iAt2 + 1) - 1
-            do alpha = 1, size(tmpOvr, dim=1)
-              do beta = 1, size(tmpOvr, dim=1)
-                tmp = tmp + (&
-                    & tmpDRho(alpha, beta) * tmpDRho(mu, nu)&
-                    & + tmpDRho(mu,beta) * tmpDRho(alpha,nu)) * tmpOvr(mu,alpha) * tmpOvr(nu,beta)
-              end do
-            end do
-          end do
-        end do
-        energy = energy + tmp * this%camGammaEval0(iAt1, iAt2)
-      end do
-    end do
-    energy = -energy / 8.0_dp
-
-    call env%globalTimer%stopTimer(globalTimers%energyEval)
-
-  end function evaluateLrEnergyDirect_cluster
 
 
   !> Returns the array of atomic species in central cell.

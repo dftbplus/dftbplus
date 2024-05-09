@@ -1675,6 +1675,11 @@ contains
     call getBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS, nBufferedCholesky)
     call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
+    if (input%ctrl%isNonAufbau) then
+      ! for the moment, as this has not been derived
+      this%electronicSolver%providesElectronEntropy = .false.
+    end if
+
   #:if WITH_TRANSPORT
     this%tTunn = input%ginfo%tundos%defined
     this%tLocalCurrents = input%ginfo%greendens%doLocalCurr
