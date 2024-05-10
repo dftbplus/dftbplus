@@ -35,6 +35,7 @@ module dftbp_reks_reksen
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
 #:if WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs
   use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
       & scalafx_psyev, pblasfx_pgemm, blocklist, size
 #:endif

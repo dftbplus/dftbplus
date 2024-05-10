@@ -119,7 +119,8 @@ module dftbp_dftbplus_main
   use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
-      & denseSubtractDensityOfAtomsRealPeriodicBlacs
+      & denseSubtractDensityOfAtomsRealPeriodicBlacs,&
+      & denseSubtractDensityOfAtomsRealNonperiodicBlacsReks
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
       & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
@@ -1280,7 +1281,7 @@ contains
         ! For hybrid xc-functional calculations deduct atomic charges from deltaRho
         if (this%isHybridXc) then
         #:if WITH_SCALAPACK
-          call denseSubtractDensityOfAtomsRealNonperiodicBlacsReks(env, this%parallelKS,&
+          call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, this%parallelKS,&
               & this%q0, this%denseDesc, this%densityMatrix%deltaRhoOut, 2)
         #:else
           call denseSubtractDensityOfAtomsNospinRealNonperiodicReks(this%q0,&
