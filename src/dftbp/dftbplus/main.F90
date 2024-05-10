@@ -7588,32 +7588,48 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
+  #:if WITH_SCALAPACK
+    call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+  #:else
     call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    call adjointLowerTriangle(SSqrReal)
+  #:endif
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
     reks%overSqr(:,:) = SSqrReal
-    call adjointLowerTriangle(reks%overSqr)
 
     if (iGeoStep == 0) then
 
       if (.not. reks%tReadMO) then
 
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, h0, neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+      #:else
         call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
         eigen(:,:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%diagonalization)
+      #:if WITH_SCALAPACK
+        call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+            & eigen(:,1,1), eigvecsReal(:,:,1), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+      #:else
         call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1), errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call env%globalTimer%stopTimer(globalTimers%diagonalization)
         eigvecsReal(:,:,1) = HSqrReal
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
       else
 
         call readEigenvecs(eigvecsReal(:,:,1))
+        ! TODO : Not MPI parallelizaed at the moment
         call renormalizeEigenvecs(env, eigvecsReal, reks)
 
       end if
@@ -7622,6 +7638,7 @@ contains
 
     else
 
+      ! TODO : Not MPI parallelizaed at the moment
       call renormalizeEigenvecs(env, eigvecsReal, reks)
 
     end if

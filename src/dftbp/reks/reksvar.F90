@@ -545,8 +545,9 @@ module dftbp_reks_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
-      & t3rd, isHybridXc, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
+  subroutine REKS_init(this, inp, orb, nLocalRows, nLocalCols, spinW, nSpin, nEl, nChrgs,&
+      & extChrg, blurWidths, t3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
+      & tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -556,6 +557,9 @@ module dftbp_reks_reksvar
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols
 
     !> Spin W values
     real(dp), intent(inout) :: spinW(:,:,:)
@@ -700,7 +704,7 @@ module dftbp_reks_reksvar
     allocate(this%getDenseAO(0,2))
     allocate(this%getDenseAtom(0,2))
 
-    allocate(this%overSqr(nOrb,nOrb))
+    allocate(this%overSqr(nLocalRows,nLocalCols))
     allocate(this%fillingL(nOrb,nSpin,Lmax))
 
     if (this%tForces) then

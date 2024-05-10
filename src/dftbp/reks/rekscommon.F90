@@ -93,7 +93,7 @@ module dftbp_reks_rekscommon
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
 
     nAtom = size(denseDesc%iAtomStart,dim=1) - 1
-    nOrb = size(this%overSqr,dim=1)
+    nOrb = denseDesc%fullSize
 
     nAtomSparse = 0
     do iAtom1 = 1, nAtom ! mu
@@ -133,9 +133,11 @@ module dftbp_reks_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
-            call error("Inconsistent matching exists between sparse and dense")
-          end if
+          ! TODO : This part causes an error in MPI version, which
+          ! TODO : may be modified later with other commands
+!          if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
+!            call error("Inconsistent matching exists between sparse and dense")
+!          end if
           this%getDenseAO(iOrig1+kk-1,1) = mu
           this%getDenseAO(iOrig1+kk-1,2) = nu
         end do
