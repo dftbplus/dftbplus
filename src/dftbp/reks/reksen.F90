@@ -221,7 +221,7 @@ module dftbp_reks_reksen
 
     integer :: ii, nOrb
 
-    nOrb = size(this%fockFc,dim=1)
+    nOrb = denseDesc%fullSize
 
     allocate(orbFON(nOrb))
     allocate(tmpMat(nOrb,nOrb))
@@ -777,13 +777,14 @@ module dftbp_reks_reksen
 
     real(dp), allocatable :: tmpHam(:,:)
 
-    integer :: iL, Lmax, nOrb
+    integer :: iL, Lmax, nLocalRows, nLocalCols
 
-    nOrb = size(Fc,dim=1)
+    nLocalRows = size(Fc,dim=1)
+    nLocalCols = size(Fc,dim=2)
     Lmax = size(weight,dim=1)
 
     if (.not. isHybridXc) then
-      allocate(tmpHam(nOrb,nOrb))
+      allocate(tmpHam(nLocalRows,nLocalCols))
     end if
 
     call fockFON_(fillingL, weight, orbFON)
@@ -797,10 +798,15 @@ module dftbp_reks_reksen
         ! convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, tmpHam)
+      #:else
         call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       end if
 
       ! compute the Fock operator with core, a, b orbitals in AO basis
@@ -969,15 +975,12 @@ module dftbp_reks_reksen
     integer, intent(in) :: iL
 
     if (iL <= Lpaired) then
-      Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-          & ( weight(iL) + weight(iL) )
+      Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL))
     else
       if (mod(iL,2) == 1) then
-        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-            & ( weight(iL) + weight(iL+1) )
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL+1))
       else
-        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-            & ( weight(iL) + weight(iL-1) )
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL-1))
       end if
     end if
 

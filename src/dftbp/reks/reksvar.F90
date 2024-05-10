@@ -757,8 +757,8 @@ module dftbp_reks_reksvar
 
     allocate(this%enLtot(Lmax))
 
-    allocate(this%fockFc(nOrb,nOrb))
-    allocate(this%fockFa(nOrb,nOrb,Na))
+    allocate(this%fockFc(nLocalRows,nLocalCols))
+    allocate(this%fockFa(nLocalRows,nLocalCols,Na))
     allocate(this%fock(nOrb,nOrb))
 
     allocate(this%eigvecsFock(nOrb,nOrb))
