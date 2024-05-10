@@ -404,8 +404,10 @@ module dftbp_reks_reksen
     ! save state energies to print information
     tmpEn(:) = this%energy
     if (this%tSSR) then
+      call env%globalTimer%startTimer(globalTimers%diagonalization)
       call heev(tmpState, tmpEigen, 'U', 'V')
       this%eigvecsSSR(:,:) = tmpState
+      call env%globalTimer%stopTimer(globalTimers%diagonalization)
       this%energy(:) = tmpEigen
     end if
 
@@ -1320,15 +1322,16 @@ module dftbp_reks_reksen
     real(dp), allocatable :: tmpHam(:,:)
     real(dp), allocatable :: tmpHamL(:,:,:)
 
-    integer :: nOrb, iL, Lmax
-    integer :: ia, ib, ist, nActPair
+    integer :: nLocalRows, nLocalCols, iL, Lmax
+    integer :: ia, ib, ist, nActPair, aa, bb
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
     Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
     if (.not. isHybridXc) then
-      allocate(tmpHam(nOrb,nOrb))
+      allocate(tmpHam(nLocalRows,nLocalCols))
     end if
     allocate(tmpHamL(nActPair,1,Lmax))
 
@@ -1336,6 +1339,8 @@ module dftbp_reks_reksen
     do ist = 1, nActPair
 
       call getTwoIndices(Na, ist, ia, ib, 1)
+      aa = Nc + ia
+      bb = Nc + ib
 
       do iL = 1, Lmax
 
@@ -1345,44 +1350,59 @@ module dftbp_reks_reksen
           if (ist == 1) then
             call matAO2MO(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
           end if
-          tmpHamL(ist,1,iL) = hamSqrL(Nc+ia,Nc+ib,1,iL)
+        #:if WITH_SCALAPACK
+          call findActiveElements_(env, denseDesc, hamSqrL(:,:,1,iL), aa, bb, tmpHamL(ist,1,iL))
+        #:else
+          tmpHamL(ist,1,iL) = hamSqrL(aa,bb,1,iL)
+        #:endif
         else
           tmpHam(:,:) = 0.0_dp
           ! convert from sparse to dense for hamSpL in AO basis
           ! hamSpL has (my_ud) component
           call env%globalTimer%startTimer(globalTimers%sparseToDense)
-          call unpackHS(tmpHam, hamSpL(:,1,iL), &
-              & neighbourList%iNeighbour, nNeighbourSK, &
-              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-          call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+        #:if WITH_SCALAPACK
+          call unpackHSRealBlacs(env%blacs, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, tmpHam)
+        #:else
+          call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call adjointLowerTriangle(tmpHam)
+        #:endif
+          call env%globalTimer%stopTimer(globalTimers%sparseToDense)
           ! convert tmpHam from AO basis to MO basis
           call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis
-          tmpHamL(ist,1,iL) = tmpHam(Nc+ia,Nc+ib)
+        #:if WITH_SCALAPACK
+          call findActiveElements_(env, denseDesc, tmpHam, aa, bb, tmpHamL(ist,1,iL))
+        #:else
+          tmpHamL(ist,1,iL) = tmpHam(aa,bb)
+        #:endif
         end if
 
       end do
+    #:if WITH_SCALAPACK
+      call mpifx_allreduceip(env%mpi%globalComm, tmpHamL(ist,1,:), MPI_SUM)
+    #:endif
 
       ! calculate the Lagrangian eps_{ab} and state-interaction term
       Wab(ist,1) = 0.0_dp
       Wab(ist,2) = 0.0_dp
       do iL = 1, Lmax
         if (iL <= Lpaired) then
-          Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+          Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
-          Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+          Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
         else
           if (mod(iL,2) == 1) then
-            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
-            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
           else
-            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
-            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
           end if
         end if
@@ -1391,6 +1411,53 @@ module dftbp_reks_reksen
     end do
 
   end subroutine getLagrangians_
+
+
+#:if WITH_SCALAPACK
+  !> Find elements of active space to calculate Lagrangian values
+  subroutine findActiveElements_(env, denseDesc, hamSqr, aa, bb, hamActive)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Dense Hamiltonian matrix
+    real(dp), intent(in) :: hamSqr(:,:)
+
+    !> Index for first active orbital
+    integer, intent(in) :: aa
+
+    !> Index for second active orbital
+    integer, intent(in) :: bb
+
+    !> Hamiltonian matrix element for active space
+    real(dp), intent(inout) :: hamActive
+
+    integer :: ind_a, ind_b, iOrb, iGlob, jOrb, jGlob
+
+    ind_a = 0
+    ind_b = 0
+    do jOrb = 1, size(hamSqr, dim=2)
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, size(hamSqr, dim=1)
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+        if (iGlob == aa .and. jGlob == bb) then
+          ind_a = iOrb
+          ind_b = jOrb
+          exit
+        end if
+
+      end do
+    end do
+    if (ind_a /= 0 .and. ind_b /= 0) hamActive = hamSqr(ind_a,ind_b)
+
+  end subroutine findActiveElements_
+#:endif
 
 
   !> calculate state-interaction terms between SA-REKS states in (2,2) case
