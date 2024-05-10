@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -29,6 +31,12 @@ module dftbp_reks_reksen
   use dftbp_reks_reksio, only : printReksSSRInfo
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g
+#:endif
 
   implicit none
 
@@ -76,7 +84,13 @@ module dftbp_reks_reksen
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(this, eigenvecs)
+  subroutine activeOrbSwap(env, denseDesc, this, eigenvecs)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -87,7 +101,8 @@ module dftbp_reks_reksen
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call MOswap22_(eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+      call MOswap22_(env, denseDesc, eigenvecs, this%SAweight, this%FONs, this%Efunction,&
+          & this%Nc)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -559,7 +574,13 @@ module dftbp_reks_reksen
 
 
   !> Swap active orbitals when fa < fb in REKS(2,2) case
-  subroutine MOswap22_(eigenvecs, SAweight, FONs, Efunction, Nc)
+  subroutine MOswap22_(env, denseDesc, eigenvecs, SAweight, FONs, Efunction, Nc)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -576,17 +597,26 @@ module dftbp_reks_reksen
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    real(dp), allocatable :: tmpMO(:)
+    real(dp), allocatable :: tmpMO(:,:)
+    real(dp), allocatable :: tmpMOa(:), tmpMOb(:)
 
     real(dp) :: n_a, n_b, fa, fb
-    integer :: nOrb
+    integer :: nOrb, nLocalRows, nLocalCols, iOrb, iGlob, jOrb, jGlob
 
-    nOrb = size(eigenvecs,dim=1)
+    nOrb = denseDesc%fullSize
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
 
     n_a = FONs(1,1)
     n_b = FONs(2,1)
 
-    allocate(tmpMO(nOrb))
+  #:if WITH_SCALAPACK
+    allocate(tmpMO(nOrb,2))
+    allocate(tmpMOa(nLocalRows))
+    allocate(tmpMOb(nLocalRows))
+  #:else
+    allocate(tmpMO(nOrb,1))
+  #:endif
 
     if (Efunction == 1) then
       ! REKS charge
@@ -601,9 +631,48 @@ module dftbp_reks_reksen
     if (fa < fb) then
       write(stdOut,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
           & ", MO swap between a(", Nc+1, ") and b(", Nc+2, ") occurs"
-      tmpMO(:) = eigenvecs(:,Nc+1)
+    #:if WITH_SCALAPACK
+      tmpMO(:,:) = 0.0_dp
+      tmpMOa(:) = 0.0_dp
+      tmpMOb(:) = 0.0_dp
+      do jOrb = 1, nLocalCols
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        if (jGlob == Nc + 1) then
+          tmpMOa(:) = eigenvecs(:,jOrb)
+        else if (jGlob == Nc + 2) then
+          tmpMOb(:) = eigenvecs(:,jOrb)
+        end if
+      end do
+      do iOrb = 1, nLocalRows
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        tmpMO(iGlob,1) = tmpMOa(iOrb)
+        tmpMO(iGlob,2) = tmpMOb(iOrb)
+      end do
+      call mpifx_allreduceip(env%mpi%globalComm, tmpMO, MPI_SUM)
+      tmpMOa(:) = 0.0_dp
+      tmpMOb(:) = 0.0_dp
+      do iOrb = 1, nLocalRows
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        tmpMOb(iOrb) = tmpMO(iGlob,1)
+        tmpMOa(iOrb) = tmpMO(iGlob,2)
+      end do
+      do jOrb = 1, nLocalCols
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        if (jGlob == Nc + 1) then
+          eigenvecs(:,jOrb) = tmpMOa
+        else if (jGlob == Nc + 2) then
+          eigenvecs(:,jOrb) = tmpMOb
+        end if
+      end do
+    #:else
+      tmpMO(:,1) = eigenvecs(:,Nc+1)
       eigenvecs(:,Nc+1) = eigenvecs(:,Nc+2)
-      eigenvecs(:,Nc+2) = tmpMO
+      eigenvecs(:,Nc+2) = tmpMO(:,1)
+    #:endif
     end if
 
   end subroutine MOswap22_

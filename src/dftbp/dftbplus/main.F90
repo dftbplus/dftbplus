@@ -8305,7 +8305,13 @@ contains
   !> Optimize the fractional occupation numbers (FONs) and weights
   !> Swap the active orbitals when fa < fb
   !> Compute the several energy contributions
-  subroutine optimizeFONsAndWeights(eigvecs, filling, energy, reks)
+  subroutine optimizeFONsAndWeights(env, denseDesc, eigvecs, filling, energy, reks)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors
     real(dp), intent(inout) :: eigvecs(:,:,:)
@@ -8322,7 +8328,7 @@ contains
     call optimizeFons(reks)
     call calcWeights(reks)
 
-    call activeOrbSwap(reks, eigvecs(:,:,1))
+    call activeOrbSwap(env, denseDesc, reks, eigvecs(:,:,1))
     call getFilling(reks, filling(:,1,1))
 
     call calcSaReksEnergy(reks, energy)
