@@ -728,7 +728,7 @@ module dftbp_reks_reksvar
     allocate(this%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
     if (this%isHybridXc) then
-      allocate(this%hamSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%hamSqrL(nLocalRows,nLocalCols,1,Lmax))
     else
       allocate(this%hamSpL(0,1,Lmax))
     end if

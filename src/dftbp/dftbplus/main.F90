@@ -8156,10 +8156,15 @@ contains
         ! reks%hamSqrL has (my_qm) component
         reks%hamSqrL(:,:,1,iL) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, tmpHamSp(:,1), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, reks%hamSqrL(:,:,1,iL))
+      #:else
         call unpackHS(reks%hamSqrL(:,:,1,iL), tmpHamSp(:,1), neighbourList%iNeighbour, &
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(reks%hamSqrL(:,:,1,iL))
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       else
         ! reks%hamSpL has (my_qm) component
         reks%hamSpL(:,1,iL) = tmpHamSp(:,1)
@@ -8217,9 +8222,16 @@ contains
         rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         ! reks%rhoSqrL has (my_qm) component
-        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,tmpL), &
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:if WITH_SCALAPACK
+        call packRhoRealBlacs(env%blacs, denseDesc, reks%rhoSqrL(:,:,1,tmpL),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+            & rhoPrim(:,1))
+        ! Add up and distribute density matrix contribution from each group
+        call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+      #:else
+        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,tmpL), neighbourlist%iNeighbour, &
+            & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         ! reks%rhoSpL has (my_qm) component
