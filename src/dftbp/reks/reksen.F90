@@ -36,6 +36,7 @@ module dftbp_reks_reksen
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g
+      & blocklist, size
 #:endif
 
   implicit none
@@ -236,7 +237,12 @@ module dftbp_reks_reksen
       call matAO2MO(this%fockFa(:,:,ii), denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     end do
 
+  #:if WITH_SCALAPACK
+    call getPseudoFockBlacs_(env, denseDesc, this%fockFc, this%fockFa, orbFON, this%Nc,&
+        & this%Na, this%fock)
+  #:else
     call getPseudoFock_(this%fockFc, this%fockFa, orbFON, this%Nc, this%Na, this%fock)
+  #:endif
 
     call levelShifting_(this%fock, this%shift, this%Nc, this%Na)
 
@@ -825,11 +831,15 @@ module dftbp_reks_reksen
   end subroutine getFockFcFa_
 
 
+#:if WITH_SCALAPACK
   !> Calculate pseudo-fock matrix from Fc and Fa
-  subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
+  subroutine getPseudoFockBlacs_(env, denseDesc, Fc, Fa, orbFON, Nc, Na, fock)
 
-    !> dense pseudo-fock matrix
-    real(dp), intent(out) :: fock(:,:)
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -845,6 +855,126 @@ module dftbp_reks_reksen
 
     !> Number of active orbitals
     integer, intent(in) :: Na
+
+    !> dense pseudo-fock matrix
+    real(dp), intent(out) :: fock(:,:)
+
+    type(blocklist) :: blocksRow, blocksCol
+    real(dp) :: res
+    integer :: ii, iGlob, iLoc, iSize, blockSize1, indGlobRow, indLocRow
+    integer :: jj, jGlob, jLoc, jSize, blockSize2, indGlobCol, indLocCol
+    integer :: ind1, ind2
+
+    fock(:,:) = 0.0_dp
+
+    call blocksRow%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "r")
+    call blocksCol%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    do ii = 1, size(blocksRow)
+      call blocksRow%getblock(ii, iGlob, iLoc, blockSize1)
+      do jj = 1, size(blocksCol)
+        call blocksCol%getblock(jj, jGlob, jLoc, blockSize2)
+
+        do iSize = 0, blockSize1 - 1
+          indGlobRow = iGlob + iSize
+          indLocRow = iLoc + iSize
+
+          if (indGlobRow <= Nc) then
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobCol - Nc
+                call fockFijMO_(res, Fc(indLocRow,indLocCol), Fa(indLocRow,indLocCol,ind1),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              end if
+
+            end do
+
+          else if (indGlobRow > Nc .and. indGlobRow <= Nc + Na) then
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                ind1 = indGlobRow - Nc
+                call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fc(indLocRow,indLocCol),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobRow - Nc
+                ind2 = indGlobCol - Nc
+                if (indGlobRow == indGlobCol) then
+                  fock(indLocRow,indLocCol) = Fa(indLocRow,indLocCol,ind1)
+                else
+                  call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fa(indLocRow,indLocCol,ind2),&
+                      & orbFON(indGlobRow), orbFON(indGlobCol))
+                  fock(indLocRow,indLocCol) = res
+                end if
+              else
+                ind1 = indGlobRow - Nc
+                call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fc(indLocRow,indLocCol),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              end if
+
+            end do
+
+          else
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobCol - Nc
+                call fockFijMO_(res, Fc(indLocRow,indLocCol), Fa(indLocRow,indLocCol,ind1),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              end if
+
+            end do
+
+          end if
+
+        end do
+
+      end do
+    end do
+
+  end subroutine getPseudoFockBlacs_
+#:else
+  !> Calculate pseudo-fock matrix from Fc and Fa
+  subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
+
+    !> dense fock matrix for core orbitals
+    real(dp), intent(in) :: Fc(:,:)
+
+    !> dense fock matrix for active orbitals
+    real(dp), intent(in) :: Fa(:,:,:)
+
+    !> state-averaged occupation numbers
+    real(dp), intent(in) :: orbFON(:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> dense pseudo-fock matrix
+    real(dp), intent(out) :: fock(:,:)
 
     real(dp) :: res
     integer :: ii, jj, ind1, ind2, nOrb
@@ -896,6 +1026,7 @@ module dftbp_reks_reksen
     call adjointLowerTriangle(fock)
 
   end subroutine getPseudoFock_
+#:endif
 
 
   !> Avoid changing the order of MOs

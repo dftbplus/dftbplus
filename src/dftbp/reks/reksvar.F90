@@ -759,7 +759,7 @@ module dftbp_reks_reksvar
 
     allocate(this%fockFc(nLocalRows,nLocalCols))
     allocate(this%fockFa(nLocalRows,nLocalCols,Na))
-    allocate(this%fock(nOrb,nOrb))
+    allocate(this%fock(nLocalRows,nLocalCols))
 
     allocate(this%eigvecsFock(nOrb,nOrb))
     allocate(this%eigvecsSSR(nstates,nstates))
