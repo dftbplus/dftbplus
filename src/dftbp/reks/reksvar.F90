@@ -708,13 +708,13 @@ module dftbp_reks_reksvar
     allocate(this%fillingL(nOrb,nSpin,Lmax))
 
     if (this%tForces) then
-      allocate(this%rhoSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%rhoSqrL(nLocalRows,nLocalCols,1,Lmax))
     else
       allocate(this%rhoSpL(0,1,Lmax))
     end if
 
     if (this%isHybridXc) then
-      allocate(this%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%deltaRhoSqrL(nLocalRows,nLocalCols,1,Lmax))
     end if
 
     allocate(this%qOutputL(mOrb,nAtom,nSpin,Lmax))

@@ -7816,13 +7816,21 @@ contains
         reks%deltaRhoSqrL(:,:,1,iL) = densityMatrix%deltaRhoOut(:,:,1)
       end if
 
+    #:if not WITH_SCALAPACK
       if (reks%tForces) then
         call adjointLowerTriangle(reks%rhoSqrL(:,:,1,iL))
       end if
+    #:endif
+
       if (reks%isHybridXc) then
+      #:if not WITH_SCALAPACK
+        call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, parallelKS, q0,&
+            & denseDesc, reks%deltaRhoSqrL(:,:,:,iL), 1)
+      #:else
         call adjointLowerTriangle(reks%deltaRhoSqrL(:,:,1,iL))
         call denseSubtractDensityOfAtomsSpinRealNonperiodicReks(q0, denseDesc%iAtomStart,&
             & reks%deltaRhoSqrL(:,:,:,iL), 1)
+      #:endif
       end if
 
     end do
@@ -7894,8 +7902,16 @@ contains
       if (reks%tForces) then
         rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      #:if WITH_SCALAPACK
+        call packRhoRealBlacs(env%blacs, denseDesc, reks%rhoSqrL(:,:,1,iL),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+            & rhoPrim(:,1))
+        ! Add up and distribute density matrix contribution from each group
+        call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+      #:else
         call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,iL), neighbourlist%iNeighbour, &
             & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
