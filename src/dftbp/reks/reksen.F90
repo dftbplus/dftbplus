@@ -244,7 +244,11 @@ module dftbp_reks_reksen
     call getPseudoFock_(this%fockFc, this%fockFa, orbFON, this%Nc, this%Na, this%fock)
   #:endif
 
+  #:if WITH_SCALAPACK
+    call levelShiftingBlacs_(env, denseDesc, this%fock, this%shift, this%Nc, this%Na)
+  #:else
     call levelShifting_(this%fock, this%shift, this%Nc, this%Na)
+  #:endif
 
     ! Diagonalize the pesudo-Fock matrix
     tmpMat(:,:) = this%fock
@@ -1029,6 +1033,51 @@ module dftbp_reks_reksen
 #:endif
 
 
+#:if WITH_SCALAPACK
+  !> Avoid changing the order of MOs
+  !> Required number of cycles increases as the number of shift increases
+  subroutine levelShiftingBlacs_(env, denseDesc, fock, shift, Nc, Na)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> dense pseudo-fock matrix
+    real(dp), intent(inout) :: fock(:,:)
+
+    !> Shift value in SCC cycle
+    real(dp), intent(in) :: shift
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    real(dp) :: res
+    integer :: ind, iOrb, iGlob, jOrb, jGlob
+
+    do jOrb = 1, size(fock, dim=2)
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, size(fock, dim=1)
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+        if (iGlob == jGlob .and. iGlob > Nc) then
+          ind = iGlob - Nc
+          if (ind >= Na + 1) ind = Na + 1
+          res = fock(iOrb,jOrb) + real(ind, dp) * shift
+          fock(iOrb,jOrb) = res
+        end if
+
+      end do
+    end do
+
+  end subroutine levelShiftingBlacs_
+#:else
   !> Avoid changing the order of MOs
   !> Required number of cycles increases as the number of shift increases
   subroutine levelShifting_(fock, shift, Nc, Na)
@@ -1060,6 +1109,7 @@ module dftbp_reks_reksen
     end do
 
   end subroutine levelShifting_
+#:endif
 
 
   !> Calculate state-averaged FONs
