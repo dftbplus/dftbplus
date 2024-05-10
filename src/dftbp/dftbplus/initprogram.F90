@@ -2996,7 +2996,7 @@ contains
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
           & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & this%tForces, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
@@ -6316,8 +6316,8 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
-      & tPoisson, isShellResolved)
+      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt,&
+      & tReadChrg, tForces, tPoisson, isShellResolved)
 
     !> Data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -6361,6 +6361,9 @@ contains
     !> Optimise lattice constants?
     logical, intent(in) :: tLatOpt
 
+    !> Do we need forces?
+    logical, intent(in) :: tForces
+
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
 
@@ -6369,6 +6372,10 @@ contains
 
     !> l-shell resolved SCC
     logical, intent(in) :: isShellResolved
+
+    if (withMpi .and. tForces) then
+      call error("Force evalulation with REKS does not work with MPI yet")
+    end if
 
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
