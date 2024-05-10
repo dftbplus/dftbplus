@@ -174,12 +174,13 @@ module dftbp_reks_reksinterface
     real(dp), allocatable :: rhoL(:,:)
     real(dp), allocatable :: dipoleInt(:,:,:)
 
-    integer :: tmpL, ist, nstHalf, nOrb
+    integer :: tmpL, ist, nstHalf, nLocalRows, nLocalCols
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
-    allocate(rhoL(nOrb,nOrb))
+    allocate(rhoL(nLocalRows,nLocalCols))
     allocate(dipoleInt(nOrb,nOrb,3))
 
     ! Get the unrelaxed density matrix for SA-REKS or SSR state
@@ -208,17 +209,22 @@ module dftbp_reks_reksinterface
           else
             rhoL(:,:) = 0.0_dp
             call env%globalTimer%startTimer(globalTimers%sparseToDense)
+          #:if WITH_SCALAPACK
+            call unpackHSRealBlacs(env%blacs, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour,&
+                & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, rhoL)
+          #:else
             call unpackHS(rhoL, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour, &
                 & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
             call adjointLowerTriangle(rhoL)
+          #:endif
+            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
           end if
 
         end if
       end if
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
-          & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
+      call getUnrelaxedDensMatAndTdp(env, denseDesc, eigenvecs(:,:,1), this%overSqr, &
+          & rhoL, this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm, densityMatrix, errStatus)
       @:PROPAGATE_ERROR(errStatus)

@@ -858,10 +858,10 @@ module dftbp_reks_reksvar
 
     ! REKS: relaxed density & transition dipole variables
 
-    allocate(this%unrelRhoSqr(nOrb,nOrb))
+    allocate(this%unrelRhoSqr(nLocalRows,nLocalCols))
 
     if (this%tTDP .and. this%Lstate == 0) then
-      allocate(this%unrelTdm(nOrb,nOrb,nstHalf))
+      allocate(this%unrelTdm(nLocalRows,nLocalCols,nstHalf))
     end if
 
     if (this%tRD) then

@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
 #:include 'error.fypp'
 
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
@@ -17,6 +18,7 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksproperty
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
@@ -26,6 +28,15 @@ module dftbp_reks_reksproperty
   use dftbp_reks_rekscommon, only : getTwoIndices, qm2udL, assignFilling, assignIndex
   use dftbp_reks_reksio, only : printRelaxedFONs, printRelaxedFONsL, printUnrelaxedFONs
   use dftbp_reks_reksvar, only : reksTypes
+  use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
+      & pblasfx_pgemm
+#:endif
 
   implicit none
 
@@ -37,9 +48,15 @@ module dftbp_reks_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoL, FONs, &
-      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
+  subroutine getUnrelaxedDensMatAndTdp(env, denseDesc, eigenvecs, overSqr, rhoL,&
+      & FONs, eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP,&
       & unrelRhoSqr, unrelTdm, densityMatrix, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -97,25 +114,30 @@ module dftbp_reks_reksproperty
     real(dp), allocatable :: tmpRho(:,:)
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: tmpFilling(:,:)
+    real(dp), allocatable :: tmpActive(:)
 
-    integer :: nOrb, nstates, nstHalf
+    integer :: nOrb, nLocalRows, nLocalCols, nstates, nstHalf
     integer :: ii, ist, jst, kst, lst, ia, ib
+    integer :: iOrb, iGlob, jOrb, jGlob
 
-    nOrb = size(eigenvecs,dim=1)
+    nOrb = denseDesc%fullSize
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
     nstates = size(eigvecsSSR,dim=1)
     nstHalf = nstates * (nstates - 1) / 2
 
     if (tSSR) then
-      allocate(rhoX(nOrb,nOrb,nstates))
+      allocate(rhoX(nLocalRows,nLocalCols,nstates))
     else
-      allocate(rhoX(nOrb,nOrb,1))
+      allocate(rhoX(nLocalRows,nLocalCols,1))
     end if
     if (Lstate == 0) then
-      allocate(rhoXdel(nOrb,nOrb,nstHalf))
+      allocate(rhoXdel(nLocalRows,nLocalCols,nstHalf))
     end if
-    allocate(tmpRho(nOrb,nOrb))
-    allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpRho(nLocalRows,nLocalCols))
+    allocate(tmpMat(nLocalRows,nLocalCols))
     allocate(tmpFilling(nOrb,nstates))
+    allocate(tmpActive(Na))
 
     ! core orbitals fillings
     tmpFilling(:,:) = 0.0_dp
@@ -135,15 +157,25 @@ module dftbp_reks_reksproperty
     rhoX(:,:,:) = 0.0_dp
     if (tSSR) then
       do ist = 1, nstates
+      #:if WITH_SCALAPACK
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & tmpFilling(:,ist), eigenvecs, rhoX(:,:,ist))
+      #:else
         call densityMatrix%getDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist), errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call adjointLowerTriangle(rhoX(:,:,ist))
+      #:endif
       end do
     else
       if (Lstate == 0) then
+      #:if WITH_SCALAPACK
+        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & tmpFilling(:,rstate), eigenvecs, rhoX(:,:,1))
+      #:else
         call densityMatrix%getDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,rstate), errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call adjointLowerTriangle(rhoX(:,:,1))
+      #:endif
       else
         ! find proper index for up+down in rhoSqrL
         rhoX(:,:,1) = rhoL
@@ -156,7 +188,7 @@ module dftbp_reks_reksproperty
       select case (reksAlg)
       case (reksTypes%noReks)
       case (reksTypes%ssr22)
-        call getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, rhoXdel)
+        call getUnrelaxedTDM22_(env, denseDesc, eigenvecs, FONs, Nc, nstates, rhoXdel)
       case (reksTypes%ssr44)
         call error("SSR(4,4) is not implemented yet")
       end select
@@ -219,6 +251,20 @@ module dftbp_reks_reksproperty
     ! because, P = C*N*C^T, I = C^T*S*C, where
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
+  #:if WITH_SCALAPACK
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(unrelRhoSqr, denseDesc%blacsOrbSqr, overSqr,&
+        & denseDesc%blacsOrbSqr, tmpMat, denseDesc%blacsOrbSqr)
+    tmpRho(:,:) = 0.0_dp
+    call pblasfx_pgemm(overSqr, denseDesc%blacsOrbSqr, tmpMat,&
+        & denseDesc%blacsOrbSqr, tmpRho, denseDesc%blacsOrbSqr)
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(tmpRho, denseDesc%blacsOrbSqr, eigenvecs,&
+        & denseDesc%blacsOrbSqr, tmpMat, denseDesc%blacsOrbSqr)
+    tmpRho(:,:) = 0.0_dp
+    call pblasfx_pgemm(eigenvecs, denseDesc%blacsOrbSqr, tmpMat,&
+        & denseDesc%blacsOrbSqr, tmpRho, denseDesc%blacsOrbSqr, transA='T')
+  #:else
     tmpMat(:,:) = 0.0_dp
     call gemm(tmpMat, unrelRhoSqr, overSqr)
     tmpRho(:,:) = 0.0_dp
@@ -227,8 +273,34 @@ module dftbp_reks_reksproperty
     call gemm(tmpMat, tmpRho, eigenvecs)
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
+  #:endif
 
-    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
+    ! Extract the elements of active orbitals
+    tmpActive(:) = 0.0_dp
+  #:if WITH_SCALAPACK
+    do ii = 1, Na
+      do jOrb = 1, size(tmpRho, dim=2)
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        do iOrb = 1, size(tmpRho, dim=1)
+          iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+              & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+          if (iGlob == Nc+ii .and. jGlob == Nc+ii) then
+            tmpActive(ii) = tmpRho(iOrb,jOrb)
+          end if
+
+        end do
+      end do
+    end do
+    call mpifx_allreduceip(env%mpi%globalComm, tmpActive, MPI_SUM)
+  #:else
+    do ii = 1, Na
+      tmpActive(ii) = tmpRho(Nc+ii,Nc+ii)
+    end do
+  #:endif
+
+    call printUnrelaxedFONs(tmpActive, rstate, Lstate, Na, tSSR)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
@@ -645,7 +717,13 @@ module dftbp_reks_reksproperty
 
 
   !> Calculate unrelaxed transition density between SA-REKS states in (2,2) case
-  subroutine getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, rhoXdel)
+  subroutine getUnrelaxedTDM22_(env, denseDesc, eigenvecs, FONs, Nc, nstates, rhoXdel)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -662,16 +740,64 @@ module dftbp_reks_reksproperty
     !> unrelaxed transition density matrix between SA-REKS states
     real(dp), intent(inout) :: rhoXdel(:,:,:)
 
+    real(dp), allocatable :: tmpMO(:,:)
+    real(dp), allocatable :: tmpMOa(:), tmpMOb(:)
+
     real(dp) :: n_a, n_b
     integer :: mu, nu, nOrb, a, b
+    integer :: nLocalRows, nLocalCols, iOrb, iGlob, jOrb, jGlob
 
-    nOrb = size(eigenvecs,dim=1)
+    nOrb = denseDesc%fullSize
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
 
     n_a = FONs(1,1)
     n_b = FONs(2,1)
     a = Nc + 1
     b = Nc + 2
 
+  #:if WITH_SCALAPACK
+    allocate(tmpMO(nOrb,2))
+    allocate(tmpMOa(nLocalRows))
+    allocate(tmpMOb(nLocalRows))
+  #:endif
+
+  #:if WITH_SCALAPACK
+    tmpMO(:,:) = 0.0_dp
+    tmpMOa(:) = 0.0_dp
+    tmpMOb(:) = 0.0_dp
+    do jOrb = 1, nLocalCols
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      if (jGlob == a) then
+        tmpMOa(:) = eigenvecs(:,jOrb)
+      else if (jGlob == b) then
+        tmpMOb(:) = eigenvecs(:,jOrb)
+      end if
+    end do
+    do iOrb = 1, nLocalRows
+      iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+          & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+      tmpMO(iGlob,1) = tmpMOa(iOrb)
+      tmpMO(iGlob,2) = tmpMOb(iOrb)
+    end do
+    call mpifx_allreduceip(env%mpi%globalComm, tmpMO, MPI_SUM)
+    do jOrb = 1, nLocalCols
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, nLocalRows
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+        rhoXdel(iOrb,jOrb,1) = tmpMO(jGlob,1)*tmpMO(iGlob,2) * &
+            & (sqrt(n_a) - sqrt(n_b))
+        if (nstates == 3) then
+          rhoXdel(iOrb,jOrb,3) = tmpMO(jGlob,1)*tmpMO(iGlob,2) * &
+              & (sqrt(n_a) + sqrt(n_b))
+        end if
+      end do
+    end do
+  #:else
     do mu = 1, nOrb
       do nu = 1, nOrb
         rhoXdel(nu,mu,1) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
@@ -686,6 +812,7 @@ module dftbp_reks_reksproperty
         end do
       end do
     end if
+  #:endif
 
   end subroutine getUnrelaxedTDM22_
 
