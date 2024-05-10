@@ -120,7 +120,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
       & denseSubtractDensityOfAtomsRealPeriodicBlacs,&
-      & denseSubtractDensityOfAtomsRealNonperiodicBlacsReks
+      & denseSubtractDensityOfAtomsRealNonperiodicReksBlacs
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
       & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
