@@ -582,7 +582,13 @@ module dftbp_reks_reksproperty
 
 
   !> Calculate dipole integral in DFTB formalism
-  subroutine getDipoleIntegral(coord0, over, getAtomIndex, dipoleInt)
+  subroutine getDipoleIntegral(env, denseDesc, coord0, over, getAtomIndex, dipoleInt)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> central cell coordinates of atoms
     real(dp), intent(in) :: coord0(:,:)
@@ -599,8 +605,9 @@ module dftbp_reks_reksproperty
     real(dp), allocatable :: R(:,:)
 
     integer :: ii, mu, nu, nOrb
+    integer :: iOrb, iGlob, jOrb, jGlob
 
-    nOrb = size(over,dim=1)
+    nOrb = denseDesc%fullSize
 
     allocate(R(nOrb,3))
 
@@ -610,20 +617,39 @@ module dftbp_reks_reksproperty
       R(mu,:) = coord0(:,ii)
     end do
 
+    ! Here, negative sign must be included due to electron charge (e = -1)
     dipoleInt(:,:,:) = 0.0_dp
+  #:if WITH_SCALAPACK
     do ii = 1, 3
-      do mu = 1, nOrb
-        do nu = 1, nOrb
-          dipoleInt(mu,nu,ii) = 0.5_dp * over(mu,nu) * (R(mu,ii) + R(nu,ii))
+      do jOrb = 1, size(over, dim=2)
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        do iOrb = 1, size(over, dim=1)
+          iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+              & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+          dipoleInt(iOrb,jOrb,ii) = -0.5_dp * over(iOrb,jOrb) * (R(iGlob,ii) + R(jGlob,ii))
         end do
       end do
     end do
+  #:else
+    do ii = 1, 3
+      do mu = 1, nOrb
+        do nu = 1, nOrb
+          dipoleInt(mu,nu,ii) = -0.5_dp * over(mu,nu) * (R(mu,ii) + R(nu,ii))
+        end do
+      end do
+    end do
+  #:endif
 
   end subroutine getDipoleIntegral
 
 
   !> Calculate dipole moment using dipole integral and density matrix
-  subroutine getDipoleMomentMatrix(Pmat, dipoleInt, dipole)
+  subroutine getDipoleMomentMatrix(env, Pmat, dipoleInt, dipole)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> density matrix related to dipole
     real(dp), intent(in) :: Pmat(:,:)
@@ -632,7 +658,7 @@ module dftbp_reks_reksproperty
     real(dp), intent(in) :: dipoleInt(:,:,:)
 
     !> resulting dipole moment
-    real(dp), intent(out) :: dipole(:)
+    real(dp), intent(inout) :: dipole(:)
 
     integer :: ii
 
@@ -640,6 +666,9 @@ module dftbp_reks_reksproperty
     do ii = 1, 3
       dipole(ii) = -sum(dipoleInt(:,:,ii)*Pmat(:,:))
     end do
+  #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%globalComm, dipole, MPI_SUM)
+  #:endif
 
   end subroutine getDipoleMomentMatrix
 

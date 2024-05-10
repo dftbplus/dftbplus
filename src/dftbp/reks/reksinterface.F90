@@ -52,6 +52,9 @@ module dftbp_reks_reksinterface
   use dftbp_reks_reksvar, only : TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
+#:if WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs
+#:endif
 
   implicit none
 
@@ -181,7 +184,7 @@ module dftbp_reks_reksinterface
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
     allocate(rhoL(nLocalRows,nLocalCols))
-    allocate(dipoleInt(nOrb,nOrb,3))
+    allocate(dipoleInt(nLocalRows,nLocalCols,3))
 
     ! Get the unrelaxed density matrix for SA-REKS or SSR state
     ! The matrix that used in this calculation is not relaxed density
@@ -230,12 +233,13 @@ module dftbp_reks_reksinterface
       @:PROPAGATE_ERROR(errStatus)
 
       if (this%tTDP) then
-        call getDipoleIntegral(coord0, this%overSqr, this%getAtomIndex, dipoleInt)
+        call getDipoleIntegral(env, denseDesc, coord0, this%overSqr, this%getAtomIndex,&
+            & dipoleInt)
         ! Get the transition dipole moment between states
         ! For (SI-)SA-REKS dipole moment requires gradient info.
         ! But TDP use only zero-th part without gradient info.
         do ist = 1, nstHalf
-          call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
+          call getDipoleMomentMatrix(env, this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
         end do
         call writeReksTDP(this%tdp)
         call getReksOsc(this%tdp, this%energy)
