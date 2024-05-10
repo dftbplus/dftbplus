@@ -36,7 +36,7 @@ module dftbp_reks_reksen
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g
-      & blocklist, size
+      & scalafx_psyev, blocklist, size
 #:endif
 
   implicit none
@@ -225,7 +225,9 @@ module dftbp_reks_reksen
     nOrb = denseDesc%fullSize
 
     allocate(orbFON(nOrb))
+  #:if not WITH_SCALAPACK
     allocate(tmpMat(nOrb,nOrb))
+  #:endif
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, this%hamSqrL, this%hamSpL, this%weight, &
@@ -251,11 +253,17 @@ module dftbp_reks_reksen
   #:endif
 
     ! Diagonalize the pesudo-Fock matrix
-    tmpMat(:,:) = this%fock
-
     eigen(:,1,1) = 0.0_dp
+    call env%globalTimer%startTimer(globalTimers%diagonalization)
+  #:if WITH_SCALAPACK
+    call scalafx_psyev(this%fock, denseDesc%blacsOrbSqr, eigen(:,1,1), this%eigvecsFock,&
+        & denseDesc%blacsOrbSqr, uplo="U", jobz="V")
+  #:else
+    tmpMat(:,:) = this%fock
     call heev(tmpMat, eigen(:,1,1), 'U', 'V')
     this%eigvecsFock(:,:) = tmpMat
+  #:endif
+    call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
   end subroutine getFockandDiag
 

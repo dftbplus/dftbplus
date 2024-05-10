@@ -761,7 +761,7 @@ module dftbp_reks_reksvar
     allocate(this%fockFa(nLocalRows,nLocalCols,Na))
     allocate(this%fock(nLocalRows,nLocalCols))
 
-    allocate(this%eigvecsFock(nOrb,nOrb))
+    allocate(this%eigvecsFock(nLocalRows,nLocalCols))
     allocate(this%eigvecsSSR(nstates,nstates))
 
     ! REKS: gradient variables
