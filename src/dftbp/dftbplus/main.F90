@@ -8141,7 +8141,6 @@ contains
     else
       ! reks%hamSqrL has (my_ud) component
       call qm2udL(reks%hamSqrL, reks%Lpaired)
-      tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add hybrid xc-functional contribution to Hamiltonian
       #:if WITH_SCALAPACK
@@ -8153,8 +8152,8 @@ contains
             & iSparseStart, orb, img2CentCell, reks%tPeriodic, reks%hamSqrL(:,:, 1, iL), errStatus)
       #:endif
         @:PROPAGATE_ERROR(errStatus)
-        ! Calculate hybrid functional exchange energy
-        call hybridXc%addHybridEnergy_real(env, tmpEn(iL))
+        ! Calculate the Fock-type exchange energy
+        call hybridXc%getHybridEnergy_real(env, tmpEn(iL))
       end do
     end if
 

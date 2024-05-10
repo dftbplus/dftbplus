@@ -2030,7 +2030,7 @@ contains
     ! Calculate nuclear kinetic energy
     energyKin = 0.0_dp
     if (this%tIons) then
-      energyKin = 0.5_dp * sum(this%movedMass(:,:) * this%movedVelo(:,:)**2)
+      energyKin = 0.5_dp * sum(this%movedMass * this%movedVelo**2)
       energy%Etotal = energy%Etotal + energyKin
     end if
 
@@ -3733,7 +3733,7 @@ contains
 
   !> Calculates repulsive and dispersion energies
   subroutine getPositionDependentEnergy(this, env, energy, coordAll, img2CentCell, neighbourList,&
-      & repulsive, iAtInCentralRegion, hybridXc)
+      & repulsive, iAtInCentralRegion)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
@@ -3759,9 +3759,6 @@ contains
     !> Atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)
 
-    !> Range separation contributions
-    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
-
     if (allocated(repulsive)) then
       call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
       call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
@@ -3775,11 +3772,6 @@ contains
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
-    end if
-    if (allocated(hybridXc)) then
-      call hybridXc%addHybridEnergy_real(env, energy%Efock)
-    else
-      energy%Efock = 0.0_dp
     end if
 
   end subroutine getPositionDependentEnergy
@@ -4182,7 +4174,7 @@ contains
     end if
 
     call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell, neighbourList,&
-        & repulsive, iAtInCentralRegion, hybridXc)
+        & repulsive, iAtInCentralRegion)
 
     call getTDEnergy(this, env, this%energy, this%rhoPrim, this%trho, neighbourList, nNeighbourSK,&
         & orb, iSquare, iSparseStart, img2CentCell, this%ham0, this%qq, q0, this%potential,&
@@ -4397,7 +4389,7 @@ contains
       end if
 
       call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell,&
-          & neighbourList, repulsive, iAtInCentralRegion, hybridXc)
+          & neighbourList, repulsive, iAtInCentralRegion)
     end if
 
     call getTDEnergy(this, env, this%energy, this%rhoPrim, this%rho, neighbourList, nNeighbourSK,&
