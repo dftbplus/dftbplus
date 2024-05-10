@@ -1263,7 +1263,8 @@ contains
             & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks,&
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
+        call optimizeFONsAndWeights(env, this%denseDesc, this%eigvecsReal, this%filling,&
+            & this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%electronicSolver,&
