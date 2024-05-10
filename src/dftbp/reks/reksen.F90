@@ -231,9 +231,9 @@ module dftbp_reks_reksen
         & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isHybridXc, &
         & orbFON, this%fockFc, this%fockFa)
 
-    call matAO2MO(this%fockFc, eigenvecs(:,:,1))
+    call matAO2MO(this%fockFc, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     do ii = 1, this%Na
-      call matAO2MO(this%fockFa(:,:,ii), eigenvecs(:,:,1))
+      call matAO2MO(this%fockFa(:,:,ii), denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     end do
 
     call getPseudoFock_(this%fockFc, this%fockFa, orbFON, this%Nc, this%Na, this%fock)
@@ -1146,7 +1146,7 @@ module dftbp_reks_reksen
           ! convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then
-            call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
+            call matAO2MO(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
           end if
           tmpHamL(ist,1,iL) = hamSqrL(Nc+ia,Nc+ib,1,iL)
         else
@@ -1160,7 +1160,7 @@ module dftbp_reks_reksen
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
           call adjointLowerTriangle(tmpHam)
           ! convert tmpHam from AO basis to MO basis
-          call matAO2MO(tmpHam, eigenvecs)
+          call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis
           tmpHamL(ist,1,iL) = tmpHam(Nc+ia,Nc+ib)
         end if

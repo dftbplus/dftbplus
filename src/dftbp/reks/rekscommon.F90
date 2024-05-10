@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -19,6 +21,9 @@ module dftbp_reks_rekscommon
   use dftbp_math_blasroutines, only : gemm
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
+#:endif
 
   implicit none
 
@@ -432,47 +437,65 @@ module dftbp_reks_rekscommon
 
 
   !> Convert the matrix from AO basis to MO basis
-  subroutine matAO2MO(mat, eigenvecs)
+  subroutine matAO2MO(mat, desc, eigenvecs)
 
     !> matrix converted from AO basis to MO basis
     real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
 
     !> eigenvectors
     real(dp), intent(in) :: eigenvecs(:,:)
 
     real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
+    integer :: nLocalRows, nLocalCols
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
 
-    allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpMat(nLocalRows,nLocalCols))
 
     tmpMat(:,:) = 0.0_dp
+  #:if WITH_SCALAPACK
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc)
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc, transA='T')
+  #:else
     call gemm(tmpMat, mat, eigenvecs)
     call gemm(mat, eigenvecs, tmpMat, transA='T')
+  #:endif
 
   end subroutine matAO2MO
 
 
   !> Convert the matrix from MO basis to AO basis
-  subroutine matMO2AO(mat, eigenvecs)
+  subroutine matMO2AO(mat, desc, eigenvecs)
 
     !> matrix converted from MO basis to AO basis
     real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
 
     !> eigenvectors
     real(dp), intent(in) :: eigenvecs(:,:)
 
     real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
+    integer :: nLocalRows, nLocalCols
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
 
-    allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpMat(nLocalRows,nLocalCols))
 
     tmpMat(:,:) = 0.0_dp
+  #:if WITH_SCALAPACK
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc, transB='T')
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc)
+  #:else
     call gemm(tmpMat, mat, eigenvecs, transB='T')
     call gemm(mat, eigenvecs, tmpMat)
+  #:endif
 
   end subroutine matMO2AO
 

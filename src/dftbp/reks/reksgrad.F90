@@ -126,7 +126,7 @@ contains
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
           ! convert the hamiltonians from AO basis to MO basis
-          call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
+          call matAO2MO(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
         end if
       else
         tmpHam(:,:) = 0.0_dp
@@ -138,7 +138,7 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the hamiltonians from AO basis to MO basis
-        call matAO2MO(tmpHam, eigenvecs)
+        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
       end if
 
       ! calculate the lagrange multipliers
@@ -170,7 +170,7 @@ contains
       end if
 
       ! convert the multipliers from MO basis to AO basis
-      call matMO2AO(tmpEps, eigenvecs)
+      call matMO2AO(tmpEps, denseDesc%blacsOrbSqr, eigenvecs)
 
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(edmSpL(:,tmpL), tmpEps, neighbourlist%iNeighbour, &
@@ -779,7 +779,7 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
         ! set omega value
         do ij = 1, superN
@@ -1019,7 +1019,7 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
         if (tSSR) then
           do ist = 1, nstates
@@ -1258,7 +1258,7 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
         do ij = 1, superN
           ! assign index i and j from ij
@@ -1777,8 +1777,11 @@ contains
 
 
   !> Add SI contribution to R and Q matricex
-  subroutine addSItoRQ(eigenvecs, RdelL, Q1del, Q2del, &
+  subroutine addSItoRQ(denseDesc, eigenvecs, RdelL, Q1del, Q2del, &
       & eigvecsSSR, rstate, RmatL, Q1mat, Q2mat, Qmat)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1827,7 +1830,7 @@ contains
     end do
 
     ! convert Q1mat from MO basis to AO basis
-    call matMO2AO(Q1mat, eigenvecs(:,:,1))
+    call matMO2AO(Q1mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
     kst = 0
     do ist = 1, nstates
@@ -1848,7 +1851,7 @@ contains
     end do
 
     ! convert Q2mat + Q2del from MO basis to AO basis
-    call matMO2AO(Q2mat, eigenvecs(:,:,1))
+    call matMO2AO(Q2mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
     Qmat(:,:) = Q1mat + Q2mat
 
@@ -1856,8 +1859,11 @@ contains
 
 
   !> Calculate SSR gradient with 1st and 3rd terms
-  subroutine SSRshift(eigenvecs, gradL, Qmat, Sderiv, ZT, SAweight, &
+  subroutine SSRshift(denseDesc, eigenvecs, gradL, Qmat, Sderiv, ZT, SAweight, &
       & weightL, omega, weightIL, G1, iSquare, mOrb, grad, option)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1907,7 +1913,7 @@ contains
     Lmax = size(weightIL,dim=1)
 
     if (option == 1) then
-      call matMO2AO(Qmat, eigenvecs(:,:,1))
+      call matMO2AO(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     end if
 
     tmpValue = sum(ZT(:)*omega(:))
@@ -1925,9 +1931,12 @@ contains
 
 
   !> Calculate SI gradient with 1st and 3rd terms
-  subroutine SIshift(eigenvecs, gradL, Q1del, Q2del, tmpQ1, tmpQ2, &
+  subroutine SIshift(denseDesc, eigenvecs, gradL, Q1del, Q2del, tmpQ1, tmpQ2, &
       & Qmat, Sderiv, ZTdel, SAweight, omega, weightIL, Rab, G1, &
       & iSquare, mOrb, ist, nstates, grad)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1994,9 +2003,9 @@ contains
     call getTwoIndices(nstates, ist, ia, ib, 1)
 
     ! tmp_Q1, tmp_Q2, Q2_del : MO index, Q1_del : AO index
-    call matMO2AO(tmpQ1, eigenvecs(:,:,1))
-    call matMO2AO(tmpQ2, eigenvecs(:,:,1))
-    call matMO2AO(Q2del, eigenvecs(:,:,1))
+    call matMO2AO(tmpQ1, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    call matMO2AO(tmpQ2, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    call matMO2AO(Q2del, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     Qmat(:,:) = tmpQ1 + tmpQ2 + Q1del + Q2del
 
     tmpValue = sum(ZTdel(:)*omega(:))
@@ -2014,8 +2023,11 @@ contains
 
 
   !> Calculate L-th microstate gradient with 1st and 3rd terms
-  subroutine Lshift(eigenvecs, gradL, Qmat, Sderiv, ZT, SAweight, &
+  subroutine Lshift(denseDesc, eigenvecs, gradL, Qmat, Sderiv, ZT, SAweight, &
       & omega, weightIL, G1, iSquare, mOrb, Lstate, grad)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -2061,7 +2073,7 @@ contains
 
     Lmax = size(weightIL,dim=1)
 
-    call matMO2AO(Qmat, eigenvecs(:,:,1))
+    call matMO2AO(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
 
     tmpValue = sum(ZT(:)*omega(:))
 

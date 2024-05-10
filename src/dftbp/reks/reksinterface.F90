@@ -386,7 +386,7 @@ module dftbp_reks_reksinterface
                 & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
             Qmat(:,:) = this%Q1mat + this%Q2mat
             ! compute SA-REKS shift
-            call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+            call SSRshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
                 & this%ZT(:,ist), this%SAweight, this%weightL(ist,:), &
                 & this%omega, this%weightIL, this%G1, &
                 & denseDesc%iAtomStart, orb%mOrb, this%SAgrad(:,:,ist), 1)
@@ -409,7 +409,7 @@ module dftbp_reks_reksinterface
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XTdel(:,ist), this%ZTdel(:,ist), this%tmpRL(:,:,:,ist), &
               & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
-          call SIshift(eigenvecs, this%gradL, this%Q1del(:,:,ist), &
+          call SIshift(denseDesc, eigenvecs, this%gradL, this%Q1del(:,:,ist), &
               & this%Q2del(:,:,ist), this%Q1mat, this%Q2mat, Qmat, &
               & this%Sderiv, this%ZTdel(:,ist), this%SAweight, this%omega, &
               & this%weightIL, this%Rab, this%G1, denseDesc%iAtomStart, &
@@ -439,7 +439,7 @@ module dftbp_reks_reksinterface
               & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
 
           ! add remaining SI component to SSR state
-          call addSItoRQ(eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
+          call addSItoRQ(denseDesc, eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
               & this%eigvecsSSR, this%rstate, this%RmatL(:,:,:,1), &
               & this%Q1mat, this%Q2mat, Qmat)
           fac = 2
@@ -469,13 +469,13 @@ module dftbp_reks_reksinterface
 
         if (this%Lstate == 0) then
           ! compute SSR or SA-REKS shift
-          call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+          call SSRshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
               & this%ZT(:,1), this%SAweight, this%weightL(this%rstate,:), &
               & this%omega, this%weightIL, this%G1, &
               & denseDesc%iAtomStart, orb%mOrb, this%SSRgrad(:,:,1), fac)
         else
           ! compute L shift
-          call Lshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+          call Lshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
               & this%ZT(:,1), this%SAweight, this%omega, this%weightIL, this%G1, &
               & denseDesc%iAtomStart, orb%mOrb, this%Lstate, this%SSRgrad(:,:,1))
         end if
