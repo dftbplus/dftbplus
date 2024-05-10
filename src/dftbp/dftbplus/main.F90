@@ -1279,8 +1279,13 @@ contains
         @:PROPAGATE_ERROR(errStatus)
         ! For hybrid xc-functional calculations deduct atomic charges from deltaRho
         if (this%isHybridXc) then
+        #:if WITH_SCALAPACK
+          call denseSubtractDensityOfAtomsRealNonperiodicBlacsReks(env, this%parallelKS,&
+              & this%q0, this%denseDesc, this%densityMatrix%deltaRhoOut, 2)
+        #:else
           call denseSubtractDensityOfAtomsNospinRealNonperiodicReks(this%q0,&
               & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut)
+        #:endif
         end if
         call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
@@ -1290,14 +1295,13 @@ contains
         ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (this%isHybridXc) then
-          call getReksNextInputDensity(sccErrorQ, this%sccTol, tConverged, iSccIter,&
-              & this%minSccIter, this%maxSccIter, iGeoStep, tStopScc, this%eigvecsReal,&
-              & this%densityMatrix%deltaRhoOut, this%densityMatrix%deltaRhoIn,&
-              & this%reks)
+          call getReksNextInputDensity(env, this%denseDesc, sccErrorQ, this%sccTol, tConverged,&
+              & iSccIter, this%minSccIter, this%maxSccIter, iGeoStep, tStopScc, this%eigvecsReal,&
+              & this%densityMatrix%deltaRhoOut, this%densityMatrix%deltaRhoIn, this%reks)
         else
-          call getReksNextInputCharges(this%qInput, this%qOutput, this%qDiff, sccErrorQ,&
-              & this%sccTol, tConverged, iSccIter, this%minSccIter, this%maxSccIter, iGeoStep,&
-              & tStopScc, this%eigvecsReal, this%reks)
+          call getReksNextInputCharges(this%denseDesc, this%qInput, this%qOutput, this%qDiff,&
+              & sccErrorQ, this%sccTol, tConverged, iSccIter, this%minSccIter, this%maxSccIter,&
+              & iGeoStep, tStopScc, this%eigvecsReal, this%reks)
         end if
 
         call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
@@ -8342,8 +8346,11 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getReksNextInputCharges(qInput, qOutput, qDiff, sccErrorQ, sccTol, tConverged,&
-      & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
+  subroutine getReksNextInputCharges(denseDesc, qInput, qOutput, qDiff, sccErrorQ, sccTol,&
+      & tConverged, iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Input charges (for potentials)
     real(dp), intent(inout) :: qInput(:, :, :)
@@ -8391,15 +8398,22 @@ contains
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       qInput(:,:,:) = qOutput
-      call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
+      call guessNewEigvecs(eigvecs(:,:,1), denseDesc%blacsOrbSqr, reks%eigvecsFock)
     end if
 
   end subroutine getReksNextInputCharges
 
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
-  subroutine getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
-      & maxSccIter, iGeoStep, tStopScc, eigvecs, deltaRhoOut, deltaRhoIn, reks)
+  subroutine getReksNextInputDensity(env, denseDesc, sccErrorQ, sccTol, tConverged,&
+      & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, deltaRhoOut,&
+      & deltaRhoIn, reks)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Self-consistency error
     real(dp), intent(out) :: sccErrorQ
@@ -8442,12 +8456,15 @@ contains
 
     deltaRhoDiffSqr = deltaRhoOut - deltaRhoIn
     sccErrorQ = maxval(abs(deltaRhoDiffSqr))
+  #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%globalComm, sccErrorQ, MPI_MAX)
+  #:endif
 
     tConverged = (sccErrorQ < sccTol) &
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       deltaRhoIn(:,:,:) = deltaRhoOut
-      call guessNewEigvecs(eigvecs(:,:, 1), reks%eigvecsFock)
+      call guessNewEigvecs(eigvecs(:,:, 1), denseDesc%blacsOrbSqr, reks%eigvecsFock)
     end if
 
   end subroutine getReksNextInputDensity

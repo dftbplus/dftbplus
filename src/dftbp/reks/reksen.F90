@@ -35,8 +35,8 @@ module dftbp_reks_reksen
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g
-      & scalafx_psyev, blocklist, size
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
+      & scalafx_psyev, pblasfx_pgemm, blocklist, size
 #:endif
 
   implicit none
@@ -269,23 +269,31 @@ module dftbp_reks_reksen
 
 
   !> guess new eigenvectors from Fock eigenvectors
-  subroutine guessNewEigvecs(eigenvecs, eigvecsFock)
+  subroutine guessNewEigvecs(eigenvecs, desc, eigvecsFock)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
 
     !> eigenvectors from pesudo-fock matrix
     real(dp), intent(in) :: eigvecsFock(:,:)
 
     real(dp), allocatable :: tmpVec(:,:)
-    integer :: nOrb
+    integer :: nLocalRows, nLocalCols
 
-    nOrb = size(eigvecsFock,dim=1)
+    nLocalRows = size(eigvecsFock,dim=1)
+    nLocalCols = size(eigvecsFock,dim=2)
 
-    allocate(tmpVec(nOrb,nOrb))
+    allocate(tmpVec(nLocalRows,nLocalCols))
 
     tmpVec(:,:) = 0.0_dp
+  #:if WITH_SCALAPACK
+    call pblasfx_pgemm(eigenvecs, desc, eigvecsFock, desc, tmpVec, desc)
+  #:else
     call gemm(tmpVec, eigenvecs, eigvecsFock)
+  #:endif
     eigenvecs(:,:) = tmpVec
 
   end subroutine guessNewEigvecs
