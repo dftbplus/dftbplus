@@ -39,6 +39,9 @@ module dftbp_reks_reksgrad
 #:if WITH_OMP
   use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
 #:endif
+#:if WITH_SCALAPACK
+  use dftbp_reks_rekscommon, only : matAO2MOBlacs, matMO2AOBlacs
+#:endif
 
   implicit none
 
@@ -126,7 +129,11 @@ contains
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
           ! convert the hamiltonians from AO basis to MO basis
-          call matAO2MO(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
+        #:if WITH_SCALAPACK
+          call matAO2MOBlacs(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
+        #:else
+          call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
+        #:endif
         end if
       else
         tmpHam(:,:) = 0.0_dp
@@ -138,7 +145,11 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the hamiltonians from AO basis to MO basis
-        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
+      #:if WITH_SCALAPACK
+        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
+      #:else
+        call matAO2MO(tmpHam, eigenvecs)
+      #:endif
       end if
 
       ! calculate the lagrange multipliers
@@ -170,7 +181,11 @@ contains
       end if
 
       ! convert the multipliers from MO basis to AO basis
-      call matMO2AO(tmpEps, denseDesc%blacsOrbSqr, eigenvecs)
+    #:if WITH_SCALAPACK
+      call matMO2AOBlacs(tmpEps, denseDesc%blacsOrbSqr, eigenvecs)
+    #:else
+      call matMO2AO(tmpEps, eigenvecs)
+    #:endif
 
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(edmSpL(:,tmpL), tmpEps, neighbourlist%iNeighbour, &
@@ -779,7 +794,11 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:if WITH_SCALAPACK
+        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:else
+        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+      #:endif
 
         ! set omega value
         do ij = 1, superN
@@ -1019,7 +1038,11 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:if WITH_SCALAPACK
+        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:else
+        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+      #:endif
 
         if (tSSR) then
           do ist = 1, nstates
@@ -1258,7 +1281,11 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
-        call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:if WITH_SCALAPACK
+        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      #:else
+        call matAO2MO(tmpHam, eigenvecs(:,:,1))
+      #:endif
 
         do ij = 1, superN
           ! assign index i and j from ij
@@ -1830,7 +1857,11 @@ contains
     end do
 
     ! convert Q1mat from MO basis to AO basis
-    call matMO2AO(Q1mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:if WITH_SCALAPACK
+    call matMO2AOBlacs(Q1mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:else
+    call matMO2AO(Q1mat, eigenvecs(:,:,1))
+  #:endif
 
     kst = 0
     do ist = 1, nstates
@@ -1851,7 +1882,11 @@ contains
     end do
 
     ! convert Q2mat + Q2del from MO basis to AO basis
-    call matMO2AO(Q2mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:if WITH_SCALAPACK
+    call matMO2AOBlacs(Q2mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:else
+    call matMO2AO(Q2mat, eigenvecs(:,:,1))
+  #:endif
 
     Qmat(:,:) = Q1mat + Q2mat
 
@@ -1913,7 +1948,11 @@ contains
     Lmax = size(weightIL,dim=1)
 
     if (option == 1) then
-      call matMO2AO(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    #:if WITH_SCALAPACK
+      call matMO2AOBlacs(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    #:else
+      call matMO2AO(Qmat, eigenvecs(:,:,1))
+    #:endif
     end if
 
     tmpValue = sum(ZT(:)*omega(:))
@@ -2003,9 +2042,15 @@ contains
     call getTwoIndices(nstates, ist, ia, ib, 1)
 
     ! tmp_Q1, tmp_Q2, Q2_del : MO index, Q1_del : AO index
-    call matMO2AO(tmpQ1, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-    call matMO2AO(tmpQ2, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-    call matMO2AO(Q2del, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:if WITH_SCALAPACK
+    call matMO2AOBlacs(tmpQ1, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    call matMO2AOBlacs(tmpQ2, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+    call matMO2AOBlacs(Q2del, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:else
+    call matMO2AO(tmpQ1, eigenvecs(:,:,1))
+    call matMO2AO(tmpQ2, eigenvecs(:,:,1))
+    call matMO2AO(Q2del, eigenvecs(:,:,1))
+  #:endif
     Qmat(:,:) = tmpQ1 + tmpQ2 + Q1del + Q2del
 
     tmpValue = sum(ZTdel(:)*omega(:))
@@ -2073,7 +2118,11 @@ contains
 
     Lmax = size(weightIL,dim=1)
 
-    call matMO2AO(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:if WITH_SCALAPACK
+    call matMO2AOBlacs(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:else
+    call matMO2AO(Qmat, eigenvecs(:,:,1))
+  #:endif
 
     tmpValue = sum(ZT(:)*omega(:))
 

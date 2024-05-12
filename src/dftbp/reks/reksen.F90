@@ -36,6 +36,7 @@ module dftbp_reks_reksen
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs
+  use dftbp_reks_rekscommon, only : matAO2MOBlacs
   use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
       & scalafx_psyev, pblasfx_pgemm, blocklist, size
 #:endif
@@ -235,10 +236,17 @@ module dftbp_reks_reksen
         & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isHybridXc, &
         & orbFON, this%fockFc, this%fockFa)
 
-    call matAO2MO(this%fockFc, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+  #:if WITH_SCALAPACK
+    call matAO2MOBlacs(this%fockFc, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     do ii = 1, this%Na
-      call matAO2MO(this%fockFa(:,:,ii), denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
+      call matAO2MOBlacs(this%fockFa(:,:,ii), denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
     end do
+  #:else
+    call matAO2MO(this%fockFc, eigenvecs(:,:,1))
+    do ii = 1, this%Na
+      call matAO2MO(this%fockFa(:,:,ii), eigenvecs(:,:,1))
+    end do
+  #:endif
 
   #:if WITH_SCALAPACK
     call getPseudoFockBlacs_(env, denseDesc, this%fockFc, this%fockFa, orbFON, this%Nc,&
@@ -1347,13 +1355,17 @@ module dftbp_reks_reksen
 
         if (isHybridXc) then
           ! convert hamSqrL from AO basis to MO basis
+          ! save F_{L,ab}^{\sigma} in MO basis
           ! hamSqrL has (my_ud) component
-          if (ist == 1) then
-            call matAO2MO(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
-          end if
         #:if WITH_SCALAPACK
+          if (ist == 1) then
+            call matAO2MOBlacs(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
+          end if
           call findActiveElements_(env, denseDesc, hamSqrL(:,:,1,iL), aa, bb, tmpHamL(ist,1,iL))
         #:else
+          if (ist == 1) then
+            call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
+          end if
           tmpHamL(ist,1,iL) = hamSqrL(aa,bb,1,iL)
         #:endif
         else
@@ -1371,11 +1383,12 @@ module dftbp_reks_reksen
         #:endif
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
           ! convert tmpHam from AO basis to MO basis
-          call matAO2MO(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis
         #:if WITH_SCALAPACK
+          call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
           call findActiveElements_(env, denseDesc, tmpHam, aa, bb, tmpHamL(ist,1,iL))
         #:else
+          call matAO2MO(tmpHam, eigenvecs)
           tmpHamL(ist,1,iL) = tmpHam(aa,bb)
         #:endif
         end if
