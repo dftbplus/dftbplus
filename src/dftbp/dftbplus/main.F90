@@ -98,9 +98,9 @@ module dftbp_dftbplus_main
   use dftbp_md_xlbomd, only : TXLBOMD
   use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, TMixerReal_reset, TMixerCmplx_reset,&
       & TMixerReal_mix, TMixerCmplx_mix, TMixerReal_getInverseJacobian
-  use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
-      & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
-      & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
+  use dftbp_reks_reks, only : TReksCalc, guessneweigvecsReks, optimizeFONs, calcweights,&
+      & activeorbswap, getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates,&
+      & qmexpandl, ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
       & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
       & getReksStress
   use dftbp_solvation_cm5, only : TChargeModel5
@@ -7829,7 +7829,7 @@ contains
     #:endif
 
       if (reks%isHybridXc) then
-      #:if not WITH_SCALAPACK
+      #:if WITH_SCALAPACK
         call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, parallelKS, q0,&
             & denseDesc, reks%deltaRhoSqrL(:,:,:,iL), 1)
       #:else
@@ -8399,7 +8399,7 @@ contains
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       qInput(:,:,:) = qOutput
-      call guessNewEigvecs(eigvecs(:,:,1), denseDesc%blacsOrbSqr, reks%eigvecsFock)
+      call guessNewEigvecsReks(denseDesc, reks%eigvecsFock, eigvecs(:,:,1))
     end if
 
   end subroutine getReksNextInputCharges
@@ -8465,7 +8465,7 @@ contains
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       deltaRhoIn(:,:,:) = deltaRhoOut
-      call guessNewEigvecs(eigvecs(:,:, 1), denseDesc%blacsOrbSqr, reks%eigvecsFock)
+      call guessNewEigvecsReks(denseDesc, reks%eigvecsFock, eigvecs(:,:,1))
     end if
 
   end subroutine getReksNextInputDensity

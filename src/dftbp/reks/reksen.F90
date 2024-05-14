@@ -46,7 +46,7 @@ module dftbp_reks_reksen
   private
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
-  public :: getFockandDiag, guessNewEigvecs
+  public :: getFockandDiag, guessNewEigvecsReks
   public :: adjustEigenval, solveSecularEqn
   public :: setReksTargetEnergy
 
@@ -278,34 +278,24 @@ module dftbp_reks_reksen
 
 
   !> guess new eigenvectors from Fock eigenvectors
-  subroutine guessNewEigvecs(eigenvecs, desc, eigvecsFock)
+  subroutine guessNewEigvecsReks(denseDesc, eigvecsFock, eigenvecs)
 
-    !> Eigenvectors on eixt
-    real(dp), intent(inout) :: eigenvecs(:,:)
-
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors from pesudo-fock matrix
     real(dp), intent(in) :: eigvecsFock(:,:)
 
-    real(dp), allocatable :: tmpVec(:,:)
-    integer :: nLocalRows, nLocalCols
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
 
-    nLocalRows = size(eigvecsFock,dim=1)
-    nLocalCols = size(eigvecsFock,dim=2)
-
-    allocate(tmpVec(nLocalRows,nLocalCols))
-
-    tmpVec(:,:) = 0.0_dp
   #:if WITH_SCALAPACK
-    call pblasfx_pgemm(eigenvecs, desc, eigvecsFock, desc, tmpVec, desc)
+    call guessNewEigvecsBlacs_(eigenvecs, denseDesc%blacsOrbSqr, eigvecsFock)
   #:else
-    call gemm(tmpVec, eigenvecs, eigvecsFock)
+    call guessNewEigvecs_(eigenvecs, eigvecsFock)
   #:endif
-    eigenvecs(:,:) = tmpVec
 
-  end subroutine guessNewEigvecs
+  end subroutine guessNewEigvecsReks
 
 
   !> adjust the eigenvalues (eliminate shift values)
@@ -1273,6 +1263,57 @@ module dftbp_reks_reksen
     end if
 
   end subroutine fockFijMO_
+
+
+#:if WITH_SCALAPACK
+  !> guess new eigenvectors from Fock eigenvectors
+  subroutine guessNewEigvecsBlacs_(eigenvecs, desc, eigvecsFock)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors from pesudo-fock matrix
+    real(dp), intent(in) :: eigvecsFock(:,:)
+
+    real(dp), allocatable :: tmpVec(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigvecsFock,dim=1)
+    nLocalCols = size(eigvecsFock,dim=2)
+
+    allocate(tmpVec(nLocalRows,nLocalCols))
+
+    tmpVec(:,:) = 0.0_dp
+    call pblasfx_pgemm(eigenvecs, desc, eigvecsFock, desc, tmpVec, desc)
+    eigenvecs(:,:) = tmpVec
+
+  end subroutine guessNewEigvecsBlacs_
+#:else
+  !> guess new eigenvectors from Fock eigenvectors
+  subroutine guessNewEigvecs_(eigenvecs, eigvecsFock)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> eigenvectors from pesudo-fock matrix
+    real(dp), intent(in) :: eigvecsFock(:,:)
+
+    real(dp), allocatable :: tmpVec(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigvecsFock,dim=1)
+
+    allocate(tmpVec(nOrb,nOrb))
+
+    tmpVec(:,:) = 0.0_dp
+    call gemm(tmpVec, eigenvecs, eigvecsFock)
+    eigenvecs(:,:) = tmpVec
+
+  end subroutine guessNewEigvecs_
+#:endif
 
 
   !> Calculate converged Lagrangian values
