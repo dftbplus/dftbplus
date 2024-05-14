@@ -31,16 +31,13 @@ module dftbp_reks_reksgrad
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_math_lapackroutines, only : getrf, getri
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, convertMatrix,&
       & findShellOfAO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
 #:if WITH_OMP
   use omp_lib, only : OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
-#:endif
-#:if WITH_SCALAPACK
-  use dftbp_reks_rekscommon, only : matAO2MOBlacs, matMO2AOBlacs
 #:endif
 
   implicit none
@@ -129,11 +126,7 @@ contains
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
           ! convert the hamiltonians from AO basis to MO basis
-        #:if WITH_SCALAPACK
-          call matAO2MOBlacs(hamSqrL(:,:,1,iL), denseDesc%blacsOrbSqr, eigenvecs)
-        #:else
-          call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
-        #:endif
+          call convertMatrix(denseDesc, eigenvecs, hamSqrL(:,:,1,iL), choice=1)
         end if
       else
         tmpHam(:,:) = 0.0_dp
@@ -145,11 +138,7 @@ contains
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
         ! convert the hamiltonians from AO basis to MO basis
-      #:if WITH_SCALAPACK
-        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs)
-      #:else
-        call matAO2MO(tmpHam, eigenvecs)
-      #:endif
+        call convertMatrix(denseDesc, eigenvecs, tmpHam, choice=1)
       end if
 
       ! calculate the lagrange multipliers
@@ -181,11 +170,7 @@ contains
       end if
 
       ! convert the multipliers from MO basis to AO basis
-    #:if WITH_SCALAPACK
-      call matMO2AOBlacs(tmpEps, denseDesc%blacsOrbSqr, eigenvecs)
-    #:else
-      call matMO2AO(tmpEps, eigenvecs)
-    #:endif
+      call convertMatrix(denseDesc, eigenvecs, tmpEps, choice=2)
 
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(edmSpL(:,tmpL), tmpEps, neighbourlist%iNeighbour, &
@@ -784,7 +769,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in MO basis
+        ! convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -793,12 +778,8 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the multipliers from MO basis to AO basis
-      #:if WITH_SCALAPACK
-        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-      #:else
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
-      #:endif
+        ! convert the hamiltonians from AO basis to MO basis
+        call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         ! set omega value
         do ij = 1, superN
@@ -1028,7 +1009,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in MO basis
+        ! convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -1037,12 +1018,8 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the multipliers from MO basis to AO basis
-      #:if WITH_SCALAPACK
-        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-      #:else
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
-      #:endif
+        ! convert the hamiltonians from AO basis to MO basis
+        call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         if (tSSR) then
           do ist = 1, nstates
@@ -1271,7 +1248,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in MO basis
+        ! convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -1280,12 +1257,8 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the multipliers from MO basis to AO basis
-      #:if WITH_SCALAPACK
-        call matAO2MOBlacs(tmpHam, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-      #:else
-        call matAO2MO(tmpHam, eigenvecs(:,:,1))
-      #:endif
+        ! convert the hamiltonians from AO basis to MO basis
+        call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         do ij = 1, superN
           ! assign index i and j from ij
@@ -1857,11 +1830,7 @@ contains
     end do
 
     ! convert Q1mat from MO basis to AO basis
-  #:if WITH_SCALAPACK
-    call matMO2AOBlacs(Q1mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-  #:else
-    call matMO2AO(Q1mat, eigenvecs(:,:,1))
-  #:endif
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), Q1mat, choice=2)
 
     kst = 0
     do ist = 1, nstates
@@ -1882,11 +1851,7 @@ contains
     end do
 
     ! convert Q2mat + Q2del from MO basis to AO basis
-  #:if WITH_SCALAPACK
-    call matMO2AOBlacs(Q2mat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-  #:else
-    call matMO2AO(Q2mat, eigenvecs(:,:,1))
-  #:endif
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), Q2mat, choice=2)
 
     Qmat(:,:) = Q1mat + Q2mat
 
@@ -1948,11 +1913,7 @@ contains
     Lmax = size(weightIL,dim=1)
 
     if (option == 1) then
-    #:if WITH_SCALAPACK
-      call matMO2AOBlacs(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-    #:else
-      call matMO2AO(Qmat, eigenvecs(:,:,1))
-    #:endif
+      call convertMatrix(denseDesc, eigenvecs(:,:,1), Qmat, choice=2)
     end if
 
     tmpValue = sum(ZT(:)*omega(:))
@@ -2042,15 +2003,9 @@ contains
     call getTwoIndices(nstates, ist, ia, ib, 1)
 
     ! tmp_Q1, tmp_Q2, Q2_del : MO index, Q1_del : AO index
-  #:if WITH_SCALAPACK
-    call matMO2AOBlacs(tmpQ1, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-    call matMO2AOBlacs(tmpQ2, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-    call matMO2AOBlacs(Q2del, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-  #:else
-    call matMO2AO(tmpQ1, eigenvecs(:,:,1))
-    call matMO2AO(tmpQ2, eigenvecs(:,:,1))
-    call matMO2AO(Q2del, eigenvecs(:,:,1))
-  #:endif
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpQ1, choice=2)
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpQ2, choice=2)
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), Q2del, choice=2)
     Qmat(:,:) = tmpQ1 + tmpQ2 + Q1del + Q2del
 
     tmpValue = sum(ZTdel(:)*omega(:))
@@ -2118,11 +2073,7 @@ contains
 
     Lmax = size(weightIL,dim=1)
 
-  #:if WITH_SCALAPACK
-    call matMO2AOBlacs(Qmat, denseDesc%blacsOrbSqr, eigenvecs(:,:,1))
-  #:else
-    call matMO2AO(Qmat, eigenvecs(:,:,1))
-  #:endif
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), Qmat, choice=2)
 
     tmpValue = sum(ZT(:)*omega(:))
 

@@ -32,13 +32,10 @@ module dftbp_reks_rekscommon
   public :: getTwoIndices
   public :: qm2udL, ud2qmL
   public :: qmExpandL, udExpandL
-  public :: matAO2MO, matMO2AO
+  public :: convertMatrix
   public :: getSpaceSym
   public :: findShellOfAO
   public :: assignIndex, assignEpsilon, assignFilling
-#:if WITH_SCALAPACK
-  public :: matAO2MOBlacs, matMO2AOBlacs
-#:endif
 
   !> Swap from charge/magnetisation to up/down in REKS
   !> It converts my_qm to my_ud in the representation
@@ -440,105 +437,35 @@ module dftbp_reks_rekscommon
 
 
   !> Convert the matrix from AO basis to MO basis
-  subroutine matAO2MO(mat, eigenvecs)
+  subroutine convertMatrix(denseDesc, eigenvecs, mat, choice)
 
-    !> matrix converted from AO basis to MO basis
-    real(dp), intent(inout) :: mat(:,:)
-
-    !> eigenvectors
-    real(dp), intent(in) :: eigenvecs(:,:)
-
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
-
-    nOrb = size(eigenvecs,dim=1)
-
-    allocate(tmpMat(nOrb,nOrb))
-
-    tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, mat, eigenvecs)
-    call gemm(mat, eigenvecs, tmpMat, transA='T')
-
-  end subroutine matAO2MO
-
-
-  !> Convert the matrix from MO basis to AO basis
-  subroutine matMO2AO(mat, eigenvecs)
-
-    !> matrix converted from MO basis to AO basis
-    real(dp), intent(inout) :: mat(:,:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors
     real(dp), intent(in) :: eigenvecs(:,:)
 
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
-
-    nOrb = size(eigenvecs,dim=1)
-
-    allocate(tmpMat(nOrb,nOrb))
-
-    tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, mat, eigenvecs, transB='T')
-    call gemm(mat, eigenvecs, tmpMat)
-
-  end subroutine matMO2AO
-
-
-#:if WITH_SCALAPACK
-  !> Convert the matrix from AO basis to MO basis
-  subroutine matAO2MOBlacs(mat, desc, eigenvecs)
-
-    !> matrix converted from AO basis to MO basis
+    !> matrix to be converted
     real(dp), intent(inout) :: mat(:,:)
 
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(:)
+    !> 1: AO basis to MO basis, 2: MO basis to AO basis
+    integer, intent(in) :: choice
 
-    !> eigenvectors
-    real(dp), intent(in) :: eigenvecs(:,:)
+    if (choice == 1) then
+    #:if WITH_SCALAPACK
+      call matAO2MOBlacs_(mat, denseDesc%blacsOrbSqr, eigenvecs)
+    #:else
+      call matAO2MO_(mat, eigenvecs)
+    #:endif
+    else if (choice == 2) then
+    #:if WITH_SCALAPACK
+      call matMO2AOBlacs_(mat, denseDesc%blacsOrbSqr, eigenvecs)
+    #:else
+      call matMO2AO_(mat, eigenvecs)
+    #:endif
+    end if
 
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nLocalRows, nLocalCols
-
-    nLocalRows = size(eigenvecs,dim=1)
-    nLocalCols = size(eigenvecs,dim=2)
-
-    allocate(tmpMat(nLocalRows,nLocalCols))
-
-    tmpMat(:,:) = 0.0_dp
-    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc)
-    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc, transA='T')
-
-  end subroutine matAO2MOBlacs
-
-
-  !> Convert the matrix from MO basis to AO basis
-  subroutine matMO2AOBlacs(mat, desc, eigenvecs)
-
-    !> matrix converted from MO basis to AO basis
-    real(dp), intent(inout) :: mat(:,:)
-
-    !> BLACS matrix descriptor
-    integer, intent(in) :: desc(:)
-
-    !> eigenvectors
-    real(dp), intent(in) :: eigenvecs(:,:)
-
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nLocalRows, nLocalCols
-
-    nLocalRows = size(eigenvecs,dim=1)
-    nLocalCols = size(eigenvecs,dim=2)
-
-    allocate(tmpMat(nLocalRows,nLocalCols))
-
-    tmpMat(:,:) = 0.0_dp
-    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc, transB='T')
-    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc)
-
-  end subroutine matMO2AOBlacs
-#:endif
+  end subroutine convertMatrix
 
 
   !> find proper string for active orbital
@@ -717,6 +644,107 @@ module dftbp_reks_rekscommon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:if WITH_SCALAPACK
+  !> Convert the matrix from AO basis to MO basis
+  subroutine matAO2MOBlacs_(mat, desc, eigenvecs)
+
+    !> matrix converted from AO basis to MO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
+
+    allocate(tmpMat(nLocalRows,nLocalCols))
+
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc)
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc, transA='T')
+
+  end subroutine matAO2MOBlacs_
+
+
+  !> Convert the matrix from MO basis to AO basis
+  subroutine matMO2AOBlacs_(mat, desc, eigenvecs)
+
+    !> matrix converted from MO basis to AO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
+
+    allocate(tmpMat(nLocalRows,nLocalCols))
+
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc, transB='T')
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc)
+
+  end subroutine matMO2AOBlacs_
+#:else
+  !> Convert the matrix from AO basis to MO basis
+  subroutine matAO2MO_(mat, eigenvecs)
+
+    !> matrix converted from AO basis to MO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+
+    allocate(tmpMat(nOrb,nOrb))
+
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, mat, eigenvecs)
+    call gemm(mat, eigenvecs, tmpMat, transA='T')
+
+  end subroutine matAO2MO_
+
+
+  !> Convert the matrix from MO basis to AO basis
+  subroutine matMO2AO_(mat, eigenvecs)
+
+    !> matrix converted from MO basis to AO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+
+    allocate(tmpMat(nOrb,nOrb))
+
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, mat, eigenvecs, transB='T')
+    call gemm(mat, eigenvecs, tmpMat)
+
+  end subroutine matMO2AO_
+#:endif
+
 
   !> Assign index in terms of dense form from super matrix form in REKS(2,2)
   subroutine assignIndex22_(Nc, Na, Nv, ij, i, j)
