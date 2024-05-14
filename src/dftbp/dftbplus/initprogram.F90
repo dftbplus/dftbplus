@@ -6327,7 +6327,7 @@ contains
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt,&
-      & tReadChrg, tForces, tPoisson, isShellResolved)
+      & tForces, tReadChrg, tPoisson, isShellResolved)
 
     !> Data type for REKS input
     type(TReksInp), intent(in) :: reksInp
