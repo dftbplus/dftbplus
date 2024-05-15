@@ -122,7 +122,11 @@ list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
   find_package(CustomArpack REQUIRED)
-  list(APPEND PKG_CONFIG_LIBS_PRIVATE ${ARPACK_LIBRARY})
+  list(APPEND PKG_CONFIG_REQUIRES arpack)
+  if (WITH_MPI)
+    find_package(CustomParpack REQUIRED)
+    list(APPEND PKG_CONFIG_REQUIRES parpack)
+  endif()
 endif()
 
 if(WITH_MAGMA)
