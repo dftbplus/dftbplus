@@ -3004,8 +3004,8 @@ contains
 
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tForces, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tHelical,&
+          & this%tLatOpt, this%tForces, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & nLocalRows, nLocalCols, this%spinW, this%nEl, input%ctrl%extChrg,&
@@ -6326,8 +6326,8 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt,&
-      & tForces, tReadChrg, tPoisson, isShellResolved)
+      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tHelical,&
+      & tLatOpt, tForces, tReadChrg, tPoisson, isShellResolved)
 
     !> Data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -6368,6 +6368,9 @@ contains
     !> If calculation is periodic
     logical, intent(in) :: tPeriodic
 
+    !> If the calculation is helical geometry
+    logical, intent(in) :: tHelical
+
     !> Optimise lattice constants?
     logical, intent(in) :: tLatOpt
 
@@ -6383,8 +6386,12 @@ contains
     !> l-shell resolved SCC
     logical, intent(in) :: isShellResolved
 
-    if (withMpi .and. tForces) then
-      call error("Force evalulation with REKS does not work with MPI yet")
+    if (withMpi) then
+      if (tForces) then
+        call error("Force evalulation with REKS does not work with MPI yet")
+      else if (reksInp%tReadMO) then
+        call error("Reading eigenvectors as initial guess in REKS does not work with MPI yet")
+      end if
     end if
 
     if (.not. tSccCalc) then
@@ -6420,6 +6427,8 @@ contains
       if ( .not. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
         call error("REKS can compute only gamma-point in periodic case")
       end if
+    else if (tHelical) then
+      call error("Helical boundaries are not tested with REKS")
     end if
 
     if (reksInp%Efunction /= 1 .and. tLatOpt) then
