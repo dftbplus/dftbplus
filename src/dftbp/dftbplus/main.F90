@@ -43,8 +43,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtomsReal,&
       & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
-      & denseSubtractDensityOfAtomsNospinRealNonperiodicReks,&
-      & denseSubtractDensityOfAtomsSpinRealNonperiodicReks, mulliken, denseMullikenReal,&
+      & denseSubtractDensityOfAtomsRealNonperiodicReks, mulliken, denseMullikenReal,&
       & denseBlockMulliken, skewMulliken, getOnsitePopulation, getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -1284,8 +1283,8 @@ contains
           call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, this%parallelKS,&
               & this%q0, this%denseDesc, this%densityMatrix%deltaRhoOut, 2)
         #:else
-          call denseSubtractDensityOfAtomsNospinRealNonperiodicReks(this%q0,&
-              & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut)
+          call denseSubtractDensityOfAtomsRealNonperiodicReks(this%q0,&
+              & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut, 2)
         #:endif
         end if
         call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
@@ -7834,7 +7833,7 @@ contains
             & denseDesc, reks%deltaRhoSqrL(:,:,:,iL), 1)
       #:else
         call adjointLowerTriangle(reks%deltaRhoSqrL(:,:,1,iL))
-        call denseSubtractDensityOfAtomsSpinRealNonperiodicReks(q0, denseDesc%iAtomStart,&
+        call denseSubtractDensityOfAtomsRealNonperiodicReks(q0, denseDesc%iAtomStart,&
             & reks%deltaRhoSqrL(:,:,:,iL), 1)
       #:endif
       end if

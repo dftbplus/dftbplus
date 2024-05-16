@@ -35,8 +35,7 @@ module dftbp_dftb_populations
   public :: getOnsitePopulation, getAtomicMultipolePopulation
   public :: denseSubtractDensityOfAtomsReal, denseSubtractDensityOfAtomsCmplxNonperiodic,&
       & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
-      & denseSubtractDensityOfAtomsNospinRealNonperiodicReks,&
-      & denseSubtractDensityOfAtomsSpinRealNonperiodicReks
+      & denseSubtractDensityOfAtomsRealNonperiodicReks
 #:if WITH_SCALAPACK
   public :: denseMullikenRealBlacs
   public :: denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
@@ -816,8 +815,7 @@ contains
 
 
   !> Subtracts superposition of atomic densities from dense, square, real-space density matrix.
-  !! (spin-restricted version)
-  subroutine denseSubtractDensityOfAtomsNospinRealNonperiodicReks(q0, iSquare, rho)
+  subroutine denseSubtractDensityOfAtomsRealNonperiodicReks(q0, iSquare, rho, option)
 
     !> Reference atom populations
     real(dp), intent(in) :: q0(:,:,:)
@@ -828,10 +826,20 @@ contains
     !> Spin polarized (lower triangular) density matrix
     real(dp), intent(inout) :: rho(:,:,:)
 
+    !> Option for scaling factor
+    integer, intent(in) :: option
+
     integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
+    real(dp) :: scale
 
     nAtom = size(iSquare) - 1
     nSpin = size(rho, dim=3)
+
+    if (option == 1) then
+      scale = 0.5_dp
+    else if (option == 2) then
+      scale = 1.0_dp
+    end if
 
     do iSpin = 1, nSpin
       do iAtom = 1, nAtom
@@ -839,44 +847,12 @@ contains
         iEnd = iSquare(iAtom + 1) - 1
         do iOrb = 1, iEnd - iStart + 1
           rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-              & - q0(iOrb, iAtom, iSpin)
+              & - scale * q0(iOrb, iAtom, iSpin)
         end do
       end do
     end do
 
-  end subroutine denseSubtractDensityOfAtomsNospinRealNonperiodicReks
-
-
-  !> Subtracts superposition of atomic densities from dense, square, real-space density matrix.
-  !! (spin-unrestricted version)
-  subroutine denseSubtractDensityOfAtomsSpinRealNonperiodicReks(q0, iSquare, rho, iSpin)
-
-    !> Reference atom populations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Atom positions in the row/colum of square matrix
-    integer, intent(in) :: iSquare(:)
-
-    !> Spin polarized (lower triangular) matrix
-    real(dp), intent(inout) :: rho(:,:,:)
-
-    !> Spin index
-    integer, intent(in) :: iSpin
-
-    integer :: nAtom, iAtom, iStart, iEnd, iOrb
-
-    nAtom = size(iSquare) - 1
-
-    do iAtom = 1, nAtom
-      iStart = iSquare(iAtom)
-      iEnd = iSquare(iAtom + 1) - 1
-      do iOrb = 1, iEnd - iStart + 1
-        rho(iStart+iOrb-1, iStart+iOrb-1, iSpin) = rho(iStart+iOrb-1, iStart+iOrb-1, iSpin)&
-            & - 0.5_dp * q0(iOrb, iAtom, 1)
-      end do
-    end do
-
-  end subroutine denseSubtractDensityOfAtomsSpinRealNonperiodicReks
+  end subroutine denseSubtractDensityOfAtomsRealNonperiodicReks
 
 
 #:if WITH_SCALAPACK
