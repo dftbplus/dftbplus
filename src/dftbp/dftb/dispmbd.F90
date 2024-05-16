@@ -10,17 +10,17 @@
 
 !> MBD/TS dispersion model.
 module dftbp_dftb_dispmbd
-  use dftbp_common_accuracy, only: dp, mc, lc
-  use dftbp_common_constants, only: symbolToNumber
-  use dftbp_common_environment, only: TEnvironment
-  use dftbp_common_globalenv, only: stdOut
+  use dftbp_common_accuracy, only : dp, lc, mc
+  use dftbp_common_constants, only : symbolToNumber
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_dispiface, only: TDispersionIface
-  use dftbp_dftb_periodic, only: TNeighbourList
-  use dftbp_math_simplealgebra, only: determinant33
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_extlibs_mbd, only : mbd_calc_t, TDispMbdInp
+  use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_typegeometry, only: TGeometry
-  use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private
