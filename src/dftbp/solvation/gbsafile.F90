@@ -199,7 +199,7 @@ contains
 
 
   !> Read a whole line from a formatted IO unit
-  subroutine nextLine(lineReader, line, lineno, file, iostat, node)
+  subroutine nextLine(lineReader, line, lineno, file, node)
 
     !> Line reader able to provide the next line from an open file
     type(TLineReader), intent(inout) :: lineReader
@@ -211,13 +211,10 @@ contains
     integer, intent(inout) :: lineno
 
     !> Name of the parametrisation file
-    character(len=*), intent(in), optional :: file
+    character(len=*), intent(in) :: file
 
-    !> Node for error handling
-    type(fnode), pointer, optional :: node
-
-    !> Error code
-    integer, intent(out), optional :: iostat
+    !> Node (needed for generating error messages)
+    type(fnode), pointer, intent(in) :: node
 
     integer :: iErr
     character(len=lc) :: errorStr, iomsg
@@ -225,24 +222,12 @@ contains
     lineno = lineno + 1
     call lineReader%readLine(line, iErr)
 
-    if (present(iostat)) then
-      iostat = iErr
-    else if (iErr /= 0) then
-      if (present(file)) then
-        write(errorStr, '(a, "(", i0, "):", 1x, a)') trim(file), lineno,&
-            & "encountered error while reading line"
-      else
-        write(errorStr, '(a, 1x, i0, ":", 1x, a)') &
-           & "line", lineno, "encountered error while reading line"
-      end if
-      if (present(node)) then
-        call detailedError(node, trim(errorStr))
-      else
-        call error(trim(errorStr))
-      end if
+    if (iErr /= 0) then
+      write(errorStr, '(3a, i0)') "While reading file ", trim(file),&
+          & "an error was encountered on line ", lineno
+      call detailedError(node, trim(errorStr))
     end if
 
   end subroutine nextLine
-
 
 end module dftbp_solvation_gbsafile
