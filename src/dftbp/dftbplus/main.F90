@@ -7648,7 +7648,7 @@ contains
 
     end if
 
-    call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
+    call checkGammaPoint(env, denseDesc, neighbourList%iNeighbour, &
         & nNeighbourSK, iSparseStart, img2CentCell, ints%overlap, reks)
 
   end subroutine getReksInitialSettings

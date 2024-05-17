@@ -17,12 +17,17 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_rekscommon
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only: error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
+      & pblasfx_pgemm
 #:endif
 
   implicit none
@@ -69,8 +74,11 @@ module dftbp_reks_rekscommon
 
   !> Check whether the cell size is proper to the Gamma point
   !> calculation or not, and set several convenient variables
-  subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
+  subroutine checkGammaPoint(env, denseDesc, iNeighbour, nNeighbourSK,&
       & iPair, img2CentCell, over, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -93,6 +101,7 @@ module dftbp_reks_rekscommon
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    real(dp), allocatable :: globOverSqr(:,:)
     integer :: mu, nu, nAtom, nOrb, nAtomSparse
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh1, iOrig1
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
@@ -107,6 +116,21 @@ module dftbp_reks_rekscommon
 
     deallocate(this%getDenseAtom)
     allocate(this%getDenseAtom(nAtomSparse,2))
+
+  #:if WITH_SCALAPACK
+    allocate(globOverSqr(nOrb,nOrb))
+    globOverSqr(:,:) = 0.0_dp
+    do jj = 1, size(this%overSqr, dim=2)
+      ll = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do ii = 1, size(this%overSqr, dim=1)
+        kk = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        globOverSqr(kk,ll) = this%overSqr(ii,jj)
+      end do
+    end do
+    call mpifx_allreduceip(env%mpi%globalComm, globOverSqr, MPI_SUM)
+  #:endif
 
     ll = 1
     this%getDenseAO(:,:) = 0
@@ -138,11 +162,15 @@ module dftbp_reks_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          ! TODO : This part causes an error in MPI version, which
-          ! TODO : may be modified later with other commands
-!          if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
-!            call error("Inconsistent matching exists between sparse and dense")
-!          end if
+        #:if WITH_SCALAPACK
+          if (abs(globOverSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
+            call error("Inconsistent matching exists between sparse and dense")
+          end if
+        #:else
+          if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
+            call error("Inconsistent matching exists between sparse and dense")
+          end if
+        #:endif
           this%getDenseAO(iOrig1+kk-1,1) = mu
           this%getDenseAO(iOrig1+kk-1,2) = nu
         end do
