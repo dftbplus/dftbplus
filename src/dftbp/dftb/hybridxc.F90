@@ -16,6 +16,7 @@ module dftbp_dftb_hybridxc
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : getStartAndEndIndex
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_dense, only : getDescriptor
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildS
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, getCellTranslations, cart2frac
@@ -24,7 +25,8 @@ module dftbp_dftb_hybridxc
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
       & getddLrNumericalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_dftb_sparse2dense, only : unpackHS, getUnpackedOverlapPrime_real,&
+      & getUnpackedOverlapPrime_kpts
   use dftbp_math_blasroutines, only : gemm, symm, hemm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
@@ -3530,23 +3532,6 @@ contains
   end subroutine getHybridEnergy_kpts
 
 
-  !> Finds location of relevant atomic block indices in a dense matrix.
-  pure function getDescriptor(iAt, iSquare) result(desc)
-
-    !> Relevant atom
-    integer, intent(in) :: iAt
-
-    !> Indexing array for start of atom orbitals
-    integer, intent(in) :: iSquare(:)
-
-    !> Resulting location ranges
-    integer :: desc(3)
-
-    desc(:) = [iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt)]
-
-  end function getDescriptor
-
-
   !> Evaluates energy from Hamiltonian and density matrix (real version).
   pure function evaluateEnergy_real(hamiltonian, densityMat) result(energy)
 
@@ -3940,95 +3925,6 @@ contains
     end if
 
   end function getCamGammaGSum
-
-
-  !> Calculates the derivative of the square, dense, unpacked, dual-space overlap matrix w.r.t.
-  !! given atom.
-  subroutine getUnpackedOverlapPrime_kpts(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
-      & nNeighbourCamSym, iSquare, cellVec, rCoords, kPoint, overSqrPrime)
-
-    !> Overlap derivative calculated w.r.t. this atom in the central cell
-    integer, intent(in) :: iAtomPrime
-
-    !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
-
-    !> Orbital information.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Differentiation object
-    class(TNonSccDiff), intent(in) :: derivator
-
-    !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
-
-    !> Nr. of neighbours for each atom.
-    integer, intent(in) :: nNeighbourCamSym(:)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> Vectors to neighboring unit cells in relative units
-    real(dp), intent(in) :: cellVec(:,:)
-
-    !> Atomic coordinates in absolute units, potentially including periodic images
-    real(dp), intent(in) :: rCoords(:,:)
-
-    !> Relative coordinates of the k-point where the overlap should be constructed
-    real(dp), intent(in) :: kPoint(:)
-
-    !> Overlap derivative
-    complex(dp), intent(out) :: overSqrPrime(:,:,:)
-
-    !! Temporary overlap derivative storage
-    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
-
-    !! Dense matrix descriptor indices
-    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
-
-    !! Stores start/end index and number of orbitals of square matrices
-    integer :: descAt1(descLen), descAt2(descLen)
-
-    !! Atom to calculate energy gradient components for
-    integer :: iAt2, iAt2fold, iNeigh
-
-    !! Iterates over coordinates
-    integer :: iCoord
-
-    !! The k-point in relative coordinates, multiplied by 2pi
-    real(dp) :: kPoint2p(3)
-
-    !! Phase factor
-    complex(dp) :: phase
-
-    !! Auxiliary variables
-    integer :: iVec
-
-    overSqrPrime(:,:,:) = (0.0_dp, 0.0_dp)
-
-    kPoint2p(:) = 2.0_dp * pi * kPoint
-
-    descAt1 = getDescriptor(iAtomPrime, iSquare)
-    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
-      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
-      iAt2fold = symNeighbourList%img2CentCell(iAt2)
-      if (iAtomPrime == iAt2fold) cycle
-      descAt2 = getDescriptor(iAt2fold, iSquare)
-      iVec = symNeighbourList%iCellVec(iAt2)
-      overPrime(:,:,:) = 0.0_dp
-      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-          & iAtomPrime, iAt2, orb)
-      phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
-      do iCoord = 1, 3
-        overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord) * phase
-      end do
-    end do
-
-  end subroutine getUnpackedOverlapPrime_kpts
 
 
   !> Calculates pseudo Fourier transform of square CAM y-matrix with shape [nOrb, nOrb].
@@ -5799,82 +5695,6 @@ contains
 
   end subroutine getUnpackedCamGammaAOPrime
 
-
-  !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
-  !! given atom.
-  !!
-  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  subroutine getUnpackedOverlapPrime_real(env, denseDesc, iAtomPrime, skOverCont, orb, derivator,&
-      & symNeighbourList, nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> Overlap derivative calculated w.r.t. this atom in the central cell
-    integer, intent(in) :: iAtomPrime
-
-    !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
-
-    !> Orbital information.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Differentiation object
-    class(TNonSccDiff), intent(in) :: derivator
-
-    !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
-
-    !> Nr. of neighbours for each atom.
-    integer, intent(in) :: nNeighbourCamSym(:)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> Atomic coordinates in absolute units, potentially including periodic images
-    real(dp), intent(in) :: rCoords(:,:)
-
-    !> Overlap derivative
-    real(dp), intent(out) :: overSqrPrime(:,:,:)
-
-    !! Temporary overlap derivative storage
-    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
-
-    !! Dense matrix descriptor indices
-    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
-
-    !! Stores start/end index and number of orbitals of square matrices
-    integer :: descAt1(descLen), descAt2(descLen)
-
-    !! Atom to calculate energy gradient components for
-    integer :: iAt2, iAt2fold, iNeigh
-
-    !! Iterates over coordinates
-    integer :: iCoord
-
-    overSqrPrime(:,:,:) = 0.0_dp
-
-    descAt1 = getDescriptor(iAtomPrime, iSquare)
-    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
-      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
-      iAt2fold = symNeighbourList%img2CentCell(iAt2)
-      if (iAtomPrime == iAt2fold) cycle
-      descAt2 = getDescriptor(iAt2fold, iSquare)
-      overPrime(:,:,:) = 0.0_dp
-      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-          & iAtomPrime, iAt2, orb)
-      do iCoord = 1, 3
-        call scalafx_addl2g(env%blacs%orbitalGrid, overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb),&
-            & iCoord), denseDesc%blacsOrbSqr, descAt2(iStart), descAt1(iStart),&
-            & overSqrPrime(iCoord, :,:))
-      end do
-    end do
-
-  end subroutine getUnpackedOverlapPrime_real
-
 #:else
 
   !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
@@ -6078,78 +5898,6 @@ contains
     end do
 
   end subroutine getUnpackedCamGammaAOPrime
-
-
-  !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
-  !! given atom.
-  !!
-  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  subroutine getUnpackedOverlapPrime_real(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
-      & nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
-
-    !> Overlap derivative calculated w.r.t. this atom in the central cell
-    integer, intent(in) :: iAtomPrime
-
-    !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
-
-    !> Orbital information.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Differentiation object
-    class(TNonSccDiff), intent(in) :: derivator
-
-    !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
-
-    !> Nr. of neighbours for each atom.
-    integer, intent(in) :: nNeighbourCamSym(:)
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> Atomic coordinates in absolute units, potentially including periodic images
-    real(dp), intent(in) :: rCoords(:,:)
-
-    !> Overlap derivative
-    real(dp), intent(out) :: overSqrPrime(:,:,:)
-
-    !! Temporary overlap derivative storage
-    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
-
-    !! Dense matrix descriptor indices
-    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
-
-    !! Stores start/end index and number of orbitals of square matrices
-    integer :: descAt1(descLen), descAt2(descLen)
-
-    !! Atom to calculate energy gradient components for
-    integer :: iAt2, iAt2fold, iNeigh
-
-    !! Iterates over coordinates
-    integer :: iCoord
-
-    overSqrPrime(:,:,:) = 0.0_dp
-
-    descAt1 = getDescriptor(iAtomPrime, iSquare)
-    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
-      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
-      iAt2fold = symNeighbourList%img2CentCell(iAt2)
-      if (iAtomPrime == iAt2fold) cycle
-      descAt2 = getDescriptor(iAt2fold, iSquare)
-      overPrime(:,:,:) = 0.0_dp
-      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-            & iAtomPrime, iAt2, orb)
-      do iCoord = 1, 3
-        overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord)
-      end do
-    end do
-
-  end subroutine getUnpackedOverlapPrime_real
 
 #:endif
 
