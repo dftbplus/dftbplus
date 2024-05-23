@@ -45,6 +45,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
+  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
@@ -769,13 +770,14 @@ contains
 
       if (geom%tPeriodic) then
 
+        ctrl%tBarostat = .false.
+        ctrl%pressure = 0.0_dp
+        ctrl%BarostatStrength = 0.0_dp
         call getChild(node, "Barostat", child, requested=.false.)
-        if (.not. associated(child)) then
-          call setChild(node, "Barostat", child)
-          ctrl%tBarostat = .false.
-          ctrl%pressure = 0.0_dp
-          ctrl%BarostatStrength = 0.0_dp
-        else
+        if (associated(child)) then
+          if (allocated(ctrl%hybridXcInp)) then
+            call detailedError(node, "Barostating not currently implemented for hybrid functionals")
+          end if
           if (ctrl%nrMoved /= geom%nAtom) then
             call error("Dynamics for a subset of atoms is not currently&
                 & possible when using a barostat")
@@ -954,6 +956,10 @@ contains
 
     call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
     if (ctrl%tLatOpt) then
+      if (allocated(ctrl%hybridXcInp)) then
+        call detailedError(node, "Lattice optimisation not currently implemented for hybrid&
+            & functionals")
+      end if
       call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), pressureUnits, child, ctrl%pressure)
       call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
@@ -1330,7 +1336,7 @@ contains
     type(TListIntR1), allocatable :: angShells(:)
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, ii
-    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
+    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp, str2Tmp
     character(lc) :: errorStr
     logical :: tLower, tExist
     integer, allocatable :: pTmpI1(:)
@@ -1341,7 +1347,7 @@ contains
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut
 
-    !> For range separation
+    !> For hybrid functional calculations
     type(THybridXcSKTag) :: hybridXcSK
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
@@ -1398,6 +1404,9 @@ contains
       end do
     case default
       call setUnprocessed(value1)
+      call getChildValue(child, "Prefix", buffer2, "")
+      prefix = unquote(char(buffer2))
+
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
@@ -1410,7 +1419,8 @@ contains
             call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
-            call get(lStr, strTmp, ii)
+            call get(lStr, str2Tmp, ii)
+            strTmp = trim(prefix) // str2Tmp
             call findFile(searchPath, strTmp, strOut)
             if (allocated(strOut)) strTmp = strOut
             inquire(file=strTmp, exist=tExist)
@@ -1716,13 +1726,13 @@ contains
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
-    ! ! Electronic constraints
-    ! call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-    !     & allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    ! if (associated(value1)) then
-    !   allocate(ctrl%elecConstraintInp)
-    !   call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
-    ! end if
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+    end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
@@ -2632,9 +2642,13 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_MAGMA
     case ("magma")
+  #:if WITH_MAGMA
       ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+      call getChildValue(value1, "DensityMatrixGPU", ctrl%isDmOnGpu, .true.)
+  #:else
+      call detailedError(node, "DFTB+ must be compiled with MAGMA support in order to enable&
+          & this solver")
   #:endif
 
     case ("elpa")
@@ -2772,6 +2786,7 @@ contains
           & (GreensFunction or TransportOnly required)")
     end if
   #:endif
+
   end subroutine readSolver
 
 
@@ -3519,10 +3534,7 @@ contains
         call getChildValue(value1, "RScaling", h5Input%rScale, 0.714_dp)
         call getChildValue(value1, "WScaling", h5Input%wScale, 0.25_dp)
         allocate(h5Input%elementParams(geo%nSpecies))
-        call getChild(value1, "H5Scaling", child2, requested=.false.)
-        if (.not. associated(child2)) then
-          call setChild(value1, "H5scaling", child2)
-        end if
+        call getChild(value1, "H5Scaling", child2, requested=.false., emptyIfMissing=.true.)
         do iSp = 1, geo%nSpecies
           select case (geo%speciesNames(iSp))
           case ("O")
@@ -3553,7 +3565,7 @@ contains
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established.
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, hybridXcSK, tHyb, tLc, tCam)
+      & truncationCutOff, hybridXcSK)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3583,17 +3595,9 @@ contains
     !> Distances to artificially truncate tables of SK integrals
     real(dp), intent(in), optional :: truncationCutOff
 
-    !> if calculation range separated then read omega from end of SK file
+    !> If calculation uses a hybrid functional, try to read extra data from end of SK file and
+    !! confirm it is a suitable parameterisation
     type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
-
-    !> True, if global hybrid functional is requested
-    logical, intent(in), optional :: tHyb
-
-    !> True, if purely long-range corrected functional is requested
-    logical, intent(in), optional :: tLc
-
-    !> True, if CAM range-separation is requested
-    logical, intent(in), optional :: tCam
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
@@ -3643,20 +3647,20 @@ contains
             write(stdOut, "(a)") trim(fileName)
             if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1)
+                    & splineRepInp=repSplineIn1)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1,&
                     & hybridXcSK=hybridXcSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, hybridXcSK=hybridXcSK)
+                    & splineRepInp=repSplineIn1, hybridXcSK=hybridXcSK)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, hybridXcSK=hybridXcSK)
               end if
@@ -3696,10 +3700,10 @@ contains
               call get(sKFiles(iSp1, iSp2), fileName, ind)
               if (readRep .and. repPoly(iSp1, iSp2)) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &polyRepIn=repPolyIn2)
+                    &polyRepInp=repPolyIn2)
               elseif (readRep) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &iSp2, iSp1, splineRepIn=repSplineIn2)
+                    &iSp2, iSp1, splineRepInp=repSplineIn2)
               else
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic)
               end if
@@ -5129,7 +5133,7 @@ contains
     type(TListRealR1) :: lr1
     type(TListReal) :: lr
     logical :: tPipekDense
-    logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
+    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
 
     tHaveEigenDecomposition = .false.
@@ -5223,12 +5227,12 @@ contains
       call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
 
     #:if WITH_SOCKETS
-      tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+      tWriteBandDatDefault = .not. allocated(ctrl%socketInput)
     #:else
-      tWriteBandDatDef = .true.
+      tWriteBandDatDefault = .true.
     #:endif
 
-      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)
@@ -6501,7 +6505,7 @@ contains
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
     if (associated(pTmp) .and. associated(pTmp2)) then
-      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
+      call detailedError(pNode, "Only one of the tags AtomDensityCutoff or AtomDensityTolerance&
           & can be specified.")
     else if (associated(pTmp)) then
       call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
@@ -7650,10 +7654,7 @@ contains
 
     type(fnode), pointer :: node, pTmp
 
-    call getChild(root, "Parallel", child=node, requested=.false.)
-    if (withMpi .and. .not. associated(node)) then
-      call setChild(root, "Parallel", node)
-    end if
+    call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
     if (associated(node)) then
       if (.not. withMpi) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
@@ -7679,10 +7680,7 @@ contains
 
     type(fnode), pointer :: node
 
-    call getChild(root, "Blacs", child=node, requested=.false.)
-    if (withScalapack .and. .not. associated(node)) then
-      call setChild(root, "Blacs", node)
-    end if
+    call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
     if (associated(node)) then
       if (.not. withScalapack) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&

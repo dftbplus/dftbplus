@@ -121,13 +121,11 @@ find_package(CustomLapack REQUIRED)
 list(APPEND PKG_CONFIG_LIBS_PRIVATE ${BLAS_LIBRARY} ${LAPACK_LIBRARY})
 
 if(WITH_ARPACK)
-  if(NOT TARGET ARPACK::ARPACK)
-    find_package(arpackng REQUIRED)
-  endif()
-  if(WITH_MPI AND NOT TARGET PARPACK::PARPACK)
-    message(
-      FATAL_ERROR "Could not find target PARPACK (needed when ARPACK and MPI are both turned on)"
-    )
+  find_package(CustomArpack REQUIRED)
+  list(APPEND PKG_CONFIG_REQUIRES arpack)
+  if (WITH_MPI)
+    find_package(CustomParpack REQUIRED)
+    list(APPEND PKG_CONFIG_REQUIRES parpack)
   endif()
 endif()
 
@@ -188,7 +186,12 @@ endif()
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated
 string(REGEX MATCH "(^|;)[Ss]ubmodule(^|;)" INCLUDE_INDIRECT_DEPS "${HYBRID_CONFIG_METHODS}")
 
-# Note: GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+
+#
+# Add external components (optional)
+# Note 1 : GIT_TAG hashes below must be updated with the utils/test/check_submodule_commits script!
+# Note 2 : GIT_REPOSITORY URLs should be to https// addresses for the CI pipelines to see them
+#
 
 if(WITH_MPI)
   set(MPIFX_GIT_REPOSITORY "https://github.com/dftbplus/mpifx.git")
@@ -251,7 +254,7 @@ if(WITH_TBLITE OR WITH_SDFTD3)
     #list(APPEND PKG_CONFIG_REQUIRES toml-f)
   endif()
 
-  set(S_DFTD3_GIT_REPOSITORY "https://github.com/awvwgk/simple-dftd3.git")
+  set(S_DFTD3_GIT_REPOSITORY "https://github.com/dftd3/simple-dftd3.git")
   set(S_DFTD3_GIT_TAG "5ee8c4d71414bf54db0b680ee3c532215847e0f9")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
@@ -286,7 +289,7 @@ endif()
 
 # ChIMES currently can only be integrated as a submodule
 if(WITH_CHIMES)
-  set(CHIMES_GIT_REPOSITORY "https://github.com/dftbplus/chimes_calculator.git")
+  set(CHIMES_GIT_REPOSITORY "https://github.com/rk-lindsey/chimes_calculator.git")
   set(CHIMES_GIT_TAG "7ca7d397197ac8ca4b1fc54ee12164911a6254b7")  # do not change manually!
   dftbp_config_hybrid_dependency(ChimesCalc ChimesCalc::ChimesCalc_Fortran
     "${HYBRID_CONFIG_METHODS}" "QUIET"

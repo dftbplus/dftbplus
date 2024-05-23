@@ -118,6 +118,12 @@ set(BLAS_LIBRARY "-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -W
 set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries")
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
+# ARPACK -- only needed when built with ARPACK support
+set(ARPACK_LIBRARY "libarpack.a" CACHE STRING "ARPACK library (with path if necessary)")
+
+# PARPACK -- only needed when built with ARPACK and MPI support
+set(PARPACK_LIBRARY "libparpack.a" CACHE STRING "PARPACK library (with path if necessary)")
+
 # ScaLAPACK -- only needed for MPI-parallel build
 #set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
 #set(SCALAPACK_LIBRARY_DIR "" CACHE STRING "Directories where Scalapack libraries can be found")

@@ -23,15 +23,13 @@ module dftbp_derivs_perturb
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_populations, only : mulliken, denseMulliken, getChargePerShell, getOnsitePopulation
-#:if WITH_SCALAPACK
-  use dftbp_dftb_populations, only : denseMulliken_real_blacs
-#:endif
+  use dftbp_dftb_populations, only : mulliken, denseMullikenReal, getChargePerShell,&
+      & getOnsitePopulation
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
@@ -41,12 +39,13 @@ module dftbp_derivs_perturb
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_mixer_mixer, only : TMixer, mix, reset
+  use dftbp_mixer_mixer, only : TMixerReal, TMixerReal_mix, TMixerReal_reset
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
 #:if WITH_SCALAPACK
+  use dftbp_dftb_populations, only : denseMullikenRealBlacs
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
 #:else
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -287,7 +286,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixer), intent(inout), allocatable :: pChrgMixer
+    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -622,7 +621,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixer), intent(inout), allocatable :: pChrgMixer
+    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -886,7 +885,7 @@ contains
     type(TPotentials), intent(inout) :: dPotential
 
     !> Charge mixing object
-    type(TMixer), intent(inout), allocatable :: pChrgMixer
+    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
@@ -1139,7 +1138,7 @@ contains
     end if
 
     if (tSccCalc) then
-      call reset(pChrgMixer, size(dqInpRed))
+      call TMixerReal_reset(pChrgMixer, size(dqInpRed))
     end if
 
     if (abs(omega) > epsilon(0.0_dp)) then
@@ -1417,9 +1416,9 @@ contains
             if (allocated(hybridXc)) then
               dRhoIn(:) = dRhoOut
             #:if WITH_SCALAPACK
-              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+              call denseMullikenRealBlacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
             #:else
-              call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              call denseMullikenReal(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             #:endif
             else
               dqIn(:,:,:) = dqOut
@@ -1432,14 +1431,14 @@ contains
           else
 
             if (allocated(hybridXc)) then
-              call mix(pChrgMixer, dRhoIn, dqDiffRed)
+              call TMixerReal_mix(pChrgMixer, dRhoIn, dqDiffRed)
             #:if WITH_SCALAPACK
-              call denseMulliken_real_blacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
+              call denseMullikenRealBlacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
             #:else
-              call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              call denseMullikenReal(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             #:endif
             else
-              call mix(pChrgMixer, dqInpRed, dqDiffRed)
+              call TMixerReal_mix(pChrgMixer, dqInpRed, dqDiffRed)
             #:if WITH_SCALAPACK
               ! Synchronise charges in order to avoid mixers that store a history drifting apart
               call mpifx_bcast(env%mpi%globalComm, dqInpRed)

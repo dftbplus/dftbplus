@@ -64,14 +64,16 @@ dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
 dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
-#! elecconstraints/H2O_scc                #? MPI_PROCS <= 1
-#! elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
-#! elecconstraints/Si8_spin               #? MPI_PROCS <= 1
+elecconstraints/H2O_scc                #? MPI_PROCS <= 1
+elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
+elecconstraints/Si8_spin               #? MPI_PROCS <= 1
 
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
 non-scc/Si_384_GPU                     #? WITH_MAGMA
 scc/SiC_512_GPU                        #? WITH_MAGMA
+solvers/SiC64+V_GPU_MP                 #? WITH_MAGMA
+solvers/SiC64+V_GPU_MP_k               #? WITH_MAGMA
 
 xtb/gfn1_h2                            #? WITH_TBLITE and MPI_PROCS <= 1
 xtb/gfn1_mindless01                    #? WITH_TBLITE and MPI_PROCS <= 1
@@ -121,27 +123,55 @@ hybrid/cluster/Benzene-TD-LC-Spinpol-Iter          #? not WITH_MPI
 
 hybrid/periodic/Acene-gamma-matrix-force-cam          #? MPI_PROCS <= 1
 hybrid/periodic/Acene-gamma-matrix-restart            #? not WITH_MPI
+hybrid/periodic/Acene-gamma-matrix-restart-ascii      #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-cam           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-hyb           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-lc            #? not WITH_MPI
-hybrid/periodic/Acene-kpts-band                       #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-band-mpi                   #? MPI_PROCS == 2
-hybrid/periodic/Acene-kpts-force-lc                   #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-restart                    #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-restart-mpi                #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-lc                  #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-ascii       #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-np2         #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-restart-np3         #? MPI_PROCS == 3
+hybrid/periodic/Acene-kpts-matrix-restart-np4         #? MPI_PROCS == 4
+hybrid/periodic/Acene-kpts-matrix-band                #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-band-np2            #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-band-np3            #? MPI_PROCS == 3
+hybrid/periodic/Acene-kpts-matrix-band-np4            #? MPI_PROCS == 4
+hybrid/periodic/Acene-kpts-matrix-force-lc            #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-force-lc-np2        #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-matrix-force-lc-np3        #? MPI_PROCS == 3
+hybrid/periodic/Acene-kpts-matrix-force-lc-np4        #? MPI_PROCS == 4
+hybrid/periodic/Acene-kpts-neigh-band                 #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-band-mpi             #? MPI_PROCS == 2
+hybrid/periodic/Acene-kpts-neigh-force-lc             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart              #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart-ascii        #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-neigh-restart-mpi          #? MPI_PROCS == 2
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts       #? MPI_PROCS <= 1
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np2   #? MPI_PROCS == 2
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np3   #? MPI_PROCS == 3
+hybrid/periodic/Benzene-box-spin-matrix-ct-kpts-np4   #? MPI_PROCS == 4
 hybrid/periodic/Benzene-box-spin-neigh-ct-kpts        #? MPI_PROCS <= 1
 hybrid/periodic/Benzene-box-spin-neigh-ct-kpts-mpi    #? MPI_PROCS == 2
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp1  #? MPI_PROCS <= 9 and MPI_PROCS != 5 and MPI_PROCS != 7
 hybrid/periodic/Benzene-gamma-matrix-spin-force-grp2  #? MPI_PROCS == 2 or MPI_PROCS == 4
 hybrid/periodic/Benzene-gamma-neigh-spin-force        #? not WITH_MPI
-hybrid/periodic/CN-chain_transl-inv-ct                #? MPI_PROCS <= 1
+hybrid/periodic/CN-chain_transl-inv-matrix-ct         #? MPI_PROCS <= 1
+hybrid/periodic/CN-chain_transl-inv-neigh-ct          #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-gamma-matrix                     #? MPI_PROCS <= 1
 hybrid/periodic/GaAs-gamma-neigh                      #? not WITH_MPI
 hybrid/periodic/GaAs-gamma-restart                    #? not WITH_MPI
-hybrid/periodic/GaAs-kpts-ct                          #? MPI_PROCS <= 1
-hybrid/periodic/GaAs-kpts-ct-mpi                      #? MPI_PROCS == 2
-hybrid/periodic/GaAs-kpts-mic                         #? MPI_PROCS <= 1
-hybrid/periodic/GaAs-kpts-mic-mpi                     #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-matrix-ct                   #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-anderson          #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-diis              #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-matrix-ct-np2               #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-matrix-ct-np3               #? MPI_PROCS == 3
+hybrid/periodic/GaAs-kpts-matrix-ct-np4               #? MPI_PROCS == 4
+hybrid/periodic/GaAs-kpts-matrix-ct-simple            #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-neigh-ct                    #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-neigh-ct-mpi                #? MPI_PROCS == 2
+hybrid/periodic/GaAs-kpts-neigh-mic                   #? MPI_PROCS <= 1
+hybrid/periodic/GaAs-kpts-neigh-mic-mpi               #? MPI_PROCS == 2
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
@@ -227,7 +257,7 @@ derivatives/C60_Polfreq                #? MPI_PROCS <= 4
 
 derivatives/CH4_freq                   #? not WITH_MPI or MPI_PROCS == 2
 derivatives/CH4_kpt_freq               #? not WITH_MPI or MPI_PROCS == 4
-derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 4
+derivatives/Au2_LSmetalPolfreq         #? MPI_PROCS <= 2
 
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
@@ -260,10 +290,10 @@ dispersion/2H2O_sdftd3                 #? MPI_PROCS <= 1
 dispersion/2H2O_dftd4                  #? MPI_PROCS <= 1
 dispersion/specieslist_dftd4           #? MPI_PROCS <= 1
 dispersion/charged_dftd4               #? MPI_PROCS <= 1
-dispersion/diamond_dftd4               #? MPI_PROCS <= 4
+dispersion/diamond_dftd4               #? MPI_PROCS <= 2
 dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
 dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
-dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 4
+dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 2
 dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
 geoopt/H2O_sd                          #? MPI_PROCS <= 1
@@ -393,6 +423,7 @@ spinorbit/Fe2                          #? MPI_PROCS <= 2
 analysis/Fe2_antiferromagnetic         #? MPI_PROCS <= 2
 non-scc/10-0Ctube_Efield               #? MPI_PROCS <= 4
 non-scc/10-10Ctube                     #? MPI_PROCS <= 4
+non-scc/10-10Ctube_MP                  #? MPI_PROCS <= 4
 non-scc/Ctube_Fermi                    #? MPI_PROCS <= 4
 analysis/10-0Ctube_ESP                 #? MPI_PROCS <= 4
 md/H2O-extfield                        #? MPI_PROCS <= 1
@@ -424,7 +455,7 @@ h-bonds/D3H5_ice                       #? WITH_SDFTD3 and MPI_PROCS <= 4
 md/Si_8_restart                        #? MPI_PROCS <= 1
 spin/GaAs_2                            #? MPI_PROCS <= 1
 spin/GaAs-spin-ext                     #? MPI_PROCS <= 1
-spinorbit/As4S4                        #? MPI_PROCS <= 8
+spinorbit/As4S4                        #? MPI_PROCS <= 6
 
 dispersion/DNA-damped                  #? MPI_PROCS <= 4
 md/ice_Ic                              #? MPI_PROCS <= 4

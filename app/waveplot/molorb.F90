@@ -11,6 +11,7 @@
 !! an equidistant grid.
 module waveplot_molorb
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : imag
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
@@ -404,7 +405,7 @@ contains
     ! below. This is fine as, in contrast to what was published, DFTB+ uses implicitly exp(-ikr) as
     ! a phase factor, as the unpack routines assemble the lower triangular matrix with exp(ikr) as
     ! factor.
-    phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPoints))
+    phases(:,:) = exp(imag * matmul(transpose(cellVec), kPoints))
 
     ! Loop over all grid points
     lpI3: do i3 = 1, nPoints(3)

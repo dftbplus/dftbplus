@@ -12,6 +12,7 @@
 !! as each k-point is localised independently.
 module dftbp_dftb_pmlocalisation
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : imag
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only :unpackHS
@@ -866,7 +867,6 @@ contains
     complex(dp), allocatable :: Sci1(:), Sci2(:,:)
     complex(dp), allocatable :: ciTmp1(:), ciTmp2(:)
     complex(dp) :: phase
-    complex(dp), parameter :: im = (0.0_dp,1.0_dp)
 
     real(dp) :: alpha, alphaMax, conv
     real(dp) :: alphalast = 1.0_dp
@@ -986,7 +986,7 @@ contains
     do iLev1 = 1, nLev
       iLoc = maxloc(abs(ci(:,iLev1)))
       ii = iLoc(1)
-      phase = exp(-im * atan2(aimag(ci(ii,iLev1)), real(ci(ii,iLev1))))
+      phase = exp(-imag * atan2(aimag(ci(ii,iLev1)), real(ci(ii,iLev1))))
       ci(:,iLev1) = phase * ci(:,iLev1)
     end do
 

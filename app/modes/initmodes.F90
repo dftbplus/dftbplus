@@ -11,12 +11,13 @@
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode, destroyNodeList
+      & getNodeName, destroyNode, destroyNodeList, textNodeName
   use dftbp_io_charmanip, only : i2c, tolower, unquote
   use dftbp_io_formatout, only : printDftbHeader
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
@@ -132,7 +133,9 @@ contains
     logical :: tLower, tExist, tDumpPHSD
     logical :: tWriteHSD
     type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut
+    character(len=:), allocatable :: strOut, hessianFile
+    type(TFileDescr) :: file
+    integer :: iErr
 
     !! Write header
     call printDftbHeader('(MODES '// version //')', releaseYear)
@@ -162,6 +165,9 @@ contains
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
+    tPlotModes = .false.
+    nModesToPlot = 0
+    tAnimateModes = .false.
     call getChild(root, "DisplayModes",child=node,requested=.false.)
     if (associated(node)) then
       tPlotModes = .true.
@@ -169,10 +175,6 @@ contains
       call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
-    else
-      nModesToPlot = 0
-      tPlotModes = .false.
-      tAnimateModes = .false.
     end if
 
     ! oscillation cycles in an animation
@@ -267,9 +269,22 @@ contains
 
     call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value, buffer)
-    if (char(buffer) == "") then
-      call error("No derivative matrix supplied!")
-    else
+    select case (char(buffer))
+    case ("directread")
+      call getChildValue(value, "File", buffer2, child=child2)
+      hessianFile = trim(unquote(char(buffer2)))
+      call openFile(file, hessianFile, mode="r", iostat=iErr)
+      if (iErr /= 0) then
+        call detailedError(child2, "Could not open file '" // hessianFile&
+            & // "' for direct reading." )
+      end if
+      read(file%unit, *, iostat=iErr) dynMatrix
+      if (iErr /= 0) then
+        call detailedError(child2, "Error during direct reading '" // hessianFile // "'.")
+      end if
+      call closeFile(file)
+    case (textNodeName)
+      call getNodeName2(value, buffer)
       call init(realBufferList)
       call getChildValue(child, "", nDerivs, realBufferList)
       if (len(realBufferList) /= nDerivs) then
@@ -279,7 +294,9 @@ contains
       call asArray(realBufferList, dynMatrix)
       call destruct(realBufferList)
       tDumpPHSD = .false.
-    end if
+    case default
+      call detailedError(child, "Invalid Hessian scheme.")
+    end select
 
     call getChild(root, "BornCharges", child, requested=.false.)
     call getNodeName2(child, buffer)

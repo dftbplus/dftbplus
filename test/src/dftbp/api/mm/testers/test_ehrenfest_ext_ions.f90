@@ -48,7 +48,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -92,7 +93,7 @@ contains
 
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
     call setChild(pSlakos, "Type2FileNames", pType2Files)
-    call setChildValue(pType2Files, "Prefix", "./")
+    call setChildValue(pType2Files, "Prefix", "slakos/origin/mio-1-1/")
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 

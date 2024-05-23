@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Generalization of mixers to also handle complex density matrices
+
 - General range-separated, long-range corrected CAM hybrid functionals for
   ground-state periodic systems (MPI-parallel Fock-type exchange and energy
   gradient construction by neighbour-list and matrix-multiplication based
@@ -26,6 +28,8 @@ Added
   state by determining a self-consistent constraint potential (restricted to
   Mulliken populations at the moment)
 
+- Density Matrix construction on GPU using MAGMA-BLAS routines
+
 
 Fixed
 -----
@@ -35,6 +39,8 @@ Fixed
 - Incorrect excited gradients for spin-polarized long-range corrected
   linear-response TD-DFTB calculations.
 
+- Temporarily remove free energy for Delta-DFTB calculations, as this
+  is not formally derived in the general case.
 
 24.1 (2024-02-12)
 =================
@@ -67,7 +73,6 @@ Added
 
 - Born charges and derivatives can now be calculated for a subset of the desired
   atoms (similar to the Hessian).
-
 
 Changed
 -------

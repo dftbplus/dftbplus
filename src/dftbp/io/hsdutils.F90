@@ -1922,7 +1922,7 @@ contains
 
 
   !> Returns a child node with a specified name
-  subroutine getChild(node, name, child, requested, modifier)
+  subroutine getChild(node, name, child, requested, modifier, emptyIfMissing)
 
     !> Node to investigate
     type(fnode), pointer :: node
@@ -1939,16 +1939,26 @@ contains
     !> Contains modifier on exit.
     type(string), intent(inout), optional :: modifier
 
-    logical :: tRequested
+    !> If missing, return an associated child
+    logical, intent(in), optional :: emptyIfMissing
+
+    logical :: isRequested, emptyReturn
     type(string) :: modif
 
     @:ASSERT(associated(node))
 
     if (present(requested)) then
-      tRequested = requested
+      isRequested = requested
     else
-      tRequested = .true.
+      isRequested = .true.
     end if
+    if (present(emptyIfMissing)) then
+      emptyReturn = emptyIfMissing
+    else
+      emptyReturn = .false.
+    end if
+
+    @:ASSERT(.not. (isRequested .and. emptyReturn))
 
     child => getFirstChildByName(node, tolower(name))
     if (associated(child)) then
@@ -1959,8 +1969,9 @@ contains
         call detailedError(child, MSG_NOMODIFIER)
       end if
       call setAttribute(child, attrProcessed, "")
-    elseif (tRequested) then
-      call detailedError(node, MSG_MISSING_FIELD // name)
+    else
+      if (isRequested) call detailedError(node, MSG_MISSING_FIELD // name)
+      if (emptyReturn) call setChild(node, name, child)
     end if
 
   end subroutine getChild
