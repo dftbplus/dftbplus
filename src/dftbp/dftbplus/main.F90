@@ -571,7 +571,7 @@ contains
           & this%tStress, this%totalStress, pDynMatrix, pDipDerivMatrix, this%tPeriodic,&
           & this%cellVol, this%tMulliken, this%qOutput, this%q0, this%taggedWriter, this%cm5Cont,&
           & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE,&
-          & this%dipoleMoment, this%multipoleOut, this%eFieldScaling)
+          & this%dipoleMoment, this%multipoleOut, this%eFieldScaling, this%reks)
     end if
     if (this%tWriteCosmoFile .and. allocated(this%solvation)) then
       call writeCosmoFile(this%solvation, this%species0, this%speciesName, this%coord0, &
@@ -1310,7 +1310,7 @@ contains
 
         if (tConverged .or. tStopScc) then
 
-          call printReksSAInfo(this%reks, this%dftbEnergy(1)%Etotal)
+          call printReksSAInfo(this%reks, this%dftbEnergy(1)%Eavg)
 
           call getStateInteraction(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
               & this%iSparseStart, this%img2CentCell, this%coord, this%iAtInCentralRegion,&
@@ -8184,7 +8184,6 @@ contains
     else
       ! reks%hamSqrL has (my_ud) component
       call qm2udL(reks%hamSqrL, reks%Lpaired)
-      tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add hybrid xc-functional contribution to Hamiltonian
       #:if WITH_SCALAPACK
@@ -8196,8 +8195,8 @@ contains
             & iSparseStart, orb, img2CentCell, reks%tPeriodic, reks%hamSqrL(:,:, 1, iL), errStatus)
       #:endif
         @:PROPAGATE_ERROR(errStatus)
-        ! Calculate hybrid functional exchange energy
-        call hybridXc%addHybridEnergy_real(env, tmpEn(iL))
+        ! Calculate the Fock-type exchange energy
+        call hybridXc%getHybridEnergy_real(env, tmpEn(iL))
       end do
     end if
 

@@ -2376,7 +2376,7 @@ contains
 
 
   !> Calculates the stress tensor derivatives of the Ewald electrostatics
-  !> Aguard and Madden J Chem Phys 119 7471 (2003)
+  !> Aguardo and Madden J Chem Phys 119 7471 (2003) doi: 10.1063/1.1605941
   subroutine invRStress(env, nAtom, coord, neighList, recPoint, alpha, volume, q, stress)
 
     !> Computational environment settings
