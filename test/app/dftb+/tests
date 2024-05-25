@@ -175,14 +175,17 @@ hybrid/periodic/GaAs-kpts-neigh-mic-mpi               #? MPI_PROCS == 2
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
+reks/C2H4_mpi                          #? MPI_PROCS <= 2 and OMP_THREADS == 1
 reks/C2H4_nosave                       #? not WITH_MPI
 reks/C2H4_read_mo                      #? not WITH_MPI
 reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
+reks/C6H8_rangesep_extchrg_mpi         #? MPI_PROCS <= 2 and OMP_THREADS == 1
 reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
 reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
 reks/CNH4+_dftd4                       #? not WITH_MPI
 reks/CNH4+_dftd4_sc                    #? not WITH_MPI
 reks/CNH4+_dftd4_sc_rangesep           #? not WITH_MPI
+reks/HBI+H2O_periodic_mpi              #? MPI_PROCS <= 8 and MPI_PROCS %2 == 0 and OMP_THREADS == 1 and LONG_TEST
 reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
 reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
 reks/PSB3_2SSR                         #? not WITH_MPI
@@ -190,6 +193,7 @@ reks/PSB3_2SSR_extchrg_periodic        #? not WITH_MPI
 reks/PSB3_2SSR_rangesep                #? not WITH_MPI
 reks/PSB3_2SSR_rangesep_extchrg        #? not WITH_MPI
 reks/PSB3_2SSR_rangesep_extchrg_blur   #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_mpi            #? MPI_PROCS <= 2 and OMP_THREADS == 1
 reks/PSB3_2SSR_rangesep_tuning         #? not WITH_MPI
 reks/PSB3_SA                           #? not WITH_MPI
 reks/Thymine_3SSR                      #? not WITH_MPI
