@@ -30,6 +30,8 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- MPI-parallelization for energy evaluation of REKS/SSR calculations
+
 
 Fixed
 -----
