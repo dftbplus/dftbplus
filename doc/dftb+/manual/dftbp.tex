@@ -6106,9 +6106,12 @@ or the \is {SSR22}\cb\ block as value.
 
 This tag contains the specifications for a DFTB/SSR(2,2) calculation~\cite{Lee_JCTC_2019}, based on ensemble DFT theory.
 
-\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelisation
-and DFTB/SSR calculation is not compatible with time-dependent DFTB calculation.
+\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP or MPI parallelisation
+for DFTB/SSR calculation, which is not compatible with time-dependent DFTB calculation.
 In addition, it is not compatible with spin-polarisation, but it requires spin constants to treat open-shell microstates.
+
+\textbf{Note:} keywords for gradient evaluation in REKS (\is{Gradient}, \is{RelaxedDensity},
+and \is{NonAdiabaticCoupling}) are not compatible with MPI parallelisation.
 
 In general, REKS calculation can be classified as single-state REKS, SA-REKS and SI-SA-REKS.
 In single-state REKS, only ground state is calculated and it can treat the state with multireference
