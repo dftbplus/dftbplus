@@ -547,6 +547,10 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
+    if (this%tTDA .eqv. .true. .and. this%symmetry /= "S") then
+       call error("Tamm-Dancoff Approximation is only implemented for Singlets")
+    endif
+
     do isym = 1, size(symmetries)
 
       sym = symmetries(isym)
@@ -562,7 +566,7 @@ contains
             & wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
             & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
             & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, eval, xpy, xmy,&
-            & this%onSiteMatrixElements, orb, tRangeSep, lrGamma, tZVector)
+            & this%onSiteMatrixElements, orb, tRangeSep, lrGamma, tZVector, this%tTDA)
       end select
 
       ! Excitation oscillator strengths for resulting states
@@ -1013,10 +1017,11 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
+      ! GDM: TODO
       call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
           & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
           & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, &
-          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep)
+          & workd(ipntr(1):ipntr(1)+nxov_rd-1), workd(ipntr(2):ipntr(2)+nxov_rd-1), tRangeSep, .true.)
 
     end do
 
@@ -1057,10 +1062,11 @@ contains
       write(fdArnoldiTest%unit,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
+        ! GDM: TODO
         call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .false., transChrg, xpy(:,iState),&
-            & Hv, .false.)
+            & Hv, .false., .true.)
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
             & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
@@ -1102,7 +1108,7 @@ contains
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
       & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev,&
       & grndEigVecs, filling, sqrOccIA, gammaMat, species0, spinW, transChrg, eval, xpy, xmy,&
-      & onsMEs, orb, tRangeSep, lrGamma, tZVector)
+      & onsMEs, orb, tRangeSep, lrGamma, tZVector, tTDA)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -1200,6 +1206,9 @@ contains
     !> is the Z-vector equation to be solved later?
     logical, intent(in) :: tZVector
 
+    !> control TDA approximation
+    logical, intent(in) :: tTDA
+
     real(dp), allocatable :: vecB(:,:) ! basis of subspace
     real(dp), allocatable :: evecL(:,:), evecR(:,:) ! left and right eigenvectors of Mnh
     real(dp), allocatable :: vP(:,:), vM(:,:) ! vec. for (A+B)b_i, (A-B)b_i
@@ -1220,6 +1229,11 @@ contains
     if (allocated(onsMEs)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
+    endif
+
+    if (tTDA) then
+        write(*,'(A)') ' '
+        write(*,'(A)') 'Using Tamm-Dancoff Approximation in Linear Response'
     endif
 
     ! Number of excited states to solve for
@@ -1280,10 +1294,14 @@ contains
           call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
             & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling,&
             & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
-            & vP(:,ii), tRangeSep, lrGamma)
-          call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-            & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA,&
-            & transChrg, vecB(:,ii), vM(:,ii), tRangeSep, lrGamma)
+            & vP(:,ii), tRangeSep, tTDA, lrGamma)
+          if (tTDA) then
+             vM(:,ii) = vP(:,ii)
+          else
+             call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+               & iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA,&
+               & transChrg, vecB(:,ii), vM(:,ii), tRangeSep, lrGamma)
+          endif
         end do
 
         do ii = prevSubSpaceDim + 1, subSpaceDim
@@ -1300,14 +1318,18 @@ contains
         ! Specific routine for this task is more effective
         call initialSubSpaceMatrixApmB(transChrg, subSpaceDim, wij, sym, win, &
             & nxov_ud(1), iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ, getAB,&
-            & iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
+            & iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM, tTDA)
       end if
 
-      call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim,&
-          & 0.0_dp, dummyM, memDim)
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
-          & 0.0_dp, mH, memDim)
+      if (tTDA) then
+         mH = mP
+      else
+         call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
+         call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim,&
+             & 0.0_dp, dummyM, memDim)
+         call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
+             & 0.0_dp, mH, memDim)
+      endif
 
       ! Diagonalise in subspace
       call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
@@ -1321,49 +1343,70 @@ contains
         call error(tmpStr)
       endif
 
-      ! This yields T=(A-B)^(-1/2)|X+Y>.
-      ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
-      ! Transformation preserves orthonormality.
-      ! Only compute up to nExc index, because only that much needed.
-      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrt, memDim, Mh, memDim, 0.0_dp,&
-          & evecR, memDim)
-      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp,&
-          & evecL, memDim)
-
-      ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
-      ! EV problem, only use first nExc vectors
-      do ii = 1, nExc
-        dummyReal = sqrt(sqrt(evalInt(ii)))
-        evecR(:,ii) = evecR(:,ii) / dummyReal
-        evecL(:,ii) = evecL(:,ii) * dummyReal
-      end do
+      if (tTDA) then
+         ! This calculate the Ritz Vector (vM) in the full space
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, &
+                & nxov_rd, mH, memDim, 0.0_dp, vM, nxov_rd)
+      else
+         ! This yields T=(A-B)^(-1/2)|X+Y>.
+         ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
+         ! Transformation preserves orthonormality.
+         ! Only compute up to nExc index, because only that much needed.
+         call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrt, memDim, Mh, memDim, 0.0_dp,&
+             & evecR, memDim)
+         call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp,&
+             & evecL, memDim)
+        
+         ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
+         ! EV problem, only use first nExc vectors
+         do ii = 1, nExc
+           dummyReal = sqrt(sqrt(evalInt(ii)))
+           evecR(:,ii) = evecR(:,ii) / dummyReal
+           evecL(:,ii) = evecL(:,ii) * dummyReal
+         end do
+      endif
 
       !see if more memory is needed to save extended basis. If so increase amount of memory.
       if (subSpaceDim + 2 * nExc > memDim) then
+        write(*,*) 'GDM: TODO: Checking memory....'
         call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
              &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
       end if
 
-      ! Calculate the residual vectors
-      !   calcs. all |R_n>
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecR, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1), nxov_rd)
-      !   calcs. all |L_n>
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecL, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nxov_rd)
-
-      do ii = 1, nExc
-        dummyReal = -sqrt(evalInt(ii))
-        vecB(:,subSpaceDim + ii) = dummyReal * vecB(:, subSpaceDim + ii)
-        vecB(:,subSpaceDim + nExc + ii) = dummyReal * vecB(:, subSpaceDim + nExc + ii)
-      end do
-
-      ! (A-B)|L_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vM, nxov_rd, evecL, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1), nxov_rd)
-      ! (A+B)|R_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vP, nxov_rd, evecR, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1 + nExc), nxov_rd)
+      if (tTDA) then
+         ! Calculate the residual vectors
+         ! vP = AX
+         ! mH = eigenvectors of subspace
+         ! vM = Ritz Vector
+         ! evalInt = eigenvalues of subspace
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vP, nxov_rd, mH, memDim,&
+             & 0.0_dp, vecB(1,subSpaceDim+1), nxov_rd)
+         ! vecB = has the residuals
+         do ii=1, nExc
+            vecB(:,subSpaceDim + ii) = vecB(:,subSpaceDim + ii) - evalInt(ii) * vM(:,ii)
+         enddo
+      else
+         ! Calculate the residual vectors
+         !   calcs. all |R_n>
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecR, memDim,&
+             & 0.0_dp, vecB(1,subSpaceDim+1), nxov_rd)
+         !   calcs. all |L_n>
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vecB, nxov_rd, evecL, memDim,&
+             & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nxov_rd)
+        
+         do ii = 1, nExc
+           dummyReal = -sqrt(evalInt(ii))
+           vecB(:,subSpaceDim + ii) = dummyReal * vecB(:, subSpaceDim + ii)
+           vecB(:,subSpaceDim + nExc + ii) = dummyReal * vecB(:, subSpaceDim + nExc + ii)
+         end do
+        
+         ! (A-B)|L_n> for all n=1,..,nExc
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vM, nxov_rd, evecL, memDim, 1.0_dp,&
+             & vecB(1, subSpaceDim + 1), nxov_rd)
+         ! (A+B)|R_n> for all n=1,..,nExc
+         call dgemm('N', 'N', nxov_rd, nExc, subSpaceDim, 1.0_dp, vP, nxov_rd, evecR, memDim, 1.0_dp,&
+             & vecB(1, subSpaceDim + 1 + nExc), nxov_rd)
+      endif
 
       ! calc. norms of residual vectors to check for convergence
       didConverge = .true.
@@ -1374,13 +1417,15 @@ contains
         end if
       end do
 
-      if (didConverge) then
-        do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
-          vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
-          if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
-            didConverge = .false.
-          end if
-        end do
+      if (.not. tTDA) then
+         if (didConverge) then
+           do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
+             vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+             if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
+               didConverge = .false.
+             end if
+           end do
+         end if
       end if
 
       if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nxov_rd)) then
@@ -1391,10 +1436,16 @@ contains
 
       ! if converged then exit loop:
       if (didConverge) then
-        eval(:) = evalInt(1:nExc)
-        ! Calc. X+Y
-        xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
-        ! Calc. X-Y, only when needed
+        if (tTDA) then
+          ! Save eigenvalues^2 and X vectors
+          eval(:) = evalInt(1:nExc) * evalInt(1:nExc)
+          xpy(:,:) = vM(:,:)
+        else
+          eval(:) = evalInt(1:nExc)
+          ! Calc. X+Y
+          xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+          ! Calc. X-Y, only when needed
+        endif
         if (tZVector) then
           xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
         end if
@@ -1405,29 +1456,43 @@ contains
       ! Otherwise calculate new basis vectors and extend subspace with them
       ! only include new vectors if they add meaningful residue component
       newVec = 0
-      do ii = 1, nExc
-        if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
-          newVec = newVec + 1
-          dummyReal = sqrt(evalInt(ii))
-          info = subSpaceDim + ii
-          dummyInt = subSpaceDim + newVec
-          do jj = 1, nxov_rd
-            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
-          end do
-        end if
-      end do
-
-      do ii = 1, nExc
-        if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
-          newVec = newVec + 1
-          info = subSpaceDim + nExc + ii
-          dummyInt = subSpaceDim + newVec
-          do jj = 1, nxov_rd
-            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
-          end do
-
-        end if
-      end do
+      if (tTDA) then
+         do ii = 1, nExc
+           if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
+             newVec = newVec + 1
+             dummyReal = evalInt(ii)
+             info = subSpaceDim + ii
+             dummyInt = subSpaceDim + newVec
+             do jj = 1, nxov_rd
+               vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
+             end do
+           end if
+         end do
+      else
+         do ii = 1, nExc
+           if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
+             newVec = newVec + 1
+             dummyReal = sqrt(evalInt(ii))
+             info = subSpaceDim + ii
+             dummyInt = subSpaceDim + newVec
+             do jj = 1, nxov_rd
+               vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
+             end do
+           end if
+         end do
+        
+         do ii = 1, nExc
+           if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
+             newVec = newVec + 1
+             info = subSpaceDim + nExc + ii
+             dummyInt = subSpaceDim + newVec
+             do jj = 1, nxov_rd
+               vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
+             end do
+        
+           end if
+         end do
+      endif
 
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
@@ -2088,9 +2153,10 @@ contains
 
     ! action of matrix on vector
     ! we need the singlet action even for triplet excitations!
+    ! GDM: TODO.
     call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, lrGamma)
+      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, .true., lrGamma)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -2100,9 +2166,10 @@ contains
     do kk = 1, nxov**2
 
       ! action of matrix on vector
+      ! GDM: TODO
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, lrGamma)
+         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, .true., lrGamma)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)

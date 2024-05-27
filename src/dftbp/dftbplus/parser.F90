@@ -4832,6 +4832,8 @@ contains
 
       call getChildValue(child, "NrOfExcitations", ctrl%lrespini%nexc)
 
+      call getChildValue(child, "TammDancoff", ctrl%lrespini%tTDA, default=.false.)
+
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
         ctrl%lrespini%nstat = 0

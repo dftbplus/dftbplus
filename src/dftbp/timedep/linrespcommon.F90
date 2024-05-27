@@ -415,7 +415,7 @@ contains
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine actionAplusB(spin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg, vin, vout, tRangeSep, lrGamma)
+      & gamma, species0, spinW, onsMEs, orb, tAplusB, transChrg, vin, vout, tRangeSep, tTDA, lrGamma)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -504,8 +504,12 @@ contains
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
 
+    !> controls TDA usage
+    logical, intent(in) :: tTDA
+
     !> long-range Gamma if in use
     real(dp), allocatable, optional, intent(in) :: lrGamma(:,:)
+
 
     integer :: nmat, natom, norb, ia, nxvv_a
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
@@ -550,7 +554,11 @@ contains
         ! 4 * wn * (g * Q)
         vOut(:) = 0.0_dp
         call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, gTmp, vOut)
-        vOut(:) = 4.0_dp * sqrOccIA * vOut
+        if (tTDA) then
+           vOut(:) = 2.0_dp * sqrOccIA * vOut
+        else
+           vOut(:) = 4.0_dp * sqrOccIA * vOut
+        endif
 
       else
 
@@ -637,43 +645,45 @@ contains
         end do
       end do
 
-      qv(:,:) = 0.0_dp
-      do jbs = 1, nmat
-        jj = getIA(win(jbs), 1)
-        bb = getIA(win(jbs), 2)
-        ss = getIA(win(jbs), 3)
-        !! Here, index abs is different for a,b and b,a.
-        do aa = nocc_ud(ss) + 1, norb
-          jas = iaTrans(jj, aa, ss)
-          qij(:) = transChrg%qTransIA(jas, iAtomStart, ovrXev, grndEigVecs, getIA, win)
-          abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
-          if (ss==2) then
-            abs = abs + nvir_ud(1)**2
-          end if
-          !! qv is not symmetric in a and b
-          qv(:,abs) = qv(:,abs) + qij * vTmp(jbs) * sqrOccIA(jbs)
-        end do
-      end do
-
-      do abs = 1, nxvv_a
-        otmp(:) = qv(:,abs)
-        call hemv(qv(:,abs), lrGamma, otmp)
-      end do
-
-      do ias = 1, nmat
-        ii = getIA(win(ias), 1)
-        aa = getIA(win(ias), 2)
-        ss = getIA(win(ias), 3)
-        do bb = nocc_ud(ss) + 1, norb
-          ibs = iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
-          abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
-          if (ss==2) then
-            abs = abs + nvir_ud(1)**2
-          end if
-          vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, abs))
-       end do
-      end do
+      if (.not. tTDA) then
+         qv(:,:) = 0.0_dp
+         do jbs = 1, nmat
+           jj = getIA(win(jbs), 1)
+           bb = getIA(win(jbs), 2)
+           ss = getIA(win(jbs), 3)
+           !! Here, index abs is different for a,b and b,a.
+           do aa = nocc_ud(ss) + 1, norb
+             jas = iaTrans(jj, aa, ss)
+             qij(:) = transChrg%qTransIA(jas, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+             abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
+             if (ss==2) then
+               abs = abs + nvir_ud(1)**2
+             end if
+             !! qv is not symmetric in a and b
+             qv(:,abs) = qv(:,abs) + qij * vTmp(jbs) * sqrOccIA(jbs)
+           end do
+         end do
+        
+         do abs = 1, nxvv_a
+           otmp(:) = qv(:,abs)
+           call hemv(qv(:,abs), lrGamma, otmp)
+         end do
+        
+         do ias = 1, nmat
+           ii = getIA(win(ias), 1)
+           aa = getIA(win(ias), 2)
+           ss = getIA(win(ias), 3)
+           do bb = nocc_ud(ss) + 1, norb
+             ibs = iaTrans(ii, bb, ss)
+             qij(:) = transChrg%qTransIA(ibs, iAtomStart, ovrXev, grndEigVecs, getIA, win)
+             abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
+             if (ss==2) then
+               abs = abs + nvir_ud(1)**2
+             end if
+             vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, abs))
+          end do
+         end do
+      endif
     endif
 
     if (allocated(onsMEs)) then
@@ -871,7 +881,7 @@ contains
   !> Note: Not yet OpenMP parallelized
   subroutine initialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, iAtomStart,&
       & sTimesGrndEigVecs, grndEigVecs, occNr, sqrOccIA, getIA, getIJ, getAB, iaTrans, gamma,&
-      & lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
+      & lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM, tTDA)
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
@@ -948,6 +958,9 @@ contains
     !> output matrix M- (initDim, initDim)
     real(dp), intent(out) :: mM(:,:)
 
+    !> controls TDA usage
+    logical, intent(in) :: tTDA
+
     integer :: nMat, nAtom
     integer :: ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
@@ -983,7 +996,11 @@ contains
 
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-            vP(ia,jb) = 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            if (tTDA) then
+               vP(ia,jb) = 2.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            else
+               vP(ia,jb) = 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            endif
           end do
 
         end do
@@ -1056,18 +1073,24 @@ contains
           qTr(:) = transChrg%qTransIJ(ijs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIJ)
           rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(iat,jbs) = vP(iat,jbs) - rTmp
-          vM(iat,jbs) = vM(iat,jbs) - rTmp
+          if (tTDA) then
+             vM(iat,jbs) = vP(iat,jbs)
+          else
+             vM(iat,jbs) = vM(iat,jbs) - rTmp
+          endif
 
-          ibs = iaTrans(ii, bb, ss)
-          qTr(:) = transChrg%qTransIA(ibs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          oTmp(:) = 0.0_dp
-          call hemv(oTmp, lrGamma, qTr)
-
-          jas = iaTrans(jj, aa, ss)
-          qTr(:) = transChrg%qTransIA(jas, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-          rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
-          vP(iat,jbs) = vP(iat,jbs) - rTmp
-          vM(iat,jbs) = vM(iat,jbs) + rTmp
+          if (.not. tTDA) then
+             ibs = iaTrans(ii, bb, ss)
+             qTr(:) = transChrg%qTransIA(ibs, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+             oTmp(:) = 0.0_dp
+             call hemv(oTmp, lrGamma, qTr)
+            
+             jas = iaTrans(jj, aa, ss)
+             qTr(:) = transChrg%qTransIA(jas, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
+             rTmp = cExchange * sqrOccIA(iat) * sqrOccIA(jbs) * dot_product(qTr, oTmp)
+             vP(iat,jbs) = vP(iat,jbs) - rTmp
+             vM(iat,jbs) = vM(iat,jbs) + rTmp
+          endif
         end do
 
       end do

@@ -42,6 +42,8 @@ module dftbp_timedep_linresp
     !> number of excitations to be found
     integer :: nExc
 
+    logical :: tTDA
+
     !> Is an energy window being used?
     logical :: tEnergyWindow
 
@@ -168,6 +170,7 @@ contains
     end if
 
     this%nExc = ini%nExc
+    this%tTDA = ini%tTDA
     this%tEnergyWindow = ini%tEnergyWindow
     this%energyWindow = ini%energyWindow
     this%tOscillatorWindow = ini%tOscillatorWindow
