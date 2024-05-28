@@ -681,7 +681,7 @@ contains
                abs = abs + nvir_ud(1)**2
              end if
              vout(ias) = vout(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, abs))
-          end do
+           end do
          end do
       endif
     endif

@@ -547,7 +547,7 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
-    if (this%tTDA .eqv. .true. .and. this%symmetry /= "S") then
+    if (this%tTDA .and. this%symmetry /= "S") then
        call error("Tamm-Dancoff Approximation is only implemented for Singlets")
     endif
 
@@ -681,7 +681,7 @@ contains
           call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
               & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
               & ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, &
-              & this%onSiteMatrixElements, orb, transChrg, tRangeSep, lrGamma)
+              & this%onSiteMatrixElements, orb, transChrg, tRangeSep, this%tTDA, lrGamma)
 
           call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
               & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
@@ -789,7 +789,7 @@ contains
                   & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,&
                   & iAtomStart, ovrXev, grndEigVecs, filling, sqrOccIA(:nxov_rd), gammaMat,&
                   & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tRangeSep,&
-                  & lrGamma)
+                  & this%tTDA, lrGamma)
 
               call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, iAtomStart,&
                  & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg,&
@@ -1439,16 +1439,19 @@ contains
         if (tTDA) then
           ! Save eigenvalues^2 and X vectors
           eval(:) = evalInt(1:nExc) * evalInt(1:nExc)
-          xpy(:,:) = vM(:,:)
+          xpy(:,:) = vM(:,1:nExc)
+          if (tZVector) then
+             xmy(:,:) = vM(:,1:nExc)
+          end if
         else
           eval(:) = evalInt(1:nExc)
           ! Calc. X+Y
           xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
           ! Calc. X-Y, only when needed
+          if (tZVector) then
+            xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
+          end if
         endif
-        if (tZVector) then
-          xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
-        end if
         write(*,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
       end if
@@ -2021,7 +2024,7 @@ contains
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
   subroutine solveZVectorPrecond(rhs, tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud,&
       & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, natom, iAtomStart, ovrXev, grndEigVecs, &
-      & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, lrGamma)
+      & occNr, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, transChrg, tRangeSep, tTDA, lrGamma)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -2104,6 +2107,9 @@ contains
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
 
+    !> TDA approx
+    logical, intent(in) :: tTDA
+
     !> long-range Gamma
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
@@ -2123,7 +2129,11 @@ contains
       qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
       call hemv(qTmp, gammaMat, qTr)
       if (.not. tSpin) then
-        rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
+        if (tTDA) then
+           rs = 2.0_dp * dot_product(qTr, qTmp) + wij(ia)
+        else
+           rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
+        endif
       else
         rs = 2.0_dp * dot_product(qTr, qTmp) + wij(ia)
         rs = rs + 2.0_dp * sum(qTr * qTr * spinW(species0))
@@ -2131,8 +2141,10 @@ contains
 
       !! Possibly reorder spin case
       if (tRangeSep) then
-        call hemv(qTmp, lrGamma, qTr)
-        rs = rs - cExchange * dot_product(qTr, qTmp)
+        if (.not. tTDA) then
+           call hemv(qTmp, lrGamma, qTr)
+           rs = rs - cExchange * dot_product(qTr, qTmp)
+        endif
         call indXov(win, ia, getIA, i, a, s)
         iis = iaTrans(i, i, s)
         qTr = transChrg%qTransIJ(iis, iAtomStart, ovrXev, grndEigVecs, getIJ)
@@ -2153,10 +2165,9 @@ contains
 
     ! action of matrix on vector
     ! we need the singlet action even for triplet excitations!
-    ! GDM: TODO.
     call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, .true., lrGamma)
+      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, tTDA, lrGamma)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -2166,10 +2177,9 @@ contains
     do kk = 1, nxov**2
 
       ! action of matrix on vector
-      ! GDM: TODO
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, .true., lrGamma)
+         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, tTDA, lrGamma)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
