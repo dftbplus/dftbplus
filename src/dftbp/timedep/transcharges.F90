@@ -528,7 +528,6 @@ contains
       qProduct(:) = qProduct + matmul(this%qCacheOccVir(:,iGlb:fGlb), vector)
 
     else
-      
       allocate(qij(this%nAtom))
 
       do ij = 1, size(vector)
@@ -601,7 +600,6 @@ contains
       qProduct(:) = qProduct + matmul(vector, this%qCacheOccVir(:,iGlb:fGlb))
 
     else
-      
       allocate(qij(this%nAtom))
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
       !!$OMP& SCHEDULE(RUNTIME)
