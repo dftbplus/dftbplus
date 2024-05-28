@@ -6834,7 +6834,7 @@ contains
 
     @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
     if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont, respectively
+      do ii = 1, transpar%ncont
         iStart = transpar%contacts(ii)%idxrange(1)
         iEnd = transpar%contacts(ii)%idxrange(2)
         qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
