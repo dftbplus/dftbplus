@@ -5391,7 +5391,7 @@ contains
     end if
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
-    
+
   #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
@@ -5401,10 +5401,10 @@ contains
           & nLocalCols)
     end if
   #:else
-    
+
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
-    
+
   #:endif
 
     if (this%t2Component .or. .not. this%tRealHS) then
@@ -7008,7 +7008,7 @@ contains
 
     @:ASSERT(allocated(qBlock) .eqv. allocated(qBlockUp))
     if (allocated(qBlock)) then
-      do ii = 1, transpar%ncont, respectively
+      do ii = 1, transpar%ncont
         iStart = transpar%contacts(ii)%idxrange(1)
         iEnd = transpar%contacts(ii)%idxrange(2)
         qBlock(:,:,iStart:iEnd,:) = qBlockUp(:,:,iStart:iEnd,:)
