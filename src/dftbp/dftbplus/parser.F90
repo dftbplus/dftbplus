@@ -1581,7 +1581,7 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    call readKPoints(node, ctrl, geo, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
@@ -1962,7 +1962,7 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling, errStatus)
+    call readKPoints(node, ctrl, geo, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
@@ -2791,7 +2791,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, poorKSampling, errStatus)
+  subroutine readKPoints(node, ctrl, geo, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2802,31 +2802,25 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
-
     !> Error status
     type(TStatus), intent(inout) :: errStatus
-
-    !! Should an additional check be performed if more than one SCC step is requested
-    logical :: checkStopHybridCalc
 
     integer :: ii
     character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
-    poorKSampling = .false.
+    ctrl%poorKSampling = .false.
 
     ! We can omit any hybrid xc-functional related checks for helical boundary conditions, since
     ! such a calculation will nevertheless be stopped due to the incompatibility of these features
-    checkStopHybridCalc = .false.
+    ctrl%checkStopHybridCalc = .false.
 
     ! K-Points
     if (geo%tPeriodic) then
-      call getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
+      call getEuclideanKSampling(ctrl, node, geo, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     elseif (geo%tHelical) then
-      call getHelicalKSampling(poorKSampling, ctrl, node, geo)
+      call getHelicalKSampling(ctrl, node, geo)
     end if
 
     call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
@@ -2836,7 +2830,7 @@ contains
     end if
 
     ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
-    if (checkStopHybridCalc) then
+    if (ctrl%checkStopHybridCalc) then
       if (ctrl%maxSccIter == 1) then
         call warning("Restarting a hybrid xc-functional run with what appears to be&
             & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
@@ -2917,13 +2911,7 @@ contains
 
 
   !> The k-points in Euclidean space
-  subroutine getEuclideanKSampling(poorKSampling, checkStopHybridCalc, ctrl, node, geo, errStatus)
-
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
-
-    !> Should an additional check be performed if more than one SCC step is requested
-    logical, intent(out) :: checkStopHybridCalc
+  subroutine getEuclideanKSampling(ctrl, node, geo, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2959,7 +2947,7 @@ contains
     select case(char(buffer))
 
     case ("supercellfolding")
-      poorKSampling = .false.
+      ctrl%poorKSampling = .false.
       if (len(modifier) > 0) then
         call detailedError(child, "No modifier is allowed, if the SupercellFolding scheme is used.")
       end if
@@ -2985,7 +2973,7 @@ contains
 
     case ("klines")
       ! probably unable to integrate charge for SCC
-      poorKSampling = .true.
+      ctrl%poorKSampling = .true.
       call init(li1)
       call init(lr1)
       call getChildValue(value1, "", 1, li1, 3, lr1)
@@ -3043,7 +3031,7 @@ contains
     case (textNodeName)
 
       ! no idea, but assume user knows what they are doing
-      poorKSampling = .false.
+      ctrl%poorKSampling = .false.
 
       call init(lr1)
       call getChildValue(child, "", 4, lr1, modifier=modifier)
@@ -3075,7 +3063,7 @@ contains
     end select
 
     ! Catch problematic k-point sampling in case this is a hybrid calculation
-    checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+    ctrl%checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
         & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
 
     ! Check for hybrid xc-functional requirements
@@ -3105,10 +3093,7 @@ contains
 
 
   !> The k-points for helical boundaries
-  subroutine getHelicalKSampling(poorKSampling, ctrl, node, geo)
-
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
+  subroutine getHelicalKSampling(ctrl, node, geo)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -3128,7 +3113,7 @@ contains
     character(lc) :: errorStr
 
     ! assume the user knows what they are doing
-    poorKSampling = .false.
+    ctrl%poorKSampling = .false.
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child)
     call getNodeName(value1, buffer)

@@ -388,6 +388,10 @@ module dftbp_dftbplus_inputdata
     !> Are the k-points not suitable for integrals over the Brillouin zone
     logical :: poorKSampling = .false.
 
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical :: checkStopHybridCalc = .false.
+
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice
     !! vectors (between 0.0 and 1.0)
