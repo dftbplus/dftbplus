@@ -244,19 +244,16 @@ module dftbp_reks_reksio
 
 
   !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
+  subroutine printUnrelaxedFONs(tmpActive, rstate, Lstate, Na, tSSR)
 
-    !> Occupation number matrix
-    real(dp), intent(in) :: tmpRho(:,:)
+    !> Active space elements
+    real(dp), intent(in) :: tmpActive(:)
 
     !> Target SSR state
     integer, intent(in) :: rstate
 
     !> Target microstate
     integer, intent(in) :: Lstate
-
-    !> Number of core orbitals
-    integer, intent(in) :: Nc
 
     !> Number of active orbitals
     integer, intent(in) :: Na
@@ -281,9 +278,9 @@ module dftbp_reks_reksio
     end if
     do ii = 1, Na
       if (ii == Na) then
-        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+        write(stdOut,'(1(f10.6))') tmpActive(ii)
       else
-        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+        write(stdOut,'(1(f10.6))',advance="no") tmpActive(ii)
       end if
     end do
 

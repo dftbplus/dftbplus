@@ -52,6 +52,9 @@ module dftbp_reks_reksinterface
   use dftbp_reks_reksvar, only : TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
+#:if WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs
+#:endif
 
   implicit none
 
@@ -174,13 +177,14 @@ module dftbp_reks_reksinterface
     real(dp), allocatable :: rhoL(:,:)
     real(dp), allocatable :: dipoleInt(:,:,:)
 
-    integer :: tmpL, ist, nstHalf, nOrb
+    integer :: tmpL, ist, nstHalf, nLocalRows, nLocalCols
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
     nstHalf = this%nstates * (this%nstates - 1) / 2
 
-    allocate(rhoL(nOrb,nOrb))
-    allocate(dipoleInt(nOrb,nOrb,3))
+    allocate(rhoL(nLocalRows,nLocalCols))
+    allocate(dipoleInt(nLocalRows,nLocalCols,3))
 
     ! Get the unrelaxed density matrix for SA-REKS or SSR state
     ! The matrix that used in this calculation is not relaxed density
@@ -208,28 +212,34 @@ module dftbp_reks_reksinterface
           else
             rhoL(:,:) = 0.0_dp
             call env%globalTimer%startTimer(globalTimers%sparseToDense)
+          #:if WITH_SCALAPACK
+            call unpackHSRealBlacs(env%blacs, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour,&
+                & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, rhoL)
+          #:else
             call unpackHS(rhoL, this%rhoSpL(:,1,tmpL), neighbourList%iNeighbour, &
                 & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
             call adjointLowerTriangle(rhoL)
+          #:endif
+            call env%globalTimer%stopTimer(globalTimers%sparseToDense)
           end if
 
         end if
       end if
 
-      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, rhoL, &
-          & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
+      call getUnrelaxedDensMatAndTdp(env, denseDesc, eigenvecs(:,:,1), this%overSqr, &
+          & rhoL, this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
           & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
           & this%unrelRhoSqr, this%unrelTdm, densityMatrix, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
       if (this%tTDP) then
-        call getDipoleIntegral(coord0, this%overSqr, this%getAtomIndex, dipoleInt)
+        call getDipoleIntegral(env, denseDesc, coord0, this%overSqr, this%getAtomIndex,&
+            & dipoleInt)
         ! Get the transition dipole moment between states
         ! For (SI-)SA-REKS dipole moment requires gradient info.
         ! But TDP use only zero-th part without gradient info.
         do ist = 1, nstHalf
-          call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
+          call getDipoleMomentMatrix(env, this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
         end do
         call writeReksTDP(this%tdp)
         call getReksOsc(this%tdp, this%energy)
@@ -386,7 +396,7 @@ module dftbp_reks_reksinterface
                 & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
             Qmat(:,:) = this%Q1mat + this%Q2mat
             ! compute SA-REKS shift
-            call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+            call SSRshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
                 & this%ZT(:,ist), this%SAweight, this%weightL(ist,:), &
                 & this%omega, this%weightIL, this%G1, &
                 & denseDesc%iAtomStart, orb%mOrb, this%SAgrad(:,:,ist), 1)
@@ -409,7 +419,7 @@ module dftbp_reks_reksinterface
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XTdel(:,ist), this%ZTdel(:,ist), this%tmpRL(:,:,:,ist), &
               & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
-          call SIshift(eigenvecs, this%gradL, this%Q1del(:,:,ist), &
+          call SIshift(denseDesc, eigenvecs, this%gradL, this%Q1del(:,:,ist), &
               & this%Q2del(:,:,ist), this%Q1mat, this%Q2mat, Qmat, &
               & this%Sderiv, this%ZTdel(:,ist), this%SAweight, this%omega, &
               & this%weightIL, this%Rab, this%G1, denseDesc%iAtomStart, &
@@ -439,7 +449,7 @@ module dftbp_reks_reksinterface
               & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
 
           ! add remaining SI component to SSR state
-          call addSItoRQ(eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
+          call addSItoRQ(denseDesc, eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
               & this%eigvecsSSR, this%rstate, this%RmatL(:,:,:,1), &
               & this%Q1mat, this%Q2mat, Qmat)
           fac = 2
@@ -469,13 +479,13 @@ module dftbp_reks_reksinterface
 
         if (this%Lstate == 0) then
           ! compute SSR or SA-REKS shift
-          call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+          call SSRshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
               & this%ZT(:,1), this%SAweight, this%weightL(this%rstate,:), &
               & this%omega, this%weightIL, this%G1, &
               & denseDesc%iAtomStart, orb%mOrb, this%SSRgrad(:,:,1), fac)
         else
           ! compute L shift
-          call Lshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
+          call Lshift(denseDesc, eigenvecs, this%gradL, Qmat, this%Sderiv, &
               & this%ZT(:,1), this%SAweight, this%omega, this%weightIL, this%G1, &
               & denseDesc%iAtomStart, orb%mOrb, this%Lstate, this%SSRgrad(:,:,1))
         end if
