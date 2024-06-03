@@ -7,7 +7,7 @@ Hamiltonian = DFTB {
   SCC = Yes
   SccTolerance = 1e-10
   ReadInitialCharges = Yes
-  MaxSccIterations = 1
+  MaxSccIterations = 3
 
   Mixer = Simple {MixingParameter = 0.85}
 

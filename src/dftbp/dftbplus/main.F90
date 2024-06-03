@@ -949,9 +949,9 @@ contains
               & this%denseDesc, this%iSparseStart, this%img2CentCell, this%pChrgMixerReal,&
               & this%pChrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
               & this%kWeight, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%sccTol,&
-              & tStopScc, this%tReadChrg, this%q0, this%iCellVec, this%cellVec, this%hybridXc,&
-              & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
-              & this%qBlockOut)
+              & tStopScc, this%tReadChrg, this%checkStopHybridCalc, this%q0, this%iCellVec,&
+              & this%cellVec, this%hybridXc, this%qInput, sccErrorQ, tConverged,&
+              & this%densityMatrix, this%qBlockIn, this%qBlockOut)
         end if
       end if
 
@@ -4661,8 +4661,8 @@ contains
   subroutine getNextInputDensityCplx(env, ints, neighbourList, nNeighbourSK, denseDesc,&
       & iSparseStart, img2CentCell, pChrgMixerReal, pChrgMixerCmplx, qOutput, orb, parallelKS,&
       & kPoint, kWeight, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
-      & q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn,&
-      & qBlockOut)
+      & checkStopHybridCalc, q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged,&
+      & densityMatrix, qBlockIn, qBlockOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4727,6 +4727,10 @@ contains
     !> Were initial charges read from disc?
     logical, intent(in) :: tReadChrg
 
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical, intent(in) :: checkStopHybridCalc
+
     !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
@@ -4774,11 +4778,15 @@ contains
 
     if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
       if (env%tGlobalLead) then
-        if (tReadChrg) then
+        ! if the k-point sampling changed as part of the restart (i.e. this is a bandstructure
+        ! calculation), we cannot calculate the difference between the in- and output density matrix
+        ! because they do not match w.r.t. the number of k-points
+        if (tReadChrg .and. checkStopHybridCalc) then
           allocate(deltaRhoDiffSqrCplx(size(densityMatrix%deltaRhoOutCplx, dim=1),&
               & size(densityMatrix%deltaRhoOutCplx, dim=2),&
               & size(densityMatrix%deltaRhoOutCplx, dim=3)), source=(0.0_dp, 0.0_dp))
         else
+          ! fine if the k-mesh did not change during the restart
           deltaRhoDiffSqrCplx = densityMatrix%deltaRhoOutCplx - densityMatrix%deltaRhoInCplx
         end if
         sccErrorQ = maxval(abs(deltaRhoDiffSqrCplx))

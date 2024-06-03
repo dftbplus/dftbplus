@@ -801,6 +801,10 @@ module dftbp_dftbplus_initprogram
     !> Choice of hybrid xc-functional algorithm to build Hamiltonian
     integer :: hybridXcAlg
 
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical :: checkStopHybridCalc = .false.
+
     !> Whether constraints are imposed on electronic ground state
     logical :: isElecConstr
 
@@ -1387,6 +1391,7 @@ contains
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
       this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
+      this%checkStopHybridCalc = input%ctrl%checkStopHybridCalc
     else
       this%hybridXcAlg = hybridXcAlgo%none
     end if
