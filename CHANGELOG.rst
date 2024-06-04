@@ -30,6 +30,8 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- Onsite corrected hamiltonian for range separated functional
+
 
 Fixed
 -----
