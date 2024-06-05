@@ -61,7 +61,10 @@ if(NOT TARGET DftbPlus::DftbPlus)
   endif()
 
   if(DftbPlus_WITH_ARPACK AND NOT TARGET ARPACK::ARPACK)
-    find_dependency(arpackng)
+    find_package(CustomArpack REQUIRED)
+    if(DftbPlus_WITH_MPI AND NOT TARGET PARPACK::PARPACK)
+        find_package(CustomParpack REQUIRED)
+    endif ()
   endif()
 
   if(DftbPlus_WITH_PLUMED AND NOT TARGET Plumed::Plumed)
