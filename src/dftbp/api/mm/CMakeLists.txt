@@ -5,7 +5,7 @@ set(sources-fpp
   ${curdir}/dftbplus.F90
   ${curdir}/hsdapi.F90
   ${curdir}/mmapi.F90
-  ${curdir}/apicallbackc.f90
+  ${curdir}/apicallback.f90
   ${curdir}/qdepextpotgenc.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

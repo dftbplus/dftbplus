@@ -12,7 +12,7 @@ module dftbp_capi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
-  use dftbp_apicallbackc, only: dmhs_callback_c_wrapper, TCAuxWrapper
+  use dftbp_apicallback, only: dmhs_callback_c_wrapper, TCAuxWrapper
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput,&

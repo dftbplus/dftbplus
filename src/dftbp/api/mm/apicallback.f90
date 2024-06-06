@@ -7,7 +7,7 @@
 
 !> Contains types for the callback interface that exports dense matrix formatted density matrix,
 !! overlap and hamiltonian data
-module dftbp_apicallbackc
+module dftbp_apicallback
   use iso_c_binding, only: c_ptr, c_funptr, c_loc, c_null_ptr, c_f_procpointer
   use dftbp_common_accuracy, only : dp
 
@@ -89,4 +89,4 @@ contains
   end subroutine dmhs_callback_c_wrapper
 
 
-end module dftbp_apicallbackc
+end module dftbp_apicallback
