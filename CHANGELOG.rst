@@ -42,6 +42,10 @@ Fixed
 - Temporarily remove free energy for Delta-DFTB calculations, as this
   is not formally derived in the general case.
 
+- All solvent models had a bug leading to the energy showing a
+  dependence on the ordering of the atoms in the system.
+
+
 24.1 (2024-02-12)
 =================
 
