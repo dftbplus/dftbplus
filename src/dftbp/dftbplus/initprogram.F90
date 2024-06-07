@@ -1384,8 +1384,6 @@ contains
   #:if WITH_API
     if (input%ctrl%isASICallbackEnabled) then
       allocate(this%apiCallBack)
-      ! As ASI doesn't set this, manually get from input whether H/S are expected to be modified:
-      this%apiCallBack%isAsiChangingTheModel = input%ctrl%isAsiChangingTheModel
     end if
   #:endif
 
@@ -3872,7 +3870,7 @@ contains
     end if
 
     if (allocated(this%apiCallBack)) then
-      if (this%apiCallBack%isAsiChangingTheModel) then
+      if (this%apiCallBack%isAsiChangingTheModel()) then
         if (allocated(this%scc)) then
           ! as this needs assurances that the DM is being read by the external code, leading to
           ! changes in the hamiltonian, otherwise SCC never converges.

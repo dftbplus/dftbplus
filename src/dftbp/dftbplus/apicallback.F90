@@ -14,7 +14,7 @@ module dftbp_dftbplus_apicallback
   implicit none
 
   private
-  public :: TAPICallback, TDMHSCallbackFunc
+  public :: TAPICallback, TDMHSCallbackFunc, TSetDMHSCallbackFunc
 
 
   !> Callback function signature for overlap, or hamiltonian, or density matrix export in square
@@ -41,14 +41,34 @@ module dftbp_dftbplus_apicallback
 
   end interface
 
+  !> Callback function signature for overlap, or hamiltonian, or density matrix export in square
+  !! dense BLACS format.Type of the matrix elements is either double or complex double, depending on
+  !! the task (number of k-points)
+  !! Total matrix size is NxN, where N - number of basis functions.
+  abstract interface
+
+    integer function TSetDMHSCallbackFunc(auxObj, iKpoint, iSpin, blacsDescr, dataBufReal, dataBufCplx)
+      use dftbp_common_accuracy, only : dp
+      !> Pointer to auxilary data that is set when callback is registered. Can be NULL.
+      class(*), intent(inout) :: auxObj
+      !> 1-based indices of k-point of the matrix
+      integer, value :: iKpoint
+      !> 1-based indices of spin chanel of the matrix
+      integer, value :: iSpin
+      !> BLACS descriptor of the matrix. Can be NULL if DFTB+ is built without SCALAPACK support
+      integer, intent(in), target, optional :: blacsDescr(:)
+      !> Matrix, that can be either real or complex, buffer for real case
+      real(dp), intent(inout), target, optional, contiguous :: dataBufReal(:,:)
+      !> Matrix, that can be either real or complex, buffer for complex case
+      complex(dp), intent(inout), target, optional, contiguous :: dataBufCplx(:,:)
+    end function TSetDMHSCallbackFunc
+
+  end interface
+
 
   !> This type encapsulates registering and invocation of callbacks for export of the density,
   !! overlap, and hamiltonian matrices.
   type :: TAPICallback
-
-    !> Are the H/S callbacks expected to modify the model? Unfortunately the ASI interface does not
-    !> communicate this at present, so requires setting in the DFTB+ input.
-    logical :: isAsiChangingTheModel
 
     !> Callback for density matrix export
     procedure(TDMHSCallbackFunc), nopass, pointer :: dm_callback => null()
@@ -63,11 +83,24 @@ module dftbp_dftbplus_apicallback
     !> NULL.
     class(*), pointer :: sAuxPtr => null()
 
+    !> Flag that signals that the overlap matrix callback is associated with a function
+    !! Callback for the overlap matrix export
+    procedure(TSetDMHSCallbackFunc), pointer, nopass :: set_s_callback => null()
+    !> Pointer to auxilary data that is set when the overlap matrix callback is registered. Can be
+    !> NULL.
+    class(*), pointer :: set_sAuxPtr => null()
+
     !> Callback for the hamiltonian matrix export
     procedure(TDMHSCallbackFunc), pointer, nopass :: h_callback => null()
     !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can
     !! be NULL.
     class(*), pointer :: hAuxPtr => null()
+
+    !> Callback for the hamiltonian matrix import
+    procedure(TSetDMHSCallbackFunc), pointer, nopass :: set_h_callback => null()
+    !> Pointer to auxilary data that is set when the hamiltonian matrix callback is registered. Can
+    !! be NULL.
+    class(*), pointer :: set_hAuxPtr => null()
 
   contains
 
@@ -80,6 +113,8 @@ module dftbp_dftbplus_apicallback
 
     !> Register callback to be invocked on the first overlap matrix evaluation
     procedure :: registerS => TAPICallback_registerS
+    !> Register callback to be invocked to import overlap matrix
+    procedure :: registerSetS => TAPICallback_registerSetS
     !> This function must be invoked on the first overlap matrix evaluation
     procedure :: invokeS_real => TAPICallback_invokeS_real
     procedure :: invokeS_cplx => TAPICallback_invokeS_cplx
@@ -87,6 +122,8 @@ module dftbp_dftbplus_apicallback
 
     !> Register callback to be invocked on the first hamiltonian matrix evaluation
     procedure :: registerH => TAPICallback_registerH
+    !> Register callback to be invocked to import hamiltonian matrix
+    procedure :: registerSetH => TAPICallback_registerSetH
     !> This function must be invoked on the first hamiltonian matrix evaluation
     procedure :: invokeH_real => TAPICallback_invokeH_real
     procedure :: invokeH_cplx => TAPICallback_invokeH_cplx
@@ -96,11 +133,24 @@ module dftbp_dftbplus_apicallback
     procedure :: invokeHS_cplx => TAPIinvokeHS_cplx
     generic :: invokeHSCallBack => invokeHS_real, invokeHS_cplx
 
+
+    !> Are the H/S callbacks expected to modify the model?
+    procedure :: isAsiChangingTheModel => TAPICallback_isAsiChangingTheModel
+
   end type TAPICallback
 
 
 contains
 
+  !> Are the H/S callbacks expected to modify the model?
+  logical function TAPICallback_isAsiChangingTheModel(this)
+
+    !> Instance
+    class(TAPICallback) :: this
+
+    TAPICallback_isAsiChangingTheModel = associated(this%set_s_callback) .or. associated(this%set_h_callback)
+
+  end function TAPICallback_isAsiChangingTheModel
 
   !> Register callback to be invoked on each density matrix evaluation
   subroutine TAPICallback_registerDM(this, callback, auxPtr)
@@ -194,6 +244,23 @@ contains
   end subroutine TAPICallback_registerS
 
 
+  !> Register an overlap matrix setting callback
+  subroutine TAPICallback_registerSetS(this, callback, auxPtr)
+
+    !> Instance
+    class(TAPICallback) :: this
+
+    !> Callback procedure to invoke
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> Auxillary data set by the callback
+    class(*), pointer :: auxPtr
+
+    this%set_s_callback => callback
+    this%set_sAuxPtr => auxPtr
+
+  end subroutine TAPICallback_registerSetS
+
   !> Callback for real overlap matrix
   subroutine TAPICallback_invokeS_real(this, iKpoint, iSpin, dataBuf, blacsDescr)
 
@@ -213,12 +280,15 @@ contains
     !! supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. associated(this%s_callback)) then
-      return
+    integer res
+
+    if (associated(this%s_callback)) then
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
     endif
 
-    call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
-
+    if (associated(this%set_s_callback)) then
+      res = this%set_s_callback(this%set_sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
+    endif
   end subroutine TAPICallback_invokeS_real
 
 
@@ -237,12 +307,16 @@ contains
     !> Optional BLACS descriptor for the matrix in dataBuf. Not present if SCALAPACK is not
     !! supported
     integer, intent(in), target, optional :: blacsDescr(:)
+    
+    integer res
 
-    if (.not. associated(this%s_callback)) then
-      return
+    if (associated(this%s_callback)) then
+      call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
     endif
 
-    call this%s_callback(this%sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
+    if (associated(this%set_s_callback)) then
+      res = this%set_s_callback(this%set_sAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
+    endif
 
   end subroutine TAPICallback_invokeS_cplx
 
@@ -264,6 +338,24 @@ contains
 
   end subroutine TAPICallback_registerH
 
+  !> Register a hamiltonian matrix setting callback
+  subroutine TAPICallback_registerSetH(this, callback, auxPtr)
+
+    !> Instance
+    class(TAPICallback) :: this
+
+    !> Callback procedure to invoke
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> Auxillary data set by the callback
+    class(*), pointer :: auxPtr
+
+    this%set_h_callback => callback
+    this%set_hAuxPtr => auxPtr
+
+  end subroutine TAPICallback_registerSetH
+
+
 
   !> Callback for real hamiltonian matrix
   subroutine TAPICallback_invokeH_real(this, iKpoint, iSpin, dataBuf, blacsDescr)
@@ -284,11 +376,15 @@ contains
     !! supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. associated(this%h_callback)) then
-      return
+    integer res
+
+    if (associated(this%h_callback)) then
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
     endif
 
-    call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
+    if (associated(this%set_h_callback)) then
+      res = this%set_h_callback(this%set_hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufReal=dataBuf)
+    endif
 
   end subroutine TAPICallback_invokeH_real
 
@@ -312,11 +408,15 @@ contains
     !! supported
     integer, intent(in), target, optional :: blacsDescr(:)
 
-    if (.not. associated(this%h_callback)) then
-      return
+    integer res
+
+    if (associated(this%h_callback)) then
+      call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
     endif
 
-    call this%h_callback(this%hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
+    if (associated(this%set_h_callback)) then
+      res = this%set_h_callback(this%set_hAuxPtr, iKpoint, iSpin, blacsDescr=blacsDescr, dataBufCplx=dataBuf)
+    endif
 
   end subroutine TAPICallback_invokeH_cplx
 

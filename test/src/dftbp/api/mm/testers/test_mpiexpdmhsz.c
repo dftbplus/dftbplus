@@ -25,7 +25,7 @@ typedef double complex hs_type;
 
 hs_type *dm=0, *overlap=0, *hamiltonian=0;
 
-void gather(int *blacs_descr, void *blacs_data, void *dest) {
+void gather(int *blacs_descr, const void *blacs_data, void *dest) {
   int blacs_ctx = blacs_descr[CTXT_];
   int sys_ctx = get_system_context(blacs_ctx);
 
@@ -44,19 +44,31 @@ void gather(int *blacs_descr, void *blacs_data, void *dest) {
 }
 
 void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                 void *blacs_data) {
+                 const void *blacs_data, DftbPlusMatrixDescr *matrix_descr) {
+  if (matrix_descr->storage_type!=DFTBP_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(dm, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, dm);
 }
 
 void s_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
+                const void *blacs_data, DftbPlusMatrixDescr *matrix_descr) {
+  if (matrix_descr->storage_type!=DFTBP_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(overlap, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, overlap);
 }
 
 void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
+                const void *blacs_data, DftbPlusMatrixDescr *matrix_descr) {
+  if (matrix_descr->storage_type!=DFTBP_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(hamiltonian, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, hamiltonian);
 }

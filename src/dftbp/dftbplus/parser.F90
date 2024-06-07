@@ -1292,10 +1292,8 @@ contains
     call getChild(node, "ASI", child, requested=.false.)
     if (associated(child)) then
       ctrl%isASICallbackEnabled = .true.
-      call getChildValue(child, "AsiModifiesModel", ctrl%isAsiChangingTheModel, .true.)
     else
       ctrl%isASICallbackEnabled = .false.
-      ctrl%isAsiChangingTheModel = .false.
     end if
   #:endif
 

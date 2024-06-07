@@ -1866,12 +1866,10 @@ hamiltonian, overlap or density matrix during the calculation. Note,
 not all functionality of the code will be available if the interface
 is active.
 
-The \iscb{ASI} block currently contains one keyword:
-\kw{AsiModifiesModel}, which flags whether or not (\is{Yes} or
-\is{No}) the interface is going to change the hamiltonian or overlap
-externally (unfortunately ASI does not currently have the capability to
-signal this). If the model is modified, forces cannot be calculated,
-likewise self-consistent models cannot be computed (again due to
+The \iscb{ASI} block currently contains no keywords.
+Via ASI callbacks it is possible able to change the hamiltonian or overlap
+externally. If the model is modified, forces cannot be calculated,
+likewise self-consistent models cannot be computed (due to
 limitations of ASI).
 
 \subsection{ElectronicConstraints}

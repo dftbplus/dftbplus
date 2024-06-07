@@ -149,9 +149,6 @@ module dftbp_dftbplus_inputdata
     !! https://doi.org/10.21105/joss.05186)
     logical :: isAsiCallbackEnabled = .false.
 
-    !> Is the ASI modifying H or S matrices
-    logical :: isAsiChangingTheModel = .false.
-
   #:endif
 
     !> Random number generator seed

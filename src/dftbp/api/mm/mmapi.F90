@@ -135,8 +135,12 @@ module dftbp_mmapi
     procedure :: registerDMCallback => TDftbPlus_registerDMCallback
     !> Register callback function to be invoked on the first evaluation of the overlap matrix
     procedure :: registerSCallback => TDftbPlus_registerSCallback
+    !> Register callback function to be invoked to import the overlap matrix
+    procedure :: registerSetSCallback => TDftbPlus_registerSetSCallback
     !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
     procedure :: registerHCallback => TDftbPlus_registerHCallback
+    !> Register callback function to be invoked to import the hamiltonian matrix
+    procedure :: registerSetHCallback => TDftbPlus_registerSetHCallback
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Return the number of spin channels in the DFTB+ calculation (1 if spin free, 2 for z spin
@@ -924,6 +928,23 @@ contains
 
   end subroutine TDftbPlus_registerSCallback
 
+  !> Register callback function to be invoked to import overlap matrix
+  subroutine TDftbPlus_registerSetSCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TSetDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S import
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the S callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerSetS(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSetSCallback
 
   !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
   subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
@@ -943,6 +964,23 @@ contains
 
   end subroutine TDftbPlus_registerHCallback
 
+  !> Register callback function to be invoked to import hamiltonian matrix
+  subroutine TDftbPlus_registerSetHCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TSetDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for H export
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the H callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerSetH(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSetHCallback
 
   !> Returns the nr. of k-points describing the system.
   function TDftbPlus_nrOfKPoints(this) result(nKpts)
