@@ -45,6 +45,17 @@ typedef struct DftbPlus {
 
 
 /**
+ * Matrix structure and storage types descriptor.
+ *
+ * Used by DMHSCallBackFunc callbacks.
+ */
+typedef struct MatrixDescr {
+  int matrix_type;             //Type of matrix: 0 - generic; 1 - hermitian or symmetric.
+  int storage_type;            //Type of storage: 0 - dense; 1 - upper triangle, unpacked; 2 - lower triangle, unpacked.
+} MatrixDescr;
+
+
+/**
  * Callback function signature for calculating external population dependant potential.
  *
  * DFTB+ would call it whenever the population has changed and the population dependant external
@@ -103,8 +114,7 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
  *
  * \param blacs_data[in] Pointer to the matrix elements.
  */
-typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data);
-
+typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, const void *blacs_data, MatrixDescr *matrix_descr);
 
 /**
  * Returns current version of the DFTB+ API
