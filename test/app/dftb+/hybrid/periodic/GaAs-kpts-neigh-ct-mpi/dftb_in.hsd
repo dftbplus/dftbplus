@@ -1,5 +1,5 @@
-Geometry = GenFormat {
-   <<< GaAs_2x2x2.gen
+Geometry = VaspFormat {
+   <<< POSCAR_Primitive_Cell
 }
 
 Hamiltonian = DFTB {
