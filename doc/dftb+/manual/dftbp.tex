@@ -4902,6 +4902,7 @@ This block collects some global options for the run.
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
   \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
+  \kw{MDOutput} & p & MD = Yes & \cb & \pref{sec:dftbp.MDOutput} \\
 \end{ptable}
 \begin{description}
 
@@ -5028,6 +5029,24 @@ This block collects some global options for the run.
   BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
+\item[\is{MDOutput}] Options controlling output of data during
+  molecular dynamics calculations.
+
+  \begin{ptable}
+    \kw{AppendBandOut} & l &  & No & \\
+    \kw{Derivatives} & l & & Yes & \\
+    \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
+  \end{ptable}
+  \begin{description}
+  \item[\is{AppendBandOut}] If enabled, add the band structure for the
+    current geometry to \verb|band.out| every \kw{MDRestartFrequency}
+    steps. If set to \is{No}, only the band structure for the most
+    recent geometry is stored in that file.
+  \item[\is{Derivatves}] If enabled, save forces (and stress if
+    periodic) data in \verb|md.out|.
+  \item[\is{Charges}] If enabled, save charges and charge related
+    quantities.
+  \end{description}
 
 \end{description}
 
