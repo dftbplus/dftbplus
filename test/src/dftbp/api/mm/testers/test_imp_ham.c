@@ -19,7 +19,7 @@ double dm[BASIS_SIZE][BASIS_SIZE];
 
 /* hamiltonian to import: water molecule with 1e point charge  at (0, 0, 5)
  * point*/
-double hamiltonian[BASIS_SIZE][BASIS_SIZE] = {
+const double hamiltonian[BASIS_SIZE][BASIS_SIZE] = {
     {-1.003919,  0.000000,  0.000000,  0.000000, -0.550573, -0.550573},
     { 0.000000, -0.457218,  0.000000,  0.000000, -0.309598,  0.309598},
     { 0.000000,  0.000000, -0.457218,  0.000000,  0.241885,  0.241885},
@@ -27,22 +27,43 @@ double hamiltonian[BASIS_SIZE][BASIS_SIZE] = {
     {-0.550573, -0.309598,  0.241885,  0.000000, -0.391745, -0.141157},
     {-0.550573,  0.309598,  0.241885,  0.000000, -0.141157, -0.391745}};
 
-void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                 void *blacs_data) {
-  double *dm_local = blacs_data;
+/*
+Copy symmetric matrix with only uppert triangle stored.
+*/
+void copy_triu(const double *tril_src, double *dst)
+{
   for (int i = 0; i < BASIS_SIZE; ++i)
-    for (int j = 0; j < BASIS_SIZE; ++j)
-      dm[i][j] = dm_local[i * BASIS_SIZE + j];  // export
+  {
+    for (int j = i; j < BASIS_SIZE; ++j)
+    {
+      dst[i * BASIS_SIZE + j] = tril_src[i * BASIS_SIZE + j];
+      dst[j * BASIS_SIZE + i] = tril_src[i * BASIS_SIZE + j];
+    }
+  }
 }
 
-void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
+void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
+                 const void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  const double *dm_local = blacs_data;
+  if (matrix_descr->storage_type!=ASI_STORAGE_TYPE_TRIL)
+  {
+    abort();
+  }
+  copy_triu(dm_local, &(dm[0][0]));
+}
+
+int set_h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
+                void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+
+  if (matrix_descr->storage_type!=ASI_STORAGE_TYPE_TRIL)
+  {
+    abort();
+  }
+
   double *h_local = blacs_data;
-  for (int i = 0; i < BASIS_SIZE; ++i)
-    for (int j = 0; j < BASIS_SIZE; ++j) {
-      h_local[i * BASIS_SIZE + j] = hamiltonian[i][j];  // import
-      // hamiltonian[i][j] = h_local[i*BASIS_SIZE + j]; // export
-    }
+  copy_triu(&hamiltonian[0][0], h_local);
+
+  return 1;
 }
 
 int main() {
@@ -90,7 +111,7 @@ int main() {
   fprintf(atf, "n_kpts       :integer:0:\n%d\n", n_kpts);
 
   dftbp_register_dm_callback(&calculator, dm_callback, 0);
-  dftbp_register_h_callback(&calculator, h_callback, 0);
+  dftbp_register_set_h_callback(&calculator, set_h_callback, 0);
 
   assert(N_ATOMS == natom);
   assert(BASIS_SIZE == basis_size);
@@ -105,9 +126,7 @@ int main() {
   double EigSum = 0;
   for (int i = 0; i < BASIS_SIZE; ++i) {
     for (int j = 0; j < BASIS_SIZE; ++j) {
-      double d = (i < j) ? dm[i][j] : dm[j][i];
-      double h = (i < j) ? hamiltonian[i][j] : hamiltonian[j][i];
-      EigSum += d * h;
+      EigSum += dm[i][j] * hamiltonian[i][j];
     }
   }
   fprintf(atf, "EigSum       :real:0:\n%f\n", EigSum);

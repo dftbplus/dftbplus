@@ -44,15 +44,28 @@ typedef struct DftbPlus {
 } DftbPlus;
 
 
-/**
- * Matrix structure and storage types descriptor.
- *
- * Used by DMHSCallBackFunc callbacks.
- */
-typedef struct MatrixDescr {
-  int matrix_type;             //Type of matrix: 0 - generic; 1 - hermitian or symmetric.
-  int storage_type;            //Type of storage: 0 - dense; 1 - upper triangle, unpacked; 2 - lower triangle, unpacked.
-} MatrixDescr;
+/*!
+  Matrix descriptor for import/export callbacks.
+  ASI implementations must document the set of supported types for each callback.
+*/
+typedef struct
+{
+  int matrix_type;   //!< Type of a matrix. See ASI_MATRIX_TYPE_* constants. For example \ref ASI_MATRIX_TYPE_HERMSYM
+  int storage_type;  //!< Type of a matrix storage. See ASI_STORAGE_TYPE_* constants. For example \ref ASI_STORAGE_TYPE_TRIL
+} ASI_matrix_descr_t;
+
+/*! Generic matrix type for \ref ASI_matrix_descr_t::matrix_type  */
+#define ASI_MATRIX_TYPE_GENERIC 0
+/*! Hermitian or symmetric matrix type for \ref ASI_matrix_descr_t::matrix_type  */
+#define ASI_MATRIX_TYPE_HERMSYM 1
+
+/*! Dense matrix storage for \ref ASI_matrix_descr_t::storage_type  */
+#define ASI_STORAGE_TYPE_DENSE_FULL 0
+/*! Only lower triangle stored in column-major order (upper for row-major). For \ref ASI_matrix_descr_t::storage_type  */
+#define ASI_STORAGE_TYPE_TRIL  1
+/*! Only upper triangle stored in column-major order (lower for row-major). For \ref ASI_matrix_descr_t::storage_type  */
+#define ASI_STORAGE_TYPE_TRIU  2
+
 
 
 /**
@@ -98,7 +111,7 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
 
 
 /**
- * Callback function signature for overlap, hamiltonian, or density matrix export in square
+ * Callback function signature for overlap, hamiltonian, or density matrix export in square or triangular
  * dense BLACS format.Type of the matrix elements is either double or complex double, depending on
  * the task (number of k-points), that can be obtained via dftbp_is_hs_real() call.
  * Total matrix size is NxN, where N - number of basis functions returned by dftbp_get_basis_size().
@@ -114,7 +127,28 @@ typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomg
  *
  * \param blacs_data[in] Pointer to the matrix elements.
  */
-typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, const void *blacs_data, MatrixDescr *matrix_descr);
+typedef void (*DMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, const void *blacs_data, ASI_matrix_descr_t *matrix_descr);
+
+/**
+ * Callback function signature for overlap, hamiltonian, or density matrix import in square or triangular
+ * dense BLACS format.Type of the matrix elements is either double or complex double, depending on
+ * the task (number of k-points), that can be obtained via dftbp_is_hs_real() call.
+ * Total matrix size is NxN, where N - number of basis functions returned by dftbp_get_basis_size().
+ *
+ * \param aux_ptr[in] Pointer to auxilary data that is set when callback is registered.
+ *
+ * \param iK[value] Index of k-point (1-based) of the current matrix.
+ *
+ * \param iS[value] Index of spin chanel (1-based) of the current matrix.
+ *
+ * \param blacs_descr[in] Pointer to BLACS descriptor of the metrix. Can be NULL if
+ *     DFTB+ is built without SCALAPACK support.
+ *
+ * \param blacs_data[in] Pointer to the matrix elements.
+ * 
+ * \return Non-zero if the callback has updated the matrix
+ */
+typedef int (*SetDMHSCallBackFunc)(void *aux_ptr, int iK, int iS, int *blacs_descr, void *blacs_data, ASI_matrix_descr_t *matrix_descr);
 
 /**
  * Returns current version of the DFTB+ API
@@ -389,6 +423,19 @@ void dftbp_register_dm_callback(DftbPlus *instance, DMHSCallBackFunc callback, v
  */
 void dftbp_register_s_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
+/**
+ * Register callback for overlap matrix input.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] callback Pointer to a function that will be invoked when DFTB+ wants to read the
+ *                      overlap matrix.
+ *
+ * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
+ *                    external context to the callback.
+ */
+void dftbp_register_set_s_callback(DftbPlus *instance, SetDMHSCallBackFunc callback, void *aux_ptr);
+
 
 /**
  * Register callback function to be invoked on the first evaluation of the hamiltonian matrix.
@@ -402,6 +449,19 @@ void dftbp_register_s_callback(DftbPlus *instance, DMHSCallBackFunc callback, vo
  *                    external context to the callback.
  */
 void dftbp_register_h_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
+
+/**
+ * Register callback for hamiltonian matrix input.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] callback Pointer to a function that will be invoked when DFTB+ wants to read the
+ *                      hamiltonian matrix.
+ *
+ * \param[in] aux_ptr Pointer that will be passed to the callback on each invocation. Meant to pass
+ *                    external context to the callback.
+ */
+void dftbp_register_set_h_callback(DftbPlus *instance, SetDMHSCallBackFunc callback, void *aux_ptr);
 
 /**
  * Queries weights of k-points.

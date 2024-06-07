@@ -44,19 +44,31 @@ void gather(int *blacs_descr, void *blacs_data, void *dest) {
 }
 
 void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                 void *blacs_data) {
+                 void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  if (matrix_descr->storage_type!=ASI_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(dm, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, dm);
 }
 
 void s_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
+                void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  if (matrix_descr->storage_type!=ASI_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(overlap, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, overlap);
 }
 
 void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
+                void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  if (matrix_descr->storage_type!=ASI_STORAGE_TYPE_DENSE_FULL)
+  {
+    abort();
+  }
   memcpy(hamiltonian, blacs_data, sizeof(hs_type) * basis_size * basis_size);
   gather(blacs_descr, blacs_data, hamiltonian);
 }

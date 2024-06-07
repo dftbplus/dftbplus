@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <complex.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "dftbplus.h"
@@ -20,28 +21,55 @@ double complex dm[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
 double complex overlap[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
 double complex hamiltonian[N_KPTS][N_SPIN][BASIS_SIZE][BASIS_SIZE];
 
-void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                 void *blacs_data) {
-  double complex *dm_local = blacs_data;
+void copy_triu(const double complex *tril_src, double complex *dst)
+{
   for (int i = 0; i < BASIS_SIZE; ++i)
-    for (int j = 0; j < BASIS_SIZE; ++j)
-      dm[iK - 1][iS - 1][i][j] = dm_local[i * BASIS_SIZE + j];
+  {
+    for (int j = i; j < BASIS_SIZE; ++j)
+    {
+      dst[i * BASIS_SIZE + j] = tril_src[i * BASIS_SIZE + j];
+      dst[j * BASIS_SIZE + i] = conj(tril_src[i * BASIS_SIZE + j]);
+    }
+  }
+}
+
+void dm_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
+                 const void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  const double complex *dm_local = blacs_data;
+  if (matrix_descr->storage_type==ASI_STORAGE_TYPE_TRIL)
+  {
+    copy_triu(dm_local, &(dm[iK - 1][iS - 1][0][0]));
+  }
+  else
+  {
+    abort();
+  }
 }
 
 void s_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
-  double complex *s_local = blacs_data;
-  for (int i = 0; i < BASIS_SIZE; ++i)
-    for (int j = 0; j < BASIS_SIZE; ++j)
-      overlap[iK - 1][iS - 1][i][j] = s_local[i * BASIS_SIZE + j];
+                const void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  const double complex *s_local = blacs_data;
+  if (matrix_descr->storage_type==ASI_STORAGE_TYPE_TRIL)
+  {
+    copy_triu(s_local, &(overlap[iK - 1][iS - 1][0][0]));
+  }
+  else
+  {
+    abort();
+  }
 }
 
 void h_callback(void *aux_ptr, int iK, int iS, int *blacs_descr,
-                void *blacs_data) {
-  double complex *h_local = blacs_data;
-  for (int i = 0; i < BASIS_SIZE; ++i)
-    for (int j = 0; j < BASIS_SIZE; ++j)
-      hamiltonian[iK - 1][iS - 1][i][j] = h_local[i * BASIS_SIZE + j];
+                const void *blacs_data, ASI_matrix_descr_t *matrix_descr) {
+  const double complex *h_local = blacs_data;
+  if (matrix_descr->storage_type==ASI_STORAGE_TYPE_TRIL)
+  {
+    copy_triu(h_local, &(hamiltonian[iK - 1][iS - 1][0][0]));
+  }
+  else
+  {
+    abort();
+  }
 }
 
 void print_matrix(FILE *f, const double complex *m) {
@@ -147,12 +175,9 @@ int main() {
       double complex Hsum = 0, Ssum = 0;
       for (int i = 0; i < BASIS_SIZE; ++i) {
         for (int j = 0; j < BASIS_SIZE; ++j) {
-          double complex d = (i < j) ? dm[iK - 1][iS - 1][i][j]
-                                     : conj(dm[iK - 1][iS - 1][j][i]);
-          double complex s = (i < j) ? overlap[iK - 1][iS - 1][i][j]
-                                     : conj(overlap[iK - 1][iS - 1][j][i]);
-          double complex h = (i < j) ? hamiltonian[iK - 1][iS - 1][i][j]
-                                     : conj(hamiltonian[iK - 1][iS - 1][j][i]);
+          double complex d = dm[iK - 1][iS - 1][i][j];
+          double complex s = overlap[iK - 1][iS - 1][i][j];
+          double complex h = hamiltonian[iK - 1][iS - 1][i][j];
           Ssum += conj(d) * s;
           Hsum += conj(d) * h;
         }

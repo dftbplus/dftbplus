@@ -12,7 +12,7 @@ module dftbp_capi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
-  use dftbp_apicallback, only: dmhs_callback_c_wrapper, TCAuxWrapper
+  use dftbp_capicallback, only: dmhs_callback_c_wrapper, set_dmhs_callback_c_wrapper, TCAuxWrapper
   use dftbp_dftbplus_qdepextpotgenc, only :&
       & getExtPotIfaceC, getExtPotGradIfaceC, TQDepExtPotGenC, TQDepExtPotGenC_init
   use dftbp_mmapi, only : TDftbPlus, TDftbPlus_init, TDftbPlus_destruct, TDftbPlusInput,&
@@ -333,6 +333,36 @@ end subroutine c_DftbPlusInput_final
 
   end subroutine c_DftbPlus_registerSCallback
 
+  !> register overlap matrix importing callback
+  subroutine c_DftbPlus_registerSetSCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_set_s_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
+
+    call c_f_pointer(handler%instance, instance)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%auxPtr = aux_ptr
+      wrapper%callback = callback
+    end select
+
+    call instance%registerSetSCallback(set_dmhs_callback_c_wrapper, wrapper)
+
+  end subroutine c_DftbPlus_registerSetSCallback
+
+
 
   !> register hamiltonian exporting callback
   subroutine c_DftbPlus_registerHCallback(handler, callback, aux_ptr)&
@@ -362,6 +392,34 @@ end subroutine c_DftbPlusInput_final
 
   end subroutine c_DftbPlus_registerHCallback
 
+
+  !> register hamiltonian importing callback
+  subroutine c_DftbPlus_registerSetHCallback(handler, callback, aux_ptr)&
+      & bind(C, name='dftbp_register_set_h_callback')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> callback function for DM export
+    type(c_funptr), value :: callback
+
+    !> pointer to a context object for the callback
+    type(c_ptr), value :: aux_ptr
+
+    type(TDftbPlusC), pointer :: instance
+    class(*), pointer :: wrapper
+
+    call c_f_pointer(handler%instance, instance)
+
+    allocate(TCAuxWrapper :: wrapper)
+    select type(wrapper)
+    type is (TCAuxWrapper)
+      wrapper%auxPtr = aux_ptr
+      wrapper%callback = callback
+    end select
+    call instance%registerSetHCallback(set_dmhs_callback_c_wrapper, wrapper)
+
+  end subroutine c_DftbPlus_registerSetHCallback
 
   !> Set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
