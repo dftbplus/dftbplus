@@ -128,7 +128,8 @@ hybrid/periodic/Acene-gamma-neigh-force-cam           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-hyb           #? not WITH_MPI
 hybrid/periodic/Acene-gamma-neigh-force-lc            #? not WITH_MPI
 hybrid/periodic/Acene-kpts-matrix-lc                  #? MPI_PROCS <= 1
-hybrid/periodic/Acene-kpts-matrix-restart             #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-I           #? MPI_PROCS <= 1
+hybrid/periodic/Acene-kpts-matrix-restart-II          #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-matrix-restart-ascii       #? MPI_PROCS <= 1
 hybrid/periodic/Acene-kpts-matrix-restart-np2         #? MPI_PROCS == 2
 hybrid/periodic/Acene-kpts-matrix-restart-np3         #? MPI_PROCS == 3
