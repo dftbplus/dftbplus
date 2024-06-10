@@ -5107,7 +5107,6 @@ contains
     do iState = 1, 2
       call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win,&
            & xpy(:,iState), xpyq(:,iState))
-      
       ! complexity norb * norb
       shxpyq(:,:,iState) = 0.0_dp
       if (.not. tSpin) then
