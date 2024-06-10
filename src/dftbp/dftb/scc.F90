@@ -567,7 +567,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Returns a local copy of the lower triange of the whole gamma matrix to each processor
-  subroutine getAtomicGammaMatrixBlacs(this, gammamat, iNeighbour, img2CentCell, env)
+  subroutine getAtomicGammaMatrixBlacs(this, gammaMat, iNeighbour, img2CentCell, env)
 
     !> Instance
     class(TScc), intent(in) :: this
