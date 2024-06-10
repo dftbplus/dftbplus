@@ -4235,7 +4235,7 @@ contains
   end subroutine getSOffsite
 
   !> Compute (fake) transition density matrix and W for ground-to-excited state couplings
-  !> See TCA 140 34 (2020) and JCP 132 044107 (2010)
+  !! See TCA 140 34 (2020) and JCP 132 044107 (2010)
   !> Actually omega * W is computed
   !> TODO: Spin-polarized systems 
   subroutine grndToExcDensityMatrices(tHybridXc, xpy, xmy, win, env, denseDesc, homo, transChrg,& 
