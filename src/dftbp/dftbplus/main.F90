@@ -5264,7 +5264,6 @@ contains
     if (tWriteAutotest) then
       call openFile(fdAutotest, autotestTag, mode="a")
     end if
-    
     if (tLinRespZVect) then
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
