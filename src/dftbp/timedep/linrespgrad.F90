@@ -761,7 +761,7 @@ contains
           omega = sqrt(eval(iLev))
 
          ! solve for Z and W to get excited state density matrix
-          call getZVectorEqRHS(tHybridXc, xpy(:,iLev), xmy(:,iLev), win, env, denseDesc,&
+         call getZVectorEqRHS(tHybridXc, xpy(:,iLev), xmy(:,iLev), win, env, denseDesc,&
             & nocc_ud, transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
             & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
