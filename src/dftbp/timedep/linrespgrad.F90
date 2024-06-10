@@ -4788,7 +4788,7 @@ contains
 
       end do
 
-      !!> -RHS^+ += - H^+_ia[T^+]
+      ! -RHS^+ += - H^+_ia[T^+]
       call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
         & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
