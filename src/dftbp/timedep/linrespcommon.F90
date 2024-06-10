@@ -1356,7 +1356,7 @@ contains
     ! A new index array is required because the standard abs index is symmetrical in a and b  
     if (tRangeSep) then
       
-      !> This part is already fully coded for MPI, but was never tested.
+      ! This part is already fully coded for MPI, but was never tested.
       call error('You should never reach this point.')
 
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
