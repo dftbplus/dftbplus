@@ -576,7 +576,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Atom resolved gamma
-    real(dp), intent(out) :: gammamat(:,:)
+    real(dp), intent(out) :: gammaMat(:,:)
 
     !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
