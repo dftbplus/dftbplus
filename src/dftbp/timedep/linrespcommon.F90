@@ -1691,6 +1691,7 @@ contains
     vout(:) = vout + wij(iGlb:fGlb) * vin
   end subroutine actionAminusB_MPI
 
+
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
   !> (JCP 109 8218 (1998).
   !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
