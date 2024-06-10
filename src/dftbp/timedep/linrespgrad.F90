@@ -508,7 +508,6 @@ contains
     if (this%tOscillatorWindow .or. this%tEnergyWindow) then
 
       if (.not. this%tEnergyWindow) then
-        
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
         call dipselect(wij, sposz, win, snglPartTransDip, nxov_rd, this%oscillatorWindow,&
             & grndEigVal, getIA)
