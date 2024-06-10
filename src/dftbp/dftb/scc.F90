@@ -559,7 +559,6 @@ contains
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
     
   #:endif
-    
     gammamat(:,:) = this%coulomb%invRMat
     call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
