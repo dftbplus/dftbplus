@@ -3681,7 +3681,7 @@ contains
 
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
-  !> Here p/q are virtual orbitals and V is either X+Y or X-Y
+  !! Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(ipm, nXvv, homo, nAtom, iaTrans, getIA, getAB, win,&
       & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHvv)
 
