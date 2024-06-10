@@ -1110,19 +1110,19 @@ contains
 #:if WITH_SCALAPACK
   
   !> Multiplies the excitation supermatrix with a supervector.
-  !> For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
-  !> (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
-  !>
-  !> For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
-  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
-  !>  World Scientific, 1995, Part I, p. 155.)
-  !> Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
-  !> occupations n_is, correct for finite T.
-  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
-  !>
-  !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
-  !> assembled individually and multiplied directly with the corresponding part of the supervector.
-  !> Note MPI: The supervector is distributed, locSize gives the local size. 
+  !! For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
+  !! (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
+  !!
+  !! For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
+  !! (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !!  World Scientific, 1995, Part I, p. 155.)
+  !! Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
+  !! occupations n_is, correct for finite T.
+  !! See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
+  !!
+  !! Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
+  !! assembled individually and multiplied directly with the corresponding part of the supervector.
+  !! Note MPI: The supervector is distributed, locSize gives the local size. 
   subroutine actionAplusB_MPI(locSize, vOffset, spin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud,&
       & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, ovrXevGlb,&
       & grndEigVecs, eigVecGlb, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb, tAplusB,&
