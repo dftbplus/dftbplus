@@ -5943,7 +5943,7 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      if(.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
+      if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
         call error("Non-adiabatic coupling vectors not available under MPI")
       end if
     end if
