@@ -2751,7 +2751,7 @@ contains
   !! 1. we need the ground and excited Mulliken charges
   !! 2. we need P,(T,Z),W, X + Y from linear response
   !! 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
-  !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
+  !! dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
   subroutine addGradients(sym, nxov, natom, species0, env, denseDesc, norb, homo, getIA,&
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
       & spinW, shift, woo, wov, wvv, transChrg, xpy, xmy, coord0, orb, skHamCont, skOverCont, &
