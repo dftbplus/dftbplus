@@ -2749,7 +2749,7 @@ contains
 
   !> Calculation of force from derivatives of excitation energy
   !! 1. we need the ground and excited Mulliken charges
-  !> 2. we need P,(T,Z),W, X + Y from linear response
+  !! 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
   subroutine addGradients(sym, nxov, natom, species0, env, denseDesc, norb, homo, getIA,&
