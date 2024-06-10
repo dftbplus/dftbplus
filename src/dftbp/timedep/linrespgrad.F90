@@ -1777,7 +1777,7 @@ contains
   #:endif
           
         end if
-      end do 
+      end do
       
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
