@@ -3780,7 +3780,7 @@ contains
 
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
-  !> Here p/q are occupied orbitals and V is either X+Y or X-Y
+  !! Here p/q are occupied orbitals and V is either X+Y or X-Y
   subroutine getHooXY(ipm, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win,&
       & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHoo)
 
