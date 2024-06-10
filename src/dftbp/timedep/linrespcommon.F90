@@ -335,7 +335,7 @@ contains
       end do
     end do
 
-  end subroutine transDens 
+  end subroutine transDens
 
 
   !> Returns the (spatial) MO overlap between orbitals in different spin channels.
