@@ -5657,7 +5657,7 @@ contains
   !> Computes full range part of H^+_pq [M] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here pq are arbitrary orbitals and M is a general matrix with ov,oo,vv components
   !! iMode = 1: returns oo components of H
-  !> iMode = 2: returns vv components of H
+  !! iMode = 2: returns vv components of H
   !> iMode = 3: returns ov components of H
   !> Note: The full range part of H^- is zero! 
   !> Routine currently does not work for M_ia /= 0 on entry!
