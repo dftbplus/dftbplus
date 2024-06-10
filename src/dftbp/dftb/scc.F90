@@ -581,7 +581,7 @@ contains
     !> neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index array between images and central cell
+    !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
