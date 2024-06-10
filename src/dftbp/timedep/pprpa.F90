@@ -71,7 +71,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> index vector for S and H matrices
+    !> Index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Ground state MO-coefficients
