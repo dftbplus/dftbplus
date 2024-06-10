@@ -60,7 +60,7 @@ module dftbp_timedep_pprpa
 contains
 
 
-  !> This subroutine analytically calculates excitations energies based on time-dependent DFRT
+  !> This subroutine analytically calculates excitation energies based on time-dependent DFRT
   !> based on Time Dependent DFRT
   subroutine ppRPAenergies(RPA, env, denseDesc, grndEigVecs, grndEigVal, sccCalc, SSqr, species0, &
       & rnel, iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, err)
