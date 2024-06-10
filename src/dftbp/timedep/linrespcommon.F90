@@ -1451,7 +1451,7 @@ contains
       
       do myja = 1, nLoc
         jas = vOffset(iam+1) + myja
-        vout(myja) = vout(myja) +  vGlb2(jas) 
+        vout(myja) = vout(myja) + vGlb2(jas) 
       end do
 
     end if
