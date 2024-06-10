@@ -1351,9 +1351,9 @@ contains
 
     end if
     
-    !> The largest matrices in this part are of dim nAtoms*nVir*nVir, seems logical to distribute 
-    !> them. The local dimensions are different from the case of nOcc*nVir, we require new offsets.
-    !> A new index array is required because the standard abs index is symmetrical in a and b  
+    ! The largest matrices in this part are of dim nAtoms*nVir*nVir, seems logical to distribute 
+    ! them. The local dimensions are different from the case of nOcc*nVir, we require new offsets.
+    ! A new index array is required because the standard abs index is symmetrical in a and b  
     if (tRangeSep) then
       
       !> This part is already fully coded for MPI, but was never tested.
