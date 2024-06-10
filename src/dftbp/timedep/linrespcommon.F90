@@ -1621,7 +1621,7 @@ contains
       allocate(vGlb(nxov_rd))
       allocate(vGlb2(nxov_rd))
 
-      !> TD-LC-DFTB seems to require two additional global arrays of dim nOcc*nVir, qv is local 
+      ! TD-LC-DFTB seems to require two additional global arrays of dim nOcc*nVir, qv is local 
       qv(:,:) = 0.0_dp
       vGlb(:) = 0.0_dp
       vGlb2(:) = 0.0_dp
