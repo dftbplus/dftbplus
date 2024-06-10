@@ -4257,7 +4257,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> Dense matrix descriptor
+    !! Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
 
     !> Highest occupied level
