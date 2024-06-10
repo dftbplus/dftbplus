@@ -4680,7 +4680,7 @@ contains
 
     rhs = rhs - vecHovT
 
-    !!> Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
+    ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
     call getHplusMfr(1, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       &  species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHooT)
 
