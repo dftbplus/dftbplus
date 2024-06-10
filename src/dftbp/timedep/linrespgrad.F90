@@ -4008,7 +4008,7 @@ contains
 
 
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
-  !> Here p/q are occupied MO, T is the relaxed difference density
+  !! Here p/q are occupied MO, T is the relaxed difference density
   subroutine getHooT(nXov, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win,&
       & env, denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
