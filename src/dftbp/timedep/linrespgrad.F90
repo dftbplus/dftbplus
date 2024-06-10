@@ -834,7 +834,7 @@ contains
               xpym(:) = xpy(:,mCoupLev)
               xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
-              call grndToExcDensityMatrices(tHybridXc, xpym, xmym, win, env, denseDesc, nocc_ud,& 
+              call grndToExcDensityMatrices(tHybridXc, xpym, xmym, win, env, denseDesc, nocc_ud,&
                  & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
                  & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
                  & woo)
