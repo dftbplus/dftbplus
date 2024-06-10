@@ -1138,7 +1138,7 @@ contains
       ! call the reverse communication interface from arpack
     #:if WITH_SCALAPACK and WITH_ARPACK
 
-      call pdsaupd (comm, ido, "I", nLoc, "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam,&
+      call pdsaupd(comm, ido, "I", nLoc, "SM", nexc, ARTOL, resid, ncv, vv, nLoc, iparam,&
           & ipntr, workd, workl, lworkl, info)
  
     #:else
