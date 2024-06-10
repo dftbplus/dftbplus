@@ -2555,9 +2555,7 @@ contains
           call indxov(win, jb, getIA, jj, bb, ss)
           ud_jb = (win(jb) <= nmatup)
 
-          if ( (bb /= aa) .or. (ud_jb .neqv. ud_ia) ) then
-            cycle
-          end if
+          if ((bb /= aa) .or. (ud_jb .neqv. ud_ia)) cycle
 
           tmp = 0.0_dp
           if (ud_ia) then
