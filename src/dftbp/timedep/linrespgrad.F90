@@ -434,8 +434,8 @@ contains
            & ovrXev(:,:,iSpin), denseDesc%blacsOrbSqr, side="L")
     end do
 
-    !> The routines getExcSpin and the onsite corrections can not easily be parallelized. Global
-    !> versions of the BLACS distributed arrays are required.
+    ! The routines getExcSpin and the onsite corrections can not easily be parallelized. Global
+    ! versions of the BLACS distributed arrays are required.
     if (this%tSpin .or. allocated(this%onSiteMatrixElements)) then
       allocate(eigVecGlb(norb,norb,nSpin))
       allocate(ovrXevGlb(norb,norb,nSpin))
