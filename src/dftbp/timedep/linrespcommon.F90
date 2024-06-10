@@ -843,7 +843,7 @@ contains
           jas = iaTrans(jj, aa, ss)
           qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
-          if (ss==2) then
+          if (ss == 2) then
             abs = abs + nvir_ud(1)**2
           end if
           !! qv is not symmetric in a and b
