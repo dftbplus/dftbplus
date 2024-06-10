@@ -601,7 +601,7 @@ contains
               & this%coulomb%descInvRMat_(RSRC_), env%blacs%atomGrid%nrow)
           if (ii >= jj) then
             gammaMat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
-            call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell, ii, jj)
+            call this%shortGamma%addAtomicMatrix(gammaMat, iNeighbour, img2CentCell, ii, jj)
           end if
         end do
       end do
