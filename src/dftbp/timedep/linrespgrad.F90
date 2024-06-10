@@ -4699,7 +4699,7 @@ contains
       allocate(vecHooXmY(sum(nxoo)))
 
       !> Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
+      call getHvvXY(1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
 
       call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, env, denseDesc,&
