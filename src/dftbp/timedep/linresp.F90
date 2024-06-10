@@ -341,7 +341,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
     
-    !> is this a spin-polarized calculation
+    !> Is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
     !> Data for the actual calculation
