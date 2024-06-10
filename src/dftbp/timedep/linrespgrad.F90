@@ -1207,7 +1207,7 @@ contains
 
      #:else
        
-      call seupd (rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
+      call seupd(rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
           & nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
     #:endif
