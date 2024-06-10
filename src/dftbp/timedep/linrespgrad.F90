@@ -1143,7 +1143,7 @@ contains
  
     #:else
       
-      call saupd (ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam,&
+      call saupd(ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam,&
           & ipntr, workd, workl, lworkl, info)
       
     #:endif
