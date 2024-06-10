@@ -798,7 +798,7 @@ contains
           if (tForces) then
             iSav = iLev - nStartLev + 1
             call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb, nocc_ud,&
-                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
+                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
                 & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, tHybridXc,&
                 & hybridXc, excgrad(:,:,iSav), deltaRho=deltaRho)
