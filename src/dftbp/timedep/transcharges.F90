@@ -743,7 +743,7 @@ contains
   !> Calculates atomic transition charges for a specified excitation.
   !> Calculates qij = 0.5 * (c_i S c_j + c_j S c_i) where c_i and c_j are selected eigenvectors, and
   !> S the overlap matrix.
-  !> Since qij is atomic quantity (so far) the corresponding values for the atom are summed up.
+  !> Since qij is an atomic quantity (so far) the corresponding values for the atom are summed up.
   !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
   function transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
 
