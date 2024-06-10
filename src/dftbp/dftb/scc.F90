@@ -607,7 +607,7 @@ contains
       end do
     end if
     ! Assemble and distribute to all processors in the global grid
-    call mpifx_allreduceip(env%mpi%globalComm, gammamat, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%globalComm, gammaMat, MPI_SUM)
 
   end subroutine getAtomicGammaMatrixBlacs
 
