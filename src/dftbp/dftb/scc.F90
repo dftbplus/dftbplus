@@ -578,7 +578,7 @@ contains
     !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
 
-    !> neighbours of atoms
+    !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
     !> Index array between images and central cell
