@@ -1410,7 +1410,7 @@ contains
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
     real(dp), allocatable :: dummyM(:,:), workArray(:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
-    real(dp) :: dummyReal 
+    real(dp) :: dummyReal
 
     integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat, nRPA
     integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
