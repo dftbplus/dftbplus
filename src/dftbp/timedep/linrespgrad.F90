@@ -4358,7 +4358,6 @@ contains
       pc(i,a,s) = 0.5_dp * p(ias)
       pc(a,i,s) = 0.5_dp * p(ias)
     end do
-    
     call getHplusXYfr(sym, nXoo, nXvv, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, p, vecHoo=vecHoo)
 
