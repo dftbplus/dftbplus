@@ -1778,7 +1778,6 @@ contains
           
         end if
       end do
-      
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
       if(iam == 0) then
