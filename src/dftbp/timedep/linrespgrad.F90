@@ -4401,7 +4401,7 @@ contains
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !! do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
   !! Furche PCCP 21 18999 (2019)
-  !> Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed. 
+  !! Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed. 
   subroutine getNadiaZvectorEqRHS(tHybridXc, xpyn, xmyn, xpym, xmym, win, env, denseDesc, homo,& 
       & transChrg, getIA, getIJ, getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs,&
       &  gammaMat, lrGamma, spinW, omegaAvg, sym, rhs, t, wov, woo, wvv)
