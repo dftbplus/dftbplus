@@ -590,7 +590,7 @@ contains
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
-    gammamat(:,:) = 0.0_dp
+    gammaMat(:,:) = 0.0_dp
     if (env%blacs%atomGrid%iproc /= -1) then
       ! holds part of the atom grid
       do jLoc = 1, size(this%coulomb%invRMat, dim=2)
