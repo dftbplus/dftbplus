@@ -864,7 +864,7 @@ contains
           ibs = iaTrans(ii, bb, ss)
           qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
           abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
-          if (ss==2) then
+          if (ss == 2) then
             abs = abs + nvir_ud(1)**2
           end if
           vout(ias) = vout(ias) + cExchange * sqrOccIA(ias) * dot_product(qij, qv(:, abs))
