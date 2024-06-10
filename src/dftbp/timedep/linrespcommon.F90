@@ -878,12 +878,12 @@ contains
   end subroutine actionAminusB
 
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
-  !> (JCP 109 8218 (1998).
-  !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
-  !> Here ias,jbt <= initDim
-  !> Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
-  !> Note: Routine not set up to handle onsite corrections.
-  !> Note: Not yet OpenMP parallelized
+  !! (JCP 109 8218 (1998).
+  !! M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
+  !! Here ias,jbt <= initDim
+  !! Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
+  !! Note: Routine not set up to handle onsite corrections.
+  !! Note: Not yet OpenMP parallelized
   subroutine initialSubSpaceMatrixApmB(transChrg, initDim, wIJ, sym, win, nmatup, env, denseDesc,&
       & sTimesGrndEigVecs, grndEigVecs, occNr, sqrOccIA, getIA, getIJ, getAB, iaTrans, gamma,&
       & lrGamma, species0, spinW, tSpin, tRangeSep, vP, vM, mP, mM)
