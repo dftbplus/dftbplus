@@ -1466,7 +1466,7 @@ contains
     
     vout(:) = vout + wij(iGlb:fGlb) * vLoc
     
-    if(.not. tAplusB) then
+    if (.not. tAplusB) then
       vOut(:) = vOut * sqrt(wij(iGlb:fGlb))
     endif
 
