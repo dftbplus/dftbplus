@@ -1286,7 +1286,7 @@ contains
   !! Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !!
   subroutine buildAndDiagExcMatrixStratmann(tSpin, subSpaceFactor, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, locSize, vOffSet, iaTrans, getIA, getIJ, getAB, env, &
+      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, locSize, vOffSet, iaTrans, getIA, getIJ, getAB, env,&
       & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
       & spinW, transChrg, eval, xpy, xmy, onsMEs, orb, tHybridXc, lrGamma, tZVector)
 
