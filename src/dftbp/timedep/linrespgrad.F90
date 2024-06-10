@@ -5660,7 +5660,7 @@ contains
   !! iMode = 2: returns vv components of H
   !! iMode = 3: returns ov components of H
   !! Note: The full range part of H^- is zero! 
-  !> Routine currently does not work for M_ia /= 0 on entry!
+  !! Routine currently does not work for M_ia /= 0 on entry!
   subroutine getHplusMfr(iMode, nXoo, nXvv, nXov, nAtom, getIA, getIJ, getAB, win, env, denseDesc, &
       & species0, ovrXev, grndEigVecs, frGamma, spinW, transChrg, matM, vecH)
 
