@@ -4674,7 +4674,7 @@ contains
     allocate(vecHooT(sum(nxoo)))
     allocate(vecHvvT(sum(nxvv)))
 
-    !!> -RHS^+ += - H^+_ia[T^+]
+    ! -RHS^+ += - H^+_ia[T^+]
     call getHplusMfr(3, nxoo, nxvv, nxov, nAtom, getIA, getIJ, getAB, win, env, denseDesc,&
       & species0, ovrXev, grndEigVecs, gammaMat, spinW, transChrg, t, vecHovT)
 
