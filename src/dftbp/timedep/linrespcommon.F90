@@ -1457,8 +1457,8 @@ contains
     end if
    
     if (allocated(onsMEs)) then
-      !> Parallelizing this routine is difficult. Calls transdens which refers to individual
-      !> global indices. Input vector is still distributed. 
+      ! Parallelizing this routine is difficult. Calls transdens which refers to individual
+      ! global indices. Input vector is still distributed. 
       call onsiteEner(env, spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
           & species0, ovrXevGlb, eigVecGlb, onsMEs, orb, vLoc, vout_ons, vOffset(iam+1))      
       vout(:) = vout + vout_ons
