@@ -600,7 +600,7 @@ contains
           ii = scalafx_indxl2g(iLoc, this%coulomb%descInvRMat_(MB_), env%blacs%atomGrid%myrow,&
               & this%coulomb%descInvRMat_(RSRC_), env%blacs%atomGrid%nrow)
           if (ii >= jj) then
-            gammamat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
+            gammaMat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
             call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell, ii, jj)
           end if
         end do
