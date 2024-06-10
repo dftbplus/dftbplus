@@ -469,7 +469,7 @@ the DFTB+ source to find those libraries (and to define the corresponding
 targets) or create your own, provided they define the appropriate CMake
 targets. The  arpack-ng and ELSI libraries offer CMake export files providing the
 ``ARPACK::ARPACK`` and ``elsi::elsi`` targets, respectively. Make sure, that CMake can find the relevant export file if the
-DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
+DFTB+ library was compiled with ELSI or ARPACK required (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
 Note: you may need to install ELSI (not just point the prefix path to its build system) to generate
 this file correctly.
