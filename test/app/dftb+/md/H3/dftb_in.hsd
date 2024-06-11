@@ -39,6 +39,12 @@ Hamiltonian = DFTB {
 Options = {
   WriteAutotestTag = Yes
   RandomSeed = 12321
+  CalculateForces = Yes
+  MDOutput {
+    AppendBandOut = Yes
+    Derivatives = Yes
+    Charges = Yes
+  }
 }
 
 ParserOptions = {

@@ -92,18 +92,18 @@ module dftbp_reks_reksio
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(this, Etotal)
+  subroutine printReksSAInfo(this, Eavg)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> state-averaged energy
-    real(dp), intent(in) :: Etotal
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22_(Etotal, this%enLtot, this%energy, this%FONs, this%Efunction,&
+      call printReksSAInfo22_(Eavg, this%enLtot, this%energy, this%FONs, this%Efunction,&
           & this%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
@@ -432,15 +432,15 @@ module dftbp_reks_reksio
   end subroutine writeReksRelaxedCharge
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!! Private routines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> print SA-REKS(2,2) result in standard output
-  subroutine printReksSAInfo22_(Etotal, enLtot, energy, FONs, Efunction, Plevel)
+  subroutine printReksSAInfo22_(Eavg, enLtot, energy, FONs, Efunction, Plevel)
 
-    !> state-averaged energy
-    real(dp), intent(in) :: Etotal
+    !> Total energy for averaged state in REKS
+    real(dp), intent(in) :: Eavg
 
     !> total energy for each microstate
     real(dp), intent(in) :: enLtot(:)
@@ -470,14 +470,14 @@ module dftbp_reks_reksio
     write(stdOut,*) " "
     write(stdOut, "(A)") repeat("-", 50)
     if (Efunction == 1) then
-      write(stdOut,'(A25,2x,F15.8)') " Final REKS(2,2) energy:", Etotal
+      write(stdOut,'(A25,2x,F15.8)') " Final REKS(2,2) energy:", Eavg
       write(stdOut,*) " "
       write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
       write(strTmp,'(A)') "PPS"
       write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
           & trim(strTmp), energy(1), n_a, n_b, 0.0_dp
     else if (Efunction == 2) then
-      write(stdOut,'(A27,2x,F15.8)') " Final SA-REKS(2,2) energy:", Etotal
+      write(stdOut,'(A27,2x,F15.8)') " Final SA-REKS(2,2) energy:", Eavg
       write(stdOut,*) " "
       write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
       do ist = 1, nstates

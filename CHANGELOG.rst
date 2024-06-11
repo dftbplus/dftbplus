@@ -30,6 +30,8 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- More control over output of data and band structures during MD
+  calculations
 
 Fixed
 -----
@@ -39,6 +41,10 @@ Fixed
 - Incorrect excited gradients for spin-polarized long-range corrected
   linear-response TD-DFTB calculations.
 
+- Temporarily remove free energy for Delta-DFTB calculations, as this
+  is not formally derived in the general case.
+
+- DeltaDFTB purified forces used correctly.
 
 24.1 (2024-02-12)
 =================

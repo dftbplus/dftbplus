@@ -307,12 +307,12 @@ contains
 
 
   !> Initialises a DFTB+ instance
-  !>
-  !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
-  !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between the inits (or the instance had already been finalized).
-  !> Otherwise the subroutine will stop.
-  !>
+  !!
+  !! Note: due to some remaining global variables in the DFTB+ core, only one instance can be
+  !! initialised within one process. Therefore, this routine can not be called twice, unless the
+  !! TDftbPlus_destruct() has been called in between the inits (or the instance had already been
+  !! finalized).  Otherwise the subroutine will stop.
+  !!
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
     !> Instance
@@ -330,15 +330,15 @@ contains
 
     integer :: stdOut
 
-    #:if not INSTANCE_SAFE_BUILD
-      if (nInstance_ /= 0) then
-        call error("This build does not support multiple DFTB+ instances")
-      end if
-      nInstance_ = 1
-    #:endif
+  #:if not INSTANCE_SAFE_BUILD
+    if (nInstance_ /= 0) then
+      call error("This build does not support multiple DFTB+ instances")
+    end if
+    nInstance_ = 1
+  #:endif
 
     if (present(mpiComm) .and. .not. withMpi) then
-      call error("MPI Communicator supplied to initialise serial DFTB+ instance")
+      call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
     end if
 
     if (present(outputUnit)) then
@@ -634,9 +634,9 @@ contains
 
 
   !> Returns the gradients on the external charges.
-  !>
-  !> This function may only be called if TDftbPlus_setExternalCharges was called before it
-  !>
+  !!
+  !! This function may only be called if TDftbPlus_setExternalCharges was called before it
+  !!
   subroutine TDftbPlus_getExtChargeGradients(this, gradients)
 
     !> Instance
@@ -865,10 +865,10 @@ contains
 
 
   !> Reads out the atomic angular momenta from an SK-file
-  !>
-  !> NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
-  !>   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
-  !>
+  !!
+  !! NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
+  !!   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
+  !!
   function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
 
     !> Instance.

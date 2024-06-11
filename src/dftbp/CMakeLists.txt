@@ -141,7 +141,10 @@ endif()
 target_link_libraries(dftbplus PUBLIC OpenMP::OpenMP_Fortran)
 
 if(WITH_ARPACK)
-  target_link_libraries(dftbplus PRIVATE Arpack::Arpack)
+  target_link_libraries(dftbplus PUBLIC ARPACK::ARPACK)
+  if(WITH_MPI)
+    target_link_libraries(dftbplus PUBLIC PARPACK::PARPACK)
+  endif()
 endif()
 
 target_link_libraries(dftbplus PUBLIC LAPACK::LAPACK)
