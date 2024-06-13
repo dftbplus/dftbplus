@@ -67,7 +67,9 @@ Additionally there are optional requirements for some DFTB+ features:
   support of 2.5.0). If ELSI was compiled with PEXSI included, you
   will also need a C++ compiler.
 
-* The ARPACK-ng library if using the excited state DFTB functionality.
+* The ARPACK-ng library if using the excited state DFTB functionality. For
+  MPI-parallel builds, the parallel version of ARPACK-ng (containing also
+  PARPACK) is needed.
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU
   accelerated computation (note that within ELSI, the ELPA library
