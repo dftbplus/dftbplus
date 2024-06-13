@@ -19,7 +19,9 @@ module dftbp_solvation_solvinput
   implicit none
 
   private
-  public :: TSolvationInp, createSolvationModel, writeSolvationInfo
+  public :: TSolvationInp
+  public :: createGeneralizedBornModel, createCosmoModel, createSASAModel
+  public :: writeSolvationInfo
 
 
   !> Collection of solvation input data
@@ -35,14 +37,6 @@ module dftbp_solvation_solvinput
     type(TSASAInput), allocatable :: SASAInp
 
   end type TSolvationInp
-
-
-  !> Wrapper to create a solvation model from its respective input
-  interface createSolvationModel
-    module procedure :: createGeneralizedBornModel
-    module procedure :: createCosmoModel
-    module procedure :: createSASAModel
-  end interface
 
 
 contains
