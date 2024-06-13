@@ -1383,6 +1383,7 @@ contains
     this%isXlbomd = allocated(input%ctrl%xlbomd)
     this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
+    this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
@@ -1502,6 +1503,10 @@ contains
       call error(trim(tmpStr))
     end if
 
+    if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
+      call error("Multiple MPI groups not available for excited state calculations")
+    end if
+    
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
@@ -1973,7 +1978,6 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -5945,6 +5949,9 @@ contains
     if (withMpi) then
       if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
         call error("Non-adiabatic coupling vectors not available under MPI")
+      end if
+      if (isHybLinResp) then
+        call error("Hybrid functionals for excited states not available under MPI")
       end if
     end if
 

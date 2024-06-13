@@ -2524,8 +2524,7 @@ contains
     
     allocate(eigVecGlb(nOrb,nOrb,2))
     allocate(ovrXevGlb(nOrb,nOrb,2))
-    !!eigVecGlb=0.0
-    !!ovrXevGlb=0.0
+
     do ss = 1, 2
       call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
           & grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
