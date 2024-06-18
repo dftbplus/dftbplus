@@ -440,10 +440,10 @@ contains
       allocate(eigVecGlb(norb,norb,nSpin))
       allocate(ovrXevGlb(norb,norb,nSpin))
       do ss = 1, nSpin
-        call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
-            & grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
-        call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
-            & ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
+        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,ss),&
+            & eigVecGlb(:,:,ss))
+        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, ovrXev(:,:,ss),&
+            & ovrXevGlb(:,:,ss))
       end do
     end if
 

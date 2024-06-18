@@ -15,8 +15,8 @@ module dftbp_math_scalafxext
 #:if WITH_SCALAPACK
   use dftbp_common_status, only : TStatus
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_comm, MPI_SUM
-  use dftbp_extlibs_scalapackfx, only : MB_, NB_, RSRC_, CSRC_, DLEN_, scalafx_ppotrf,&
-      & scalafx_ppotri, blacsgrid, scalafx_indxl2g, scalafx_getlocalshape
+  use dftbp_extlibs_scalapackfx, only : MB_, NB_, RSRC_, CSRC_, DLEN_, blacsfx_gsum,&
+      & scalafx_ppotrf, scalafx_ppotri, blacsgrid, scalafx_indxl2g, scalafx_getlocalshape
 #:endif
   implicit none
 
@@ -93,13 +93,10 @@ contains
 
 
   !> Collect distributed BLACS array into duplicated arrays on each processor
-  subroutine distrib2replicated(grid, groupComm, desc, locArrayPart, glbDuplicatedArray)
+  subroutine distrib2replicated(grid, desc, locArrayPart, glbDuplicatedArray)
 
     !> Group grid for the matrix
     type(blacsgrid) :: grid
-
-    !> MPI communicator
-    type(mpifx_comm) :: groupComm
 
     !> Dense matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -121,7 +118,7 @@ contains
         glbDuplicatedArray(iGlb,jGlb) = locArrayPart(iLoc,jLoc)
       end do
     end do
-    call mpifx_allreduceip(groupComm, glbDuplicatedArray, MPI_SUM)
+    call blacsfx_gsum(grid, glbDuplicatedArray, rdest=-1, cdest=-1)
 
   end subroutine distrib2replicated
 
@@ -134,6 +131,10 @@ contains
   !> Stub routine
   subroutine phermatinv()
   end subroutine phermatinv
+
+  !> Stub routine
+  subroutine distrib2replicated()
+  end subroutine distrib2replicated
 
 #:endif
 

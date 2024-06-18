@@ -2526,10 +2526,10 @@ contains
     allocate(ovrXevGlb(nOrb,nOrb,2))
 
     do ss = 1, 2
-      call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
-          & grndEigVecs(:,:,ss), eigVecGlb(:,:,ss))
-      call distrib2replicated(env%blacs%orbitalGrid, env%mpi%groupComm, denseDesc%blacsOrbSqr,&
-          & ovrXev(:,:,ss), ovrXevGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,ss),&
+          & eigVecGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, ovrXev(:,:,ss),&
+          & ovrXevGlb(:,:,ss))
     end do
  
     do i = 1, nexc
