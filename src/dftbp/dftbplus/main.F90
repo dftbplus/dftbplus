@@ -289,14 +289,13 @@ contains
             & this%derivs, this%totalStress, this%cellVol)
       end if
     #:endif
+
       tWriteCharges = allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
           & .and. this%tSccCalc .and. .not. this%tDerivs&
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1&
           & .and. this%tWriteCharges
     #:if WITH_SCALAPACK
-      if (this%isHybridXc .and. this%tRealHS) then
-        tWriteCharges = .false.
-      end if
+      if (this%isHybridXc .and. this%tRealHS) tWriteCharges = .false.
     #:endif
       if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
@@ -949,9 +948,9 @@ contains
               & this%denseDesc, this%iSparseStart, this%img2CentCell, this%pChrgMixerReal,&
               & this%pChrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
               & this%kWeight, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%sccTol,&
-              & tStopScc, this%tReadChrg, this%q0, this%iCellVec, this%cellVec, this%hybridXc,&
-              & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
-              & this%qBlockOut)
+              & tStopScc, this%tReadChrg, this%checkStopHybridCalc, this%q0, this%iCellVec,&
+              & this%cellVec, this%hybridXc, this%qInput, sccErrorQ, tConverged,&
+              & this%densityMatrix, this%qBlockIn, this%qBlockOut)
         end if
       end if
 
@@ -1063,33 +1062,35 @@ contains
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
-    ! Self-consistency error in the last iterations
+    !! Self-consistency error in the last iterations
     real(dp) :: sccErrorQ
 
-    ! Difference in electronic energy last iterations
+    !! Difference in electronic energy last iterations
     real(dp) :: diffElec
 
-    ! Loop variables
+    !! Loop variables
     integer :: iSccIter
 
-    ! Energy in previous scc cycles
+    !! Energy in previous scc cycles
     real(dp) :: Eold
 
-    ! Whether scc converged
+    !! Whether scc converged
     logical :: tConverged
 
-    ! Charge difference
+    !! Charge difference
     real(dp), allocatable :: dQ(:,:,:)
 
-    ! Auxiliary dipole storage
+    !! Auxiliary dipole storage
     real(dp), allocatable :: dipoleTmp(:)
 
-    ! Whether constraints are converged
+    !! Whether constraints are converged
     logical :: constrConverged
 
     integer :: iKS, iConstrIter, nConstrIter
+    logical :: isFirstDet
 
     if (this%tDipole) allocate(dipoleTmp(3))
+    isFirstDet = this%deltaDftb%iDeterminant == 1
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
@@ -1098,21 +1099,21 @@ contains
     call this%electronicSolver%reset()
     tExitGeoOpt = .false.
 
-    if (this%tMD .and. tWriteRestart) then
+    if (this%tMD .and. tWriteRestart .and. isFirstDet) then
       if (iGeoStep == 0) then
         call openOutputFile(mdOut, .false., this%fdMd)
       end if
       call writeMdOut1(this%fdMd%unit, iGeoStep, this%pMDIntegrator)
     end if
 
-    if (this%tLatticeChanged) then
+    if (this%tLatticeChanged .and. isFirstDet) then
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
           & this%cellVec, this%rCellVec, this%boundaryCond)
     end if
 
-    if (this%tCoordsChanged) then
+    if (this%tCoordsChanged .and. isFirstDet) then
       call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
           & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tRealHS, this%tHelical,&
           & this%scc, this%tblite, this%repulsive, this%dispersion,this%solvation, this%thirdOrd,&
@@ -1125,7 +1126,7 @@ contains
     end if
 
   #:if WITH_TRANSPORT
-    if (this%tNegf) then
+    if (this%tNegf .and. isFirstDet) then
       call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
           & this%neighbourList, this%nNeighbourSK, this%img2CentCell, this%orb)
     end if
@@ -1146,34 +1147,36 @@ contains
       end if
     end if
 
-    if (this%electronicSolver%isElsiSolver .and. .not. this%tLargeDenseMatrices) then
+    if (this%electronicSolver%isElsiSolver .and. isFirstDet .and. .not. this%tLargeDenseMatrices)&
+        & then
       call this%electronicSolver%elsi%updateGeometry(env, this%neighbourList, this%nNeighbourSK,&
           & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
     end if
 
-    call env%globalTimer%startTimer(globalTimers%sparseH0S)
-    select case(this%hamiltonianType)
-    case default
-      call error("Invalid Hamiltonian")
-    case(hamiltonianTypes%dftb)
-      call buildH0(env, this%H0, this%skHamCont, this%atomEigVal, this%coord, this%nNeighbourSk,&
-          & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
-      call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
-          & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
-    case(hamiltonianTypes%xtb)
-      @:ASSERT(allocated(this%tblite), "Compiled without TBLITE included")
-      call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
-          & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
-          & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet, &
-          & this%ints%quadrupoleBra, this%ints%quadrupoleKet)
-    end select
-    call env%globalTimer%stopTimer(globalTimers%sparseH0S)
+    if (isFirstDet) then
+      call env%globalTimer%startTimer(globalTimers%sparseH0S)
+      select case(this%hamiltonianType)
+      case default
+        call error("Invalid Hamiltonian")
+      case(hamiltonianTypes%dftb)
+        call buildH0(env, this%H0, this%skHamCont, this%atomEigVal, this%coord, this%nNeighbourSk,&
+            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
+        call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
+            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
+      case(hamiltonianTypes%xtb)
+        @:ASSERT(allocated(this%tblite), "Compiled without TBLITE included")
+        call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
+            & this%neighbourList%iNeighbour, this%img2CentCell, this%iSparseStart, &
+            & this%orb, this%H0, this%ints%overlap, this%ints%dipoleBra, this%ints%dipoleKet, &
+            & this%ints%quadrupoleBra, this%ints%quadrupoleKet)
+      end select
+      call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
-    if (this%tSetFillingTemp) then
-      call this%temperatureProfile%getTemperature(this%tempElec)
+      if (this%tSetFillingTemp) then
+        call this%temperatureProfile%getTemperature(this%tempElec)
+      end if
+      call this%electronicSolver%updateElectronicTemp(this%tempElec)
     end if
-
-    call this%electronicSolver%updateElectronicTemp(this%tempElec)
 
     if (allocated(this%repulsive)) then
       call this%repulsive%getEnergy(this%coord, this%species, this%img2CentCell,&
@@ -1190,17 +1193,21 @@ contains
           & sum(this%dftbEnergy(this%deltaDftb%iDeterminant)%atomHalogenX(this%iAtInCentralRegion))
     end if
 
-    call resetExternalPotentials(this%refExtPot, this%potential)
+    if (isFirstDet) then
 
-    if (this%tReadShifts) then
-      call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
+      call resetExternalPotentials(this%refExtPot, this%potential)
+
+      if (this%tReadShifts) then
+        call readShifts(fShifts, this%orb, this%nAtom, this%nSpin, this%potential%extShell)
+      end if
+
+      call addUpExternalField(this%eField, this%tPeriodic, this%neighbourList, this%nNeighbourSk,&
+          & this%iCellVec, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold, this%coord,&
+          & this%potential)
+
+      call mergeExternalPotentials(this%orb, this%species, this%potential)
+
     end if
-
-    call addUpExternalField(this%eField, this%tPeriodic, this%neighbourList, this%nNeighbourSk,&
-        & this%iCellVec, this%cellVec, this%deltaT, iGeoStep, this%coord0Fold, this%coord,&
-        & this%potential)
-
-    call mergeExternalPotentials(this%orb, this%species, this%potential)
 
     ! For non-scc calculations with transport only, jump out of geometry loop
     if (this%electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
@@ -1215,8 +1222,10 @@ contains
       return
     end if
 
-    if (this%electronicSolver%iSolver == electronicSolverTypes%pexsi) then
-      call this%electronicSolver%elsi%initPexsiDeltaVRanges(this%tSccCalc, this%potential)
+    if (isFirstDet) then
+      if (this%electronicSolver%iSolver == electronicSolverTypes%pexsi) then
+        call this%electronicSolver%elsi%initPexsiDeltaVRanges(this%tSccCalc, this%potential)
+      end if
     end if
 
     if (.not.this%tRestartNoSC) then
@@ -1334,7 +1343,12 @@ contains
                 & allocated(this%thirdOrd), this%isHybridXc, qNetAtom=this%qNetAtom)
           end if
           if (this%tWriteBandDat) then
-            call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+            if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
+                  & isFileAppended=this%mdOutput%bandStructure)
+            else
+              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+            end if
           end if
 
           exit lpSCC_REKS
@@ -1397,10 +1411,24 @@ contains
 
           if (this%tWriteBandDat) then
             if (this%deltaDftb%nDeterminant() == 1) then
-              call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+                ! the iGeoStep test is so that the initial step has a new file
+                call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
+                    & isFileAppended=this%mdOutput%bandStructure)
+              else
+                call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight)
+              end if
             else
-              call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) // '_'&
-                  & //  bandOut, this%eigen, this%filling, this%kWeight)
+              ! Multiple determinants
+              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+                ! the iGeoStep test is so that the initial step has a new file
+                call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
+                    & '_' //  bandOut, this%eigen, this%filling, this%kWeight,&
+                    & isFileAppended=this%mdOutput%bandStructure)
+              else
+                call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
+                    & '_' //  bandOut, this%eigen, this%filling, this%kWeight)
+              end if
             end if
           end if
 
@@ -1839,7 +1867,6 @@ contains
     this%tLatticeChanged = .false.
 
     tExitGeoOpt = .false.
-
     if (this%tDerivs) then
       call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, &
            & this%indDerivAtom, this%coord0, tGeomEnd)
@@ -1898,7 +1925,7 @@ contains
           tCoordStep = .false.
         end if
       else
-        call getNextLatticeOptStep(this%pGeoLatOpt, this%dftbEnergy(this%deltaDftb%iDeterminant),&
+        call getNextLatticeOptStep(this%pGeoLatOpt, this%dftbEnergy(this%deltaDftb%iFinal),&
             & constrLatDerivs, this%origLatVec, this%tLatOptFixAng, this%tLatOptFixLen,&
             & this%tLatOptIsotropic, this%indMovedAtom, this%latVec, this%coord0, diffGeo, tGeomEnd)
         iLatGeoStep = iLatGeoStep + 1
@@ -1921,26 +1948,26 @@ contains
       call getNextMdStep(this%pMdIntegrator, this%pMdFrame, this%temperatureProfile, this%derivs,&
           & this%movedMass, this%mass, this%cellVol, this%invLatVec, this%species0,&
           & this%indMovedAtom, this%tStress, this%tBarostat,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%newCoords, this%latVec,&
+          & this%dftbEnergy(this%deltaDftb%iFinal), this%newCoords, this%latVec,&
           & this%intPressure, this%totalStress, this%totalLatDeriv, this%velocities, tempIon)
       this%tCoordsChanged = .true.
       this%tLatticeChanged = this%tBarostat
       call printMdInfo(this%tSetFillingTemp, this%eField, this%tPeriodic, this%tempElec,&
           & tempIon, this%intPressure, this%extPressure,&
-          & this%dftbEnergy(this%deltaDftb%iDeterminant))
+          & this%dftbEnergy(this%deltaDftb%iFinal))
       if (tWriteRestart) then
         if (this%tPeriodic) then
           this%cellVol = abs(determinant33(this%latVec))
-          this%dftbEnergy(this%deltaDftb%iDeterminant)%EGibbs =&
-              & this%dftbEnergy(this%deltaDftb%iDeterminant)%EMermin&
+          this%dftbEnergy(this%deltaDftb%iFinal)%EGibbs =&
+              & this%dftbEnergy(this%deltaDftb%iFinal)%EMermin&
               & + this%extPressure * this%cellVol
         end if
         call writeMdOut2(this%fdMd%unit, this%tPeriodic, this%tPrintForces, this%tStress,&
             & this%tBarostat, this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%energiesCasida, this%latVec,&
-            & this%derivs, this%totalStress, this%cellVol, this%intPressure, this%extPressure,&
-            & tempIon, this%qOutput, this%q0, this%dipoleMoment, this%eFieldScaling,&
-            & this%dipoleMessage)
+            & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
+            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
+            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%electronicSolver,&
+            & this%deltaDftb, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -1950,7 +1977,7 @@ contains
       if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
         call writeDetailedOut5(this%fdDetailedOut%unit, this%tPrintForces, this%tSetFillingTemp,&
             & this%tPeriodic, this%tStress, this%totalStress, this%totalLatDeriv,&
-            & this%dftbEnergy(this%deltaDftb%iDeterminant), this%tempElec, this%extPressure,&
+            & this%dftbEnergy(this%deltaDftb%iFinal), this%tempElec, this%extPressure,&
             & this%intPressure, tempIon)
       end if
     else if (this%tSocket .and. iGeoStep < this%nGeoSteps) then
@@ -4663,8 +4690,8 @@ contains
   subroutine getNextInputDensityCplx(env, ints, neighbourList, nNeighbourSK, denseDesc,&
       & iSparseStart, img2CentCell, pChrgMixerReal, pChrgMixerCmplx, qOutput, orb, parallelKS,&
       & kPoint, kWeight, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
-      & q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn,&
-      & qBlockOut)
+      & checkStopHybridCalc, q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged,&
+      & densityMatrix, qBlockIn, qBlockOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4729,6 +4756,10 @@ contains
     !> Were initial charges read from disc?
     logical, intent(in) :: tReadChrg
 
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical, intent(in) :: checkStopHybridCalc
+
     !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
@@ -4776,11 +4807,15 @@ contains
 
     if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
       if (env%tGlobalLead) then
-        if (tReadChrg) then
+        ! if the k-point sampling changed as part of the restart (i.e. this is a bandstructure
+        ! calculation), we cannot calculate the difference between the in- and output density matrix
+        ! because they do not match w.r.t. the number of k-points
+        if (tReadChrg .and. checkStopHybridCalc) then
           allocate(deltaRhoDiffSqrCplx(size(densityMatrix%deltaRhoOutCplx, dim=1),&
               & size(densityMatrix%deltaRhoOutCplx, dim=2),&
               & size(densityMatrix%deltaRhoOutCplx, dim=3)), source=(0.0_dp, 0.0_dp))
         else
+          ! fine if the k-mesh did not change during the restart
           deltaRhoDiffSqrCplx = densityMatrix%deltaRhoOutCplx - densityMatrix%deltaRhoInCplx
         end if
         sccErrorQ = maxval(abs(deltaRhoDiffSqrCplx))
