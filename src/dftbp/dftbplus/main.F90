@@ -7634,7 +7634,7 @@ contains
       else
 
         call readEigenvecs(eigvecsReal(:,:,1))
-        ! TODO : Not MPI parallelizaed at the moment
+        ! TODO : Not MPI parallelized at the moment
         call renormalizeEigenvecs(env, eigvecsReal, reks)
 
       end if
@@ -7643,7 +7643,7 @@ contains
 
     else
 
-      ! TODO : Not MPI parallelizaed at the moment
+      ! TODO : Not MPI parallelized at the moment
       call renormalizeEigenvecs(env, eigvecsReal, reks)
 
     end if

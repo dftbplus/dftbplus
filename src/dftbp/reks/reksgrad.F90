@@ -125,7 +125,7 @@ contains
         if (Efunc == 1) then
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
-          ! convert the hamiltonians from AO basis to MO basis
+          ! Convert the hamiltonians from AO basis to MO basis
           call convertMatrix(denseDesc, eigenvecs, hamSqrL(:,:,1,iL), choice=1)
         end if
       else
@@ -137,7 +137,7 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the hamiltonians from AO basis to MO basis
+        ! Convert the hamiltonians from AO basis to MO basis
         call convertMatrix(denseDesc, eigenvecs, tmpHam, choice=1)
       end if
 
@@ -169,7 +169,7 @@ contains
         end if
       end if
 
-      ! convert the multipliers from MO basis to AO basis
+      ! Convert the multipliers from MO basis to AO basis
       call convertMatrix(denseDesc, eigenvecs, tmpEps, choice=2)
 
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -769,7 +769,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in AO basis
+        ! Convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -778,7 +778,7 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the hamiltonians from AO basis to MO basis
+        ! Convert the hamiltonians from AO basis to MO basis
         call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         ! set omega value
@@ -1009,7 +1009,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in AO basis
+        ! Convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -1018,7 +1018,7 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the hamiltonians from AO basis to MO basis
+        ! Convert the hamiltonians from AO basis to MO basis
         call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         if (tSSR) then
@@ -1248,7 +1248,7 @@ contains
 
       else
 
-        ! convert from sparse to dense for hamSpL in AO basis
+        ! Convert from sparse to dense for hamSpL in AO basis
         tmpHam(:,:) = 0.0_dp
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -1257,7 +1257,7 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
-        ! convert the hamiltonians from AO basis to MO basis
+        ! Convert the hamiltonians from AO basis to MO basis
         call convertMatrix(denseDesc, eigenvecs(:,:,1), tmpHam, choice=1)
 
         do ij = 1, superN
@@ -1829,7 +1829,7 @@ contains
       end do
     end do
 
-    ! convert Q1mat from MO basis to AO basis
+    ! Convert Q1mat from MO basis to AO basis
     call convertMatrix(denseDesc, eigenvecs(:,:,1), Q1mat, choice=2)
 
     kst = 0
@@ -1850,7 +1850,7 @@ contains
       end do
     end do
 
-    ! convert Q2mat + Q2del from MO basis to AO basis
+    ! Convert Q2mat + Q2del from MO basis to AO basis
     call convertMatrix(denseDesc, eigenvecs(:,:,1), Q2mat, choice=2)
 
     Qmat(:,:) = Q1mat + Q2mat

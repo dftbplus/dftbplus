@@ -185,7 +185,7 @@ reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
 reks/CNH4+_dftd4                       #? not WITH_MPI
 reks/CNH4+_dftd4_sc                    #? not WITH_MPI
 reks/CNH4+_dftd4_sc_rangesep           #? not WITH_MPI
-reks/HBI+H2O_periodic_mpi              #? MPI_PROCS <= 8 and MPI_PROCS %2 == 0 and OMP_THREADS == 1 and LONG_TEST
+reks/HBI+H2O_periodic_mpi              #? MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1 and LONG_TEST
 reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
 reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
 reks/PSB3_2SSR                         #? not WITH_MPI

@@ -411,7 +411,7 @@ module dftbp_reks_rekscommon
   !> Decide a correct up/down in REKS
   subroutine udExpand3(x, Lpaired)
 
-    !> array of data, third index spin, fourth index Lmax
+    !> Array of data, third index spin, fourth index Lmax
     real(dp), intent(inout) :: x(:,:,:,:)
 
     !> Number of spin-paired microstates
@@ -439,7 +439,7 @@ module dftbp_reks_rekscommon
   !> Decide a correct up/down in REKS
   subroutine udExpand4(x, Lpaired)
 
-    !> array of data, fourth index spin, fifth index Lmax
+    !> Array of data, fourth index spin, fifth index Lmax
     real(dp), intent(inout) :: x(:,:,:,:,:)
 
     !> Number of spin-paired microstates
@@ -473,7 +473,7 @@ module dftbp_reks_rekscommon
     !> eigenvectors
     real(dp), intent(in) :: eigenvecs(:,:)
 
-    !> matrix to be converted
+    !> Matrix to be converted
     real(dp), intent(inout) :: mat(:,:)
 
     !> 1: AO basis to MO basis, 2: MO basis to AO basis
@@ -496,13 +496,13 @@ module dftbp_reks_rekscommon
   end subroutine convertMatrix
 
 
-  !> find proper string for active orbital
+  !> Find proper string for active orbital
   subroutine getSpaceSym(ii, st)
 
-    !> index for active space
+    !> Index for active space
     integer, intent(in) :: ii
 
-    !> string for active space
+    !> String for active space
     character(len=1), intent(inout) :: st
 
     if (ii == 1) then
@@ -521,27 +521,27 @@ module dftbp_reks_rekscommon
   !> Find shell of index alpha with respect to mu (reference)
   subroutine findShellOfAO(al, mu, getAtomIndex, iSquare, iSpA, facP, facD)
 
-    !> input AO index
+    !> Input AO index
     integer, intent(in) :: al
 
-    !> reference AO index (standard of atom)
+    !> Reference AO index (standard of atom)
     integer, intent(in) :: mu
 
-    !> get atom index from AO index
+    !> Get atom index from AO index
     integer, intent(in) :: getAtomIndex(:)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !> output shell (s,p,d) for input AO index
+    !> Output shell (s,p,d) for input AO index
     integer, intent(out) :: iSpA
 
-    !> check whether al is included in p or d orbitals
+    !> Check whether al is included in p or d orbitals
     real(dp), intent(out) :: facP, facD
 
     integer :: iAtM, iAtA, iShA
 
-    ! set the orbital shell for al index w.r.t mu
+    ! Set the orbital shell for al index w.r.t mu
     iAtM = getAtomIndex(mu)
     iAtA = getAtomIndex(al)
     if (iAtA == iAtM) then
@@ -577,10 +577,10 @@ module dftbp_reks_rekscommon
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> index for super matrix form
+    !> Index for super matrix form
     integer, intent(in) :: ij
 
-    !> index for dense form
+    !> Index for dense form
     integer, intent(out) :: i, j
 
     select case (reksAlg)
@@ -598,10 +598,10 @@ module dftbp_reks_rekscommon
   subroutine assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, t, &
       & chk, reksAlg, e1, e2)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
     !> Weights used in state-averaging
@@ -616,13 +616,13 @@ module dftbp_reks_rekscommon
     !> MO index for converged fock matrix
     integer, intent(in) :: i, j, t
 
-    !> choice of calculations for converged fock matrix
+    !> Choice of calculations for converged fock matrix
     integer, intent(in) :: chk
 
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> output multiplier from converged fock matrix
+    !> Output multiplier from converged fock matrix
     real(dp), intent(out) :: e1, e2
 
     select case (reksAlg)
@@ -649,13 +649,13 @@ module dftbp_reks_rekscommon
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> orbital index
+    !> Orbital index
     integer, intent(in) :: i
 
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> output filling from fractional occupation numbers
+    !> Output filling from fractional occupation numbers
     real(dp), intent(out) :: fi
 
     select case (reksAlg)
@@ -677,7 +677,7 @@ module dftbp_reks_rekscommon
   !> Convert the matrix from AO basis to MO basis
   subroutine matAO2MOBlacs_(mat, desc, eigenvecs)
 
-    !> matrix converted from AO basis to MO basis
+    !> Matrix converted from AO basis to MO basis
     real(dp), intent(inout) :: mat(:,:)
 
     !> BLACS matrix descriptor
@@ -704,7 +704,7 @@ module dftbp_reks_rekscommon
   !> Convert the matrix from MO basis to AO basis
   subroutine matMO2AOBlacs_(mat, desc, eigenvecs)
 
-    !> matrix converted from MO basis to AO basis
+    !> Matrix converted from MO basis to AO basis
     real(dp), intent(inout) :: mat(:,:)
 
     !> BLACS matrix descriptor
@@ -730,7 +730,7 @@ module dftbp_reks_rekscommon
   !> Convert the matrix from AO basis to MO basis
   subroutine matAO2MO_(mat, eigenvecs)
 
-    !> matrix converted from AO basis to MO basis
+    !> Matrix converted from AO basis to MO basis
     real(dp), intent(inout) :: mat(:,:)
 
     !> eigenvectors
@@ -753,7 +753,7 @@ module dftbp_reks_rekscommon
   !> Convert the matrix from MO basis to AO basis
   subroutine matMO2AO_(mat, eigenvecs)
 
-    !> matrix converted from MO basis to AO basis
+    !> Matrix converted from MO basis to AO basis
     real(dp), intent(inout) :: mat(:,:)
 
     !> eigenvectors
@@ -786,10 +786,10 @@ module dftbp_reks_rekscommon
     !> Number of vacant orbitals
     integer, intent(in) :: Nv
 
-    !> index for super matrix form
+    !> Index for super matrix form
     integer, intent(in) :: ij
 
-    !> index for dense form
+    !> Index for dense form
     integer, intent(out) :: i, j
 
     ! (i,j) = (core,active)
@@ -861,10 +861,10 @@ module dftbp_reks_rekscommon
   subroutine assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
       & t, chk, e1, e2)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
     !> Weights used in state-averaging
@@ -879,10 +879,10 @@ module dftbp_reks_rekscommon
     !> MO index for converged fock matrix
     integer, intent(in) :: i, j, t
 
-    !> choice of calculations for converged fock matrix
+    !> Choice of calculations for converged fock matrix
     integer, intent(in) :: chk
 
-    !> output multiplier from converged fock matrix
+    !> Output multiplier from converged fock matrix
     real(dp), intent(out) :: e1, e2
 
     real(dp) :: n_a, n_b
@@ -973,10 +973,10 @@ module dftbp_reks_rekscommon
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> orbital index
+    !> Orbital index
     integer, intent(in) :: i
 
-    !> output filling from fractional occupation numbers
+    !> Output filling from fractional occupation numbers
     real(dp), intent(out) :: fi
 
     real(dp) :: n_a, n_b

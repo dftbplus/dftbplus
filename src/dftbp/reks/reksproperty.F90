@@ -97,10 +97,10 @@ module dftbp_reks_reksproperty
     !> Calculate transition dipole moments
     logical, intent(in) :: tTDP
 
-    !> unrelaxed density matrix for target SSR or SA-REKS state
+    !> Unrelaxed density matrix for target SSR or SA-REKS state
     real(dp), intent(out) :: unrelRhoSqr(:,:)
 
-    !> unrelaxed transition density matrix between SSR or SA-REKS states
+    !> Unrelaxed transition density matrix between SSR or SA-REKS states
     real(dp), allocatable, intent(inout) :: unrelTdm(:,:,:)
 
     !> Holds density matrix settings and pointers
@@ -139,12 +139,12 @@ module dftbp_reks_reksproperty
     allocate(tmpFilling(nOrb,nstates))
     allocate(tmpActive(Na))
 
-    ! core orbitals fillings
+    ! Core orbitals fillings
     tmpFilling(:,:) = 0.0_dp
     do ii = 1, Nc
       tmpFilling(ii,:) = 2.0_dp
     end do
-    ! active orbitals fillings
+    ! Active orbitals fillings
     select case (reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
@@ -153,7 +153,7 @@ module dftbp_reks_reksproperty
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    ! unrelaxed density matrix for SA-REKS or L-th state
+    ! Unrelaxed density matrix for SA-REKS or L-th state
     rhoX(:,:,:) = 0.0_dp
     if (tSSR) then
       do ist = 1, nstates
@@ -177,12 +177,12 @@ module dftbp_reks_reksproperty
         call adjointLowerTriangle(rhoX(:,:,1))
       #:endif
       else
-        ! find proper index for up+down in rhoSqrL
+        ! Find proper index for up+down in rhoSqrL
         rhoX(:,:,1) = rhoL
       end if
     end if
 
-    ! unrelaxed transition density matrix between SA-REKS states
+    ! Unrelaxed transition density matrix between SA-REKS states
     if (Lstate == 0) then
       rhoXdel(:,:,:) = 0.0_dp
       select case (reksAlg)
@@ -247,7 +247,7 @@ module dftbp_reks_reksproperty
       end if
     end if
 
-    ! just calculate C^T*S*P*S*C = N, this will be diagonal.
+    ! Just calculate C^T*S*P*S*C = N, this will be diagonal.
     ! because, P = C*N*C^T, I = C^T*S*C, where
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
@@ -316,28 +316,28 @@ module dftbp_reks_reksproperty
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
 
-    !> unrelaxed density matrix for target SSR or SA-REKS state
+    !> Unrelaxed density matrix for target SSR or SA-REKS state
     real(dp), intent(in) :: unrelRhoSqr(:,:)
 
-    !> solution of A * Z = X equation with X is XT
+    !> Solution of A * Z = X equation with X is XT
     real(dp), intent(in) :: ZT(:,:)
 
-    !> anti-symmetric matrices originated from Hamiltonians
+    !> Anti-symmetric matrices originated from Hamiltonians
     real(dp), intent(in) :: omega(:)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
 
-    !> eigenvectors from SA-REKS state
+    !> Eigenvectors from SA-REKS state
     real(dp), intent(in) :: eigvecsSSR(:,:)
 
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
 
-    !> state-interaction term used in SSR gradients
+    !> State-interaction term used in SSR gradients
     real(dp), allocatable, intent(in) :: Rab(:,:)
 
-    !> constant calculated from hessian and energy of microstates
+    !> Constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1
 
     !> Number of core orbitals
@@ -358,7 +358,7 @@ module dftbp_reks_reksproperty
     !> Calculate nonadiabatic coupling vectors
     logical, intent(in) :: tNAC
 
-    !> relaxed density matrix for target SSR or SA-REKS state
+    !> Relaxed density matrix for target SSR or SA-REKS state
     real(dp), intent(out) :: relRhoSqr(:,:)
 
     real(dp), allocatable :: resRho(:,:)
@@ -383,7 +383,7 @@ module dftbp_reks_reksproperty
     allocate(tmpRho(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
 
-    ! a part of transition density matrix originating from the
+    ! A part of transition density matrix originating from the
     ! response of the orbital occupation numbers
     if (tSSR) then
       resTdm(:,:,:) = 0.0_dp
@@ -397,7 +397,7 @@ module dftbp_reks_reksproperty
       end select
     end if
 
-    ! a part of relaxed density matrix originating from the
+    ! A part of relaxed density matrix originating from the
     ! response of the orbital occupation numbers with XT
     resRho(:,:) = 0.0_dp
 
@@ -409,11 +409,11 @@ module dftbp_reks_reksproperty
 
     tmpRho(:,:) = 0.0_dp
     do pq = 1, superN
-      ! assign index p and q from pq
+      ! Assign index p and q from pq
       call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
-      ! assign average filling for pth orbital
+      ! Assign average filling for pth orbital
       call assignFilling(FONs, SAweight, Nc, p, reksAlg, fp)
-      ! assign average filling for qth orbital
+      ! Assign average filling for qth orbital
       call assignFilling(FONs, SAweight, Nc, q, reksAlg, fq)
       tmpRho(p,q) = (fp - fq) * ZT(pq,ii)
     end do
@@ -449,7 +449,7 @@ module dftbp_reks_reksproperty
       relRhoSqr(:,:) = unrelRhoSqr - 2.0_dp * resRho
     end if
 
-    ! just calculate C^T*S*P*S*C = N, this will be diagonal.
+    ! Just calculate C^T*S*P*S*C = N, this will be diagonal.
     ! because, P = C*N*C^T, I = C^T*S*C, where
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
@@ -487,22 +487,22 @@ module dftbp_reks_reksproperty
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
 
-    !> unrelaxed density matrix for target L-th state
+    !> Unrelaxed density matrix for target L-th state
     real(dp), intent(in) :: unrelRhoSqr(:,:)
 
-    !> auxiliary matrix in AO basis related to SA-REKS term
+    !> Auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:,:)
 
-    !> solution of A * Z = X equation with X is XT
+    !> Solution of A * Z = X equation with X is XT
     real(dp), intent(in) :: ZT(:,:)
 
-    !> anti-symmetric matrices originated from Hamiltonians
+    !> Anti-symmetric matrices originated from Hamiltonians
     real(dp), intent(in) :: omega(:)
 
-    !> modified weight of each microstate
+    !> Modified weight of each microstate
     real(dp), intent(in) :: weightIL(:)
 
-    !> constant calculated from hessian and energy of microstates
+    !> Constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1
 
     !> Ordering between RmatL and fillingL
@@ -523,7 +523,7 @@ module dftbp_reks_reksproperty
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> relaxed density matrix for target L-th state
+    !> Relaxed density matrix for target L-th state
     real(dp), intent(out) :: relRhoSqr(:,:)
 
     real(dp), allocatable :: resRhoL(:,:)
@@ -555,7 +555,7 @@ module dftbp_reks_reksproperty
     end select
 
     do iL = 1, Lmax
-      ! find proper index for RmatL
+      ! Find proper index for RmatL
       tmpL = orderRmatL(iL)
       resRhoL(:,:) = resRhoL - 2.0_dp * RmatL(:,:,tmpL,1) * weight(iL)
     end do
@@ -563,7 +563,7 @@ module dftbp_reks_reksproperty
     ! relRhoSqr is relaxed density matrix for L-th state
     relRhoSqr(:,:) = unrelRhoSqr + resRhoL
 
-    ! just calculate C^T*S*P*S*C = N, this will be diagonal.
+    ! Just calculate C^T*S*P*S*C = N, this will be diagonal.
     ! because, P = C*N*C^T, I = C^T*S*C, where
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
@@ -596,10 +596,10 @@ module dftbp_reks_reksproperty
     !> Dense overlap matrix
     real(dp), intent(in) :: over(:,:)
 
-    !> get atom index from AO index
+    !> Get atom index from AO index
     integer, intent(in) :: getAtomIndex(:)
 
-    !> dipole integral in DFTB formalism
+    !> Dipole integral in DFTB formalism
     real(dp), intent(out) :: dipoleInt(:,:,:)
 
     real(dp), allocatable :: R(:,:)
@@ -651,13 +651,13 @@ module dftbp_reks_reksproperty
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> density matrix related to dipole
+    !> Density matrix related to dipole
     real(dp), intent(in) :: Pmat(:,:)
 
-    !> dipole integral in DFTB formalism
+    !> Dipole integral in DFTB formalism
     real(dp), intent(in) :: dipoleInt(:,:,:)
 
-    !> resulting dipole moment
+    !> Resulting dipole moment
     real(dp), intent(inout) :: dipole(:)
 
     integer :: ii
@@ -673,13 +673,13 @@ module dftbp_reks_reksproperty
   end subroutine getDipoleMomentMatrix
 
 
-  !> get the oscillator strength between the states
+  !> Get the oscillator strength between the states
   subroutine getReksOsc(tdp, energy)
 
-    !> transition dipole moment between states
+    !> Transition dipole moment between states
     real(dp), intent(in) :: tdp(:,:)
 
-    !> energy of states
+    !> Energy of states
     real(dp), intent(in) :: energy(:)
 
     real(dp) :: osc
@@ -717,7 +717,7 @@ module dftbp_reks_reksproperty
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> temporary average filling for SA-REKS state
+    !> Temporary average filling for SA-REKS state
     real(dp), intent(inout) :: tmpFilling(:,:)
 
     real(dp) :: n_a, n_b
@@ -766,7 +766,7 @@ module dftbp_reks_reksproperty
     !> Number of states
     integer, intent(in) :: nstates
 
-    !> unrelaxed transition density matrix between SA-REKS states
+    !> Unrelaxed transition density matrix between SA-REKS states
     real(dp), intent(inout) :: rhoXdel(:,:,:)
 
     real(dp), allocatable :: tmpMO(:,:)
@@ -859,16 +859,16 @@ module dftbp_reks_reksproperty
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
 
-    !> state-interaction term used in SSR gradients
+    !> State-interaction term used in SSR gradients
     real(dp), intent(in) :: Rab(:,:)
 
-    !> constant calculated from hessian and energy of microstates
+    !> Constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> a part of transition density matrix originating from the
+    !> A part of transition density matrix originating from the
     !> response of the orbital occupation numbers
     real(dp), intent(inout) :: resTdm(:,:,:)
 
@@ -914,25 +914,25 @@ module dftbp_reks_reksproperty
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> solution of A * Z = X equation with X is XT
+    !> Solution of A * Z = X equation with X is XT
     real(dp), intent(in) :: ZT(:)
 
-    !> temporary matrix including ZT in MO basis
+    !> Temporary matrix including ZT in MO basis
     real(dp), intent(in) :: tmpZ(:,:)
 
-    !> anti-symmetric matrices originated from Hamiltonians
+    !> Anti-symmetric matrices originated from Hamiltonians
     real(dp), intent(in) :: omega(:)
 
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
 
-    !> constant calculated from hessian and energy of microstates
+    !> Constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> a part of relaxed density matrix originating from the
+    !> A part of relaxed density matrix originating from the
     !> response of the orbital occupation numbers with XT
     real(dp), intent(out) :: resRho(:,:)
 
@@ -965,22 +965,22 @@ module dftbp_reks_reksproperty
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
 
-    !> solution of A * Z = X equation with X is XT
+    !> Solution of A * Z = X equation with X is XT
     real(dp), intent(in) :: ZT(:,:)
 
-    !> anti-symmetric matrices originated from Hamiltonians
+    !> Anti-symmetric matrices originated from Hamiltonians
     real(dp), intent(in) :: omega(:)
 
-    !> modified weight of each microstate
+    !> Modified weight of each microstate
     real(dp), intent(in) :: weightIL(:)
 
-    !> constant calculated from hessian and energy of microstates
+    !> Constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1
 
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> response part of relaxed density matrix for target L-th state
+    !> Response part of relaxed density matrix for target L-th state
     real(dp), intent(inout) :: resRhoL(:,:)
 
     real(dp) :: tmpValue
@@ -991,7 +991,7 @@ module dftbp_reks_reksproperty
     tmpValue = sum(ZT(:,1)*omega(:))
     do iL = 1, Lmax
 
-      ! find proper index for down spin in rhoSqrL
+      ! Find proper index for down spin in rhoSqrL
       if (iL <= Lpaired) then
         tmpL = iL
       else

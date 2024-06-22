@@ -183,7 +183,7 @@ module dftbp_reks_reksen
 
 
   !> Make pseudo-fock operator with Hamiltonian of each microstate
-  !> and diagonalize the fock matrix
+  !! and diagonalize the fock matrix
   subroutine getFockandDiag(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, &
       & electronicSolver, eigen, this)
@@ -269,7 +269,7 @@ module dftbp_reks_reksen
   end subroutine getFockandDiag
 
 
-  !> guess new eigenvectors from Fock eigenvectors
+  !> Guess new eigenvectors from Fock eigenvectors
   subroutine guessNewEigvecsReks(denseDesc, eigvecsFock, eigenvecs)
 
     !> Dense matrix descriptor
@@ -290,7 +290,7 @@ module dftbp_reks_reksen
   end subroutine guessNewEigvecsReks
 
 
-  !> adjust the eigenvalues (eliminate shift values)
+  !> Adjust the eigenvalues (eliminate shift values)
   subroutine adjustEigenval(this, eigen)
 
     !> data type for REKS
@@ -377,8 +377,8 @@ module dftbp_reks_reksen
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    ! diagonalize the state energies
-    ! obtain SSR energies & state-interaction term
+    ! Diagonalize the state energies
+    ! Obtain SSR energies & state-interaction term
     tmpEigen(:) = 0.0_dp
 
     tmpState(:,:) = 0.0_dp
@@ -392,7 +392,7 @@ module dftbp_reks_reksen
       end do
     end do
 
-    ! save state energies to print information
+    ! Save state energies to print information
     tmpEn(:) = this%energy
     if (this%tSSR) then
       call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -402,7 +402,7 @@ module dftbp_reks_reksen
       this%energy(:) = tmpEigen
     end if
 
-    ! print state energies and couplings
+    ! Print state energies and couplings
     call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
@@ -423,10 +423,10 @@ module dftbp_reks_reksen
     !> External pressure
     real(dp), intent(in) :: pressure
 
-    ! get correct energy values
+    ! Get correct energy values
     if (this%Lstate == 0) then
 
-      ! get energy contributions for target state
+      ! Get energy contributions for target state
       energy%Etotal = this%energy(this%rstate)
       if (this%nstates > 1) then
         energy%Eexcited = this%energy(this%rstate) - this%energy(1)
@@ -436,7 +436,7 @@ module dftbp_reks_reksen
 
     else
 
-      ! get energy contributions for target microstate
+      ! Get energy contributions for target microstate
       energy%EnonSCC = this%enLnonSCC(this%Lstate)
       energy%ESCC = this%enLSCC(this%Lstate)
       energy%Espin = this%enLspin(this%Lstate)
@@ -761,13 +761,13 @@ module dftbp_reks_reksen
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(inout) :: orbFON(:)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(out) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(out) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -814,7 +814,7 @@ module dftbp_reks_reksen
 
       if (.not. isHybridXc) then
         tmpHam(:,:) = 0.0_dp
-        ! convert from sparse to dense for hamSpL in AO basis
+        ! Convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
       #:if WITH_SCALAPACK
@@ -828,7 +828,7 @@ module dftbp_reks_reksen
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       end if
 
-      ! compute the Fock operator with core, a, b orbitals in AO basis
+      ! Compute the Fock operator with core, a, b orbitals in AO basis
       if (isHybridXc) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
@@ -854,13 +854,13 @@ module dftbp_reks_reksen
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
 
     !> Number of core orbitals
@@ -869,7 +869,7 @@ module dftbp_reks_reksen
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> dense pseudo-fock matrix
+    !> Dense pseudo-fock matrix
     real(dp), intent(out) :: fock(:,:)
 
     type(blocklist) :: blocksRow, blocksCol
@@ -971,13 +971,13 @@ module dftbp_reks_reksen
   !> Calculate pseudo-fock matrix from Fc and Fa
   subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
 
     !> Number of core orbitals
@@ -986,7 +986,7 @@ module dftbp_reks_reksen
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> dense pseudo-fock matrix
+    !> Dense pseudo-fock matrix
     real(dp), intent(out) :: fock(:,:)
 
     real(dp) :: res
@@ -1044,7 +1044,7 @@ module dftbp_reks_reksen
 
 #:if WITH_SCALAPACK
   !> Avoid changing the order of MOs
-  !> Required number of cycles increases as the number of shift increases
+  !! Required number of cycles increases as the number of shift increases
   subroutine levelShiftingBlacs_(env, denseDesc, fock, shift, Nc, Na)
 
     !> Environment settings
@@ -1053,7 +1053,7 @@ module dftbp_reks_reksen
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> dense pseudo-fock matrix
+    !> Dense pseudo-fock matrix
     real(dp), intent(inout) :: fock(:,:)
 
     !> Shift value in SCC cycle
@@ -1088,10 +1088,10 @@ module dftbp_reks_reksen
   end subroutine levelShiftingBlacs_
 #:else
   !> Avoid changing the order of MOs
-  !> Required number of cycles increases as the number of shift increases
+  !! Required number of cycles increases as the number of shift increases
   subroutine levelShifting_(fock, shift, Nc, Na)
 
-    !> dense pseudo-fock matrix
+    !> Dense pseudo-fock matrix
     real(dp), intent(inout) :: fock(:,:)
 
     !> Shift value in SCC cycle
@@ -1124,7 +1124,7 @@ module dftbp_reks_reksen
   !> Calculate state-averaged FONs
   subroutine fockFON_(fillingL, weight, orbFON)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(out) :: orbFON(:)
 
     !> Filling for each microstate
@@ -1149,7 +1149,7 @@ module dftbp_reks_reksen
   !> Calculate fock matrix for core orbitals in AO basis
   subroutine fockFcAO_(hamSqr, weight, Lpaired, iL, Fc)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(inout) :: Fc(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -1161,7 +1161,7 @@ module dftbp_reks_reksen
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> current index in loop L
+    !> Current index in loop L
     integer, intent(in) :: iL
 
     if (iL <= Lpaired) then
@@ -1181,7 +1181,7 @@ module dftbp_reks_reksen
   subroutine fockFaAO_(hamSqr, weight, fillingL, orbFON, Nc, Na, &
       & Lpaired, iL, Fa)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(inout) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -1193,7 +1193,7 @@ module dftbp_reks_reksen
     !> Filling for each microstate
     real(dp), intent(in) :: fillingL(:,:,:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
 
     !> Number of core orbitals
@@ -1205,7 +1205,7 @@ module dftbp_reks_reksen
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> current index in loop L
+    !> Current index in loop L
     integer, intent(in) :: iL
 
     integer :: ind, ind_a
@@ -1232,13 +1232,13 @@ module dftbp_reks_reksen
   !> Calculate pseudo-fock off-diagonal element in MO basis
   subroutine fockFijMO_(res, fock_i, fock_j, f_i, f_j)
 
-    !> temporary pseudo-fock value
+    !> Temporary pseudo-fock value
     real(dp), intent(out) :: res
 
-    !> temporary Fc or Fa values
+    !> Temporary Fc or Fa values
     real(dp), intent(in) :: fock_i, fock_j
 
-    !> temporary orbFON values
+    !> Temporary orbFON values
     real(dp), intent(in) :: f_i, f_j
 
     real(dp) :: eps = 1.0E-3_dp
@@ -1358,7 +1358,7 @@ module dftbp_reks_reksen
     !> Whether to run a range separated calculation
     logical, intent(in) :: isHybridXc
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(out) :: Wab(:,:)
 
     real(dp), allocatable :: tmpHam(:,:)
@@ -1387,12 +1387,12 @@ module dftbp_reks_reksen
       do iL = 1, Lmax
 
         if (isHybridXc) then
-          ! convert hamSqrL from AO basis to MO basis
+          ! Convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then
             call convertMatrix(denseDesc, eigenvecs, hamSqrL(:,:,1,iL), choice=1)
           end if
-          ! save F_{L,ab}^{\sigma} in MO basis
+          ! Save F_{L,ab}^{\sigma} in MO basis
         #:if WITH_SCALAPACK
           call findActiveElements_(env, denseDesc, hamSqrL(:,:,1,iL), aa, bb, tmpHamL(ist,1,iL))
         #:else
@@ -1400,7 +1400,7 @@ module dftbp_reks_reksen
         #:endif
         else
           tmpHam(:,:) = 0.0_dp
-          ! convert from sparse to dense for hamSpL in AO basis
+          ! Convert from sparse to dense for hamSpL in AO basis
           ! hamSpL has (my_ud) component
           call env%globalTimer%startTimer(globalTimers%sparseToDense)
         #:if WITH_SCALAPACK
@@ -1412,9 +1412,9 @@ module dftbp_reks_reksen
           call adjointLowerTriangle(tmpHam)
         #:endif
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-          ! convert tmpHam from AO basis to MO basis
+          ! Convert tmpHam from AO basis to MO basis
           call convertMatrix(denseDesc, eigenvecs, tmpHam, choice=1)
-          ! save F_{L,ab}^{\sigma} in MO basis
+          ! Save F_{L,ab}^{\sigma} in MO basis
         #:if WITH_SCALAPACK
           call findActiveElements_(env, denseDesc, tmpHam, aa, bb, tmpHamL(ist,1,iL))
         #:else
@@ -1427,7 +1427,7 @@ module dftbp_reks_reksen
       call mpifx_allreduceip(env%mpi%globalComm, tmpHamL(ist,1,:), MPI_SUM)
     #:endif
 
-      ! calculate the Lagrangian eps_{ab} and state-interaction term
+      ! Calculate the Lagrangian eps_{ab} and state-interaction term
       Wab(ist,1) = 0.0_dp
       Wab(ist,2) = 0.0_dp
       do iL = 1, Lmax
@@ -1506,13 +1506,13 @@ module dftbp_reks_reksen
   !> calculate state-interaction terms between SA-REKS states in (2,2) case
   subroutine getStateCoup22_(Wab, FONs, StateCoup)
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
 
-    !> state-interaction term between SA-REKS states
+    !> State-interaction term between SA-REKS states
     real(dp), intent(out) :: StateCoup(:,:)
 
     real(dp) :: n_a, n_b
@@ -1542,7 +1542,7 @@ module dftbp_reks_reksen
     !> Smoothing factor used in FON optimization
     real(dp), intent(in) :: delta
 
-    !> factor of n_a and n_b
+    !> Factor of n_a and n_b
     real(dp) :: factor
 
     factor = -0.5_dp*(n_a*n_b)**&
