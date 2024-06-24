@@ -1390,6 +1390,7 @@ contains
     this%isXlbomd = allocated(input%ctrl%xlbomd)
     this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
+    this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
@@ -1510,6 +1511,10 @@ contains
       call error(trim(tmpStr))
     end if
 
+    if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
+      call error("Multiple MPI groups not available for excited state calculations")
+    end if
+    
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
@@ -1982,7 +1987,6 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -5275,7 +5279,9 @@ contains
 
     if (this%isLinResp) then
       if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+        if (this%tLinRespZVect) then
+          call error("Excited state gradients do not work with MPI yet")
+        end if
       end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
@@ -5397,6 +5403,7 @@ contains
     end if
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
+
   #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
@@ -5406,8 +5413,10 @@ contains
           & nLocalCols)
     end if
   #:else
+
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
+
   #:endif
 
     if (this%t2Component .or. .not. this%tRealHS) then
@@ -5946,7 +5955,12 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      call error("Linear response calc. does not work with MPI yet")
+      if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
+        call error("Non-adiabatic coupling vectors not available under MPI")
+      end if
+      if (isHybLinResp) then
+        call error("Hybrid functionals for excited states not available under MPI")
+      end if
     end if
 
     if (.not. tSccCalc) then
@@ -6026,7 +6040,6 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
-
 
   end subroutine ensureLinRespConditions
 

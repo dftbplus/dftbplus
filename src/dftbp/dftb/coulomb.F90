@@ -112,7 +112,7 @@ module dftbp_dftb_coulomb
 
   #:if WITH_SCALAPACK
     !> Descriptor for 1/R matrix
-    integer :: descInvRMat_(DLEN_)
+    integer, public :: descInvRMat_(DLEN_)
 
     !> Descriptor for charge vector
     integer :: descQVec_(DLEN_)

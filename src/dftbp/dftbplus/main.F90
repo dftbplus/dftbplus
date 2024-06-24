@@ -1613,6 +1613,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
     if (this%isLinResp) then
+      call env%globalTimer%startTimer(globalTimers%lrExcitation)
       call calculateLinRespExcitations(env, this%linearResponse, this%parallelKS, this%scc,&
           & this%qOutput, this%q0, this%ints, this%eigvecsReal, this%eigen(:,1,:),&
           & this%filling(:,1,:), this%coord, this%species, this%speciesName, this%orb,&
@@ -1623,6 +1624,7 @@ contains
           & this%dftbEnergy(1), this%energiesCasida, this%SSqrReal, this%rhoSqrReal,&
           & this%densityMatrix%deltaRhoOut, this%excitedDerivs, this%naCouplings, this%occNatural,&
           & this%hybridXc)
+      call env%globalTimer%stopTimer(globalTimers%lrExcitation)  
     end if
 
     if (allocated(this%ppRPA)) then
@@ -1632,7 +1634,7 @@ contains
       if (withMpi) then
         call error("pp-RPA calc. does not work with MPI yet")
       end if
-      call ppRPAenergies(this%ppRPA, this%denseDesc, this%eigvecsReal, this%eigen(:,1,:),&
+      call ppRPAenergies(this%ppRPA, env, this%denseDesc, this%eigvecsReal, this%eigen(:,1,:),&
           & this%scc, this%SSqrReal, this%species0, this%nEl(1), this%neighbourList%iNeighbour,&
           & this%img2CentCell, this%orb, this%tWriteAutotest, autotestTag, this%taggedWriter)
     end if
@@ -5140,7 +5142,7 @@ contains
       & excitedDerivs, naCouplings, occNatural, hybridXc)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Excited state settings
     type(TLinResp), intent(inout), allocatable :: linearResponse
@@ -5271,9 +5273,19 @@ contains
     dftbEnergy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom, nSpin))
     dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
+
+  #:if WITH_SCALAPACK   
+
+    call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+         & iSparseStart, img2CentCell, denseDesc, work)
+  #:else
+    
     call unpackHS(work, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-        & iSparseStart, img2CentCell)
-    call adjointLowerTriangle(work)
+         & iSparseStart, img2CentCell)
+    call adjointLowerTriangle(work) 
+    
+  #:endif
+
     if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call adjointLowerTriangle(rhoSqrReal(:,:,iSpin))
@@ -5287,12 +5299,11 @@ contains
     if (tWriteAutotest) then
       call openFile(fdAutotest, autotestTag, mode="a")
     end if
-
     if (tLinRespZVect) then
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call LinResp_addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen,&
+      call LinResp_addGradients(env, tSpin, linearResponse, denseDesc, eigvecsReal, eigen,&
           & work, filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, skHamCont, skOverCont, fdAutotest, taggedWriter, hybridXc,&
           & dftbEnergy%Eexcited, energies, excitedDerivs, naCouplings, nonSccDeriv, rhoSqrReal,&
@@ -5303,7 +5314,7 @@ contains
             & tPrintExcEigvecsTxt, naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-      call linResp_calcExcitations(linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work,&
+      call linResp_calcExcitations(env, linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work,&
           & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
           & img2CentCell, orb, fdAutotest, taggedWriter, hybridXc, dftbEnergy%Eexcited, energies)
     end if
