@@ -1356,9 +1356,6 @@ contains
     ! A new index array is required because the standard abs index is symmetrical in a and b  
     if (tRangeSep) then
       
-      ! This part is already fully coded for MPI, but was never tested.
-      call error('You should never reach this point.')
-
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
       nxvv_a = sum(nvir_ud**2)
       allocate(getABasym(nxvv_a, 3))
@@ -1431,6 +1428,7 @@ contains
         ss = getABasym(abs, 3)
         do jj = 1, nocc_ud(ss)
           jas =  iaTrans(jj, aa, ss)
+          jbs =  iaTrans(jj, bb, ss)
           qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
           qv(:,myab) = qv(:,myab) + qij(:) * vGlb(jbs) * sqrOccIA(jbs)
         end do
@@ -1585,9 +1583,6 @@ contains
 
     if (tRangeSep) then
 
-      !> This part is already fully coded for MPI, but was never tested.
-      call error('You should never reach this point.')
-      
       allocate(qij(natom))
       allocate(otmp(natom))
       !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
@@ -1662,6 +1657,7 @@ contains
         ss = getABasym(abs, 3)
         do jj = 1, nocc_ud(ss)
           jas =  iaTrans(jj, aa, ss)
+          jbs =  iaTrans(jj, bb, ss)
           qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
           qv(:,myab) = qv(:,myab) + qij(:) * vGlb(jbs) * sqrOccIA(jbs)
         end do
@@ -1885,9 +1881,6 @@ contains
     end if
 
     if (tHybridXc) then
-
-      !> This part is already fully coded for MPI, but was never tested.
-      call error('You should never reach this point.')
 
       do jbs = 1, initDim
         jj = getIA(win(jbs), 1)

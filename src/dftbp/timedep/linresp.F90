@@ -174,7 +174,7 @@ contains
     this%oscillatorWindow = ini%oscillatorWindow
     ! Final decision on value of tCacheChargesSame is made in linRespGrad
     this%tCacheChargesOccVir = ini%tCacheCharges
-    this%tCacheChargesSame = ini%tCacheCharges
+    this%tCacheChargesSame = .false.
     this%nStat = ini%nStat
     this%symmetry = ini%sym
 

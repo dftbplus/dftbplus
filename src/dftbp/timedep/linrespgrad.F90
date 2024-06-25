@@ -376,9 +376,9 @@ contains
         & (.not. this%tNaCoupling)
 
     !> Occ-occ/vir-vir charges only required for Z-vector/forces or TD-LC-DFTB
-    if ((.not. tZVector) .and. this%tCacheChargesSame) then
-       this%tCacheChargesSame = .false.
-    endif
+    if (this%tCacheChargesOccVir) then
+      if (tZVector .or. tHybridXc) this%tCacheChargesSame = .true.
+    end if
 
     ! Sanity checks
     if (nstat < 0 .and. this%symmetry /= "S") then

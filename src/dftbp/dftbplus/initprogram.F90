@@ -5958,9 +5958,6 @@ contains
       if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
         call error("Non-adiabatic coupling vectors not available under MPI")
       end if
-      if (isHybLinResp) then
-        call error("Hybrid functionals for excited states not available under MPI")
-      end if
     end if
 
     if (.not. tSccCalc) then
