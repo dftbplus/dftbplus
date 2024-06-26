@@ -14,7 +14,8 @@ module dftbp_timedep_linrespcommon
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error
-  use dftbp_math_blasroutines, only : hemv
+  use dftbp_math_blasroutines, only : hemv, gemm
+  use dftbp_math_eigensolver, only : heev
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_transcharges, only : TTransCharges, transq
   use dftbp_type_commontypes, only : TOrbitals
@@ -2749,36 +2750,36 @@ contains
   end subroutine writeExcMulliken
 
 
-  !> Increase dimension of vector from (sizeIn) to (fac*sizeIn).
-  pure subroutine incSizeVec(sizeIn, fac, vec)
+  !> Increase dimension of vector 
+  pure subroutine incSizeVec(oldDim, newDim, vec)
 
     !> Size of the input vector to copy over to resized vector
-    integer, intent(in) :: sizeIn
+    integer, intent(in) :: oldDim
 
-    !> Increment factor
-    integer, intent(in) :: fac
+    !> New size of vector 
+    integer, intent(in) :: newDim
 
     !> Vector to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: vec(:)
 
     real(dp), allocatable :: temp(:)
 
-    allocate(temp(fac * sizeIn))
-    temp(:) = 0.0_dp
-    temp(1:sizeIn) = vec
+    allocate(temp(newDim))
+    temp = 0.0_dp
+    temp(1:oldDim) = vec
     call move_alloc(temp, vec)
 
   end subroutine incSizeVec
 
 
-  !> Increase size of (sizeIn, n) array to (fac*sizeIn, n).
-  pure subroutine incSizeMatDimOne(sizeIn, fac, mat)
+  !> Increase size of (oldDim, n) array to (newDim, n).
+  pure subroutine incSizeMatDimOne(oldDim, newDim, mat)
 
     !> Size of the input matrix first dimension to copy over to resized matrix
-    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: oldDim
 
-    !> Increment factor
-    integer, intent(in) :: fac
+    !> New dimension 
+    integer, intent(in) :: newDim
 
     !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
@@ -2787,22 +2788,22 @@ contains
     real(dp), allocatable :: temp(:,:)
 
     dim2 = size(mat, dim=2)
-    allocate(temp(fac * sizeIn, dim2))
-    temp(:,:) = 0.0_dp
-    temp(1:sizeIn,:) = mat
+    allocate(temp(newDim, dim2))
+    temp = 0.0_dp
+    temp(1:oldDim,:) = mat
     call move_alloc(temp, mat)
 
   end subroutine incSizeMatDimOne
 
 
-  !> Increase size of (n, sizeIn) array to (n, fac*sizeIn).
-  pure subroutine incSizeMatDimTwo(sizeIn, fac, mat)
+  !> Increase size of (n, oldDim) array to (n, newDim).
+  pure subroutine incSizeMatDimTwo(oldDim, newDim, mat)
 
     !> Size of the input matrix second dimension to copy over to resized matrix
-    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: oldDim
 
-    !> Increment factor
-    integer, intent(in) :: fac
+    !> New dimension
+    integer, intent(in) :: newDim
 
     !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
@@ -2811,41 +2812,38 @@ contains
     real(dp), allocatable :: temp(:,:)
 
     dim1 = size(mat, dim=1)
-    allocate(temp(dim1, fac * sizeIn))
-    temp(:,:) = 0.0_dp
-    temp(:,1:sizeIn) = mat
+    allocate(temp(dim1, newDim))
+    temp = 0.0_dp
+    temp(:,1:oldDim) = mat
     call move_alloc(temp, mat)
 
   end subroutine incSizeMatDimTwo
 
 
-  !> Increase size of (sizeIn, sizeIn) array to (fac1*sizeIn, fac2*sizeIn).
-  pure subroutine incSizeMatBothDim(sizeIn, fac1, fac2, mat)
+  !> Increase size of (oldDim, oldDim) square array to (newDim, newDim).
+  pure subroutine incSizeMatBothDim(oldDim, newDim, mat)
 
     !> Size of the input matrix second dimension to copy over to resized matrix (square)
-    integer, intent(inout) :: sizeIn
+    integer, intent(in) :: oldDim
 
-    !> Increment factor for first dimension
-    integer, intent(in) :: fac1
-
-    !> Increment factor for second dimension
-    integer, intent(in) :: fac2
+    !> New dimension
+    integer, intent(in) :: newDim
 
     !> Matrix to re-size, retaining initial elements in output
     real(dp), allocatable, intent(inout) :: mat(:,:)
 
     real(dp), allocatable :: temp(:,:)
 
-    allocate(temp(fac1 * sizeIn, fac2 * sizeIn))
-    temp(:,:) = 0.0_dp
-    temp(1:sizeIn, 1:sizeIn) = mat
+    allocate(temp(newDim, newDim))
+    temp = 0.0_dp
+    temp(1:oldDim, 1:oldDim) = mat
     call move_alloc(temp, mat)
 
   end subroutine incSizeMatBothDim
 
 
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix.
-  subroutine calcMatrixSqrt(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
+  subroutine calcMatrixSqrt(matIn, spaceDim, memDim, matOut, matInvOut)
 
     !> Matrix to operate on
     real(dp), intent(in) :: matIn(:,:)
@@ -2862,37 +2860,27 @@ contains
     !> Inverse of matrix square root
     real(dp), intent(out) :: matInvOut(:,:)
 
-    !> Workspace array
-    real(dp), intent(out) :: workArray(:)
-
-    !> Size of work array
-    integer :: workDim
-
     real(dp) :: dummyEV(spaceDim)
     real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
-    integer :: info
     integer :: ii
-    external dsyev, dgemm
 
     dummyM(:,:) = matIn(1:spaceDim, 1:spaceDim)
 
-    call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
+    call heev(dummyM, dummyEV, 'U', 'V') 
 
     ! Calc. sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
-        & spaceDim, 0.0_dp, matOut, memDim)
+    call gemm(matOut(:spaceDim,:spaceDim), dummyM2, dummyM, transB='T')
 
     ! Calc. inv. of sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
-        & spaceDim, 0.0_dp, matInvOut, memDim)
+    call gemm(matInvOut(:spaceDim,:spaceDim), dummyM2, dummyM, transB='T')
 
   end subroutine calcMatrixSqrt
 
@@ -2945,14 +2933,14 @@ contains
 
 
   !> Encapsulate memory expansion for Stratmann solver.
-  subroutine incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, dummyM,&
-      & evalInt, workArray, evecL, evecR, vecNorm)
+  subroutine incMemStratmann(oldDim, newDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, dummyM,&
+      & evalInt, evecL, evecR)
 
-    !> Size of subspace
-    integer, intent(inout) :: memDim
+    !> Previous size of subspace
+    integer, intent(in) :: oldDim
 
-    !> Work-space large enough for the subspace
-    integer, intent(inout) :: workDim
+    !> New size of subspace
+    integer, intent(in) :: newDim
 
     !> Basis of subspace
     real(dp), allocatable, intent(inout) :: vecB(:,:)
@@ -2984,34 +2972,24 @@ contains
     !> Internal eigenvector storage
     real(dp), allocatable, intent(inout) :: evalInt(:)
 
-    !> Workspace array
-    real(dp), allocatable, intent(inout) :: workArray(:)
-
     !> Left eigenvectors
     real(dp), allocatable, intent(inout) :: evecL(:,:)
 
     !> Right eigenvectors
     real(dp), allocatable, intent(inout) :: evecR(:,:)
 
-    !> Norm of eigen vectors
-    real(dp), allocatable, intent(inout) :: vecNorm(:)
-
-    call incSizeMatDimTwo(memDim, 3, vecB)
-    call incSizeMatDimTwo(memDim, 3, vP)
-    call incSizeMatDimTwo(memDim, 3, vM)
-    call incSizeMatBothDim(memDim, 3, 2, mP)
-    call incSizeMatBothDim(memDim, 3, 2, mM)
-    call incSizeMatBothDim(memDim, 3, 2, mH)
-    call incSizeMatBothDim(memDim, 3, 2, mMsqrt)
-    call incSizeMatBothDim(memDim, 3, 2, mMsqrtInv)
-    call incSizeMatBothDim(memDim, 3, 2, dummyM)
-    call incSizeVec(memDim, 3, evalInt)
-    call incSizeVec(workDim, 3, workArray)
-    call incSizeMatDimOne(memDim, 3, evecL)
-    call incSizeMatDimOne(memDim, 3, evecR)
-    call incSizeVec(2 * memDim, 3, vecNorm)
-    memDim = 3 * memDim
-    workDim = 3 * workDim
+    call incSizeMatDimTwo(oldDim, newDim, vecB)
+    call incSizeMatDimTwo(oldDim, newDim, vP)
+    call incSizeMatDimTwo(oldDim, newDim, vM)
+    call incSizeMatBothDim(oldDim, newDim, mP)
+    call incSizeMatBothDim(oldDim, newDim, mM)
+    call incSizeMatBothDim(oldDim, newDim, mH)
+    call incSizeMatBothDim(oldDim, newDim, mMsqrt)
+    call incSizeMatBothDim(oldDim, newDim, mMsqrtInv)
+    call incSizeMatBothDim(oldDim, newDim, dummyM)
+    call incSizeVec(oldDim, newDim, evalInt)
+    call incSizeMatDimOne(oldDim, newDim, evecL)
+    call incSizeMatDimOne(oldDim, newDim, evecR)
 
   end subroutine incMemStratmann
 
