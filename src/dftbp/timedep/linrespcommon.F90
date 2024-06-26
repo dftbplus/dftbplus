@@ -2846,7 +2846,7 @@ contains
 
 
   !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix.
-  subroutine calcMatrixSqrt(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
+  subroutine calcMatrixSqrt(matIn, spaceDim, memDim, matOut, matInvOut)
 
     !> Matrix to operate on
     real(dp), intent(in) :: matIn(:,:)
@@ -2862,12 +2862,6 @@ contains
 
     !> Inverse of matrix square root
     real(dp), intent(out) :: matInvOut(:,:)
-
-    !> Workspace array
-    real(dp), intent(out) :: workArray(:)
-
-    !> Size of work array
-    integer :: workDim
 
     real(dp) :: dummyEV(spaceDim)
     real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)

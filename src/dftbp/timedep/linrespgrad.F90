@@ -1592,7 +1592,7 @@ contains
 
       end if
 
-      call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
+      call calcMatrixSqrt(mM, subSpaceDim, memDim, mMsqrt, mMsqrtInv)
       
       call symm(dummyM(:subSpaceDim,:subSpaceDim), 'L', mP(:subSpaceDim,:subSpaceDim),& 
         & mMsqrt(:subSpaceDim,:subSpaceDim), uplo='U')
