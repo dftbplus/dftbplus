@@ -14,7 +14,8 @@ module dftbp_timedep_linrespcommon
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error
-  use dftbp_math_blasroutines, only : hemv
+  use dftbp_math_blasroutines, only : hemv, gemm
+  use dftbp_math_eigensolver, only : heev
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_transcharges, only : TTransCharges, transq
   use dftbp_type_commontypes, only : TOrbitals
@@ -2870,29 +2871,25 @@ contains
 
     real(dp) :: dummyEV(spaceDim)
     real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
-    integer :: info
     integer :: ii
-    external dsyev, dgemm
 
     dummyM(:,:) = matIn(1:spaceDim, 1:spaceDim)
 
-    call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
+    call heev(dummyM, dummyEV, 'U', 'V') 
 
     ! Calc. sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
-        & spaceDim, 0.0_dp, matOut, memDim)
+    call gemm(matOut(:spaceDim,:spaceDim), dummyM2, dummyM, transB='T')
 
     ! Calc. inv. of sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
-        & spaceDim, 0.0_dp, matInvOut, memDim)
+    call gemm(matInvOut(:spaceDim,:spaceDim), dummyM2, dummyM, transB='T')
 
   end subroutine calcMatrixSqrt
 
