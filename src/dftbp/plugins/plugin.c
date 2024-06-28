@@ -8,7 +8,7 @@
 #include <dlfcn.h>
 
 void *init_plugin(const char *filename) {
-  void *handle = dlopen(filename, RTLD_NOW);
+  void *handle = dlopen(filename, RTLD_NOW | RTLD_GLOBAL);
   if (handle == NULL) return NULL;
 
   int (*initfunc)();
