@@ -308,7 +308,7 @@ contains
         vect(:) = coords(:,iAt2) - coords(:,iAt1)
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSK, dist, iSp1, iSp2)
+        call getSKIntegrals(skCont, interSK, dist, iAt1, iAt2, iSp1, iSp2)
         call rotateH0(tmp, interSK, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
         out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
@@ -349,7 +349,7 @@ contains
         vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp(:,:,ii,jj), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
     end do
@@ -400,7 +400,7 @@ contains
         vect(iCart) = vect(iCart) - real(2 * kk - 3, dp) * hh
         dist = sqrt(sum(vect(:)**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
 
@@ -426,7 +426,7 @@ contains
           vect(iCart) = vect(iCart) - real(2*kk-3,dp) * hh
           dist = sqrt(sum(vect**2))
           vect(:) = vect / dist
-          call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+          call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
           call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
         end do
         where (.not.tConverged)
@@ -506,7 +506,7 @@ contains
             dist = sqrt(sum(vect**2))
             vect(:) = vect / dist
 
-            call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+            call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
             call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
             deriv(:,:,jj,ii) = deriv(:,:,jj,ii) + real(kk * ll, dp) * tmp
           end do
@@ -521,7 +521,7 @@ contains
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
 
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
         deriv(:,:,ii,ii) = deriv(:,:,ii,ii) + stencil(jj) * tmp
 

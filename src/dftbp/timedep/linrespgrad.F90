@@ -4161,8 +4161,8 @@ contains
     do iAt1 = 1, nAtom
       do iAt2 = 1, iAt1-1
 
-        call getSOffsite(coord(:,iAt1), coord(:,iAt2), species0(iAt1), species0(iAt2), orb,&
-            & skOverCont, SBlock)
+        call getSOffsite(coord(:,iAt1), coord(:,iAt2), iAt1, iAt2, species0(iAt1), species0(iAt2),&
+            & orb, skOverCont, SBlock)
 
         do mu = iAtomStart(iAt1), iAtomStart(iAt1+1) - 1
           m = mu - iAtomStart(iAt1) + 1
@@ -4212,9 +4212,9 @@ contains
 
 
   !> Helper routine to construct overlap.
-  subroutine getSOffsite(coords1, coords2, iSp1, iSp2, orb, skOverCont, Sblock)
+  subroutine getSOffsite(coords1, coords2, iAt1, iAt2, iSp1, iSp2, orb, skOverCont, Sblock)
     real(dp), intent(in) :: coords1(:), coords2(:)
-    integer, intent(in) :: iSp1, iSp2
+    integer, intent(in) :: iAt1, iAt2, iSp1, iSp2
     type(TOrbitals), intent(in) :: orb
     type(TSlakoCont), intent(in) :: skOverCont
     real(dp), intent(out) :: Sblock(:,:)
@@ -4229,7 +4229,7 @@ contains
     vect(:) = coords2 - coords1
     dist = sqrt(sum(vect**2))
     vect(:) = vect / dist
-    call getSKIntegrals(skOverCont, interSKOver, dist, iSp1, iSp2)
+    call getSKIntegrals(skOverCont, interSKOver, dist, iAt1, iAt2, iSp1, iSp2)
     call rotateH0(Sblock, interSKOver, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
 
   end subroutine getSOffsite
