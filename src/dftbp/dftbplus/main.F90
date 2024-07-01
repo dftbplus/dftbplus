@@ -1707,7 +1707,7 @@ contains
             & this%isExtField, this%isXlbomd, this%nonSccDeriv, this%rhoPrim, this%ERhoPrim,&
             & this%qOutput, this%q0, this%skHamCont, this%skOverCont, this%repulsive,&
             & this%neighbourList, this%symNeighbourList, this%nNeighbourSk, this%nNeighbourCamSym,&
-            & this%iCellVec, this%cellVec, this%rCellVec, this%invLatVec, this%species,&
+            & this%iCellVec, this%cellVec, this%cellVol, this%rCellVec, this%invLatVec, this%species,&
             & this%img2CentCell, this%iSparseStart, this%orb, this%potential, this%coord,&
             & this%derivs, this%groundDerivs, this%tripletderivs, this%mixedderivs, this%iRhoPrim,&
             & this%thirdOrd, this%solvation, this%areSolventNeighboursSym, this%qDepExtPot,&
@@ -1747,10 +1747,12 @@ contains
               & this%orb, this%potential, this%coord, this%latVec, this%invLatVec,&
               & this%cellVol, this%coord0, this%totalStress, this%totalLatDeriv,&
               & this%intPressure, this%iRhoPrim, this%solvation, this%dispersion,&
-              & this%halogenXCorrection, this%deltaDftb, this%tripletStress, this%mixedStress)
+              & this%halogenXCorrection, this%deltaDftb, this%hybridXc, this%densityMatrix,&
+              & this%SSqrReal, this%ints, this%denseDesc, this%symNeighbourList,&
+              & this%nNeighbourCamSym, this%tRealHS, this%tPeriodic, errStatus,&
+              & tripletStress=this%tripletStress, mixedStress=this%mixedStress)
         end if
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
-
       end if
 
     end if
@@ -6380,7 +6382,7 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, parallelKS, boundaryConds, sccCalc, tblite, isExtField, isXlbomd,&
       & nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive,&
-      & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs,&
+      & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs, cellVol,&
       & rCellVecs, recVecs2p, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation,&
       & areSolventNeighboursSym, qDepExtPot, chrgForces, dispersion, hybridXc, SSqrReal, ints,&
@@ -6449,6 +6451,9 @@ contains
 
     !> Vectors to unit cells in relative units
     real(dp), intent(in) :: cellVecs(:,:)
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
 
     !> Vectors to unit cells in absolute units
     real(dp), intent(in) :: rCellVecs(:,:)
@@ -6553,6 +6558,9 @@ contains
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
 
+    integer :: iAt1, iAt2, iCoordAlpha, iCoordBeta
+    real(dp) :: st(3, 3)
+
     tSccCalc = allocated(sccCalc)
     tImHam = allocated(iRhoPrim)
     tExtChrg = allocated(chrgForces)
@@ -6601,6 +6609,23 @@ contains
           call derivative_shift(env, derivs, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont, skOverCont,&
               & coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
               & orb, potential%intBlock)
+          st(:,:) = 0.0_dp
+          do iAt1 = 1, nAtom
+            do iAt2 = 1, nAtom
+              do iCoordAlpha = 1, 3
+                do iCoordBeta = 1, 3
+                  st(iCoordBeta, iCoordAlpha) = st(iCoordBeta, iCoordAlpha)&
+                      & - 0.5_dp * (coord(iCoordAlpha, iAt1) - coord(iCoordAlpha, iAt2))&
+                      & * (-derivs(iCoordBeta, iAt1)) ! we need force, not gradients for virial
+                end do
+              end do
+            end do
+          end do
+
+          st(:,:) = st / cellVol
+
+          print *, 'Virial Block stress'
+          print *, st
         end if
       end if
 
@@ -6696,7 +6721,7 @@ contains
         end if
         call hybridXc%addCamGradients_real(env, densityMatrix%deltaRhoOut, SSqrReal, skOverCont,&
             & orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, nonSccDeriv,&
-            & tPeriodic, derivs, symNeighbourList=symNeighbourList,&
+            & cellVol, tPeriodic, derivs, symNeighbourList=symNeighbourList,&
             & nNeighbourCamSym=nNeighbourCamSym)
       #:endif
         @:PROPAGATE_ERROR(errStatus)
@@ -6727,6 +6752,24 @@ contains
         mixedDerivs(:,:) = derivs
       end select
     end if
+
+    st(:,:) = 0.0_dp
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
+        do iCoordAlpha = 1, 3
+          do iCoordBeta = 1, 3
+            st(iCoordBeta, iCoordAlpha) = st(iCoordBeta, iCoordAlpha)&
+                & - 0.5_dp * (coord(iCoordAlpha, iAt1) - coord(iCoordAlpha, iAt2))&
+                & * (-derivs(iCoordBeta, iAt1)) ! we need force, not gradients for virial
+          end do
+        end do
+      end do
+    end do
+
+    st(:,:) = st / cellVol
+
+    print *, 'Virial total stress'
+    print *, st
 
   end subroutine getGradients
 
@@ -6785,7 +6828,9 @@ contains
       & ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive, neighbourList, nNeighbourSk,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec,&
       & cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation,&
-      & dispersion, halogenXCorrection, deltaDftb, tripletStress, mixedStress)
+      & dispersion, halogenXCorrection, deltaDftb, hybridXc, densityMatrix, SSqrReal, ints,&
+      & denseDesc, symNeighbourList, nNeighbourCamSym, tRealHS, tPeriodic, errStatus,&
+      & tripletStress, mixedStress)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -6886,6 +6931,36 @@ contains
     !> Determinant derived type
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
+    !> Data from hybrid xc-functional calculations
+    class(THybridXcFunc), intent(inout), allocatable :: hybridXc
+
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(in) :: densityMatrix
+
+    !> Dense overlap matrix, required for hybridXc
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> Dense matrix descriptor, required for hybridXc
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> List of neighbouring atoms (symmetric version)
+    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+
+    !> Symmetric neighbour list version of nNeighbourCam
+    integer, intent(in), allocatable :: nNeighbourCamSym(:)
+
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> Is the geometry periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     !> Stress tensor in triplet state (TI-DFTB excited states)
     real(dp), intent(inout), optional :: tripletStress(:,:)
 
@@ -6896,7 +6971,7 @@ contains
     logical :: tImHam
 
     tImHam = allocated(iRhoPrim)
-    totalStress(:, :) = 0.0_dp
+    totalStress(:,:) = 0.0_dp
 
     if (allocated(sccCalc)) then
       if (tImHam) then
@@ -6907,8 +6982,14 @@ contains
         call getBlockStress(env, totalStress, nonSccDeriv, rhoPrim, ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
             & iSparseStart, orb, potential%intBlock, cellVol)
+        print *, 'Block stress'
+        print *, totalStress
       end if
-      call sccCalc%addStressDc(totalStress, env, species, neighbourList%iNeighbour, img2CentCell)
+      tmpStress(:,:) = 0.0_dp
+      call sccCalc%addStressDc(tmpStress, env, species, neighbourList%iNeighbour, img2CentCell)
+      print *, 'SCC stress'
+      print *, tmpStress
+      totalStress(:,:) = totalStress + tmpStress
       if (allocated(thirdOrd)) then
         call thirdOrd%addStressDc(neighbourList, species, coord, img2CentCell, cellVol, totalStress)
       end if
@@ -6927,6 +7008,27 @@ contains
               & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
               & iSparseStart, orb, cellVol)
         end if
+      end if
+    end if
+
+    if (allocated(hybridXc)) then
+      if (tRealHS .and. tPeriodic) then
+      #:if WITH_SCALAPACK
+        @:RAISE_ERROR(errStatus, -1, "Range-separated stress does not support MPI parallelism.")
+      #:else
+        ! call env%globalTimer%startTimer(globalTimers%sparseToDense)
+        call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        ! call env%globalTimer%startTimer(globalTimers%sparseToDense)
+        tmpStress(:,:) = 0.0_dp
+        call hybridXc%addCamStress_real(densityMatrix%deltaRhoOut, SSqrReal, skOverCont, orb,&
+            & denseDesc%iAtomStart, nonSccDeriv, symNeighbourList, nNeighbourCamSym, cellVol,&
+            & tmpStress, errStatus)
+        print *, 'HFX stress'
+        print *, tmpStress
+        totalStress(:,:) = totalStress + tmpStress
+        @:PROPAGATE_ERROR(errStatus)
+      #:endif
       end if
     end if
 
@@ -6953,6 +7055,8 @@ contains
 
     if (allocated(repulsive)) then
       call repulsive%getStress(coord, species, img2CentCell, neighbourList, cellVol, tmpStress)
+      print *, 'Repulsive stress'
+      print *, tmpStress
     else
       tmpStress(:,:) = 0.0_dp
     end if
@@ -6969,6 +7073,9 @@ contains
 
     intPressure = (totalStress(1,1) + totalStress(2,2) + totalStress(3,3)) / 3.0_dp
     totalLatDeriv(:,:) = -cellVol * matmul(totalStress, invLatVec)
+
+    print *, 'Total stress'
+    print *, totalStress
 
   end subroutine getStress
 

@@ -11,7 +11,7 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-  use dftbp_common_accuracy, only : dp, distFudge
+  use dftbp_common_accuracy, only : dp, tolSameDist, distFudge
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : getStartAndEndIndex
@@ -26,7 +26,7 @@ module dftbp_dftb_hybridxc
       & getddLrNumericalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHS, getUnpackedOverlapPrime_real,&
-      & getUnpackedOverlapPrime_kpts
+      & getUnpackedOverlapStress_real, getUnpackedOverlapPrime_kpts
   use dftbp_math_blasroutines, only : gemm, symm, hemm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
@@ -290,6 +290,9 @@ module dftbp_dftb_hybridxc
 
     procedure :: addCamGradients_real
     procedure :: addCamGradients_kpts
+
+    procedure :: addCamStress_real
+    ! procedure :: addCamStress_kpts
 
     procedure :: getCentralCellSpecies
     procedure :: getCamGammaCluster
@@ -4395,6 +4398,62 @@ contains
   end function getCamGammaPrimeGSum
 
 
+  !> Returns g-sum of long-range and full-range Hartree-Fock gamma derivatives.
+  function getCamGammaStressGSum(this, iCoordDist, iAt1, iAt2, iSp1, iSp2, rCellVecsG)&
+      & result(dGamma)
+
+    !> Class instance
+    class(THybridXcFunc), intent(in) :: this
+
+    !> Cartesian direction of the distance vectors
+    integer, intent(in) :: iCoordDist
+
+    !> Index of first and second atom
+    integer, intent(in) :: iAt1, iAt2
+
+    !> Index of first and second species
+    integer, intent(in) :: iSp1, iSp2
+
+    !> Vectors to unit cells in absolute units
+    real(dp), intent(in) :: rCellVecsG(:,:)
+
+    !> Resulting Gamma derivative (1st), summed up for g-vectors
+    real(dp) :: dGamma(3)
+
+    !! Temporary distance vector
+    real(dp) :: distVect(3)
+
+    !! Distance between the two atoms
+    real(dp) :: dist
+
+    !! Index of real-space \vec{g} summation
+    integer :: iG
+
+    dGamma(:) = 0.0_dp
+
+    if (this%hybridXcType == hybridXcFunc%lc .or. this%hybridXcType == hybridXcFunc%cam) then
+      loopGLr: do iG = 1, size(rCellVecsG, dim=2)
+        distVect(:) = this%rCoords(:, iAt1) - (this%rCoords(:, iAt2) + rCellVecsG(:, iG))
+        dist = norm2(distVect)
+        if (dist < tolSameDist) cycle
+        distVect(:) = distVect * distVect(iCoordDist) / dist
+        dGamma(:) = dGamma + distVect * this%camBeta * this%getLrGammaPrimeValue(iSp1, iSp2, dist)
+      end do loopGLr
+    end if
+
+    if (this%hybridXcType == hybridXcFunc%hyb .or. this%hybridXcType == hybridXcFunc%cam) then
+      loopGHf: do iG = 1, size(rCellVecsG, dim=2)
+        distVect(:) = this%rCoords(:, iAt1) - (this%rCoords(:, iAt2) + rCellVecsG(:, iG))
+        dist = norm2(distVect)
+        if (dist < tolSameDist) cycle
+        distVect(:) = distVect * distVect(iCoordDist) / dist
+        dGamma(:) = dGamma + distVect * this%camAlpha * this%getHfGammaPrimeValue(iSp1, iSp2, dist)
+      end do loopGHf
+    end if
+
+  end function getCamGammaStressGSum
+
+
   !> Returns g-resolved long-range and full-range Hartree-Fock gamma derivatives.
   function getCamGammaPrimeGResolved(this, iAt1, iAt2, iSp1, iSp2, rCellVecsG) result(dGammas)
 
@@ -4428,6 +4487,7 @@ contains
       loopGLr: do iG = 1, size(rCellVecsG, dim=2)
         distVect(:) = this%rCoords(:, iAt1) - (this%rCoords(:, iAt2) + rCellVecsG(:, iG))
         dist = norm2(distVect)
+        if (dist < tolSameDist) cycle
         distVect(:) = distVect / dist
         dGammas(:, iG) = dGammas(:, iG)&
             & + distVect * this%camBeta * this%getLrGammaPrimeValue(iSp1, iSp2, dist)
@@ -4438,6 +4498,7 @@ contains
       loopGHf: do iG = 1, size(rCellVecsG, dim=2)
         distVect(:) = this%rCoords(:, iAt1) - (this%rCoords(:, iAt2) + rCellVecsG(:, iG))
         dist = norm2(distVect)
+        if (dist < tolSameDist) cycle
         distVect(:) = distVect / dist
         dGammas(:, iG) = dGammas(:, iG)&
             & + distVect * this%camAlpha * this%getHfGammaPrimeValue(iSp1, iSp2, dist)
@@ -4629,12 +4690,72 @@ contains
 
   end subroutine addCamGradients_real
 
+
+  !> Interface routine to add stress due to CAM range-separated contributions.
+  !! (non-periodic and Gamma-only version)
+  subroutine addCamStress_real(this, env, parallelKS, deltaRhoSqr, SSqrReal, skOverCont,&
+      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, st,&
+      & errStatus)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> The k-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Square (unpacked) delta density matrix
+    real(dp), intent(in) :: deltaRhoSqr(:,:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Sparse overlap part
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Orbital information for system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Number of spin channels in calculation
+    integer, intent(in) :: nSpin
+
+    !> True, if system is periodic (i.e. Gamma-only)
+    logical, intent(in) :: tPeriodic
+
+    !> Stress tensor
+    real(dp), intent(inout) :: st(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    select case(this%hybridXcAlg)
+    case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased, hybridXcAlgo%matrixBased)
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: MPI parallelized stress evaluation not&
+          & supported.")
+    end select
+
+  end subroutine addCamStress_real
+
 #:else
 
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
-      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
+      & iNeighbour, nNeighbourSK, derivator, cellVol, tPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
@@ -4667,6 +4788,9 @@ contains
     !> Differentiation object
     class(TNonSccDiff), intent(in) :: derivator
 
+    !> Cell volume
+    real(dp), intent(in) :: cellVol
+
     !> True, if system is periodic (i.e. Gamma-only)
     logical, intent(in) :: tPeriodic
 
@@ -4698,10 +4822,63 @@ contains
     case (hybridXcAlgo%matrixBased)
       @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
       call addCamGradientsMatrix_real(this, deltaRhoSqr, SSqrReal, skOverCont,&
-          & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
+          & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, cellVol, gradients)
     end select
 
   end subroutine addCamGradients_real
+
+
+  !> Interface routine to add stress due to CAM range-separated contributions.
+  !! (non-periodic and Gamma-only version)
+  subroutine addCamStress_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
+      & derivator, symNeighbourList, nNeighbourCamSym, cellVol, st, errStatus)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout) :: this
+
+    !> Square (unpacked) delta density matrix
+    real(dp), intent(in) :: deltaRhoSqr(:,:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Sparse overlap part
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Orbital information for system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index for dense arrays
+    integer, intent(in) :: iSquare(:)
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Energy gradients
+    real(dp), intent(inout) :: st(:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    select case(this%hybridXcAlg)
+    case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
+      @:RAISE_ERROR(errStatus, -1, "HybridXc Module: MPI parallelized force evaluation not&
+          & supported, choose matrix-based algorithm instead.")
+    case (hybridXcAlgo%matrixBased)
+      call addCamStressMatrix_real(this, deltaRhoSqr, SSqrReal, skOverCont, symNeighbourList,&
+          & nNeighbourCamSym, iSquare, orb, derivator, cellVol, st)
+    end select
+
+  end subroutine addCamStress_real
 
 #:endif
 
@@ -5456,10 +5633,10 @@ contains
     !! Overlap derivative
     real(dp), allocatable :: overSqrPrime(:,:,:)
 
-    !! Atom indices (central cell)
-    integer :: iAtForce, iAt1, iAt2
+    !! Atom index (central cell)
+    integer :: iAtForce
 
-    !! CAM gamma matrix, including periodic images
+    !! CAM gamma (derivative) matrix, including periodic images
     real(dp), allocatable :: camGammaAO(:,:), camdGammaAO(:,:,:)
 
     !! Temporary storages
@@ -5629,20 +5806,14 @@ contains
 
 #:else
 
-  !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
+  !> Auxiliary routine to construct the two symmetrized matrices of the gradient/stress evaluation.
   !! (non-periodic and Gamma-only version)
   !!
-  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  !!
-  !! PhD thesis of Tammo van der Heide (2024)
-  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
-  !! DOI: https://doi.org/10.26092/elib/3509
-  !! Section 6.3.2, Eq.(6.3.16)
-  subroutine addCamGradientsMatrix_real(this, deltaRhoSqr, overlap, skOverCont,&
-      & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
+  !! See Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  subroutine getSymMats(camGammaEval0, deltaRhoSqr, overlap, iSquare, symSqrMat1, symSqrMat2)
 
-    !> Class instance
-    class(THybridXcFunc), intent(inout), target :: this
+    !> Evaluated (long-range + HF full-range) gamma of Atom1 and Atom2 (central cell only)
+    real(dp), intent(in) :: camGammaEval0(:,:)
 
     !> Square (unpacked) delta density matrix
     real(dp), intent(in) :: deltaRhoSqr(:,:,:)
@@ -5650,44 +5821,20 @@ contains
     !> Square (unpacked) overlap matrix
     real(dp), intent(in) :: overlap(:,:)
 
-    !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
-
-    !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
-
-    !> Nr. of neighbours for each atom.
-    integer, intent(in) :: nNeighbourCamSym(:)
-
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !> Orbital information.
-    type(TOrbitals), intent(in) :: orb
-
-    !> Differentiation object
-    class(TNonSccDiff), intent(in) :: derivator
-
-    !> Energy gradients
-    real(dp), intent(inout) :: gradients(:,:)
-
-    !! Temporary energy gradients
-    real(dp), allocatable :: tmpGradients(:,:)
-
-    !! Dense matrix descriptor indices
-    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+    !> Symmetrized matrices entering the gradient/stress evaluation
+    real(dp), intent(out), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:)
 
     !! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Overlap derivative
-    real(dp), allocatable :: overSqrPrime(:,:,:)
-
     !! Atom indices (central cell)
-    integer :: iAtForce, iAt1, iAt2
+    integer :: iAt1, iAt2
 
     !! CAM gamma matrix, including periodic images
-    real(dp), allocatable :: camGammaAO(:,:), camdGammaAO(:,:,:)
+    real(dp), allocatable :: camGammaAO(:,:)
 
     !! Symmetrized, square (unpacked) overlap matrix
     real(dp), allocatable :: overlapSym(:,:)
@@ -5696,8 +5843,7 @@ contains
     real(dp), allocatable :: deltaRhoSqrSym(:,:,:)
 
     !! Temporary storages
-    real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:), symSqrMat2Tmp(:,:)
-    real(dp), allocatable :: deltaRhoOverlap(:,:,:)
+    real(dp), allocatable :: symSqrMat2Tmp(:,:), deltaRhoOverlap(:,:,:)
 
     !! Spin index and total number of spin channels
     integer :: iSpin, nSpin
@@ -5705,16 +5851,12 @@ contains
     !! Number of orbitals in square matrices
     integer :: nOrb
 
-    !! Iterates over coordinates
-    integer :: iCoord
-
-    nAtom0 = size(this%species0)
+    nAtom0 = size(camGammaEval0, dim=1)
     nSpin = size(deltaRhoSqr, dim=3)
     nOrb = size(overlap, dim=1)
 
     ! allocate CAM \tilde{gamma}
     allocate(camGammaAO(nOrb, nOrb))
-    allocate(camdGammaAO(nOrb, nOrb, 3))
 
     ! symmetrize square overlap and density matrix
     overlapSym = overlap
@@ -5728,7 +5870,7 @@ contains
     do iAt2 = 1, nAtom0
       do iAt1 = 1, nAtom0
         camGammaAO(iSquare(iAt1):iSquare(iAt1 + 1) - 1, iSquare(iAt2):iSquare(iAt2 + 1) - 1)&
-            & = this%camGammaEval0(iAt1, iAt2)
+            & = camGammaEval0(iAt1, iAt2)
       end do
     end do
 
@@ -5765,11 +5907,95 @@ contains
       symSqrMat2(:,:, iSpin) = symSqrMat2(:,:, iSpin) + symSqrMat2Tmp * deltaRhoSqrSym(:,:, iSpin)
     end do
 
-    ! free some memory
-    deallocate(overlapSym)
-    deallocate(deltaRhoSqrSym)
-    deallocate(symSqrMat2Tmp)
-    deallocate(deltaRhoOverlap)
+  end subroutine getSymMats
+
+
+  !> Adds CAM gradients due to CAM range-separated contributions, using a matrix-based formulation.
+  !! (non-periodic and Gamma-only version)
+  !!
+  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
+  subroutine addCamGradientsMatrix_real(this, deltaRhoSqr, overlap, skOverCont,&
+      & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, cellVol, gradients)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout), target :: this
+
+    !> Square (unpacked) delta density matrix
+    real(dp), intent(in) :: deltaRhoSqr(:,:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> Cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Energy gradients
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !! Temporary energy gradients
+    real(dp), allocatable :: tmpGradients(:,:)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Number of atoms in central cell
+    integer :: nAtom0
+
+    !! Overlap derivative
+    real(dp), allocatable :: overSqrPrime(:,:,:)
+
+    !! Atom index (central cell)
+    integer :: iAtForce
+
+    !! CAM gamma derivative matrix, including periodic images
+    real(dp), allocatable :: camdGammaAO(:,:,:)
+
+    !! Temporary storages
+    real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:)
+
+    !! Spin index and total number of spin channels
+    integer :: iSpin, nSpin
+
+    !! Number of orbitals in square matrices
+    integer :: nOrb
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    integer :: iAt1, iAt2, iCoordAlpha, iCoordBeta
+    real(dp) :: st(3, 3)
+
+    nAtom0 = size(this%species0)
+    nSpin = size(deltaRhoSqr, dim=3)
+    nOrb = size(overlap, dim=1)
+
+    call getSymMats(this%camGammaEval0, deltaRhoSqr, overlap, iSquare, symSqrMat1, symSqrMat2)
+
+    ! allocate CAM \partial\tilde{gamma}
+    allocate(camdGammaAO(nOrb, nOrb, 3))
 
     allocate(overSqrPrime(3, nOrb, nOrb))
     allocate(tmpGradients, mold=gradients)
@@ -5791,13 +6017,205 @@ contains
       end do
     end do loopForceAtom
 
-    if (this%tREKS) then
-      gradients(:,:) = gradients + tmpGradients
-    else
-      gradients(:,:) = gradients + 0.5_dp * nSpin * tmpGradients
-    end if
+    tmpGradients(:,:) = 0.5_dp * nSpin * tmpGradients
+
+    st(:,:) = 0.0_dp
+
+    do iAt1 = 1, nAtom0
+      do iAt2 = 1, nAtom0
+        do iCoordAlpha = 1, 3
+          do iCoordBeta = 1, 3
+            st(iCoordBeta, iCoordAlpha) = st(iCoordBeta, iCoordAlpha)&
+                & - 0.5_dp * (this%rCoords(iCoordAlpha, iAt1) - this%rCoords(iCoordAlpha, iAt2))&
+                & * (-tmpGradients(iCoordBeta, iAt1)) ! we need force, not gradients for virial
+          end do
+        end do
+      end do
+    end do
+
+    st(:,:) = st / cellVol
+
+    print *, 'Virial HFX stress'
+    print *, st
+
+    gradients(:,:) = gradients + tmpGradients
 
   end subroutine addCamGradientsMatrix_real
+
+
+  !> Adds CAM stress due to CAM range-separated contributions, using a matrix-based formulation.
+  !! (non-periodic and Gamma-only version)
+  !!
+  !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  subroutine addCamStressMatrix_real(this, deltaRhoSqr, overlap, skOverCont, symNeighbourList,&
+      & nNeighbourCamSym, iSquare, orb, derivator, cellVol, st)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout), target :: this
+
+    !> Square (unpacked) delta density matrix
+    real(dp), intent(in) :: deltaRhoSqr(:,:,:)
+
+    !> Square (unpacked) overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> Cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Stress tensor
+    real(dp), intent(inout) :: st(:,:)
+
+    !! Temporary stress tensor
+    real(dp) :: tmpSt(3, 3)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Number of atoms in central cell
+    integer :: nAtom0
+
+    !! Overlap derivative
+    real(dp), allocatable :: overSqrPrime(:,:,:)
+
+    !! Cartesian direction indices (central cell)
+    integer :: iCoordAlpha, iCoordBeta
+
+    !! Atom index (central cell)
+    integer :: iAtStress
+
+    !! CAM gamma derivative matrix, including periodic images
+    real(dp), allocatable :: camdGammaAO(:,:,:)
+
+    !! Temporary storages
+    real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:)
+
+    !! Spin index and total number of spin channels
+    integer :: iSpin, nSpin
+
+    !! Number of orbitals in square matrices
+    integer :: nOrb
+
+    @:ASSERT(all(shape(st) == [3, 3]))
+
+    nAtom0 = size(this%species0)
+    nSpin = size(deltaRhoSqr, dim=3)
+    nOrb = size(overlap, dim=1)
+
+    call getSymMats(this%camGammaEval0, deltaRhoSqr, overlap, iSquare, symSqrMat1, symSqrMat2)
+
+    ! allocate CAM \partial\tilde{gamma}
+    allocate(camdGammaAO(nOrb, nOrb, 3))
+
+    allocate(overSqrPrime(nOrb, nOrb, 3))
+    tmpSt(:,:) = 0.0_dp
+
+    loopStressAtom: do iAtStress = 1, nAtom0
+      do iCoordAlpha = 1, 3
+        ! return beta-resolved derivatives for distance vector component alpha
+        call getUnpackedOverlapStress_real(iCoordAlpha, iAtStress, skOverCont, orb, derivator,&
+            & symNeighbourList, nNeighbourCamSym, iSquare, this%rCoords, overSqrPrime)
+        call getUnpackedCamGammaAOStress(this, iCoordAlpha, iAtStress, iSquare, camdGammaAO)
+        do iSpin = 1, nSpin
+          do iCoordBeta = 1, 3
+            ! first term of Eq.(B5)
+            tmpSt(iCoordBeta, iCoordAlpha) = tmpSt(iCoordBeta, iCoordAlpha)&
+                & + sum(overSqrPrime(:,:, iCoordBeta) * symSqrMat1(:,:, iSpin))
+            ! second term of Eq.(B5)
+            tmpSt(iCoordBeta, iCoordAlpha) = tmpSt(iCoordBeta, iCoordAlpha)&
+                & + 0.5_dp * sum(camdGammaAO(:,:, iCoordBeta) * symSqrMat2(:,:, iSpin))
+          end do
+        end do
+      end do
+    end do loopStressAtom
+
+    ! we absorbed an additional factor of 0.5 from the gradients
+    tmpSt(:,:) = 0.25_dp / cellVol * nSpin * tmpSt
+
+    ! add hybrid stress contribution to the total stress
+    st(:,:) = st + tmpSt
+
+  end subroutine addCamStressMatrix_real
+
+
+  !> Calculates derivative of the (long-range + HF full-range) gamma interaction w.r.t. given atom,
+  !! multiplied by a distance vector.
+  !!
+  !! 2nd term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  subroutine getUnpackedCamGammaAOStress(this, iCoordDist, iAtomPrime, iSquare, camdGammaAO)
+
+    !> Class instance
+    class(THybridXcFunc), intent(in) :: this
+
+    !> Cartesian direction of the distance vectors
+    integer, intent(in) :: iCoordDist
+
+    !> Overlap derivative calculated w.r.t. this atom in the central cell
+    integer, intent(in) :: iAtomPrime
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> CAM gamma matrix, including periodic images
+    real(dp), intent(out) :: camdGammaAO(:,:,:)
+
+    !! Gamma derivative (1st) multiplied with distance vector, summed up for g-vectors
+    real(dp) :: dGammaStress(3)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2
+
+    !! Stores start/end index and number of orbitals of square matrices
+    integer :: descAt1(descLen), descAt2(descLen)
+
+    !! Number of atoms in central cell
+    integer :: nAtom0
+
+    !! Species index of first and second atom
+    integer :: iSpPrime, iSp2
+
+    !! Atom interacting with iAtomPrime
+    integer :: iAt2
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    camdGammaAO(:,:,:) = 0.0_dp
+
+    nAtom0 = size(this%species0)
+
+    descAt1 = getDescriptor(iAtomPrime, iSquare)
+    iSpPrime = this%species0(iAtomPrime)
+    do iAt2 = 1, nAtom0
+      ! if (iAtomPrime == iAt2) cycle
+      iSp2 = this%species0(iAt2)
+      descAt2 = getDescriptor(iAt2, iSquare)
+      dGammaStress(:) = getCamGammaStressGSum(this, iCoordDist, iAtomPrime, iAt2, iSpPrime, iSp2,&
+          & this%rCellVecsG)
+      do iCoord = 1, 3
+        camdGammaAO(descAt1(iStart):descAt1(iEnd), descAt2(iStart):descAt2(iEnd), iCoord)&
+            & = dGammaStress(iCoord)
+      end do
+    end do
+
+  end subroutine getUnpackedCamGammaAOStress
 
 
   !> Calculates derivative of the (long-range + HF full-range) gamma interaction w.r.t. given atom.
