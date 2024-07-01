@@ -18,6 +18,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_multipole, only : TDftbMultiPole
   use dftbp_dftb_onsitecorrection, only : getEons
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
@@ -46,8 +47,8 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, species,&
-      & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
+  subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, dftbMultipole,&
+      & species, isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
       & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
       & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus, qNetAtom,&
@@ -73,6 +74,9 @@ contains
 
     !> Multipole moments
     type(TMultipole), intent(in) :: multipole
+
+    !> DFTB multipole moments
+    type(TDftbMultipole), intent(inout), allocatable :: dftbMultipole
 
     !> chemical species
     integer, intent(in) :: species(:)
@@ -279,6 +283,16 @@ contains
       energy%ELS = sum(energy%atomLS(iAtInCentralRegion))
     end if
 
+    ! Add contribution for DFTB multipole calculations
+    if (allocated(dftbMultiPole)) then
+      call dftbMultiPole%addMultiPoleEnergy(energy%atomDftbMultiPole, energy%EDftbMultiPoleMD,&
+          & energy%EDftbMultiPoleDD, energy%EDftbMultiPoleMQ, energy%EDftbMultiPoleDQ,&
+          & energy%EDftbMultiPoleQQ, energy%EDftbMultiPole)
+    else
+      energy%EDftbMultiPole = 0.0_dp
+      energy%atomDftbMultiPole(:) = 0.0_dp
+    end if
+
     ! Add exchange contribution for range separated calculations
     if (allocated(hybridXc) .and. .not. allocated(reks)) then
       if (tRealHS) then
@@ -351,11 +365,12 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock&
+        & + energy%EDftbMultiPole
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
-        & + energy%atomSolv
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite&
+        & + energy%atomSolv + energy%atomDftbMultiPole
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(energy%TS)
