@@ -11,6 +11,7 @@
 module dftbp_timedep_linrespcommon
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_constants, only: Hartree__eV, au__Debye, cExchange
+  use dftbp_common_schedule, only : assembleChunks, gatherChunks, distributeRangeInChunks
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error
@@ -412,7 +413,373 @@ contains
 
   end subroutine getSqrOcc
 
+    !> Multiplies the excitation supermatrix with a supervector.
+  !! For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
+  !! (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
+  !!
+  !! For the standard RPA, (A+B)_ias,jbt * v_jbt needs to be computed (similar for singlet/triplet)
+  !! (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !!  World Scientific, 1995, Part I, p. 155.)
+  !! Note: we actually compute sqrt(n_is-n_as) (A+B)_ias,jbt sqrt(n_jt-n_bt), with the
+  !! occupations n_is, correct for finite T.
+  !! See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
+  !!
+  !! Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
+  !! assembled individually and multiplied directly with the corresponding part of the supervector.
+  !! Note MPI: The supervector is distributed, locSize gives the local size. 
+  subroutine actionAplusB_All(iGlb, fGlb, spin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud,&
+      & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, ovrXevGlb,&
+      & grndEigVecs, eigVecGlb, occNr, sqrOccIA, gamma, species0, spinW, onsMEs, orb, tAplusB,&
+      & transChrg, vin, vout, tRangeSep, lrGamma)
 
+    !> Starting index of current rank in global RPA vectors
+    integer, intent(in) :: iGlb
+
+    !> End index of current rank in global RPA vectors
+    integer, intent(in) :: fGlb
+
+    !> logical spin polarization
+    logical, intent(in) :: spin
+
+    !> excitation energies (wij = epsion_j - epsilon_i)
+    real(dp), intent(in) :: wij(:)
+
+    !> symmetry flag (singlet or triplet)
+    character, intent(in) :: sym
+
+    !> sorting index of the excitation energies.
+    integer, intent(in) :: win(:)
+
+    !> occupied orbitals per spin channel
+    integer, intent(in) :: nocc_ud(:)
+
+    !> virtual orbitals per spin channel
+    integer, intent(in) :: nvir_ud(:)
+
+    !> number of occ-occ transitions per spin channel
+    integer, intent(in) :: nxoo_ud(:)
+
+    !> number of vir-vir transitions per spin channel
+    integer, intent(in) :: nxvv_ud(:)
+
+    !> number of occ-vir transitions per spin channel
+    integer, intent(in) :: nxov_ud(:)
+
+    !> number of occupied-virtual transitions (possibly reduced by windowing)
+    integer, intent(in) :: nxov_rd
+
+    !> array from pairs of single particles states to compound index
+    integer, intent(in) :: iaTrans(:,:,:)
+
+    !> index array for occ-vir single particle excitations
+    integer, intent(in) :: getIA(:,:)
+
+    !> index array for occ-occ single particle excitations
+    integer, intent(in) :: getIJ(:,:)
+
+    !> index array for vir-vir single particle excitations
+    integer, intent(in) :: getAB(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc 
+
+    !> overlap times eigenvector. (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> overlap times eigenvector. (nOrb, nOrb) [global array]   
+    real(dp), allocatable, intent(in) :: ovrXevGlb(:,:,:)
+    
+    !> eigenvectors (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> eigenvectors (nOrb, nOrb) [global array]
+    real(dp), allocatable, intent(in) :: eigVecGlb(:,:,:)
+    
+    !> occupation numbers
+    real(dp), intent(in) :: occNr(:,:)
+
+    !> Square root of occupation difference between vir and occ states
+    real(dp), intent(in) :: sqrOccIA(:)
+
+    !> DFTB gamma matrix (nAtm, nAtom)
+    real(dp), intent(in) :: gamma(:,:)
+
+    !> chemical species of the atoms
+    integer, intent(in) :: species0(:)
+
+    !> ground state spin constants for each species
+    real(dp), intent(in) :: spinW(:)
+
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> whether (A+B)v or (Omega)v should be returned
+    logical, intent(in) :: tAplusB
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> vector to multiply with size(nmat)
+    real(dp), intent(in) :: vin(:)
+
+    !> vector containing the result on exit size(nmat)
+    real(dp), intent(out) :: vout(:)
+
+    !> is calculation range-separated?
+    logical, intent(in) :: tRangeSep
+
+    !> long-range Gamma if in use
+    real(dp), allocatable, optional, intent(in) :: lrGamma(:,:)
+
+    integer :: nmat, natom, norb, ia, nxvv_a, nSpin
+    integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
+    integer :: iam, nLoc, myia, myab, myja, ierr, nProcs, nLocAB, iGlbAB, fGlbAB
+    integer, allocatable ::  getABasym(:,:), locSizeAB(:), vOffsetAB(:)
+
+    ! somewhat ugly, but fast small arrays on stack:
+    real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
+    real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
+    real(dp) :: vout_ons(size(vin))
+    real(dp), allocatable :: vLoc(:), vGlb(:), vGlb2(:)
+    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
+    ! for later use to change HFX contribution
+    real(dp), allocatable :: qv(:,:)
+
+    @:ASSERT(size(vin) == size(vout))
+
+    !! dimension guessed from input vector
+    nmat = size(vin)
+    @:ASSERT(nmat <= nxov_rd)
+    natom = size(gamma, dim=1)
+    norb = nocc_ud(1)+nvir_ud(1)
+
+    !! Local chunk of RPA vectors have this size under MPI
+    nLoc = fGlb-iGlb+1
+    @:ASSERT(nmat == nLoc)
+    allocate(vLoc, mold=vin)
+    vLoc = 0.0_dp
+    vout = 0.0_dp
+
+    if(tAplusB) then
+      vLoc(:) = vin
+    else
+      vLoc(:) = vin * sqrt(wij(iGlb:fGlb))
+    endif
+
+    !> Compute w_ia = q^ia_A G_AB q^jb v_jb 
+
+    oTmp(:) = 0.0_dp
+    do ia = iGlb, fGlb
+      myia = ia - iGlb + 1
+      qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+      otmp(:) = otmp(:) + qij(:) * vLoc(myia) * sqrOccIA(ia)
+    enddo
+    
+    call assembleChunks(env, otmp)
+
+    if (.not.spin) then !-----------spin-unpolarized systems--------------
+
+      if (sym == 'S') then
+
+        call hemv(gtmp, gamma, otmp)
+
+        ! 4 * wn * (g * Q)
+        vOut(:) = 0.0_dp
+        do ia = iGlb, fGlb
+          myia = ia - iGlb + 1
+          qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          vOut(myia) = 4.0_dp * sqrOccIA(ia) * dot_product(qij, gTmp)
+        enddo  
+
+      else
+       
+        otmp = otmp * spinW(species0)
+
+        ! 4 * wn * (o * Q)
+        vOut = 0.0_dp
+        call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, oTmp, vOut, iGlb-1)
+        vOut(:) = 4.0_dp * sqrOccIA(iGlb:fGlb) * vOut
+
+
+      end if
+
+    else !--------------spin-polarized systems--------
+
+      call hemv(gtmp, gamma, otmp)
+
+      otmp(:) = 0.0_dp
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
+      do ia = iGlb, fGlb
+        myia = ia - iGlb + 1
+        
+        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+
+        ! singlet gamma part (S)
+        vOut(myia) = 2.0_dp * sqrOccIA(ia) * dot_product(qij, gtmp)
+
+        ! magnetization part (T1)
+        ss = getIA(win(ia), 3)
+
+        otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vLoc(myia) * qij
+
+      end do
+      !$OMP  END PARALLEL DO
+
+      call assembleChunks(env, otmp)
+
+      otmp = otmp * spinW(species0)
+
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
+      !$OMP& SCHEDULE(RUNTIME)
+      do ia = iGlb, fGlb
+        myia = ia - iGlb + 1
+        
+        qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+
+        ss = getIA(win(ia), 3)
+      
+        vOut(myia) = vOut(myia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
+
+      end do
+      !$OMP  END PARALLEL DO
+
+    end if
+    
+    ! The largest matrices in this part are of dim nAtoms*nVir*nVir, seems logical to distribute 
+    ! them. The local dimensions are different from the case of nOcc*nVir, we require new offsets.
+    ! A new index array is required because the standard abs index is symmetrical in a and b  
+    if (tRangeSep) then
+      
+      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
+      nxvv_a = sum(nvir_ud**2)
+      allocate(getABasym(nxvv_a, 3))
+  
+      do ss = 1, size(iaTrans, dim=3)
+        do aa = nocc_ud(ss) + 1, norb
+          do bb = nocc_ud(ss) + 1, norb
+            abs = (bb - nocc_ud(ss) - 1) * nvir_ud(ss) + aa - nocc_ud(ss)
+            if (ss==2) then
+              abs = abs + nvir_ud(1)**2
+            end if
+            getABasym(abs, 1) = aa
+            getABasym(abs, 2) = bb
+            getABasym(abs, 3) = ss
+          end do
+        end do
+      end do
+
+      call distributeRangeInChunks(env, 1, nxvv_a, iGlbAB, fGlbAB)
+      nLocAB = fGlbAB - iGlbAB + 1
+
+    #:if WITH_SCALAPACK
+
+      iam = env%mpi%globalComm%rank
+      nProcs = env%mpi%globalComm%size
+      
+  #:else
+    
+      iam = 0
+      nProcs = 1
+
+  #:endif
+      nLocAB = fGlbAB - iGlbAB + 1
+
+      allocate(qv(natom, max(nLoc, nLocAB)))
+      allocate(vGlb(nxov_rd))
+      allocate(vGlb2(nxov_rd))
+
+      !> TD-LC-DFTB seems to require two additional global arrays of dim nOcc*nVir, qv is local 
+      qv(:,:) = 0.0_dp
+      vGlb(:) = 0.0_dp
+      vGlb2(:) = 0.0_dp
+
+      !> Gather local arrays in corresponding global array
+      call gatherChunks(env, 1, nxov_rd, vLoc, vGlb)
+      ! call mpifx_allgatherv(env%mpi%globalComm, vLoc, vGlb, locSize, vOffset)
+
+      !> Compute w_ia = q^ij_A GLR_AB q^ab v_jb
+      do jas = iGlb, fGlb
+        myja = jas - iGlb + 1
+        jj = getIA(win(jas), 1)
+        aa = getIA(win(jas), 2)
+        ss = getIA(win(jas), 3)
+        do bb = nocc_ud(ss) + 1, norb
+          abs = iaTrans(aa, bb, ss)
+          qij(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
+          jbs = iaTrans(jj, bb, ss)
+          qv(:,myja) = qv(:,myja) + qij(:) * vGlb(jbs) * sqrOccIA(jbs)
+        end do
+        
+        otmp(:) = qv(:,myja)
+        call dsymv('U', natom, 1.0d0, lrGamma, natom, otmp, 1, 0.d0, qv(:,myja), 1)
+        
+        do ii = 1, nocc_ud(ss)
+          ijs = iaTrans(ii, jj, ss)
+          qij(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          ias = iaTrans(ii, aa, ss)
+          vGlb2(ias) = vGlb2(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:,myja))
+        end do
+      end do
+
+      !> Compute w_ia = q^ib_A GLR_AB q^ja v_jb 
+      qv(:,:) = 0.0_dp
+      do abs = iGlbAB, fGlbAB
+        myab = abs - iGlbAB + 1     
+        aa = getABasym(abs, 1)
+        bb = getABasym(abs, 2)
+        ss = getABasym(abs, 3)
+        do jj = 1, nocc_ud(ss)
+          jas =  iaTrans(jj, aa, ss)
+          jbs =  iaTrans(jj, bb, ss)
+          qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          qv(:,myab) = qv(:,myab) + qij(:) * vGlb(jbs) * sqrOccIA(jbs)
+        end do
+
+        otmp(:) = qv(:,myab)
+        call dsymv('U', natom, 1.0d0, lrGamma, natom, otmp, 1, 0.d0, qv(:,myab), 1)
+
+        do ii = 1, nocc_ud(ss)
+          ibs = iaTrans(ii, bb, ss)
+          qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
+          ias = iaTrans(ii, aa, ss)
+          vGlb2(ias) = vGlb2(ias) - cExchange * sqrOccIA(ias) * dot_product(qij, qv(:,myab)) 
+        end do
+      end do
+
+      !> Get contribution of all ranks to global array
+      call assembleChunks(env, vGlb2) 
+
+      do jas = iGlb, fGlb
+        myja = jas - iGlb + 1        
+        vout(myja) = vout(myja) + vGlb2(jas) 
+      end do
+
+    end if
+   
+    if (allocated(onsMEs)) then
+      ! Parallelizing this routine is difficult. Calls transdens which refers to individual
+      ! global indices. Input vector is still distributed. 
+      call onsiteEner(env, spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
+          & species0, ovrXevGlb, eigVecGlb, onsMEs, orb, vLoc, vout_ons, iGlb-1)      
+      vout(:) = vout + vout_ons
+    end if
+    
+    vout(:) = vout + wij(iGlb:fGlb) * vLoc
+    
+    if (.not. tAplusB) then
+      vOut(:) = vOut * sqrt(wij(iGlb:fGlb))
+    endif
+
+  end subroutine actionAplusB_All
+  
   !> Multiplies the excitation supermatrix with a supervector.
   !! For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
   !! (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)

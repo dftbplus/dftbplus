@@ -13,6 +13,7 @@
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
+  use dftbp_common_schedule, only : distributeRangeInChunks
   use dftbp_io_commonformats, only : format2U
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
@@ -34,7 +35,7 @@ module dftbp_timedep_linrespgrad
       & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array, &
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
       & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
-      & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
+      & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc, actionAplusB_All
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
@@ -44,7 +45,7 @@ module dftbp_timedep_linrespgrad
 #:if WITH_SCALAPACK
 
   use dftbp_timedep_linrespcommon, only : actionAplusB_MPI, actionAminusB_MPI, getExcSpin_MPI,&
-      & initialSubSpaceMatrixApmB_MPI, localSizeCasidaVectors
+      & initialSubSpaceMatrixApmB_MPI
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_math_scalafxext, only : distrib2replicated
@@ -202,7 +203,7 @@ contains
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
     integer :: norb, nxoo, nxvv
     integer :: i, j, ss, iSpin, isym, iLev, iSav, nStartLev, nEndLev
-    integer :: nCoupLev, mCoupLev, iNac
+    integer :: nCoupLev, mCoupLev, iNac, iGlobal, fGlobal
     integer :: nSpin
     integer :: iam, nProcs
     integer, allocatable :: locSize(:), vOffset(:)    
@@ -238,6 +239,18 @@ contains
         &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
     call env%globalTimer%startTimer(globalTimers%lrSetup)
+
+  #:if WITH_SCALAPACK
+
+    iam = env%mpi%globalComm%rank
+    nProcs = env%mpi%globalComm%size
+
+  #:else
+    
+    iam = 0
+    nProcs = 1
+
+  #:endif
 
     if (withArpack) then
 
@@ -559,15 +572,17 @@ contains
       call env%globalTimer%stopTimer(globalTimers%lrTransCharges)
     end if
 
-  #:if WITH_SCALAPACK
-
-    iam = env%mpi%globalComm%rank
-    nProcs = env%mpi%globalComm%size
     allocate(locSize(nProcs))
     allocate(vOffSet(nProcs))
-    call localSizeCasidaVectors(nProcs, nxov_rd, locSize, vOffSet)
-
-  #:endif   
+    ! call localSizeCasidaVectors(nProcs, nxov_rd, locSize, vOffSet)
+    ! if(iam==0) then
+    !   print *,'locsize ', locSize
+    !   print *,'voffset ', vOffSet
+    ! end if 
+    call distributeRangeInChunks(env, 1, nxov_rd, iGlobal, fGlobal)
+    locSize(iam+1) = fGlobal-iGlobal+1
+    vOffSet(iam+1) = iGlobal-1
+    print *,'iam ', iam, fGlobal-iGlobal+1 , iGlobal-1   
 
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
@@ -1413,30 +1428,31 @@ contains
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal
 
-    integer :: nExc, nAtom, dummyInt, newVec, iVec, info, iterStrat
+    integer :: nExc, nAtom, dummyInt, newVec, iVec, info, iterStrat, nLoc
     integer :: subSpaceDim, prevSubSpaceDim
-    integer :: ii, jj, iam
+    integer :: ii, jj, iam, iGlb, fGlb
     character(lc) :: tmpStr
 
     logical :: didConverge
     
   #:if WITH_SCALAPACK
     
-    integer :: iGlb, fGlb, nLoc, comm, myjj, myii
+    integer :: comm, myjj, myii
     external pdsaupd, pdseupd
 
     iam = env%mpi%globalComm%rank
     comm = env%mpi%globalComm%id 
-    nLoc = locSize(iam+1)
-    iGlb = vOffset(iam+1) + 1 
-    fGlb = vOffset(iam+1) + nLoc
 
   #:else
       
     iam = 0
     
   #:endif
- 
+    
+    nLoc = locSize(iam+1)
+    iGlb = vOffset(iam+1) + 1 
+    fGlb = vOffset(iam+1) + nLoc   
+    
     if (allocated(onsMEs)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
@@ -1522,7 +1538,11 @@ contains
 
   #:if WITH_SCALAPACK
           
-          call actionAplusB_MPI(locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
+          ! call actionAplusB_MPI(locSize, vOffset, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
+          !   & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+          !   & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
+          !   & spinW, onsMEs, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tHybridXc, lrGamma)
+          call actionAplusB_All(iGlb, fGlb, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
             & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
             & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
             & spinW, onsMEs, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tHybridXc, lrGamma)
@@ -1533,10 +1553,14 @@ contains
 
   #:else
           
-          call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
-            & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
-            & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
-            & vP(:,ii), tHybridXc, lrGamma)
+          ! call actionAplusB(tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
+          !   & nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling,&
+          !   & sqrOccIA, gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, vecB(:,ii),&
+          !   & vP(:,ii), tHybridXc, lrGamma)
+          call actionAplusB_All(iGlb, fGlb, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
+            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
+            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
+            & spinW, onsMEs, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tHybridXc, lrGamma)
           call actionAminusB(tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
             & iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA,&
             & transChrg, vecB(:,ii), vM(:,ii), tHybridXc, lrGamma)

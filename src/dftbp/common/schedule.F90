@@ -19,19 +19,23 @@ module dftbp_common_schedule
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
 #:endif
   implicit none
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
-  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload
+  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload, gatherChunks
   public :: getStartAndEndIndex
 
 #:for _, _, NAME in CHUNK_TYPES
   interface assembleChunks
     module procedure assemble${NAME}$Chunks
   end interface assembleChunks
+
+  interface gatherChunks
+    module procedure gather${NAME}$Chunks
+  end interface gatherChunks  
 #:endfor
 
 contains
@@ -172,6 +176,47 @@ contains
   end subroutine assemble${NAME}$Chunks
 
 #:endfor
+
+#:for DTYPE, RANK, NAME in CHUNK_TYPES
+
+  !> Gathers chunks within a process group in a global array.
+  subroutine gather${NAME}$Chunks(env, globalFirst, globalLast, chunks, composite)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Array to gather
+    ${DTYPE}$, intent(in) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    !> Gathered array
+    ${DTYPE}$, intent(out) :: composite${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    integer, allocatable :: locSize(:), vOffset(:)
+    integer :: localFirst, localLast, iam
+
+  #:if WITH_MPI
+    allocate(locSize(env%mpi%groupComm%size))
+    allocate(vOffSet(env%mpi%groupComm%size))
+
+    iam = env%mpi%groupComm%rank
+    call getChunkRanges(env%mpi%groupComm%size, iam, globalFirst, globalLast, localFirst, localLast)
+    locSize(iam + 1) = localLast - localFirst + 1
+    vOffSet(iam + 1) = localFirst - 1
+    
+    call mpifx_allgatherv(env%mpi%globalComm, chunks, composite, locSize, vOffset)
+ #:else
+    composite = chunks
+  #:endif
+
+  end subroutine gather${NAME}$Chunks
+
+#:endfor  
 
 
   !> Calculate the chunk ranges for a given MPI-communicator.
