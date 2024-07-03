@@ -1413,7 +1413,7 @@ contains
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal
 
-    integer :: nExc, nAtom, dummyInt, newVec, iVec, iterStrat
+    integer :: nExc, nAtom, dummyInt, newVec, iVec, info, iterStrat
     integer :: subSpaceDim, prevSubSpaceDim
     integer :: ii, jj, iam
     character(lc) :: tmpStr
@@ -1599,7 +1599,16 @@ contains
       call symm(mH, 'L', mMsqrt, dummyM, uplo='U')
 
       ! Diagonalise in subspace
-      call heev(mH, evalInt, 'U', 'V')
+      call heev(mH, evalInt, 'U', 'V', info)
+      if (info /= 0) then
+        if (subSpaceFactor * nExc < nxov_rd) then
+          write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Increase SubSpaceFactor.'
+        else
+          write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Insufficient transitions available to&
+              & converge.'
+        end if
+        call error(tmpStr)
+      endif
 
       ! This yields T=(A-B)^(-1/2)|X+Y>.
       ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
