@@ -1,5 +1,5 @@
 Geometry = GenFormat {
-   <<< geo.gen
+  <<< geo.gen
 }
 
 Hamiltonian = DFTB {
