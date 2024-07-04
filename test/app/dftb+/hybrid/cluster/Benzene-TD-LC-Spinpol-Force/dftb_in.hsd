@@ -24,7 +24,7 @@ Hamiltonian = DFTB {
     UnpairedElectrons = 2
   }
 
-  Filling = Fermi {Temperature [K] = 0}
+  Filling = Fermi {Temperature [K] = 0.0}
 
   Hybrid = LC {
     Screening = MatrixBased {}
