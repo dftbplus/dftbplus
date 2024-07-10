@@ -3544,8 +3544,6 @@ contains
     !> Resulting energy due to CAM contribution
     real(dp) :: energy
 
-    integer :: mu
-
     energy = 0.5_dp * sum(hamiltonian * densityMat)
 
   end function evaluateEnergy_real
@@ -5592,6 +5590,7 @@ contains
     deallocate(camGammaAO)
 
     ! calculate second symmetrized square matrix of Eq.(B5)
+    ! this term is already symmetric, therefore drop the symmetrization operation at the end
     allocate(symSqrMat2, mold=deltaRhoSqr)
         do iKS = 1, parallelKS%nLocalKS
       call pblasfx_ptran(deltaRhoOverlap(:,:, iKS), denseDesc%blacsOrbSqr,&
@@ -5600,10 +5599,6 @@ contains
       call pblasfx_pgemm(overlap, denseDesc%blacsOrbSqr, deltaRhoOverlap(:,:, iKS),&
           & denseDesc%blacsOrbSqr, symSqrMatTmp, denseDesc%blacsOrbSqr)
       symSqrMat2(:,:, iKS) = symSqrMat2(:,:, iKS) + symSqrMatTmp * deltaRhoSqr(:,:, iKS)
-      ! symmetrize temporary storage
-      symSqrMatTmp(:,:) = symSqrMat2(:,:, iKS)
-      call pblasfx_ptran(symSqrMatTmp, denseDesc%blacsOrbSqr, symSqrMat2(:,:, iKS),&
-          & denseDesc%blacsOrbSqr, alpha=0.5_dp, beta=0.5_dp)
     end do
 
     ! free some memory
@@ -5819,14 +5814,13 @@ contains
     deallocate(camGammaAO)
 
     ! calculate second symmetrized square matrix of Eq.(B5)
+    ! this term is already symmetric, therefore drop the symmetrization operation at the end
     allocate(symSqrMat2, mold=deltaRhoSqrSym)
     allocate(symSqrMat2Tmp(size(symSqrMat2, dim=1), size(symSqrMat2, dim=1)))
     do iSpin = 1, nSpin
       symSqrMat2(:,:, iSpin) = transpose(deltaRhoOverlap(:,:, iSpin)) * deltaRhoOverlap(:,:, iSpin)
       call gemm(symSqrMat2Tmp, overlapSym, deltaRhoOverlap(:,:, iSpin))
       symSqrMat2(:,:, iSpin) = symSqrMat2(:,:, iSpin) + symSqrMat2Tmp * deltaRhoSqrSym(:,:, iSpin)
-      ! symmetrize temporary storage
-      symSqrMat2(:,:, iSpin) = 0.5_dp * (symSqrMat2(:,:, iSpin) + transpose(symSqrMat2(:,:, iSpin)))
     end do
 
     ! free some memory
@@ -5881,6 +5875,12 @@ contains
     !> CAM gamma matrix, including periodic images
     real(dp), intent(out) :: camdGammaAO(:,:,:)
 
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2
+
+    !! Stores start/end index and number of orbitals of square matrices
+    integer :: descAt1(descLen), descAt2(descLen)
+
     !! Atom interacting with iAtomPrime
     integer :: iAt2
 
@@ -5889,10 +5889,11 @@ contains
 
     camdGammaAO(:,:,:) = 0.0_dp
 
+    descAt1 = getDescriptor(iAtomPrime, iSquare)
     do iAt2 = 1, size(camdGammaEval0, dim=3)
+      descAt2 = getDescriptor(iAt2, iSquare)
       do iCoord = 1, 3
-        camdGammaAO(iSquare(iAtomPrime):iSquare(iAtomPrime + 1) - 1,&
-            & iSquare(iAt2):iSquare(iAt2 + 1) - 1, iCoord)&
+        camdGammaAO(descAt1(iStart):descAt1(iEnd), descAt2(iStart):descAt2(iEnd), iCoord)&
             & = camdGammaEval0(iCoord, iAtomPrime, iAt2)
       end do
     end do

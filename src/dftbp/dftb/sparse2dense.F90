@@ -3321,10 +3321,8 @@ contains
       call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
             & iAtomPrime, iAt2, orb)
       do iCoord = 1, 3
-        overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
+        overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
             & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord)
       end do
     end do
@@ -3412,10 +3410,8 @@ contains
           & iAtomPrime, iAt2, orb)
       phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
       do iCoord = 1, 3
-        overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
-            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iStart) + descAt2(iNOrb) - 1,&
-            & descAt1(iStart):descAt1(iStart) + descAt1(iNOrb) - 1)&
+        overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
             & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord) * phase
       end do
     end do
