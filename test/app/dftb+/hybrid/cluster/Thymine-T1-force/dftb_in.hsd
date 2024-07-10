@@ -21,15 +21,18 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
+
   SCC = Yes
-  SCCTolerance = 1.0E-009  # Extremely small
+  SCCTolerance = 1.0E-09  # Extremely small
   MaxSCCIterations = 1000
+
   Mixer = Broyden {}
+
   MaxAngularMomentum = {
-   H = "s"
-   C = "p"
-   N = "p"
-   O = "p"
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
   }
 
   SlaterKosterFiles = Type2FileNames {
@@ -41,27 +44,28 @@ Hamiltonian = DFTB {
   SpinPolarisation = Colinear {
     UnpairedElectrons = 2
   }
+
   SpinConstants = {
     O = {
-         -0.04782
-    	 -0.03335
-     	 -0.03335
-     	 -0.03307
+      -0.04782
+      -0.03335
+      -0.03335
+      -0.03307
     }
     N = {
-         -0.04687
- 	 -0.03170
-     	 -0.03165
-     	 -0.03072
+      -0.04687
+      -0.03170
+      -0.03165
+      -0.03072
     }
     C = {
-         -0.04559
-    	 -0.02930
-     	 -0.02930
-     	 -0.02755
+      -0.04559
+      -0.02930
+      -0.02930
+      -0.02755
     }
     H = {
-      	 -0.07925
+      -0.07925
     }
     ShellResolvedSpin = Yes
   }
@@ -69,9 +73,10 @@ Hamiltonian = DFTB {
   RangeSeparated = LC {
     Screening = NeighbourBased {}
   }
+
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
@@ -79,6 +84,6 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
+ParserOptions {
   ParserVersion = 5
 }
