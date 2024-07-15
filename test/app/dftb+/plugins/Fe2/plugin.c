@@ -9,20 +9,22 @@ int init() {
     return 1;
 }
 
-void setNeighbourList(int n, double *coords, int *img2CentCell) {
+void setNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
     nAtoms = n;
 }
 
-int getSKIntegrals(int nSk, double *sk, double dist, int atom1, int atom2, int sp1, int sp2) {
-    sk[0] = 0.0;
-    if (nAtoms != 2 || sp1 != 1 || sp2 != 1) {
+
+int getSKIntegrals(int nSkgrid, int nSkIntg, double *skTab, double dist,
+    int atom1, int atom2, int species1, int species2, int HorS, double interdist) {
+    skTab[0] = 0.0;
+    if (nAtoms != 2 || species1 != 1 || species2 != 1) {
         return 0;
     }
 
     if (counter == 0) {
-        sk[0] = -0.08;
+        skTab[0] = 1.0;
     } else if (counter == 1) {
-        sk[0] = 0.2;
+        skTab[0] = 2.0;
     }
     counter++;
     return 1;
