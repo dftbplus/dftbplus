@@ -41,6 +41,7 @@ module dftbp_dftb_slakocont
     real(dp) :: cutoff
     logical :: tDataOK
     logical :: tInit = .false.
+    logical :: isH = .false.
   #:if WITH_PLUGINS
     type(TPlugin), pointer, public :: plugin => null()
   #:endif
@@ -80,13 +81,16 @@ contains
 
 
   !> Initialises SlakoCont
-  subroutine SlakoCont_init(this, nSpecies)
+  subroutine SlakoCont_init(this, nSpecies, isH)
 
     !> SlakoCont instance
     type(TSlakoCont), intent(out) :: this
 
     !> Nr. of species in the system.
     integer, intent(in) :: nSpecies
+
+    !> Specified the container for Hamitonian (==.true.) or Overlap (==.false.).
+    logical, intent(in) :: isH
 
     @:ASSERT(.not. this%tInit)
 
@@ -96,6 +100,7 @@ contains
     this%cutoff = 0.0_dp
     this%tDataOK = .false.
     this%tInit = .true.
+    this%isH = isH
 
   end subroutine SlakoCont_init
 
@@ -186,9 +191,11 @@ contains
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%provides_getSKIntegrals) then
-        if (.not. this%plugin%getSKIntegrals(sk, dist, atom1, atom2, sp1, sp2)) then
+        if (.not. this%plugin%getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid%skTab, dist, atom1,&
+            & atom2, sp1, sp2, this%isH, this%slakos(sp2, sp1)%pSlakoEqGrid%dist)) then
           call error("Cannot fetch SK integrals from plugin")
         end if
+        call getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
         return
       end if
     end if

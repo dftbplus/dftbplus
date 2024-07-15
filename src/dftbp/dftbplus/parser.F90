@@ -3617,9 +3617,9 @@ contains
     slako%skOcc(:,:) = 0.0_dp
 
     allocate(slako%skHamCont)
-    call init(slako%skHamCont, nSpecies)
+    call init(slako%skHamCont, nSpecies, .true.)
     allocate(slako%skOverCont)
-    call init(slako%skOverCont, nSpecies)
+    call init(slako%skOverCont, nSpecies, .false.)
     allocate(slako%pairRepulsives(nSpecies, nSpecies))
 
     write(stdout, "(A)") "Reading SK-files:"

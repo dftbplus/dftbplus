@@ -38,21 +38,22 @@ int provides_plugin(void *handle, const char *func) {
   return funcpointer == NULL ? 0 : 1;
 }
 
-int call_getSKIntegrals(void *handle, int nSk, double *sk, double dist, int atom1, int atom2,
-    int species1, int species2) {
-  int (*func)(int, double *, double, int, int, int, int);
+int call_getSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab, double dist,
+    int atom1, int atom2, int species1, int species2, int HorS, double interdist) {
+  int (*func)(int, int, double *, double, int, int, int, int, int, double);
   func = dlsym(handle, "getSKIntegrals");
   if (func != NULL) {
-    return (*func)(nSk, sk, dist, atom1, atom2, species1, species2);
+    return (*func)(nSkgrid, nSkIntg, skTab, dist, atom1, atom2, species1, species2, HorS, interdist);
   }
 
   return 0;
 }
 
-void call_setNeighbourList(void *handle, int nAtoms, double *coords, int *img2CentCell) {
-  int (*func)(int, double *, int *);
+void call_setNeighbourList(void *handle, int nAtoms, int nAtomsCent, double *coords,
+    int *img2CentCell, int *iNeighbour, double *neightDist2) {
+  int (*func)(int, int, double *, int *, int *, double *);
   func = dlsym(handle, "setNeighbourList");
   if (func != NULL) {
-    (*func)(nAtoms, coords, img2CentCell);
+    (*func)(nAtoms, nAtomsCent, coords, img2CentCell, iNeighbour, neightDist2);
   }
 }
