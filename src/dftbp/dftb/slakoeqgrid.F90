@@ -26,8 +26,8 @@ module dftbp_dftb_slakoeqgrid
     private
     integer :: nGrid
     integer :: nInteg
-    real(dp) :: dist
-    real(dp), allocatable :: skTab(:,:)
+    real(dp), public :: dist
+    real(dp), allocatable, public :: skTab(:,:)
     integer :: skIntMethod
     logical :: tInit = .false.
   end type TSlakoEqGrid

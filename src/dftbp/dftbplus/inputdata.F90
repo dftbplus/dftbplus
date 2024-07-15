@@ -595,6 +595,9 @@ module dftbp_dftbplus_inputdata
     !> File access type to use when opening binary files for reading and writing
     character(20) :: binaryAccessTypes(2)
 
+    !> File name of the plugin to be loaded
+    character(lc) :: pluginFile
+
   end type TControl
 
 
