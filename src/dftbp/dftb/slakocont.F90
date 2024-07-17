@@ -168,7 +168,7 @@ contains
   subroutine SlakoCont_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
 
     !> SlakoCont instance
-    type(TSlakoCont), intent(in) :: this
+    type(TSlakoCont), intent(inout) :: this
 
     !> Contains the integrals on exit
     real(dp), intent(out) :: sk(:)

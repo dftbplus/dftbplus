@@ -389,10 +389,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Non-SCC H0 data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Method for calculating derivatives of S and H0 matrices
     class(TNonSccDiff), intent(in) :: derivator

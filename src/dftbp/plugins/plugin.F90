@@ -144,7 +144,7 @@ contains
     class(TPlugin), intent(in) :: this
 
     !> Contains the integrals on exit
-    real(dp), intent(in) :: skTab(:,:)
+    real(dp), intent(inout) :: skTab(:,:)
 
     !> Distance of the two atoms
     real(dp), intent(in) :: dist

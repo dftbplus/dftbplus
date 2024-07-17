@@ -157,10 +157,10 @@ contains
     real(dp), intent(in), optional :: shift(:)
 
     !> Non-SCC hamiltonian data
-    type(TSlakoCont), intent(in), optional :: skHamCont
+    type(TSlakoCont), intent(inout), optional :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in), optional :: skOverCont
+    type(TSlakoCont), intent(inout), optional :: skOverCont
 
     !> Excitation energy gradients with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:,:)
@@ -2370,10 +2370,10 @@ contains
     real(dp), intent(in) :: wvv(:,:)
 
     !> H0 data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator
@@ -3581,7 +3581,7 @@ contains
     integer,intent(in) :: species0(:)
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3682,7 +3682,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Diatomic block
     real(dp), intent(out) :: Sblock(:,:)
@@ -4329,10 +4329,10 @@ contains
     real(dp), intent(in) :: wvv(:,:)
 
     !> H0 data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator
