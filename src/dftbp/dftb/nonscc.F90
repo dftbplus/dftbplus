@@ -295,8 +295,6 @@ contains
     integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbourSK
-    !$OMP PARALLEL DO PRIVATE(iAt1,iSp1,nOrb1,iNeigh1,iAt2,iSp2,nOrb2,ind,vect,dist,tmp,interSK) &
-    !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = firstAtom, lastAtom
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -313,7 +311,6 @@ contains
         out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
     end do
-    !$OMP END PARALLEL DO
 
   end subroutine buildDiatomicBlocks
 
