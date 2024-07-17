@@ -195,8 +195,6 @@ contains
             & atom2, sp1, sp2, this%isH, this%slakos(sp2, sp1)%pSlakoEqGrid%dist)) then
           call error("Cannot fetch SK integrals from plugin")
         end if
-        call getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
-        return
       end if
     end if
   #:endif
