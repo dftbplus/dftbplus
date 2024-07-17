@@ -831,7 +831,7 @@ contains
     integer, intent(in) :: nNeighbourCamSym(:)
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -921,7 +921,7 @@ contains
     integer, intent(in) :: nNeighbourCamSym(:)
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3975,7 +3975,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
@@ -4806,7 +4806,7 @@ contains
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in) :: symNeighbourList
@@ -4871,7 +4871,7 @@ contains
     real(dp), intent(in) :: SSqrReal(:,:)
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information for system
     type(TOrbitals), intent(in) :: orb
@@ -4943,7 +4943,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:)
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information for system
     type(TOrbitals), intent(in) :: orb
@@ -5117,7 +5117,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:)
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in) :: symNeighbourList
@@ -5617,7 +5617,7 @@ contains
     real(dp), intent(in) :: overlap(:,:)
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in) :: symNeighbourList
@@ -5841,7 +5841,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
@@ -5918,7 +5918,7 @@ contains
     real(dp), intent(in) :: overlap(:,:)
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
     type(TSymNeighbourList), intent(in) :: symNeighbourList
@@ -6115,7 +6115,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
@@ -6200,7 +6200,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiation object
     class(TNonSccDiff), intent(in) :: derivator
@@ -6286,7 +6286,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiation object
     class(TNonSccDiff), intent(in) :: derivator
@@ -6585,7 +6585,7 @@ contains
     real(dp), intent(in) :: kWeights(:)
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiation object
     class(TNonSccDiff), intent(in) :: derivator

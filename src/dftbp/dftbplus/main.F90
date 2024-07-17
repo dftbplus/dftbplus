@@ -2267,7 +2267,7 @@ contains
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -5147,10 +5147,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> File name for regression data
     character(*), intent(in) :: autotestTag
@@ -6359,10 +6359,10 @@ contains
     real(dp), allocatable, intent(in) :: q0(:,:,:)
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive
@@ -6744,10 +6744,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive
