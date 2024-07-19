@@ -13,6 +13,7 @@ extern "C" {
 
 int init();
 void final();
+int version(int, int);
 
 int getSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
 

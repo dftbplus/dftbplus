@@ -33,6 +33,16 @@ void final_plugin(void *handle) {
   dlclose(handle);
 }
 
+int version_plugin(void *handle, int major, int minor) {
+  int (*versionfunc)(int, int);
+  versionfunc = dlsym(handle, "version");
+  if (versionfunc != NULL) {
+    return (*versionfunc)(major, minor);
+  }
+
+  return 0;
+}
+
 int provides_plugin(void *handle, const char *func) {
   void *funcpointer = dlsym(handle, func);
   return funcpointer == NULL ? 0 : 1;
