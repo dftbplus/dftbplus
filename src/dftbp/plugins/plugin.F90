@@ -14,6 +14,8 @@ module dftbp_plugins_plugin
   use dftbp_io_message, only : error
   implicit none
 
+  integer, parameter :: major = 1, minor = 0
+
   private
   public :: TPlugin
 
@@ -60,6 +62,14 @@ module dftbp_plugins_plugin
       import c_handle
       type(c_handle), value :: handle
     end subroutine final_plugin_c
+
+    !> Send the current API version to the plugin and retrieve a success state
+    function version_plugin_c(handle, major, minor) result(success) bind(C, name='version_plugin')
+      import c_handle, c_int
+      type(c_handle), value, intent(in) :: handle
+      integer(c_int), value, intent(in) :: major, minor
+      integer(c_int) :: success
+    end function version_plugin_c
 
     !> Check if the plugin implements a certain function
     function provides_plugin_c(handle, func) result(success) bind(C, name='provides_plugin')
@@ -111,6 +121,13 @@ contains
 
     this%handle = init_plugin_c(trim(filename) // char(0))
     this%initialized = c_associated(this%handle%cptr)
+
+    if (this%initialized) then
+      if (version_plugin_c(this%handle, major, minor) /= 1) then
+        call error("The plugin does not support the current API version.")
+        this%initialized = .false.
+      end if
+    end if
 
     if (this%initialized) then
       this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals"//char(0))&

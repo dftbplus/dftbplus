@@ -9,10 +9,16 @@ int init() {
     return 1;
 }
 
+int version(int major, int minor) {
+    if (major == 1) {
+        return 1;
+    }
+    return 0;
+}
+
 void setNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
     nAtoms = n;
 }
-
 
 int getSKIntegrals(int nSkgrid, int nSkIntg, double *skTab, double dist,
     int atom1, int atom2, int species1, int species2, int HorS, double interdist) {
