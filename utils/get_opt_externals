@@ -142,6 +142,21 @@ def get_slakos(destdir):
     os.rename(unpackname, targetname)
 
 
+    '''Download additional parameters to test mDFTB'''
+    url = 'https://github.com/v2quan89/testparams4mdftb/raw/main/test3obp.tar.gz'
+    fname = os.path.join(destdir, 'test3obp.tar.gz')
+    unpackname = os.path.join(destdir, 'test3obp')
+    targetname = os.path.join(destdir, 'origin/test3obp')
+    if os.path.exists(unpackname):
+        shutil.rmtree(unpackname)
+    if os.path.exists(targetname):
+        shutil.rmtree(targetname)
+    download_file(url, fname)
+    unpack_file(fname)
+    os.remove(fname)
+    os.rename(unpackname, targetname)
+
+
 def get_gbsa(destdir):
     '''Downloads and extracts parametrizations for gbsa.'''
 

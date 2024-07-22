@@ -152,6 +152,9 @@ module dftbp_dftb_scc
     !> Updates the SCC module, if the charges have been changed
     procedure :: updateCharges
 
+    !> get DeltaQAtom for multipole contribution
+    procedure :: getDeltaQAtom
+
     !> Set external charge field
     procedure :: setExternalCharges
 
@@ -440,6 +443,22 @@ contains
     end select
 
   end subroutine updateCharges
+
+
+  !> get DeltaQAtom
+  subroutine getDeltaQAtom(this, deltaQAtom)
+
+    !> Resulting module variables
+    class(TScc), intent(in) :: this
+
+    !> Output DeltaQAtom
+    real(dp), intent(out) :: deltaQAtom(:)
+
+    @:ASSERT(this%tInitialised)
+
+    deltaQAtom = this%deltaQAtom
+
+  end subroutine getDeltaQAtom
 
 
   !> Update potential shifts. Call after updateCharges

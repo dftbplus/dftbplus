@@ -1,0 +1,140 @@
+Geometry = GenFormat {
+5 C
+O H
+1   1   1.2138430000E+00   9.5199000000E-02  -5.9430000000E-02
+2   1  -1.2138570000E+00  -9.5209000000E-02  -5.9416000000E-02
+3   2   4.5000000000E-05  -1.1000000000E-05  -7.1942000000E-02
+4   2   1.4948610000E+00  -6.1842600000E-01   5.1138700000E-01
+5   2  -1.4947950000E+00   6.1851300000E-01   5.1132400000E-01
+}
+Hamiltonian = DFTB {
+  Charge = -1
+  SCC = Yes
+  SCCTolerance = 1.0E-9
+  MaxSCCIterations = 300
+  Filling = Fermi {
+    Temperature = 0.0
+  }
+  Mixer = Broyden {
+    MixingParameter = 0.200000000000000
+    InverseJacobiWeight = 1.000000000000000E-002
+    MinimalWeight = 1.00000000000000
+    MaximalWeight = 100000.000000000
+    WeightFactor = 1.000000000000000E-002
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    O = "p"
+  }
+  ThirdOrderFull = Yes
+  HubbardDerivs = {
+    H = -0.1857
+    O = -0.1575
+  }
+  Multipole = OneCenterApproximation {
+    AtomDIntergralScalings = {
+      H = 0.0
+      O = 0.2
+    }
+    AtomQIntergralScalings = {
+      H = 0.0
+      O = 3.0
+    }
+    OneCenterAtomIntergrals = {
+      H:S_XX_S = 0.559763113574278
+      O:S_X_Px = 0.608943777618081
+      O:S_XX_S = 0.452148337809063
+      O:Px_XX_Px = 0.838929210584501
+      O:Py_XX_Py = 0.279643070194834
+      O:Px_X_Dxx-yy = 0.00000000000000
+      O:Px_X_Dzz = 0.00000000000000
+      O:Py_Y_Dxx-yy = 0.00000000000000
+      O:Pz_Z_Dzz = 0.00000000000000
+      O:S_XX_Dxx-yy = 0.00000000000000
+      O:S_XX_Dzz = 0.00000000000000
+      O:S_YY_Dxx-yy = 0.00000000000000
+      O:S_ZZ_Dzz = 0.00000000000000
+      O:Dxy_XX_Dxy = 0.00000000000000
+      O:Dyz_XX_Dyz = 0.00000000000000
+      O:Dzz_XX_Dxx-yy = 0.00000000000000
+      O:Dzz_XX_Dzz = 0.00000000000000
+      O:Dzz_YY_Dxx-yy = 0.00000000000000
+      O:Dzz_ZZ_Dzz = 0.00000000000000
+      O:Dxz_XZ_Dzz = 0.00000000000000
+      O:Dyz_YZ_Dxx-yy = 0.00000000000000
+      H:S_X_Px = 0.00000000000000
+      H:Px_X_Dxx-yy = 0.00000000000000
+      H:Px_X_Dzz = 0.00000000000000
+      H:Py_Y_Dxx-yy = 0.00000000000000
+      H:Pz_Z_Dzz = 0.00000000000000
+      H:Px_XX_Px = 0.00000000000000
+      H:Py_XX_Py = 0.00000000000000
+      H:S_XX_Dxx-yy = 0.00000000000000
+      H:S_XX_Dzz = 0.00000000000000
+      H:S_YY_Dxx-yy = 0.00000000000000
+      H:S_ZZ_Dzz = 0.00000000000000
+      H:Dxy_XX_Dxy = 0.00000000000000
+      H:Dyz_XX_Dyz = 0.00000000000000
+      H:Dzz_XX_Dxx-yy = 0.00000000000000
+      H:Dzz_XX_Dzz = 0.00000000000000
+      H:Dzz_YY_Dxx-yy = 0.00000000000000
+      H:Dzz_ZZ_Dzz = 0.00000000000000
+      H:Dxz_XZ_Dzz = 0.00000000000000
+      H:Dyz_YZ_Dxx-yy = 0.00000000000000
+    }
+  }
+  SlaterKosterFiles = Type2Filenames {
+    Prefix = "/home/qv0/workplace/projects/multipole_expansion/work/egen/3obp/"
+    Suffix = ".skf"
+    Separator = "-"
+    LowerCaseTypeName = No
+  }
+  PolynomialRepulsive = {}
+  ShellResolvedSCC = No
+  OldSKInterpolation = No
+  RangeSeparated = None {}
+  ReadInitialCharges = No
+  InitialCharges = {}
+  HCorrection = None {}
+  SpinPolarisation = {}
+  ElectricField = {}
+  Solver = RelativelyRobust {}
+  OnSiteCorrection = {}
+  Dispersion = {}
+  ThirdOrder = No
+  Differentiation = FiniteDiff {
+    Delta = 1.220703125000000E-004
+  }
+  ForceEvaluation = "Traditional"
+}
+ParserOptions = {
+  ParserVersion = 8
+  IgnoreUnprocessedNodes = Yes
+  WriteHSDInput = Yes
+  WriteXMLInput = No
+  StopAfterParsing = No
+}
+Analysis = {
+  CalculateForces = Yes
+  ProjectStates = {}
+  WriteEigenvectors = No
+  WriteBandOut = Yes
+  MullikenAnalysis = Yes
+  AtomResolvedEnergies = No
+}
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+  WriteDetailedOut = Yes
+  WriteDetailedXML = No
+  RestartFrequency = 20
+  RandomSeed = 0
+  WriteHS = No
+  WriteRealHS = No
+  MinimiseMemoryUsage = No
+  ShowFoldedCoords = No
+  TimingVerbosity = 1
+  WriteChargesAsText = No
+}
+Driver = {}
+ExcitedState = {}

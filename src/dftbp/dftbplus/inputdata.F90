@@ -552,6 +552,33 @@ module dftbp_dftbplus_inputdata
     !> Hybrid xc-functional input
     type(THybridXcInp), allocatable :: hybridXcInp
 
+
+    !> Multipole expansion
+    logical :: isDftbMultiPole = .false.
+    real(dp), allocatable :: atomicDIntgrlScaling(:)
+    real(dp), allocatable :: atomicQIntgrlScaling(:)
+    real(dp), allocatable :: atomicOnsiteScaling(:)
+    real(dp), allocatable :: atomicSXPxIntgrl(:)
+    real(dp), allocatable :: atomicPxXDxxyyIntgrl(:)
+    real(dp), allocatable :: atomicPxXDzzIntgrl(:)
+    real(dp), allocatable :: atomicPyYDxxyyIntgrl(:)
+    real(dp), allocatable :: atomicPzZDzzIntgrl(:)
+    real(dp), allocatable :: atomicSXXSIntgrl(:)
+    real(dp), allocatable :: atomicPxXXPxIntgrl(:)
+    real(dp), allocatable :: atomicPyXXPyIntgrl(:)
+    real(dp), allocatable :: atomicSXXDxxyyIntgrl(:)
+    real(dp), allocatable :: atomicSXXDzzIntgrl(:)
+    real(dp), allocatable :: atomicSYYDxxyyIntgrl(:)
+    real(dp), allocatable :: atomicSZZDzzIntgrl(:)
+    real(dp), allocatable :: atomicDxyXXDxyIntgrl(:)
+    real(dp), allocatable :: atomicDyzXXDyzIntgrl(:)
+    real(dp), allocatable :: atomicDxxyyXXDzzIntgrl(:)
+    real(dp), allocatable :: atomicDzzXXDzzIntgrl(:)
+    real(dp), allocatable :: atomicDxxyyYYDzzIntgrl(:)
+    real(dp), allocatable :: atomicDzzZZDzzIntgrl(:)
+    real(dp), allocatable :: atomicDxzXZDzzIntgrl(:)
+    real(dp), allocatable :: atomicDyzYZDxxyyIntgrl(:)
+
   #:if WITH_SOCKETS
     !> Socket communication
     type(ipiSocketCommInp), allocatable :: socketInput

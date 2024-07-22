@@ -15,6 +15,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_extfields, only : TEField
+  use dftbp_dftb_multipole, only : TDftbMultiPole
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_scc, only : TScc
@@ -147,7 +148,7 @@ contains
   !> spin, and where relevant dispersion
   subroutine addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0, chargePerShell,&
       & orb, multipole, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd,&
-      & dispersion, potential)
+      & dftbMultiPole, dispersion, potential)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -194,6 +195,9 @@ contains
     !> third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
+    !> Multipole expansion
+    type(TDftbMultiPole), allocatable, intent(inout) :: dftbMultiPole
+
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
@@ -203,6 +207,7 @@ contains
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
+    real(dp), allocatable :: deltaMAtom(:)
     real(dp), allocatable :: dipPot(:,:), quadPot(:,:)
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
@@ -258,6 +263,13 @@ contains
       if (allocated(potential%quadrupoleAtom)) then
         potential%quadrupoleAtom(:,:) = potential%quadrupoleAtom + quadPot
       end if
+    end if
+
+    if (allocated(dftbMultiPole)) then
+      allocate(deltaMAtom(nAtom))
+      call sccCalc%getDeltaQAtom(deltaMAtom)
+      call dftbMultiPole%updateDQPotentials(deltaMAtom)
+      deallocate(deltaMAtom)
     end if
 
     if (allocated(thirdOrd)) then
