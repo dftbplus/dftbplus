@@ -29,6 +29,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_io_message, only : error, warning
+  use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_reks_reks, only : TReksInp
   use dftbp_solvation_cm5, only : TCM5Input
@@ -273,6 +274,9 @@ module dftbp_dftbplus_inputdata
     !> Molecular dynamics
     logical :: tMD = .false.
 
+    !> Molecular dynamics data to be recorded as it is accumulated
+    type(TMDOutput), allocatable :: mdOutput
+
     !> Use Plumed
     logical :: tPlumed = .false.
 
@@ -387,6 +391,10 @@ module dftbp_dftbplus_inputdata
 
     !> Are the k-points not suitable for integrals over the Brillouin zone
     logical :: poorKSampling = .false.
+
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical :: checkStopHybridCalc = .false.
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice

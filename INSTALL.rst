@@ -67,7 +67,9 @@ Additionally there are optional requirements for some DFTB+ features:
   support of 2.5.0). If ELSI was compiled with PEXSI included, you
   will also need a C++ compiler.
 
-* The ARPACK-ng library if using the excited state DFTB functionality.
+* The ARPACK-ng library if using the excited state DFTB functionality. For
+  MPI-parallel builds, the parallel version of ARPACK-ng (containing also
+  PARPACK) is needed.
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU
   accelerated computation (note that within ELSI, the ELPA library
@@ -467,9 +469,9 @@ create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
 the DFTB+ source to find those libraries (and to define the corresponding
 targets) or create your own, provided they define the appropriate CMake
-targets. The ELSI library offers a CMake export file providing the
-``elsi::elsi`` target. Make sure, that CMake can find this export file if the
-DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
+targets. The  arpack-ng and ELSI libraries offer CMake export files providing the
+``ARPACK::ARPACK`` and ``elsi::elsi`` targets, respectively. Make sure, that CMake can find the relevant export file if the
+DFTB+ library was compiled with ELSI or ARPACK required (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
 Note: you may need to install ELSI (not just point the prefix path to its build system) to generate
 this file correctly.

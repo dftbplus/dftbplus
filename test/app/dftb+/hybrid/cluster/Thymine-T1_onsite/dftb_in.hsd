@@ -21,15 +21,17 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
+
   SCC = Yes
   SCCTolerance = 1.0E-9
+
   Mixer = Broyden {}
 
   MaxAngularMomentum = {
-   H = "s"
-   C = "p"
-   N = "p"
-   O = "p"
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
   }
 
   SlaterKosterFiles = Type2FileNames {
@@ -44,30 +46,30 @@ Hamiltonian = DFTB {
 
   SpinConstants = {
     O = {
-         -0.04782
-         -0.03335
-         -0.03335
-         -0.03307
+      -0.04782
+      -0.03335
+      -0.03335
+      -0.03307
     }
     N = {
-         -0.04687
-         -0.03170
-         -0.03170
-         -0.03072
+      -0.04687
+      -0.03170
+      -0.03170
+      -0.03072
     }
     C = {
-         -0.04559
-         -0.02930
-         -0.02930
-         -0.02755
+      -0.04559
+      -0.02930
+      -0.02930
+      -0.02755
     }
     H = {
-         -0.07925
+      -0.07925
     }
     ShellResolvedSpin = Yes
   }
 
-  OnSiteCorrection= {
+  OnSiteCorrection {
     Huu = {0}
     Hud = {0}
     Cuu = {0        0.04973
@@ -90,7 +92,7 @@ Hamiltonian = DFTB {
 
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
@@ -98,6 +100,6 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
+ParserOptions {
   ParserVersion = 8
 }

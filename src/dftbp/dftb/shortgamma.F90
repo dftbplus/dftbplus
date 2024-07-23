@@ -258,7 +258,7 @@ contains
 
 
   !> Adds the atom resolved interaction matrix
-  subroutine addAtomicMatrix(this, gammamat, iNeighbour, img2CentCell)
+  subroutine addAtomicMatrix(this, gammamat, iNeighbour, img2CentCell, iAt, jAt)
 
     !> Instance
     class(TShortGamma), intent(in) :: this
@@ -272,14 +272,28 @@ contains
     !> Mapping of the atoms into the central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Optional pair of atoms for which to evaluate and add interaction
+    integer, intent(in), optional :: iAt, jAt
+
     integer :: iAt1, iAt2f, iNeigh
 
-    do iAt1 = 1, this%nAtom_
-      do iNeigh = 0, maxval(this%nNeigh_(:,:,:, iAt1))
-        iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
-        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma_(1, 1, iNeigh, iAt1)
+    if (present(jAt)) then
+      @:ASSERT(present(iAt))
+      @:ASSERT(iAt >= jAt)
+      do iNeigh = 0, maxval(this%nNeigh_(:,:,:, jAt))
+        iAt2f = img2CentCell(iNeighbour(iNeigh, jAt))
+        if (iAt2f == iAt) then
+          gammamat(iAt, jAt) = gammamat(iAt, jAt) - this%shortGamma_(1, 1, iNeigh, jAt)
+        end if
       end do
-    end do
+    else
+      do iAt1 = 1, this%nAtom_
+        do iNeigh = 0, maxval(this%nNeigh_(:,:,:, iAt1))
+          iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
+          gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma_(1, 1, iNeigh, iAt1)
+        end do
+      end do
+    end if
 
   end subroutine addAtomicMatrix
 

@@ -199,10 +199,6 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
   endif()
 
-  if(WITH_ARPACK AND WITH_MPI)
-    message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
-  endif()
-
   if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
     message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
   endif()

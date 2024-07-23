@@ -96,7 +96,7 @@ contains
     ! rectangular grid for the rowBlock
     call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
     call this%rowOrbitalGrid%initmappedgrids(gridMap)
-
+    
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
     maxProcColMax = (nAtom - 1) / colBlock + 1

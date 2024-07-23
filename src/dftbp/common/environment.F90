@@ -92,7 +92,8 @@ module dftbp_common_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(26) = [&
+  !> Timers and their required verbosity levels. Order must match the helper index type
+  type(TTimerItem), parameter :: globalTimerItems(34) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -118,9 +119,19 @@ module dftbp_common_environment
       & TTimerItem("Stress calculation", 2),&
       & TTimerItem("Post-geometry optimisation", 1),&
       & TTimerItem("Electron dynamics initialisation", 2),&
-      & TTimerItem("Electron dynamics loop", 2)&
+      & TTimerItem("Electron dynamics loop", 2),&
+      & TTimerItem("Linear response excitation", 2),&
+      & TTimerItem("Linear response setup", 3),&
+      & TTimerItem("Linear response coulomb", 4),&
+      & TTimerItem("Linear response transition charges", 4),&
+      & TTimerItem("Linear response solver", 3),&
+      & TTimerItem("Linear response Z vector", 3),&
+      & TTimerItem("Linear response gradients", 3),&
+      & TTimerItem("Linear response NAC", 3)&
       & ]
 
+
+  !> Numerical identifiers to distinguish timers, matching labels above
   type :: TGlobalTimersHelper
     integer :: globalInit = 1
     integer :: preSccInit = 2
@@ -148,9 +159,18 @@ module dftbp_common_environment
     integer :: postGeoOpt = 24
     integer :: elecDynInit = 25
     integer :: elecDynLoop = 26
-
+    integer :: lrExcitation = 27
+    integer :: lrSetup = 28
+    integer :: lrCoulomb = 29
+    integer :: lrTransCharges = 30
+    integer :: lrSolver = 31
+    integer :: lrZVector = 32
+    integer :: lrGradients = 33
+    integer :: lrNAC = 34
   end type TGlobalTimersHelper
 
+
+  !> Instance of timer labels
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
 
 

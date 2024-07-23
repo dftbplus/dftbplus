@@ -102,7 +102,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
-  use dftbp_md_mdcommon, only : TMDCommon, init
+  use dftbp_md_mdcommon, only : TMDCommon, init, TMDOutput
   use dftbp_md_mdintegrator, only : TMDIntegrator, init
   use dftbp_md_nhctherm, only : TNHCThermostat, init
   use dftbp_md_tempprofile, only : TTempProfile, TempProfile_init
@@ -472,6 +472,9 @@ module dftbp_dftbplus_initprogram
     !> Is this a MD calculation?
     logical :: tMD
 
+    !> Output options for molecular dynamics data
+    type(TMDOutput), allocatable :: mdOutput
+
     !> Is this a derivatives calc?
     logical :: tDerivs
 
@@ -801,6 +804,10 @@ module dftbp_dftbplus_initprogram
 
     !> Choice of hybrid xc-functional algorithm to build Hamiltonian
     integer :: hybridXcAlg
+
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical :: checkStopHybridCalc = .false.
 
     !> Whether constraints are imposed on electronic ground state
     logical :: isElecConstr
@@ -1145,13 +1152,13 @@ module dftbp_dftbplus_initprogram
     !> Number of determinants in use in the calculation
     integer :: nDets
 
-    !> Final SCC charges if multiple determinants being used
+    !> SCC charges, if multiple determinants are being used
     real(dp), allocatable :: qDets(:,:,:,:)
 
-    !> Final SCC block charges if multiple determinants being used
+    !> SCC block charges, if multiple determinants are being used
     real(dp), allocatable :: qBlockDets(:,:,:,:,:)
 
-    !> Final density matrices if multiple determinants being used
+    !> Density matrices, if multiple determinants are being used
     real(dp), allocatable :: deltaRhoDets(:,:,:,:)
 
     !> Data type for REKS
@@ -1390,10 +1397,12 @@ contains
     this%isXlbomd = allocated(input%ctrl%xlbomd)
     this%isElecConstr = allocated(input%ctrl%elecConstraintInp)
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
+    this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
     if (this%isHybridXc) then
       allocate(this%symNeighbourList)
       this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
+      this%checkStopHybridCalc = input%ctrl%checkStopHybridCalc
     else
       this%hybridXcAlg = hybridXcAlgo%none
     end if
@@ -1509,6 +1518,10 @@ contains
       call error(trim(tmpStr))
     end if
 
+    if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
+      call error("Multiple MPI groups not available for excited state calculations")
+    end if
+    
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
@@ -1949,6 +1962,7 @@ contains
     this%tAppendGeo = input%ctrl%tAppendGeo
     this%isSccConvRequired = input%ctrl%isSccConvRequired
     this%tMD = input%ctrl%tMD
+    if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
@@ -1981,7 +1995,6 @@ contains
 
     this%tPrintForces = input%ctrl%tPrintForces
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
-    this%isLinResp = allocated(input%ctrl%lrespini)
     if (this%isLinResp) then
       allocate(this%linearResponse)
     end if
@@ -2774,8 +2787,8 @@ contains
     end if
 
     this%tReadChrg = input%ctrl%tReadChrg
-    if (this%tReadChrg .and. this%deltaDftb%isNonAufbau) then
-      call error("Charge restart not currently supported for Delta DFTB")
+    if (this%tReadChrg .and. this%deltaDftb%nDeterminant() > 1) then
+      call error("Charge restart not currently supported for Delta DFTB with multiple states")
     end if
 
     this%tReadShifts = input%ctrl%tReadShifts
@@ -5296,7 +5309,9 @@ contains
 
     if (this%isLinResp) then
       if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+        if (this%tLinRespZVect) then
+          call error("Excited state gradients do not work with MPI yet")
+        end if
       end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
@@ -5338,16 +5353,15 @@ contains
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
       ! must be SCC and also need storage for final charges
-      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
-      this%qDets(:,:,:,:) = 0.0_dp
-      ! When block charges are needed
+      allocate(this%qDets(this%orb%mOrb, this%nAtom, this%nSpin, this%nDets), source=0.0_dp)
       if (allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
-        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets))
-        this%qBlockDets(:,:,:,:,:) = 0.0_dp
+        ! When block charges are needed
+        allocate(this%qBlockDets(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin, this%nDets),&
+            & source=0.0_dp)
       end if
       if (this%isHybridXc) then
-        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets))
-        this%deltaRhoDets(:,:,:,:) = 0.0_dp
+        allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets),&
+            & source=0.0_dp)
       end if
     end if
 
@@ -5419,6 +5433,7 @@ contains
     end if
 
     nLocalKS = size(this%parallelKS%localKS, dim=2)
+
   #:if WITH_SCALAPACK
     if (hybridXcAlgoNonDistributed) then
       nLocalRows = this%denseDesc%fullSize
@@ -5428,8 +5443,10 @@ contains
           & nLocalCols)
     end if
   #:else
+
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
+
   #:endif
 
     if (this%t2Component .or. .not. this%tRealHS) then
@@ -5968,7 +5985,9 @@ contains
     @:ASSERT(allocated(input%ctrl%lrespini))
 
     if (withMpi) then
-      call error("Linear response calc. does not work with MPI yet")
+      if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
+        call error("Non-adiabatic coupling vectors not available under MPI")
+      end if
     end if
 
     if (.not. tSccCalc) then
@@ -6048,7 +6067,6 @@ contains
         call error("Negative energy window for excitations")
       end if
     end if
-
 
   end subroutine ensureLinRespConditions
 

@@ -223,6 +223,6 @@ jobs:
         ctest -j 2 --output-on-failure
         popd
 
-    - name: Install project
-      run: |
-        cmake --install ${BUILD_DIR}
+    # - name: Install project
+    #   run: |
+    #     cmake --install ${BUILD_DIR}

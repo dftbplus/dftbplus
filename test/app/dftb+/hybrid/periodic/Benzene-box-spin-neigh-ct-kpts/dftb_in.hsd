@@ -21,8 +21,8 @@ Hamiltonian = DFTB {
   }
 
   SpinPolarisation = Colinear {
-      UnpairedElectrons = 2
-      RelaxTotalSpin = Yes
+    UnpairedElectrons = 2
+    RelaxTotalSpin = Yes
   }
 
   Filling = Fermi {Temperature [K] = 0.0}
@@ -40,18 +40,18 @@ Hamiltonian = DFTB {
   }
 
   SpinConstants = {
-      C = {-0.023} # HOMO Wpp
-      H = {-0.072} # HOMO Wss
+    C = {-0.023} # HOMO Wpp
+    H = {-0.072} # HOMO Wss
   }
 
 }
 
 ParserOptions {
-    ParserVersion = 14
+  ParserVersion = 14
 }
 
 Options {
-    WriteAutotestTag = Yes
+  WriteAutotestTag = Yes
 }
 
 Parallel {
