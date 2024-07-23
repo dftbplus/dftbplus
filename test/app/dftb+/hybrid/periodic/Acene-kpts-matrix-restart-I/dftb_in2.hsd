@@ -6,7 +6,10 @@ Hamiltonian = DFTB {
 
   SCC = Yes
   SccTolerance = 1e-10
-  MaxSccIterations = 50
+  ReadInitialCharges = Yes
+  MaxSccIterations = 3
+
+  Mixer = Simple {MixingParameter = 0.85}
 
   Filling = Fermi {
     Temperature [K] = 0.0
@@ -28,9 +31,7 @@ Hamiltonian = DFTB {
       CoulombCutoff = 0.162772E+02
       GSummationCutoff = 0.325543E+02
     }
-    Screening = NeighbourBased {
-      Threshold = 1e-100
-    }
+    Screening = MatrixBased {}
   }
 
   KPointsAndWeights = SupercellFolding {
@@ -55,7 +56,7 @@ ParserOptions {
 }
 
 Parallel {
-  Groups = 2
+  Groups = 1
   # Allow OMP threads explicitely to test for hybrid parallelisation with
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes

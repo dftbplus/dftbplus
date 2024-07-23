@@ -1,48 +1,56 @@
 Geometry = GenFormat {
-    <<< "butadiene.gen"
+  <<< "butadiene.gen"
 }
 
 Driver = {}
 
 Hamiltonian = DFTB {
-    SCC = Yes
-    SCCTolerance = 1e-10  # Very tight for test purposes only
-    MaxAngularMomentum = {
-        C = "p"
-        H = "s"
-    }
-    SlaterKosterFiles = Type2FileNames {
-        Prefix = "slakos/origin/ob2-1-1/shift/"
-        Separator = "-"
-        Suffix = ".skf"
-    }
-    SpinConstants = {
-        C = {-0.023} # HOMO Wpp
-        H = {-0.072} # HOMO Wss
-    }
-    RangeSeparated = LC {Screening = MatrixBased {}}
+
+  SCC = Yes
+  SCCTolerance = 1e-10  # Very tight for test purposes only
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  SpinConstants = {
+    C = {-0.023} # HOMO Wpp
+    H = {-0.072} # HOMO Wss
+  }
+
+  RangeSeparated = LC {
+    Screening = MatrixBased {}
+  }
+
 }
 
 Options {
-    WriteAutotestTag = Yes
+  WriteAutotestTag = Yes
 }
 
 ParserOptions {
-    ParserVersion = 10
+  ParserVersion = 10
 }
 
 ExcitedState {
-    Casida {
-        NrOfExcitations = 5
-        StateOfInterest = 0
-        Symmetry = Triplet
-	Diagonaliser = Stratmann {SubSpaceFactor = 30}	
-    }
+  Casida {
+    NrOfExcitations = 5
+    StateOfInterest = 0
+    Symmetry = Triplet
+    Diagonaliser = Stratmann {SubSpaceFactor = 30}
+  }
 }
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
+  Blacs = BlockSize { 1 } # Very small
 }
-

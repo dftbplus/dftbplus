@@ -3,24 +3,29 @@ Geometry = GenFormat {
 }
 
 Hamiltonian = DFTB {
+
   SCC = Yes
   ReadInitialCharges = Yes
   MaxSCCIterations = 1
+
   MaxAngularMomentum = {
-   H = "s"
-   C = "p"
+    H = "s"
+    C = "p"
   }
+
   SlaterKosterFiles = Type2FileNames {
     Prefix = "slakos/origin/ob2-1-1/shift/"
     Separator = "-"
     Suffix = ".skf"
   }
+
   RangeSeparated = LC {
     Screening = NeighbourBased {}
   }
+
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
@@ -28,6 +33,6 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
+ParserOptions {
   ParserVersion = 7
 }

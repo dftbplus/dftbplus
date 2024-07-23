@@ -1,13 +1,12 @@
 Geometry = GenFormat {
-   <<< Acene_Primitive_Cell.gen
+  <<< Acene_Primitive_Cell.gen
 }
 
 Hamiltonian = DFTB {
 
   SCC = Yes
   SccTolerance = 1e-10
-  ReadInitialCharges = Yes
-  MaxSccIterations = 1
+  MaxSccIterations = 60
 
   Mixer = Simple {MixingParameter = 0.85}
 

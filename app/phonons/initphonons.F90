@@ -1188,7 +1188,6 @@ contains
     endif
 
     !call readKPoints(node, geo, tBadKpoints)
-
     call getChild(node, "Conductance", child, requested=.false.)
     if (associated(child)) then
       if (.not.tTransport) then
@@ -1204,6 +1203,10 @@ contains
 
        TempMin = TempRange(1)
        TempMax = TempRange(2)
+    else
+       TempMin = 0.0_dp
+       TempMax = 0.0_dp
+       TempStep = 1.0_dp
     endif
 
   end subroutine readAnalysis

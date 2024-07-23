@@ -30,6 +30,9 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- More control over output of data and band structures during MD
+  calculations
+
 - MPI-parallelization for energy evaluation of REKS/SSR calculations
 
 
@@ -43,6 +46,8 @@ Fixed
 
 - Temporarily remove free energy for Delta-DFTB calculations, as this
   is not formally derived in the general case.
+
+- DeltaDFTB purified forces used correctly.
 
 24.1 (2024-02-12)
 =================

@@ -785,8 +785,8 @@ contains
     copyData = .true.
   #:if WITH_MPI
     if (neigh%useMpiWindows_) then
-      call neigh%iNeighbourWin_%lock()
-      call neigh%neighDist2Win_%lock()
+      call neigh%iNeighbourWin_%lock_all()
+      call neigh%neighDist2Win_%lock_all()
       copyData = env%mpi%nodeComm%lead
     end if
   #:endif
@@ -833,8 +833,8 @@ contains
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
-      call neigh%iNeighbourWin_%unlock()
-      call neigh%neighDist2Win_%unlock()
+      call neigh%iNeighbourWin_%unlock_all()
+      call neigh%neighDist2Win_%unlock_all()
     end if
   #:endif
 
@@ -918,8 +918,8 @@ contains
     #:if WITH_MPI
       maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
 
-      call neigh%iNeighbourWin_%lock()
-      call neigh%neighDist2Win_%lock()
+      call neigh%iNeighbourWin_%lock_all()
+      call neigh%neighDist2Win_%lock_all()
 
       neigh%iNeighbour(1:maxNeighbourLocal, startAtom:endAtom) =&
           & iNeighbour(1:maxNeighbourLocal, startAtom:endAtom)
@@ -939,8 +939,8 @@ contains
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
-      call neigh%iNeighbourWin_%unlock()
-      call neigh%neighDist2Win_%unlock()
+      call neigh%iNeighbourWin_%unlock_all()
+      call neigh%neighDist2Win_%unlock_all()
     #:endif
     else
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
