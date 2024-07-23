@@ -33,6 +33,9 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
+- Onsite corrected hamiltonian for range separated functional
+
+
 Fixed
 -----
 

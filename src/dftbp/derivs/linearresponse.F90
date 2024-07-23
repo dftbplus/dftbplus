@@ -375,6 +375,8 @@ contains
       @:PROPAGATE_ERROR(errStatus)
     end if
 
+    ! TODO : add LrOC correction in later
+
     ! form |c> H' <c|
     call symm(workLocal, 'l', dRho, eigVecsReal(:,:,iS))
     workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
