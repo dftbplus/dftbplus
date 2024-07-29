@@ -1526,26 +1526,15 @@ contains
       call gemm(resL, vP, evecR, beta=1.0_dp)
 
       ! calc. norms of residual vectors to check for convergence
-      didConverge = .true.
       do ii = 1, nExc
         dummyReal = dot_product(resR(:,ii), resR(:,ii))
         call assembleChunks(env, dummyReal)
         vecNorm(ii) = dummyReal
-        if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
-          didConverge = .false.
-        end if
+        dummyReal = dot_product(resL(:,ii), resL(:,ii))
+        call assembleChunks(env, dummyReal)
+        vecNorm(nExc+ii) = dummyReal
       end do
-
-      if (didConverge) then
-        do ii = 1, nExc
-          dummyReal = dot_product(resL(:,ii), resL(:,ii))
-          call assembleChunks(env, dummyReal)
-          vecNorm(nExc+ii) = dummyReal
-          if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
-            didConverge = .false.
-          end if
-        end do
-      end if
+      didConverge = all(vecNorm .lt. CONV_THRESH_STRAT)
       
       if ((.not. didConverge) .and. (subSpaceDim > nxov_rd)) then
         write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
