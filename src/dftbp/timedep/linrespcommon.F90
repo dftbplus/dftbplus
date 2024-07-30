@@ -611,8 +611,6 @@ contains
 
       otmp(:) = 0.0_dp
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = iGlobal, fGlobal
         myia = ia - iGlobal + 1
         
@@ -627,14 +625,11 @@ contains
         otmp(:) = otmp + spinFactor(ss) * sqrOccIA(ia) * vLoc(myia) * qij
 
       end do
-      !$OMP  END PARALLEL DO
 
       call assembleChunks(env, otmp)
 
       otmp = otmp * spinW(species0)
 
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ss,qij) &
-      !$OMP& SCHEDULE(RUNTIME)
       do ia = iGlobal, fGlobal
         myia = ia - iGlobal + 1
         
@@ -645,7 +640,6 @@ contains
         vOut(myia) = vOut(myia) + 2.0_dp * sqrOccIA(ia) * spinFactor(ss) * dot_product(qij, otmp)
 
       end do
-      !$OMP  END PARALLEL DO
 
     end if
     

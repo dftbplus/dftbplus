@@ -207,17 +207,18 @@ contains
     ${DTYPE}$, intent(out) :: composite${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
     integer, allocatable :: locSize(:), vOffset(:)
-    integer :: localFirst, localLast, iam
+    integer :: localFirst, localLast, iProc
 
   #:if WITH_MPI
     allocate(locSize(env%mpi%groupComm%size))
     allocate(vOffSet(env%mpi%groupComm%size))
 
-    iam = env%mpi%groupComm%rank
-    call getChunkRanges(env%mpi%groupComm%size, iam, globalFirst, globalLast, localFirst, localLast)
-    locSize(iam + 1) = localLast - localFirst + 1
-    vOffSet(iam + 1) = localFirst - 1
-    
+    do iProc = 1, env%mpi%groupComm%size
+      call getChunkRanges(env%mpi%groupComm%size, iProc-1, globalFirst, globalLast, localFirst, &
+        & localLast)
+      locSize(iProc) = localLast - localFirst + 1
+      vOffSet(iProc) = localFirst - 1
+    enddo
     call mpifx_allgatherv(env%mpi%globalComm, chunks, composite, locSize, vOffset)
  #:else
     composite = chunks
