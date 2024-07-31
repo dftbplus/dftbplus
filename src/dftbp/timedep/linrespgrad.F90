@@ -454,6 +454,14 @@ contains
     do iSpin = 1, nSpin
       call symm(ovrXev(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
+
+    if (this%tSpin .or. allocated(this%onSiteMatrixElements)) then
+      allocate(eigVecGlb(norb,norb,nSpin))
+      allocate(ovrXevGlb(norb,norb,nSpin))
+      eigVecGlb = grndEigVecs
+      ovrXevGlb = ovrXev
+    end if
+    
     call env%globalTimer%startTimer(globalTimers%lrCoulomb)
     call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%lrCoulomb)

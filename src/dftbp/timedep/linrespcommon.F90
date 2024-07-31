@@ -742,9 +742,9 @@ contains
    
     if (allocated(onsMEs)) then
       ! Parallelizing this routine is difficult. Calls transdens which refers to individual
-      ! global indices. Input vector is still distributed. 
+      ! global indices. Input vector is still distributed.
       call onsiteEner(env, spin, sym, wij, sqrOccIA, win, nxov_ud(1), denseDesc%iAtomStart, getIA,&
-          & species0, ovrXevGlb, eigVecGlb, onsMEs, orb, vLoc, vout_ons, iGlobal-1)      
+          & species0, ovrXevGlb, eigVecGlb, onsMEs, orb, vLoc, vout_ons, iGlobal-1)
       vout(:) = vout + vout_ons
     end if
     
@@ -1333,6 +1333,7 @@ contains
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
       end do
+
       ! Rotational invariance corection for diagonal part
       do iSpin = 1, nSpin
         do iSh = 1, orb%nShell(iSp)
