@@ -36,7 +36,8 @@ module dftbp_timedep_linrespgrad
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
       & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
       & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
-  use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
+  use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes, TCasidaParameter,&
+      & CasidaParameter_init 
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
@@ -197,11 +198,11 @@ contains
     character, allocatable :: symmetries(:)
 
     integer :: nxoo_max, nxvv_max
-    integer, allocatable :: nocc_ud(:), nvir_ud(:)
+    integer, allocatable :: nocc_ud(:), nvir_ud(:), nxoo_ud(:), nxvv_ud(:), nxov_ud(:)
     integer :: mHOMO, mLUMO
-    integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, nxoo_ud(2), nxvv_ud(2)
+    integer :: nxov, nxov_r, nxov_d, nxov_rd
     integer :: norb, nxoo, nxvv
-    integer :: i, j, ss, iSpin, isym, iLev, iSav, nStartLev, nEndLev
+    integer :: i, j, iSpin, isym, iLev, iSav, nStartLev, nEndLev
     integer :: nCoupLev, mCoupLev, iNac, iGlobal, fGlobal
     integer :: nSpin
     character :: sym
@@ -220,6 +221,9 @@ contains
 
     !> Transition charges, either cached or evaluated on demand
     type(TTransCharges) :: transChrg
+
+    !> Casida parameters (number of transitions, index arrays and alike)
+    type(TCasidaParameter) :: rpa
 
     type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
 
@@ -309,6 +313,7 @@ contains
     end if
 
     ! count initial number of transitions from occupied to empty states
+    allocate(nxov_ud(nSpin))
     nxov_ud = 0
     do iSpin = 1, nSpin
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j) SCHEDULE(RUNTIME) REDUCTION(+:nxov_ud)
@@ -342,6 +347,8 @@ contains
     mLUMO = minval(nocc_ud) + 1
 
     ! Dimension of getIJ and getAB
+    allocate(nxoo_ud(nSpin))
+    allocate(nxvv_ud(nSpin))
     nxoo_ud(:) = 0
     nxvv_ud(:) = 0
     do iSpin = 1, nSpin
@@ -565,8 +572,19 @@ contains
       call env%globalTimer%stopTimer(globalTimers%lrTransCharges)
     end if
 
+    ! set up transition indexing
+    allocate(iatrans(norb, norb, nSpin))
+    call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
+
     ! MPI distribution of RPA vectors according to these indices 
     call distributeRangeInChunks(env, 1, nxov_rd, iGlobal, fGlobal)
+
+    ! All relevant run time parameters of Casida are stored in a derived type
+    ! Input arrays are deallocated on return
+    print *,'before',nocc_ud
+    call CasidaParameter_init(rpa, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,& 
+        & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA)
+    print *,'gui',rpa%nocc_ud 
 
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
@@ -602,19 +620,13 @@ contains
     write(fdExc%unit, '(1x,80("="))')
     write(fdExc%unit, *)
 
-    ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
-    ! size(wij), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wij, win, nxov_ud(1), getIA, this%writeSPTrans, sposz, nxov_rd,&
-        & this%tSpin)
+    ! single particle excitations (output file and tagged file if needed).  
+    call writeSPExcitations(this, rpa, sposz)    
 
-    allocate(xpy(nxov_rd, this%nExc))
+    allocate(xpy(rpa%nxov_rd, this%nExc))
     if (tZVector .or. tHybridXc) then
-      allocate(xmy(nxov_rd, this%nExc))
+      allocate(xmy(rpa%nxov_rd, this%nExc))
     end if
-
-    ! set up transition indexing
-    allocate(iatrans(norb, norb, nSpin))
-    call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
 
     if (this%iLinRespSolver /= linrespSolverTypes%stratmann .and. tHybridXc) then
       call error("Range separation requires the Stratmann solver for excitations")
@@ -628,44 +640,41 @@ contains
       call env%globalTimer%startTimer(globalTimers%lrSolver)
       select case (this%iLinRespSolver)
       case (linrespSolverTypes%arpack)
-        call buildAndDiagExcMatrixArpack(iGlobal, fGlobal, this%tSpin, wij(:nxov_rd), sym, win,&
-            & nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB,&
-            & env, denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling,&
-            & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, transChrg, this%testArnoldi,&
-            & eval, xpy, xmy, this%onSiteMatrixElements, orb, tHybridXc, tZVector)
+        call buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
+            & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, gammaMat,& 
+            & species0, eval, sym, tHybridXc, tZVector, xpy, xmy)
+    
       case (linrespSolverTypes%stratmann)
-        call buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, this%tSpin, &
-            & this%subSpaceFactorStratmann, wij(:nxov_rd), sym, win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-            & ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA(:nxov_rd), gammaMat, species0,&
-            & this%spinW, transChrg, eval, xpy, xmy, this%onSiteMatrixElements, orb, tHybridXc,&
-            & lrGamma, tZVector)
+        call buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
+            & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, gammaMat, lrGamma,& 
+            & species0, eval, sym, tHybridXc, tZVector, xpy, xmy)
       end select
       call env%globalTimer%stopTimer(globalTimers%lrSolver)
 
       ! Excitation oscillator strengths for resulting states
-      call getOscillatorStrengths(sym, this%tSpin, snglPartTransDip(1:nxov_rd,:), eval, xpy,&
-            & sqrOccIA(:nxov_rd), nstat, osz, this%writeTransDip, transitionDipoles)
+      call getOscillatorStrengths(this, rpa, sym, eval, xpy, snglPartTransDip(1:rpa%nxov_rd,:),&
+          & nstat, osz, transitionDipoles)
 
       if (this%tSpin) then
 
       #:if WITH_SCALAPACK
 
-        call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXevGlb, eigVecGlb)
+        call getExcSpin(rpa, Ssq, eval, xpy, filling, ovrXevGlb, eigVecGlb)
 
       #:else
         
-        call getExcSpin(Ssq, nxov_ud(1), getIA, win, eval, xpy, filling, ovrXev, grndEigVecs)
+        call getExcSpin(rpa, Ssq, eval, xpy, filling, ovrXev, grndEigVecs)
 
       #:endif
-        
-        call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getIA, win, eval, xpy,&
-            & wij(:nxov_rd), fdXPlusY, fdTrans, fdTransDip,&
-            & transitionDipoles,  fdTagged, taggedWriter, fdExc, Ssq)
+
+        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
+            & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+ 
       else
-        call writeExcitations(sym, osz, this%nExc, nxov_ud(1), getIA, win, eval, xpy,&
-            & wij(:nxov_rd), fdXPlusY, fdTrans, fdTransDip,&
+ 
+        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
             & transitionDipoles, fdTagged, taggedWriter, fdExc)
+        
       end if
 
       if (allocated(allOmega)) then
@@ -759,22 +768,21 @@ contains
 
           omega = sqrt(eval(iLev))
 
-         ! solve for Z and W to get excited state density matrix
-         call getZVectorEqRHS(tHybridXc, xpy(:,iLev), xmy(:,iLev), win, env, denseDesc,&
-            & nocc_ud, transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
-            & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
-            & wov, woo, wvv)
+          ! solve for Z and W to get excited state density matrix
+          call getZVectorEqRHS(env, this, rpa, transChrg, sym, xpy(:,iLev), xmy(:,iLev), denseDesc,&
+            & species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omega, tHybridXc, rhs,&
+            & t, wov, woo, wvv)
 
-          call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, env, denseDesc,&
-            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA(:nxov_rd), gammaMat,&
+          call solveZVectorPrecond(rhs, this%tSpin, rpa%wij(:nxov_rd), rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud,&
+            & rpa%nxvv_ud, rpa%nxov_ud, nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, this%nAtom, env, denseDesc,&
+            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA(:nxov_rd), gammaMat,&
             & species0, this%spinW, this%onSiteMatrixElements, orb, transChrg, tHybridXc, lrGamma)
 
-          call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans, env, denseDesc,&
+          call calcWVectorZ(rhs, rpa%win, rpa%nocc_ud, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%iaTrans, env, denseDesc,&
             & ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv, transChrg, species0, &
             & this%spinW, tHybridXc, lrGamma)
 
-          call calcPMatrix(t, rhs, win, getIA, pc)
+          call calcPMatrix(t, rhs, rpa%win, rpa%getIA, pc)
 
           call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
             & naturalOrbs)
@@ -796,8 +804,8 @@ contains
 
           if (tForces) then
             iSav = iLev - nStartLev + 1
-            call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb, nocc_ud,&
-                & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
+            call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb, rpa%nocc_ud,&
+                & rpa%getIA, rpa%getIJ, rpa%getAB, rpa%win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
                 & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, tHybridXc,&
                 & hybridXc, excgrad(:,:,iSav), deltaRho=deltaRho)
@@ -833,8 +841,8 @@ contains
               xpym(:) = xpy(:,mCoupLev)
               xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
-              call grndToExcDensityMatrices(tHybridXc, xpym, xmym, win, env, denseDesc, nocc_ud,&
-                 & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
+              call grndToExcDensityMatrices(tHybridXc, xpym, xmym, rpa%win, env, denseDesc, rpa%nocc_ud,&
+                 & transChrg, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%iaTrans, this%nAtom, species0, grndEigVal,&
                  & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omegaDif, sym, pc, wov,&
                  & woo)
 
@@ -852,7 +860,7 @@ contains
               xpyn(:) = 0.0_dp
               xmyn(:) = 0.0_dp
               call addGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb,&
-                & nocc_ud, getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
+                & rpa%nocc_ud, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat,&
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpym,&
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, tHybridXc, hybridXc,&
                 & nacv(:,:,iNac), deltaRho=deltaRho)
@@ -869,22 +877,22 @@ contains
               ! compute + component of RHS for Z-vector eq. in the NaCoupling case
               ! also computes the + components of W and T
               call getNadiaZvectorEqRHS(tHybridXc, xpy(:,nCoupLev), xmy(:,nCoupLev),&
-                 & xpy(:,mCoupLev), xmy(:,mCoupLev), win, env, denseDesc, nocc_ud, transChrg,&
-                 & getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal, ovrXev,&
+                 & xpy(:,mCoupLev), xmy(:,mCoupLev), rpa%win, env, denseDesc, rpa%nocc_ud, transChrg,&
+                 & rpa%getIA, rpa%getIJ, rpa%getAB, rpa%iaTrans, this%nAtom, species0, grndEigVal, ovrXev,&
                  & grndEigVecs, gammaMat, lrGamma, this%spinW, omegaAvg, sym, rhs, t,&
                  & wov, woo, wvv)
 
-              call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud,&
-                  & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom,&
+              call solveZVectorPrecond(rhs, this%tSpin, rpa%wij(:nxov_rd), rpa%win, rpa%nocc_ud, rpa%nvir_ud,&
+                  & rpa%nxoo_ud, rpa%nxvv_ud, rpa%nxov_ud, nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, this%nAtom,&
                   & env, denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling,&
-                  & sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, this%onSiteMatrixElements,&
+                  & rpa%sqrOccIA(:nxov_rd), gammaMat, species0, this%spinW, this%onSiteMatrixElements,&
                   & orb, transChrg, tHybridXc, lrGamma)
 
-              call calcWVectorZ(rhs, win, nocc_ud, getIA, getIJ, getAB, iaTrans,&
+              call calcWVectorZ(rhs, rpa%win, rpa%nocc_ud, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%iaTrans,&
                  & env, denseDesc, ovrXev, grndEigVecs, gammaMat, grndEigVal, wov, woo, wvv,&
                  & transChrg, species0, this%spinW, tHybridXc, lrGamma)
 
-              call calcPMatrix(t, rhs, win, getIA, pc)
+              call calcPMatrix(t, rhs, rpa%win, rpa%getIA, pc)
 
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
@@ -893,7 +901,7 @@ contains
               end do
 
               call addNadiaGradients(sym, nxov_rd, this%nAtom, species0, env, denseDesc, norb,&
-                & nocc_ud, getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,&
+                & rpa%nocc_ud, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, lrGamma,&
                 & this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpyn, xmyn, xpym,&
                 & xmym, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho, tHybridXc,&
                 & hybridXc, nacv(:,:,iNac))
@@ -946,61 +954,30 @@ contains
   !! The code deals with closed shell systems by diagonalising dedicated singlet/triplet
   !! submatrices.
   !! See Dominguez JCTC 9 4901 (2013)
-  subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, tSpin, wij, sym, win, nocc_ud, nvir_ud,&
-      & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-      & ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0, spinW, transChrg,&
-      & testArnoldi, eval, xpy, xmy, onsMEs, orb, tHybridXc, tZVector)
+  subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
+    & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, gammaMat, species0,& 
+    & eval, sym, tHybridXc, tZVector, xpy, xmy)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
 
     !> End index of current rank in global RPA vectors
     integer, intent(in) :: fGlobal
-    
-    !> Spin polarisation?
-    logical, intent(in) :: tSpin
-
-    !> Single particle excitation energies
-    real(dp), intent(in) :: wij(:)
-
-    !> Symmetry to calculate transitions
-    character, intent(in) :: sym
-
-    !> Index array for single particle excitations
-    integer, intent(in) :: win(:)
-
-    !> Occupied orbitals per spin channel
-    integer, intent(in) :: nocc_ud(:)
-
-    !> Virtual orbitals per spin channel
-    integer, intent(in) :: nvir_ud(:)
-
-    !> Number of occ-occ transitions per spin channel
-    integer, intent(in) :: nxoo_ud(:)
-
-    !> Number of vir-vir transitions per spin channel
-    integer, intent(in) :: nxvv_ud(:)
-
-    !> Number of occ-vir transitions per spin channel
-    integer, intent(in) :: nxov_ud(:)
-
-    !> Number of occupied-virtual transitions (possibly reduced by windowing)
-    integer, intent(in) :: nxov_rd
-
-    !> array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
-
-    !> Index array for occ-vir single particle excitations
-    integer, intent(in) :: getIA(:,:)
-
-    !> Index array for occ-occ single particle excitations
-    integer, intent(in) :: getIJ(:,:)
-
-    !> Index array for vir-vir single particle excitations
-    integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+    
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+
+    !> Machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1020,38 +997,17 @@ contains
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
 
-    ! Square root of occupation difference between vir and occ states
-    real(dp), intent(in) :: sqrOccIA(:)
-
     !> Electrostatic matrix
     real(dp), intent(in) :: gammaMat(:,:)
 
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
-    !> File handle for ARPACK eigenstate tests
-    logical, intent(in) :: testArnoldi
-
-    !> Atomic resolved spin constants
-    real(dp), intent(in) :: spinW(:)
-
-    !> Machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
     !> Resulting eigenvalues for transitions (w^2)
     real(dp), intent(out) :: eval(:)
 
-    !> Eigenvectors (X+Y)
-    real(dp), intent(out) :: xpy(:,:)
-
-    !> Eigenvectors (X-Y), only evaluated if Z-vector is needed
-    real(dp), intent(inout), allocatable :: xmy(:,:)
-
-    !> Onsite corrections if in use
-    real(dp), allocatable :: onsMEs(:,:,:,:)
-
-    !> Data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
+    !> Symmetry to calculate transitions
+    character, intent(in) :: sym
 
     !> Is calculation range-separated?
     logical, intent(in) :: tHybridXc
@@ -1059,16 +1015,21 @@ contains
     !> Is the Z-vector equation to be solved later?
     logical, intent(in) :: tZVector
 
-    real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
-    real(dp) :: sigma, omega
+    !> Eigenvectors (X+Y)
+    real(dp), intent(out) :: xpy(:,:)
+
+    !> Eigenvectors (X-Y), only evaluated if Z-vector is needed
+    real(dp), intent(inout), allocatable :: xmy(:,:)
+
     integer :: iparam(11), ipntr(11)
     integer :: ido, ncv, lworkl, info
+    integer :: nexc, natom, nLoc
+    integer :: iState, comm
+    real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
+    real(dp), allocatable :: Hv(:), orthnorm(:,:)
+    real(dp) :: sigma, omega 
     logical, allocatable :: selection(:)
     logical :: rvec
-    integer :: nexc, natom, nLoc
-
-    integer :: iState, comm
-    real(dp), allocatable :: Hv(:), orthnorm(:,:)
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
@@ -1083,11 +1044,11 @@ contains
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
-    @:ASSERT(all(shape(xpy) == [ nxov_rd, nexc ]))
+    @:ASSERT(all(shape(xpy) == [ rpa%nxov_rd, nexc ]))
     @:ASSERT(tHybridXc .eqv. .false.)
 
     ! Three times more Lanczos vectors than desired eigenstates
-    ncv = min(3 * nexc, nxov_rd)
+    ncv = min(3 * nexc, rpa%nxov_rd)
 
     lworkl = ncv * (ncv + 8)
 
@@ -1123,7 +1084,7 @@ contains
  
     #:else
       
-      call saupd(ido, "I", nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam,&
+      call saupd(ido, "I", rpa%nxov_rd, "SM", nexc, ARTOL, resid, ncv, vv, rpa%nxov_rd, iparam,&
           & ipntr, workd, workl, lworkl, info)
       
     #:endif
@@ -1141,9 +1102,9 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-      call actionAplusB(iGlobal, fGlobal, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud,&
-          & nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev, ovrXevGlb,&
-          & grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0, spinW, onsMEs, orb,&
+      call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud,rpa% nxoo_ud, rpa%nxvv_ud,&
+          & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb,&
+          & grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb,&
           & .false., transChrg, workd(ipntr(1):ipntr(1)+nLoc-1), workd(ipntr(2):ipntr(2)+nLoc-1),&
           & tHybridXc)
       
@@ -1176,8 +1137,8 @@ contains
 
      #:else
        
-      call seupd(rvec, "All", selection, eval, xpy, nxov_rd, sigma, "I", nxov_rd, "SM",&
-          & nexc, ARTOL, resid, ncv, vv, nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
+      call seupd(rvec, "All", selection, eval, xpy, rpa%nxov_rd, sigma, "I", rpa%nxov_rd, "SM",&
+          & nexc, ARTOL, resid, ncv, vv, rpa%nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
     #:endif
             
@@ -1189,21 +1150,21 @@ contains
 
     end if
 
-    if (testArnoldi) then
+    if (lr%testArnoldi) then
       ! tests for quality of returned eigenpairs
       call openFile(fdArnoldiTest, testArpackOut, mode="w")
-      allocate(Hv(nxov_rd))
-      allocate(orthnorm(nxov_rd,nxov_rd))
+      allocate(Hv(rpa%nxov_rd))
+      allocate(orthnorm(rpa%nxov_rd,rpa%nxov_rd))
       orthnorm = matmul(transpose(xpy(:,:nExc)),xpy(:,:nExc))
 
       write(fdArnoldiTest%unit,"(A)")'State Ei deviation    Evec deviation  Norm deviation  Max&
           & non-orthog'
       do iState = 1, nExc
 
-        call actionAplusB(iGlobal, fGlobal, tSpin, wij, sym, win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-            & ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0, spinW,&
-            & onsMEs, orb, .false., transChrg, xpy(iGlobal:fGlobal,iState), Hv(iGlobal:fGlobal),& 
+        call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud,&
+            & rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev,&
+            & ovrXevGlb, grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0, lr%spinW,&
+            & lr%onSiteMatrixElements, orb, .false., transChrg, xpy(iGlobal:fGlobal,iState), Hv(iGlobal:fGlobal),& 
             & .false.)
         call assembleChunks(env, Hv)
         
@@ -1222,9 +1183,9 @@ contains
     ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
     do iState = 1, nExc
       omega = sqrt(eval(iState))
-      xpy(:nxov_rd,iState) = xpy(:nxov_rd,iState) * sqrt(wij(:nxov_rd) / omega)
+      xpy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * sqrt(rpa%wij(:rpa%nxov_rd) / omega)
       if (tZVector) then
-        xmy(:nxov_rd,iState) = xpy(:nxov_rd,iState) * omega / wij(:nxov_rd)
+        xmy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * omega / rpa%wij(:rpa%nxov_rd)
       end if
     end do
 
@@ -1245,67 +1206,33 @@ contains
   !!
   !! Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !!
-  subroutine buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, tSpin, subSpaceFactor, wij, sym, win,&
-      & nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env,&
-      & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
-      & spinW, transChrg, eval, xpy, xmy, onsMEs, orb, tHybridXc, lrGamma, tZVector)
+  subroutine buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
+    & denseDesc, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, gammaMat, lrGamma,& 
+    & species0, eval, sym, tHybridXc, tZVector, xpy, xmy)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
 
     !> End index of current rank in global RPA vectors
     integer, intent(in) :: fGlobal
-    
-    !> Spin polarisation?
-    logical, intent(in) :: tSpin
-
-    !> Initial subspace is this factor times number of excited states
-    integer :: subSpaceFactor
-
-    !> Single particle excitation energies
-    real(dp), intent(in) :: wij(:)
-
-    !> Symmetry to calculate transitions
-    character, intent(in) :: sym
-
-    !> Index array for single particle excitations
-    integer, intent(in) :: win(:)
-
-    !> Occupied orbitals per spin channel
-    integer, intent(in) :: nocc_ud(:)
-
-    !> Virtual orbitals per spin channel
-    integer, intent(in) :: nvir_ud(:)
-
-    !> Number of occ-occ transitions per spin channel
-    integer, intent(in) :: nxoo_ud(:)
-
-    !> Number of vir-vir transitions per spin channel
-    integer, intent(in) :: nxvv_ud(:)
-
-    !> Number of occ-vir transitions per spin channel
-    integer, intent(in) :: nxov_ud(:)
-
-    !> Number of occupied-virtual transitions (possibly reduced by windowing)
-    integer, intent(in) :: nxov_rd
-    
-    !> Array from pairs of single particles states to compound index
-    integer, intent(in) :: iaTrans(:,:,:)
-
-    !> Index array for occ-vir single particle excitations
-    integer, intent(in) :: getIA(:,:)
-
-    !> Index array for occ-occ single particle excitations
-    integer, intent(in) :: getIJ(:,:)
-
-    !> Index array for vir-vir single particle excitations
-    integer, intent(in) :: getAB(:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+    
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+     !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+
+    !> Machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> overlap times ground state eigenvectors (local in case of MPI)
     real(dp), intent(in) :: ovrXev(:,:,:)
@@ -1318,27 +1245,30 @@ contains
 
     !> ground state eigenvectors (global in case of MPI)
     real(dp), allocatable, intent(in) :: eigVecGlb(:,:,:)
-
+    
     !> occupation numbers
     real(dp), intent(in) :: filling(:,:)
-
-    ! Square root of occupation difference between vir and occ states
-    real(dp), intent(in) :: sqrOccIA(:)
 
     !> Electrostatic matrix
     real(dp), intent(in) :: gammaMat(:,:)
 
+    !> Electrostatic matrix, long-range corrected
+    real(dp), allocatable, intent(in) :: lrGamma(:,:)
+    
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
-    !> Atomic resolved spin constants
-    real(dp), intent(in) :: spinW(:)
-
-    !> Machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
-    !> Resulting eigenvalues for transitions (actually w^2)
+    !> Resulting eigenvalues for transitions (w^2)
     real(dp), intent(out) :: eval(:)
+
+    !> Symmetry to calculate transitions
+    character, intent(in) :: sym
+
+    !> Is calculation range-separated?
+    logical, intent(in) :: tHybridXc
+
+    !> Is the Z-vector equation to be solved later?
+    logical, intent(in) :: tZVector
 
     !> Eigenvectors (X+Y)
     real(dp), intent(out) :: xpy(:,:)
@@ -1346,30 +1276,14 @@ contains
     !> Eigenvectors (X-Y), only evaluated if Z-vector is needed
     real(dp), intent(inout), allocatable :: xmy(:,:)
 
-    !> Onsite corrections if in use
-    real(dp), allocatable :: onsMEs(:,:,:,:)
-
-    !> Data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Is calculation range-separated?
-    logical, intent(in) :: tHybridXc
-
-    !> Electrostatic matrix, long-range corrected
-    real(dp), allocatable, intent(in) :: lrGamma(:,:)
-
-    !> Is the Z-vector equation to be solved later?
-    logical, intent(in) :: tZVector
-
     real(dp), allocatable :: vecB(:,:) ! basis of subspace
     real(dp), allocatable :: evecL(:,:), evecR(:,:) ! left and right eigenvectors of Mnh
     real(dp), allocatable :: vP(:,:), vM(:,:) ! vec. for (A+B)b_i, (A-B)b_i
     ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subspace
     real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:) 
     ! Residual vectors
-    real(dp), allocatable :: resR(:,:), resL(:,:)
+    real(dp), allocatable :: resR(:,:), resL(:,:), dummyM(:,:)
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
-    real(dp), allocatable :: dummyM(:,:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal
 
@@ -1387,7 +1301,7 @@ contains
     !! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
     
-    if (allocated(onsMEs)) then
+    if (allocated(lr%onSiteMatrixElements)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
     endif
@@ -1395,20 +1309,20 @@ contains
     ! Number of excited states to solve for
     nExc = size(eval)
     nAtom = size(gammaMat, dim=1)
-    @:ASSERT(all(shape(xpy) == [ nxov_rd, nexc ]))
+    @:ASSERT(all(shape(xpy) == [ rpa%nxov_rd, nexc ]))
 
     ! Small subSpaceDim is faster but leads to convergence problems
     ! if large number of excited states is needed
-    if (subSpaceFactor < 2) then
+    if (lr%subSpaceFactorStratmann < 2) then
       write(tmpStr,'(A)') 'SubSpaceFactor for Stratmann solver must be larger than one.'
       call error(tmpStr)
     endif
-    subSpaceDim = min(subSpaceFactor * nExc, nxov_rd)
+    subSpaceDim = min(lr%subSpaceFactorStratmann * nExc, rpa%nxov_rd)
     iterStrat = 1
 
     write(stdOut,'(A)')
     write(stdOut,'(A)') '>> Stratmann diagonalisation of response matrix'
-    write(stdOut,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
+    write(stdOut,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', rpa%nxov_rd, ' inital subspace: ',&
       & subSpaceDim
 
     allocate(mP(subSpaceDim, subSpaceDim))
@@ -1451,13 +1365,13 @@ contains
         ! Extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
 
-          call actionAplusB(iGlobal, fGlobal, tSpin, wij, sym, win, nocc_ud, nvir_ud, &
-            & nxoo_ud, nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc,&
-            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, sqrOccIA, gammaMat, species0,&
-            & spinW, onsMEs, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tHybridXc, lrGamma)
-          call actionAminusB(iGlobal, fGlobal, tSpin, wij, win, nocc_ud, nvir_ud, nxoo_ud,&
-            & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, env, denseDesc, ovrXev,&
-            & grndEigVecs, filling, sqrOccIA, transChrg, vecB(:,ii), vM(:,ii), tHybridXc,& 
+          call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud, &
+            & rpa%nxoo_ud, rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc,&
+            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0,&
+            & lr%spinW, lr%onSiteMatrixElements, orb, .true., transChrg, vecB(:,ii), vP(:,ii), tHybridXc, lrGamma)
+          call actionAminusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, rpa%win, rpa%nocc_ud, rpa%nvir_ud,rpa% nxoo_ud,&
+            & rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev,&
+            & grndEigVecs, filling, rpa%sqrOccIA, transChrg, vecB(:,ii), vM(:,ii), tHybridXc,& 
             & lrGamma)
 
         end do
@@ -1478,9 +1392,9 @@ contains
       else
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
-        call initialSubSpaceMatrixApmB(iGlobal, fGlobal, transChrg, subSpaceDim, wij, sym, win,&
-            & nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, sqrOccIA, getIA, getIJ,&
-            & getAB, iaTrans, gammaMat, lrGamma, species0, spinW, tSpin, tHybridXc, vP, vM, mP, mM)
+        call initialSubSpaceMatrixApmB(iGlobal, fGlobal, transChrg, subSpaceDim, rpa%wij, sym, rpa%win,&
+            & rpa%nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, rpa%sqrOccIA, rpa%getIA, rpa%getIJ,&
+            & rpa%getAB, rpa%iaTrans, gammaMat, lrGamma, species0, lr%spinW, lr%tSpin, tHybridXc, vP, vM, mP, mM)
 
       end if
 
@@ -1492,7 +1406,7 @@ contains
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
       if (info /= 0) then
-        if (subSpaceFactor * nExc < nxov_rd) then
+        if (lr%subSpaceFactorStratmann * nExc < rpa%nxov_rd) then
           write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Increase SubSpaceFactor.'
         else
           write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Insufficient transitions available to&
@@ -1544,7 +1458,7 @@ contains
       end do
       didConverge = all(vecNorm .lt. CONV_THRESH_STRAT)
       
-      if ((.not. didConverge) .and. (subSpaceDim > nxov_rd)) then
+      if ((.not. didConverge) .and. (subSpaceDim > rpa%nxov_rd)) then
         write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
              & Increase SubspaceFactor.'
         call error(tmpStr)
@@ -1590,7 +1504,7 @@ contains
 
           do jj = iGlobal, fGlobal
             myjj = jj - iGlobal + 1
-            vecB(myjj,dummyInt) = resR(myjj,ii) / (dummyReal - wij(jj))
+            vecB(myjj,dummyInt) = resR(myjj,ii) / (dummyReal - rpa%wij(jj))
           end do
           
         end if
@@ -1603,7 +1517,7 @@ contains
 
           do jj = iGlobal, fGlobal
             myjj = jj - iGlobal + 1
-            vecB(myjj,dummyInt) = resL(myjj,ii) / (dummyReal - wij(jj))
+            vecB(myjj,dummyInt) = resL(myjj,ii) / (dummyReal - rpa%wij(jj))
           end do
 
         end if
@@ -1628,17 +1542,17 @@ contains
 
 
   !> Calculate oscillator strength for a given excitation between KS states.
-  subroutine getOscillatorStrengths(sym, tSpin, snglPartTransDip, eval, xpy, sqrOccIA, istat, osz,&
-      & tTradip, transitionDipoles)
+  subroutine getOscillatorStrengths(lr, rpa, sym, eval, xpy, snglPartTransDip, istat, osz,&
+      & transitionDipoles)
+
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
 
     !> Symmetry of transition
     character, intent(in) :: sym
-
-    !> Spin polarisation?
-    logical, intent(in) :: tSpin
-
-    !> Dipole moments for single particle transtions
-    real(dp), intent(in) :: snglPartTransDip(:,:)
 
     !> Low lying eigenvalues of Casida eqn (Omega^2)
     real(dp), intent(in) :: eval(:)
@@ -1646,11 +1560,8 @@ contains
     !> Eigenvectors of Casida eqn (X+Y)
     real(dp), intent(in) :: xpy(:,:)
 
-    !> Square root of KS occupation differences
-    real(dp), intent(in) :: sqrOccIA(:)
-
-    !> Write transition dipole
-    logical :: tTradip
+    !> Dipole moments for single particle transtions
+    real(dp), intent(in) :: snglPartTransDip(:,:)
 
     !> Flag wich if <-1 on entry is returned as the brightest state
     integer, intent(inout) :: istat
@@ -1670,13 +1581,14 @@ contains
 
     ! Triplet oscillator strength and transition dipole is zero for
     ! closed shell ground state
-    if ((.not. tSpin) .and. (sym == "T")) then
+    if ((.not. lr%tSpin) .and. (sym == "T")) then
       return
     end if
 
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
     do ii = 1, size(xpy, dim=2)
-      osz(ii) = oscillatorStrength(tSpin, snglPartTransDip, sqrt(eval(ii)), xpy(:,ii), sqrOccIA)
+      osz(ii) = oscillatorStrength(lr%tSpin, snglPartTransDip, sqrt(eval(ii)), xpy(:,ii),&
+        & rpa%sqrOccIA)
     end do
     !$OMP  END PARALLEL DO
 
@@ -1686,8 +1598,8 @@ contains
       istat = oszLoc(1)
     end if
 
-    if (tTradip) then
-      call transitionDipole(tSpin, snglPartTransDip, xpy, sqrOccIA, transitionDipoles)
+    if (lr%writeTransDip) then
+      call transitionDipole(lr%tSpin, snglPartTransDip, xpy, rpa%sqrOccIA, transitionDipoles)
     end if
 
   end subroutine getOscillatorStrengths
@@ -1695,48 +1607,32 @@ contains
 
   !> Build right hand side of the equation for the Z-vector and those parts of the W-vectors which
   !> do not depend on Z.
-   subroutine getZVectorEqRHS(tHybridXc, xpy, xmy, win, env, denseDesc, homo, transChrg, getIA, getIJ,&
-      & getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma,&
-      & spinW, omega, sym, rhs, t, wov, woo, wvv)
+  subroutine getZVectorEqRHS(env, lr, rpa, transChrg, sym, xpy, xmy, denseDesc, species0,&
+      & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omega, tHybridXc, rhs, t, wov, woo, wvv)
 
-    !> Is calculation range-separated?
-    logical, intent(in) :: tHybridXc
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+     
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
 
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+     
+    !> Machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> Symmetry of the transitions
+    character, intent(in) :: sym
+    
     !> X+Y Furche term
     real(dp), intent(in) :: xpy(:)
 
     !> X-Y Furche term
     real(dp), intent(in) :: xmy(:)
 
-    !> Index array for single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc 
-
-    !> Highest occupied level
-    integer, intent(in) :: homo(:)
-
-    !> Machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
-    !> Index array between transitions in square and 1D representations
-    integer, intent(in) :: getIA(:,:)
-
-    !> Index array for vir-vir transitions
-    integer, intent(in) :: getIJ(:,:)
-
-    !> Index array for occ-occ transitions
-    integer, intent(in) :: getAB(:,:)
-
-    !> Index array from orbital pairs to compound index
-    integer, intent(in) :: iatrans(:,:,:)
-
-    !> Number of central cell atoms
-    integer, intent(in) :: natom
 
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
@@ -1756,14 +1652,11 @@ contains
     !> Softened coulomb matrix, long-range corrected
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
 
-    !> Ground state spin derivatives for each species
-    real(dp), intent(in) :: spinW(:)
-
     !> Excitation energies
     real(dp), intent(in) :: omega
 
-    !> Symmetry of the transitions
-    character, intent(in) :: sym
+    !> Is calculation range-separated?
+    logical, intent(in) :: tHybridXc
 
     !> Right hand side for the Furche solution
     real(dp), intent(out) :: rhs(:)
@@ -1780,23 +1673,21 @@ contains
     !> W vector virtual part
     real(dp), intent(out) :: wvv(:,:)
 
+    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb, nxov
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovT(:), vecHooT(:)
-    integer :: nxov
-    integer, allocatable :: nxoo(:), nxvv(:), nvir(:)
-    integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
+    real(dp), allocatable :: vecHovT(:), vecHooT(:)    
     real(dp) :: tmp1, tmp2, fact
     logical :: tSpin
 
     nxov = size(rhs)
     nOrb = size(ovrXev, dim=1)
 
-    allocate(xpyq(natom))
-    allocate(qTr(natom))
-    allocate(gamxpyq(natom))
-    allocate(gamqt(natom))
+    allocate(xpyq(lr%nAtom))
+    allocate(qTr(lr%nAtom))
+    allocate(gamxpyq(lr%nAtom))
+    allocate(gamqt(lr%nAtom))
 
     t(:,:,:) = 0.0_dp
     rhs(:) = 0.0_dp
@@ -1806,24 +1697,16 @@ contains
 
     nSpin = size(t, dim=3)
 
-    allocate(nxoo(nSpin))
-    allocate(nxvv(nSpin))
-    allocate(nvir(nSpin))
-
-    nxoo(:) = (homo(:)*(homo(:)+1))/2
-    nvir(:) = size(t, dim=1) - homo(:)
-    nxvv(:) = (nvir(:)*(nvir(:)+1))/2
-
     !! transition charges use compound index ijs = ij + soo(s)
-    soo(:) = [0, nxoo(1)]
-    svv(:) = [0, nxvv(1)]
+    soo(:) = [0, rpa%nxoo_ud(1)]
+    svv(:) = [0, rpa%nxvv_ud(1)]
 
-    allocate(qgamxpyq(max(maxval(nxoo), maxval(nxvv)), size(homo)))
+    allocate(qgamxpyq(max(maxval(rpa%nxoo_ud), maxval(rpa%nxvv_ud)), size(rpa%nocc_ud)))
 
     if (nSpin == 2) then
       tSpin = .true.
-      allocate(xpyqds(natom))
-      allocate(gamxpyqds(natom))
+      allocate(xpyqds(lr%nAtom))
+      allocate(gamxpyqds(lr%nAtom))
     else
       tSpin = .false.
     end if
@@ -1832,12 +1715,12 @@ contains
     ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
     ! factor 1 / (1 + delta_ab) follows later
     do ias = 1, nxov
-      call indxov(win, ias, getIA, i, a, s)
+      call indxov(rpa%win, ias, rpa%getIA, i, a, s)
 
       ! BA: is T_aa = 0?
-      do b = homo(s) + 1, a
-        ibs = iatrans(i, b, s)
-        ab = iaTrans(a, b, s) - svv(s)
+      do b = rpa%nocc_ud(s) + 1, a
+        ibs = rpa%iaTrans(i, b, s)
+        ab = rpa%iaTrans(a, b, s) - svv(s)
         tmp1 = xpy(ias) * xpy(ibs) + xmy(ias) * xmy(ibs)
         tmp2 = omega * (xpy(ias) * xmy(ibs)+ xmy(ias) * xpy(ibs))
         t(a,b,s) = t(a,b,s) + 0.5_dp * tmp1
@@ -1851,12 +1734,12 @@ contains
 
       ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja and 1 / (1 + delta_ij) Q_ij
       ! with Q_ij as in eq. (B9) (1st part of w_ij)
-      do j = i, homo(s)
-        jas = iatrans(j,a,s)
+      do j = i, rpa%nocc_ud(s)
+        jas = rpa%iaTrans(j,a,s)
 
         ! ADG: assume no constraint on occ space atm (nocc_r = nocc)
         ! otherwise first argument should be nocc - nocc_r
-        ij = iatrans(i, j, s) - soo(s)
+        ij = rpa%iaTrans(i, j, s) - soo(s)
         tmp1 = xpy(ias) * xpy(jas) + xmy(ias) * xmy(jas)
         tmp2 = omega * (xpy(ias) * xmy(jas) + xmy(ias) * xpy(jas))
         ! Note, there is a typo in Heringer et al. J. Comp Chem 28, 2589.
@@ -1873,27 +1756,27 @@ contains
 
     ! xpyq = Q * xpy
     xpyq(:) = 0.0_dp
-    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyq)
+    call transChrg%qMatVec(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, xpy, xpyq)
 
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
       ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
       if (sym == "S") then
         call hemv(gamxpyq, gammaMat,  xpyq)
-        do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
+        do ab = 1, rpa%nxvv_ud(1)
+          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
           qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else ! triplet case
-        do ab = 1, nxvv(1)
-          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, getAB)
-          qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+        do ab = 1, rpa%nxvv_ud(1)
+          qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
+          qgamxpyq(ab, 1) = 2.0_dp * sum(qTr * xpyq * lr%spinW(species0))
         end do
       end if
 
     else  ! ---- spin-polarized case -----
 
       xpyqds(:) = 0.0_dp
-      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, xpy, xpyqds)
+      call transChrg%qMatVecDs(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, xpy, xpyqds)
 
       call hemv(gamxpyq, gammaMat,  xpyq)
       do s = 1, 2
@@ -1902,11 +1785,11 @@ contains
         else
           fact = -1.0_dp
         end if
-        do ab = 1, nxvv(s)
-          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+        do ab = 1, rpa%nxvv_ud(s)
+          qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
           qgamxpyq(ab, s) = sum(qTr * gamxpyq)
           !magnetization part
-          qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qTr * xpyqds * spinW(species0))
+          qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qTr * xpyqds * lr%spinW(species0))
         end do
       end do
 
@@ -1914,11 +1797,11 @@ contains
 
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
     do ias = 1, nxov
-      call indxov(win, ias, getIA, i, a, s)
+      call indxov(rpa%win, ias, rpa%getIA, i, a, s)
 
-      do b = homo(s) + 1, a
-        ab = iatrans(a, b, s) - svv(s)
-        ibs = iatrans(i, b, s)
+      do b = rpa%nocc_ud(s) + 1, a
+        ab = rpa%iaTrans(a, b, s) - svv(s)
+        ibs = rpa%iaTrans(i, b, s)
         rhs(ias) = rhs(ias) - 2.0_dp * xpy(ibs) * qgamxpyq(ab, s)
         ! Since qgamxpyq has only upper triangle
         if (a /= b) then
@@ -1931,17 +1814,17 @@ contains
     if (.not. tSpin) then  ! ---- spin-unpolarized case ----
 
       if (sym == "S") then
-        do ij = 1, nxoo(1)
+        do ij = 1, rpa%nxoo_ud(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
           ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
           qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * gamxpyq)
         end do
       else
-        do ij = 1, nxoo(1)
+        do ij = 1, rpa%nxoo_ud(1)
           qgamxpyq(ij, 1) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, getIJ)
-          qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * xpyq * spinW(species0))
+          qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
+          qgamxpyq(ij, 1) = 2.0_dp * sum(qTr * xpyq * lr%spinW(species0))
         end do
       end if
 
@@ -1953,12 +1836,12 @@ contains
         else
           fact = -1.0_dp
         end if
-        do ij = 1, nxoo(s)
+        do ij = 1, rpa%nxoo_ud(s)
           qgamxpyq(ij, s) = 0.0_dp
-          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+          qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
           qgamxpyq(ij, s) = sum(qTr * gamxpyq)
           !magnetization part
-          qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qTr * xpyqds * spinW(species0))
+          qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qTr * xpyqds * lr%spinW(species0))
         end do
       end do
 
@@ -1967,10 +1850,10 @@ contains
     ! rhs(ia) += Qai = sum_j (X+Y)_ja qgamxpyq(ij)
     ! add Qai to Wia as well.
     do ias = 1, nxov
-      call indxov(win, ias, getIA, i, a, s)
-      do j = i, homo(s)
-        jas = iatrans(j, a, s)
-        ij = iatrans(i, j, s) - soo(s)
+      call indxov(rpa%win, ias, rpa%getIA, i, a, s)
+      do j = i, rpa%nocc_ud(s)
+        jas = rpa%iaTrans(j, a, s)
+        ij = rpa%iaTrans(i, j, s) - soo(s)
         tmp1 = 2.0_dp * xpy(jas) * qgamxpyq(ij, s)
         rhs(ias) = rhs(ias) + tmp1
         wov(ias) = wov(ias) + tmp1
@@ -1994,10 +1877,10 @@ contains
       else
         fact = -1.0_dp
       end if
-      do ij = 1, nxoo(s)
-        i = getIJ(ij + soo(s), 1)
-        j = getIJ(ij + soo(s), 2)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+      do ij = 1, rpa%nxoo_ud(s)
+        i = rpa%getIJ(ij + soo(s), 1)
+        j = rpa%getIJ(ij + soo(s), 2)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
         if (i == j) then
           gamxpyq(:) = gamxpyq(:) + t(i,j,s) * qTr(:)
           if (tSpin) then
@@ -2013,10 +1896,10 @@ contains
       end do
 
       ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
-      do ab = 1, nxvv(s)
-        a = getAB(ab + svv(s), 1)
-        b = getAB(ab + svv(s), 2)
-        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, getAB)
+      do ab = 1, rpa%nxvv_ud(s)
+        a = rpa%getAB(ab + svv(s), 1)
+        b = rpa%getAB(ab + svv(s), 2)
+        qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
         if (a == b) then
           gamxpyq(:) = gamxpyq(:) + t(a,b,s) * qTr(:)
           if (tSpin) then
@@ -2038,11 +1921,11 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     if (.not. tSpin) then
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -4.0_dp*gamqt, rhs)
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, -4.0_dp*gamqt, rhs)
     else
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, getIA, win, -2.0_dp*gamqt, rhs)
-      call transChrg%qVecMatDs(env, denseDesc, ovrXev, grndEigVecs, getIA, win, &
-           & -2.0_dp*gamxpyqds*spinW(species0), rhs)
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, -2.0_dp*gamqt, rhs)
+      call transChrg%qVecMatDs(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, &
+           & -2.0_dp*gamxpyqds*lr%spinW(species0), rhs)
     end if
 
     ! Furche vectors
@@ -2052,13 +1935,13 @@ contains
       else
         fact = -1.0_dp
       end if
-      do ij = 1, nxoo(s)
-        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, getIJ)
+      do ij = 1, rpa%nxoo_ud(s)
+        qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
         if (.not. tSpin) then
           woo(ij,s) = woo(ij,s) + 4.0_dp * sum(qTr * gamqt)
         else
           woo(ij,s) = woo(ij,s) + 2.0_dp * sum(qTr * gamqt)
-          woo(ij,s) = woo(ij,s) + 2.0_dp * fact * sum(qTr * gamxpyqds * spinW(species0))
+          woo(ij,s) = woo(ij,s) + 2.0_dp * fact * sum(qTr * gamxpyqds * lr%spinW(species0))
         end if
       end do
     end do
@@ -2066,34 +1949,34 @@ contains
     ! Contributions due to range-separation
     if (tHybridXc) then
 
-      allocate(vecHvvXpY(sum(nxvv)))
-      allocate(vecHvvXmY(sum(nxvv)))
-      allocate(vecHooXpY(sum(nxoo)))
-      allocate(vecHooXmY(sum(nxoo)))
+      allocate(vecHvvXpY(sum(rpa%nxvv_ud)))
+      allocate(vecHvvXmY(sum(rpa%nxvv_ud)))
+      allocate(vecHooXpY(sum(rpa%nxoo_ud)))
+      allocate(vecHooXmY(sum(rpa%nxoo_ud)))
       allocate(vecHovT(nxov))
-      allocate(vecHooT(sum(nxoo)))
+      allocate(vecHooT(sum(rpa%nxoo_ud)))
 
-      call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, env,&
+      call getHvvXY( 1, rpa%nxvv_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getAB, rpa%win, env,&
           & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHvvXpY)
 
-      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, env,&
+      call getHvvXY(-1, rpa%nxvv_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getAB, rpa%win, env,&
           & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHvvXmY)
 
-      call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env,&
+      call getHooXY( 1, rpa%nxoo_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%win, env,&
           & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHooXpY)
 
-      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, env,&
+      call getHooXY(-1, rpa%nxoo_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%win, env,&
           & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHooXmY)
 
-      call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win, env,&
+      call getHovT(rpa%nxoo_ud, rpa%nxvv_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, rpa%win, env,&
         & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
 
       do ias = 1, nxov
 
-        call indXov(win, ias, getIA, i, a, s)
-        do b = homo(s) + 1, nOrb
-          ibs = iaTrans(i, b, s)
-          abs = iaTrans(a, b, s)
+        call indXov(rpa%win, ias, rpa%getIA, i, a, s)
+        do b = rpa%nocc_ud(s) + 1, nOrb
+          ibs = rpa%iaTrans(i, b, s)
+          abs = rpa%iaTrans(a, b, s)
           rhs(ias) = rhs(ias) - cExchange * xpy(ibs) * vecHvvXpY(abs)
           if (a >= b) then
             rhs(ias) = rhs(ias) - cExchange * xmy(ibs) * vecHvvXmY(abs)
@@ -2102,9 +1985,9 @@ contains
           end if
         end do
 
-        do j = 1, homo(s)
-          jas = iaTrans(j, a, s)
-          ijs = iaTrans(i, j, s)
+        do j = 1, rpa%nocc_ud(s)
+          jas = rpa%iaTrans(j, a, s)
+          ijs = rpa%iaTrans(i, j, s)
           rhs(ias) = rhs(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
           wov(ias) = wov(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
           if (i >= j) then
@@ -2119,15 +2002,15 @@ contains
 
       end do
 
-      call getHooT(nxov, nxoo, homo, natom, iatrans, getIA, getIJ, win, env, &
+      call getHooT(nxov, rpa%nxoo_ud, rpa%nocc_ud, lr%nAtom, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%win, env, &
        & denseDesc, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHooT)
 
       !! woo should be made 1D
       do s = 1, nSpin
-        do ij = 1, nxoo(s)
-          i = getIJ(ij + soo(s), 1)
-          j = getIJ(ij + soo(s), 2)
-          ijs = iaTrans(i, j, s)
+        do ij = 1, rpa%nxoo_ud(s)
+          i = rpa%getIJ(ij + soo(s), 1)
+          j = rpa%getIJ(ij + soo(s), 2)
+          ijs = rpa%iaTrans(i, j, s)
           woo(ij,s) = woo(ij,s) + cExchange * vecHooT(ijs)
         end do
       end do
@@ -3252,8 +3135,14 @@ contains
 
   !> Write out transitions from ground to excited state along with single particle transitions and
   !! dipole strengths.
-  subroutine writeExcitations(sym, osz, nexc, nmatup, getIA, win, eval, xpy, wij, fdXPlusY,&
-      & fdTrans, fdTransDip, transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+  subroutine writeExcitations(lr, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
+      & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+
+        !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -3261,26 +3150,11 @@ contains
     !> Oscillator strengths for transitions from ground to excited states
     real(dp), intent(in) :: osz(:)
 
-    !> Number of excited states to solve for
-    integer, intent(in) :: nexc
-
-    !> Number of same spin excitations
-    integer, intent(in) :: nmatup
-
-    !> Index array between transitions in square and 1D representations
-    integer, intent(in) :: getIA(:,:)
-
-    !> Index array for single particle excitations
-    integer, intent(in) :: win(:)
-
     !> Excitation energies
     real(dp), intent(in) :: eval(:)
 
     !> Eigenvectors of excited states (X+Y)
     real(dp), intent(in) :: xpy(:,:)
-
-    !> Single particle excitation energies
-    real(dp), intent(in) :: wij(:)
 
     !> Single particle transition dipole moments
     real(dp), intent(in) :: transitionDipoles(:,:)
@@ -3306,20 +3180,16 @@ contains
     !> For spin polarized systems, measure of spin
     real(dp), intent(in), optional :: Ssq(:)
 
-    integer :: nmat
-    integer :: ii, jj, iweight, indo, m, n, s
-    real(dp), allocatable :: wvec(:)
-    integer, allocatable :: wvin(:)
+    integer, allocatable :: wvin(:), degenerate(:,:)
+    integer :: nmat, ii, jj, iweight, indo, m, n, s
+    real(dp), allocatable :: wvec(:), oDeg(:)
     real(dp) :: weight, wvnorm
-    logical :: updwn, tSpin
+    logical :: updwn, tSpin,tDegenerate
     character :: sign
     type(TDegeneracyFind) :: DegeneracyFind
-    logical :: tDegenerate
-    integer, allocatable :: degenerate(:,:)
-    real(dp), allocatable :: oDeg(:)
 
     tSpin = present(Ssq)
-    nmat = size(wij)
+    nmat = size(rpa%wij)
 
     allocate(wvec(nmat))
     allocate(wvin(nmat))
@@ -3327,10 +3197,10 @@ contains
     wvin(:) = 0
 
     if (fdXplusY%isConnected()) then
-      write(fdXPlusY%unit, *) nmat, nexc
+      write(fdXPlusY%unit, *) nmat, lr%nExc
     end if
 
-    do ii = 1, nexc
+    do ii = 1, lr%nExc
       if (eval(ii) > 0.0_dp) then
 
         ! calculate weight of single particle transitions
@@ -3346,25 +3216,25 @@ contains
         weight = wvec(1)
         iweight = wvin(1)
 
-        call indxov(win, iweight, getIA, m, n, s)
+        call indxov(rpa%win, iweight, rpa%getIA, m, n, s)
         sign = sym
-        if (tSpin) then
+        if (lr%tSpin) then
           sign = " "
           write(fdExc%unit,&
               & '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,&
               & f6.3)')&
               & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
-              & Hartree__eV * wij(iWeight), Ssq(ii)
+              & Hartree__eV * rpa%wij(iWeight), Ssq(ii)
         else
           write(fdExc%unit,&
               & '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
               & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
-              & Hartree__eV * wij(iWeight), sign
+              & Hartree__eV * rpa%wij(iWeight), sign
         end if
 
         if (fdXplusY%isConnected()) then
           if (tSpin) then
-            updwn = (win(iweight) <= nmatup)
+            updwn = (rpa%win(iweight) <= rpa%nxov_ud(1))
             sign = "D"
             if (updwn) sign = "U"
           end if
@@ -3383,14 +3253,14 @@ contains
           do jj = 1, nmat
             !if (wvec(jj) < 1e-4_dp) exit ! ??????
             indo = wvin(jj)
-            call indxov(win, indo, getIA, m, n, s)
+            call indxov(rpa%win, indo, rpa%getIA, m, n, s)
             if (tSpin) then
-              updwn = (win(indo) <= nmatup)
+              updwn = (rpa%win(indo) <= rpa%nxov_ud(1))
               sign = "D"
               if (updwn) sign = "U"
             end if
             write(fdTrans%unit, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(jj), Hartree__eV * wij(wvin(jj))
+                & m, '->', n, sign, wvec(jj), Hartree__eV * rpa%wij(wvin(jj))
           end do
           write(fdTrans%unit,*)
         end if
@@ -3410,24 +3280,24 @@ contains
 
         weight = wvec(1)
         iweight = wvin(1)
-        call indxov(win, iWeight, getIA, m, n, s)
+        call indxov(rpa%win, iWeight, rpa%getIA, m, n, s)
         sign = sym
 
-        if (tSpin) then
+        if (lr%tSpin) then
           sign = " "
           write(fdExc%unit,&
               & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)')&
-              & '< 0', osz(ii), m, '->', n, '-', Hartree__eV * wij(iWeight),&
+              & '< 0', osz(ii), m, '->', n, '-', Hartree__eV * rpa%wij(iWeight),&
               & Ssq(ii)
         else
           write(fdExc%unit,&
               & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * wij(iWeight), sign
+              & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * rpa%wij(iWeight), sign
         end if
 
         if (fdXplusY%isConnected()) then
-          if (tSpin) then
-            updwn = (win(iweight) <= nmatup)
+          if (lr%tSpin) then
+            updwn = (rpa%win(iweight) <= rpa%nxov_ud(1))
             sign = "D"
             if (updwn) sign = "U"
           end if

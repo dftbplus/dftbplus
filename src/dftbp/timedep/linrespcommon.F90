@@ -18,6 +18,7 @@ module dftbp_timedep_linrespcommon
   use dftbp_math_blasroutines, only : hemv, gemm
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_sorting, only : index_heap_sort
+  use dftbp_timedep_linresptypes, only : TLinResp, TCasidaParameter
   use dftbp_timedep_transcharges, only : TTransCharges, transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
@@ -1581,19 +1582,13 @@ contains
 
   !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
   !! considered an upper threshold for reliability according to Garcia thesis).
-  subroutine getExcSpin(Ssq, nmatup, getIA, win, eval, xpy, filling, ovrXev, grndEigVecs)
+  subroutine getExcSpin(rpa, Ssq, eval, xpy, filling, ovrXev, grndEigVecs)
 
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+    
     !> Spin contamination
     real(dp), intent(out) :: Ssq(:)
-
-    !> Number of spin up excitations
-    integer, intent(in) :: nmatup
-
-    !> Index for composite excitations to specific occupied and empty states
-    integer, intent(in) :: getIA(:,:)
-
-    !> Single particle excitation index
-    integer, intent(in) :: win(:)
 
     !> Casida exitation energies
     real(dp), intent(in) :: eval(:)
@@ -1610,13 +1605,14 @@ contains
     !> Ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
+    integer, allocatable :: TDvin(:)
     integer:: i, k, l, m, ia, jb, ii, aa, jj, bb, ss
     integer:: nmat, nexc, nup, ndwn
-    real(dp) :: TDvnorm
     real(dp), allocatable :: TDvec(:), TDvec_sq(:)
-    integer, allocatable :: TDvin(:)
-    logical :: ud_ia, ud_jb
+    real(dp) :: TDvnorm
     real(dp) :: s_iaja, s_iaib, s_iajb, tmp
+    logical :: ud_ia, ud_jb
+    
     nmat = size(xpy, dim=1)
     nexc = size(Ssq)
     nup = ceiling(sum(filling(:,1)))
@@ -1640,12 +1636,12 @@ contains
       s_iaja = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
+        call indxov(rpa%win, ia, rpa%getIA, ii, aa, ss)
+        ud_ia = (rpa%win(ia) <= rpa%nxov_ud(1))
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
+          call indxov(rpa%win, jb, rpa%getIA, jj, bb, ss)
+          ud_jb = (rpa%win(jb) <= rpa%nxov_ud(1))
 
           if ((bb /= aa) .or. (ud_jb .neqv. ud_ia)) cycle
 
@@ -1670,12 +1666,12 @@ contains
       s_iaib = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
+        call indxov(rpa%win, ia, rpa%getIA, ii, aa, ss)
+        ud_ia = (rpa%win(ia) <= rpa%nxov_ud(1))
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
+          call indxov(rpa%win, jb, rpa%getIA, jj, bb, ss)
+          ud_jb = (rpa%win(jb) <= rpa%nxov_ud(1))
 
           if ((ii /= jj) .or. (ud_jb .neqv. ud_ia)) cycle
 
@@ -1700,13 +1696,13 @@ contains
       s_iajb = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
+        call indxov(rpa%win, ia, rpa%getIA, ii, aa, ss)
+        ud_ia = (rpa%win(ia) <= rpa%nxov_ud(1))
         if (.not. ud_ia) cycle
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
+          call indxov(rpa%win, jb, rpa%getIA, jj, bb, ss)
+          ud_jb = (rpa%win(jb) <= rpa%nxov_ud(1))
 
           if (ud_jb) cycle
 
@@ -1721,215 +1717,26 @@ contains
 
   end subroutine getExcSpin
 
-#:if WITH_SCALAPACK
-  
-  !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
-  !> considered an upper threshold for reliability according to Garcia thesis)
-  subroutine getExcSpin_MPI(env, denseDesc, Ssq, nOrb, nmatup, nmat, getIA, win, eval, xpy, & 
-    & filling, ovrXev, grndEigVecs)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
-
-    !> spin contamination
-    real(dp), intent(out) :: Ssq(:)
-
-    !> number of orbitals
-    integer, intent(in) :: nOrb
-
-    !> number of spin up single-particle excitations
-    integer, intent(in) :: nmatup
-
-    !> total number of single-particle excitations
-    integer, intent(in) :: nmat
-    
-    !> index for composite excitations to specific occupied and empty states
-    integer, intent(in) :: getIA(:,:)
-
-    !> single particle excitation index
-    integer, intent(in) :: win(:)
-
-    !> Casida exitation energies
-    real(dp), intent(in) :: eval(:)
-
-    !> Casida excited eigenvectors (X+Y)
-    real(dp), intent(in) :: xpy(:,:)
-
-    !> occupations in ground state
-    real(dp), intent(in) :: filling(:,:)
-
-    !> Overlap times ground state eigenvectors
-    real(dp), intent(in) :: ovrXev(:,:,:)
-
-    !> Ground state eigenvectors
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    integer:: i, k, l, m, ia, jb, ii, aa, jj, bb, ss
-    integer:: nexc, nup, ndwn
-    real(dp) :: TDvnorm
-    real(dp), allocatable :: TDvec(:), TDvec_sq(:)
-    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
-    integer, allocatable :: TDvin(:)
-    
-    logical :: ud_ia, ud_jb
-    real(dp) :: s_iaja, s_iaib, s_iajb, tmp
-
-    nexc = size(Ssq)
-    nup = ceiling(sum(filling(:,1)))
-    ndwn = ceiling(sum(filling(:,2)))
-    allocate(TDvec(nmat))
-    allocate(TDvec_sq(nmat))
-    allocate(TDvin(nmat))
-    
-    allocate(eigVecGlb(nOrb,nOrb,2))
-    allocate(ovrXevGlb(nOrb,nOrb,2))
-
-    do ss = 1, 2
-      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,ss),&
-          & eigVecGlb(:,:,ss))
-      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, ovrXev(:,:,ss),&
-          & ovrXevGlb(:,:,ss))
-    end do
- 
-    do i = 1, nexc
-      TDvec(:) = xpy(:,i)
-      TDvnorm = 1.0_dp / sqrt(sum(TDvec**2))
-      TDvec(:) = TDvec(:) * TDvnorm
-      TDvec_sq = TDvec**2
-
-      ! put these transition dipoles in order of descending magnitude
-      call index_heap_sort(TDvin, TDvec_sq)
-      TDvin = TDvin(nmat:1:-1)
-      TDvec_sq = TDvec_sq(TDvin)
-
-      ! S_{ia,ja}
-      s_iaja = 0.0_dp
-      do k = 1, nmat
-        ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
-        do l = 1, nmat
-          jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
-
-          if ((bb /= aa) .or. (ud_jb .neqv. ud_ia)) cycle
-
-          tmp = 0.0_dp
-          if (ud_ia) then
-            do m = 1,ndwn
-              tmp = tmp + MOoverlap(ii,m,ovrXevGlb,eigVecGlb) * MOoverlap(jj,m,ovrXevGlb,eigVecGlb)
-            end do
-          else
-            do m = 1,nup
-              tmp = tmp + MOoverlap(m,ii,ovrXevGlb,eigVecGlb) * MOoverlap(m,jj,ovrXevGlb,eigVecGlb)
-            end do
-          end if
-
-          s_iaja = s_iaja + TDvec(ia)*TDvec(jb)*tmp
-
-        end do
-      end do
-
-      ! S_{ia,ib}
-      s_iaib = 0.0_dp
-      do k = 1, nmat
-        ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
-        do l = 1, nmat
-          jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
-
-          if ( (ii /= jj) .or. (ud_jb .neqv. ud_ia) ) then
-            cycle
-          end if
-
-          tmp = 0.0_dp
-          if (ud_ia) then
-            do m = 1,ndwn
-              tmp = tmp + MOoverlap(aa,m,ovrXevGlb,eigVecGlb) * MOoverlap(bb,m,ovrXevGlb,eigVecGlb)
-            end do
-          else
-            do m = 1,nup
-              tmp = tmp + MOoverlap(m,aa,ovrXevGlb,eigVecGlb) * MOoverlap(m,bb,ovrXevGlb,eigVecGlb)
-            end do
-          end if
-
-         s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
-        end do
-      end do
-
-      ! S_{ia,jb}
-      s_iajb = 0.0_dp
-      do k = 1, nmat
-        ia = TDvin(k)
-        call indxov(win, ia, getIA, ii, aa, ss)
-        ud_ia = (win(ia) <= nmatup)
-        if (.not. ud_ia ) then
-          cycle
-        end if
-        do l = 1, nmat
-          jb = TDvin(l)
-          call indxov(win, jb, getIA, jj, bb, ss)
-          ud_jb = (win(jb) <= nmatup)
-
-          if ( ud_jb ) cycle
-
-          s_iajb = s_iajb + TDvec(ia)*TDvec(jb) * MOoverlap(aa,bb,ovrXevGlb,eigVecGlb)&
-              & * MOoverlap(ii,jj,ovrXevGlb,eigVecGlb)
-
-        end do
-      end do
-
-      Ssq(i) =  s_iaja - s_iaib - 2.0_dp*s_iajb
-
-    end do
-
-  end subroutine getExcSpin_MPI
-  
- #:endif  
-
   !> Write single particle excitations to a file.
-  subroutine writeSPExcitations(wij, win, nmatup, getIA, writeSPTrans, sposz, nxov, tSpin)
+  subroutine writeSPExcitations(lr, rpa, sposz)
 
-    !> Single particle excitation energies
-    real(dp), intent(in) :: wij(:)
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
 
-    !> Index array for single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> Number of transitions within same spin channel
-    integer, intent(in) :: nmatup
-
-    !> Index from composite index to occupied and virtual single particle states
-    integer, intent(in) :: getIA(:,:)
-
-    !> Whether single particle excitation data should be written
-    logical, intent(in) :: writeSPTrans
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
 
     !> Single particle oscilation strengths
     real(dp), intent(in) :: sposz(:)
-
-    !> Number of included single particle excitations to print out (assumes that win and wij are
-    !! sorted so that the wanted transitions are first in the array)
-    integer, intent(in) :: nxov
-
-    !> Is this a spin-polarized calculation?
-    logical, intent(in) :: tSpin
 
     integer :: indm, m, n, s
     logical :: updwn
     character :: sign
     type(TFileDescr) :: fdSPTrans
 
-    @:ASSERT(size(sposz) >= nxov)
+    @:ASSERT(size(sposz) >= rpa%nxov_rd)
 
-    if (writeSPTrans) then
+    if (lr%writeSPTrans) then
       ! Single particle excitations
       call openFile(fdSPTrans, singlePartOut, mode="w")
       write(fdSPTrans%unit, *)
@@ -1937,11 +1744,11 @@ contains
       write(fdSPTrans%unit, *)
       write(fdSPTrans%unit, '(1x,58("="))')
       write(fdSPTrans%unit, *)
-      do indm = 1, nxov
-        call indxov(win, indm, getIA, m, n, s)
+      do indm = 1, rpa%nxov_rd
+        call indxov(rpa%win, indm, rpa%getIA, m, n, s)
         sign = " "
-        if (tSpin) then
-          updwn = (win(indm) <= nmatup)
+        if (lr%tSpin) then
+          updwn = (rpa%win(indm) <= rpa%nxov_ud(1))
           if (updwn) then
             sign = "U"
           else
@@ -1950,7 +1757,7 @@ contains
         end if
         write(fdSPTrans%unit,&
             & '(1x,i7,3x,f8.3,3x,f13.7,4x,i5,3x,a,1x,i5,1x,1a)')&
-            & indm, Hartree__eV * wij(indm), sposz(indm), m, '->', n, sign
+            & indm, Hartree__eV * rpa%wij(indm), sposz(indm), m, '->', n, sign
       end do
       write(fdSPTrans%unit, *)
       call closeFile(fdSPTrans)
