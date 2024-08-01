@@ -5004,9 +5004,7 @@ contains
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      if (allocated(ctrl%hybridXcInp)) then
-        call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
-      end if
+      call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
