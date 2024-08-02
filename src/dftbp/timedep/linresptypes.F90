@@ -187,7 +187,12 @@ module dftbp_timedep_linresptypes
     
     ! Square root of occupation difference between vir and occ states
     real(dp), allocatable :: sqrOccIA(:)
-    
+
+    !> Is calculation range-separated?
+    logical :: tHybridXc
+
+    !> Is a Z-vector calculation required?
+    logical :: tZVector
         
   end type TCasidaParameter
 
@@ -195,7 +200,7 @@ module dftbp_timedep_linresptypes
 
     !> Initialize the internal data type for the Casida calculations.
     subroutine CasidaParameter_init(this, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
-        & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA)
+        & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
     
       !> Run time parameters of the Casida routine
       type(TCasidaParameter), intent(out) :: this
@@ -239,6 +244,12 @@ module dftbp_timedep_linresptypes
       ! Square root of occupation difference between vir and occ states
       real(dp), allocatable, intent(inout) :: sqrOccIA(:)
 
+      !> Is calculation range-separated?
+      logical, intent(in) :: tHybridXc
+
+      !> Is a Z-vector calculation required?
+      logical, intent(in) :: tZVector     
+
       call move_alloc(nocc_ud, this%nocc_ud)
       call move_alloc(nvir_ud, this%nvir_ud)
       call move_alloc(nxoo_ud, this%nxoo_ud)
@@ -259,6 +270,9 @@ module dftbp_timedep_linresptypes
       allocate(this%sqrOccIA(nxov_rd))
       this%sqrOccIA = sqrOccIA(:nxov_rd)
       deallocate(sqrOccIA)
+
+      this%tHybridXc = tHybridXc
+      this%tZVector = tZVector
       
     end subroutine CasidaParameter_init
 
