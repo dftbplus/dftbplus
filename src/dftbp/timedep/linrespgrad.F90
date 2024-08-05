@@ -579,10 +579,8 @@ contains
 
     ! All relevant run time parameters of Casida are stored in a derived type
     ! Input arrays are deallocated on return
-    print *,'before',nocc_ud
     call CasidaParameter_init(rpa, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,& 
         & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
-    print *,'gui',rpa%nocc_ud 
 
     if (this%writeXplusY) then
       call openfile(fdXPlusY, XplusYOut, mode="w")
@@ -1082,11 +1080,9 @@ contains
       end if
 
       ! Action of excitation supermatrix on supervector
-      call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud,rpa% nxoo_ud, rpa%nxvv_ud,&
-          & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb,&
-          & grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb,&
-          & .false., transChrg, workd(ipntr(1):ipntr(1)+nLoc-1), workd(ipntr(2):ipntr(2)+nLoc-1),&
-          & rpa%tHybridXc)
+      call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+          & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, gammaMat, .false.,& 
+          & workd(ipntr(1):ipntr(1)+nLoc-1), workd(ipntr(2):ipntr(2)+nLoc-1))
       
     end do
 
@@ -1141,11 +1137,10 @@ contains
           & non-orthog'
       do iState = 1, nExc
 
-        call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud,&
-            & rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev,&
-            & ovrXevGlb, grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0, lr%spinW,&
-            & lr%onSiteMatrixElements, orb, .false., transChrg, xpy(iGlobal:fGlobal,iState), Hv(iGlobal:fGlobal),& 
-            & .false.)
+        call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+          & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, gammaMat, .false.,& 
+          & xpy(iGlobal:fGlobal,iState), Hv(iGlobal:fGlobal))
+         
         call assembleChunks(env, Hv)
         
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
@@ -1339,14 +1334,11 @@ contains
         ! Extend subspace matrices:
         do ii = prevSubSpaceDim + 1, subSpaceDim
 
-          call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, sym, rpa%win, rpa%nocc_ud, rpa%nvir_ud, &
-            & rpa%nxoo_ud, rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc,&
-            & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, filling, rpa%sqrOccIA, gammaMat, species0,&
-            & lr%spinW, lr%onSiteMatrixElements, orb, .true., transChrg, vecB(:,ii), vP(:,ii), rpa%tHybridXc, lrGamma)
-          call actionAminusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, rpa%win, rpa%nocc_ud, rpa%nvir_ud,rpa% nxoo_ud,&
-            & rpa%nxvv_ud, rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev,&
-            & grndEigVecs, filling, rpa%sqrOccIA, transChrg, vecB(:,ii), vM(:,ii), rpa%tHybridXc,& 
-            & lrGamma)
+          call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
+              & species0, ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, gammaMat, .true.,& 
+              & vecB(:,ii), vP(:,ii), lrGamma)
+          call actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
+              & species0, ovrXev, grndEigVecs, gammaMat, .true., vecB(:,ii), vM(:,ii), lrGamma)  
 
         end do
  
@@ -1366,10 +1358,9 @@ contains
       else
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
-        call initialSubSpaceMatrixApmB(iGlobal, fGlobal, transChrg, subSpaceDim, rpa%wij, sym, rpa%win,&
-            & rpa%nxov_ud(1), env, denseDesc, ovrXev, grndEigVecs, filling, rpa%sqrOccIA, rpa%getIA, rpa%getIJ,&
-            & rpa%getAB, rpa%iaTrans, gammaMat, lrGamma, species0, lr%spinW, lr%tSpin, rpa%tHybridXc, vP, vM, mP, mM)
-
+        call initialSubSpaceMatrixApmB(iGlobal, fGlobal, env, lr, rpa, transChrg, sym, denseDesc,&
+            & species0, ovrXev, grndEigVecs, gammaMat, lrGamma, subSpaceDim, vP, vM, mP, mM) 
+ 
       end if
 
       call calcMatrixSqrt(mM, subSpaceDim, mMsqrt, mMsqrtInv)
@@ -1892,9 +1883,11 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     if (.not. tSpin) then
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, -4.0_dp*gamqt, rhs)
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win,&
+          & -4.0_dp*gamqt, rhs)
     else
-      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, -2.0_dp*gamqt, rhs)
+      call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win,&
+          & -2.0_dp*gamqt, rhs)
       call transChrg%qVecMatDs(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, &
            & -2.0_dp*gamxpyqds*lr%spinW(species0), rhs)
     end if
@@ -2090,11 +2083,13 @@ contains
     rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
-    ! we need the singlet action even for triplet excitations!  
-    call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, 'S', rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud, rpa%nxvv_ud,&
-      & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb, &
-      & grndEigVecs, eigVecGlb, occNr, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb, .true.,& 
-      & transChrg, rhs2, rkm1, rpa%tHybridXc, lrGamma)
+    ! we need the singlet action even for triplet excitations!
+    call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
+        & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, gammaMat, .true., rhs2, rkm1, lrGamma)
+    ! call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, 'S', rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud, rpa%nxvv_ud,&
+    !   & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb, &
+    !   & grndEigVecs, eigVecGlb, occNr, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb, .true.,& 
+    !   & transChrg, rhs2, rkm1, rpa%tHybridXc, lrGamma)
     
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -2104,10 +2099,12 @@ contains
     do kk = 1, nxov**2
 
       ! action of matrix on vector
-      call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, 'S', rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud, rpa%nxvv_ud,&
-         & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb,&
-         & grndEigVecs, eigVecGlb, occNr, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb, .true.,& 
-         & transChrg, pkm1, apk, rpa%tHybridXc, lrGamma)
+      call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
+          & ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, gammaMat, .true., pkm1, apk, lrGamma)
+      ! call actionAplusB(iGlobal, fGlobal, lr%tSpin, rpa%wij, 'S', rpa%win, rpa%nocc_ud, rpa%nvir_ud, rpa%nxoo_ud, rpa%nxvv_ud,&
+      !    & rpa%nxov_ud, rpa%nxov_rd, rpa%iaTrans, rpa%getIA, rpa%getIJ, rpa%getAB, env, denseDesc, ovrXev, ovrXevGlb,&
+      !    & grndEigVecs, eigVecGlb, occNr, rpa%sqrOccIA, gammaMat, species0, lr%spinW, lr%onSiteMatrixElements, orb, .true.,& 
+      !    & transChrg, pkm1, apk, rpa%tHybridXc, lrGamma)
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
