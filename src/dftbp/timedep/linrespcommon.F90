@@ -314,9 +314,6 @@ contains
 
     !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp,grndEigVecs(mu:mu+nOrb-1,ii,ss),ovrXev(mu:mu+nOrb-1,jj,ss))
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp,grndEigVecs(mu:mu+nOrb-1,jj,ss),ovrXev(mu:mu+nOrb-1,ii,ss))
-    !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
     do iOrb1 = 1, nOrb
       do iOrb2 = iOrb1, nOrb
@@ -425,7 +422,7 @@ contains
   !! Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices 
   !! in global arrays
   subroutine actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-    &  ovrXev, ovrXevGlb, grndEigVecs, eigVecGlb, frGamma, tAplusB, vin, vout, lrGamma)
+    &  ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, lrGamma)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -459,15 +456,9 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-
-    !> overlap times eigenvector. (nOrb, nOrb) [global array]   
-    real(dp), allocatable, intent(in) :: ovrXevGlb(:,:,:)
     
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> eigenvectors (nOrb, nOrb) [global array]
-    real(dp), allocatable, intent(in) :: eigVecGlb(:,:,:)
 
     !> DFTB gamma matrix (nAtm, nAtom)
     real(dp), intent(in) :: frGamma(:,:)
@@ -484,7 +475,7 @@ contains
     !> vector containing the result on exit size(nMat)
     real(dp), intent(out) :: vout(:)
 
-    integer :: nMat, nOrb, ia, nxvv_a, nSpin
+    integer :: nMat, nOrb, ia, nxvv_a
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
     integer :: nLoc, myia, myab, myja, nLocAB, iGlobalAB, fGlobalAB
     integer, allocatable ::  getABasym(:,:)
@@ -647,7 +638,7 @@ contains
         end do
         
         otmp(:) = qv(:,myja)
-        call dsymv('U', lr%nAtom, 1.0d0, lrGamma, lr%nAtom, otmp, 1, 0.d0, qv(:,myja), 1)
+        call hemv(qv(:,myja), lrGamma, otmp, uplo='U')
         
         do ii = 1, rpa%nocc_ud(ss)
           ijs = rpa%iaTrans(ii, jj, ss)
@@ -672,7 +663,7 @@ contains
         end do
 
         otmp(:) = qv(:,myab)
-        call dsymv('U', lr%nAtom, 1.0d0, lrGamma, lr%nAtom, otmp, 1, 0.d0, qv(:,myab), 1)
+        call hemv(qv(:,myab), lrGamma, otmp, uplo='U')
 
         do ii = 1, rpa%nocc_ud(ss)
           ibs = rpa%iaTrans(ii, bb, ss)
@@ -693,11 +684,9 @@ contains
     end if
    
     if (allocated(lr%OnsiteMatrixElements)) then
-      ! Parallelizing this routine is difficult. Calls transdens which refers to individual
-      ! global indices. Input vector is still distributed.
-      call onsiteEner(env, lr%tSpin, sym, rpa%wij, rpa%sqrOccIA, rpa%win, rpa%nxov_ud(1),&
-          & denseDesc%iAtomStart, rpa%getIA, species0, ovrXevGlb, eigVecGlb,&
-          & lr%OnsiteMatrixElements, orb, vLoc, vout_ons, iGlobal-1)
+      call onsiteEner(env, orb, lr, rpa, denseDesc, sym, species0, ovrXev, grndEigVecs, vLoc,&
+          & vout_ons, iGlobal-1)
+      
       vout(:) = vout + vout_ons
     end if
     
@@ -710,13 +699,13 @@ contains
   end subroutine actionAplusB
 
   !> Multiplies the excitation supermatrix with a supervector.
-  !> (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
-  !> (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
-  !>  World Scientific, 1995, Part I, p. 155.)
-  !> See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
-  !> Note MPI: The supervector is distributed, locSize gives the local size.
-  subroutine actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
-      & species0, ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, lrGamma)
+  !! (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
+  !! (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
+  !!  World Scientific, 1995, Part I, p. 155.)
+  !! See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
+  !! Note MPI: The supervector is distributed, locSize gives the local size.
+  subroutine actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,  ovrXev,&
+      & grndEigVecs, vin, vout, lrGamma)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -738,27 +727,15 @@ contains
 
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
-    
-    !> symmetry flag (singlet or triplet)
-    character, intent(in) :: sym
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-
-    !> chemical species of the atoms
-    integer, intent(in) :: species0(:)
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
     
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> DFTB gamma matrix (nAtm, nAtom)
-    real(dp), intent(in) :: frGamma(:,:)
-
-    !> whether (A+B)v or (Omega)v should be returned
-    logical, intent(in) :: tAplusB
 
     !> vector to multiply with size(nMat)
     real(dp), intent(in) :: vin(:)
@@ -840,7 +817,7 @@ contains
         end do
         
         otmp(:) = qv(:,myja)
-        call dsymv('U', lr%nAtom, 1.0d0, lrGamma, lr%nAtom, otmp, 1, 0.d0, qv(:,myja), 1)
+        call hemv(qv(:,myja), lrGamma, otmp, uplo='U')
         
         do ii = 1, rpa%nocc_ud(ss)
           ijs = rpa%iaTrans(ii, jj, ss)
@@ -865,7 +842,7 @@ contains
         end do
 
         otmp(:) = qv(:,myab)
-        call dsymv('U', lr%nAtom, 1.0d0, lrGamma, lr%nAtom, otmp, 1, 0.d0, qv(:,myab), 1)
+        call hemv(qv(:,myab), lrGamma, otmp, uplo='U')
 
         do ii = 1, rpa%nocc_ud(ss)
           ibs = rpa%iaTrans(ii, bb, ss)
@@ -891,14 +868,14 @@ contains
   end subroutine actionAminusB
 
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
-  !> (JCP 109 8218 (1998).
-  !> M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
-  !> Here ias,jbt <= initDim
-  !> Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
-  !> Note: Routine not set up to handle onsite corrections.
-  !> Note: Not yet OpenMP parallelized
-  !> Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices 
-  !> in global arrays
+  !! (JCP 109 8218 (1998).
+  !! M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
+  !! Here ias,jbt <= initDim
+  !! Also computed is v+/- = (A+/-B)_ias,jbt with ias <= nMat, jbt <= initDim
+  !! Note: Routine not set up to handle onsite corrections.
+  !! Note: Not yet OpenMP parallelized
+  !! Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices 
+  !! in global arrays
   subroutine initialSubSpaceMatrixApmB(iGlobal, fGlobal, env, lr, rpa, transChrg, sym,&
       & denseDesc, species0, ovrXev, grndEigVecs, frGamma, lrGamma, initDim, vP, vM, mP, mM) 
 
@@ -1115,52 +1092,37 @@ contains
   end subroutine initialSubSpaceMatrixApmB  
 
   !> Onsite energy corrections
-  !> Routine also works for MPI if optional index offset is provided. The arrays ovrXev and
-  !> grndEigVecs still need to be global!
-  subroutine onsiteEner(env, spin, sym, wij, sqrOccIA, win, nmatup, iAtomStart, getIA, species0,&
-      & ovrXev, grndEigVecs, ons_en, orb, vin, vout, indexOffSet)
+  !! Routine also works for MPI if optional index offset is provided. The arrays ovrXev and
+  !! grndEigVecs still need to be global!
+  subroutine onsiteEner(env, orb, lr, rpa, denseDesc, sym, species0, ovrXev, eigVec, vin, vout,&
+      & indexOffSet) 
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
-    !> logical spin polarization
-    logical, intent(in) :: spin
+
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+     
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Symmetry flag (singlet or triplet)
     character, intent(in) :: sym
 
-    !> Excitation energies (wij = epsion_j - epsilon_i)
-    real(dp), intent(in) :: wij(:)
-
-    !> Square root of occupation difference between vir and occ states
-    real(dp), intent(in) :: sqrOccIA(:)
-
-    !> Sorting index of the excitation energies
-    integer, intent(in) :: win(:)
-
-    !> Number of same-spin transitions
-    integer, intent(in) :: nmatup
-
-    !> Starting position of each atom in the list of orbitals
-    integer, intent(in) :: iAtomStart(:)
-
-    !> Index array for excitations
-    integer, intent(in) :: getIA(:,:)
-
     !> Chemical species of the atoms
-    integer, intent(in) :: species0(:)
+    integer, intent(in) :: species0(:)   
 
     !> Overlap times ground state wavefunctions
     real(dp), intent(in) :: ovrXev(:,:,:)
 
     !> Ground state wavefunctions
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
-    real(dp), intent(in) :: ons_en(:,:,:,:)
-
-    !> Data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: eigVec(:,:,:)
 
     !> Vector to multiply with size(nmat)
     real(dp), intent(in) :: vin(:)
@@ -1171,12 +1133,13 @@ contains
     !> Offset of vector index (optional) which determines orbital pair
     integer, intent(in), optional :: indexOffSet
 
+    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
     real(dp) :: otmp(orb%mOrb,orb%mOrb,size(species0),2)
     real(dp) :: fact
     real(dp) :: onsite(orb%mOrb,orb%mOrb,2)
     real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
     logical :: updwn
-    integer :: nmat, nAtom, nOrb, iOff
+    integer :: nmat, nOrb, iOff
     integer :: ia, iAGlb, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin, nSpin
     real(dp) :: degeneracy, partTrace
 
@@ -1187,29 +1150,52 @@ contains
     end if
 
     nmat = size(vin)
-    nAtom = size(species0)
     nSpin = size(ovrXev, dim=3)
 
+    ! Global arrays required, because transdens is difficult to parallelize 
+  #:if WITH_SCALAPACK
+    
+    allocate(eigVecGlb(orb%nOrb,orb%nOrb,nSpin))
+    allocate(ovrXevGlb(orb%nOrb,orb%nOrb,nSpin))
+    do ss = 1, nSpin
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, eigVec(:,:,ss),&
+          & eigVecGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, ovrXev(:,:,ss),&
+          & ovrXevGlb(:,:,ss))
+    end do
+    
+  #:endif  
+    
     vout(:) = 0.0_dp
     otmp(:,:,:,:)  = 0.0_dp
 
     fact = 1.0_dp
-    if (.not. spin) then
+    if (.not. lr%tSpin) then
       if (sym == 'T') then
         fact = -1.0_dp
       end if
     end if
 
-    do iAt = 1, nAtom
+    do iAt = 1, lr%nAtom
       iSp = species0(iAt)
       nOrb = orb%nOrbAtom(iAt)
-      call getOnsME(orb, iSp, ons_en, nOrb, onsite)
+      call getOnsME(orb, iSp, lr%OnsiteMatrixElements, nOrb, onsite)
       do ia = 1, nmat
         iaGlb = ia + iOff
-        call indxov(win, iaGlb, getIA, ii, jj, ss)
-        updwn = (win(iaGlb) <= nmatup)
-        call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, ovrXev, grndEigVecs, qq_ij)
-        if (spin) then
+        call indxov(rpa%win, iaGlb, rpa%getIA, ii, jj, ss)
+        updwn = (rpa%win(iaGlb) <= rpa%nxov_ud(1))
+        
+      #:if WITH_SCALAPACK
+        
+        call transDens(ii, jj, iAt, denseDesc%iAtomStart, nOrb, updwn, ovrXevGlb, eigVecGlb, qq_ij)
+        
+      #:else
+        
+        call transDens(ii, jj, iAt, denseDesc%iAtomStart, nOrb, updwn, ovrXev, eigVec, qq_ij)
+        
+      #:endif
+        
+        if (lr%tSpin) then
           if (.not. updwn) then
             sindx = [2, 1]
           else
@@ -1217,12 +1203,12 @@ contains
           end if
           do iSpin = 1, 2
             otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
-                & * sqrOccIA(iaGlb) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
+                & * rpa%sqrOccIA(iaGlb) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
           end do
         else
           ! closed shell
           otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + &
-              & qq_ij(:nOrb, :nOrb) * sqrOccIA(iaGlb) * vin(ia)&
+              & qq_ij(:nOrb, :nOrb) * rpa%sqrOccIA(iaGlb) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
       end do
@@ -1247,12 +1233,22 @@ contains
      
     do ia = 1, nmat
       iaGlb = ia + iOff
-      call indxov(win, iaGlb, getIA, ii, jj, ss)
-      updwn = (win(iaGlb) <= nmatup)
-      do iAt = 1, nAtom
+      call indxov(rpa%win, iaGlb, rpa%getIA, ii, jj, ss)
+      updwn = (rpa%win(iaGlb) <= rpa%nxov_ud(1))
+      do iAt = 1, lr%nAtom
         nOrb = orb%nOrbAtom(iAt)
-        call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, ovrXev, grndEigVecs, qq_ij)
-        vout(ia) = vout(ia) + 4.0_dp * sqrOccIA(iaGlb) * &
+
+      #:if WITH_SCALAPACK
+        
+        call transDens(ii, jj, iAt, denseDesc%iAtomStart, nOrb, updwn, ovrXevGlb, eigVecGlb, qq_ij)
+
+      #:else
+
+        call transDens(ii, jj, iAt, denseDesc%iAtomStart, nOrb, updwn, ovrXev, eigVec, qq_ij)
+
+      #:endif        
+        
+        vout(ia) = vout(ia) + 4.0_dp * rpa%sqrOccIA(iaGlb) * &
             & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
       end do
     end do
@@ -1416,23 +1412,14 @@ contains
 
   !> Calculate transition moments for transitions between Kohn-Sham states, including spin-flipping
   !! transitions
-  subroutine calcTransitionDipoles(coord0, win, nOrb, nSpin, nmatup, getIA, transChrg, env,&
-      & denseDesc, ovrXev, grndEigVecs, snglPartTransDip)
+  subroutine calcTransitionDipoles(coord0, win, getIA, transChrg, env, denseDesc, ovrXev,&
+      & grndEigVecs, snglPartTransDip)
 
     !> Atomic positions
     real(dp), intent(in) :: coord0(:,:)
 
     !> Single particle transition index
-    integer, intent(in) :: win(:)
-
-    !> number of orbitals
-    integer, intent(in) :: nOrb
-
-    !> number of spins
-    integer, intent(in) :: nSpin    
-
-    !> number of same-spin transitions
-    integer, intent(in) :: nmatup
+    integer, intent(in) :: win(:) 
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1455,10 +1442,9 @@ contains
     !> Resulting transition dipoles
     real(dp), intent(out) :: snglPartTransDip(:,:)
 
-    integer :: nxov, natom
-    integer :: indm, ii, jj, ss
+    integer :: nxov, natom, indm
     real(dp), allocatable :: qij(:)
-    logical :: updwn
+
     nxov = size(win)
     natom = size(coord0, dim=2)
 
@@ -1474,16 +1460,22 @@ contains
 
   !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
   !! considered an upper threshold for reliability according to Garcia thesis).
-  subroutine getExcSpin(rpa, Ssq, eval, xpy, filling, ovrXev, grndEigVecs)
+  subroutine getExcSpin(env, orb, rpa, denseDesc, Ssq, xpy, filling, ovrXev, eigVec)
 
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+    
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
     
     !> Spin contamination
     real(dp), intent(out) :: Ssq(:)
-
-    !> Casida exitation energies
-    real(dp), intent(in) :: eval(:)
 
     !> Casida excited eigenvectors (X+Y)
     real(dp), intent(in) :: xpy(:,:)
@@ -1495,12 +1487,13 @@ contains
     real(dp), intent(in) :: ovrXev(:,:,:)
 
     !> Ground state eigenvectors
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
+    real(dp), intent(in) :: eigVec(:,:,:)
 
     integer, allocatable :: TDvin(:)
     integer:: i, k, l, m, ia, jb, ii, aa, jj, bb, ss
-    integer:: nmat, nexc, nup, ndwn
+    integer:: nSpin, nmat, nexc, nup, ndwn
     real(dp), allocatable :: TDvec(:), TDvec_sq(:)
+    real(dp), allocatable :: eigVecGlb(:,:,:), ovrXevGlb(:,:,:)
     real(dp) :: TDvnorm
     real(dp) :: s_iaja, s_iaib, s_iajb, tmp
     logical :: ud_ia, ud_jb
@@ -1509,9 +1502,31 @@ contains
     nexc = size(Ssq)
     nup = ceiling(sum(filling(:,1)))
     ndwn = ceiling(sum(filling(:,2)))
+    nSpin = size(eigVec, dim=3)
+    
     allocate(TDvec(nmat))
     allocate(TDvec_sq(nmat))
     allocate(TDvin(nmat))
+
+    ! Global arrays required, routine is difficult to parallelize
+    allocate(eigVecGlb(orb%nOrb,orb%nOrb,nSpin))
+    allocate(ovrXevGlb(orb%nOrb,orb%nOrb,nSpin))
+    
+  #:if WITH_SCALAPACK
+    
+    do ss = 1, nSpin
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, eigVec(:,:,ss),&
+          & eigVecGlb(:,:,ss))
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, ovrXev(:,:,ss),&
+          & ovrXevGlb(:,:,ss))
+    end do
+
+  #:else   
+
+    eigVecGlb = eigVec
+    ovrXevGlb = ovrXev
+    
+  #:endif      
 
     do i = 1, nexc
       TDvec(:) = xpy(:,i)
@@ -1540,13 +1555,13 @@ contains
           tmp = 0.0_dp
           if (ud_ia) then
             do m = 1, ndwn
-              tmp = tmp + MOoverlap(ii, m, ovrXev, grndEigVecs)&
-                  & * MOoverlap(jj, m, ovrXev, grndEigVecs)
+              tmp = tmp + MOoverlap(ii, m, ovrXevGlb, eigVecGlb)&
+                  & * MOoverlap(jj, m, ovrXevGlb, eigVecGlb)
             end do
           else
             do m = 1, nup
-              tmp = tmp + MOoverlap(m, ii, ovrXev, grndEigVecs)&
-                  & * MOoverlap(m, jj, ovrXev, grndEigVecs)
+              tmp = tmp + MOoverlap(m, ii, ovrXevGlb, eigVecGlb)&
+                  & * MOoverlap(m, jj, ovrXevGlb, eigVecGlb)
             end do
           end if
 
@@ -1570,13 +1585,13 @@ contains
           tmp = 0.0_dp
           if (ud_ia) then
             do m = 1, ndwn
-              tmp = tmp + MOoverlap(aa, m, ovrXev, grndEigVecs)&
-                  & * MOoverlap(bb, m, ovrXev, grndEigVecs)
+              tmp = tmp + MOoverlap(aa, m, ovrXevGlb, eigVecGlb)&
+                  & * MOoverlap(bb, m, ovrXevGlb, eigVecGlb)
             end do
           else
             do m = 1, nup
-              tmp = tmp + MOoverlap(m, aa, ovrXev, grndEigVecs)&
-                  & * MOoverlap(m, bb, ovrXev, grndEigVecs)
+              tmp = tmp + MOoverlap(m, aa, ovrXevGlb, eigVecGlb)&
+                  & * MOoverlap(m, bb, ovrXevGlb, eigVecGlb)
             end do
           end if
 
@@ -1598,8 +1613,8 @@ contains
 
           if (ud_jb) cycle
 
-          s_iajb = s_iajb + TDvec(ia) * TDvec(jb) * MOoverlap(aa, bb, ovrXev, grndEigVecs)&
-              & * MOoverlap(ii, jj, ovrXev, grndEigVecs)
+          s_iajb = s_iajb + TDvec(ia) * TDvec(jb) * MOoverlap(aa, bb, ovrXevGlb, eigVecGlb)&
+              & * MOoverlap(ii, jj, ovrXevGlb, eigVecGlb)
         end do
       end do
 
