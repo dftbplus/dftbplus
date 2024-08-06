@@ -49,6 +49,9 @@ contains
     @:ASSERT(size(mass) == nAtom)
 
     st(:,:) = 0.0_dp
+
+    !$omp parallel do default(none) schedule(runtime) shared(nAtom, mass, velo)&
+    !$omp& private(iAtom, ii, jj) reduction(+:st)
     do iAtom = 1, nAtom
       do ii = 1, 3
         do jj = 1, 3
@@ -56,6 +59,7 @@ contains
         end do
       end do
     end do
+    !$omp end parallel do
 
     st(:,:) = st / cellVol
 
@@ -127,6 +131,10 @@ contains
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
+    !$omp parallel do default(none) schedule(runtime) shared(iterIndices, nNeighbourSK, iNeighbour,&
+    !$omp& img2CentCell, derivator, skOverCont, iPair, DM, EDM, skHamCont, coords, species, orb)&
+    !$omp& private(iIter, iAtom1, nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig, sqrDMTmp,&
+    !$omp& sqrEDMTmp, hPrimeTmp, sPrimeTmp, ii, jj, intermed, vect) reduction(+:st)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
@@ -167,6 +175,7 @@ contains
         end if
       end do
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, st)
 
@@ -251,6 +260,11 @@ contains
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
+    !$omp parallel do default(none) schedule(runtime) shared(iterIndices, nNeighbourSK, iNeighbour,&
+    !$omp& img2CentCell, derivator, skOverCont, iPair, DM, EDM, skHamCont, coords, species, orb,&
+    !$omp& nSpin, shift) private(iIter, iAtom1, nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2, iOrig,&
+    !$omp& sqrDMTmp, sqrEDMTmp, hPrimeTmp, sPrimeTmp, ii, jj, intermed, vect, iSp1, iSp2,&
+    !$omp& shiftSprime) reduction(+:st)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
       iSp1 = species(iAtom1)
@@ -303,6 +317,7 @@ contains
         end if
       end do
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, st)
 
@@ -393,6 +408,11 @@ contains
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
+    !$omp parallel do default(none) schedule(runtime) shared(iterIndices, nNeighbourSK, iNeighbour,&
+    !$omp& img2CentCell, derivator, skOverCont, iPair, DM, iDM, EDM, skHamCont, coords, species,&
+    !$omp& orb, nSpin, shift, iShift) private(iIter, iAtom1, nOrb1, iNeigh, iAtom2, iAtom2f, nOrb2,&
+    !$omp& iOrig, sqrDMTmp, sqrEDMTmp, hPrimeTmp, sPrimeTmp, ii, jj, intermed, vect, iSp1, iSp2,&
+    !$omp& shiftSprime) reduction(+:st)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
       iSp1 = species(iAtom1)
@@ -455,6 +475,7 @@ contains
         end if
       end do
     end do
+    !$omp end parallel do
 
     call assembleChunks(env, st)
 
