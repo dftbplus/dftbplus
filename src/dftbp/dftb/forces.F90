@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
+!> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc.)
 module dftbp_dftb_forces
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
@@ -24,25 +24,25 @@ module dftbp_dftb_forces
   private
   public :: derivative_shift
 
-  !> forces with shift vectors present
+  !> Forces with shift vectors present
   interface derivative_shift
 
-    !> derivatives without any shift
+    !> Derivatives without any shift
     module procedure derivative_nonSCC
 
-    !> derivatives with shift
+    !> Derivatives with shift
     module procedure derivative_block
 
-    !> derivatives with complex shift
+    !> Derivatives with complex shift
     module procedure derivative_iBlock
 
   end interface derivative_shift
 
+
 contains
 
-
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
-  !> density and energy-density matrices
+  !! density and energy-density matrices
   subroutine derivative_nonSCC(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
       & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, tHelical)
 
@@ -55,10 +55,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -67,22 +67,22 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
@@ -98,7 +98,7 @@ contains
       tHelix = tHelical
     end if
 
-    @:ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv, dim=1) == 3)
 
     if (tHelix) then
 
@@ -116,7 +116,7 @@ contains
 
 
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
-  !> density and energy-density matrices
+  !! density and energy-density matrices
   subroutine derivativeNonSccEuclidian(env, deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb)
 
@@ -129,10 +129,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -141,22 +141,22 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
@@ -167,7 +167,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     integer, allocatable :: iterIndices(:)
 
-    @:ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv, dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
@@ -180,7 +180,7 @@ contains
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
-      !! loop from 1 as no contribution from the atom itself
+      ! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -191,23 +191,22 @@ contains
           sqrEDMTmp(:,:) = 0.0_dp
           hPrimeTmp(:,:,:) = 0.0_dp
           sPrimeTmp(:,:,:) = 0.0_dp
-          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
           call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
-              & orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             deriv(ii,iAtom1) = deriv(ii,iAtom1)&
-                & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+                & + 2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1) * hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
           ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the
           ! blocks, and note that the skew symmetry in the derivatives is being used
           do ii = 1, 3
             deriv(ii,iAtom2f) = deriv(ii,iAtom2f)&
-                & - sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                & + sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+                & + 2.0_dp * (-sum(sqrDMTmp(1:nOrb2,1:nOrb1) * hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & + sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
           end do
         end if
       end do
@@ -220,7 +219,7 @@ contains
 
 
   !> The non-SCC electronic force contribution for all atoms from the matrix derivatives and the
-  !> density and energy-density matrices in a helical geometry
+  !! density and energy-density matrices in a helical geometry
   subroutine derivativeNonSccHelical(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
       & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb)
 
@@ -233,10 +232,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -245,22 +244,22 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
@@ -271,7 +270,7 @@ contains
     real(dp) :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3), intermed(3)
     integer, allocatable :: iterIndices(:)
 
-    @:ASSERT(size(deriv,dim=1) == 3)
+    @:ASSERT(size(deriv, dim=1) == 3)
 
     nAtom = size(orb%nOrbAtom)
     deriv(:,:) = 0.0_dp
@@ -284,7 +283,7 @@ contains
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
       nOrb1 = orb%nOrbAtom(iAtom1)
-      !! loop from 1 as no contribution from the atom itself
+      ! loop from 1 as no contribution from the atom itself
       do iNeigh = 1, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -294,22 +293,20 @@ contains
         sqrEDMTmp(:,:) = 0.0_dp
         hPrimeTmp(:,:,:) = 0.0_dp
         sPrimeTmp(:,:,:) = 0.0_dp
-        sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-        sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+        sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
+        sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
         call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
-            & orb)
+        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
         ! note factor of 2 for implicit summation over lower triangle of density matrix:
         do ii = 1, 3
-          intermed(ii) = &
-              & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-              & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+          intermed(ii) = 2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1) * hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+              & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
         end do
         deriv(:,iAtom1) = deriv(:, iAtom1) + intermed
         if (iAtom1 /= iAtom2f) then
-          theta = - atan2(coords(2,iAtom2),coords(1,iAtom2))&
-              & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
-          theta = mod(theta,2.0_dp*pi)
+          theta = -atan2(coords(2,iAtom2), coords(1,iAtom2))&
+              & + atan2(coords(2,iAtom2f), coords(1,iAtom2f))
+          theta = mod(theta, 2.0_dp * pi)
           call rotate3(intermed, theta, zAxis)
           ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the
           ! blocks, and note that the skew symmetry in the derivatives is being used
@@ -325,7 +322,7 @@ contains
 
 
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
-  !> consistent potential and the density and energy-density matrices
+  !! consistent potential and the density and energy-density matrices
   subroutine derivative_block(env, deriv, derivator, DM, EDM, skHamCont, skOverCont, coords,&
       & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift, tHelical)
 
@@ -338,10 +335,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -350,28 +347,28 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block shift from the potential
+    !> Block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
     !> Optional signalling of helical operations
@@ -387,15 +384,15 @@ contains
     end if
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(shift,dim=4)
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    @:ASSERT(size(deriv,dim=1) == 3)
-    @:ASSERT(size(deriv,dim=2)==nAtom)
-    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    @:ASSERT(size(shift,dim=1)==orb%mOrb)
-    @:ASSERT(size(shift,dim=2)==orb%mOrb)
-    @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(DM,dim=2)==nSpin)
+    nSpin = size(shift, dim=4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) == nAtom)
+    @:ASSERT(size(DM, dim=1) == size(EDM, dim=1))
+    @:ASSERT(size(shift, dim=1) == orb%mOrb)
+    @:ASSERT(size(shift, dim=2) == orb%mOrb)
+    @:ASSERT(size(shift, dim=3) == nAtom)
+    @:ASSERT(size(DM, dim=2) == nSpin)
 
     deriv(:,:) = 0.0_dp
 
@@ -415,7 +412,7 @@ contains
 
 
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
-  !> consistent potential and the density and energy-density matrices
+  !! consistent potential and the density and energy-density matrices
   subroutine derivative_blockHelical(env, deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift)
 
@@ -428,10 +425,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -440,28 +437,28 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block shift from the potential
+    !> Block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iOrig, iSpin, ii, nSpin, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
@@ -474,22 +471,22 @@ contains
     integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(shift,dim=4)
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    @:ASSERT(size(deriv,dim=1) == 3)
-    @:ASSERT(size(deriv,dim=2)==nAtom)
-    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    @:ASSERT(size(shift,dim=1)==orb%mOrb)
-    @:ASSERT(size(shift,dim=2)==orb%mOrb)
-    @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(DM,dim=2)==nSpin)
+    nSpin = size(shift, dim=4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) == nAtom)
+    @:ASSERT(size(DM, dim=1) == size(EDM, dim=1))
+    @:ASSERT(size(shift, dim=1) == orb%mOrb)
+    @:ASSERT(size(shift, dim=2) == orb%mOrb)
+    @:ASSERT(size(shift, dim=3) == nAtom)
+    @:ASSERT(size(DM, dim=2) == nSpin)
 
     deriv(:,:) = 0.0_dp
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta)&
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,&
+    !$OMP& sqrDMTmp,sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii,theta)&
     !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
@@ -502,11 +499,10 @@ contains
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
           call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
-              & orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
@@ -523,7 +519,7 @@ contains
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
               ! again factor of 2 from lower triangle, cf published force expressions for SCC:
               derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( sum(shiftSprime(1:nOrb2,1:nOrb1) *&
-                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
+                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), [nOrb2,nOrb1]) ) )
             end do
           end do
 
@@ -549,7 +545,7 @@ contains
 
 
   !> The SCC and spin electronic force contribution for all atoms from the matrix derivatives, self
-  !> consistent potential and the density and energy-density matrices
+  !! consistent potential and the density and energy-density matrices
   subroutine derivative_blockEuclidean(env, deriv, derivator, DM, EDM, skHamCont, skOverCont,&
       & coords, species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift)
 
@@ -562,10 +558,10 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -574,28 +570,28 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block shift from the potential
+    !> Block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
     integer :: iOrig, iSpin, ii, nSpin, nAtom, iNeigh, iAtom1, iAtom2, iAtom2f, iSp1, iSp2
@@ -608,22 +604,22 @@ contains
     integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(shift,dim=4)
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    @:ASSERT(size(deriv,dim=1) == 3)
-    @:ASSERT(size(deriv,dim=2)==nAtom)
-    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    @:ASSERT(size(shift,dim=1)==orb%mOrb)
-    @:ASSERT(size(shift,dim=2)==orb%mOrb)
-    @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(DM,dim=2)==nSpin)
+    nSpin = size(shift, dim=4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) == nAtom)
+    @:ASSERT(size(DM, dim=1) == size(EDM, dim=1))
+    @:ASSERT(size(shift, dim=1) == orb%mOrb)
+    @:ASSERT(size(shift, dim=2) == orb%mOrb)
+    @:ASSERT(size(shift, dim=3) == nAtom)
+    @:ASSERT(size(DM, dim=2) == nSpin)
 
     deriv(:,:) = 0.0_dp
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,&
+    !$OMP& sqrDMTmp,sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED)&
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
@@ -636,11 +632,10 @@ contains
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
           call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
-              & orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
@@ -657,13 +652,13 @@ contains
                   & + matmul(shift(1:nOrb2,1:nOrb2,iAtom2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
               ! again factor of 2 from lower triangle, cf published force expressions for SCC:
               derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( sum(shiftSprime(1:nOrb2,1:nOrb1) *&
-                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin),(/nOrb2,nOrb1/)) ) )
+                  & reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), [nOrb2,nOrb1]) ) )
             end do
           end do
 
           ! forces from atom 1 on atom 2f and 2f onto 1
-          deriv(:,iAtom1) = deriv(:,iAtom1) + derivTmp(:)
-          deriv(:,iAtom2f) = deriv(:,iAtom2f) - derivTmp(:)
+          deriv(:,iAtom1) = deriv(:,iAtom1) + derivTmp
+          deriv(:,iAtom2f) = deriv(:,iAtom2f) - derivTmp
 
         end if
       enddo
@@ -676,7 +671,7 @@ contains
 
 
   !> The SCC and spin electronic force contribution for all atoms, including complex contributions,
-  !> for example from spin-orbit
+  !! for example from spin-orbit
   subroutine derivative_iBlock(env, deriv, derivator, DM, iDM, EDM, skHamCont, skOverCont, coords,&
       & species, iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, shift, iShift)
 
@@ -689,13 +684,13 @@ contains
     !> Differentiatior for the non-scc components
     class(TNonSccDiff), intent(in) :: derivator
 
-    !> density matrix in packed format
+    !> Density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
 
-    !> imaginary part of the density matrix in packed format
+    !> Imaginary part of the density matrix in packed format
     real(dp), intent(in) :: iDM(:,:)
 
-    !> energy-weighted density matrix in packed format
+    !> Energy-weighted density matrix in packed format
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
@@ -704,31 +699,31 @@ contains
     !> Container for SK overlap integrals
     type(TSlakoCont) :: skOverCont
 
-    !> list of all atomic coordinates
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of neighbours of each atom
+    !> Number of neighbours of each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> indexing array for the Hamiltonian
+    !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block shift from the potential
+    !> Block shift from the potential
     real(dp), intent(in) :: shift(:,:,:,:)
 
-    !> imaginary block shift from the potential
+    !> Imaginary block shift from the potential
     real(dp), intent(in) :: iShift(:,:,:,:)
 
     integer :: iOrig, iSpin, ii, nSpin, nAtom
@@ -744,24 +739,24 @@ contains
     integer, allocatable :: iterIndices(:)
 
     nAtom = size(orb%nOrbAtom)
-    nSpin = size(shift,dim=4)
-    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin ==4)
-    @:ASSERT(size(deriv,dim=1) == 3)
-    @:ASSERT(size(deriv,dim=2)==nAtom)
-    @:ASSERT(size(DM,dim=1)==size(EDM,dim=1))
-    @:ASSERT(size(DM,dim=2)==nSpin)
-    @:ASSERT(all(shape(iDM)==shape(DM)))
-    @:ASSERT(size(shift,dim=1)==orb%mOrb)
-    @:ASSERT(size(shift,dim=2)==orb%mOrb)
-    @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(all(shape(iShift)==shape(shift)))
+    nSpin = size(shift, dim=4)
+    @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) == nAtom)
+    @:ASSERT(size(DM, dim=1) == size(EDM, dim=1))
+    @:ASSERT(size(DM, dim=2) == nSpin)
+    @:ASSERT(all(shape(iDM) == shape(DM)))
+    @:ASSERT(size(shift, dim=1) == orb%mOrb)
+    @:ASSERT(size(shift, dim=2) == orb%mOrb)
+    @:ASSERT(size(shift, dim=3) == nAtom)
+    @:ASSERT(all(shape(iShift) == shape(shift)))
 
     deriv(:,:) = 0.0_dp
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-    !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+    !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,&
+    !$OMP& sqrDMTmp,sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED)&
     !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
     do iIter = 1, size(iterIndices)
       iAtom1 = iterIndices(iIter)
@@ -774,8 +769,8 @@ contains
         if (iAtom1 /= iAtom2f) then
           nOrb2 = orb%nOrbSpecies(iSp2)
           iOrig = iPair(iNeigh,iAtom1) + 1
-          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1),(/nOrb2,nOrb1/))
-          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1),(/nOrb2,nOrb1/))
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
           call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
 
@@ -795,7 +790,7 @@ contains
               ! again factor of 2 from lower triangle sum of DM
               derivTmp(ii) = derivTmp(ii)&
                   & + 2.0_dp* ( real(sum(shiftSprime(1:nOrb2,1:nOrb1)&
-                  & * reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), (/nOrb2,nOrb1/)))) )
+                  & * reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), [nOrb2,nOrb1]))) )
             end do
           end do
 
@@ -807,12 +802,12 @@ contains
               ! again factor of 2 from lower triangle sum of DM
               derivTmp(ii) = derivTmp(ii)&
                   & + 2.0_dp * real(sum(shiftSprime(1:nOrb2,1:nOrb1) *&
-                  & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), (/nOrb2,nOrb1/))))
+                  & reshape(iDM(iOrig:iOrig+nOrb1*nOrb2-1,iSpin), [nOrb2,nOrb1])))
             end do
           end do
 
-          deriv(:,iAtom1) = deriv(:,iAtom1) + derivTmp(:)
-          deriv(:,iAtom2f) = deriv(:,iAtom2f) - derivTmp(:)
+          deriv(:,iAtom1) = deriv(:,iAtom1) + derivTmp
+          deriv(:,iAtom2f) = deriv(:,iAtom2f) - derivTmp
 
         end if
       enddo
