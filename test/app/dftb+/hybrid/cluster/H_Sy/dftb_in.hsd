@@ -1,0 +1,49 @@
+Geometry = GenFormat {
+    1 C
+    H
+    1 1 0 0 0
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8  # Extremely small
+    Filling = Fermi {Temperature [K] = 10}
+    MaxAngularMomentum = {
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "slakos/origin/ob2-1-1/shift/"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    SpinPolarisation = NonColinear {
+        #UnpairedElectrons = 1
+        InitialSpins = {
+            AtomSpin = {
+                Atoms = H
+                SpinPerAtom = {
+                    0 1 0
+                }
+            }
+        }
+    }
+    SpinConstants = {
+        H = {-0.07925}
+        ShellResolvedSpin = Yes
+    }
+    Hybrid = LC {
+        Screening = MatrixBased {}
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis {
+    PrintForces = No
+}
+
+ParserOptions = {
+    ParserVersion = 14
+}

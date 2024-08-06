@@ -159,10 +159,16 @@ module dftbp_dftb_hybridxc
     real(dp), allocatable :: rCoords(:,:)
 
     !> Evaluated (long-range + HF full-range) gamma of Atom1 and Atom2 (central cell only)
-    real(dp), allocatable :: camGammaEval0(:,:), camdGammaEval0(:,:,:)
+    real(dp), allocatable :: camGammaEval0(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative of Atom1 and Atom2 (central cell
+    !> only)
+    real(dp), allocatable :: camdGammaEval0(:,:,:)
 
     !> Evaluated (long-range + HF full-range) gamma in the general k-point case
     type(TWrappedReal1), allocatable :: camGammaEvalG(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative in the general k-point case
     type(TWrappedReal2), allocatable :: camdGammaEvalG(:,:)
 
     !> Number of numerically non-zero gamma's
@@ -205,7 +211,10 @@ module dftbp_dftb_hybridxc
     real(dp) :: camEnergy
 
     !> Is this a spin restricted (false) or unrestricted (true) calculation?
-    logical :: tSpin
+    logical :: isSpin
+
+    !> Number of independent spin channels
+    integer :: nSpin
 
     !> Is this a DFTB/REKS calculation (true)?
     logical :: tREKS
@@ -381,8 +390,8 @@ contains
 
   !> Intitializes the range-separated hybrid DFTB module.
   subroutine THybridXcFunc_init(this, nAtom0, species0, hubbu, screeningThreshold, omega, camAlpha,&
-      & camBeta, tSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, tPeriodic, tRealHS, errStatus,&
-      & gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
+      & camBeta, isSpin, nSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, isPeriodic, tRealHS,&
+      & errStatus, gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
 
     !> Class instance
     class(THybridXcFunc), intent(out), allocatable :: this
@@ -409,7 +418,10 @@ contains
     real(dp), intent(in) :: camBeta
 
     !> Is this spin restricted (F) or unrestricted (T)
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: isSpin
+
+    !> Number of indepdendent spin channels (1, 2 or 4)
+    integer, intent(in) :: nSpin
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: tREKS
@@ -424,7 +436,7 @@ contains
     integer, intent(in) :: gammaType
 
     !> True, if system is periodic (i.e. Gamma-only or k-points)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> True, if overlap and Hamiltonian are real-valued
     logical, intent(in) :: tRealHS
@@ -455,7 +467,7 @@ contains
     integer :: nUniqueSpecies
 
     ! Perform basic consistency checks for optional arguments
-    if (tPeriodic .and. (.not. present(gSummationCutoff))) then
+    if (isPeriodic .and. (.not. present(gSummationCutoff))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic systems require g-summation cutoff,&
           & which is not present.")
     end if
@@ -499,7 +511,9 @@ contains
     this%omega = omega
     this%hybridXcAlg = hybridXcAlg
     this%hybridXcType = hybridXcType
-    this%tSpin = tSpin
+    this%isSpin = isSpin
+    this%nSpin = nSpin
+    @:ASSERT(this%isSpin .eqv. this%nSpin > 1)
     this%tREKS = tREKS
     this%camAlpha = camAlpha
     this%camBeta = camBeta
@@ -564,11 +578,10 @@ contains
     allocate(this%rCoords(3, nAtom0))
     this%rCoords(:,:) = 0.0_dp
 
-    allocate(this%camGammaEval0(nAtom0, nAtom0))
-    this%camGammaEval0(:,:) = 0.0_dp
+    allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
-    if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+    if (this%isSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
       @:RAISE_ERROR(errStatus, -1, "Spin-unrestricted calculation for thresholded range-separation&
           & not yet implemented!")
     end if
@@ -584,7 +597,7 @@ contains
           & range-separation!")
     end if
 
-    if (tPeriodic .and. (.not. present(latVecs))) then
+    if (isPeriodic .and. (.not. present(latVecs))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic structure, but no lattice vectors&
           & handed over.")
     end if
@@ -1407,7 +1420,7 @@ contains
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (non-periodic and Gamma-only version)
   subroutine addCamHamiltonian_real(this, env, deltaRhoSqr, SSqrReal, overSparse, iNeighbour,&
-      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, tPeriodic, HSqrReal, errStatus)
+      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, isPeriodic, HSqrReal, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1444,7 +1457,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
@@ -1456,7 +1469,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Thresholded algorithm not implemented for&
             & Gamma-point periodic systems.")
       else
@@ -1807,7 +1820,7 @@ contains
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       tmpHH(:,:) = 0.25_dp * tmpHH
     else
       tmpHH(:,:) = 0.125_dp * tmpHH
@@ -2128,7 +2141,7 @@ contains
       tmpMat(:,:) = tmpMat * camGammaAO
       call pblasfx_pgemm(Smat, desc, tmpMat, desc, Hcam, desc, alpha=1.0_dp, beta=1.0_dp)
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         Hcam(:,:) = -0.25_dp * Hcam
       else
         Hcam(:,:) = -0.125_dp * Hcam
@@ -2273,8 +2286,8 @@ contains
 
       nOrb = size(Smat, dim=1)
 
-      allocate(Hmat(nOrb, nOrb))
-      allocate(tmpMat(nOrb, nOrb))
+      allocate(Hmat(nOrb, nOrb), source=0.0_dp)
+      allocate(tmpMat(nOrb, nOrb), source=0.0_dp)
 
       call symm(tmpMat, 'l', Smat, Dmat)
       call symm(Hcam, 'r', Smat, tmpMat)
@@ -2291,7 +2304,7 @@ contains
       tmpMat(:,:) = tmpMat * camGammaAO
       call symm(Hcam, 'l', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         Hcam(:,:) = -0.25_dp * Hcam
       else
         Hcam(:,:) = -0.125_dp * Hcam
@@ -2306,7 +2319,7 @@ contains
 
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (complex non-periodic and complex Gamma-only version)
+  !! Complex for non-periodic and Gamma-only version or Pauli two-component matrix.
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_cluster_cmplx(this, iSquare, overlap, densSqr, HH)
@@ -2336,9 +2349,8 @@ contains
     complex(dp), allocatable :: Hcam(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
-    !! Actually the diatomic gamma elements are just spread to all orbitals
+    !! Actually the gamma elements are just spread to all orbitals
     real(dp), allocatable :: camGammaAO(:,:)
-    complex(dp), allocatable :: gammaCmplx(:,:)
 
     !! Number of orbitals in square matrices
     integer :: nOrb
@@ -2347,21 +2359,24 @@ contains
 
     allocate(Smat(nOrb, nOrb))
     allocate(Dmat(nOrb, nOrb))
-    allocate(camGammaAO(nOrb, nOrb))
-    allocate(gammaCmplx(nOrb, nOrb))
     allocate(Hcam(nOrb, nOrb))
 
-    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO, gammaCmplx)
+    if (this%nSpin == 4) then
+      allocate(camGammaAO(nOrb/2, nOrb/2))
+    else
+      allocate(camGammaAO(nOrb, nOrb))
+    end if
 
-    call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hcam)
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO)
+
+    call evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
 
     HH(:,:) = HH + Hcam
     this%camEnergy = this%camEnergy + evaluateEnergy_cplx(Hcam, Dmat)
 
   contains
 
-    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO,&
-        & gammaCmplx)
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO)
 
       !> Instance
       class(THybridXcFunc), intent(inout) :: this
@@ -2387,9 +2402,6 @@ contains
       !> Symmetrized CAM gamma matrix
       real(dp), intent(out) :: camGammaAO(:,:)
 
-      !> Symmetrized CAM gamma matrix
-      complex(dp), intent(out) :: gammaCmplx(:,:)
-
       !! Indices iterating over atoms
       integer :: iAt, jAt
 
@@ -2413,12 +2425,11 @@ contains
               & this%camGammaEval0(jAt, iAt)
         end do
       end do
-      gammaCmplx(:,:) = camGammaAO
 
     end subroutine allocateAndInit
 
 
-    subroutine evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hcam)
+    subroutine evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
 
       !> Instance
       class(THybridXcFunc), intent(inout) :: this
@@ -2430,7 +2441,7 @@ contains
       complex(dp), intent(in) :: Dmat(:,:)
 
       !> Symmetrized CAM gamma matrix
-      complex(dp), intent(in) :: gammaCmplx(:,:)
+      real(dp), intent(in) :: camGammaAO(:,:)
 
       !> Symmetrized CAM Hamiltonian matrix
       complex(dp), intent(out) :: Hcam(:,:)
@@ -2443,31 +2454,58 @@ contains
 
       nOrb = size(Smat, dim=1)
 
-      allocate(Hmat(nOrb, nOrb))
-      allocate(tmpMat(nOrb, nOrb))
+      allocate(Hmat(nOrb, nOrb), source=(0.0_dp,0.0_dp))
+      allocate(tmpMat(nOrb, nOrb), source=(0.0_dp,0.0_dp))
 
       call hemm(tmpMat, 'l', Smat, Dmat)
       call hemm(Hcam, 'r', Smat, tmpMat)
-      Hcam(:,:) = Hcam * gammaCmplx
+      call matProduct(Hcam, Hcam, camGammaAO)
 
-      tmpMat(:,:) = tmpMat * gammaCmplx
+      call matProduct(tmpMat, tmpMat, camGammaAO)
       call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
-      Hmat(:,:) = Dmat * gammaCmplx
+      call matProduct(Hmat, Dmat, camGammaAO)
       call hemm(tmpMat, 'l', Smat, Hmat)
       call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
       call hemm(tmpMat, 'l', Dmat, Smat)
-      tmpMat(:,:) = tmpMat * gammaCmplx
+      call matProduct(tmpMat, tmpMat, camGammaAO)
       call hemm(Hcam, 'l', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
 
-      if (this%tSpin) then
-        Hcam(:,:) = -0.25_dp * Hcam
-      else
+      if (this%nSpin == 1) then
         Hcam(:,:) = -0.125_dp * Hcam
+      else
+        Hcam(:,:) = -0.25_dp * Hcam
       end if
 
     end subroutine evaluateHamiltonian
+
+
+    !> Hadamard product C = A * B, allowing for the possibility of 2-component matrices
+    subroutine matProduct(C, A, B)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(inout) :: C(:,:)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(in) :: A(:,:)
+
+      !> Square matrix to multiply
+      real(dp), intent(in) :: B(:,:)
+
+      integer :: nBasis
+
+      if (this%nSpin /= 4) then
+        C(:,:) = A * B
+      else
+        nBasis = size(A, dim=2)/2
+        C(:nBasis, :nBasis) = A(:nBasis, :nBasis) * B
+        C(nBasis+1:, :nBasis) = A(nBasis+1:, :nBasis) * B
+        C(nBasis+1:, nBasis+1:) = A(nBasis+1:, nBasis+1:) * B
+        C(:nBasis, nBasis+1:) = A(:nBasis, nBasis+1:) * B
+      end if
+
+    end subroutine matProduct
 
   end subroutine addCamHamiltonianMatrix_cluster_cmplx
 
@@ -2714,7 +2752,7 @@ contains
 
     end do
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3108,7 +3146,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3427,7 +3465,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -4657,8 +4695,8 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, parallelKS, deltaRhoSqr, SSqrReal, skOverCont,&
-      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, gradients,&
-      & errStatus)
+      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, isPeriodic,&
+      & gradients, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -4697,7 +4735,7 @@ contains
     integer, intent(in) :: nSpin
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4705,7 +4743,7 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma()
     else
       call this%tabulateCamdGammaEval0_cluster()
@@ -4728,7 +4766,7 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
-      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
+      & iNeighbour, nNeighbourSK, derivator, isPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
@@ -4759,7 +4797,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4770,7 +4808,7 @@ contains
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma()
     else
       call this%tabulateCamdGammaEval0_cluster()
@@ -4778,7 +4816,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
