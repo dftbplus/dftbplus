@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -25,17 +27,25 @@ module dftbp_reks_reksen
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
+  use dftbp_reks_rekscommon, only : getTwoIndices, convertMatrix
   use dftbp_reks_reksio, only : printReksSSRInfo
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
+      & scalafx_psyev, pblasfx_pgemm, blocklist, size
+#:endif
 
   implicit none
 
   private
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
-  public :: getFockandDiag, guessNewEigvecs
+  public :: getFockandDiag, guessNewEigvecsReks
   public :: adjustEigenval, solveSecularEqn
   public :: setReksTargetEnergy
 
@@ -76,7 +86,13 @@ module dftbp_reks_reksen
 
 
   !> Swap the active orbitals for feasible occupation in REKS
-  subroutine activeOrbSwap(this, eigenvecs)
+  subroutine activeOrbSwap(env, denseDesc, this, eigenvecs)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
@@ -87,7 +103,8 @@ module dftbp_reks_reksen
     select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call MOswap22_(eigenvecs, this%SAweight, this%FONs, this%Efunction, this%Nc)
+      call MOswap22_(env, denseDesc, eigenvecs, this%SAweight, this%FONs, this%Efunction,&
+          & this%Nc)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -166,7 +183,7 @@ module dftbp_reks_reksen
 
 
   !> Make pseudo-fock operator with Hamiltonian of each microstate
-  !> and diagonalize the fock matrix
+  !! and diagonalize the fock matrix
   subroutine getFockandDiag(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, &
       & electronicSolver, eigen, this)
@@ -206,59 +223,74 @@ module dftbp_reks_reksen
 
     integer :: ii, nOrb
 
-    nOrb = size(this%fockFc,dim=1)
+    nOrb = denseDesc%fullSize
 
     allocate(orbFON(nOrb))
+  #:if not WITH_SCALAPACK
     allocate(tmpMat(nOrb,nOrb))
+  #:endif
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, this%hamSqrL, this%hamSpL, this%weight, &
         & this%fillingL, this%Nc, this%Na, this%Lpaired, this%isHybridXc, &
         & orbFON, this%fockFc, this%fockFa)
 
-    call matAO2MO(this%fockFc, eigenvecs(:,:,1))
+    call convertMatrix(denseDesc, eigenvecs(:,:,1), this%fockFc, choice=1)
     do ii = 1, this%Na
-      call matAO2MO(this%fockFa(:,:,ii), eigenvecs(:,:,1))
+      call convertMatrix(denseDesc, eigenvecs(:,:,1), this%fockFa(:,:,ii), choice=1)
     end do
 
+  #:if WITH_SCALAPACK
+    call getPseudoFockBlacs_(env, denseDesc, this%fockFc, this%fockFa, orbFON, this%Nc,&
+        & this%Na, this%fock)
+  #:else
     call getPseudoFock_(this%fockFc, this%fockFa, orbFON, this%Nc, this%Na, this%fock)
+  #:endif
 
+  #:if WITH_SCALAPACK
+    call levelShiftingBlacs_(env, denseDesc, this%fock, this%shift, this%Nc, this%Na)
+  #:else
     call levelShifting_(this%fock, this%shift, this%Nc, this%Na)
+  #:endif
 
     ! Diagonalize the pesudo-Fock matrix
-    tmpMat(:,:) = this%fock
-
     eigen(:,1,1) = 0.0_dp
+    call env%globalTimer%startTimer(globalTimers%diagonalization)
+  #:if WITH_SCALAPACK
+    call scalafx_psyev(this%fock, denseDesc%blacsOrbSqr, eigen(:,1,1), this%eigvecsFock,&
+        & denseDesc%blacsOrbSqr, uplo="U", jobz="V")
+  #:else
+    tmpMat(:,:) = this%fock
     call heev(tmpMat, eigen(:,1,1), 'U', 'V')
     this%eigvecsFock(:,:) = tmpMat
+  #:endif
+    call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
   end subroutine getFockandDiag
 
 
-  !> guess new eigenvectors from Fock eigenvectors
-  subroutine guessNewEigvecs(eigenvecs, eigvecsFock)
+  !> Guess new eigenvectors from Fock eigenvectors
+  subroutine guessNewEigvecsReks(denseDesc, eigvecsFock, eigenvecs)
 
-    !> Eigenvectors on eixt
-    real(dp), intent(inout) :: eigenvecs(:,:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors from pesudo-fock matrix
     real(dp), intent(in) :: eigvecsFock(:,:)
 
-    real(dp), allocatable :: tmpVec(:,:)
-    integer :: nOrb
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
 
-    nOrb = size(eigvecsFock,dim=1)
+  #:if WITH_SCALAPACK
+    call guessNewEigvecsBlacs_(eigenvecs, denseDesc%blacsOrbSqr, eigvecsFock)
+  #:else
+    call guessNewEigvecs_(eigenvecs, eigvecsFock)
+  #:endif
 
-    allocate(tmpVec(nOrb,nOrb))
-
-    tmpVec(:,:) = 0.0_dp
-    call gemm(tmpVec, eigenvecs, eigvecsFock)
-    eigenvecs(:,:) = tmpVec
-
-  end subroutine guessNewEigvecs
+  end subroutine guessNewEigvecsReks
 
 
-  !> adjust the eigenvalues (eliminate shift values)
+  !> Adjust the eigenvalues (eliminate shift values)
   subroutine adjustEigenval(this, eigen)
 
     !> data type for REKS
@@ -345,8 +377,8 @@ module dftbp_reks_reksen
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    ! diagonalize the state energies
-    ! obtain SSR energies & state-interaction term
+    ! Diagonalize the state energies
+    ! Obtain SSR energies & state-interaction term
     tmpEigen(:) = 0.0_dp
 
     tmpState(:,:) = 0.0_dp
@@ -360,15 +392,17 @@ module dftbp_reks_reksen
       end do
     end do
 
-    ! save state energies to print information
+    ! Save state energies to print information
     tmpEn(:) = this%energy
     if (this%tSSR) then
+      call env%globalTimer%startTimer(globalTimers%diagonalization)
       call heev(tmpState, tmpEigen, 'U', 'V')
       this%eigvecsSSR(:,:) = tmpState
+      call env%globalTimer%stopTimer(globalTimers%diagonalization)
       this%energy(:) = tmpEigen
     end if
 
-    ! print state energies and couplings
+    ! Print state energies and couplings
     call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
@@ -389,10 +423,10 @@ module dftbp_reks_reksen
     !> External pressure
     real(dp), intent(in) :: pressure
 
-    ! get correct energy values
+    ! Get correct energy values
     if (this%Lstate == 0) then
 
-      ! get energy contributions for target state
+      ! Get energy contributions for target state
       energy%Etotal = this%energy(this%rstate)
       if (this%nstates > 1) then
         energy%Eexcited = this%energy(this%rstate) - this%energy(1)
@@ -402,7 +436,7 @@ module dftbp_reks_reksen
 
     else
 
-      ! get energy contributions for target microstate
+      ! Get energy contributions for target microstate
       energy%EnonSCC = this%enLnonSCC(this%Lstate)
       energy%ESCC = this%enLSCC(this%Lstate)
       energy%Espin = this%enLspin(this%Lstate)
@@ -559,7 +593,13 @@ module dftbp_reks_reksen
 
 
   !> Swap active orbitals when fa < fb in REKS(2,2) case
-  subroutine MOswap22_(eigenvecs, SAweight, FONs, Efunction, Nc)
+  subroutine MOswap22_(env, denseDesc, eigenvecs, SAweight, FONs, Efunction, Nc)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -576,17 +616,26 @@ module dftbp_reks_reksen
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    real(dp), allocatable :: tmpMO(:)
+    real(dp), allocatable :: tmpMO(:,:)
+    real(dp), allocatable :: tmpMOa(:), tmpMOb(:)
 
     real(dp) :: n_a, n_b, fa, fb
-    integer :: nOrb
+    integer :: nOrb, nLocalRows, nLocalCols, iOrb, iGlob, jOrb, jGlob
 
-    nOrb = size(eigenvecs,dim=1)
+    nOrb = denseDesc%fullSize
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
 
     n_a = FONs(1,1)
     n_b = FONs(2,1)
 
-    allocate(tmpMO(nOrb))
+  #:if WITH_SCALAPACK
+    allocate(tmpMO(nOrb,2))
+    allocate(tmpMOa(nLocalRows))
+    allocate(tmpMOb(nLocalRows))
+  #:else
+    allocate(tmpMO(nOrb,1))
+  #:endif
 
     if (Efunction == 1) then
       ! REKS charge
@@ -601,9 +650,48 @@ module dftbp_reks_reksen
     if (fa < fb) then
       write(stdOut,'(A6,F9.6,A20,I4,A8,I4,A8)') " fa = ", fa, &
           & ", MO swap between a(", Nc+1, ") and b(", Nc+2, ") occurs"
-      tmpMO(:) = eigenvecs(:,Nc+1)
+    #:if WITH_SCALAPACK
+      tmpMO(:,:) = 0.0_dp
+      tmpMOa(:) = 0.0_dp
+      tmpMOb(:) = 0.0_dp
+      do jOrb = 1, nLocalCols
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        if (jGlob == Nc + 1) then
+          tmpMOa(:) = eigenvecs(:,jOrb)
+        else if (jGlob == Nc + 2) then
+          tmpMOb(:) = eigenvecs(:,jOrb)
+        end if
+      end do
+      do iOrb = 1, nLocalRows
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        tmpMO(iGlob,1) = tmpMOa(iOrb)
+        tmpMO(iGlob,2) = tmpMOb(iOrb)
+      end do
+      call mpifx_allreduceip(env%mpi%globalComm, tmpMO, MPI_SUM)
+      tmpMOa(:) = 0.0_dp
+      tmpMOb(:) = 0.0_dp
+      do iOrb = 1, nLocalRows
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        tmpMOb(iOrb) = tmpMO(iGlob,1)
+        tmpMOa(iOrb) = tmpMO(iGlob,2)
+      end do
+      do jOrb = 1, nLocalCols
+        jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+            & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+        if (jGlob == Nc + 1) then
+          eigenvecs(:,jOrb) = tmpMOa
+        else if (jGlob == Nc + 2) then
+          eigenvecs(:,jOrb) = tmpMOb
+        end if
+      end do
+    #:else
+      tmpMO(:,1) = eigenvecs(:,Nc+1)
       eigenvecs(:,Nc+1) = eigenvecs(:,Nc+2)
-      eigenvecs(:,Nc+2) = tmpMO
+      eigenvecs(:,Nc+2) = tmpMO(:,1)
+    #:endif
     end if
 
   end subroutine MOswap22_
@@ -673,13 +761,13 @@ module dftbp_reks_reksen
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(inout) :: orbFON(:)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(out) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(out) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -708,13 +796,14 @@ module dftbp_reks_reksen
 
     real(dp), allocatable :: tmpHam(:,:)
 
-    integer :: iL, Lmax, nOrb
+    integer :: iL, Lmax, nLocalRows, nLocalCols
 
-    nOrb = size(Fc,dim=1)
+    nLocalRows = size(Fc,dim=1)
+    nLocalCols = size(Fc,dim=2)
     Lmax = size(weight,dim=1)
 
     if (.not. isHybridXc) then
-      allocate(tmpHam(nOrb,nOrb))
+      allocate(tmpHam(nLocalRows,nLocalCols))
     end if
 
     call fockFON_(fillingL, weight, orbFON)
@@ -725,16 +814,21 @@ module dftbp_reks_reksen
 
       if (.not. isHybridXc) then
         tmpHam(:,:) = 0.0_dp
-        ! convert from sparse to dense for hamSpL in AO basis
+        ! Convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, tmpHam)
+      #:else
         call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(tmpHam)
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       end if
 
-      ! compute the Fock operator with core, a, b orbitals in AO basis
+      ! Compute the Fock operator with core, a, b orbitals in AO basis
       if (isHybridXc) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
@@ -750,19 +844,23 @@ module dftbp_reks_reksen
   end subroutine getFockFcFa_
 
 
+#:if WITH_SCALAPACK
   !> Calculate pseudo-fock matrix from Fc and Fa
-  subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
+  subroutine getPseudoFockBlacs_(env, denseDesc, Fc, Fa, orbFON, Nc, Na, fock)
 
-    !> dense pseudo-fock matrix
-    real(dp), intent(out) :: fock(:,:)
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
-    !> dense fock matrix for core orbitals
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
 
     !> Number of core orbitals
@@ -770,6 +868,126 @@ module dftbp_reks_reksen
 
     !> Number of active orbitals
     integer, intent(in) :: Na
+
+    !> Dense pseudo-fock matrix
+    real(dp), intent(out) :: fock(:,:)
+
+    type(blocklist) :: blocksRow, blocksCol
+    real(dp) :: res
+    integer :: ii, iGlob, iLoc, iSize, blockSize1, indGlobRow, indLocRow
+    integer :: jj, jGlob, jLoc, jSize, blockSize2, indGlobCol, indLocCol
+    integer :: ind1, ind2
+
+    fock(:,:) = 0.0_dp
+
+    call blocksRow%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "r")
+    call blocksCol%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    do ii = 1, size(blocksRow)
+      call blocksRow%getblock(ii, iGlob, iLoc, blockSize1)
+      do jj = 1, size(blocksCol)
+        call blocksCol%getblock(jj, jGlob, jLoc, blockSize2)
+
+        do iSize = 0, blockSize1 - 1
+          indGlobRow = iGlob + iSize
+          indLocRow = iLoc + iSize
+
+          if (indGlobRow <= Nc) then
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobCol - Nc
+                call fockFijMO_(res, Fc(indLocRow,indLocCol), Fa(indLocRow,indLocCol,ind1),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              end if
+
+            end do
+
+          else if (indGlobRow > Nc .and. indGlobRow <= Nc + Na) then
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                ind1 = indGlobRow - Nc
+                call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fc(indLocRow,indLocCol),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobRow - Nc
+                ind2 = indGlobCol - Nc
+                if (indGlobRow == indGlobCol) then
+                  fock(indLocRow,indLocCol) = Fa(indLocRow,indLocCol,ind1)
+                else
+                  call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fa(indLocRow,indLocCol,ind2),&
+                      & orbFON(indGlobRow), orbFON(indGlobCol))
+                  fock(indLocRow,indLocCol) = res
+                end if
+              else
+                ind1 = indGlobRow - Nc
+                call fockFijMO_(res, Fa(indLocRow,indLocCol,ind1), Fc(indLocRow,indLocCol),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              end if
+
+            end do
+
+          else
+
+            do jSize = 0, blockSize2 - 1
+              indGlobCol = jGlob + jSize
+              indLocCol = jLoc + jSize
+
+              if (indGlobCol <= Nc) then
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              else if (indGlobCol > Nc .and. indGlobCol <= Nc + Na) then
+                ind1 = indGlobCol - Nc
+                call fockFijMO_(res, Fc(indLocRow,indLocCol), Fa(indLocRow,indLocCol,ind1),&
+                    & orbFON(indGlobRow), orbFON(indGlobCol))
+                fock(indLocRow,indLocCol) = res
+              else
+                fock(indLocRow,indLocCol) = Fc(indLocRow,indLocCol)
+              end if
+
+            end do
+
+          end if
+
+        end do
+
+      end do
+    end do
+
+  end subroutine getPseudoFockBlacs_
+#:else
+  !> Calculate pseudo-fock matrix from Fc and Fa
+  subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
+
+    !> Dense fock matrix for core orbitals
+    real(dp), intent(in) :: Fc(:,:)
+
+    !> Dense fock matrix for active orbitals
+    real(dp), intent(in) :: Fa(:,:,:)
+
+    !> State-averaged occupation numbers
+    real(dp), intent(in) :: orbFON(:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Dense pseudo-fock matrix
+    real(dp), intent(out) :: fock(:,:)
 
     real(dp) :: res
     integer :: ii, jj, ind1, ind2, nOrb
@@ -821,13 +1039,59 @@ module dftbp_reks_reksen
     call adjointLowerTriangle(fock)
 
   end subroutine getPseudoFock_
+#:endif
 
 
+#:if WITH_SCALAPACK
   !> Avoid changing the order of MOs
-  !> Required number of cycles increases as the number of shift increases
+  !! Required number of cycles increases as the number of shift increases
+  subroutine levelShiftingBlacs_(env, denseDesc, fock, shift, Nc, Na)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Dense pseudo-fock matrix
+    real(dp), intent(inout) :: fock(:,:)
+
+    !> Shift value in SCC cycle
+    real(dp), intent(in) :: shift
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    real(dp) :: res
+    integer :: ind, iOrb, iGlob, jOrb, jGlob
+
+    do jOrb = 1, size(fock, dim=2)
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, size(fock, dim=1)
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+        if (iGlob == jGlob .and. iGlob > Nc) then
+          ind = iGlob - Nc
+          if (ind >= Na + 1) ind = Na + 1
+          res = fock(iOrb,jOrb) + real(ind, dp) * shift
+          fock(iOrb,jOrb) = res
+        end if
+
+      end do
+    end do
+
+  end subroutine levelShiftingBlacs_
+#:else
+  !> Avoid changing the order of MOs
+  !! Required number of cycles increases as the number of shift increases
   subroutine levelShifting_(fock, shift, Nc, Na)
 
-    !> dense pseudo-fock matrix
+    !> Dense pseudo-fock matrix
     real(dp), intent(inout) :: fock(:,:)
 
     !> Shift value in SCC cycle
@@ -854,12 +1118,13 @@ module dftbp_reks_reksen
     end do
 
   end subroutine levelShifting_
+#:endif
 
 
   !> Calculate state-averaged FONs
   subroutine fockFON_(fillingL, weight, orbFON)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(out) :: orbFON(:)
 
     !> Filling for each microstate
@@ -884,7 +1149,7 @@ module dftbp_reks_reksen
   !> Calculate fock matrix for core orbitals in AO basis
   subroutine fockFcAO_(hamSqr, weight, Lpaired, iL, Fc)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(inout) :: Fc(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -896,19 +1161,16 @@ module dftbp_reks_reksen
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> current index in loop L
+    !> Current index in loop L
     integer, intent(in) :: iL
 
     if (iL <= Lpaired) then
-      Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-          & ( weight(iL) + weight(iL) )
+      Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL))
     else
       if (mod(iL,2) == 1) then
-        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-            & ( weight(iL) + weight(iL+1) )
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL+1))
       else
-        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
-            & ( weight(iL) + weight(iL-1) )
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * (weight(iL) + weight(iL-1))
       end if
     end if
 
@@ -919,7 +1181,7 @@ module dftbp_reks_reksen
   subroutine fockFaAO_(hamSqr, weight, fillingL, orbFON, Nc, Na, &
       & Lpaired, iL, Fa)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(inout) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
@@ -931,7 +1193,7 @@ module dftbp_reks_reksen
     !> Filling for each microstate
     real(dp), intent(in) :: fillingL(:,:,:)
 
-    !> state-averaged occupation numbers
+    !> State-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
 
     !> Number of core orbitals
@@ -943,7 +1205,7 @@ module dftbp_reks_reksen
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> current index in loop L
+    !> Current index in loop L
     integer, intent(in) :: iL
 
     integer :: ind, ind_a
@@ -970,13 +1232,13 @@ module dftbp_reks_reksen
   !> Calculate pseudo-fock off-diagonal element in MO basis
   subroutine fockFijMO_(res, fock_i, fock_j, f_i, f_j)
 
-    !> temporary pseudo-fock value
+    !> Temporary pseudo-fock value
     real(dp), intent(out) :: res
 
-    !> temporary Fc or Fa values
+    !> Temporary Fc or Fa values
     real(dp), intent(in) :: fock_i, fock_j
 
-    !> temporary orbFON values
+    !> Temporary orbFON values
     real(dp), intent(in) :: f_i, f_j
 
     real(dp) :: eps = 1.0E-3_dp
@@ -993,6 +1255,57 @@ module dftbp_reks_reksen
     end if
 
   end subroutine fockFijMO_
+
+
+#:if WITH_SCALAPACK
+  !> guess new eigenvectors from Fock eigenvectors
+  subroutine guessNewEigvecsBlacs_(eigenvecs, desc, eigvecsFock)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors from pesudo-fock matrix
+    real(dp), intent(in) :: eigvecsFock(:,:)
+
+    real(dp), allocatable :: tmpVec(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigvecsFock,dim=1)
+    nLocalCols = size(eigvecsFock,dim=2)
+
+    allocate(tmpVec(nLocalRows,nLocalCols))
+
+    tmpVec(:,:) = 0.0_dp
+    call pblasfx_pgemm(eigenvecs, desc, eigvecsFock, desc, tmpVec, desc)
+    eigenvecs(:,:) = tmpVec
+
+  end subroutine guessNewEigvecsBlacs_
+#:else
+  !> guess new eigenvectors from Fock eigenvectors
+  subroutine guessNewEigvecs_(eigenvecs, eigvecsFock)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> eigenvectors from pesudo-fock matrix
+    real(dp), intent(in) :: eigvecsFock(:,:)
+
+    real(dp), allocatable :: tmpVec(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigvecsFock,dim=1)
+
+    allocate(tmpVec(nOrb,nOrb))
+
+    tmpVec(:,:) = 0.0_dp
+    call gemm(tmpVec, eigenvecs, eigvecsFock)
+    eigenvecs(:,:) = tmpVec
+
+  end subroutine guessNewEigvecs_
+#:endif
 
 
   !> Calculate converged Lagrangian values
@@ -1045,21 +1358,22 @@ module dftbp_reks_reksen
     !> Whether to run a range separated calculation
     logical, intent(in) :: isHybridXc
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(out) :: Wab(:,:)
 
     real(dp), allocatable :: tmpHam(:,:)
     real(dp), allocatable :: tmpHamL(:,:,:)
 
-    integer :: nOrb, iL, Lmax
-    integer :: ia, ib, ist, nActPair
+    integer :: nLocalRows, nLocalCols, iL, Lmax
+    integer :: ia, ib, ist, nActPair, aa, bb
 
-    nOrb = size(eigenvecs,dim=1)
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
     Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
     if (.not. isHybridXc) then
-      allocate(tmpHam(nOrb,nOrb))
+      allocate(tmpHam(nLocalRows,nLocalCols))
     end if
     allocate(tmpHamL(nActPair,1,Lmax))
 
@@ -1067,53 +1381,71 @@ module dftbp_reks_reksen
     do ist = 1, nActPair
 
       call getTwoIndices(Na, ist, ia, ib, 1)
+      aa = Nc + ia
+      bb = Nc + ib
 
       do iL = 1, Lmax
 
         if (isHybridXc) then
-          ! convert hamSqrL from AO basis to MO basis
+          ! Convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then
-            call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
+            call convertMatrix(denseDesc, eigenvecs, hamSqrL(:,:,1,iL), choice=1)
           end if
-          tmpHamL(ist,1,iL) = hamSqrL(Nc+ia,Nc+ib,1,iL)
+          ! Save F_{L,ab}^{\sigma} in MO basis
+        #:if WITH_SCALAPACK
+          call findActiveElements_(env, denseDesc, hamSqrL(:,:,1,iL), aa, bb, tmpHamL(ist,1,iL))
+        #:else
+          tmpHamL(ist,1,iL) = hamSqrL(aa,bb,1,iL)
+        #:endif
         else
           tmpHam(:,:) = 0.0_dp
-          ! convert from sparse to dense for hamSpL in AO basis
+          ! Convert from sparse to dense for hamSpL in AO basis
           ! hamSpL has (my_ud) component
           call env%globalTimer%startTimer(globalTimers%sparseToDense)
-          call unpackHS(tmpHam, hamSpL(:,1,iL), &
-              & neighbourList%iNeighbour, nNeighbourSK, &
-              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-          call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+        #:if WITH_SCALAPACK
+          call unpackHSRealBlacs(env%blacs, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+              & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, tmpHam)
+        #:else
+          call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour,&
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call adjointLowerTriangle(tmpHam)
-          ! convert tmpHam from AO basis to MO basis
-          call matAO2MO(tmpHam, eigenvecs)
-          ! save F_{L,ab}^{\sigma} in MO basis
-          tmpHamL(ist,1,iL) = tmpHam(Nc+ia,Nc+ib)
+        #:endif
+          call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+          ! Convert tmpHam from AO basis to MO basis
+          call convertMatrix(denseDesc, eigenvecs, tmpHam, choice=1)
+          ! Save F_{L,ab}^{\sigma} in MO basis
+        #:if WITH_SCALAPACK
+          call findActiveElements_(env, denseDesc, tmpHam, aa, bb, tmpHamL(ist,1,iL))
+        #:else
+          tmpHamL(ist,1,iL) = tmpHam(aa,bb)
+        #:endif
         end if
 
       end do
+    #:if WITH_SCALAPACK
+      call mpifx_allreduceip(env%mpi%globalComm, tmpHamL(ist,1,:), MPI_SUM)
+    #:endif
 
-      ! calculate the Lagrangian eps_{ab} and state-interaction term
+      ! Calculate the Lagrangian eps_{ab} and state-interaction term
       Wab(ist,1) = 0.0_dp
       Wab(ist,2) = 0.0_dp
       do iL = 1, Lmax
         if (iL <= Lpaired) then
-          Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+          Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
-          Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+          Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
         else
           if (mod(iL,2) == 1) then
-            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
-            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
           else
-            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(aa,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
-            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(bb,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
           end if
         end if
@@ -1124,16 +1456,63 @@ module dftbp_reks_reksen
   end subroutine getLagrangians_
 
 
+#:if WITH_SCALAPACK
+  !> Find elements of active space to calculate Lagrangian values
+  subroutine findActiveElements_(env, denseDesc, hamSqr, aa, bb, hamActive)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Dense Hamiltonian matrix
+    real(dp), intent(in) :: hamSqr(:,:)
+
+    !> Index for first active orbital
+    integer, intent(in) :: aa
+
+    !> Index for second active orbital
+    integer, intent(in) :: bb
+
+    !> Hamiltonian matrix element for active space
+    real(dp), intent(inout) :: hamActive
+
+    integer :: ind_a, ind_b, iOrb, iGlob, jOrb, jGlob
+
+    ind_a = 0
+    ind_b = 0
+    do jOrb = 1, size(hamSqr, dim=2)
+      jGlob = scalafx_indxl2g(jOrb, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do iOrb = 1, size(hamSqr, dim=1)
+        iGlob = scalafx_indxl2g(iOrb, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+
+        if (iGlob == aa .and. jGlob == bb) then
+          ind_a = iOrb
+          ind_b = jOrb
+          exit
+        end if
+
+      end do
+    end do
+    if (ind_a /= 0 .and. ind_b /= 0) hamActive = hamSqr(ind_a,ind_b)
+
+  end subroutine findActiveElements_
+#:endif
+
+
   !> calculate state-interaction terms between SA-REKS states in (2,2) case
   subroutine getStateCoup22_(Wab, FONs, StateCoup)
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
 
-    !> state-interaction term between SA-REKS states
+    !> State-interaction term between SA-REKS states
     real(dp), intent(out) :: StateCoup(:,:)
 
     real(dp) :: n_a, n_b
@@ -1163,7 +1542,7 @@ module dftbp_reks_reksen
     !> Smoothing factor used in FON optimization
     real(dp), intent(in) :: delta
 
-    !> factor of n_a and n_b
+    !> Factor of n_a and n_b
     real(dp) :: factor
 
     factor = -0.5_dp*(n_a*n_b)**&
