@@ -1404,20 +1404,21 @@ contains
     real(dp), allocatable :: vecB(:,:) ! basis of subspace
     real(dp), allocatable :: evecL(:,:), evecR(:,:) ! left and right eigenvectors of Mnh
     real(dp), allocatable :: vP(:,:), vM(:,:) ! vec. for (A+B)b_i, (A-B)b_i
-    ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subsapce
-    real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:)
+    ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subspace
+    real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:) 
+    ! Residual vectors
+    real(dp), allocatable :: resR(:,:), resL(:,:)
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
-    real(dp), allocatable :: dummyM(:,:), workArray(:)
+    real(dp), allocatable :: dummyM(:,:)
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
     real(dp) :: dummyReal
 
-    integer :: nExc, nAtom, info, dummyInt, newVec, iterStrat, nRPA
-    integer :: subSpaceDim, memDim, workDim, prevSubSpaceDim
+    integer :: nExc, nAtom, dummyInt, newVec, iVec, info, iterStrat
+    integer :: subSpaceDim, prevSubSpaceDim
     integer :: ii, jj, iam
     character(lc) :: tmpStr
 
     logical :: didConverge
-    external dsymm, dsyev, dgemm
     
   #:if WITH_SCALAPACK
     
@@ -1460,28 +1461,25 @@ contains
       write(*,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', nxov_rd, ' inital subspace: ',&
           & subSpaceDim
     end if
-    ! Memory available for subspace calcs
-    memDim = min(subSpaceDim + 6 * nExc, nxov_rd)
-    workDim = 3 * memDim + 1
 
-    allocate(mP(memDim, memDim))
-    allocate(mM(memDim, memDim))
-    allocate(mMsqrt(memDim, memDim))
-    allocate(mMsqrtInv(memDim, memDim))
-    allocate(mH(memDim, memDim))
-    allocate(dummyM(memDim, memDim))
-    allocate(evalInt(memDim))
-    allocate(evecL(memDim, nExc))
-    allocate(evecR(memDim, nExc))
-    allocate(workArray(3 * memDim + 1))
-    allocate(vecNorm(2 * memDim))
+    allocate(mP(subSpaceDim, subSpaceDim))
+    allocate(mM(subSpaceDim, subSpaceDim))
+    allocate(mMsqrt(subSpaceDim, subSpaceDim))
+    allocate(mMsqrtInv(subSpaceDim, subSpaceDim))
+    allocate(mH(subSpaceDim, subSpaceDim))
+    allocate(dummyM(subSpaceDim, subSpaceDim))
+    allocate(evalInt(subSpaceDim))
+    allocate(evecL(subSpaceDim, nExc))
+    allocate(evecR(subSpaceDim, nExc))
+    allocate(vecNorm(2*nExc))
 
   #:if WITH_SCALAPACK
 
-    allocate(vecB(nLoc, memDim))
-    allocate(vP(nLoc, memDim))
-    allocate(vM(nLoc, memDim))
-    nRPA = nLoc
+    allocate(vecB(nLoc, subSpaceDim))
+    allocate(vP(nLoc, subSpaceDim))
+    allocate(vM(nLoc, subSpaceDim))
+    allocate(resL(nLoc, nExc))
+    allocate(resR(nLoc, nExc))   
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
@@ -1492,11 +1490,13 @@ contains
     end do
 
   #:else
-    allocate(vecB(nxov_rd, memDim))
-    allocate(vP(nxov_rd, memDim))
-    allocate(vM(nxov_rd, memDim))
-    nRPA = nxov_rd
-
+    
+    allocate(vecB(nxov_rd, subSpaceDim))
+    allocate(vP(nxov_rd, subSpaceDim))
+    allocate(vM(nxov_rd, subSpaceDim))
+    allocate(resL(nxov_rd, nExc))
+    allocate(resR(nxov_rd, nExc))  
+    
     ! set initial bs
     vecB(:,:) = 0.0_dp
     do ii = 1, subSpaceDim
@@ -1593,15 +1593,13 @@ contains
 
       end if
 
-      call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
-
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim,&
-          & 0.0_dp, dummyM, memDim)
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim,&
-          & 0.0_dp, mH, memDim)
+      call calcMatrixSqrt(mM, subSpaceDim, subSpaceDim, mMsqrt, mMsqrtInv)
+      
+      call symm(dummyM, 'L', mP, mMsqrt, uplo='U')
+      call symm(mH, 'L', mMsqrt, dummyM, uplo='U')
 
       ! Diagonalise in subspace
-      call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
+      call heev(mH, evalInt, 'U', 'V', info)
       if (info /= 0) then
         if (subSpaceFactor * nExc < nxov_rd) then
           write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Increase SubSpaceFactor.'
@@ -1616,10 +1614,8 @@ contains
       ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
       ! Transformation preserves orthonormality.
       ! Only compute up to nExc index, because only that much needed.
-      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrt, memDim, Mh, memDim, 0.0_dp,&
-          & evecR, memDim)
-      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp,&
-          & evecL, memDim)
+      call symm(evecR, 'L', Mmsqrt, Mh, uplo='U')
+      call symm(evecL, 'L', Mmsqrtinv, Mh, uplo='U')
 
       ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
       ! EV problem, only use first nExc vectors
@@ -1629,37 +1625,27 @@ contains
         evecL(:,ii) = evecL(:,ii) * dummyReal
       end do
 
-      !see if more memory is needed to save extended basis. If so increase amount of memory.
-      if (subSpaceDim + 2 * nExc > memDim) then
-        call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
-            &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
-      end if
-
       ! Calculate the residual vectors
       !   calcs. all |R_n>
-      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vecB, nRPA, evecR, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1), nRPA)
+      call gemm(resR, vecB, evecR)
       !   calcs. all |L_n>
-      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vecB, nRPA, evecL, memDim,&
-          & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nRPA)
+      call gemm(resL, vecB, evecL)
 
       do ii = 1, nExc
         dummyReal = -sqrt(evalInt(ii))
-        vecB(:,subSpaceDim + ii) = dummyReal * vecB(:, subSpaceDim + ii)
-        vecB(:,subSpaceDim + nExc + ii) = dummyReal * vecB(:, subSpaceDim + nExc + ii)
+        resR(:,ii) = dummyReal * resR(:,ii)
+        resL(:,ii) = dummyReal * resL(:,ii)
       end do
 
       ! (A-B)|L_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vM, nRPA, evecL, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1), nRPA)
+      call gemm(resR, vM, evecL, beta=1.0_dp)
       ! (A+B)|R_n> for all n=1,..,nExc
-      call dgemm('N', 'N', nRPA, nExc, subSpaceDim, 1.0_dp, vP, nRPA, evecR, memDim, 1.0_dp,&
-          & vecB(1, subSpaceDim + 1 + nExc), nRPA)
+      call gemm(resL, vP, evecR, beta=1.0_dp)
 
       ! calc. norms of residual vectors to check for convergence
       didConverge = .true.
-      do ii = subSpaceDim + 1, subSpaceDim + nExc
-        dummyReal = dot_product(vecB(:,ii), vecB(:,ii))
+      do ii = 1, nExc
+        dummyReal = dot_product(resR(:,ii), resR(:,ii))
 
   #:if WITH_SCALAPACK
 
@@ -1667,15 +1653,15 @@ contains
 
   #:endif
         
-        vecNorm(ii-subSpaceDim) = dummyReal
-        if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
+        vecNorm(ii) = dummyReal
+        if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
           didConverge = .false.
         end if
       end do
 
       if (didConverge) then
-        do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
-          dummyReal = dot_product(vecB(:,ii), vecB(:,ii))
+        do ii = 1, nExc
+          dummyReal = dot_product(resL(:,ii), resL(:,ii))
 
   #:if WITH_SCALAPACK
 
@@ -1683,14 +1669,14 @@ contains
 
   #:endif         
 
-          vecNorm(ii-subSpaceDim) = dummyReal
-          if (vecNorm(ii-subSpaceDim) .gt. CONV_THRESH_STRAT) then
+          vecNorm(nExc+ii) = dummyReal
+          if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
             didConverge = .false.
           end if
         end do
       end if
       
-      if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nxov_rd)) then
+      if ((.not. didConverge) .and. (subSpaceDim > nxov_rd)) then
         write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
              & Increase SubspaceFactor.'
         call error(tmpStr)
@@ -1704,21 +1690,21 @@ contains
         
         ! Calc. X+Y
         xpy(:,:) = 0.0_dp
-        xpy(iGlb:fGlb,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+        xpy(iGlb:fGlb,:) = matmul(vecB, evecR)
         call mpifx_allreduceip(env%mpi%globalComm, xpy, MPI_SUM)
         ! Calc. X-Y, only when needed
         if (tZVector) then
-          xmy(iGlb:fGlb,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
+          xmy(iGlb:fGlb,:) = matmul(vecB, evecL)
           call mpifx_allreduceip(env%mpi%globalComm, xmy, MPI_SUM)
         end if
 
   #:else
         
         ! Calc. X+Y
-        xpy(:,:) = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+        xpy(:,:) = matmul(vecB, evecR)
         ! Calc. X-Y, only when needed
         if (tZVector) then
-          xmy(:,:) = matmul(vecB(:,1:subSpaceDim), evecL(1:subSpaceDim,:))
+          xmy(:,:) = matmul(vecB, evecL)
         end if
         
   #:endif
@@ -1730,24 +1716,32 @@ contains
       ! Otherwise calculate new basis vectors and extend subspace with them
       ! only include new vectors if they add meaningful residue component
       newVec = 0
-      do ii = 1, nExc
+      do ii = 1, 2*nExc
         if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
           newVec = newVec + 1
+        endif
+      enddo
+      call incMemStratmann(subSpaceDim, subSpaceDim + newVec, vecB, vP, vM, mP, mM, mH, mMsqrt,&
+            &  mMsqrtInv, dummyM, evalInt, evecL, evecR)
+
+      iVec = 0
+      do ii = 1, nExc
+        if (vecNorm(ii) .gt. CONV_THRESH_STRAT) then
+          iVec = iVec + 1
           dummyReal = sqrt(evalInt(ii))
-          info = subSpaceDim + ii
-          dummyInt = subSpaceDim + newVec
+          dummyInt = subSpaceDim + iVec
 
   #:if WITH_SCALAPACK
 
           do myjj = 1, nLoc
             jj = vOffset(iam+1) + myjj
-            vecB(myjj,dummyInt) = vecB(myjj,info) / (dummyReal - wij(jj))
+            vecB(myjj,dummyInt) = resR(myjj,ii) / (dummyReal - wij(jj))
           end do
           
   #:else
           
           do jj = 1, nxov_rd
-            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
+            vecB(jj,dummyInt) = resR(jj,ii) / (dummyReal - wij(jj))
           end do
 
   #:endif
@@ -1757,21 +1751,20 @@ contains
 
       do ii = 1, nExc
         if (vecNorm(nExc+ii) .gt. CONV_THRESH_STRAT) then
-          newVec = newVec + 1
-          info = subSpaceDim + nExc + ii
-          dummyInt = subSpaceDim + newVec
+          iVec = iVec + 1
+          dummyInt = subSpaceDim + iVec
 
   #:if WITH_SCALAPACK
 
           do myjj = 1, nLoc
             jj = vOffset(iam+1) + myjj
-            vecB(myjj,dummyInt) = vecB(myjj,info) / (dummyReal - wij(jj))
+            vecB(myjj,dummyInt) = resL(myjj,ii) / (dummyReal - wij(jj))
           end do
 
   #:else
           
           do jj = 1, nxov_rd
-            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wij(jj))
+            vecB(jj,dummyInt) = resL(jj,ii) / (dummyReal - wij(jj))
           end do
           
   #:endif
@@ -3735,7 +3728,6 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, a, b, s, ias, ibs, abs, nOrb, nXov
-    external dsymv
     
     nOrb = size(ovrXev, dim=1)
     nXov = size(XorY)
@@ -3759,7 +3751,7 @@ contains
     Gq(:,:) = 0.0_dp
     do ias = 1, nXov
       qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,ias) = gqIJ(:)
     end do
 
@@ -3834,7 +3826,6 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, j, a, s, ias, jas, ijs, nOrb, nXov
-    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nXov = size(XorY)
@@ -3859,7 +3850,7 @@ contains
     do ias = 1, nXov
       call indXov(win, ias, getIA, i, a, s)
       qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,ias) = gqIJ
     end do
 
@@ -3937,7 +3928,6 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, j, a, b, s, ias, ibs, abs, ijs, jas, nOrb, nXov, iMx
-    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nXov = size(vecHovT)
@@ -3961,7 +3951,7 @@ contains
     Gq(:,:) = 0.0_dp
     do abs = 1, sum(nXvv)
       qIJ = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, getAB)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,abs) = gqIJ
     end do
 
@@ -3991,7 +3981,7 @@ contains
       j = getIJ(ijs, 2)
       s = getIJ(ijs, 3)
       qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,ijs) = gqIJ
     end do
 
@@ -4063,7 +4053,6 @@ contains
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:), qXa(:,:,:)
     integer :: nOrb, iSpin, nSpin, iMx, soo(2)
     integer :: i, j, k, a, b, s, ij, ias, ibs, ijs, jas, iks, jks
-    external dsymv
 
     nOrb = size(ovrXev, dim=1)
     nSpin = size(t, dim=3)
@@ -4088,7 +4077,7 @@ contains
     Gq(:,:) = 0.0_dp
     do ias = 1, nXov
       qIJ = transChrg%qTransIA(ias, env, denseDesc, ovrXev, grndEigVecs, getIA, win)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,ias) = gqIJ
     end do
 
@@ -4109,7 +4098,7 @@ contains
     Gq(:,:) = 0.0_dp
     do ijs = 1, sum(nXoo)
       qIJ = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, getIJ)
-      call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+      call hemv(gqIJ, lrGamma, qIJ, uplo='U')
       Gq(:,ijs) = gqIJ(:)
     end do
 
