@@ -131,12 +131,18 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+  #:if WITH_SCALAPACK
     !! Error status
     type(TStatus) :: errStatus
+  #:endif
 
     @:ASSERT(input%tInitialized)
     @:ASSERT(allocated(input%ctrl%atomicMasses))
-    @:ASSERT(allocated(input%ctrl%hessian))
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+    else
+      @:ASSERT(allocated(input%ctrl%hessian))
+    end if
     @:ASSERT(allocated(input%ctrl%iMovedAtoms))
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -172,23 +178,9 @@ contains
     this%tEigenVectors = this%tPlotModes .or. allocated(this%bornMatrix)&
         & .or. allocated(this%bornDerivsMatrix)
 
-    allocate(this%displ(3, this%geo%nAtom, this%nDerivs), source=0.0_dp)
-    allocate(this%eigen(this%denseDesc%fullSize))
-
-    call this%getDenseDescCommon()
-    call this%allocateDenseMatrices(env)
-
-    if (allocated(input%ctrl%hessianFile)) then
-      @:ASSERT(.not. allocated(input%ctrl%hessian))
-    #:if WITH_SCALAPACK
-      ! call readHessianDirectBlacs()
-      ! call dynMatFromHessianBlacs()
-    #:else
-      allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
-      call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
-      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
-    #:endif
-    end if
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
 
   #:if WITH_SCALAPACK
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
@@ -201,9 +193,37 @@ contains
       end if
       call error(errStatus%message)
     end if
+    end associate
+  #:endif
+
+    call this%getDenseDescCommon()
+
+    allocate(this%displ(3, this%geo%nAtom, this%nDerivs), source=0.0_dp)
+    allocate(this%eigen(this%denseDesc%fullSize))
+
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
       call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc, .false.)
     end associate
   #:endif
+
+    call this%allocateDenseMatrices(env)
+
+    ! direct read
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+    #:if WITH_SCALAPACK
+      ! call readHessianDirectBlacs()
+      ! call dynMatFromHessianBlacs()
+    #:else
+      allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
+      call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
+      print *, 'dynMatFromHessian'
+      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
+    #:endif
+    else
+      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
+    end if
 
   end subroutine initProgramVariables
 
