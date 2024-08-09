@@ -13,7 +13,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_filesystem, only : findFile, joinPaths, getParamSearchPath
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
@@ -1397,8 +1397,13 @@ contains
           call append(skFiles(iSp2, iSp1), strTmp)
           inquire(file=strTmp, exist=tExist)
           if (.not. tExist) then
-            call detailedError(value1, "SK file with generated name '" &
-                &// trim(strTmp) // "' does not exist.")
+            if (size(searchPath) == 0) then
+              call detailedError(value1, "SK file with generated name '" // trim(strTmp)&
+                  & // "' does not exist.")
+            else
+              call detailedError(value1, "SK file with generated name '"&
+                  & // joinPaths(char(searchPath(1)), trim(strTmp)) // "' does not exist.")
+            end if
           end if
         end do
       end do

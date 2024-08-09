@@ -91,11 +91,21 @@ contains
     !> Joined path
     character(len=:), allocatable :: path
 
-    if (isAbsolutePath(suffix)) then
+    if (isAbsolutePath(suffix) .or. len(prefix) == 0) then
       path = suffix
     else
+      ! if (scan(prefix, separator, back=.true.) == len(prefix)) then
+      !   if (len(prefix) <= 1) then
+      !     path = separator // suffix
+      !   else
+      !     path = prefix(:len(prefix) - 1) // separator // suffix
+      !   end if
+      ! else
+      !   path = prefix // separator // suffix
+      ! end if
       path = prefix // separator // suffix
     end if
+
   end function joinPaths
 
 
