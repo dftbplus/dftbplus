@@ -51,6 +51,9 @@ module modes_inputdata
     !> Atomic masses to build dynamical matrix
     real(dp), allocatable :: atomicMasses(:)
 
+    !> File name of Hessian (direct read)
+    character(len=:), allocatable :: hessianFile
+
     !> Hessian matrix
     real(dp), allocatable :: hessian(:,:)
 
@@ -87,6 +90,9 @@ module modes_inputdata
 
     !> File access type to use when opening binary files for reading and writing
     character(20) :: binaryAccessTypes(2)
+
+    !> Parallelization related data
+    type(TParallelOpts), allocatable :: parallelOpts
 
   end type TControl
 

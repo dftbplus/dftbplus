@@ -40,7 +40,6 @@ contains
 
     integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nTrans
     integer :: jCount
-    real(dp), allocatable :: eigenValues(:), eigenModesScaled(:,:), displ(:,:,:)
     real(dp), allocatable :: transDip(:), degenTransDip(:), transPol(:), degenTransPol(:)
     real(dp) :: zStar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
@@ -48,26 +47,22 @@ contains
     type(TFileDescr) :: fd
     logical :: isAppend
 
-    allocate(eigenValues(this%nDerivs))
-    if (this%tPlotModes) allocate(eigenModesScaled(this%nDerivs, this%nDerivs))
-
     ! remove translations or rotations if necessary
     call project(this%dynMatrix, this%tRemoveTranslate, this%tRemoveRotate, this%nDerivs,&
         & this%nMovedAtom, this%geo, this%atomicMasses)
 
     ! solve the eigenproblem
     if (this%tEigenVectors) then
-      call heev(this%dynMatrix, eigenValues, "U", "V")
-      call setEigvecGauge(this%dynMatrix)
+      call heev(this%dynMatrix, this%eigen, "U", "V")
     else
-      call heev(this%dynMatrix, eigenValues, "U", "N")
+      call heev(this%dynMatrix, this%eigen, "U", "N")
     end if
 
     ! save original eigenvectors
-    if (allocated(eigenModesScaled)) eigenModesScaled(:,:) = this%dynMatrix
+    if (allocated(this%eigenModesScaled)) this%eigenModesScaled(:,:) = this%dynMatrix
 
     ! take square root of eigenvalues of modes (allowing for imaginary modes)
-    eigenValues(:) = sign(sqrt(abs(eigenValues)), eigenValues)
+    this%eigen(:) = sign(sqrt(abs(this%eigen)), this%eigen)
 
     call TTaggedWriter_init(taggedWriter)
     call openFile(fd, "vibrations.tag", mode="w")
@@ -84,15 +79,13 @@ contains
       this%dynMatrix(:, ii) = this%dynMatrix(:, ii) / sqrt(sum(this%dynMatrix(:, ii)**2))
     end do
 
-    allocate(displ(3, this%geo%nAtom, this%nDerivs))
-    displ(:,:,:) = 0.0_dp
     ! create displacement vectors for every atom in every mode.
     do iAt = 1, this%geo%nAtom
       if (any(this%iMovedAtoms == iAt)) then
         ! Index of atom in the list of moved atoms
         iAtMoved = minloc(abs(this%iMovedAtoms - iAt), 1)
         do ii = 1, this%nDerivs
-          displ(:, iAt, ii) = this%dynMatrix(3 * iAtMoved - 2:3 * iAtMoved, ii)
+          this%displ(:, iAt, ii) = this%dynMatrix(3 * iAtMoved - 2:3 * iAtMoved, ii)
         end do
       end if
     end do
@@ -104,9 +97,9 @@ contains
         do ii = 1, this%nMovedAtom
           iAt = this%iMovedAtoms(ii)
           zStar(:,:) = reshape(this%bornMatrix(9 * (ii - 1) + 1:9 * ii), [3, 3])
-          dMu(:) = dMu + matmul(zStar, displ(:, iAt, jj))
+          dMu(:) = dMu + matmul(zStar, this%displ(:, iAt, jj))
         end do
-        if (eigenValues(jj) > epsilon(0.0_dp)) then
+        if (this%eigen(jj) > epsilon(0.0_dp)) then
           transDip(jj) = transDip(jj) + sum(dMu**2)
         end if
       end do
@@ -115,7 +108,7 @@ contains
       nTrans = 1
       do jj = 2, this%nDerivs
         ! test for energy degeneracy greater than printing cutoff:
-        if (abs(eigenValues(jj) - eigenValues(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
+        if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
           nTrans = nTrans + 1
         end if
         degenTransDip(nTrans) = degenTransDip(nTrans) + transDip(jj)
@@ -129,9 +122,9 @@ contains
         do ii = 1, this%nMovedAtom
           iAt = this%iMovedAtoms(ii)
           zStarDeriv(:,:,:) = reshape(this%bornDerivsMatrix(27 * (ii - 1) + 1:27 * ii), [3, 3, 3])
-          dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]),  displ(:, iAt, jj)), [3, 3])
+          dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]), this%displ(:, iAt, jj)), [3, 3])
         end do
-        if (eigenValues(jj) > epsilon(0.0_dp)) then
+        if (this%eigen(jj) > epsilon(0.0_dp)) then
           transPol(jj) = transPol(jj) + sum(dQ**2)
         end if
       end do
@@ -140,7 +133,7 @@ contains
       nTrans = 1
       do jj = 2, this%nDerivs
         ! test for energy degeneracy greater than printing cutoff:
-        if (abs(eigenValues(jj) - eigenValues(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
+        if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
           nTrans = nTrans + 1
         end if
         degenTransPol(nTrans) = degenTransPol(nTrans) + transPol(jj)
@@ -153,7 +146,8 @@ contains
       call taggedWriter%write(fd%unit, "eigenmodes", this%dynMatrix(:, this%modesToPlot))
       write(stdout, *) "Plotting eigenmodes:"
       write(stdout, "(16I5)") this%modesToPlot
-      call taggedWriter%write(fd%unit, "eigenmodes_scaled", eigenModesScaled(:, this%modesToPlot))
+      call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
+          & this%eigenModesScaled(:, this%modesToPlot))
       if (this%tAnimateModes) then
         do ii = 1, this%nModesToPlot
           iMode = this%modesToPlot(ii)
@@ -161,9 +155,9 @@ contains
           do kk = 1, this%nCycles
             do ll = 1, this%nSteps
               isAppend = (kk > 1 .or. ll > 1)
-              write(lcTmp2, *) "Eigenmode", iMode, eigenValues(iMode) * Hartree__cm, "cm-1"
+              write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
               call writeXYZFormat(lcTmp, this%geo%coords + cos(2.0_dp * pi * real(ll)&
-                  & / real(this%nSteps)) * displ(:,:, iMode), this%geo%species,&
+                  & / real(this%nSteps)) * this%displ(:,:, iMode), this%geo%species,&
                   & this%geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
             end do
           end do
@@ -173,9 +167,9 @@ contains
         do ii = 1, this%nModesToPlot
           isAppend = (ii > 1)
           iMode = this%modesToPlot(ii)
-          write(lcTmp2, *) "Eigenmode", iMode, eigenValues(iMode) * Hartree__cm, "cm-1"
+          write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
           call writeXYZFormat(lcTmp, this%geo%coords, this%geo%species, this%geo%speciesNames,&
-              & vectors=displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
+              & vectors=this%displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
         end do
       end if
     end if
@@ -196,25 +190,25 @@ contains
     end if
     if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
       do ii = 1, this%nDerivs
-        write(stdout, "(i5,f8.2,2E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii),&
+        write(stdout, "(i5,f8.2,2E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii),&
             & transPol(ii)
       end do
     else if (allocated(this%bornMatrix)) then
       do ii = 1, this%nDerivs
-        write(stdout, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii)
+        write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii)
       end do
     else if (allocated(this%bornDerivsMatrix)) then
       do ii = 1, this%nDerivs
-        write(stdout, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transPol(ii)
+        write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transPol(ii)
       end do
     else
       do ii = 1, this%nDerivs
-        write(stdout, "(i5,f8.2)") ii,eigenValues(ii) * Hartree__cm
+        write(stdout, "(i5,f8.2)") ii, this%eigen(ii) * Hartree__cm
       end do
     end if
     write(stdout, *)
 
-    call taggedWriter%write(fd%unit, "frequencies", eigenValues)
+    call taggedWriter%write(fd%unit, "frequencies", this%eigen)
 
     if (allocated(this%bornMatrix)) then
       call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))

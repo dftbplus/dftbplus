@@ -12,9 +12,8 @@
 module modes_parser
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_globalenv, only : stdOut, withMpi, withScalapack
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
@@ -33,7 +32,7 @@ module modes_parser
   use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
       & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
   use dftbp_common_status, only : TStatus
-  use modes_inputdata, only : TInputData, TControl
+  use modes_inputdata, only : TInputData, TControl, TBlacsOpts
   use dftbp_io_hsdparser, only : parseHsd
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
@@ -110,7 +109,6 @@ contains
     logical :: tLower, tExist
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut, hessianFile
-    type(TFileDescr) :: file
 
     call getChild(hsdTree, rootTag, root)
 
@@ -230,33 +228,26 @@ contains
       end do
     end if
 
-    allocate(input%ctrl%hessian(nDerivs, nDerivs))
-
     call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value, buffer)
     select case (char(buffer))
     case ("directread")
       call getChildValue(value, "File", buffer2, child=child2)
-      hessianFile = trim(unquote(char(buffer2)))
-      call openFile(file, hessianFile, mode="r", iostat=iErr)
-      if (iErr /= 0) then
-        call detailedError(child2, "Could not open file '" // hessianFile&
-            & // "' for direct reading." )
-      end if
-      read(file%unit, *, iostat=iErr) input%ctrl%hessian
-      if (iErr /= 0) then
-        call detailedError(child2, "Error during direct reading '" // hessianFile // "'.")
-      end if
-      call closeFile(file)
+      input%ctrl%hessianFile = trim(unquote(char(buffer2)))
     case (textNodeName)
+      if (withMpi) then
+        call detailedError(root, "For MPI enabled builds only the 'DirectRead' method is&
+            & supported.")
+      end if
       call getNodeName2(value, buffer)
       call init(realBufferList)
       call getChildValue(child, "", nDerivs, realBufferList)
       if (len(realBufferList) /= nDerivs) then
-        call detailedError(root,"wrong number of derivatives supplied:"&
+        call detailedError(root, "wrong number of derivatives supplied:"&
             & // i2c(len(realBufferList)) // " supplied, " // i2c(nDerivs)&
             & // " required.")
       end if
+      allocate(input%ctrl%hessian(nDerivs, nDerivs))
       call asArray(realBufferList, input%ctrl%hessian)
       call destruct(realBufferList)
     case default
@@ -295,6 +286,9 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
 
+    ! read parallel calculation settings
+    call readParallel(root, input%ctrl)
+
     ! input data strucutre has been initialised
     input%tInitialized = .true.
 
@@ -323,7 +317,58 @@ contains
   end subroutine readParserOptions
 
 
-  !> Reads the option block.
+  !> Reads the Parallel block.
+  subroutine readParallel(root, ctrl)
+
+    !> Root node eventually containing the current block
+    type(fnode), intent(in), pointer :: root
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
+    if (associated(node)) then
+      if (.not. withMpi) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
+            & support)")
+      end if
+      allocate(ctrl%parallelOpts)
+      ! call getChildValue(node, "Groups", ctrl%parallelOpts%nGroup, 1, child=pTmp)
+      ctrl%parallelOpts%nGroup = 1
+      ! call getChildValue(node, "UseOmpThreads", ctrl%parallelOpts%tOmpThreads, .not. withMpi)
+      ctrl%parallelOpts%tOmpThreads = .false.
+      call readBlacs(node, ctrl%parallelOpts%blacsOpts)
+    end if
+
+  end subroutine readParallel
+
+
+  !> Reads the Blacs block.
+  subroutine readBlacs(root, blacsOpts)
+
+    !> Root node eventually containing the current block
+    type(fnode), pointer, intent(in) :: root
+
+    !> Blacs settings
+    type(TBlacsOpts), intent(inout) :: blacsOpts
+
+    type(fnode), pointer :: node
+
+    call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
+    if (associated(node)) then
+      if (.not. withScalapack) then
+        call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
+            & support)")
+      end if
+      call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
+    end if
+
+  end subroutine readBlacs
+
+
+  !> Reads the Option block.
   subroutine readOptions(node, ctrl)
 
     !> Node to parse

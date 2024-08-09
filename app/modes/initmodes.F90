@@ -6,15 +6,23 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains the routines for initialising modes.
 module modes_initmodes
   use dftbp_common_accuracy, only : dp
   use dftbp_type_typegeometryhsd, only : TGeometry
   use modes_inputdata, only : TInputData
+  use dftbp_common_status, only : TStatus
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : setDefaultBinaryAccess
+  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, openFile, closeFile
+  use dftbp_io_message, only : error, warning
+  use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_SCALAPACK
+  use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
+  use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
+#:endif
   implicit none
 
   private
@@ -31,6 +39,15 @@ module modes_initmodes
 
     !> Dynamical matrix
     real(dp), allocatable :: dynMatrix(:,:)
+
+    !> Eigenvalues of the dynamical matrix
+    real(dp), allocatable :: eigen(:)
+
+    !> Eigenvectors of the dynamical matrix
+    real(dp), allocatable :: eigenModesScaled(:,:)
+
+    !> Displacement vectors for every atom in every mode. Shape: [3, nAtom, nDerivs]
+    real(dp), allocatable :: displ(:,:,:)
 
     !> Born charges matrix
     real(dp), allocatable :: bornMatrix(:)
@@ -76,9 +93,14 @@ module modes_initmodes
     !> Remove rotation modes
     logical :: tRemoveRotate
 
+    !> Dense matrix descriptor for H and S
+    type(TDenseDescr), allocatable :: denseDesc
+
   contains
 
     procedure :: initProgramVariables
+    procedure :: getDenseDescCommon
+    procedure :: allocateDenseMatrices
 
   end type TModesMain
 
@@ -109,6 +131,9 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !! Error status
+    type(TStatus) :: errStatus
+
     @:ASSERT(input%tInitialized)
     @:ASSERT(allocated(input%ctrl%atomicMasses))
     @:ASSERT(allocated(input%ctrl%hessian))
@@ -124,9 +149,6 @@ contains
     this%geo = input%geo
 
     call move_alloc(input%ctrl%atomicMasses, this%atomicMasses)
-
-    call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
-
     call move_alloc(input%ctrl%bornMatrix, this%bornMatrix)
     call move_alloc(input%ctrl%bornDerivsMatrix, this%bornDerivsMatrix)
 
@@ -150,7 +172,134 @@ contains
     this%tEigenVectors = this%tPlotModes .or. allocated(this%bornMatrix)&
         & .or. allocated(this%bornDerivsMatrix)
 
+    allocate(this%displ(3, this%geo%nAtom, this%nDerivs), source=0.0_dp)
+    allocate(this%eigen(this%denseDesc%fullSize))
+
+    call this%getDenseDescCommon()
+    call this%allocateDenseMatrices(env)
+
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+    #:if WITH_SCALAPACK
+      ! call readHessianDirectBlacs()
+      ! call dynMatFromHessianBlacs()
+    #:else
+      allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
+      call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
+      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
+    #:endif
+    end if
+
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, this%nDerivs, this%nMovedAtom,&
+          & errStatus)
+    @:PROPAGATE_ERROR(errStatus)
+    if (errStatus%hasError()) then
+      if (errStatus%code == -1) then
+        call warning("Insufficient atoms for this number of MPI processors.")
+      end if
+      call error(errStatus%message)
+    end if
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc, .false.)
+    end associate
+  #:endif
+
   end subroutine initProgramVariables
+
+
+  !> Reads Hessian directly from file (bypasses the slow HSD parser).
+  subroutine readHessianDirect(fname, hessian)
+
+    !> File name of Hessian
+    character(len=*), intent(in) :: fname
+
+    !> Hessian matrix
+    real(dp), intent(out) :: hessian(:,:)
+
+    !! File descriptor
+    type(TFileDescr) :: file
+
+    !! Error status
+    integer :: iErr
+
+    hessian(:,:) = 0.0_dp
+
+    call openFile(file, fname, mode="r", iostat=iErr)
+    if (iErr /= 0) then
+      call error("Could not open file '" // fname // "' for direct reading." )
+    end if
+    read(file%unit, *, iostat=iErr) hessian
+    if (iErr /= 0) then
+      call error("Error during direct reading '" // fname // "'.")
+    end if
+    call closeFile(file)
+
+  end subroutine readHessianDirect
+
+
+  !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices.
+  subroutine allocateDenseMatrices(this, env)
+
+    !> Instance
+    class(TModesMain), intent(inout) :: this
+
+    !> Computing environment
+    type(TEnvironment), intent(in) :: env
+
+    integer :: nLocalCols, nLocalRows
+
+  #:if WITH_SCALAPACK
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
+  #:endif
+
+    allocate(this%dynMatrix(nLocalRows, nLocalCols))
+    if (this%tPlotModes) allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+
+  end subroutine allocateDenseMatrices
+
+
+  !> Generate description of the total large square matrices.
+  subroutine getDenseDescCommon(this)
+
+    !> Instance
+    class(TModesMain), intent(inout) :: this
+
+    if (allocated(this%denseDesc)) deallocate(this%denseDesc)
+    allocate(this%denseDesc)
+    allocate(this%denseDesc%iAtomStart(this%nMovedAtom + 1))
+    call buildSquaredAtomIndex(this%denseDesc%iAtomStart)
+
+    this%denseDesc%t2Component = .false.
+    this%denseDesc%nOrb = this%nDerivs
+    this%denseDesc%fullSize = this%nDerivs
+
+  end subroutine getDenseDescCommon
+
+
+  !> Builds an atom offset array for the dynamical matrix.
+  subroutine buildSquaredAtomIndex(iAtomStart)
+
+    !> Offset array for each atom on exit
+    integer, intent(out) :: iAtomStart(:)
+
+    integer :: ind, iAt1
+    integer :: nAtom
+
+    nAtom = size(iAtomStart) - 1
+
+    ind = 1
+    do iAt1 = 1, nAtom
+      iAtomStart(iAt1) = ind
+      ind = ind + 3
+    end do
+    iAtomStart(nAtom+1) = ind
+
+  end subroutine buildSquaredAtomIndex
 
 
   !> Initializes the dynamical matrix from the Hessian input.
@@ -163,7 +312,7 @@ contains
     real(dp), intent(in) :: hessian(:,:)
 
     !> Dynamical matrix
-    real(dp), intent(out), allocatable :: dynMatrix(:,:)
+    real(dp), intent(out) :: dynMatrix(:,:)
 
     !> Auxiliary variables
     integer :: ii, jj, kk, ll, iCount, jCount
@@ -171,7 +320,7 @@ contains
     @:ASSERT(size(hessian, dim=1) == size(hessian, dim=2))
     @:ASSERT(3 * size(atomicMasses) == size(hessian, dim=1))
 
-    allocate(dynMatrix, source=hessian)
+    dynMatrix(:,:) = hessian
 
     ! mass weight the Hessian matrix to get the dynamical matrix
     ! H_{ij} = \frac{\partial^2 \Phi}{\partial u_i \partial u_j}
