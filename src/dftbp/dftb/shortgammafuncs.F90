@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains mathematical functions to calculate the short-ranged part of gamma, and the distance
-!> beyond which it becomes negligible.
+!! beyond which it becomes negligible.
 module dftbp_dftb_shortgammafuncs
   use dftbp_common_accuracy, only : dp, lc, minHubTol, minHubDiff, tolSameDist, minShortGamma,&
       & tolShortGamma
@@ -19,8 +19,7 @@ module dftbp_dftb_shortgammafuncs
 
 contains
 
-
-  !> Determines the cut off where the short range part goes to zero (a small constant)
+  !> Determines the cut off where the short range part goes to zero (a small constant).
   function expGammaCutoff(U2, U1, minValue)
 
     !> Hubbard U value in a.u.
@@ -29,8 +28,8 @@ contains
     !> Hubbard U value in a.u.
     real(dp), intent(in) :: U1
 
-    !> value below which the short range contribution is considered negligible. If not set this
-    !> comes from a constant in the precision module.
+    !> Value below which the short range contribution is considered negligible.
+    !! If not set, this comes from a constant in the precision module.
     real(dp), intent(in), optional :: minValue
 
     !> Returned cut off distance
@@ -38,7 +37,7 @@ contains
 
     real(dp) :: cutValue
     real(dp) :: rab, maxGamma, MinGamma, lowerGamma, gamma
-    real(dp) :: cut, maxCutOff, MinCutOff
+    real(dp) :: cut, maxCutOff, minCutOff
 
     character(len=100) :: errorString
 
@@ -52,8 +51,7 @@ contains
 
     if (cutValue < tolShortGamma) then
       write(errorString,&
-          & "('Failure in determining short-range cut-off, cutoff negative :',f12.6)")&
-          & cutValue
+          & "('Failure in determining short-range cut-off, cutoff negative :',f12.6)") cutValue
       call error(errorString)
     else if (U1 < minHubTol .or. U2 < minHubTol) then
       write(errorString, "('Failure in short-range gamma, U too small :',f12.6,f12.6)") U1, U2
@@ -61,8 +59,8 @@ contains
     end if
 
     rab = 1.0_dp
-    do while(expGamma(rab,U2,U1) > cutValue)
-      rab = 2.0_dp*rab
+    do while(expGamma(rab, U2, U1) > cutValue)
+      rab = 2.0_dp * rab
     end do
     if (rab < 2.0_dp) then
       write(errorString,&
@@ -71,33 +69,32 @@ contains
       call error(errorString)
     end if
     ! bisection search for the value where the contribution drops below cutValue
-    MinCutOff = rab + 0.1_dp
+    minCutOff = rab + 0.1_dp
     maxCutOff = 0.5_dp * rab - 0.1_dp
-    maxGamma = expGamma(maxCutOff,U2,U1)
-    minGamma = expGamma(MinCutOff,U2,U1)
-    lowerGamma =  expGamma(MinCutOff,U2,U1)
+    maxGamma = expGamma(maxCutOff, U2, U1)
+    minGamma = expGamma(minCutOff, U2, U1)
+    lowerGamma = expGamma(minCutOff, U2, U1)
     cut = maxCutOff + 0.1_dp
-    gamma =  expGamma(cut,U2,U1)
-    do While ((gamma-lowerGamma) > tolShortGamma)
-      maxCutOff = 0.5_dp*(cut + MinCutOff)
-      if ((maxGamma >= minGamma) .eqv. (cutValue >= &
-          & expGamma(maxCutOff,U2,U1))) then
-        MinCutOff = maxCutOff
-        lowerGamma =  expGamma(MinCutOff,U2,U1)
+    gamma = expGamma(cut, U2, U1)
+    do while ((gamma - lowerGamma) > tolShortGamma)
+      maxCutOff = 0.5_dp * (cut + minCutOff)
+      if ((maxGamma >= minGamma) .eqv. (cutValue >= expGamma(maxCutOff, U2, U1))) then
+        minCutOff = maxCutOff
+        lowerGamma = expGamma(minCutOff, U2, U1)
       else
         cut = maxCutOff
-        gamma =  expGamma(cut,U2,U1)
+        gamma = expGamma(cut, U2, U1)
       end if
     end do
-    expGammaCutoff = MinCutOff
+    expGammaCutoff = minCutOff
 
   end function expGammaCutoff
 
 
-  !> Determines the value of the short range contribution to gamma with the exponential form
-  function expGamma(rab,Ua,Ub)
+  !> Determines the value of the short range contribution to gamma with the exponential form.
+  function expGamma(rab, Ua, Ub)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Hubbard U for site a
@@ -106,7 +103,7 @@ contains
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
 
-    !> contribution
+    !> Contribution
     real(dp) :: expGamma
 
     real(dp) :: tauA, tauB, tauMean
@@ -124,39 +121,37 @@ contains
     end if
 
     ! 16/5 * U, see review papers / theses
-    tauA = 3.2_dp*Ua
-    tauB = 3.2_dp*Ub
+    tauA = 3.2_dp * Ua
+    tauB = 3.2_dp * Ub
     if (rab < tolSameDist) then
       ! on-site case with R~0
-      if (abs(Ua - Ub) < MinHubDiff) then
+      if (abs(Ua - Ub) < minHubDiff) then
         ! same Hubbard U values, onsite , NOTE SIGN CHANGE!
-        expGamma = -0.5_dp*(Ua + Ub)
+        expGamma = -0.5_dp * (Ua + Ub)
       else
         ! Ua /= Ub Hubbard U values - limiting case, NOTE SIGN CHANGE!
-        expGamma = &
-            & -0.5_dp*((tauA*tauB)/(tauA+tauB) + (tauA*tauB)**2/(tauA+tauB)**3)
+        expGamma = -0.5_dp * ((tauA * tauB) / (tauA + tauB) + (tauA * tauB)**2 / (tauA + tauB)**3)
       end if
-    else if (abs(Ua - Ub) < MinHubDiff) then
+    else if (abs(Ua - Ub) < minHubDiff) then
       ! R > 0 and same Hubbard U values
-      tauMean = 0.5_dp*(tauA + tauB)
+      tauMean = 0.5_dp * (tauA + tauB)
       expGamma = &
-          & exp(-tauMean*rab) * (1.0_dp/rab + 0.6875_dp*tauMean &
-          & + 0.1875_dp*rab*(tauMean**2) &
-          & + 0.02083333333333333333_dp*(rab**2)*(tauMean**3))
+          & exp(-tauMean * rab) * (1.0_dp / rab + 0.6875_dp * tauMean + 0.1875_dp * rab&
+          & * tauMean**2 + 0.02083333333333333333_dp * rab**2 * tauMean**3)
     else
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
-      expGamma = gammaSubExprn_(rab,tauA,tauB) + gammaSubExprn_(rab,tauB,tauA)
+      ! using the sign convention in the review articles, not Joachim Elstner's thesis
+      ! (there's a typo there)
+      expGamma = gammaSubExprn_(rab, tauA, tauB) + gammaSubExprn_(rab, tauB, tauA)
     end if
 
   end function expGamma
 
 
   !> Determines the value of the derivative of the short range contribution to gamma with the
-  !> exponential form
+  !! exponential form.
   function expGammaPrime(rab,Ua,Ub)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Hubbard U for site a
@@ -165,7 +160,7 @@ contains
     !> Hubbard U for site b
     real(dp), intent(in) :: Ub
 
-    !> returned contribution
+    !> Returned contribution
     real(dp) :: expGammaPrime
 
     real(dp) :: tauA, tauB, tauMean
@@ -185,36 +180,33 @@ contains
     ! on-site case with R~0
     if (rab < tolSameDist) then
       expGammaPrime = 0.0_dp
-    else if (abs(Ua - Ub) < MinHubDiff) then
+    else if (abs(Ua - Ub) < minHubDiff) then
       ! R > 0 and same Hubbard U values
       ! 16/5 * U, see review papers
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaPrime = &
-          & -tauMean * exp(-tauMean*rab) * &
-          & ( 1.0_dp/rab + 0.6875_dp*tauMean &
-          & + 0.1875_dp*rab*(tauMean**2) &
-          & + 0.02083333333333333333_dp*(rab**2)*(tauMean**3) ) &
-          & + exp(-tauMean*rab) * &
-          & ( -1.0_dp/rab**2 + 0.1875_dp*(tauMean**2) &
-          & + 2.0_dp*0.02083333333333333333_dp*rab*(tauMean**3) )
+          & -tauMean * exp(-tauMean * rab) * (1.0_dp / rab + 0.6875_dp * tauMean + 0.1875_dp * rab&
+          & * tauMean**2 + 0.02083333333333333333_dp * rab**2 * tauMean**3)&
+          & + exp(-tauMean*rab) * (-1.0_dp / rab**2 + 0.1875_dp * tauMean**2 + 2.0_dp&
+          & * 0.02083333333333333333_dp * rab * tauMean**3)
     else
       ! 16/5 * U, see review papers
-      tauA = 3.2_dp*Ua
-      tauB = 3.2_dp*Ub
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
-      expGammaPrime = gammaSubExprnPrime_(rab,tauA,tauB)&
-          & + gammaSubExprnPrime_(rab,tauB,tauA)
+      tauA = 3.2_dp * Ua
+      tauB = 3.2_dp * Ub
+      ! using the sign convention in the review articles, not Joachim Elstner's thesis
+      ! (there's a typo there)
+      expGammaPrime = gammaSubExprnPrime_(rab, tauA, tauB) + gammaSubExprnPrime_(rab, tauB, tauA)
     end if
+
   end function expGammaPrime
 
 
   !> Determines the value of the short range contribution to gamma with the exponential form with
-  !> damping.
-  !> See J. Phys. Chem. A, 111, 10865 (2007).
+  !! damping.
+  !! See J. Phys. Chem. A, 111, 10865 (2007).
   function expGammaDamped(rab, Ua, Ub, dampExp)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Hubbard U for site a
@@ -226,7 +218,7 @@ contains
     !> Damping exponent
     real(dp), intent(in) :: dampExp
 
-    !> returned contribution
+    !> Returned contribution
     real(dp) :: expGammaDamped
 
     real(dp) :: rTmp
@@ -238,10 +230,10 @@ contains
 
 
   !> Determines the value of the derivative of the short range contribution to gamma with the
-  !> exponential form with damping
+  !! exponential form with damping.
   function expGammaDampedPrime(rab, Ua, Ub, dampExp)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Hubbard U for site a
@@ -253,14 +245,14 @@ contains
     !> Damping exponent
     real(dp), intent(in) :: dampExp
 
-    !> returned contribution
+    !> Returned contribution
     real(dp) :: expGammaDampedPrime
 
     real(dp) :: rTmp
 
     rTmp = -1.0_dp * (0.5_dp *(Ua + Ub))**dampExp
-    expGammaDampedPrime = expGammaPrime(rab, Ua, Ub) * exp(rTmp * rab**2) &
-        &+ 2.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**2) * rab * rTmp
+    expGammaDampedPrime = expGammaPrime(rab, Ua, Ub) * exp(rTmp * rab**2)&
+        & + 2.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**2) * rab * rTmp
 
   end function expGammaDampedPrime
 
@@ -271,10 +263,10 @@ contains
 
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0.
   function gammaSubExprn_(rab, tau1, tau2) result(gammaSub)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Charge fluctuation for site a
@@ -283,12 +275,12 @@ contains
     !> Charge fluctuation U for site b
     real(dp), intent(in) :: tau2
 
-    !> contribution
+    !> Contribution
     real(dp) :: gammaSub
 
     character(lc) :: errorString
 
-    if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
+    if (abs(tau1 - tau2) < 3.2_dp * minHubDiff) then
       write(errorString, "('Failure in gammaSubExprn, both tau degenerate ', f12.6, f12.6)")&
           & tau1, tau2
       call error(errorString)
@@ -298,17 +290,17 @@ contains
     end if
 
     gammaSub = exp(-tau1 * rab)&
-        & * ((0.5_dp*tau2**4*tau1/(tau1**2-tau2**2)**2)&
-        & - (tau2**6-3.0_dp*tau2**4*tau1**2)/(rab*(tau1**2-tau2**2)**3))
+        & * ((0.5_dp * tau2**4 * tau1 / (tau1**2 - tau2**2)**2)&
+        & - (tau2**6 - 3.0_dp * tau2**4 * tau1**2) / (rab * (tau1**2 - tau2**2)**3))
 
   end function gammaSubExprn_
 
 
   !> Determines the derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0.
   function gammaSubExprnPrime_(rab, tau1, tau2) result(gammaSubPrime)
 
-    !> separation of sites a and b
+    !> Separation of sites a and b
     real(dp), intent(in) :: rab
 
     !> Charge fluctuation for site a
@@ -317,12 +309,12 @@ contains
     !> Charge fluctuation U for site b
     real(dp), intent(in) :: tau2
 
-    !> contribution
+    !> Contribution
     real(dp) :: gammaSubPrime
 
     character(lc) :: errorString
 
-    if (abs(tau1 - tau2) < 3.2_dp * MinHubDiff) then
+    if (abs(tau1 - tau2) < 3.2_dp * minHubDiff) then
       write(errorString, "('Failure in gammaSubExprn, both tau degenerate ', f12.6, f12.6)")&
           & tau1, tau2
       call error(errorString)
@@ -331,13 +323,12 @@ contains
       call error(errorString)
     end if
 
-    gammaSubPrime = -tau1 * exp(- tau1 * rab)&
-        & * ((0.5_dp*tau2**4*tau1/(tau1**2-tau2**2)**2)&
-        & - (tau2**6-3.0_dp*tau2**4*tau1**2)/(rab*(tau1**2-tau2**2)**3) )&
-        & + exp(- tau1 * rab) * (tau2**6-3.0_dp*tau2**4*tau1**2) &
-        & / (rab**2 *(tau1**2-tau2**2)**3)
+    gammaSubPrime = -tau1 * exp(-tau1 * rab)&
+        & * ((0.5_dp * tau2**4 * tau1 / (tau1**2 - tau2**2)**2)&
+        & - (tau2**6 - 3.0_dp * tau2**4 * tau1**2) / (rab * (tau1**2 - tau2**2)**3))&
+        & + exp(-tau1 * rab) * (tau2**6 - 3.0_dp * tau2**4 * tau1**2)&
+        & / (rab**2 * (tau1**2 - tau2**2)**3)
 
   end function gammaSubExprnPrime_
-
 
 end module dftbp_dftb_shortgammafuncs
