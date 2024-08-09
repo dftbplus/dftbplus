@@ -12,13 +12,13 @@ module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName, destroyNode, destroyNodeList, textNodeName
-  use dftbp_io_charmanip, only : i2c, tolower, unquote
+  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_formatout, only : printDftbHeader
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
@@ -130,11 +130,11 @@ contains
     integer :: ii, iSp1, iAt
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(TListCharLc), allocatable :: skFiles(:)
-    character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
-    logical :: tLower, tExist, tDumpPHSD
+    character(lc) :: prefix, suffix, separator, elem1, strTmp, str2Tmp, filename
+    logical :: tLower, tDumpPHSD
     logical :: tWriteHSD
     type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut, hessianFile
+    character(len=:), allocatable :: strOut, strJoin, hessianFile
     type(TFileDescr) :: file
     integer :: iErr
 
@@ -182,7 +182,8 @@ contains
     nCycles = 3
 
     ! Slater-Koster files
-    call getParamSearchPath(searchPath)
+    call getParamSearchPaths(searchPath)
+    strJoin = joinPathsPrettyErr(searchPath)
     allocate(speciesMass(geo%nSpecies))
     speciesMass(:) = 0.0_dp
     do iSp1 = 1, geo%nSpecies
@@ -214,16 +215,18 @@ contains
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem1) // trim(suffix)
           call findFile(searchPath, strTmp, strOut)
-          if (allocated(strOut)) strTmp = strOut
-          call append(skFiles(iSp1), strTmp)
-          inquire(file=strTmp, exist=tExist)
-          if (.not. tExist) then
+          if (.not. allocated(strOut)) then
             call detailedError(value, "SK file with generated name '" // trim(strTmp)&
-                & // "' does not exist.")
+                & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
           end if
+          strTmp = strOut
+          call append(skFiles(iSp1), strTmp)
         end do
       case default
         call setUnprocessed(value)
+        call getChildValue(child, "Prefix", buffer2, "")
+        prefix = unquote(char(buffer2))
+
         do iSp1 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp1))
           call init(lStr)
@@ -233,11 +236,14 @@ contains
             call detailedError(child2, "Incorrect number of Slater-Koster files")
           end if
           do ii = 1, len(lStr)
-            call get(lStr, strTmp, ii)
-            inquire(file=strTmp, exist=tExist)
-            if (.not. tExist) then
-              call detailedError(child2, "SK file '" // trim(strTmp) // "' does not exist'")
+            call get(lStr, str2Tmp, ii)
+            strTmp = trim(prefix) // str2Tmp
+            call findFile(searchPath, strTmp, strOut)
+            if (.not. allocated(strOut)) then
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
+                  & // "   (search path(s): " // strJoin // ").")
             end if
+            strTmp = strOut
             call append(skFiles(iSp1), strTmp)
           end do
           call destruct(lStr)
