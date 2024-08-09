@@ -77,7 +77,7 @@ module modes_initmodes
     !> Steps in an animation cycle
     integer :: nSteps
 
-    !> Number of atoms which should be moved.
+    !> Number of atoms which should be moved
     integer :: nMovedAtom
 
     !> List of atoms in dynamical matrix

@@ -16,11 +16,16 @@ module modes_main
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
-  use modes_initmodes, only : TModesMain
+  use modes_initmodes, only : TModesMain, setEigvecGauge
   use dftbp_common_environment, only : TEnvironment
   use modes_modeprojection, only : project
+  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_math_bisect, only : bisection
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : scalafx_psyev
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast, mpifx_send
+  use dftbp_extlibs_scalapackfx, only : scalafx_psyev, scalafx_indxl2g, RSRC_, MB_, CSRC_, NB_,&
+      & linecomm
 #:endif
   implicit none
 
@@ -41,37 +46,44 @@ contains
 
     type(TTaggedWriter) :: taggedWriter
 
-    integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nTrans
-    integer :: jCount
+    !! Eigenvectors of the dynamical matrix (scaled by mass and normalized)
+    real(dp), allocatable :: eigenModes(:,:)
+
+    integer :: ii, jj, kk, ll, iMode, iAt, nTrans
     real(dp), allocatable :: transDip(:), degenTransDip(:), transPol(:), degenTransPol(:)
+    real(dp), allocatable :: eigenModesFull(:,:), eigenModesScaledFull(:,:)
     real(dp) :: zStar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
     character(lc) :: lcTmp, lcTmp2
     type(TFileDescr) :: fd
     logical :: isAppend
 
-    #:if WITH_SCALAPACK
+  #:if WITH_SCALAPACK
     ! remove translations or rotations if necessary
     ! call projectBlacs()
     if (this%tEigenVectors) then
       call scalafx_psyev(this%dynMatrix, this%denseDesc%blacsOrbSqr, this%eigen,&
-          & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="L", jobz="V")
+          & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="U", jobz="V")
     else
       call scalafx_psyev(this%dynMatrix, this%denseDesc%blacsOrbSqr, this%eigen,&
-          & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="L", jobz="N")
+          & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="U", jobz="N")
     end if
+    deallocate(this%dynMatrix)
+    eigenModes = this%eigenModesScaled
   #:else
     ! remove translations or rotations if necessary
     call project(this%dynMatrix, this%tRemoveTranslate, this%tRemoveRotate, this%nDerivs,&
         & this%nMovedAtom, this%geo, this%atomicMasses)
     if (this%tEigenVectors) then
       call heev(this%dynMatrix, this%eigen, "U", "V")
+      call setEigvecGauge(this%dynMatrix)
     else
       call heev(this%dynMatrix, this%eigen, "U", "N")
     end if
+    call move_alloc(this%dynMatrix, eigenModes)
 
     ! save original eigenvectors
-    if (allocated(this%eigenModesScaled)) this%eigenModesScaled(:,:) = this%dynMatrix
+    if (allocated(this%eigenModesScaled)) this%eigenModesScaled(:,:) = eigenModes
   #:endif
 
     ! take square root of eigenvalues of modes (allowing for imaginary modes)
@@ -80,28 +92,13 @@ contains
     call TTaggedWriter_init(taggedWriter)
     call openFile(fd, "vibrations.tag", mode="w")
 
-    ! ! scale mode components on each atom by mass and then normalise total mode
-    ! do ii = 1, this%nDerivs
-    !   jCount = 0
-    !   do jj = 1, this%nMovedAtom
-    !     do ll = 1, 3
-    !       jCount = jCount + 1
-    !       this%dynMatrix(jCount, ii) = this%dynMatrix(jCount, ii) / sqrt(this%atomicMasses(jj))
-    !     end do
-    !   end do
-    !   this%dynMatrix(:, ii) = this%dynMatrix(:, ii) / sqrt(sum(this%dynMatrix(:, ii)**2))
-    ! end do
-
-    ! ! create displacement vectors for every atom in every mode.
-    ! do iAt = 1, this%geo%nAtom
-    !   if (any(this%iMovedAtoms == iAt)) then
-    !     ! Index of atom in the list of moved atoms
-    !     iAtMoved = minloc(abs(this%iMovedAtoms - iAt), 1)
-    !     do ii = 1, this%nDerivs
-    !       this%displ(:, iAt, ii) = this%dynMatrix(3 * iAtMoved - 2:3 * iAtMoved, ii)
-    !     end do
-    !   end if
-    ! end do
+  #:if WITH_SCALAPACK
+    call scaleNormalizeEigenmodesBlacs(env, this%denseDesc, this%atomicMasses, eigenModes)
+    call displFromEigenmodesBlacs(env, this%denseDesc, this%iMovedAtoms, eigenModes, this%displ)
+  #:else
+    call scaleNormalizeEigenmodes(this%atomicMasses, eigenModes)
+    call displFromEigenmodes(this%iMovedAtoms, eigenModes, this%displ)
+  #:endif
 
     ! if (allocated(this%bornMatrix)) then
     !   allocate(transDip(this%nDerivs), source=0.0_dp)
@@ -153,39 +150,46 @@ contains
     !   end do
     ! end if
 
-    ! if (this%tPlotModes) then
-    !   call taggedWriter%write(fd%unit, "saved_modes", this%modesToPlot)
-    !   write(stdout, *) "Writing eigenmodes to vibrations.tag"
-    !   call taggedWriter%write(fd%unit, "eigenmodes", this%dynMatrix(:, this%modesToPlot))
-    !   write(stdout, *) "Plotting eigenmodes:"
-    !   write(stdout, "(16I5)") this%modesToPlot
-    !   call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
-    !       & this%eigenModesScaled(:, this%modesToPlot))
-      ! if (this%tAnimateModes) then
-      !   do ii = 1, this%nModesToPlot
-      !     iMode = this%modesToPlot(ii)
-      !     write(lcTmp,"('mode_',I0,'.xyz')") iMode
-      !     do kk = 1, this%nCycles
-      !       do ll = 1, this%nSteps
-      !         isAppend = (kk > 1 .or. ll > 1)
-      !         write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
-      !         call writeXYZFormat(lcTmp, this%geo%coords + cos(2.0_dp * pi * real(ll)&
-      !             & / real(this%nSteps)) * this%displ(:,:, iMode), this%geo%species,&
-      !             & this%geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
-      !       end do
-      !     end do
-      !   end do
-      ! else
-      !   lcTmp = "modes.xyz"
-      !   do ii = 1, this%nModesToPlot
-      !     isAppend = (ii > 1)
-      !     iMode = this%modesToPlot(ii)
-      !     write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
-      !     call writeXYZFormat(lcTmp, this%geo%coords, this%geo%species, this%geo%speciesNames,&
-      !         & vectors=this%displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
-      !   end do
-      ! end if
-    ! end if
+    if (this%tPlotModes) then
+      call taggedWriter%write(fd%unit, "saved_modes", this%modesToPlot)
+      write(stdout, *) "Writing eigenmodes to vibrations.tag"
+    #:if WITH_SCALAPACK
+      call getFullFromDistributed(env, this%denseDesc, eigenModes, eigenModesFull)
+      call getFullFromDistributed(env, this%denseDesc, this%eigenModesScaled, eigenModesScaledFull)
+    #:else
+      eigenModesFull = eigenModes
+      eigenModesScaledFull = this%eigenModesScaled
+    #:endif
+      call taggedWriter%write(fd%unit, "eigenmodes", eigenModesFull(:, this%modesToPlot))
+      write(stdout, *) "Plotting eigenmodes:"
+      write(stdout, "(16I5)") this%modesToPlot
+      call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
+          & eigenModesScaledFull(:, this%modesToPlot))
+    !   if (this%tAnimateModes) then
+    !     do ii = 1, this%nModesToPlot
+    !       iMode = this%modesToPlot(ii)
+    !       write(lcTmp,"('mode_',I0,'.xyz')") iMode
+    !       do kk = 1, this%nCycles
+    !         do ll = 1, this%nSteps
+    !           isAppend = (kk > 1 .or. ll > 1)
+    !           write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
+    !           call writeXYZFormat(lcTmp, this%geo%coords + cos(2.0_dp * pi * real(ll)&
+    !               & / real(this%nSteps)) * this%displ(:,:, iMode), this%geo%species,&
+    !               & this%geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
+    !         end do
+    !       end do
+    !     end do
+    !   else
+    !     lcTmp = "modes.xyz"
+    !     do ii = 1, this%nModesToPlot
+    !       isAppend = (ii > 1)
+    !       iMode = this%modesToPlot(ii)
+    !       write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
+    !       call writeXYZFormat(lcTmp, this%geo%coords, this%geo%species, this%geo%speciesNames,&
+    !           & vectors=this%displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
+    !     end do
+    !   end if
+    end if
 
     ! write(stdout, *) "Vibrational modes"
     ! if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
@@ -238,5 +242,277 @@ contains
     call closeFile(fd)
 
   end subroutine runModes
+
+
+#:if WITH_SCALAPACK
+  !> Collects full, collected square matrix from distributed contributions.
+  subroutine getFullFromDistributed(env, denseDesc, distrib, collected)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Distributed matrix (source)
+    real(dp), intent(in) :: distrib(:,:)
+
+    !> Collected, full square matrix (target)
+    real(dp), intent(out), allocatable :: collected(:,:)
+
+    !! Auxiliary variables
+    integer :: iDerivs, nDerivs
+
+    !! Type for communicating a row or a column of a distributed matrix
+    type(linecomm) :: collector
+
+    !! Temporary storage for a single line of the collected, dense, square matrix
+    real(dp), allocatable :: localLine(:)
+
+    nDerivs = denseDesc%fullSize
+    allocate(localLine(nDerivs))
+    if (env%mpi%tGlobalLead) allocate(collected(nDerivs, nDerivs), source=0.0_dp)
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    if (env%mpi%tGlobalLead) then
+      do iDerivs = 1, nDerivs
+        call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, distrib, localLine)
+        collected(:, iDerivs) = localLine
+      end do
+    else
+      do iDerivs = 1, nDerivs
+        if (env%mpi%tGroupLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, distrib, localLine)
+          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, iDerivs, distrib)
+        end if
+      end do
+    end if
+
+  end subroutine getFullFromDistributed
+
+
+  !> Scale mode components on each atom by mass and then normalizes the total mode.
+  subroutine scaleNormalizeEigenmodesBlacs(env, denseDesc, atomicMasses, eigenModes)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Atomic masses to build dynamical matrix
+    real(dp), intent(in) :: atomicMasses(:)
+
+    !> Eigenvectors of the dynamical matrix (scaled by mass and normalized)
+    real(dp), intent(inout) :: eigenModes(:,:)
+
+    !! Number of derivatives
+    integer :: nDerivs
+
+    !! Type for communicating a row or a column of a distributed matrix
+    type(linecomm) :: collector
+
+    !! Auxiliary variables
+    integer :: iCount, jCount, iDeriv, iAt
+    real(dp), allocatable :: localLine(:), sqrtModes(:)
+
+    ! scale mode components by mass of atoms
+    do iCount = 1, size(eigenModes, dim=2)
+      do jCount = 1, size(eigenModes, dim=1)
+        iDeriv = scalafx_indxl2g(jCount, denseDesc%blacsOrbSqr(MB_),&
+            & env%blacs%orbitalGrid%myrow, denseDesc%blacsOrbSqr(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+        call bisection(iAt, denseDesc%iAtomStart, iDeriv)
+        eigenModes(jCount, iCount) = eigenModes(jCount, iCount) / sqrt(atomicMasses(iAt))
+      end do
+    end do
+
+    nDerivs = denseDesc%fullSize
+    allocate(localLine(nDerivs))
+    allocate(sqrtModes(nDerivs))
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      do iDeriv = 1, nDerivs
+        call collector%getline_lead(env%blacs%orbitalGrid, iDeriv, eigenModes, localLine)
+        sqrtModes(iDeriv) = sqrt(sum(localLine**2))
+      end do
+    else
+      do iDeriv = 1, nDerivs
+        if (env%mpi%tGroupLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, iDeriv, eigenModes, localLine)
+          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, iDeriv, eigenModes)
+        end if
+      end do
+    end if leadOrFollow
+
+    call mpifx_bcast(env%mpi%globalComm, sqrtModes)
+
+    ! normalize total modes
+    do iCount = 1, size(eigenModes, dim=2)
+      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      eigenModes(:, iCount) = eigenModes(:, iCount) / sqrtModes(iDeriv)
+    end do
+
+  end subroutine scaleNormalizeEigenmodesBlacs
+
+
+  !> Creates displacement vectors for every atom in every mode.
+  subroutine displFromEigenmodesBlacs(env, denseDesc, iMovedAtoms, eigenModes, displ)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> List of atoms in dynamical matrix
+    integer, intent(in) :: iMovedAtoms(:)
+
+    !> Eigenvectors of the dynamical matrix (scaled by mass and normalized)
+    real(dp), intent(in) :: eigenModes(:,:)
+
+    !> Displacement vectors for every atom in every mode. Shape: [3, nAtom, nDerivs]
+    real(dp), intent(out) :: displ(:,:,:)
+
+    ! !! Number of derivatives
+    ! integer :: nDerivs
+
+    ! !! Total number of atoms
+    ! integer :: nAtom
+
+    ! !! Auxiliary variables
+    ! integer :: iAt, iAtMoved, ii
+    ! real(dp) :: tmp(3, 3)
+
+    ! nAtom = size(displ, dim=2)
+    ! nDerivs = size(displ, dim=3)
+
+    ! displ(:,:,:) = 0.0_dp
+
+
+
+    ! !!###############
+    ! do iCount = 1, size(eigenModes, dim=2)
+    !   iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+    !       & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+    !   call bisection(iAt, denseDesc%iAtomStart, iDeriv)
+    !   if (any(iMovedAtoms == iAt)) then
+    !     ! index of atom in the list of moved atoms
+    !     iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
+        
+    !   end if
+    !   displ(:, iAt, iDeriv)
+
+
+    !   do iMovedAt = 1, size(iMovedAtoms)
+
+
+    !   displ(:, iAt, iDeriv)
+
+    !   end if
+    ! end do
+
+    ! do ii = 1, nDerivs
+    !   do iMovedAt = 1, size(iMovedAtoms)
+    !     iAt = iMovedAtoms(iMovedAt)
+    !     displ(:, iAt, ii) = eigenModes(3 * iAtMoved - 2:3 * iMovedAt, ii)
+    !   end do
+    ! end do
+
+    ! do iAt = 1, nAtom
+    !   if (any(iMovedAtoms == iAt)) then
+    !     ! index of atom in the list of moved atoms
+    !     iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
+    !     do ii = 1, nDerivs
+    !       displ(:, iAt, ii) = eigenModes(3 * iAtMoved - 2:3 * iAtMoved, ii)
+    !     end do
+    !   end if
+    ! end do
+
+  end subroutine displFromEigenmodesBlacs
+
+#:else
+
+  !> Scale mode components on each atom by mass and then normalizes the total mode.
+  subroutine scaleNormalizeEigenmodes(atomicMasses, eigenModes)
+
+    !> Atomic masses to build dynamical matrix
+    real(dp), intent(in) :: atomicMasses(:)
+
+    !> Eigenvectors of the dynamical matrix (scaled by mass and normalized)
+    real(dp), intent(inout) :: eigenModes(:,:)
+
+    !! Number of derivatives
+    integer :: nDerivs
+
+    !! Number of atoms which should be moved.
+    integer :: nMovedAtom
+
+    !! Auxiliary variables
+    integer :: ii, jj, ll, jCount
+
+    nDerivs = size(eigenModes, dim=2)
+    nMovedAtom = nDerivs / 3
+
+    do ii = 1, nDerivs
+      jCount = 0
+      do jj = 1, nMovedAtom
+        do ll = 1, 3
+          jCount = jCount + 1
+          eigenModes(jCount, ii) = eigenModes(jCount, ii) / sqrt(atomicMasses(jj))
+        end do
+      end do
+      eigenModes(:, ii) = eigenModes(:, ii) / sqrt(sum(eigenModes(:, ii)**2))
+    end do
+
+  end subroutine scaleNormalizeEigenmodes
+
+
+  !> Creates displacement vectors for every atom in every mode.
+  subroutine displFromEigenmodes(iMovedAtoms, eigenModes, displ)
+
+    !> List of atoms in dynamical matrix
+    integer, intent(in) :: iMovedAtoms(:)
+
+    !> Eigenvectors of the dynamical matrix (scaled by mass and normalized)
+    real(dp), intent(in) :: eigenModes(:,:)
+
+    !> Displacement vectors for every atom in every mode. Shape: [3, nAtom, nDerivs]
+    real(dp), intent(out) :: displ(:,:,:)
+
+    !! Number of derivatives
+    integer :: nDerivs
+
+    !! Total number of atoms
+    integer :: nAtom
+
+    !! Auxiliary variables
+    integer :: iAt, iAtMoved, ii
+
+    nAtom = size(displ, dim=2)
+    nDerivs = size(displ, dim=3)
+
+    displ(:,:,:) = 0.0_dp
+
+    do iAt = 1, nAtom
+      if (any(iMovedAtoms == iAt)) then
+        ! index of atom in the list of moved atoms
+        iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
+        do ii = 1, nDerivs
+          displ(:, iAt, ii) = eigenModes(3 * iAtMoved - 2:3 * iAtMoved, ii)
+        end do
+      end if
+    end do
+
+  end subroutine displFromEigenmodes
+#:endif
 
 end module modes_main
