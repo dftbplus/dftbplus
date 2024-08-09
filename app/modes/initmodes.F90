@@ -16,12 +16,16 @@ module modes_initmodes
   use dftbp_common_status, only : TStatus
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, openFile, closeFile
+  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, openFile, closeFile,&
+      & TOpenOptions
   use dftbp_io_message, only : error, warning
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : mpifx_send
+#:endif
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
-  use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
+  use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape, linecomm
 #:endif
   implicit none
 
@@ -209,16 +213,16 @@ contains
 
     call this%allocateDenseMatrices(env)
 
-    ! direct read
     if (allocated(input%ctrl%hessianFile)) then
       @:ASSERT(.not. allocated(input%ctrl%hessian))
     #:if WITH_SCALAPACK
-      ! call readHessianDirectBlacs()
+      allocate(input%ctrl%hessian, mold=this%dynMatrix)
+      call readHessianDirectBlacs(env, input%ctrl%hessianFile, this%denseDesc, input%ctrl%hessian)
+      stop
       ! call dynMatFromHessianBlacs()
     #:else
       allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
       call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
-      print *, 'dynMatFromHessian'
       call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
     #:endif
     else
@@ -238,24 +242,97 @@ contains
     real(dp), intent(out) :: hessian(:,:)
 
     !! File descriptor
-    type(TFileDescr) :: file
+    type(TFileDescr) :: fd
 
     !! Error status
     integer :: iErr
 
     hessian(:,:) = 0.0_dp
 
-    call openFile(file, fname, mode="r", iostat=iErr)
+    call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
     if (iErr /= 0) then
       call error("Could not open file '" // fname // "' for direct reading." )
     end if
-    read(file%unit, *, iostat=iErr) hessian
+    read(fd%unit, *, iostat=iErr) hessian
     if (iErr /= 0) then
       call error("Error during direct reading '" // fname // "'.")
     end if
-    call closeFile(file)
+    call closeFile(fd)
 
   end subroutine readHessianDirect
+
+
+  !> Reads Hessian directly from file (bypasses the slow HSD parser).
+  subroutine readHessianDirectBlacs(env, fname, denseDesc, hessian)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> File name of Hessian
+    character(len=*), intent(in) :: fname
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Distributed Hessian matrix
+    real(dp), intent(out) :: hessian(:,:)
+
+    real(dp), allocatable :: localHessCol(:)
+    type(linecomm) :: distributor
+    type(TFileDescr) :: fd
+    integer :: nDerivs, iErr, iCol
+
+    hessian(:,:) = 0.0_dp
+
+    nDerivs = denseDesc%fullSize
+    allocate(localHessCol(nDerivs))
+
+    if (env%mpi%tGlobalLead) then
+      call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
+    end if
+
+    call distributor%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    do iCol = 1, nDerivs
+      if (env%mpi%tGlobalLead) then
+        read(fd%unit, *, iostat=iErr) localHessCol
+        if (iErr /= 0) then
+          call error("Error during direct reading '" // fname // "'.")
+        end if
+        call distributor%setline_lead(env%blacs%orbitalGrid, iCol, localHessCol, hessian)
+      else
+        call distributor%setline_follow(env%blacs%orbitalGrid, iCol, hessian)
+      end if
+    end do
+
+    if (env%mpi%tGlobalLead) call closeFile(fd)
+
+    ! call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    ! ! The lead process collects in the first run (iGroup = 0) the columns of the matrix in its own
+    ! ! process group (as process group lead) via the collector. In the subsequent runs it just
+    ! ! receives the columns collected by the respective group leaders. The number of available
+    ! ! matrices (possible k and s indices) may differ for various process groups. Also note, that the
+    ! ! (k, s) pairs are round-robin distributed between the process groups.
+
+    ! leadOrFollow: if (env%mpi%tGlobalLead) then
+    !   do iHess = 1, nDerivs
+    !     read(fd%unit) localHess
+    !     call collector%setline_lead(env%blacs%orbitalGrid, iHess, hessian, localHess)
+    !   end do
+    !   call closeFile(fd)
+    ! else
+    !   do iHess = 1, nDerivs
+    !     if (env%mpi%tGroupLead) then
+    !       call mpifx_recv(env%mpi%interGroupComm, localHess, env%mpi%interGroupComm%leadrank)
+    !       call collector%setline_lead(env%blacs%orbitalGrid, iHess, hessian, localHess)
+    !     else
+    !       call collector%setline_follow(env%blacs%orbitalGrid, iHess, hessian)
+    !     end if
+    !   end do
+    ! end if leadOrFollow
+
+  end subroutine readHessianDirectBlacs
 
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices.
