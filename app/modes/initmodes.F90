@@ -20,12 +20,14 @@ module modes_initmodes
       & TOpenOptions
   use dftbp_io_message, only : error, warning
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_math_bisect, only : bisection
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_send
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
-  use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape, linecomm
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_getlocalshape,&
+      & scalafx_indxl2g, linecomm
 #:endif
   implicit none
 
@@ -213,55 +215,96 @@ contains
 
     call this%allocateDenseMatrices(env)
 
+  #:if WITH_SCALAPACK
     if (allocated(input%ctrl%hessianFile)) then
       @:ASSERT(.not. allocated(input%ctrl%hessian))
-    #:if WITH_SCALAPACK
       allocate(input%ctrl%hessian, mold=this%dynMatrix)
       call readHessianDirectBlacs(env, input%ctrl%hessianFile, this%denseDesc, input%ctrl%hessian)
-      stop
-      ! call dynMatFromHessianBlacs()
-    #:else
+      call dynMatFromHessianBlacs(env, this%denseDesc, this%atomicMasses, input%ctrl%hessian,&
+          & this%dynMatrix)
+    end if
+  #:else
+    @:ASSERT(allocated(this%dynMatrix))
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
       allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
       call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
       call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
-    #:endif
     else
+      @:ASSERT(allocated(input%ctrl%hessian))
       call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
     end if
+  #:endif
 
   end subroutine initProgramVariables
 
 
-  !> Reads Hessian directly from file (bypasses the slow HSD parser).
-  subroutine readHessianDirect(fname, hessian)
+  !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices.
+  subroutine allocateDenseMatrices(this, env)
 
-    !> File name of Hessian
-    character(len=*), intent(in) :: fname
+    !> Instance
+    class(TModesMain), intent(inout) :: this
 
-    !> Hessian matrix
-    real(dp), intent(out) :: hessian(:,:)
+    !> Computing environment
+    type(TEnvironment), intent(in) :: env
 
-    !! File descriptor
-    type(TFileDescr) :: fd
+    integer :: nLocalCols, nLocalRows
 
-    !! Error status
-    integer :: iErr
+  #:if WITH_SCALAPACK
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+    allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
+    if (this%tPlotModes) allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+  #:endif
 
-    hessian(:,:) = 0.0_dp
+    allocate(this%dynMatrix(nLocalRows, nLocalCols))
 
-    call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
-    if (iErr /= 0) then
-      call error("Could not open file '" // fname // "' for direct reading." )
-    end if
-    read(fd%unit, *, iostat=iErr) hessian
-    if (iErr /= 0) then
-      call error("Error during direct reading '" // fname // "'.")
-    end if
-    call closeFile(fd)
-
-  end subroutine readHessianDirect
+  end subroutine allocateDenseMatrices
 
 
+  !> Generate description of the total large square matrices.
+  subroutine getDenseDescCommon(this)
+
+    !> Instance
+    class(TModesMain), intent(inout) :: this
+
+    if (allocated(this%denseDesc)) deallocate(this%denseDesc)
+    allocate(this%denseDesc)
+    allocate(this%denseDesc%iAtomStart(this%nMovedAtom + 1))
+    call buildSquaredAtomIndex(this%denseDesc%iAtomStart)
+
+    this%denseDesc%t2Component = .false.
+    this%denseDesc%nOrb = this%nDerivs
+    this%denseDesc%fullSize = this%nDerivs
+
+  end subroutine getDenseDescCommon
+
+
+  !> Builds an atom offset array for the dynamical matrix.
+  subroutine buildSquaredAtomIndex(iAtomStart)
+
+    !> Offset array for each atom on exit
+    integer, intent(out) :: iAtomStart(:)
+
+    integer :: ind, iAt1
+    integer :: nAtom
+
+    nAtom = size(iAtomStart) - 1
+
+    ind = 1
+    do iAt1 = 1, nAtom
+      iAtomStart(iAt1) = ind
+      ind = ind + 3
+    end do
+    iAtomStart(nAtom+1) = ind
+
+  end subroutine buildSquaredAtomIndex
+
+
+#:if WITH_SCALAPACK
   !> Reads Hessian directly from file (bypasses the slow HSD parser).
   subroutine readHessianDirectBlacs(env, fname, denseDesc, hessian)
 
@@ -307,96 +350,85 @@ contains
 
     if (env%mpi%tGlobalLead) call closeFile(fd)
 
-    ! call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
-
-    ! ! The lead process collects in the first run (iGroup = 0) the columns of the matrix in its own
-    ! ! process group (as process group lead) via the collector. In the subsequent runs it just
-    ! ! receives the columns collected by the respective group leaders. The number of available
-    ! ! matrices (possible k and s indices) may differ for various process groups. Also note, that the
-    ! ! (k, s) pairs are round-robin distributed between the process groups.
-
-    ! leadOrFollow: if (env%mpi%tGlobalLead) then
-    !   do iHess = 1, nDerivs
-    !     read(fd%unit) localHess
-    !     call collector%setline_lead(env%blacs%orbitalGrid, iHess, hessian, localHess)
-    !   end do
-    !   call closeFile(fd)
-    ! else
-    !   do iHess = 1, nDerivs
-    !     if (env%mpi%tGroupLead) then
-    !       call mpifx_recv(env%mpi%interGroupComm, localHess, env%mpi%interGroupComm%leadrank)
-    !       call collector%setline_lead(env%blacs%orbitalGrid, iHess, hessian, localHess)
-    !     else
-    !       call collector%setline_follow(env%blacs%orbitalGrid, iHess, hessian)
-    !     end if
-    !   end do
-    ! end if leadOrFollow
-
   end subroutine readHessianDirectBlacs
 
 
-  !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices.
-  subroutine allocateDenseMatrices(this, env)
+  !> Initializes the dynamical matrix from the Hessian input.
+  subroutine dynMatFromHessianBlacs(env, denseDesc, atomicMasses, hessian, dynMatrix)
 
-    !> Instance
-    class(TModesMain), intent(inout) :: this
-
-    !> Computing environment
+    !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    integer :: nLocalCols, nLocalRows
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
-  #:if WITH_SCALAPACK
-    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
-        & nLocalCols)
-  #:else
-    nLocalRows = this%denseDesc%fullSize
-    nLocalCols = this%denseDesc%fullSize
-  #:endif
+    !> Atomic masses to build dynamical matrix
+    real(dp), intent(in) :: atomicMasses(:)
 
-    allocate(this%dynMatrix(nLocalRows, nLocalCols))
-    if (this%tPlotModes) allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+    !> Hessian matrix
+    real(dp), intent(in) :: hessian(:,:)
 
-  end subroutine allocateDenseMatrices
+    !> Dynamical matrix
+    real(dp), intent(out) :: dynMatrix(:,:)
 
+    !> Auxiliary variables
+    integer :: iCount, jCount, iDeriv1, iDeriv2, iAt1, iAt2
 
-  !> Generate description of the total large square matrices.
-  subroutine getDenseDescCommon(this)
+    @:ASSERT(all(shape(hessian) == shape(dynMatrix)))
+    @:ASSERT(3 * size(atomicMasses) == size(hessian, dim=1))
 
-    !> Instance
-    class(TModesMain), intent(inout) :: this
+    dynMatrix(:,:) = hessian
 
-    if (allocated(this%denseDesc)) deallocate(this%denseDesc)
-    allocate(this%denseDesc)
-    allocate(this%denseDesc%iAtomStart(this%nMovedAtom + 1))
-    call buildSquaredAtomIndex(this%denseDesc%iAtomStart)
-
-    this%denseDesc%t2Component = .false.
-    this%denseDesc%nOrb = this%nDerivs
-    this%denseDesc%fullSize = this%nDerivs
-
-  end subroutine getDenseDescCommon
-
-
-  !> Builds an atom offset array for the dynamical matrix.
-  subroutine buildSquaredAtomIndex(iAtomStart)
-
-    !> Offset array for each atom on exit
-    integer, intent(out) :: iAtomStart(:)
-
-    integer :: ind, iAt1
-    integer :: nAtom
-
-    nAtom = size(iAtomStart) - 1
-
-    ind = 1
-    do iAt1 = 1, nAtom
-      iAtomStart(iAt1) = ind
-      ind = ind + 3
+    ! mass weight the Hessian matrix to get the dynamical matrix
+    ! H_{ij} = \frac{\partial^2 \Phi}{\partial u_i \partial u_j}
+    ! D_{ij} = \frac{H_{ij}}{\sqrt{m_i m_j}}
+    !        = \frac{\partial^2 \Phi}{\partial w_i \partial w_j}
+    ! where w_i = \sqrt{m_i} u_i
+    do iCount = 1, size(dynMatrix, dim=2)
+      iDeriv1 = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      call bisection(iAt1, denseDesc%iAtomStart, iDeriv1)
+      do jCount = 1, size(dynMatrix, dim=1)
+        iDeriv2 = scalafx_indxl2g(jCount, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        call bisection(iAt2, denseDesc%iAtomStart, iDeriv2)
+        dynMatrix(jCount, iCount) = dynMatrix(jCount, iCount)&
+            & / (sqrt(atomicMasses(iAt1)) * sqrt(atomicMasses(iAt2)))
+      end do
     end do
-    iAtomStart(nAtom+1) = ind
 
-  end subroutine buildSquaredAtomIndex
+  end subroutine dynMatFromHessianBlacs
+
+#:else
+
+  !> Reads Hessian directly from file (bypasses the slow HSD parser).
+  subroutine readHessianDirect(fname, hessian)
+
+    !> File name of Hessian
+    character(len=*), intent(in) :: fname
+
+    !> Hessian matrix
+    real(dp), intent(out) :: hessian(:,:)
+
+    !! File descriptor
+    type(TFileDescr) :: fd
+
+    !! Error status
+    integer :: iErr
+
+    hessian(:,:) = 0.0_dp
+
+    call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
+    if (iErr /= 0) then
+      call error("Could not open file '" // fname // "' for direct reading." )
+    end if
+    read(fd%unit, *, iostat=iErr) hessian
+    if (iErr /= 0) then
+      call error("Error during direct reading '" // fname // "'.")
+    end if
+    call closeFile(fd)
+
+  end subroutine readHessianDirect
 
 
   !> Initializes the dynamical matrix from the Hessian input.
@@ -464,5 +496,6 @@ contains
     end do
 
   end subroutine setEigvecGauge
+#:endif
 
 end module modes_initmodes
