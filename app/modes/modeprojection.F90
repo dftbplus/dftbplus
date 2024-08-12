@@ -15,13 +15,134 @@ module modes_modeprojection
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_simplealgebra, only : cross3
   use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_math_matrixops, only : adjointLowerTriangle
+#:if WITH_MPI
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_math_matrixops, only : adjointLowerTriangle_BLACS
+#:endif
   implicit none
 
   private
   public :: project
+#:if WITH_MPI
+  public :: projectBlacs
+#:endif
 
 
 contains
+
+#:if WITH_MPI
+  !> Projection out of the space of the dynamical matrix.
+  subroutine projectBlacs(env, denseDesc, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs,&
+      & nMovedAtom, geo, atomicMasses)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Dynamical matrix
+    real(dp), intent(inout) :: dynMatrix(:,:)
+
+    !> Whether translation is removed
+    logical, intent(in) :: tRemoveTranslate
+
+    !> Whether rotation is removed
+    logical, intent(in) :: tRemoveRotate
+
+    !> Number of derivatives (dimension of dynMatrix)
+    integer, intent(in) :: nDerivs
+
+    !> Number of moving atoms
+    integer, intent(in) :: nMovedAtom
+
+    !> Geometry information on the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Masses of the atoms in the system
+    real(dp), intent(in) :: atomicMasses(:)
+
+    real(dp), allocatable :: vectorsToNull(:,:), projector(:,:)
+    real(dp) :: centerOfMass(3), rTmp(3), vTmp(3), inertia(3,3), moments(3)
+    integer :: nToNull, ii, jj, iAt
+
+    nToNull = 0
+    if (tRemoveTranslate) nToNull = nToNull + 3
+    if (tRemoveRotate) nToNull = nToNull + 3
+    if (nToNull == 0) return
+
+    allocate(vectorsToNull(nDerivs, nToNull), source=0.0_dp)
+    allocate(projector(nDerivs, nDerivs), source=0.0_dp)
+
+    ! symmetrize dynamical matrix
+    call adjointLowerTriangle_BLACS(denseDesc%blacsOrbSqr, env%blacs%orbitalGrid%myCol,&
+        & env%blacs%orbitalGrid%myRow, env%blacs%orbitalGrid%nCol, env%blacs%orbitalGrid%nRow,&
+        & dynMatrix)
+
+    do jj = 1, nDerivs
+      projector(jj, jj) = 1.0_dp
+    end do
+
+    if (tRemoveTranslate) then
+      do iAt = 1, nMovedAtom
+        do ii = 1, 3
+          vectorsToNull((iAt - 1) * 3 + ii, ii) = 1.0_dp
+        end do
+      end do
+    end if
+
+    if (tRemoveRotate) then
+      if (geo%tPeriodic) then
+        call warning("Rotational modes were requested to be removed for a periodic geometry -&
+            & results probably unphysical!")
+      end if
+
+      call getCenterOfMass(nMovedAtom, atomicMasses, geo%coords, centerOfMass)
+      call getPrincipleAxes(geo%coords, atomicMasses, centerOfMass, nMovedAtom, inertia, moments)
+
+      ! axis to project with respect to
+      do ii = 1, 3
+        if (moments(ii) < epsilon(0.0_dp)) then
+          ! zero moment of inertia - linear molecule, and this direction is along its axis
+          cycle
+        end if
+        vTmp(:) = inertia(:,ii)
+        do iAt = 1, nMovedAtom
+          rTmp = cross3(vTmp, geo%coords(:,iAt) - centerOfMass)
+          vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
+        end do
+      end do
+    end if
+
+    ! change from displacements to weighted displacements basis of the Hessian
+    do iAt = 1, nMovedAtom
+      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) = vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :)&
+          & * sqrt(atomicMasses(iAt))
+    end do
+
+    ! normalise non-null vectors
+    do ii = 1, nToNull
+      if (sum(vectorsToNull(:, ii)**2) > epsilon(1.0_dp)) then
+        vectorsToNull(:, ii) = vectorsToNull(:, ii) / sqrt(sum(vectorsToNull(:, ii)**2))
+      end if
+    end do
+
+    ! projector = projector - vectorsToNull * vectorsToNull^T
+    call herk(projector, vectorsToNull, alpha=-1.0_dp, beta=1.0_dp)
+
+    ! copy to other triangle
+    call adjointLowerTriangle_BLACS(denseDesc%blacsOrbSqr, env%blacs%orbitalGrid%myCol,&
+        & env%blacs%orbitalGrid%myRow, env%blacs%orbitalGrid%nCol, env%blacs%orbitalGrid%nRow,&
+        & projector)
+
+    ! project out removed degrees of freedom
+    dynMatrix(:,:) = matmul(projector, matmul(dynMatrix, projector))
+
+  end subroutine projectBlacs
+
+#:endif
 
   !> Projection out of the space of the dynamical matrix.
   subroutine project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
@@ -49,7 +170,7 @@ contains
     real(dp), intent(in) :: atomicMasses(:)
 
     real(dp), allocatable :: vectorsToNull(:,:), projector(:,:)
-    real(dp) :: centreOfMass(3), rTmp(3), vTmp(3), inertia(3,3), moments(3)
+    real(dp) :: centerOfMass(3), rTmp(3), vTmp(3), inertia(3,3), moments(3)
     integer :: nToNull, ii, jj, iAt
 
     nToNull = 0
@@ -57,15 +178,11 @@ contains
     if (tRemoveRotate) nToNull = nToNull + 3
     if (nToNull == 0) return
 
-    allocate(vectorsToNull(nDerivs, nToNull))
-    allocate(projector(nDerivs, nDerivs))
-    projector(:,:) = 0.0_dp
-    vectorsToNull(:,:) = 0.0_dp
+    allocate(vectorsToNull(nDerivs, nToNull), source=0.0_dp)
+    allocate(projector(nDerivs, nDerivs), source=0.0_dp)
 
     ! symmetrize dynamical matrix
-    do jj = 1, nDerivs
-      dynMatrix(jj, jj + 1 :) = dynMatrix(jj + 1 :, jj)
-    end do
+    call adjointLowerTriangle(dynMatrix)
 
     do jj = 1, nDerivs
       projector(jj, jj) = 1.0_dp
@@ -84,13 +201,9 @@ contains
         call warning("Rotational modes were requested to be removed for a periodic geometry -&
             & results probably unphysical!")
       end if
-      centreOfMass(:) = 0.0_dp
-      do iAt = 1, nMovedAtom
-        centreOfMass(:) = centreOfMass + geo%coords(:,iAt) * atomicMasses(iAt)
-      end do
-      centreOfMass(:) = centreOfMass / sum(atomicMasses(:nMovedAtom))
 
-      call getPrincipleAxes(inertia, moments, geo%coords, atomicMasses, centreOfMass, nMovedAtom)
+      call getCenterOfMass(nMovedAtom, atomicMasses, geo%coords, centerOfMass)
+      call getPrincipleAxes(geo%coords, atomicMasses, centerOfMass, nMovedAtom, inertia, moments)
 
       ! axis to project with respect to
       do ii = 1, 3
@@ -100,13 +213,13 @@ contains
         end if
         vTmp(:) = inertia(:,ii)
         do iAt = 1, nMovedAtom
-          rTmp = cross3(vTmp, geo%coords(:,iAt) - centreOfMass)
+          rTmp = cross3(vTmp, geo%coords(:,iAt) - centerOfMass)
           vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
         end do
       end do
     end if
 
-    ! Change from displacements to weighted displacements basis of the Hessian
+    ! change from displacements to weighted displacements basis of the Hessian
     do iAt = 1, nMovedAtom
       vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) = vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :)&
           & * sqrt(atomicMasses(iAt))
@@ -114,48 +227,69 @@ contains
 
     ! normalise non-null vectors
     do ii = 1, nToNull
-      if (sum(vectorsToNull(:,ii)**2) > epsilon(1.0_dp)) then
-        vectorsToNull(:,ii) = vectorsToNull(:,ii) / sqrt(sum(vectorsToNull(:,ii)**2))
+      if (sum(vectorsToNull(:, ii)**2) > epsilon(1.0_dp)) then
+        vectorsToNull(:, ii) = vectorsToNull(:, ii) / sqrt(sum(vectorsToNull(:, ii)**2))
       end if
     end do
 
     call herk(projector, vectorsToNull, alpha=-1.0_dp, beta=1.0_dp)
 
-    deallocate(vectorsToNull)
-
     ! copy to other triangle
-    do jj = 1, nDerivs
-      projector(jj,jj+1:) = projector(jj+1:,jj)
-    end do
+    call adjointLowerTriangle(projector)
 
     ! project out removed degrees of freedom
     dynMatrix(:,:) = matmul(projector, matmul(dynMatrix, projector))
 
-    deallocate(projector)
-
   end subroutine project
 
 
-  !> Principle moment of inertia axes.
-  subroutine getPrincipleAxes(inertia, ei, coords, masses, centreOfMass, nMovedAtom)
+  !> Calculates the center of mass of a given geometry.
+  subroutine getCenterOfMass(nMovedAtom, atomicMasses, coords, centerOfMass)
 
-    !> Intertia axes
-    real(dp), intent(out) :: inertia(3,3)
+    !> Number of moving atoms
+    integer, intent(in) :: nMovedAtom
 
-    !> Moments
-    real(dp), intent(out) :: ei(3)
+    !> Masses
+    real(dp), intent(in) :: atomicMasses(:)
+
+    !> Coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> The center of mass
+    real(dp), intent(out) :: centerOfMass(3)
+
+    !! Auxiliary variables
+    integer :: iAt
+
+    centerOfMass(:) = 0.0_dp
+    do iAt = 1, nMovedAtom
+      centerOfMass(:) = centerOfMass + coords(:, iAt) * atomicMasses(iAt)
+    end do
+    centerOfMass(:) = centerOfMass / sum(atomicMasses(:nMovedAtom))
+
+  end subroutine getCenterOfMass
+
+
+  !> Determines principle moment of inertia axes.
+  subroutine getPrincipleAxes(coords, atomicMasses, centerOfMass, nMovedAtom, inertia, ei)
 
     !> Coordinates
     real(dp), intent(in) :: coords(:,:)
 
     !> Masses
-    real(dp), intent(in) :: masses(:)
+    real(dp), intent(in) :: atomicMasses(:)
 
-    !> The centre of mass
-    real(dp), intent(in) :: centreOfMass(3)
+    !> The center of mass
+    real(dp), intent(in) :: centerOfMass(3)
 
     !> Number of moving atoms
     integer, intent(in) :: nMovedAtom
+
+    !> Intertia axes
+    real(dp), intent(out) :: inertia(3, 3)
+
+    !> Moments
+    real(dp), intent(out) :: ei(3)
 
     integer :: ii, jj, iAt
 
@@ -164,14 +298,16 @@ contains
 
     do iAt = 1, nMovedAtom
       do ii = 1, 3
-        inertia(ii, ii) = inertia(ii, ii) + masses(iAt) * sum((coords(:,iAt) - centreOfMass(:))**2)
+        inertia(ii, ii) = inertia(ii, ii)&
+            & + atomicMasses(iAt) * sum((coords(:,iAt) - centerOfMass)**2)
       end do
     end do
     do iAt = 1, nMovedAtom
       do ii = 1, 3
         do jj = 1, 3
-          inertia(jj, ii) = inertia(jj, ii) - masses(iAt) * (coords(jj,iAt) - centreOfMass(jj))&
-              & * (coords(ii,iAt) - centreOfMass(ii))
+          inertia(jj, ii) = inertia(jj, ii)&
+              & - atomicMasses(iAt) * (coords(jj,iAt) - centerOfMass(jj))&
+              & * (coords(ii,iAt) - centerOfMass(ii))
         end do
       end do
     end do

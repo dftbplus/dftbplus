@@ -15,8 +15,8 @@ SlaterKosterFiles = Type2FileNames {
   Suffix = ".skf"
 }
 
-Hessian = {
-  <<< "hessian.out.O"
+Hessian = DirectRead {
+  File = "hessian.out.O"
 }
 
 InputVersion = 3
