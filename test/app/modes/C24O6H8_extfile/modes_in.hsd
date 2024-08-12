@@ -1,11 +1,11 @@
 # Needs the equilibrium geometry, at which the Hessian was been calculated
 Geometry = GenFormat {
-  <<< geom.gen
+  <<< geo.gen
 }
 
 # Extract atomic masses from SK-files
 SlaterKosterFiles = Type2FileNames {
-  Prefix = "./"
+  Prefix = "slakos/origin/mio-1-1/"
   Separator = "-"
   Suffix = ".skf"
 }
