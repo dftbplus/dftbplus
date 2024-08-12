@@ -695,12 +695,12 @@ contains
     ! Calculate Furche vectors and transition density matrix for various properties
     if (tZVector) then
 
+      call env%globalTimer%startTimer(globalTimers%lrZVector)
+
       ! Differentiates between a standard Z-vector equation for transition densities and forces and
       ! a specific one for non-adiabatic couplings
       doVanillaZvector = .true.
       if (doAllZVectors) then
-
-        call env%globalTimer%startTimer(globalTimers%lrZVector)
 
         nStartLev = 1
         nEndLev = this%nExc
@@ -916,10 +916,10 @@ contains
 
       end if
 
+      call env%globalTimer%stopTimer(globalTimers%lrZVector)
+
     end if
 
-    call env%globalTimer%stopTimer(globalTimers%lrZVector)
-    
     !> Omega has possibly been overwritten for CI optimization or NA couplings, but should always
     !! refer to nstat
     if (nstat == 0) then
