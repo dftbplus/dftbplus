@@ -127,7 +127,7 @@ module dftbp_math_eigensolver
 contains
 
   !> Real eigensolver for a symmetric matrix
-  subroutine real_ssyev(a, w, uplo, jobz, infoVal)
+  subroutine real_ssyev(a,w,uplo,jobz,info)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -143,10 +143,10 @@ contains
     character, intent(in) :: jobz
 
     !> if present and info/=0 job is to be terminated by the calling routine
-    integer, optional, intent(out) :: infoVal
+    integer, optional, intent(out) :: info
 
     real(rsp), allocatable :: work(:)
-    integer n, info
+    integer n, info_
     integer :: int_idealwork
     real(rsp) :: idealwork(1)
     character(len=100) :: error_string
@@ -156,36 +156,42 @@ contains
     @:ASSERT(all(shape(a)==size(w)))
     n=size(a,dim=1)
     @:ASSERT(n>0)
-    call ssyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
-    if (info/=0) then
-      call error("Failure in SSYEV to determine optimum workspace")
-    endif
+    call ssyev(jobz, uplo, n, a, n, w, idealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in SSYEV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call ssyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
-    if (present(infoVal)) then
-      infoVal = info
-      return
-    endif
-    if (info/=0) then
-      if (info<0) then
+    call ssyev(jobz, uplo, n, a, n, w, work, int_idealwork, info_)
+    if (info_/=0) then
+      if (present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99000 format ('Failure in diagonalisation routine ssyev,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99000) info
-        call error(error_string)
-      else
+          write(error_string, 99000) info_
+          call error(error_string)
+        else
 99010 format ('Failure in diagonalisation routine ssyev,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99010) info
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99010) info_
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine real_ssyev
 
 
   !> Double precision eigensolver for a symmetric matrix
-  subroutine dble_dsyev(a, w, uplo, jobz, infoVal)
+  subroutine dble_dsyev(a,w,uplo,jobz,info)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -199,12 +205,15 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+    
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
 
     !> if present and info/=0 job is to be terminated by the calling routine
     integer, optional, intent(out) :: infoVal
 
     real(rdp), allocatable :: work(:)
-    integer n, info
+    integer n, info_
     integer :: int_idealwork
     real(rdp) :: idealwork(1)
     character(len=100) :: error_string
@@ -214,36 +223,42 @@ contains
     @:ASSERT(all(shape(a)==size(w)))
     n=size(a,dim=1)
     @:ASSERT(n>0)
-    call dsyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
-    if (info/=0) then
-      call error("Failure in DSYEV to determine optimum workspace")
-    endif
+    call dsyev(jobz, uplo, n, a, n, w, idealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in DSYEV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
-    call dsyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
-    if(present(infoVal)) then
-      infoVal = info
-      return
-    endif
-    if (info/=0) then
-      if (info<0) then
+    call dsyev(jobz, uplo, n, a, n, w, work, int_idealwork, info_)
+    if (info_/=0) then
+      if (present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99020 format ('Failure in diagonalisation routine dsyev,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99020) info
-        call error(error_string)
-      else
+          write(error_string, 99020) info_
+          call error(error_string)
+        else
 99030 format ('Failure in diagonalisation routine dsyev,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99030) info
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99030) info_
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine dble_dsyev
 
 
   !> Complex eigensolver for a Hermitian matrix
-  subroutine cmplx_cheev(a, w, uplo, jobz, infoval)
+  subroutine cmplx_cheev(a,w,uplo,jobz,info)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -257,13 +272,16 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+    
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
 
     !> if present and info/=0 job is to be terminated by the calling routine
     integer, optional, intent(out) :: infoVal
 
     real(rsp), allocatable :: rwork(:)
     complex(rsp), allocatable :: work(:)
-    integer n, info
+    integer n, info_
     integer :: int_idealwork
     complex(rsp) :: idealwork(1)
     character(len=100) :: error_string
@@ -274,36 +292,42 @@ contains
     n=size(a,dim=1)
     @:ASSERT(n>0)
     allocate(rwork(3*n-2))
-    call cheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
-    if (info/=0) then
-      call error("Failure in CHEEV to determine optimum workspace")
-    endif
+    call cheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in CHEEV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call cheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
-    if (present(infoVal)) then
-      infoVal = info
-      return
-    endif
-    if (info/=0) then
-      if (info<0) then
+    call cheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info_)
+    if (info_/=0) then
+      if (present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99040 format ('Failure in diagonalisation routine cheev,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99040) info
-        call error(error_string)
-      else
+          write(error_string, 99040) info_
+          call error(error_string)
+        else
 99050 format ('Failure in diagonalisation routine cheev,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99050) info
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99050) info_
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine cmplx_cheev
 
 
   !> Double complex eigensolver for a Hermitian matrix
-  subroutine dblecmplx_zheev(a, w, uplo, jobz, infoval)
+  subroutine dblecmplx_zheev(a,w,uplo,jobz,info)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -317,13 +341,17 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+    
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
 
     !> if present and info/=0 job is to be terminated by the calling routine
     integer, optional, intent(out) :: infoVal
 
     real(rdp), allocatable :: rwork(:)
     complex(rdp), allocatable :: work(:)
-    integer n, info
+    integer n, info_
     integer :: int_idealwork
     complex(rdp) :: idealwork(1)
     character(len=100) :: error_string
@@ -334,30 +362,36 @@ contains
     n=size(a,dim=1)
     @:ASSERT(n>0)
     allocate(rwork(3*n-2))
-    call zheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
-    if (info/=0) then
-      call error("Failure in ZHEEV to determine optimum workspace")
-    endif
+    call zheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in ZHEEV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
-    call zheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
-    if (present(infoVal)) then
-      infoVal = info
-      return
-    endif
-    if (info/=0) then
-      if (info<0) then
+    call zheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info_)
+    if (info_/=0) then
+      if (present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99060 format ('Failure in diagonalisation routine zheev,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99060) info
-        call error(error_string)
-      else
+          write(error_string, 99060) info_
+          call error(error_string)
+        else
 99070 format ('Failure in diagonalisation routine zheev,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99070) info
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99070) info_
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine dblecmplx_zheev
 
@@ -425,7 +459,7 @@ contains
 
 
   !> ${NAME}$ precision eigensolver for generalized symmetric matrix problem
-  subroutine ${RP}$_${VTYPE}$sygv(a, b, w, uplo, jobz, itype)
+  subroutine ${RP}$_${VTYPE}$sygv(a, b, w, uplo, jobz, itype, info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -447,8 +481,11 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     real(r${VTYPE}$p), allocatable :: work(:)
-    integer n, lda, info, iitype, ldb
+    integer n, lda, info_, iitype, ldb
     integer :: int_idealwork
     real(r${VTYPE}$p) :: idealwork(1)
     character(len=100) :: error_string
@@ -468,28 +505,38 @@ contains
       iitype = 1
     end if
   @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, idealwork, -1, info)
-    if (info/=0) then
-       call error("Failure in ${VTYPE}$sygv to determine optimum workspace")
-    endif
+    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, idealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in ${VTYPE}$sygv to determine optimum workspace")
+      end if
+    end if
     int_idealwork=nint(idealwork(1))
     allocate(work(int_idealwork))
-    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, work, int_idealwork, info)
-    if (info/=0) then
-      if (info<0) then
-        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, illegal ',&
-            & 'argument at position ',i6)") info
-        call error(error_string)
-      else if (info <= n) then
-        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, diagonal ',&
-            & 'element ', i6, ' did not converge to zero.')") info
-        call error(error_string)
+    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, work, int_idealwork, info_)
+    if (info_/=0) then
+      if (present(info)) then
+        info = info_
+        return
       else
-        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv,', &
-            & ' non-positive definite overlap! Minor ',i6,' responsible.')") info - n
-        call error(error_string)
-      endif
-    endif
+        if (info_<0) then
+          write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, illegal ',&
+              & 'argument at position ',i6)") info_
+          call error(error_string)
+        else if (info_ <= n) then
+          write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, diagonal ',&
+              & 'element ', i6, ' did not converge to zero.')") info_
+          call error(error_string)
+        else
+          write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv,', &
+              & ' non-positive definite overlap! Minor ',i6,' responsible.')") info_ - n
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine ${RP}$_${VTYPE}$sygv
 #:endfor
@@ -565,7 +612,7 @@ contains
 
 
   !> Complex eigensolver for generalized Hermitian matrix problem
-  subroutine cmplx_chegv(a,b,w,uplo,jobz,itype)
+  subroutine cmplx_chegv(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -586,10 +633,13 @@ contains
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+    
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
 
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
-    integer n, info, iitype, int_idealwork
+    integer n, info_, iitype, int_idealwork
     complex(rsp) :: idealwork(1)
     character(len=100) :: error_string
 
@@ -606,38 +656,48 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
-    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
-    if (info/=0) then
-       call error("Failure in CHEGV to determine optimum workspace")
-    endif
+    call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in CHEGV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call chegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info)
-    if (info/=0) then
-       if (info<0) then
+    call chegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99220 format ('Failure in diagonalisation routine chegv,', &
           & ' illegal argument at position ',i6)
-          write(error_string, 99220) info
+          write(error_string, 99220) info_
           call error(error_string)
-       else if (info <= n) then
+        else if (info_ <= n) then
 99230 format ('Failure in diagonalisation routine chegv,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-          write(error_string, 99230) info
+          write(error_string, 99230) info_
           call error(error_string)
-       else
+        else
 99240 format ('Failure in diagonalisation routine chegv,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99240) info - n
+          write(error_string, 99240) info_ - n
           call error(error_string)
-       endif
-    endif
+        end if
+      end if
+    end if
 
   end subroutine cmplx_chegv
 
 
   !> Double complex eigensolver for generalized Hermitian matrix problem
-  subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype)
+  subroutine dblecmplx_zhegv(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -658,10 +718,13 @@ contains
     !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
+    
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
 
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
-    integer n, info, iitype, int_idealwork
+    integer n, info_, iitype, int_idealwork
     complex(rdp) :: idealwork(1)
     character(len=100) :: error_string
 
@@ -678,38 +741,48 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     allocate(rwork(3*n-2))
-    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
-    if (info/=0) then
-       call error("Failure in CHEGV to determine optimum workspace")
-    endif
+    call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in CHEGV to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     ! A*x = (lambda)*B*x upper triangles to be used
-    call zhegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info)
-    if (info/=0) then
-       if (info<0) then
+    call zhegv(iitype, 'V', 'L', n, a, n, b, n, w, work, int_idealwork, rwork, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99250 format ('Failure in diagonalisation routine zhegv,', &
           & ' illegal argument at position ',i6)
-          write(error_string, 99250) info
+          write(error_string, 99250) info_
           call error(error_string)
-       else if (info <= n) then
+        else if (info_ <= n) then
 99260 format ('Failure in diagonalisation routine zhegv,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-          write(error_string, 99260) info
+          write(error_string, 99260) info_
           call error(error_string)
-       else
+        else
 99270 format ('Failure in diagonalisation routine zhegv,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99270) info - n
+          write(error_string, 99270) info_ - n
           call error(error_string)
-       endif
-    endif
+        end if
+      end if
+    end if
 
   end subroutine dblecmplx_zhegv
 
 
   !> Real eigensolver for generalized symmetric matrix problem - divide and conquer
-  subroutine real_ssygvd(a,b,w,uplo,jobz,itype)
+  subroutine real_ssygvd(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -731,8 +804,11 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     real(rsp), allocatable :: work(:)
-    integer n, info, iitype
+    integer n, info_, iitype
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rsp) :: idealwork(1)
@@ -751,39 +827,49 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
-         & iidealwork, -1, info)
-    if (info/=0) then
-       call error("Failure in SSYGVD to determine optimum workspace")
-    endif
+         & iidealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in SSYGVD to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     allocate(iwork(iidealwork(1)))
     call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
-         & iwork, iidealwork(1), info)
-    if (info/=0) then
-       if (info<0) then
+         & iwork, iidealwork(1), info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99280 format ('Failure in diagonalisation routine ssygvd,', &
           & ' illegal argument at position ',i6)
-          write(error_string, 99280) info
+          write(error_string, 99280) info_
           call error(error_string)
-       else if (info <= n) then
+        else if (info_ <= n) then
 99290 format ('Failure in diagonalisation routine ssygvd,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-          write(error_string, 99290) info
+          write(error_string, 99290) info_
           call error(error_string)
-       else
+        else
 99300 format ('Failure in diagonalisation routine ssygvd,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99300) info - n
+          write(error_string, 99300) info_ - n
           call error(error_string)
-       endif
-    endif
+        end if
+      end if
+    end if
 
   end subroutine real_ssygvd
 
 
   !> Double precision eigensolver for generalized symmetric matrix problem divide and conquer
-  subroutine dble_dsygvd(a,b,w,uplo,jobz,itype)
+  subroutine dble_dsygvd(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -805,8 +891,11 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     real(rdp), allocatable :: work(:)
-    integer n, info, iitype
+    integer n, info_, iitype
     integer :: int_idealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     real(rdp) :: idealwork(1)
@@ -825,39 +914,49 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
-        & iidealwork, -1, info)
-    if (info/=0) then
-      call error("Failure in DSYGVD to determine optimum workspace")
-    endif
+        & iidealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in DSYGVD to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     allocate(iwork(iidealwork(1)))
     call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
-        & iwork, iidealwork(1), info)
-    if (info/=0) then
-      if (info<0) then
+        & iwork, iidealwork(1), info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99310 format ('Failure in diagonalisation routine dsygvd,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99310) info
-        call error(error_string)
-      else if (info <= n) then
+          write(error_string, 99310) info_
+          call error(error_string)
+        else if (info_ <= n) then
 99320 format ('Failure in diagonalisation routine dsygvd,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99320) info
-        call error(error_string)
-      else
+          write(error_string, 99320) info_
+          call error(error_string)
+        else
 99330 format ('Failure in diagonalisation routine dsygvd,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-        write(error_string, 99330) info - n
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99330) info_ - n
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine dble_dsygvd
 
 
   !> Complex eigensolver for generalized Hermitian matrix problem divide and conquer
-  subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype)
+  subroutine cmplx_chegvd(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -879,9 +978,12 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     complex(rsp), allocatable :: work(:)
     real(rsp), allocatable :: rwork(:)
-    integer n, info, iitype
+    integer n, info_, iitype
     integer :: int_idealwork, int_ridealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     complex(rsp) :: idealwork(1)
@@ -901,41 +1003,51 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
-        & ridealwork, -1, iidealwork, -1, info)
-    if (info/=0) then
-      call error("Failure in CHEGVD to determine optimum workspace")
-    endif
+        & ridealwork, -1, iidealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else     
+        call error("Failure in CHEGVD to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
     allocate(work(int_idealwork))
     allocate(rwork(int_ridealwork))
     allocate(iwork(iidealwork(1)))
     call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork,&
-        & rwork, int_ridealwork, iwork, iidealwork(1), info)
-    if (info/=0) then
-      if (info<0) then
+        & rwork, int_ridealwork, iwork, iidealwork(1), info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99340 format ('Failure in diagonalisation routine chegvd,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99340) info
-        call error(error_string)
-      else if (info <= n) then
+          write(error_string, 99340) info_
+          call error(error_string)
+        else if (info_ <= n) then
 99350 format ('Failure in diagonalisation routine chegvd,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99350) info
-        call error(error_string)
-      else
+          write(error_string, 99350) info_
+          call error(error_string)
+        else
 99360 format ('Failure in diagonalisation routine chegvd,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-        write(error_string, 99360) info - n
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99360) info_ - n
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine cmplx_chegvd
 
 
   !> Double complex eigensolver for generalized Hermitian matrix problem divide and conquer
-  subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype)
+  subroutine dblecmplx_zhegvd(a,b,w,uplo,jobz,itype,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -957,9 +1069,12 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     complex(rdp), allocatable :: work(:)
     real(rdp), allocatable :: rwork(:)
-    integer n, info, iitype
+    integer n, info_, iitype
     integer :: int_idealwork, int_ridealwork, iidealwork(1)
     integer, allocatable :: iwork(:)
     complex(rdp) :: idealwork(1)
@@ -979,35 +1094,45 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
-        & ridealwork, -1, iidealwork, -1, info)
-    if (info/=0) then
-      call error("Failure in ZHEGVD to determine optimum workspace")
-    endif
+        & ridealwork, -1, iidealwork, -1, info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in ZHEGVD to determine optimum workspace")
+      end if
+    end if
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
     allocate(work(int_idealwork))
     allocate(rwork(int_ridealwork))
     allocate(iwork(iidealwork(1)))
     call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, &
-        & rwork, int_ridealwork, iwork, iidealwork(1), info)
-    if (info/=0) then
-      if (info<0) then
+        & rwork, int_ridealwork, iwork, iidealwork(1), info_)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        if (info_<0) then
 99370 format ('Failure in diagonalisation routine zhegvd,', &
           & ' illegal argument at position ',i6)
-        write(error_string, 99370) info
-        call error(error_string)
-      else if (info <= n) then
+          write(error_string, 99370) info_
+          call error(error_string)
+        else if (info_ <= n) then
 99380 format ('Failure in diagonalisation routine zhegvd,', &
           & ' diagonal element ',i6,' did not converge to zero.')
-        write(error_string, 99380) info
-        call error(error_string)
-      else
+          write(error_string, 99380) info_
+          call error(error_string)
+        else
 99390 format ('Failure in diagonalisation routine zhegvd,', &
           & ' non-positive definite overlap! Minor ',i6,' responsible.')
-        write(error_string, 99390) info - n
-        call error(error_string)
-      endif
-    endif
+          write(error_string, 99390) info_ - n
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine dblecmplx_zhegvd
 
@@ -1018,7 +1143,7 @@ contains
   !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
   !> previous version).
   !> Based in part on deMon routine from T. Heine
-  subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+  subroutine real_ssygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -1046,6 +1171,9 @@ contains
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     real(rsp), allocatable :: work(:)
     real(rsp) :: tmpWork(1)
     real(rsp), allocatable :: tmpChole(:)
@@ -1054,7 +1182,7 @@ contains
     integer :: tmpIWork(1)
     integer :: liwork
     integer, allocatable :: isuppz(:)
-    integer :: n, info, iitype
+    integer :: n, info_, iitype
     integer :: m, neig
     real(rsp) :: abstol
     logical :: wantz,upper
@@ -1110,39 +1238,54 @@ contains
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = slamch( 'Safe minimum' )
 
-    info = 0
+    info_ = 0
 
     if (subspace) then
       call ssyevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info_)
     else
       call ssyevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info_)
     end if
 
-    if (info/=0) then
-      call error("Failure in SSYGVR to determine optimum workspace")
-    endif
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in SSYGVR to determine optimum workspace")
+      end if
+    end if
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
     allocate(work(lwork))
     allocate(iwork(liwork))
 
     ! Form a Cholesky factorization of B.
-    call spotrf( uplo, n, b, n, info )
-    if( info /= 0 ) then
-      info = n + info
+    call spotrf( uplo, n, b, n, info_ )
+    if( info_ /= 0 ) then
+      info_ = n + info_
+      if(present(info)) then
+        info = info_
+        return
+      else
 99400 format ('Failure in diagonalisation routine SSYGVR,', &
           & ' unable to complete Cholesky factorization of B ',i6)
-      write(error_string, 99400) info
-      call error(error_string)
+        write(error_string, 99400) info_
+        call error(error_string)
+      end if
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call ssygst( iitype, uplo, n, a, n, b, n, info )
+    call ssygst( iitype, uplo, n, a, n, b, n, info_ )
 
-    if( info /= 0 ) then
-      write(error_string, *)'Failure in SSYGVR to transform to standard',info
-      call error(error_string)
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        write(error_string, *)'Failure in SSYGVR to transform to standard',info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1168,16 +1311,21 @@ contains
     if (subspace) then
       call ssyevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     else
       call ssyevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     end if
-    if( info /= 0 ) then
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
 99410 format ('Failure in SSYEVR ',I6)
-      write(error_string, 99410) info
-      call error(error_string)
+        write(error_string, 99410) info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1196,8 +1344,8 @@ contains
       end if
 
       neig = n
-      if( info > 0 ) then
-        neig = info - 1
+      if( info_ > 0 ) then
+        neig = info_ - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
@@ -1233,7 +1381,7 @@ contains
   !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
   !> previous version).
   !> Based in part on deMon routine from T. Heine
-  subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+  subroutine dble_dsygvr(a,b,w,uplo,jobz,itype,ilIn,iuIn,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -1261,6 +1409,9 @@ contains
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     real(rdp), allocatable :: work(:)
     real(rdp) :: tmpWork(1)
     real(rdp), allocatable :: tmpChole(:)
@@ -1269,7 +1420,7 @@ contains
     integer :: tmpIWork(1)
     integer :: liwork
     integer, allocatable :: isuppz(:)
-    integer :: n, info, iitype
+    integer :: n, info_, iitype
     integer :: m, neig
     real(rdp) :: abstol
     logical :: wantz,upper
@@ -1325,39 +1476,54 @@ contains
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = dlamch( 'Safe minimum' )
 
-    info = 0
+    info_ = 0
 
     if (subspace) then
       call dsyevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info_)
     else
       call dsyevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpIWork,-1,info_)
     end if
 
-    if (info/=0) then
-      call error("Failure in DSYGVR to determine optimum workspace")
-    endif
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in DSYGVR to determine optimum workspace")
+      end if
+    end if
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
     allocate(work(lwork))
     allocate(iwork(liwork))
 
     ! Form a Cholesky factorization of B.
-    call dpotrf( uplo, n, b, n, info )
-    if( info /= 0 ) then
-      info = n + info
+    call dpotrf( uplo, n, b, n, info_ )
+    if( info_ /= 0 ) then
+      info_ = n + info_
+      if(present(info)) then
+        info = info_
+        return
+      else
 99400 format ('Failure in diagonalisation routine DSYGVR,', &
           & ' unable to complete Cholesky factorization of B ',i6)
-      write(error_string, 99400) info
-      call error(error_string)
+        write(error_string, 99400) info_
+        call error(error_string)
+      end if
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call dsygst( iitype, uplo, n, a, n, b, n, info )
+    call dsygst( iitype, uplo, n, a, n, b, n, info_ )
 
-    if( info /= 0 ) then
-      write(error_string, *)'Failure in DSYGVR to transform to standard',info
-      call error(error_string)
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        write(error_string, *)'Failure in DSYGVR to transform to standard',info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1383,16 +1549,21 @@ contains
     if (subspace) then
       call dsyevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     else
       call dsyevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     end if
-    if( info /= 0 ) then
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
 99410 format ('Failure in DSYEVR ',I6)
-      write(error_string, 99410) info
-      call error(error_string)
+        write(error_string, 99410) info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1411,8 +1582,8 @@ contains
       end if
 
       neig = n
-      if( info > 0 ) then
-        neig = info - 1
+      if( info_ > 0 ) then
+        neig = info_ - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
@@ -1448,7 +1619,7 @@ contains
   !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
   !> previous version).
   !> Based in part on deMon routine from T. Heine
-  subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+  subroutine cmplx_chegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -1476,6 +1647,9 @@ contains
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     complex(rsp), allocatable :: work(:)
     complex(rsp) :: tmpWork(1)
     real(rsp), allocatable :: rWork(:)
@@ -1487,7 +1661,7 @@ contains
     integer :: liwork
     integer :: lrwork
     integer, allocatable :: isuppz(:)
-    integer :: n, info, iitype
+    integer :: n, info_, iitype
     integer :: m, neig
     real(rsp) :: abstol
     logical :: wantz,upper
@@ -1542,19 +1716,24 @@ contains
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = slamch( 'Safe minimum' )
 
-    info = 0
+    info_ = 0
 
     if (subspace) then
       call cheevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info_)
     else
       call cheevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info_)
     end if
 
-    if (info/=0) then
-      call error("Failure in CHEEVR to determine optimum workspace")
-    endif
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in CHEEVR to determine optimum workspace")
+      end if
+    end if
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
     lrwork = floor(tmpRwork(1))
@@ -1563,20 +1742,30 @@ contains
     allocate(rwork(lrwork))
 
     ! Form a Cholesky factorization of B.
-    call cpotrf( uplo, n, b, n, info )
-    if( info /= 0 ) then
-      info = n + info
+    call cpotrf( uplo, n, b, n, info_ )
+    if( info_ /= 0 ) then
+      info_ = n + info_
+      if(present(info)) then
+        info = info_
+        return
+      else
 99400 format ('Failure in diagonalisation routine CHEGVR,', &
           & ' unable to complete Cholesky factorization of B ',i6)
-      write(error_string, 99400) info
-      call error(error_string)
+        write(error_string, 99400) info_
+        call error(error_string)
+      end if
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call chegst( iitype, uplo, n, a, n, b, n, info )
+    call chegst( iitype, uplo, n, a, n, b, n, info_ )
 
-    if( info /= 0 ) then
-      write(error_string, *)'Failure in CHEGST to transform to standard',info
-      call error(error_string)
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        write(error_string, *)'Failure in CHEGST to transform to standard',info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1602,16 +1791,21 @@ contains
     if (subspace) then
       call cheevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     else
       call cheevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     end if
-    if( info /= 0 ) then
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
 99410 format ('Failure in CHEEVR ',I6)
-      write(error_string, 99410) info
-      call error(error_string)
+        write(error_string, 99410) info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1630,8 +1824,8 @@ contains
       end if
 
       neig = n
-      if( info > 0 ) then
-        neig = info - 1
+      if( info_ > 0 ) then
+        neig = info_ - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
@@ -1669,7 +1863,7 @@ contains
   !> This version re-uses a triangle of a matrix (saving an additional allocation that was in the
   !> previous version).
   !> Based in part on deMon routine from T. Heine
-  subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn)
+  subroutine dblecmplx_zhegvr(a,b,w,uplo,jobz,itype,ilIn,iuIn,info)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -1697,6 +1891,9 @@ contains
     !> upper range of eigenstates
     integer, optional, intent(in) :: iuIn
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     complex(rdp), allocatable :: work(:)
     complex(rdp) :: tmpWork(1)
     real(rdp), allocatable :: rWork(:)
@@ -1708,7 +1905,7 @@ contains
     integer :: liwork
     integer :: lrwork
     integer, allocatable :: isuppz(:)
-    integer :: n, info, iitype
+    integer :: n, info_, iitype
     integer :: m, neig
     real(rdp) :: abstol
     logical :: wantz,upper
@@ -1763,19 +1960,24 @@ contains
     upper = ( uplo == 'U' .or. uplo == 'u' )
     abstol = dlamch( 'Safe minimum' )
 
-    info = 0
+    info_ = 0
 
     if (subspace) then
       call zheevr(jobz,'I',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info_)
     else
       call zheevr(jobz,'A',uplo,n,a,size(a,dim=1),vl,vu,il,iu,abstol,m,&
-          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info)
+          & w,b,size(b,dim=1),isuppz,tmpWork,-1,tmpRwork,-1,tmpIWork,-1,info_)
     end if
 
-    if (info/=0) then
-      call error("Failure in ZHEEVR to determine optimum workspace")
-    endif
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in ZHEEVR to determine optimum workspace")
+      end if
+    end if
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
     lrwork = floor(tmpRwork(1))
@@ -1784,20 +1986,30 @@ contains
     allocate(rwork(lrwork))
 
     ! Form a Cholesky factorization of B.
-    call zpotrf( uplo, n, b, n, info )
-    if( info /= 0 ) then
-      info = n + info
+    call zpotrf( uplo, n, b, n, info_ )
+    if( info_ /= 0 ) then
+      info_ = n + info_
+      if(present(info)) then
+        info = info_
+        return
+      else
 99400 format ('Failure in diagonalisation routine ZHEEVR,', &
           & ' unable to complete Cholesky factorization of B ',i6)
-      write(error_string, 99400) info
-      call error(error_string)
+        write(error_string, 99400) info_
+        call error(error_string)
+      end if
     end if
     ! Transform problem to standard eigenvalue problem and solve.
-    call zhegst( iitype, uplo, n, a, n, b, n, info )
+    call zhegst( iitype, uplo, n, a, n, b, n, info_ )
 
-    if( info /= 0 ) then
-      write(error_string, *)'Failure in ZHEGST to transform to standard',info
-      call error(error_string)
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        write(error_string, *)'Failure in ZHEGST to transform to standard',info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1823,16 +2035,21 @@ contains
     if (subspace) then
       call zheevr( jobz, 'I', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     else
       call zheevr( jobz, 'A', uplo, n, a, n, vl, vu, il, iu, &
           & abstol, m, w, b, n, isuppz, work, lwork, rwork, lrwork, iwork, &
-          & liwork, info )
+          & liwork, info_ )
     end if
-    if( info /= 0 ) then
+    if( info_ /= 0 ) then
+      if(present(info)) then
+        info = info_
+        return
+      else
 99410 format ('Failure in ZHEEVR ',I6)
-      write(error_string, 99410) info
-      call error(error_string)
+        write(error_string, 99410) info_
+        call error(error_string)
+      end if
     end if
 
     if ( wantz ) then
@@ -1851,8 +2068,8 @@ contains
       end if
 
       neig = n
-      if( info > 0 ) then
-        neig = info - 1
+      if( info_ > 0 ) then
+        neig = info_ - 1
       end if
       if( iitype == 1 .or. iitype == 2 ) then
         ! For A*x=(lambda)*B*x and A*B*x=(lambda)*x;
@@ -1890,7 +2107,7 @@ contains
   & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&
   & ('dblecmplx', 'd', 'complex', 'zhegvd')]
   !> Generalised eigensolution for symmetric/hermitian matrices on GPU(s)
-  subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
+  subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype, info)
 
     !> Number of GPUs to use
     integer, intent(in) :: ngpus
@@ -1915,6 +2132,9 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
     ${VTYPE}$(r${VPREC}$p), allocatable :: work(:)
 
   #:if VTYPE == 'complex'
@@ -1923,7 +2143,7 @@ contains
   #:endif
 
     integer, allocatable :: iwork(:)
-    integer :: lwork, liwork, n, info, iitype
+    integer :: lwork, liwork, n, info_, iitype
     character(len=100) :: error_string
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
@@ -1950,11 +2170,16 @@ contains
       #:if VTYPE == 'complex'
         & rwork, -1,&
       #:endif
-        & iwork, -1, info)
+        & iwork, -1, info_)
 
-    if (info /= 0) then
-      call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
-    endif
+    if (info_ /= 0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
+      end if
+    end if
 
  #:if VTYPE == 'complex'
     lwork = floor(real(work(1)))
@@ -1976,24 +2201,29 @@ contains
       #:if VTYPE == 'complex'
         & rwork, lrwork,&
       #:endif
-        & iwork, liwork, info)
+        & iwork, liwork, info_)
 
     ! test for errors
-    if (info /= 0) then
-      if (info < 0) then
-        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
-            & illegal argument at position ',i6)") info
-        call error(error_string)
-      else if (info <= n) then
-        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
-            & diagonal element ',i6,' did not converge to zero.')") info
-        call error(error_string)
+    if (info_ /= 0) then
+      if(present(info)) then
+        info = info_
+        return
       else
-        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
-            & non-positive definite overlap! ',i6)") info - n
-        call error(error_string)
-      endif
-    endif
+        if (info_ < 0) then
+          write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+              & illegal argument at position ',i6)") info_
+          call error(error_string)
+        else if (info_ <= n) then
+          write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+              & diagonal element ',i6,' did not converge to zero.')") info_
+          call error(error_string)
+        else
+          write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+              & non-positive definite overlap! ',i6)") info_ - n
+          call error(error_string)
+        end if
+      end if
+    end if
 
   end subroutine ${DTYPE}$_magma_${NAME}$
 
@@ -2104,7 +2334,7 @@ contains
 #:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sgeev'), ('dble', 'd', 'real', 'dgeev')]
 
   !> Simple general matrix eigensolver
-  subroutine ${DTYPE}$_${NAME}$(a, wr, wi, vl, vr, err)
+  subroutine ${DTYPE}$_${NAME}$(a, wr, wi, vl, vr, err, info)
 
     !> Matrix, overwritten on exit
     real(r${VPREC}$p), intent(inout) :: a(:,:)
@@ -2124,8 +2354,13 @@ contains
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
 
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: info
+
+    
+
     real(r${VPREC}$p), allocatable :: work(:)
-    integer :: n, lda, info, int_idealwork, ldvl, ldvr
+    integer :: n, lda, info_, int_idealwork, ldvl, ldvr
     real(r${VPREC}$p) :: idealwork(1)
     character :: jobvl, jobvr
     character(len=100) :: error_string
@@ -2162,46 +2397,56 @@ contains
     end if
 
     if (jobvl == 'V' .and. jobvr == 'V') then
-      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, idealwork, -1, info)
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, idealwork, -1, info_)
     else if (jobvl == 'V' .and. jobvr == 'N') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, idealwork, -1,&
-          & info)
+          & info_)
     else if (jobvl == 'N' .and. jobvr == 'V') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, idealwork, -1,&
-          & info)
+          & info_)
     else if (jobvl == 'N' .and. jobvr == 'N') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, idealwork,&
-          & -1, info)
+          & -1, info_)
     end if
-    if (info/=0) then
-      @:ERROR_HANDLING(err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
-    endif
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
+      else
+        @:ERROR_HANDLING(err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
+      end if
+    end if
     int_idealwork=nint(idealwork(1))
     allocate(work(int_idealwork))
 
     if (jobvl == 'V' .and. jobvr == 'V') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, int_idealwork,&
-          & info)
+          & info_)
     else if (jobvl == 'V' .and. jobvr == 'N') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, work,&
-          & int_idealwork, info)
+          & int_idealwork, info_)
     else if (jobvl == 'N' .and. jobvr == 'V') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, work,&
-          & int_idealwork, info)
+          & int_idealwork, info_)
     else if (jobvl == 'N' .and. jobvr == 'N') then
       call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, work,&
-          & int_idealwork, info)
+          & int_idealwork, info_)
     end if
 
-    if (info/=0) then
-      if (info<0) then
-        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", 'Failure in diagonalisation routine&
-            & ${VPREC}$geev, illegal argument at position ', info)
+    if (info_/=0) then
+      if(present(info)) then
+        info = info_
+        return
       else
-        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
-            & ${VPREC}$geev, diagonal element ', info, ' did not converge to zero.')
-      endif
-    endif
+        if (info_<0) then
+          @:FORMATTED_ERROR_HANDLING(err, info_, "(A,I0)", 'Failure in diagonalisation routine&
+              & ${VPREC}$geev, illegal argument at position ', info_)
+        else
+          @:FORMATTED_ERROR_HANDLING(err, info_, "(A,I0,A)", 'Failure in diagonalisation routine&
+              & ${VPREC}$geev, diagonal element ', info_, ' did not converge to zero.')
+        end if
+      end if
+    end if
 
   end subroutine ${DTYPE}$_${NAME}$
 
