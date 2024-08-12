@@ -6,46 +6,119 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains the routines for initialising modes.
 module modes_initmodes
-  use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_atomicmass, only : getAtomicMass
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
+  use dftbp_common_accuracy, only : dp
+  use dftbp_type_typegeometryhsd, only : TGeometry
+  use modes_inputdata, only : TInputData
+  use dftbp_common_status, only : TStatus
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, openFile, closeFile,&
+      & TOpenOptions
   use dftbp_common_globalenv, only : stdOut
 #:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
-  use dftbp_common_release, only : releaseYear
-  use dftbp_common_unitconversion, only : massUnits
-  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode, destroyNodeList, textNodeName
-  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
-  use dftbp_io_formatout, only : printDftbHeader
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
-      & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes, getNodeName2
-  use dftbp_io_message, only : error
-  use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_type_linkedlist, only : TListCharLc, TListReal, TListRealR1, TListString, init,&
-      & destruct, append, get, len, asArray
-  use dftbp_type_oldskdata, only : TOldSkData, readFromFile
-  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
-      & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
+  use dftbp_io_message, only : error, warning
+  use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_math_bisect, only : bisection
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : mpifx_send, mpifx_bcast
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_getlocalshape,&
+      & scalafx_indxl2g, linecomm
+#:endif
   implicit none
 
   private
-  public :: initProgramVariables
-  public :: geo, atomicMasses, dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, nModesToPlot
-  public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs, iSolver, solverTypes
-  public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
+  public :: TModesMain
   public :: setEigvecGauge
+#:if WITH_MPI
+  public :: setEigvecGaugeBlacs
+#:endif
 
 
-  !> Program version
-  character(len=*), parameter :: version = "0.03"
+  type :: TModesMain
+
+    !> Geometry
+    type(TGeometry) :: geo
+
+    !> Atomic masses to build dynamical matrix
+    real(dp), allocatable :: atomicMasses(:)
+
+    !> Dynamical matrix
+    real(dp), allocatable :: dynMatrix(:,:)
+
+    !> Eigenvalues of the dynamical matrix
+    real(dp), allocatable :: eigen(:)
+
+    !> Eigenvectors of the dynamical matrix
+    real(dp), allocatable :: eigenModesScaled(:,:)
+
+    !> Displacement vectors for every atom in every mode. Shape: [3, nAtom, nDerivs]
+    real(dp), allocatable :: displ(:,:,:)
+
+    !> Born charges matrix
+    real(dp), allocatable :: bornMatrix(:)
+
+    !> Derivatives of Born charges matrix with respect to electric field, i.e. polarizability
+    !! derivatives with respect to atom locations
+    real(dp), allocatable :: bornDerivsMatrix(:)
+
+    !> Produce plots of modes
+    logical :: tPlotModes
+
+    !> Modes to produce xyz file for
+    integer, allocatable :: modesToPlot(:)
+
+    !> Number of modes being plotted
+    integer, allocatable :: nModesToPlot
+
+    !> If animating, number of cycles to show in an animation
+    integer :: nCycles
+
+    !> Steps in an animation cycle
+    integer :: nSteps
+
+    !> Number of atoms which should be moved
+    integer :: nMovedAtom
+
+    !> List of atoms in dynamical matrix
+    integer, allocatable :: iMovedAtoms(:)
+
+    !> Number of derivatives
+    integer :: nDerivs
+
+    !> Produce eigenvectors of modes, either for plotting or for property changes along mode
+    !! directions
+    logical :: tEigenVectors
+
+    !> Animate mode  or as vectors
+    logical :: tAnimateModes
+
+    !> Remove translation modes
+    logical :: tRemoveTranslate
+
+    !> Remove rotation modes
+    logical :: tRemoveRotate
+
+    !> Eigensolver choice
+    integer :: iSolver
+
+    !> Dense matrix descriptor for H and S
+    type(TDenseDescr), allocatable :: denseDesc
+
+  contains
+
+    procedure :: initProgramVariables
+    procedure :: getDenseDescCommon
+    procedure :: allocateDenseMatrices
+
+  end type TModesMain
 
   !> Root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
@@ -59,432 +132,422 @@ module modes_initmodes
   !> Version of the input document
   integer, parameter :: parserVersion = 3
 
-  !> Geometry
-  type(TGeometry) :: geo
-
-  !> If program should be verbose
-  logical :: tVerbose
-
-  !> Atomic masses to build dynamical matrix
-  real(dp), allocatable :: atomicMasses(:)
-
-  !> Dynamical matrix
-  real(dp), allocatable :: dynMatrix(:,:)
-
-  !> Born charges matrix
-  real(dp), allocatable :: bornMatrix(:)
-
-  !> Derivatives of Born charges matrix with respect to electric field, i.e. polarizability
-  !> derivatives with respect to atom locations
-  real(dp), allocatable :: bornDerivsMatrix(:)
-
-  !> Produce plots of modes
-  logical :: tPlotModes
-
-  !> Produce eigenvectors of modes, either for plotting or for property changes along mode
-  !> directions
-  logical :: tEigenVectors
-
-  !> Animate mode  or as vectors
-  logical :: tAnimateModes
-
-  !> Remove translation modes
-  logical :: tRemoveTranslate
-
-  !> Remove rotation modes
-  logical :: tRemoveRotate
-
-  !> Modes to produce xyz file for
-  integer, allocatable :: modesToPlot(:)
-
-  !> Number of modes being plotted
-  integer :: nModesToPlot
-
-  !> If animating, number of cycles to show in an animation
-  integer :: nCycles
-
-  !> Steps in an animation cycle
-  integer, parameter :: nSteps = 10
-
-  !> Number of atoms which should be moved.
-  integer :: nMovedAtom
-
-  !> List of atoms in dynamical matrix
-  integer, allocatable :: iMovedAtoms(:)
-
-  !> Number of derivatives
-  integer :: nDerivs
-
-  !> Eigensolver choice
-  integer :: iSolver
-
-#:if WITH_MAGMA
-  !> Global GPU settings
-  type(TGpuEnv), public :: gpu
-#:endif
-
-  !> Namespace for possible eigensolver methods
-  type :: TSolverTypesEnum
-
-    ! lapack/scalapack solvers
-    integer :: qr = 1
-    integer :: divideAndConquer = 2
-    integer :: relativelyRobust = 3
-
-    ! GPU accelerated solver using MAGMA
-    integer :: magmaEvd = 4
-
-  end type TSolverTypesEnum
-
-
-  !> Actual values for solverTypes.
-  type(TSolverTypesEnum), parameter :: solverTypes = TSolverTypesEnum()
-
 
 contains
 
+  !> Initializes the variables in the module based on the parsed input.
+  subroutine initProgramVariables(this, input, env)
 
-  !> Initialise program variables.
-  subroutine initProgramVariables()
+    !> Instance
+    class(TModesMain), intent(inout) :: this
 
-    type(TOldSKData) :: skData
-    type(fnode), pointer :: root, node, tmp, hsdTree
-    type(fnode), pointer :: value, child, child2
-    type(TListRealR1) :: realBufferList
-    type(TListReal) :: realBuffer
-    type(string) :: buffer, buffer2
-    type(TListString) :: lStr
-    integer :: inputVersion
-    integer :: ii, iSp1, iAt
-    real(dp), allocatable :: speciesMass(:), replacementMasses(:)
-    type(TListCharLc), allocatable :: skFiles(:)
-    character(lc) :: prefix, suffix, separator, elem1, strTmp, str2Tmp, filename
-    logical :: tLower, tDumpPHSD
-    logical :: tWriteHSD
-    type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut, strJoin, hessianFile
-    type(TFileDescr) :: file
-    integer :: iErr
+    !> Parsed input data
+    type(TInputData), intent(inout) :: input
 
-    !! Write header
-    call printDftbHeader('(MODES '// version //')', releaseYear)
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
-    !! Read in input file as HSD
-    call parseHSD(rootTag, hsdInput, hsdTree)
-    call getChild(hsdTree, rootTag, root)
+  #:if WITH_SCALAPACK
+    !! Error status
+    type(TStatus) :: errStatus
+  #:endif
 
-    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
-    write(stdout, "(A)") repeat("-", 80)
+    @:ASSERT(input%tInitialized)
+    @:ASSERT(allocated(input%ctrl%atomicMasses))
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+    else
+      @:ASSERT(allocated(input%ctrl%hessian))
+    end if
+    @:ASSERT(allocated(input%ctrl%iMovedAtoms))
 
-    !! Check if input version is the one, which we can handle
-    call getChildValue(root, "InputVersion", inputVersion, parserVersion)
-    if (inputVersion /= parserVersion) then
-      call error("Version of input (" // i2c(inputVersion) // ") and parser ("&
-          & // i2c(parserVersion) // ") do not match")
+    write(stdOut, "(/, A)") "Starting initialization..."
+    write(stdOut, "(A80)") repeat("-", 80)
+
+    ! set the same access for readwrite as for write (we do not open any files in readwrite mode)
+    call setDefaultBinaryAccess(input%ctrl%binaryAccessTypes(1), input%ctrl%binaryAccessTypes(2),&
+        & input%ctrl%binaryAccessTypes(2))
+
+    this%geo = input%geo
+
+    call move_alloc(input%ctrl%atomicMasses, this%atomicMasses)
+    call move_alloc(input%ctrl%bornMatrix, this%bornMatrix)
+    call move_alloc(input%ctrl%bornDerivsMatrix, this%bornDerivsMatrix)
+
+    if (allocated(input%ctrl%modesToPlot)) then
+      this%modesToPlot = input%ctrl%modesToPlot
+      this%nModesToPlot = size(this%modesToPlot)
     end if
 
-    call getChild(root, "Geometry", tmp)
-    call readGeometry(tmp, geo)
+    this%nCycles = input%ctrl%nCycles
+    this%nSteps = input%ctrl%nSteps
 
-    call getChildValue(root, "RemoveTranslation", tRemoveTranslate, .false.)
-    call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
+    call move_alloc(input%ctrl%iMovedAtoms, this%iMovedAtoms)
+    this%nMovedAtom = size(this%iMovedAtoms)
+    this%nDerivs = 3 * this%nMovedAtom
 
-    call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
-    call getSelectedAtomIndices(child, char(buffer2), geo%speciesNames, geo%species, iMovedAtoms)
-    nMovedAtom = size(iMovedAtoms)
-    nDerivs = 3 * nMovedAtom
+    this%tPlotModes = input%ctrl%tPlotModes
+    this%tAnimateModes = input%ctrl%tAnimateModes
+    this%tRemoveTranslate = input%ctrl%tRemoveTranslate
+    this%tRemoveRotate = input%ctrl%tRemoveRotate
 
-    tPlotModes = .false.
-    nModesToPlot = 0
-    tAnimateModes = .false.
-    call getChild(root, "DisplayModes",child=node,requested=.false.)
-    if (associated(node)) then
-      tPlotModes = .true.
-      call getChildValue(node, "PlotModes", buffer2, "1:-1", child=child, multiple=.true.)
-      call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
-      nModesToPlot = size(modesToPlot)
-      call getChildValue(node, "Animate", tAnimateModes, .true.)
-    end if
+    this%iSolver = input%ctrl%iSolver
 
-    ! oscillation cycles in an animation
-    nCycles = 3
+    this%tEigenVectors = this%tPlotModes .or. allocated(this%bornMatrix)&
+        & .or. allocated(this%bornDerivsMatrix)
 
-    ! Eigensolver
-    call getChildValue(root, "EigenSolver", buffer2, "qr")
-    select case(tolower(char(buffer2)))
-    case ("qr")
-      iSolver = solverTypes%qr
-    case ("divideandconquer")
-      iSolver = solverTypes%divideAndConquer
-    case ("relativelyrobust")
-      iSolver = solverTypes%relativelyRobust
-    case ("magma")
-    #:if WITH_MAGMA
-      call TGpuEnv_init(gpu)
-    #:else
-      call error("Magma-solver selected, but program was compiled without MAGMA")
-    #:endif
-      iSolver = solverTypes%magmaEvd
-    case default
-      call detailedError(root, "Unknown eigensolver "//char(buffer2))
-    end select
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
 
-    ! Slater-Koster files
-    call getParamSearchPaths(searchPath)
-    strJoin = joinPathsPrettyErr(searchPath)
-    allocate(speciesMass(geo%nSpecies))
-    speciesMass(:) = 0.0_dp
-    do iSp1 = 1, geo%nSpecies
-      speciesMass(iSp1) = getAtomicMass(geo%speciesNames(iSp1))
-    end do
-
-    call getChildValue(root, "SlaterKosterFiles", value, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
-    if (associated(value)) then
-      allocate(skFiles(geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call init(skFiles(iSp1))
-      end do
-      call getNodeName(value, buffer)
-      select case(char(buffer))
-      case ("type2filenames")
-        call getChildValue(value, "Prefix", buffer2, "")
-        prefix = unquote(char(buffer2))
-        call getChildValue(value, "Suffix", buffer2, "")
-        suffix = unquote(char(buffer2))
-        call getChildValue(value, "Separator", buffer2, "")
-        separator = unquote(char(buffer2))
-        call getChildValue(value, "LowerCaseTypeName", tLower, .false.)
-        do iSp1 = 1, geo%nSpecies
-          if (tLower) then
-            elem1 = tolower(geo%speciesNames(iSp1))
-          else
-            elem1 = geo%speciesNames(iSp1)
-          end if
-          strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem1) // trim(suffix)
-          call findFile(searchPath, strTmp, strOut)
-          if (.not. allocated(strOut)) then
-            call detailedError(value, "SK file with generated name '" // trim(strTmp)&
-                & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
-          end if
-          strTmp = strOut
-          call append(skFiles(iSp1), strTmp)
-        end do
-      case default
-        call setUnprocessed(value)
-        call getChildValue(child, "Prefix", buffer2, "")
-        prefix = unquote(char(buffer2))
-
-        do iSp1 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp1))
-          call init(lStr)
-          call getChildValue(child, trim(strTmp), lStr, child=child2)
-          ! We can't handle selected shells here (also not needed)
-          if (len(lStr) /= 1) then
-            call detailedError(child2, "Incorrect number of Slater-Koster files")
-          end if
-          do ii = 1, len(lStr)
-            call get(lStr, str2Tmp, ii)
-            strTmp = trim(prefix) // str2Tmp
-            call findFile(searchPath, strTmp, strOut)
-            if (.not. allocated(strOut)) then
-              call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
-                  & // "   (search path(s): " // strJoin // ").")
-            end if
-            strTmp = strOut
-            call append(skFiles(iSp1), strTmp)
-          end do
-          call destruct(lStr)
-        end do
-      end select
-      do iSp1 = 1, geo%nSpecies
-        call get(skFiles(iSp1), fileName, 1)
-        call readFromFile(skData, fileName, .true.)
-        speciesMass(iSp1) = skData%mass
-        call destruct(skFiles(iSp1))
-      end do
-    end if
-
-    call getInputMasses(root, geo, replacementMasses)
-    allocate(atomicMasses(nMovedAtom))
-    do iAt = 1, nMovedAtom
-      atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
-    end do
-    if (allocated(replacementMasses)) then
-      do iAt = 1, nMovedAtom
-        if (replacementMasses(iMovedAtoms(iAt)) >= 0.0_dp) then
-          atomicMasses(iAt) = replacementMasses(iMovedAtoms(iAt))
-        end if
-      end do
-    end if
-
-    allocate(dynMatrix(nDerivs, nDerivs))
-
-    tDumpPHSD = .true.
-
-    call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
-    call getNodeName2(value, buffer)
-    select case (char(buffer))
-    case ("directread")
-      call getChildValue(value, "File", buffer2, child=child2)
-      hessianFile = trim(unquote(char(buffer2)))
-      call openFile(file, hessianFile, mode="r", iostat=iErr)
-      if (iErr /= 0) then
-        call detailedError(child2, "Could not open file '" // hessianFile&
-            & // "' for direct reading." )
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, this%nDerivs, this%nMovedAtom,&
+          & errStatus)
+    if (errStatus%hasError()) then
+      if (errStatus%code == -1) then
+        call warning("Insufficient atoms for this number of MPI processors.")
       end if
-      read(file%unit, *, iostat=iErr) dynMatrix
-      if (iErr /= 0) then
-        call detailedError(child2, "Error during direct reading '" // hessianFile // "'.")
-      end if
-      call closeFile(file)
-    case (textNodeName)
-      call getNodeName2(value, buffer)
-      call init(realBufferList)
-      call getChildValue(child, "", nDerivs, realBufferList)
-      if (len(realBufferList) /= nDerivs) then
-        call detailedError(root,"wrong number of derivatives supplied:"&
-            & // i2c(len(realBufferList)) // " supplied, " // i2c(nDerivs) // " required.")
-      end if
-      call asArray(realBufferList, dynMatrix)
-      call destruct(realBufferList)
-      tDumpPHSD = .false.
-    case default
-      call detailedError(child, "Invalid Hessian scheme.")
-    end select
-
-    call getChild(root, "BornCharges", child, requested=.false.)
-    call getNodeName2(child, buffer)
-    if (char(buffer) /= "") then
-      call init(realBuffer)
-      call getChildValue(child, "", realBuffer)
-      if (len(realBuffer) /= 3 * nDerivs) then
-        call detailedError(root,"wrong number of Born charges supplied:"&
-            & // i2c(len(realBuffer)) // " supplied, " // i2c(3*nDerivs) // " required.")
-      end if
-      allocate(bornMatrix(len(realBuffer)))
-      call asArray(realBuffer, bornMatrix)
-      call destruct(realBuffer)
-      tDumpPHSD = .false.
+      call error(errStatus%message)
     end if
+    end associate
+  #:endif
 
-    call getChild(root, "BornDerivs", child, requested=.false.)
-    call getNodeName2(child, buffer)
-    if (char(buffer) /= "") then
-      call init(realBuffer)
-      call getChildValue(child, "", realBuffer)
-      if (len(realBuffer) /= 9 * nDerivs) then
-        call detailedError(root,"wrong number of Born charge derivatives supplied:"&
-            & // i2c(len(realBuffer)) // " supplied, " // i2c(9 * nDerivs) // " required.")
-      end if
-      allocate(bornDerivsMatrix(len(realBuffer)))
-      call asArray(realBuffer, bornDerivsMatrix)
-      call destruct(realBuffer)
-      tDumpPHSD = .false.
+    call this%getDenseDescCommon()
+
+    allocate(this%displ(3, this%geo%nAtom, this%nDerivs), source=0.0_dp)
+    allocate(this%eigen(this%denseDesc%fullSize))
+
+  #:if WITH_SCALAPACK
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc, .false.)
+    end associate
+  #:endif
+
+    call this%allocateDenseMatrices(env)
+
+  #:if WITH_SCALAPACK
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+      allocate(input%ctrl%hessian, mold=this%dynMatrix)
+      call readHessianDirectBlacs(env, input%ctrl%hessianFile, this%denseDesc, input%ctrl%hessian)
+      call dynMatFromHessianBlacs(env, this%denseDesc, this%atomicMasses, input%ctrl%hessian,&
+          & this%dynMatrix)
     end if
-
-    call getChildValue(root, "WriteHSDInput", tWriteHSD, tDumpPHSD)
-
-    tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
-
-    !! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, .true.)
-
-    !! Finish parsing, dump parsed and processed input
-    if (tWriteHSD) then
-      call dumpHSD(hsdTree, hsdParsedInput)
-      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput // "'"
+  #:else
+    @:ASSERT(allocated(this%dynMatrix))
+    if (allocated(input%ctrl%hessianFile)) then
+      @:ASSERT(.not. allocated(input%ctrl%hessian))
+      allocate(input%ctrl%hessian(this%nDerivs, this%nDerivs))
+      call readHessianDirect(input%ctrl%hessianFile, input%ctrl%hessian)
+      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
+    else
+      @:ASSERT(allocated(input%ctrl%hessian))
+      call dynMatFromHessian(this%atomicMasses, input%ctrl%hessian, this%dynMatrix)
     end if
-    write(stdout, "(A)") repeat("-", 80)
-    write(stdout, *)
-    call destroyNode(hsdTree)
+  #:endif
 
   end subroutine initProgramVariables
 
 
-  !> Read in the geometry stored as gen format.
-  subroutine readGeometry(geonode, geo)
+  !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices.
+  subroutine allocateDenseMatrices(this, env)
 
-    !> Node containing the geometry
-    type(fnode), pointer :: geonode
+    !> Instance
+    class(TModesMain), intent(inout) :: this
 
-    !> Contains the geometry information on exit
-    type(TGeometry), intent(out) :: geo
+    !> Computing environment
+    type(TEnvironment), intent(in) :: env
 
-    type(fnode), pointer :: child
-    type(string) :: buffer
+    integer :: nLocalCols, nLocalRows
 
-    call getChildValue(geonode, "", child)
-    call getNodeName(child, buffer)
-    select case (char(buffer))
-    case ("genformat")
-      call readTGeometryGen(child, geo)
-      call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
-    case ("xyzformat")
-      call readTGeometryXyz(child, geo)
-      call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
-    case ("vaspformat")
-      call readTGeometryVasp(child, geo)
-      call removeChildNodes(geonode)
-      call writeTGeometryHSD(geonode, geo)
-    case default
-      call readTGeometryHSD(geonode, geo)
-    end select
+  #:if WITH_SCALAPACK
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+    allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
+    if (this%tPlotModes) allocate(this%eigenModesScaled(nLocalRows, nLocalCols))
+  #:endif
 
-  end subroutine readGeometry
+    allocate(this%dynMatrix(nLocalRows, nLocalCols))
+
+  end subroutine allocateDenseMatrices
 
 
-  !> Reads atomic masses from input file.
-  subroutine getInputMasses(node, geo, masses)
+  !> Generate description of the total large square matrices.
+  subroutine getDenseDescCommon(this)
 
-    !> Relevant node of input data
-    type(fnode), pointer :: node
+    !> Instance
+    class(TModesMain), intent(inout) :: this
 
-    !> Geometry object, which contains atomic species information
-    type(TGeometry), intent(in) :: geo
+    print *, '###########'
+    if (allocated(this%denseDesc)) deallocate(this%denseDesc)
+    allocate(this%denseDesc)
+    allocate(this%denseDesc%iAtomStart(this%nMovedAtom + 1))
+    call buildSquaredAtomIndex(this%denseDesc%iAtomStart)
 
-    !> Masses to be returned
-    real(dp), allocatable, intent(out) :: masses(:)
+    this%denseDesc%t2Component = .false.
+    this%denseDesc%nOrb = this%nDerivs
+    this%denseDesc%fullSize = this%nDerivs
 
-    type(fnode), pointer :: child, child2, child3, val
-    type(fnodeList), pointer :: children
-    integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer, modifier
-    real(dp) :: rTmp
-    integer :: ii, jj, iAt
+  end subroutine getDenseDescCommon
 
-    call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
 
-    ! Read individual atom specifications
-    call getChildren(child, "Mass", children)
-    if (getLength(children) == 0) then
-      return
+  !> Builds an atom offset array for the dynamical matrix.
+  subroutine buildSquaredAtomIndex(iAtomStart)
+
+    !> Offset array for each atom on exit
+    integer, intent(out) :: iAtomStart(:)
+
+    integer :: ind, iAt1
+    integer :: nAtom
+
+    nAtom = size(iAtomStart) - 1
+
+    ind = 1
+    do iAt1 = 1, nAtom
+      iAtomStart(iAt1) = ind
+      ind = ind + 3
+    end do
+    iAtomStart(nAtom+1) = ind
+
+  end subroutine buildSquaredAtomIndex
+
+
+#:if WITH_SCALAPACK
+  !> Reads Hessian directly from file (bypasses the slow HSD parser).
+  subroutine readHessianDirectBlacs(env, fname, denseDesc, hessian)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> File name of Hessian
+    character(len=*), intent(in) :: fname
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Distributed Hessian matrix
+    real(dp), intent(out) :: hessian(:,:)
+
+    real(dp), allocatable :: localHessCol(:)
+    type(linecomm) :: distributor
+    type(TFileDescr) :: fd
+    integer :: nDerivs, iErr, iCol
+
+    hessian(:,:) = 0.0_dp
+
+    nDerivs = denseDesc%fullSize
+    allocate(localHessCol(nDerivs))
+
+    if (env%mpi%tGlobalLead) then
+      call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
     end if
 
-    allocate(masses(geo%nAtom))
-    masses(:) = -1.0_dp
-    do ii = 1, getLength(children)
-      call getItem1(children, ii, child2)
-      call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
-      call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
-      call convertUnitHsd(char(modifier), massUnits, child, rTmp)
-      do jj = 1, size(pTmpI1)
-        iAt = pTmpI1(jj)
-        if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(child3, "Previous setting for the mass  of atom" // i2c(iAt)&
-              & // " overwritten")
-        end if
-        masses(iAt) = rTmp
-      end do
-      deallocate(pTmpI1)
-    end do
-    call destroyNodeList(children)
+    call distributor%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-  end subroutine getInputMasses
+    do iCol = 1, nDerivs
+      if (env%mpi%tGlobalLead) then
+        read(fd%unit, *, iostat=iErr) localHessCol
+        if (iErr /= 0) then
+          call error("Error during direct reading '" // fname // "'.")
+        end if
+        call distributor%setline_lead(env%blacs%orbitalGrid, iCol, localHessCol, hessian)
+      else
+        call distributor%setline_follow(env%blacs%orbitalGrid, iCol, hessian)
+      end if
+    end do
+
+    if (env%mpi%tGlobalLead) call closeFile(fd)
+
+  end subroutine readHessianDirectBlacs
+
+
+  !> Initializes the dynamical matrix from the Hessian input.
+  subroutine dynMatFromHessianBlacs(env, denseDesc, atomicMasses, hessian, dynMatrix)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Atomic masses to build dynamical matrix
+    real(dp), intent(in) :: atomicMasses(:)
+
+    !> Hessian matrix
+    real(dp), intent(in) :: hessian(:,:)
+
+    !> Dynamical matrix
+    real(dp), intent(out) :: dynMatrix(:,:)
+
+    !> Auxiliary variables
+    integer :: iCount, jCount, iDeriv1, iDeriv2, iAt1, iAt2
+
+    @:ASSERT(all(shape(hessian) == shape(dynMatrix)))
+
+    dynMatrix(:,:) = hessian
+
+    ! mass weight the Hessian matrix to get the dynamical matrix
+    ! H_{ij} = \frac{\partial^2 \Phi}{\partial u_i \partial u_j}
+    ! D_{ij} = \frac{H_{ij}}{\sqrt{m_i m_j}}
+    !        = \frac{\partial^2 \Phi}{\partial w_i \partial w_j}
+    ! where w_i = \sqrt{m_i} u_i
+    do iCount = 1, size(dynMatrix, dim=2)
+      iDeriv1 = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      call bisection(iAt1, denseDesc%iAtomStart, iDeriv1)
+      do jCount = 1, size(dynMatrix, dim=1)
+        iDeriv2 = scalafx_indxl2g(jCount, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        call bisection(iAt2, denseDesc%iAtomStart, iDeriv2)
+        dynMatrix(jCount, iCount) = dynMatrix(jCount, iCount)&
+            & / (sqrt(atomicMasses(iAt1)) * sqrt(atomicMasses(iAt2)))
+      end do
+    end do
+
+  end subroutine dynMatFromHessianBlacs
+
+
+  !> Returns gauge-corrected eigenvectors, such that the fist non-zero coefficient of each mode is
+  !! positive.
+  subroutine setEigvecGaugeBlacs(env, denseDesc, eigvec)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
+    real(dp), intent(inout) :: eigvec(:,:)
+
+    !! Type for communicating a row or a column of a distributed matrix
+    type(linecomm) :: collector
+
+    !! Temporary storage for a single line of the collected, dense, square matrix
+    real(dp), allocatable :: localLine(:)
+
+    !! Auxiliary variables
+    integer :: iCoeff, iDerivs, nDerivs, iCount, iGlobCol
+
+    integer, allocatable :: prefac(:)
+
+    nDerivs = denseDesc%fullSize
+    allocate(localLine(nDerivs))
+    allocate(prefac(nDerivs))
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    if (env%mpi%tGlobalLead) then
+      ! runs over eigenvectors
+      do iDerivs = 1, nDerivs
+        call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigvec, localLine)
+        ! runs over eigenvector coefficients
+        lpCoeff: do iCoeff = 1, size(localLine)
+          if (abs(localLine(iCoeff)) > 1.0e-10_dp) then
+            prefac(iDerivs) = nint(sign(1.0_dp, localLine(iCoeff)))
+            exit lpCoeff
+          end if
+        end do lpCoeff
+      end do
+    else
+      do iDerivs = 1, nDerivs
+        if (env%mpi%tGroupLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigvec, localLine)
+          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, iDerivs, eigvec)
+        end if
+      end do
+    end if
+
+    call mpifx_bcast(env%mpi%globalComm, prefac)
+
+    ! set gauge
+    do iCount = 1, size(eigvec, dim=2)
+      iGlobCol = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      eigvec(:, iCount) = eigvec(:, iCount) * real(prefac(iGlobCol), dp)
+    end do
+
+  end subroutine setEigvecGaugeBlacs
+
+#:endif
+
+  !> Reads Hessian directly from file (bypasses the slow HSD parser).
+  subroutine readHessianDirect(fname, hessian)
+
+    !> File name of Hessian
+    character(len=*), intent(in) :: fname
+
+    !> Hessian matrix
+    real(dp), intent(out) :: hessian(:,:)
+
+    !! File descriptor
+    type(TFileDescr) :: fd
+
+    !! Error status
+    integer :: iErr
+
+    hessian(:,:) = 0.0_dp
+
+    call openFile(fd, fname, options=TOpenOptions(form='formatted', action='read'), iostat=iErr)
+    if (iErr /= 0) then
+      call error("Could not open file '" // fname // "' for direct reading." )
+    end if
+    read(fd%unit, *, iostat=iErr) hessian
+    if (iErr /= 0) then
+      call error("Error during direct reading '" // fname // "'.")
+    end if
+    call closeFile(fd)
+
+  end subroutine readHessianDirect
+
+
+  !> Initializes the dynamical matrix from the Hessian input.
+  subroutine dynMatFromHessian(atomicMasses, hessian, dynMatrix)
+
+    !> Atomic masses to build dynamical matrix
+    real(dp), intent(in) :: atomicMasses(:)
+
+    !> Hessian matrix
+    real(dp), intent(in) :: hessian(:,:)
+
+    !> Dynamical matrix
+    real(dp), intent(out) :: dynMatrix(:,:)
+
+    !> Auxiliary variables
+    integer :: ii, jj, kk, ll, iCount, jCount
+
+    @:ASSERT(size(hessian, dim=1) == size(hessian, dim=2))
+    @:ASSERT(3 * size(atomicMasses) == size(hessian, dim=1))
+
+    dynMatrix(:,:) = hessian
+
+    ! mass weight the Hessian matrix to get the dynamical matrix
+    ! H_{ij} = \frac{\partial^2 \Phi}{\partial u_i \partial u_j}
+    ! D_{ij} = \frac{H_{ij}}{\sqrt{m_i m_j}}
+    !        = \frac{\partial^2 \Phi}{\partial w_i \partial w_j}
+    ! where w_i = \sqrt{m_i} u_i
+    iCount = 0
+    do ii = 1, size(atomicMasses)
+      do kk = 1, 3
+        iCount = iCount + 1
+        jCount = 0
+        do jj = 1, size(atomicMasses)
+          do ll = 1, 3
+            jCount = jCount + 1
+            dynMatrix(jCount, iCount) = dynMatrix(jCount, iCount)&
+                & / (sqrt(atomicMasses(ii)) * sqrt(atomicMasses(jj)))
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine dynMatFromHessian
 
 
   !> Returns gauge-corrected eigenvectors, such that the first non-zero coefficient of each mode is

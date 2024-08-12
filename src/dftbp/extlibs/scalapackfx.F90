@@ -16,7 +16,7 @@ module dftbp_extlibs_scalapackfx
       & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape,&
       & scalafx_indxl2g, scalafx_islocal, scalafx_pgetrf, scalafx_phegv, scalafx_phegvd,&
       & scalafx_phegvr, scalafx_ppotrf, scalafx_ppotri, scalafx_psygv, scalafx_psygvd,&
-      & scalafx_psygvr, size
+      & scalafx_psygvr, scalafx_psyev, scalafx_psyevd, scalafx_psyevr, size
 #:endif
   implicit none
   public
