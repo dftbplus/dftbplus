@@ -18,7 +18,8 @@ program modes
   use dftbp_math_eigensolver, only : heev
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
-      & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables
+      & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
+      & setEigvecGauge
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -83,6 +84,7 @@ program modes
   ! solve the eigenproblem
   if (tEigenVectors) then
     call heev(dynMatrix, eigenValues, "U", "V")
+    call setEigvecGauge(dynMatrix)
   else
     call heev(dynMatrix, eigenValues, "U", "N")
   end if

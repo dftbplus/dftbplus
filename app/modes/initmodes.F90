@@ -38,6 +38,7 @@ module modes_initmodes
   public :: geo, atomicMasses, dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, nModesToPlot
   public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs
   public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
+  public :: setEigvecGauge
 
 
   !> Program version
@@ -430,5 +431,29 @@ contains
     call destroyNodeList(children)
 
   end subroutine getInputMasses
+
+
+  !> Returns gauge-corrected eigenvectors, such that the first non-zero coefficient of each mode is
+  !! positive.
+  subroutine setEigvecGauge(eigvec)
+
+    !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
+    real(dp), intent(inout) :: eigvec(:,:)
+
+    !! Auxiliary variables
+    integer :: iMode, iCoeff
+
+    do iMode = 1, size(eigvec, dim=2)
+      lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
+        if (abs(eigvec(iCoeff, iMode)) > 1e2_dp * epsilon(1.0_dp)) then
+          if (sign(1.0_dp, eigvec(iCoeff, iMode)) < 0.0_dp) then
+            eigvec(:, iMode) = -eigvec(:, iMode)
+          end if
+          exit lpCoeff
+        end if
+      end do lpCoeff
+    end do
+
+  end subroutine setEigvecGauge
 
 end module modes_initmodes
