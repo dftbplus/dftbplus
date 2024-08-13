@@ -69,6 +69,7 @@ contains
           & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="U", jobz="N")
     end if
     deallocate(this%dynMatrix)
+    call setEigvecGauge(this%eigenModesScaled)
     eigenModes = this%eigenModesScaled
   #:else
     ! remove translations or rotations if necessary
@@ -100,55 +101,55 @@ contains
     call displFromEigenmodes(this%iMovedAtoms, eigenModes, this%displ)
   #:endif
 
-    ! if (allocated(this%bornMatrix)) then
-    !   allocate(transDip(this%nDerivs), source=0.0_dp)
-    !   do jj = 1, this%nDerivs
-    !     dMu(:) = 0.0_dp
-    !     do ii = 1, this%nMovedAtom
-    !       iAt = this%iMovedAtoms(ii)
-    !       zStar(:,:) = reshape(this%bornMatrix(9 * (ii - 1) + 1:9 * ii), [3, 3])
-    !       dMu(:) = dMu + matmul(zStar, this%displ(:, iAt, jj))
-    !     end do
-    !     if (this%eigen(jj) > epsilon(0.0_dp)) then
-    !       transDip(jj) = transDip(jj) + sum(dMu**2)
-    !     end if
-    !   end do
-    !   allocate(degenTransDip(this%nDerivs), source=0.0_dp)
-    !   degenTransDip(1) = transDip(1)
-    !   nTrans = 1
-    !   do jj = 2, this%nDerivs
-    !     ! test for energy degeneracy greater than printing cutoff:
-    !     if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
-    !       nTrans = nTrans + 1
-    !     end if
-    !     degenTransDip(nTrans) = degenTransDip(nTrans) + transDip(jj)
-    !   end do
-    ! end if
+    if (allocated(this%bornMatrix)) then
+      allocate(transDip(this%nDerivs), source=0.0_dp)
+      do jj = 1, this%nDerivs
+        dMu(:) = 0.0_dp
+        do ii = 1, this%nMovedAtom
+          iAt = this%iMovedAtoms(ii)
+          zStar(:,:) = reshape(this%bornMatrix(9 * (ii - 1) + 1:9 * ii), [3, 3])
+          dMu(:) = dMu + matmul(zStar, this%displ(:, iAt, jj))
+        end do
+        if (this%eigen(jj) > epsilon(0.0_dp)) then
+          transDip(jj) = transDip(jj) + sum(dMu**2)
+        end if
+      end do
+      allocate(degenTransDip(this%nDerivs), source=0.0_dp)
+      degenTransDip(1) = transDip(1)
+      nTrans = 1
+      do jj = 2, this%nDerivs
+        ! test for energy degeneracy greater than printing cutoff:
+        if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
+          nTrans = nTrans + 1
+        end if
+        degenTransDip(nTrans) = degenTransDip(nTrans) + transDip(jj)
+      end do
+    end if
 
-    ! if (allocated(this%bornDerivsMatrix)) then
-    !   allocate(transPol(this%nDerivs), source=0.0_dp)
-    !   do jj = 1, this%nDerivs
-    !     dQ(:,:) = 0.0_dp
-    !     do ii = 1, this%nMovedAtom
-    !       iAt = this%iMovedAtoms(ii)
-    !       zStarDeriv(:,:,:) = reshape(this%bornDerivsMatrix(27 * (ii - 1) + 1:27 * ii), [3, 3, 3])
-    !       dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]), this%displ(:, iAt, jj)), [3, 3])
-    !     end do
-    !     if (this%eigen(jj) > epsilon(0.0_dp)) then
-    !       transPol(jj) = transPol(jj) + sum(dQ**2)
-    !     end if
-    !   end do
-    !   allocate(degenTransPol(this%nDerivs), source=0.0_dp)
-    !   degenTransPol(1) = transPol(1)
-    !   nTrans = 1
-    !   do jj = 2, this%nDerivs
-    !     ! test for energy degeneracy greater than printing cutoff:
-    !     if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
-    !       nTrans = nTrans + 1
-    !     end if
-    !     degenTransPol(nTrans) = degenTransPol(nTrans) + transPol(jj)
-    !   end do
-    ! end if
+    if (allocated(this%bornDerivsMatrix)) then
+      allocate(transPol(this%nDerivs), source=0.0_dp)
+      do jj = 1, this%nDerivs
+        dQ(:,:) = 0.0_dp
+        do ii = 1, this%nMovedAtom
+          iAt = this%iMovedAtoms(ii)
+          zStarDeriv(:,:,:) = reshape(this%bornDerivsMatrix(27 * (ii - 1) + 1:27 * ii), [3, 3, 3])
+          dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]), this%displ(:, iAt, jj)), [3, 3])
+        end do
+        if (this%eigen(jj) > epsilon(0.0_dp)) then
+          transPol(jj) = transPol(jj) + sum(dQ**2)
+        end if
+      end do
+      allocate(degenTransPol(this%nDerivs), source=0.0_dp)
+      degenTransPol(1) = transPol(1)
+      nTrans = 1
+      do jj = 2, this%nDerivs
+        ! test for energy degeneracy greater than printing cutoff:
+        if (abs(this%eigen(jj) - this%eigen(jj - 1)) * Hartree__cm >= 1.0E-2_dp) then
+          nTrans = nTrans + 1
+        end if
+        degenTransPol(nTrans) = degenTransPol(nTrans) + transPol(jj)
+      end do
+    end if
 
     if (this%tPlotModes) then
       call taggedWriter%write(fd%unit, "saved_modes", this%modesToPlot)
@@ -165,79 +166,79 @@ contains
       write(stdout, "(16I5)") this%modesToPlot
       call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
           & eigenModesScaledFull(:, this%modesToPlot))
-    !   if (this%tAnimateModes) then
-    !     do ii = 1, this%nModesToPlot
-    !       iMode = this%modesToPlot(ii)
-    !       write(lcTmp,"('mode_',I0,'.xyz')") iMode
-    !       do kk = 1, this%nCycles
-    !         do ll = 1, this%nSteps
-    !           isAppend = (kk > 1 .or. ll > 1)
-    !           write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
-    !           call writeXYZFormat(lcTmp, this%geo%coords + cos(2.0_dp * pi * real(ll)&
-    !               & / real(this%nSteps)) * this%displ(:,:, iMode), this%geo%species,&
-    !               & this%geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
-    !         end do
-    !       end do
-    !     end do
-    !   else
-    !     lcTmp = "modes.xyz"
-    !     do ii = 1, this%nModesToPlot
-    !       isAppend = (ii > 1)
-    !       iMode = this%modesToPlot(ii)
-    !       write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
-    !       call writeXYZFormat(lcTmp, this%geo%coords, this%geo%species, this%geo%speciesNames,&
-    !           & vectors=this%displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
-    !     end do
-    !   end if
+      if (this%tAnimateModes) then
+        do ii = 1, this%nModesToPlot
+          iMode = this%modesToPlot(ii)
+          write(lcTmp,"('mode_',I0,'.xyz')") iMode
+          do kk = 1, this%nCycles
+            do ll = 1, this%nSteps
+              isAppend = (kk > 1 .or. ll > 1)
+              write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
+              call writeXYZFormat(lcTmp, this%geo%coords + cos(2.0_dp * pi * real(ll)&
+                  & / real(this%nSteps)) * this%displ(:,:, iMode), this%geo%species,&
+                  & this%geo%speciesNames, comment=trim(lcTmp2), append=isAppend)
+            end do
+          end do
+        end do
+      else
+        lcTmp = "modes.xyz"
+        do ii = 1, this%nModesToPlot
+          isAppend = (ii > 1)
+          iMode = this%modesToPlot(ii)
+          write(lcTmp2, *) "Eigenmode", iMode, this%eigen(iMode) * Hartree__cm, "cm-1"
+          call writeXYZFormat(lcTmp, this%geo%coords, this%geo%species, this%geo%speciesNames,&
+              & vectors=this%displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
+        end do
+      end if
     end if
 
-    ! write(stdout, *) "Vibrational modes"
-    ! if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
-    !   write(stdout, "(T7,A,T16,A,T28,A)") "freq.", "IR", "Polarisability"
-    !   write(stdout, "(A,T7,A,T16,A,T28,A)") "Mode", "/ cm-1", "/ a.u.", "change / a.u."
-    ! else if (allocated(this%bornMatrix)) then
-    !   write(stdout, "(T7,A,T16,A)") "freq.", "IR"
-    !   write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "/ a.u."
-    ! else if (allocated(this%bornDerivsMatrix)) then
-    !   write(stdout, "(T7,A,T16,A)") "freq.", "Polarisability"
-    !   write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "change / a.u."
-    ! else
-    !   write(stdout, "(T7,A)") "freq."
-    !   write(stdout, "(A,T7,A)") "Mode", "cm-1"
-    ! end if
-    ! if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
-    !   do ii = 1, this%nDerivs
-    !     write(stdout, "(i5,f8.2,2E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii),&
-    !         & transPol(ii)
-    !   end do
-    ! else if (allocated(this%bornMatrix)) then
-    !   do ii = 1, this%nDerivs
-    !     write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii)
-    !   end do
-    ! else if (allocated(this%bornDerivsMatrix)) then
-    !   do ii = 1, this%nDerivs
-    !     write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transPol(ii)
-    !   end do
-    ! else
-    !   do ii = 1, this%nDerivs
-    !     write(stdout, "(i5,f8.2)") ii, this%eigen(ii) * Hartree__cm
-    !   end do
-    ! end if
-    ! write(stdout, *)
+    write(stdout, *) "Vibrational modes"
+    if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
+      write(stdout, "(T7,A,T16,A,T28,A)") "freq.", "IR", "Polarisability"
+      write(stdout, "(A,T7,A,T16,A,T28,A)") "Mode", "/ cm-1", "/ a.u.", "change / a.u."
+    else if (allocated(this%bornMatrix)) then
+      write(stdout, "(T7,A,T16,A)") "freq.", "IR"
+      write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "/ a.u."
+    else if (allocated(this%bornDerivsMatrix)) then
+      write(stdout, "(T7,A,T16,A)") "freq.", "Polarisability"
+      write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "change / a.u."
+    else
+      write(stdout, "(T7,A)") "freq."
+      write(stdout, "(A,T7,A)") "Mode", "cm-1"
+    end if
+    if (allocated(this%bornMatrix) .and. allocated(this%bornDerivsMatrix)) then
+      do ii = 1, this%nDerivs
+        write(stdout, "(i5,f8.2,2E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii),&
+            & transPol(ii)
+      end do
+    else if (allocated(this%bornMatrix)) then
+      do ii = 1, this%nDerivs
+        write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transDip(ii)
+      end do
+    else if (allocated(this%bornDerivsMatrix)) then
+      do ii = 1, this%nDerivs
+        write(stdout, "(i5,f8.2,E12.4)") ii, this%eigen(ii) * Hartree__cm, transPol(ii)
+      end do
+    else
+      do ii = 1, this%nDerivs
+        write(stdout, "(i5,f8.2)") ii, this%eigen(ii) * Hartree__cm
+      end do
+    end if
+    write(stdout, *)
 
     call taggedWriter%write(fd%unit, "frequencies", this%eigen)
 
-    ! if (allocated(this%bornMatrix)) then
-    !   call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))
-    ! end if
+    if (allocated(this%bornMatrix)) then
+      call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))
+    end if
 
-    ! if (allocated(this%bornDerivsMatrix)) then
-    !   if (this%tRemoveTranslate .or. this%tRemoveRotate) then
-    !     call taggedWriter%write(fd%unit, "scattering", degenTransPol(2:nTrans))
-    !   else
-    !     call taggedWriter%write(fd%unit, "scattering", degenTransPol(:nTrans))
-    !   end if
-    ! end if
+    if (allocated(this%bornDerivsMatrix)) then
+      if (this%tRemoveTranslate .or. this%tRemoveRotate) then
+        call taggedWriter%write(fd%unit, "scattering", degenTransPol(2:nTrans))
+      else
+        call taggedWriter%write(fd%unit, "scattering", degenTransPol(:nTrans))
+      end if
+    end if
 
     call closeFile(fd)
 
