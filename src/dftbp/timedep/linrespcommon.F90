@@ -485,23 +485,23 @@ contains
     real(dp) :: qij(size(frGamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
     real(dp) :: vout_ons(size(vin))
     real(dp), allocatable :: vLoc(:), vGlb(:), vGlb2(:)
-    real(dp), dimension(2) :: spinFactor = (/ 1.0_dp, -1.0_dp /)
+    real(dp), parameter :: spinFactor(2) = [1.0_dp, -1.0_dp]
     ! for later use to change HFX contribution
     real(dp), allocatable :: qv(:,:)
 
     @:ASSERT(size(vin) == size(vout))
 
-    !! dimension guessed from input vector
+    ! The dimension is guessed from input vector
     nMat = size(vin)
     @:ASSERT(nMat <= rpa%nxov_rd)
     nOrb = orb%nOrb
 
-    !! Local chunk of RPA vectors have this size under MPI
+    ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
     @:ASSERT(nMat == nLoc)
     allocate(vLoc, mold=vin)
-    vLoc = 0.0_dp
-    vout = 0.0_dp
+    vLoc(:) = 0.0_dp
+    vout(:) = 0.0_dp
 
     if(tAplusB) then
       vLoc(:) = vin
@@ -509,7 +509,7 @@ contains
       vLoc(:) = vin * sqrt(rpa%wij(iGlobal:fGlobal))
     endif
 
-    !> Compute w_ia = q^ia_A G_AB q^jb v_jb 
+    ! Compute w_ia = q^ia_A G_AB q^jb v_jb 
 
     oTmp(:) = 0.0_dp
     do ia = iGlobal, fGlobal
@@ -536,10 +536,10 @@ contains
 
       else
        
-        otmp = otmp * lr%spinW(species0)
+        otmp(:) = otmp * lr%spinW(species0)
 
         ! 4 * wn * (o * Q)
-        vOut = 0.0_dp
+        vOut(:) = 0.0_dp
         call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, oTmp, vOut,&
             & iGlobal-1)
         vOut(:) = 4.0_dp * rpa%sqrOccIA(iGlobal:fGlobal) * vOut
@@ -570,7 +570,7 @@ contains
 
       call assembleChunks(env, otmp)
 
-      otmp = otmp * lr%spinW(species0)
+      otmp(:) = otmp * lr%spinW(species0)
 
       do ia = iGlobal, fGlobal
         myia = ia - iGlobal + 1
@@ -591,7 +591,7 @@ contains
     ! A new index array is required because the standard abs index is symmetrical in a and b  
     if (rpa%tHybridXc) then
       
-      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
+      ! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
       nxvv_a = sum(rpa%nvir_ud**2)
       allocate(getABasym(nxvv_a, 3))
   
@@ -616,15 +616,15 @@ contains
       allocate(vGlb(rpa%nxov_rd))
       allocate(vGlb2(rpa%nxov_rd))
 
-      !> TD-LC-DFTB seems to require two additional global arrays of dim nOcc*nVir, qv is local 
+      ! TD-LC-DFTB seems to require two additional global arrays of dim nOcc*nVir, qv is local 
       qv(:,:) = 0.0_dp
       vGlb(:) = 0.0_dp
       vGlb2(:) = 0.0_dp
 
-      !> Gather local arrays in corresponding global array
+      ! Gather local arrays in corresponding global array
       call gatherChunks(env, 1, rpa%nxov_rd, vLoc, vGlb)
 
-      !> Compute w_ia = q^ij_A GLR_AB q^ab v_jb
+      ! Compute w_ia = q^ij_A GLR_AB q^ab v_jb
       do jas = iGlobal, fGlobal
         myja = jas - iGlobal + 1
         jj = rpa%getIA(rpa%win(jas), 1)
@@ -648,7 +648,7 @@ contains
         end do
       end do
 
-      !> Compute w_ia = q^ib_A GLR_AB q^ja v_jb 
+      ! Compute w_ia = q^ib_A GLR_AB q^ja v_jb 
       qv(:,:) = 0.0_dp
       do abs = iGlobalAB, fGlobalAB
         myab = abs - iGlobalAB + 1     
@@ -673,7 +673,7 @@ contains
         end do
       end do
 
-      !> Get contribution of all ranks to global array
+      ! Get contribution of all ranks to global array
       call assembleChunks(env, vGlb2) 
 
       do jas = iGlobal, fGlobal
@@ -762,7 +762,7 @@ contains
 
     nOrb = orb%nOrb
 
-    !! Local chunk of RPA vectors have this size under MPI   
+    ! Local chunk of RPA vectors have this size under MPI   
     nLoc = fGlobal - iGlobal + 1
     @:ASSERT(nMat == nLoc)
 
@@ -770,7 +770,7 @@ contains
 
       allocate(qij(lr%nAtom))
       allocate(otmp(lr%nAtom))
-      !! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
+      ! Number of vir-vir transitions a->b _and_ b->a, summed over spin channels
       nxvv_a = sum(rpa%nvir_ud**2)
       allocate(getABasym(nxvv_a, 3))
   
@@ -800,10 +800,10 @@ contains
       vGlb(:) = 0.0_dp
       vGlb2(:) = 0.0_dp
 
-      !> Gather local arrays in corresponding global array
+      ! Gather local arrays in corresponding global array
       call gatherChunks(env, 1, rpa%nxov_rd, vin, vGlb)
 
-      !> Compute w_ia = q^ij_A GLR_AB q^ab v_jb
+      ! Compute w_ia = q^ij_A GLR_AB q^ab v_jb
       do jas = iGlobal, fGlobal
         myja = jas - iGlobal + 1      
         jj = rpa%getIA(rpa%win(jas), 1)
@@ -827,7 +827,7 @@ contains
         end do
       end do
 
-      !> Compute w_ia = q^ib_A GLR_AB q^ja v_jb 
+      ! Compute w_ia = q^ib_A GLR_AB q^ja v_jb 
       qv(:,:) = 0.0_dp
       do abs = iGlobalAB, fGlobalAB
         myab = abs - iGlobalAB + 1        
@@ -852,7 +852,7 @@ contains
         end do
       end do
 
-      !> Get contribution of all ranks to global array
+      ! Get contribution of all ranks to global array
       call assembleChunks(env, vGlb2) 
 
       do jas = iGlobal, fGlobal
@@ -935,14 +935,14 @@ contains
 
     integer :: nMat, ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
-    real(dp), dimension(2) :: spinFactor = [1.0_dp, -1.0_dp]
+    real(dp), parameter :: spinFactor(2) = [1.0_dp, -1.0_dp]
     real(dp) :: rTmp
     integer :: aa, bb, iat, jbs, abs, ijs, ibs, jas
     integer :: nLoc, myia, myii
 
     nMat = size(vP, dim=1) ! also known as nXov
     
-    !! Local chunk of RPA vectors have this size under MPI
+    ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
     @:ASSERT(nMat == nLoc)
 
@@ -1523,8 +1523,8 @@ contains
 
   #:else   
 
-    eigVecGlb = eigVec
-    ovrXevGlb = ovrXev
+    eigVecGlb(:,:,:) = eigVec
+    ovrXevGlb(:,:,:) = ovrXev
     
   #:endif      
 
@@ -1747,7 +1747,7 @@ contains
     real(dp), allocatable :: temp(:)
 
     allocate(temp(newDim))
-    temp = 0.0_dp
+    temp(:) = 0.0_dp
     temp(1:oldDim) = vec
     call move_alloc(temp, vec)
 
@@ -1771,7 +1771,7 @@ contains
 
     dim2 = size(mat, dim=2)
     allocate(temp(newDim, dim2))
-    temp = 0.0_dp
+    temp(:,:) = 0.0_dp
     temp(1:oldDim,:) = mat
     call move_alloc(temp, mat)
 
@@ -1817,7 +1817,7 @@ contains
     real(dp), allocatable :: temp(:,:)
 
     allocate(temp(newDim, newDim))
-    temp = 0.0_dp
+    temp(:,:) = 0.0_dp
     temp(1:oldDim, 1:oldDim) = mat
     call move_alloc(temp, mat)
 
@@ -1843,7 +1843,7 @@ contains
     real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
     integer :: ii
 
-    dummyM = matIn
+    dummyM(:,:) = matIn
 
     call heev(dummyM, dummyEV, 'U', 'V') 
 
@@ -1865,17 +1865,17 @@ contains
 
 
   !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
-  !> vectors 1:(start-1) are already orthonormal
-  subroutine orthonormalizeVectors(env, start, end, vec)
+  !! vectors 1:(start-1) are already orthonormal
+  subroutine orthonormalizeVectors(env, iStart, iEnd, vec)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Starting place in vectors to work from
-    integer, intent(in) :: start
+    integer, intent(in) :: iStart
 
     !> Ending place in vectors
-    integer, intent(in) :: end
+    integer, intent(in) :: iEnd
 
     !> Vectors to be orthogonalized against 1:end vectors
     real(dp), intent(inout) :: vec(:,:)
@@ -1883,8 +1883,8 @@ contains
     integer :: ii, jj
     real(dp) :: dummyReal
 
-    !! Obviously, not optimal in terms of communication, can be optimized if necessary
-    do ii = start, end
+    ! Obviously, not optimal in terms of communication, can be optimized if necessary
+    do ii = iStart, iEnd
       do jj = 1, ii - 1
         dummyReal = dot_product(vec(:,ii), vec(:,jj))
         call assembleChunks(env, dummyReal)

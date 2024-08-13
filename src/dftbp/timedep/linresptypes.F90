@@ -13,7 +13,7 @@ module dftbp_timedep_linresptypes
   implicit none
 
   private
-  public :: linrespSolverTypes, TLinResp, TCasidaParameter, CasidaParameter_init
+  public :: linrespSolverTypes, TLinResp, TCasidaParameter, TCasidaParameter_init
 
   !> Types for solution of RPA equations.
   type TSolverTypesEnum
@@ -194,12 +194,12 @@ module dftbp_timedep_linresptypes
     !> Is a Z-vector calculation required?
     logical :: tZVector
         
-  end type TCasidaParameter
+    end type TCasidaParameter
 
   contains
 
     !> Initialize the internal data type for the Casida calculations.
-    subroutine CasidaParameter_init(this, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+    subroutine TCasidaParameter_init(this, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
         & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
     
       !> Run time parameters of the Casida routine
@@ -274,6 +274,6 @@ module dftbp_timedep_linresptypes
       this%tHybridXc = tHybridXc
       this%tZVector = tZVector
       
-    end subroutine CasidaParameter_init
+    end subroutine TCasidaParameter_init
 
 end module dftbp_timedep_linresptypes

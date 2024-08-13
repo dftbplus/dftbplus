@@ -15,11 +15,8 @@
     & ('integer', 1, 'I1')]
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be gathered
-#:set CHUNK_TYPES_GATHER = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
-    & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), &
-    & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), &
-    & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4'), &
-    & ('integer', 1, 'I1')]
+#:set CHUNK_TYPES_GATHER = [('real(dp)', 1, 'R1'), ('complex(dp)', 1, 'C1'),&
+    & ('integer', 1, 'I1')]    
 
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_common_schedule
