@@ -403,7 +403,13 @@ contains
 
   !> Returns gauge-corrected eigenvectors, such that the fist non-zero coefficient of each mode is
   !! positive.
-  subroutine setEigvecGauge(eigvec)
+  subroutine setEigvecGauge(env, denseDesc, eigvec)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
     real(dp), intent(inout) :: eigvec(:,:)
@@ -414,12 +420,40 @@ contains
     do iMode = 1, size(eigvec, dim=2)
       lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
         if (abs(eigvec(iCoeff, iMode)) > 1.0e-10_dp) then
-          if (sign(1.0_dp, eigvec(iCoeff, iMode)) < 0.0_dp) then
-            eigvec(:, iMode) = -eigvec(:, iMode)
-          end if
+          eigvec(:, iMode) = eigvec(:, iMode) * sign(1.0_dp, eigvec(iCoeff, iMode))
           exit lpCoeff
         end if
       end do lpCoeff
+    end do
+
+    ! determine position of first non-zero entry of distributed eigenvectors
+    do iCount = 1, size(eigvec, dim=2)
+      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      tmp(:) = abs(eigvec(:, iCount)
+      firstNonZeroIdx(iDeriv) = denseDesc%fullSize
+      lpIdx: do idx = 1, size(tmp)
+        if (tmp(idx) > 1.0e-10_dp) then
+          iRow = scalafx_indxl2g(idx, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+              & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+          ! does greater idx automatically ensure greater iRow?
+          firstNonZeroIdx(iDeriv) = iRow
+          exit lpIdx
+        end if
+      end do lpIdx
+    end do
+
+    do idx = 1, size(firstNonZeroIdx)
+      ! how do I call this?
+      call mpifx_allreduce(env%mpi%globalComm, firstNonZeroIdx(idx), rank, MPI_MINLOC)
+      call mpifx_bcast(env%mpi%globalComm, firstNonZeroVal(idx), root=rank)
+    end do
+
+    ! set gauge
+    do iCount = 1, size(eigvec, dim=2)
+      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      eigvec(:, iCount) = eigvec(:, iCount) * sign(1.0_dp, firstNonZeroVal(iDeriv))
     end do
 
   end subroutine setEigvecGauge

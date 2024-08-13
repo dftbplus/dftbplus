@@ -69,7 +69,7 @@ contains
           & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="U", jobz="N")
     end if
     deallocate(this%dynMatrix)
-    call setEigvecGauge(this%eigenModesScaled)
+    call setEigvecGauge(env, this%denseDesc, this%eigenModesScaled)
     eigenModes = this%eigenModesScaled
   #:else
     ! remove translations or rotations if necessary
@@ -318,7 +318,7 @@ contains
 
     !! Auxiliary variables
     integer :: iCount, jCount, iDeriv, iAt
-    real(dp), allocatable :: localLine(:), sqrtModes(:)
+    real(dp), allocatable :: sqrtModes(:)
 
     ! scale mode components by mass of atoms
     do iCount = 1, size(eigenModes, dim=2)
@@ -332,28 +332,18 @@ contains
     end do
 
     nDerivs = denseDesc%fullSize
-    allocate(localLine(nDerivs))
-    allocate(sqrtModes(nDerivs))
+    allocate(sqrtModes(nDerivs), source=0.0_dp)
 
-    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+    ! eigenModes(iAtCoord, iDeriv)
 
-    leadOrFollow: if (env%mpi%tGlobalLead) then
-      do iDeriv = 1, nDerivs
-        call collector%getline_lead(env%blacs%orbitalGrid, iDeriv, eigenModes, localLine)
-        sqrtModes(iDeriv) = sqrt(sum(localLine**2))
-      end do
-    else
-      do iDeriv = 1, nDerivs
-        if (env%mpi%tGroupLead) then
-          call collector%getline_lead(env%blacs%orbitalGrid, iDeriv, eigenModes, localLine)
-          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
-        else
-          call collector%getline_follow(env%blacs%orbitalGrid, iDeriv, eigenModes)
-        end if
-      end do
-    end if leadOrFollow
+    ! collect square roots of distributed eigenvectors
+    do iCount = 1, size(eigenModes, dim=2)
+      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      sqrtModes(iDeriv) = sqrt(sum(eigenModes(:, iCount)**2))
+    end do
 
-    call mpifx_bcast(env%mpi%globalComm, sqrtModes)
+    call mpifx_allreduceip(env%mpi%globalComm, sqrtModes, MPI_SUM)
 
     ! normalize total modes
     do iCount = 1, size(eigenModes, dim=2)
