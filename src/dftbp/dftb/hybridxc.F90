@@ -4859,8 +4859,9 @@ contains
         if (iAtK /= iAtC) then
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, this%rCoords, this%species0, iAtK,&
               & iAtC, orb)
-          call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, this%rCoords, this%species0, iAtC,&
-              & iAtK, orb)
+          do alpha = 1, 3
+            sPrimeTmp2(:,:, alpha) = -transpose(sPrimeTmp(:,:, alpha))
+          end do
         end if
         loopB: do iAtB = 1, nAtom0
           ! A > B
