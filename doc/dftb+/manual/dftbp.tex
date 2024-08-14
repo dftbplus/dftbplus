@@ -5462,8 +5462,7 @@ available for range separated calculations.
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
-    \kw{WriteTransitionCharges} & l & \parbox{0.3\textwidth}{\raggedright
-      \is{RangeSeparated} and \is{StateOfInterest} non-zero} & No & \\
+    \kw{WriteTransitionCharges} & l & \is{StateOfInterest} non-zero & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
     \kw{WriteMulliken}          & l & & No & \\
     \kw{WriteCoefficients}      & l & & No & \\
@@ -5522,15 +5521,18 @@ available for range separated calculations.
     created, which contains the spectrum at the uncoupled DFTB level (i.e.\ the
     single-particle excitations).
 
-  \item[\is{WriteTransitionCharges}] For range separated calculations
-    (p.~\pref{sec:dftbp.Hybrid}) setting this to \is{Yes} generates the file
-    ATQ.DAT containing the Mulliken charges for a specific transition (chosen by
-    \is{StateOfInterest}).
+  \item[\is{WriteTransitionCharges}] For singlet or spin-polarized
+    calculations setting this to \is{Yes} generates the file
+    ATQ.DAT containing the Mulliken charges for a specific excited state (chosen by
+    \is{StateOfInterest}) according to \cite{plotz2014new}.
 
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT
     are created. The former contains atom-resolved Mulliken (gross) charges for
     the excited state of interest, the latter the excited-state dipole moment of
-    the state.
+    the state. Warning: These quantities are computed from the relaxed
+    transition density added to the ground state density and do
+    possibly not faithfully represent the charges for a given excited many-body
+    state.  
 
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is
     created. This file contains the complex eigenvectors (molecular orbital

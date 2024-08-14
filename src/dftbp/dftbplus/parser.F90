@@ -4931,7 +4931,6 @@ contains
     call getChild(node, "Casida", child, requested=.false.)
 
     if (associated(child)) then
-
       allocate(ctrl%lrespini)
       ctrl%lrespini%tPrintEigVecs = .false.
 

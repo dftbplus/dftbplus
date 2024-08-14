@@ -1674,6 +1674,9 @@ contains
 
 
   !> Excited state Mulliken charges and dipole moments written to disc.
+  !! These are charges from the relaxed transition density T + Z added
+  !! to the ground state density. Not clear if this makes sense at all.
+  !! We keep it for backward compatibility. 
   subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0)
 
     !> Symmetry label
@@ -1687,7 +1690,7 @@ contains
 
     !> Change in atomic charges from ground to excited state
     real(dp), intent(in) :: dqex(:)
-
+    
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
 
@@ -1709,7 +1712,7 @@ contains
     do m = 1, natom
       write(fdMulliken%unit,"(i5,1x,f16.8)") m, -dq(m) - dqex(m)
     end do
-    call closeFile(fdMulliken)
+    call closeFile(fdMulliken) 
 
     ! Calculation of excited state dipole moment
     dipol(:) = -1.0_dp * matmul(coord0, dq + dqex)

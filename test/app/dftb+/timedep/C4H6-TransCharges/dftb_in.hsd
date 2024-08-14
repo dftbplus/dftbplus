@@ -1,0 +1,44 @@
+Geometry = GenFormat {
+    <<< "butadiene.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-8
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "slakos/origin/mio-1-1/"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    Filling = Fermi {Temperature [K] = 0}
+}
+ExcitedState {
+    Casida {
+        NrOfExcitations = 20
+	Symmetry = Singlet
+        StateOfInterest = 1
+	WriteTransitionCharges = Yes
+	Diagonaliser = Stratmann {SubSpaceFactor = 50}	
+    }
+}
+ParserOptions {
+    ParserVersion = 10
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  Blacs = BlockSize { 1 } # Very small
+}
+

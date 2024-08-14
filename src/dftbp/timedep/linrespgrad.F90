@@ -24,7 +24,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_dftb_sk, only : rotateH0
   use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
   use dftbp_extlibs_arpack, only : withArpack, saupd, seupd
-  use dftbp_io_message, only : error
+  use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, hemv, symm, herk
   use dftbp_math_degeneracy, only : TDegeneracyFind
@@ -63,6 +63,7 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: excitationsOut = "EXC.DAT"
   character(*), parameter :: transDipOut = "TDP.DAT"
   character(*), parameter :: naCouplingOut = "NACV.DAT"
+  character(*), parameter :: transChrgOut = "ATQ.DAT"
 
 
   ! Solver related variables
@@ -223,7 +224,7 @@ contains
     !> Casida parameters (number of transitions, index arrays and alike)
     type(TCasidaParameter) :: rpa
 
-    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
+    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc, fdTransQ
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -567,8 +568,8 @@ contains
     if (this%writeTrans) then
       call openFile(fdTrans, transitionsOut, mode="w")
       write(fdTrans%unit,*)
-    end if
-
+    end if  
+    
     ! Many-body transition dipole file to excited states
     if (this%writeTransDip) then
       call openFile(fdTransDip, transDipOut, mode="w")
@@ -626,6 +627,12 @@ contains
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(this, rpa, sym, eval, xpy, snglPartTransDip(1:rpa%nxov_rd,:),&
           & nstat, osz, transitionDipoles)
+
+      ! Transition charges for state nstat
+      if (this%writeTransQ) then
+        call getAndWriteTransitionCharges(env, this, rpa, transChrg, sym, denseDesc, ovrXev,&
+            & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+      end if 
 
       if (this%tSpin) then
         
@@ -759,7 +766,7 @@ contains
           end if
 
           if (this%writeMulliken) then
-            ! For now, only total Mulliken charges
+            ! This prints charges for an excited state from the relaxed transition density
             call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
           end if
 
@@ -5230,5 +5237,88 @@ contains
     write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
 
   end subroutine conicalIntersectionOptimizer
+
+  !> Computes transition charges for a given excited state according to
+  !! JCP 140, 174101 (2014). Works for singlet states and spin polarized calculations.
+  !! Initialization prevents entering this routine for triplets for which the charges
+  !! would simply be zero. 
+  subroutine getAndWriteTransitionCharges(env, lr, rpa, transChrg, sym, denseDesc, ovrXev, &
+      & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+     
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+    
+    !> symmetry flag (singlet or triplet)
+    character, intent(in) :: sym
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> overlap times eigenvector. (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: ovrXev(:,:,:)
+    
+    !> eigenvectors (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> (X+Y) RPA eigenvectors (global)
+    real(dp), intent(in) :: xpy(:,:)
+
+    !> File descriptor for ATQ.DAT
+    type(TFileDescr) :: fdTransQ
+
+    !> File unit for tagged output (> -1 for write out)
+    type(TFileDescr), intent(in) :: fdTagged
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    integer :: i, ia
+    real(dp), allocatable :: atomicTransQ(:), qia(:)
+    real(dp) :: preFactor
+
+    @:ASSERT(size(xpy(:, lr%nstat) == rpa%nxov_rd))
+    
+    if (lr%tSpin) then
+      preFactor = 1.0_dp
+    else
+      preFactor = sqrt(2.0_dp)
+    endif
+    
+    allocate(atomicTransQ(lr%nAtom))
+    allocate(qia(lr%nAtom))
+
+    atomicTransQ(:) = 0.0_dp 
+    do ia = 1, rpa%nxov_rd
+      qia(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+      atomicTransQ(:) = atomicTransQ + preFactor * qia * xpy(ia,lr%nstat)
+    end do
+
+    call openfile(fdTransQ, transChrgOut, mode="w")
+    
+    
+    write(fdTransQ%unit, '(a)') "#"
+    write(fdTransQ%unit, '(a,2x,a,5x,a)') "#", "atom", "transition charge"
+    write(fdTransQ%unit, '(a)') "#"
+
+    do i = 1, lr%nAtom
+      write(fdTransQ%unit, '(2x,i5,5x,f12.9)') i, atomicTransQ(i)
+    end do
+
+    call closeFile(fdTransQ)
+
+    if (fdTagged%isConnected()) then
+      call taggedWriter%write(fdTagged%unit, tagLabels%transQ, atomicTransQ**2)
+    end if 
+     
+  end subroutine getAndWriteTransitionCharges
 
 end module dftbp_timedep_linrespgrad
