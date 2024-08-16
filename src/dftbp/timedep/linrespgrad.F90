@@ -23,7 +23,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime
   use dftbp_dftb_sk, only : rotateH0
   use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
-  use dftbp_extlibs_arpack, only : withArpack, saupd, seupd
+  use dftbp_extlibs_arpack, only : psaupd, pseupd, saupd, seupd, withArpack
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, hemv, symm, herk
@@ -970,8 +970,7 @@ contains
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
-  #:if WITH_SCALAPACK and WITH_ARPACK 
-    external pdsaupd, pdseupd
+  #:if WITH_PARPACK
     comm = env%mpi%globalComm%id 
   #:endif
 
@@ -1010,20 +1009,16 @@ contains
     iparam(3) = maxArIter
     ! solve A*x = lambda*x, with A symmetric
     iparam(7) = 1
-    
+
     do
 
       ! call the reverse communication interface from arpack
-    #:if WITH_SCALAPACK and WITH_ARPACK
-
-      call pdsaupd(comm, ido, "I", nLoc, "SM", nexc, arTol, resid, ncv, vv, nLoc, iparam,&
+    #:if WITH_PARPACK
+      call psaupd(comm, ido, "I", nLoc, "SM", nexc, arTol, resid, ncv, vv, nLoc, iparam,&
           & ipntr, workd, workl, lworkl, info)
- 
     #:else
-      
       call saupd(ido, "I", rpa%nxov_rd, "SM", nexc, arTol, resid, ncv, vv, rpa%nxov_rd, iparam,&
           & ipntr, workd, workl, lworkl, info)
-      
     #:endif
 
       if (ido == 99) then
@@ -1061,9 +1056,9 @@ contains
       ! to DSAUPD.  These arguments MUST NOT BE MODIFIED between the the last call to DSAUPD and the
       ! call to DSEUPD.s
       ! Note: At this point xpy holds the hermitian eigenvectors F
-    #:if WITH_SCALAPACK and WITH_ARPACK
+    #:if WITH_PARPACK
 
-      call pdseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,& 
+      call pseupd (comm, rvec, "All", selection, eval, vv, nLoc, sigma, "I", nLoc,&
           & "SM", nexc, arTol, resid, ncv, vv, nLoc, iparam, ipntr, workd, workl, lworkl, info)
 
       xpy(:,:) = 0.0_dp
@@ -1211,10 +1206,6 @@ contains
     character(lc) :: tmpStr
 
     logical :: didConverge
-    
-  #:if WITH_SCALAPACK
-    external pdsaupd, pdseupd
-  #:endif
     
     ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
