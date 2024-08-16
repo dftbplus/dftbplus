@@ -10,9 +10,6 @@
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/libmbd/libmbd.git
-[submodule "external/fytest/origin"]
-	path = external/fytest/origin
-	url = https://github.com/aradi/fytest.git
 [submodule "external/tblite/origin"]
 	path = external/tblite/origin
 	url = https://github.com/tblite/tblite.git
@@ -37,3 +34,8 @@
 [submodule "external/chimes/origin"]
 	path = external/chimes/origin
 	url = https://github.com/rk-lindsey/chimes_calculator.git
+[submodule "external/fortuno/origin"]
+	path = external/fortuno/origin
+	# url = https://github.com/fortuno-repos/fortuno.git
+    url = https://github.com/aradi/fortuno.git
+    branch = testlist
