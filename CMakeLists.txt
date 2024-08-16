@@ -296,14 +296,13 @@ if(WITH_CHIMES)
   external/chimes "${exclude}" "${CHIMES_GIT_REPOSITORY}" "${CHIMES_GIT_TAG}")
 endif()
 
-# FyTest currently can only be integrated as a submodule
+# Fortuno currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
-  set(FYTEST_GIT_REPOSITORY "https://github.com/aradi/fytest.git")
-  set(FYTEST_GIT_TAG "94e05acb31e78da1180845e345e542a1a28577d4")  # do not change manually!
-  dftbp_config_hybrid_dependency(Fytest FyTest::FyTest "Submodule" "QUIET"
-  external/fytest "${exclude}" "${FYTEST_GIT_REPOSITORY}" "${FYTEST_GIT_TAG}")
+  set(FORTUNO_GIT_REPOSITORY "https://github.com/fortuno-repos/fortuno.git")
+  set(FORTUNO_GIT_TAG "186c9159685413a1aeefe3524986750aeb31775c")  # do not change manually!
+  dftbp_config_hybrid_dependency(Fortuno Fortuno::fortuno_serial "Submodule" "QUIET"
+  external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
 endif()
-
 
 #
 # Add internal components

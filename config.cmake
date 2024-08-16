@@ -113,7 +113,7 @@ else()
     "How to run the modes code for tests")
 endif()
 
-# Turn it on to include the unit tests (needes FyTest)
+# Turn it on to include the unit tests (needs the Fortuno unit testing framework)
 option(WITH_UNIT_TESTS "Whether the unit tests should be built" FALSE)
 
 
