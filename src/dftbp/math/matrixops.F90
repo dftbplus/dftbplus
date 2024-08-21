@@ -10,7 +10,10 @@
 !> Simple matrix operations for which LAPACK does not have a direct call
 module dftbp_math_matrixops
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : assembleChunks
 #:if WITH_SCALAPACK
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, MB_, NB_, pblasfx_ptranc,&
       & pblasfx_ptran, scalafx_indxl2g
 #:endif
@@ -18,7 +21,7 @@ module dftbp_math_matrixops
   implicit none
 
   private
-  public :: adjointLowerTriangle
+  public :: adjointLowerTriangle, orthonormalizeVectors
 #:if WITH_SCALAPACK
   public :: adjointLowerTriangle_BLACS
 
@@ -154,5 +157,41 @@ contains
   end subroutine hermitian_BLACS
 
 #:endif
+
+
+  !> Perform modified Gram-Schmidt orthonormalization of the vectors in the columns of
+  !! vecs(:,start:end), while also keeping them orthogonal to vecs(:,:start-1) (which are assumed to
+  !! already be orthogonal)
+  subroutine orthonormalizeVectors(env, iStart, iEnd, vecs)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Starting place in vectors to work from
+    integer, intent(in) :: iStart
+
+    !> Ending place in vectors
+    integer, intent(in) :: iEnd
+
+    !> Vectors to be orthogonalized against 1:end vectors
+    real(dp), intent(inout) :: vecs(:,:)
+
+    integer :: ii, jj
+    real(dp) :: dummyReal
+
+    ! Obviously, not optimal in terms of communication, can be optimized if necessary. Assumes vecs
+    ! are column block distributed (not block cyclic column and row) if parallel.
+    do ii = iStart, iEnd
+      do jj = 1, ii - 1
+        dummyReal = dot_product(vecs(:,ii), vecs(:,jj))
+        call assembleChunks(env, dummyReal)
+        vecs(:,ii) = vecs(:,ii) - dummyReal * vecs(:,jj)
+      end do
+      dummyReal = dot_product(vecs(:,ii), vecs(:,ii))
+      call assembleChunks(env, dummyReal)
+      vecs(:,ii) = vecs(:,ii) / sqrt(dummyReal)
+    end do
+
+  end subroutine orthonormalizeVectors
 
 end module dftbp_math_matrixops

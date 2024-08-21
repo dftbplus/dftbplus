@@ -406,6 +406,7 @@ contains
 
   end subroutine getSqrOcc
 
+
   !> Multiplies the excitation supermatrix with a supervector.
   !! For the hermitian RPA eigenvalue problem this corresponds to \Omega_ias,jbt * v_jbt
   !! (spin polarized case) or \Omega^{S/T}_ia,jb * v_jb (singlet/triplet)
@@ -420,9 +421,10 @@ contains
   !! Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !! assembled individually and multiplied directly with the corresponding part of the supervector.
   !! Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices
-  !! in global arrays
+  !! in global arrays. The supervector is column block distributed (not block cyclic on columns and
+  !! rows).
   subroutine actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-    &  ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, lrGamma)
+    & ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, lrGamma)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -579,7 +581,7 @@ contains
 
         ss = rpa%getIA(rpa%win(ia), 3)
 
-        vOut(myia) = vOut(myia) + 2.0_dp * rpa%sqrOccIA(ia) * spinFactor(ss) * &
+        vOut(myia) = vOut(myia) + 2.0_dp * rpa%sqrOccIA(ia) * spinFactor(ss) *&
             & dot_product(qij, otmp)
 
       end do
@@ -698,12 +700,15 @@ contains
 
   end subroutine actionAplusB
 
+
   !> Multiplies the excitation supermatrix with a supervector.
   !! (A-B)_ias,jbt * v_jbt is computed (and similar for singlet/triplet)
   !! (see definitions in Marc Casida, in Recent Advances in Density Functional Methods,
   !!  World Scientific, 1995, Part I, p. 155.)
   !! See also Dominguez JCTC 9 4901 (2013), Kranz JCTC 13 1737 (2017) for DFTB specifics.
-  !! Note MPI: The supervector is distributed, locSize gives the local size.
+  !! Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices
+  !! in global arrays. The supervector is column block distributed (not block cyclic on columns and
+  !! rows).
   subroutine actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,  ovrXev,&
       & grndEigVecs, vin, vout, lrGamma)
 
@@ -867,6 +872,7 @@ contains
 
   end subroutine actionAminusB
 
+
   !> Generates initial matrices M+ and M- for the RPA algorithm by Stratmann
   !! (JCP 109 8218 (1998).
   !! M+/- = (A+/-B)_ias,jbt (spin polarized) (A+/-B)^{S/T}_ia,jb (closed shell)
@@ -875,7 +881,8 @@ contains
   !! Note: Routine not set up to handle onsite corrections.
   !! Note: Not yet OpenMP parallelized
   !! Note MPI: The supervector is distributed: iGlobal and fGlobal mark the relevant indices
-  !! in global arrays
+  !! in global arrays. The supervector is column block distributed (not block cyclic on columns and
+  !! rows).
   subroutine initialSubSpaceMatrixApmB(iGlobal, fGlobal, env, lr, rpa, transChrg, sym,&
       & denseDesc, species0, ovrXev, grndEigVecs, frGamma, lrGamma, initDim, vP, vM, mP, mM)
 
@@ -1091,6 +1098,7 @@ contains
 
   end subroutine initialSubSpaceMatrixApmB
 
+
   !> Onsite energy corrections
   !! Routine also works for MPI if optional index offset is provided. The arrays ovrXev and
   !! grndEigVecs still need to be global!
@@ -1207,7 +1215,7 @@ contains
           end do
         else
           ! closed shell
-          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + &
+          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) +&
               & qq_ij(:nOrb, :nOrb) * rpa%sqrOccIA(iaGlb) * vin(ia)&
               & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
         end if
@@ -1248,12 +1256,13 @@ contains
 
       #:endif
 
-        vout(ia) = vout(ia) + 4.0_dp * rpa%sqrOccIA(iaGlb) * &
+        vout(ia) = vout(ia) + 4.0_dp * rpa%sqrOccIA(iaGlb) *&
             & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
       end do
     end do
 
   end subroutine onsiteEner
+
 
   !> Calculating spin polarized excitations.
   !! Note: the subroutine is generalized to account for spin and partial occupancy
@@ -1458,6 +1467,7 @@ contains
 
   end subroutine calcTransitionDipoles
 
+
   !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
   !! considered an upper threshold for reliability according to Garcia thesis).
   subroutine getExcSpin(env, orb, rpa, denseDesc, Ssq, xpy, filling, ovrXev, eigVec)
@@ -1623,6 +1633,7 @@ contains
     end do
 
   end subroutine getExcSpin
+
 
   !> Write single particle excitations to a file.
   subroutine writeSPExcitations(lr, rpa, sposz)
@@ -1865,40 +1876,6 @@ contains
     call gemm(matInvOut, dummyM2, dummyM, transB='T')
 
   end subroutine calcMatrixSqrt
-
-
-  !> Perform modified Gram-Schmidt orthonormalization of vectors in columns of vec(1:end). Assume
-  !! vectors 1:(start-1) are already orthonormal
-  subroutine orthonormalizeVectors(env, iStart, iEnd, vec)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Starting place in vectors to work from
-    integer, intent(in) :: iStart
-
-    !> Ending place in vectors
-    integer, intent(in) :: iEnd
-
-    !> Vectors to be orthogonalized against 1:end vectors
-    real(dp), intent(inout) :: vec(:,:)
-
-    integer :: ii, jj
-    real(dp) :: dummyReal
-
-    ! Obviously, not optimal in terms of communication, can be optimized if necessary
-    do ii = iStart, iEnd
-      do jj = 1, ii - 1
-        dummyReal = dot_product(vec(:,ii), vec(:,jj))
-        call assembleChunks(env, dummyReal)
-        vec(:,ii) = vec(:,ii) - dummyReal * vec(:,jj)
-      end do
-      dummyReal = dot_product(vec(:,ii), vec(:,ii))
-      call assembleChunks(env, dummyReal)
-      vec(:,ii) = vec(:,ii) / sqrt(dummyReal)
-    end do
-
-  end subroutine orthonormalizeVectors
 
 
   !> Encapsulate memory expansion for Stratmann solver.
