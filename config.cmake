@@ -95,12 +95,8 @@ option(TEST_WITH_VALGRIND "Whether valgrind should be invoked when testing binar
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
 if(WITH_MPI)
-  if(WITH_OMP)
-    set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} mpiexec -n \${TEST_MPI_PROCS}"
-      CACHE STRING "How to run the tests")
-  else()
-    set(TEST_RUNNER_TEMPLATE "mpiexec -n \${TEST_MPI_PROCS}" CACHE STRING "How to run the tests")
-  endif()
+  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} mpiexec -n \${TEST_MPI_PROCS}"
+    CACHE STRING "How to run the tests")
 elseif(TEST_WITH_VALGRIND)
   set(VALGRIND_OPTIONS
     "--exit-on-first-error=yes --error-exitcode=1 --leak-check=full --show-leak-kinds=definite,possible --errors-for-leak-kinds=definite,possible"
