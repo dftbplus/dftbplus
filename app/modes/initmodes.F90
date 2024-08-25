@@ -11,11 +11,12 @@
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
+  use dftbp_common_constants, only : Hartree__cm
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_filesystem, only : findFile, getParamSearchPath
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_release, only : releaseYear
-  use dftbp_common_unitconversion, only : massUnits
+  use dftbp_common_unitconversion, only : massUnits, energyUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
       & getNodeName, destroyNode, destroyNodeList, textNodeName
   use dftbp_io_charmanip, only : i2c, tolower, unquote
@@ -38,8 +39,8 @@ module modes_initmodes
   public :: geo, atomicMasses, dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, nModesToPlot
   public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs
   public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
-  public :: setEigvecGauge
 
+  public :: isPhaseLocked, degenTol, setEigvecGauge
 
   !> Program version
   character(len=*), parameter :: version = "0.03"
@@ -83,6 +84,12 @@ module modes_initmodes
   !> directions
   logical :: tEigenVectors
 
+  !> Are eigenvectors treated to set transferable phase
+  logical :: isPhaseLocked
+
+  !> Tolerance for degenerate eigenstates
+  real(dp) :: degenTol
+
   !> Animate mode  or as vectors
   logical :: tAnimateModes
 
@@ -124,7 +131,7 @@ contains
     type(fnode), pointer :: value, child, child2
     type(TListRealR1) :: realBufferList
     type(TListReal) :: realBuffer
-    type(string) :: buffer, buffer2
+    type(string) :: buffer, buffer2, modifier
     type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
@@ -333,6 +340,17 @@ contains
 
     tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
 
+  #:if not WITH_MPI
+    if (tEigenVectors) then
+      call getChildValue(root, "PhaseLock", isPhaseLocked, .false.)
+      if (isPhaseLocked) then
+        call getChildValue(root, "DegenerateAt", degenTol, 1.0E-3_dp/Hartree__cm,&
+            & modifier=modifier, child=child)
+        call convertUnitHsd(char(modifier), energyUnits, child, degenTol)
+      end if
+    end if
+  #:endif
+
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
 
@@ -446,9 +464,7 @@ contains
     do iMode = 1, size(eigvec, dim=2)
       lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
         if (abs(eigvec(iCoeff, iMode)) > 1e2_dp * epsilon(1.0_dp)) then
-          if (sign(1.0_dp, eigvec(iCoeff, iMode)) < 0.0_dp) then
-            eigvec(:, iMode) = -eigvec(:, iMode)
-          end if
+          eigvec(:, iMode) = sign(1.0_dp, eigvec(iCoeff, iMode)) * eigvec(:, iMode)
           exit lpCoeff
         end if
       end do lpCoeff

@@ -16,4 +16,7 @@ Hessian = {
   <<< "hessian.out"
 }
 
+PhaseLock = Yes
+DegenerateAt = 1E-20 # Very small, working around current state before rebasing
+
 InputVersion = 3

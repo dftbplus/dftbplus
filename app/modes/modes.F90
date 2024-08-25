@@ -11,15 +11,18 @@
 program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
+  use dftbp_math_phase, only : phaseLock
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
       & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
-      & setEigvecGauge
+      & isPhaseLocked, degenTol, setEigvecGauge
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -39,6 +42,8 @@ program modes
   character(lc) :: lcTmp, lcTmp2
   type(TFileDescr) :: fd
   logical :: isAppend
+
+  type(TEnvironment) :: env
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -84,7 +89,15 @@ program modes
   ! solve the eigenproblem
   if (tEigenVectors) then
     call heev(dynMatrix, eigenValues, "U", "V")
-    call setEigvecGauge(dynMatrix)
+  #:if WITH_SCALAPACK
+    call setEigvecGauge(dynMatrix) ! single processor case, hack for the moment until merged
+  #:else
+    if (isPhaseLocked) then
+      call phaseLock(env, dynMatrix, eigenValues, degenTol)
+    else
+      call setEigvecGauge(dynMatrix) ! hack for the moment until merged
+    end if
+  #:endif
   else
     call heev(dynMatrix, eigenValues, "U", "N")
   end if
