@@ -2394,7 +2394,7 @@ contains
     real(dp), allocatable :: shxpyq(:,:), xpycc(:,:,:), wcc(:,:,:), tmp5(:), tmp7(:), tmp11(:)
     real(dp), allocatable :: qTr(:), temp(:), dq(:), dm(:), dsigma(:)
     real(dp), allocatable :: dH0(:,:,:), dSo(:,:,:)
-    real(dp), allocatable :: Dens(:,:), SpinDens(:,:)
+    real(dp), allocatable :: dens(:,:), spinDens(:,:)
     real(dp), allocatable :: xmycc(:,:,:), xpyas(:,:,:), xmyas(:,:,:)
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:)
@@ -2419,8 +2419,8 @@ contains
     allocate(tmp5(nSpin))
     allocate(tmp7(nSpin))
 
-    allocate(Dens(nOrb, nOrb))
-    Dens(:,:) = sum(rhoSqr, dim=3)
+    allocate(dens(nOrb, nOrb))
+    dens(:,:) = sum(rhoSqr, dim=3)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -2436,8 +2436,8 @@ contains
       allocate(xpyqds(lr%nAtom))
       allocate(tmp11(nSpin))
 
-      allocate(SpinDens(nOrb,nOrb))
-      SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
+      allocate(spinDens(nOrb,nOrb))
+      spinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
       allocate(dsigma(2))
       dsigma(1) = 1.0_dp
@@ -2750,12 +2750,12 @@ contains
                 tmp1 = tmp1 + 2.0_dp * dH0(n,m,xyz) * pc(mu,nu,iSpin)
                 tmp2 = tmp2 + dSo(n,m,xyz) * pc(mu,nu,iSpin) * (shift(iAt1)+shift(iAt2))
                 tmp3 = tmp3 - dSo(n,m,xyz) * wcc(mu,nu,iSpin)
-                tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * Dens(mu,nu)
+                tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * dens(mu,nu)
                 tmp6 = tmp6 + tmp7(iSpin) * dSo(n,m,xyz) * xpycc(mu,nu,iSpin)
 
                 if (lr%tSpin) then
                   tmp8 = tmp8 + tmp9 * dSo(n,m,xyz) * dsigma(iSpin) * pc(mu,nu,iSpin)
-                  tmp10 = tmp10 + tmp11(iSpin) * dSo(n,m,xyz) * dsigma(iSpin) * SpinDens(mu,nu)
+                  tmp10 = tmp10 + tmp11(iSpin) * dSo(n,m,xyz) * dsigma(iSpin) * spinDens(mu,nu)
                 end if
 
                 if (rpa%tHybridXc) then
@@ -2968,9 +2968,9 @@ contains
     integer :: nmat, ii, jj, iweight, indo, m, n, s
     real(dp), allocatable :: wvec(:), oDeg(:)
     real(dp) :: weight, wvnorm
-    logical :: updwn, tSpin,tDegenerate
+    logical :: updwn, tSpin, tDegenerate
     character :: sign
-    type(TDegeneracyFind) :: DegeneracyFind
+    type(TDegeneracyFind) :: degeneracyFind
 
     tSpin = present(Ssq)
     nmat = size(rpa%wij)
@@ -3124,7 +3124,7 @@ contains
         degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged%unit, tagLabels%excEgy, eval(degenerate(1,:)))
         ! sum oscillator strength over any degenerate levels
-        allocate(oDeg(DegeneracyFind%degenerateGroups()))
+        allocate(oDeg(degeneracyFind%degenerateGroups()))
         do ii = 1, size(oDeg)
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
@@ -4347,7 +4347,7 @@ contains
     real(dp), allocatable :: shxpyq(:,:,:), xpycc(:,:,:,:), wcc(:,:,:), tmp5(:), tmp7(:,:), tmp11(:)
     real(dp), allocatable :: qTr(:), temp(:), dq(:), dm(:), dsigma(:)
     real(dp), allocatable :: dH0(:,:,:), dSo(:,:,:)
-    real(dp), allocatable :: Dens(:,:), SpinDens(:,:)
+    real(dp), allocatable :: dens(:,:), spinDens(:,:)
     real(dp), allocatable :: xmycc(:,:,:,:), xpyas(:,:,:,:), xmyas(:,:,:,:)
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:,:)
@@ -4381,8 +4381,8 @@ contains
     xmy(:,1) = xmyn
     xmy(:,2) = xmym
 
-    allocate(Dens(nOrb, nOrb))
-    Dens(:,:) = sum(rhoSqr, dim=3)
+    allocate(dens(nOrb, nOrb))
+    dens(:,:) = sum(rhoSqr, dim=3)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -4399,8 +4399,8 @@ contains
       xpyqds = 0.0_dp
       allocate(tmp11(nSpin))
 
-      allocate(SpinDens(nOrb, nOrb))
-      SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
+      allocate(spinDens(nOrb, nOrb))
+      spinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
       allocate(dsigma(2))
       dsigma(1) = 1.0_dp
@@ -4772,14 +4772,14 @@ contains
                 tmp1 = tmp1 + 2.0_dp * dH0(n,m,xyz) * pc(mu,nu,iSpin)
                 tmp2 = tmp2 + dSo(n,m,xyz) * pc(mu,nu,iSpin) * (shift(iAt1)+shift(iAt2))
                 tmp3 = tmp3 - dSo(n,m,xyz) * wcc(mu,nu,iSpin)
-                tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * Dens(mu,nu)
+                tmp4 = tmp4 + tmp5(iSpin) * dSo(n,m,xyz) * dens(mu,nu)
                 ! tmp6 generalization could be wrong
                 tmp6 = tmp6 + 0.5_dp * dSo(n,m,xyz) * (tmp7(iSpin,2) * xpycc(mu,nu,iSpin,1) +&
                          & tmp7(iSpin,1) * xpycc(mu,nu,iSpin,2))
 
                 if (lr%tSpin) then
                   tmp8 = tmp8 + tmp9 * dSo(n,m,xyz) * dsigma(iSpin) * pc(mu,nu,iSpin)
-                  tmp10 = tmp10 + tmp11(iSpin) * dSo(n,m,xyz) * dsigma(iSpin) * SpinDens(mu,nu)
+                  tmp10 = tmp10 + tmp11(iSpin) * dSo(n,m,xyz) * dsigma(iSpin) * spinDens(mu,nu)
                 end if
 
                 if (rpa%tHybridXc) then

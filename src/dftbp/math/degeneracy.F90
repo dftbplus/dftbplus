@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Routines for degenerate eigenstates
 module dftbp_math_degeneracy
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error

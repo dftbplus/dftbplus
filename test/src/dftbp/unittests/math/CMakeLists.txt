@@ -2,11 +2,11 @@ set(unit-test-prefix "${unit-test-prefix}/math")
 
 if (NOT WITH_MPI)
 #  set(tests
-#    matrixoperations_mpi)
+#    matrixops_mpi)
 #  include_directories(SYSTEM ${MPI_INCLUDE_PATH})
 #else()
   set(tests
-    matrixoperations)
+    matrixops)
 endif()
 
 foreach(test IN LISTS tests)

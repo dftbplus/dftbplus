@@ -7,9 +7,10 @@
 
 #:include 'common.fypp'
 
-!> contains some miscellaneous quantum mechanics related bits and pieces.
+!> Contains some miscellaneous quantum mechanics related bits and pieces.
 module dftbp_math_qm
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, elecTolMax
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only : error
 
   implicit none
@@ -17,7 +18,7 @@ module dftbp_math_qm
   private
   public :: makeSimilarityTrans
 
-  !> perform a similarity (or unitary) transformation of a matrix
+  !> Perform a similarity (or unitary) transformation of a matrix
   interface makeSimilarityTrans
     module procedure U_cmplx
     module procedure U_real
@@ -25,17 +26,16 @@ module dftbp_math_qm
 
 contains
 
-
-  !> unitary transformation of a matrix X' = U X U^T or X' = U^T X U
+  !> Unitary transformation of a matrix X' = U X U^T or X' = U^T X U
   subroutine U_real(xx, uu, side)
 
-    !> matrix in original basis, U X U^T* on return.
+    !> Matrix in original basis, U X U^T* on return.
     real(dp), intent(inout) :: xx(:,:)
 
-    !> unitary matrix
+    !> Unitary matrix
     real(dp), intent(in) :: uu(:,:)
 
-    !> which transform order to use, i.e. to which side the original unitary is applied
+    !> Which transform order to use, i.e. to which side the original unitary is applied
     character(1), intent(in), optional :: side
 
     real(dp) :: work(size(xx,dim=1), size(xx,dim=2))
@@ -65,16 +65,16 @@ contains
   end subroutine U_real
 
 
-  !> unitary transformation of a matrix X' = U X U^T* or X' = U^T* X U
+  !> Unitary transformation of a matrix X' = U X U^T* or X' = U^T* X U
   subroutine U_cmplx(xx, uu, side)
 
-    !> matrix in original basis, U X U^T* on return.
+    !> Matrix in original basis, U X U^T* on return.
     complex(dp), intent(inout) :: xx(:,:)
 
-    !> unitary matrix
+    !> Unitary matrix
     complex(dp), intent(in) :: uu(:,:)
 
-    !> which transform order to use, i.e. which to side the original unitary is applied
+    !> Which transform order to use, i.e. which to side the original unitary is applied
     character(1), intent(in), optional :: side
 
     complex(dp) :: work(size(xx,dim=1), size(xx,dim=2))
@@ -102,5 +102,6 @@ contains
     end select
 
   end subroutine U_cmplx
+
 
 end module dftbp_math_qm

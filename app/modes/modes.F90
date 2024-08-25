@@ -11,16 +11,18 @@
 program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev, heevd, heevr
+  use dftbp_math_phase, only : phaseLock
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
       & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
-      & iSolver, solverTypes, setEigvecGauge
+      & isPhaseLocked, degenTol, iSolver, solverTypes
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -41,6 +43,8 @@ program modes
   character(1) :: eigenSolverMode
   type(TFileDescr) :: fd
   logical :: isAppend
+
+  type(TEnvironment) :: env
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
@@ -100,7 +104,20 @@ program modes
     call error("Unknown eigensolver choice")
   end select
   if (tEigenVectors) then
-    call setEigvecGauge(dynMatrix)
+    #:if WITH_SCALAPACK
+    if (isPhaseLocked) then
+      if (mpiEnv%globalComm%size == 1) then
+        call phaseLock(env, dynMatrix, eigenValues, degenTol)
+      else
+        ! Wait for MPI version of modes to be merged
+        ! call phaseLock(env, dynMatrix, eigenValues, degenTol, denseDesc)
+      end if
+    end if
+    #:else
+    if (isPhaseLocked) then
+      call phaseLock(env, dynMatrix, eigenValues, degenTol)
+    end if
+    #:endif
   end if
 
   ! save original eigenvectors

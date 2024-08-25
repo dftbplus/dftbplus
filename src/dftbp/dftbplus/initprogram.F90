@@ -1150,14 +1150,23 @@ module dftbp_dftbplus_initprogram
 
   #:if WITH_SCALAPACK
 
-    !> Should the dense matrices be re-ordered for sparse operations
-    logical :: isSparseReorderRequired = .false.
+    !> Should the dense matrices be re-ordered to put entire matrix rows on processors
+    logical :: isRowReorderRequired = .false.
 
     !> Re-orded real eigenvectors (if required)
-    real(dp), allocatable :: eigVecsRealReordered(:,:,:)
+    real(dp), allocatable :: eigVecsRealRowReord(:,:,:)
 
     !> Re-orded complex eigenvectors (if required)
-    complex(dp), allocatable :: eigVecsCplxReordered(:,:,:)
+    complex(dp), allocatable :: eigVecsCplxRowReord(:,:,:)
+
+    !> Should the dense matrices be re-ordered to put entire matrix columns on processors
+    logical :: isColReorderRequired = .false.
+
+    !> Re-orded real eigenvectors (if required)
+    real(dp), allocatable :: eigVecsRealColReord(:,:,:)
+
+    !> Re-orded complex eigenvectors (if required)
+    complex(dp), allocatable :: eigVecsCplxColReord(:,:,:)
 
   #:endif
 
@@ -2783,7 +2792,7 @@ contains
   #:if WITH_SCALAPACK
       associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
         call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
-            & this%isSparseReorderRequired)
+            & this%isRowReorderRequired, this%isColReorderRequired)
       end associate
   #:endif
 
@@ -5427,15 +5436,26 @@ contains
 
   #:if WITH_SCALAPACK
 
-    if (this%isSparseReorderRequired .and. (.not. hybridXcAlgoNonDistributed)) then
-      call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, this%denseDesc%blacsColumnSqr,&
+    if (this%isRowReorderRequired) then
+      call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, this%denseDesc%blacsRowSqr,&
           & nLocalRows, nLocalCols)
       if (this%t2Component .or. .not. this%tRealHS) then
-        allocate(this%eigVecsCplxReordered(nLocalRows, nLocalCols, nLocalKS))
+        allocate(this%eigVecsCplxRowReord(nLocalRows, nLocalCols, nLocalKS))
       else
-        allocate(this%eigVecsRealReordered(nLocalRows, nLocalCols, nLocalKS))
+        allocate(this%eigVecsRealRowReord(nLocalRows, nLocalCols, nLocalKS))
       end if
     end if
+
+    if (this%isColReorderRequired) then
+      call scalafx_getlocalshape(env%blacs%colOrbitalGrid, this%denseDesc%blacsColSqr,&
+          & nLocalRows, nLocalCols)
+      if (this%t2Component .or. .not. this%tRealHS) then
+        allocate(this%eigVecsCplxColReord(nLocalRows, nLocalCols, nLocalKS))
+      else
+        allocate(this%eigVecsRealColReord(nLocalRows, nLocalCols, nLocalKS))
+      end if
+    end if
+
 
   #:endif
 
@@ -5485,7 +5505,8 @@ contains
   !>
   !> Note: It must be called after getDenseDescCommon() has been called.
   !>
-  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isSparseReorderRequired)
+  subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isRowReorderRequired,&
+      & isColReorderRequired)
 
     !> Parallel environment
     type(TEnvironment), intent(in) :: env
@@ -5499,8 +5520,11 @@ contains
     !> Descriptor of the dense matrix
     type(TDenseDescr), intent(inout) :: denseDesc
 
-    !> Is a data distribution for sparse with dense operations needed?
-    logical, intent(in) :: isSparseReorderRequired
+    !> Is a data distribution which puts full rows of global matrices on each processor needed?
+    logical, intent(in) :: isRowReorderRequired
+
+    !> Is a data distribution which puts full columns of global matrices on each processor needed?
+    logical, intent(in) :: isColReorderRequired
 
     integer :: nn
 
@@ -5508,9 +5532,14 @@ contains
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, rowBlock, colBlock,&
         & denseDesc%blacsOrbSqr)
 
-    if (isSparseReorderRequired) then
+    if (isRowReorderRequired) then
       ! Distribution to put entire rows on each processor
-      call scalafx_getdescriptor(env%blacs%rowOrbitalGrid, nn, nn, nn, 1, denseDesc%blacsColumnSqr)
+      call scalafx_getdescriptor(env%blacs%rowOrbitalGrid, nn, nn, nn, 1, denseDesc%blacsRowSqr)
+    end if
+
+    if (isColReorderRequired) then
+      ! Distribution to put entire columns on each processor
+      call scalafx_getdescriptor(env%blacs%colOrbitalGrid, nn, nn, 1, nn, denseDesc%blacsColSqr)
     end if
 
   end subroutine getDenseDescBlacs

@@ -24,8 +24,11 @@ module dftbp_type_densedescr
     !> BLACS specifier for the orbital sized matrix
     integer :: blacsOrbSqr(DLEN_)
 
-    !> BLACS specifier for the reordered matrix
-    integer :: blacsColumnSqr(DLEN_)
+    !> BLACS specifier for the matrix with entire rows on each processor
+    integer :: blacsRowSqr(DLEN_)
+
+    !> BLACS specifier for the matrix with entire columns on each processor
+    integer :: blacsColSqr(DLEN_)
 
   #:endif
 

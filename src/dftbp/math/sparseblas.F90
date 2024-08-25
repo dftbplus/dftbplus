@@ -18,32 +18,12 @@ module dftbp_math_sparseblas
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
-  use dftbp_common_blacsenv, only : TBlacsEnv
-  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d
-  use dftbp_type_densedescr, only : TDenseDescr
+
 #:endif
   implicit none
   private
 
   public :: symv, symm
-#:if WITH_SCALAPACK
-  public :: redist_sqr2rows, redist_rows2sqr
-
-  !> Re-distributes data for square matrices between BLACS block cyclic data and whole global rows
-  !! on each processor
-  interface redist_sqr2rows
-    module procedure sqr2rows_real
-    module procedure sqr2rows_complex
-  end interface redist_sqr2rows
-
-  !> Re-distributes data for square matrices between BLACS whole global rows on each processor and
-  !! block cyclic data
-  interface redist_rows2sqr
-    module procedure rows2sqr_real
-    module procedure rows2sqr_complex
-  end interface redist_rows2sqr
-
-#:endif
 
   ! Rank 2 routines
 
@@ -1098,90 +1078,5 @@ contains
     end select
 
   end subroutine symm_bc_kpt
-
-#:if WITH_SCALAPACK
-
-#:for VAR in [('real'),('complex')]
-
-  !> Re-distributes data for square matrices between BLACS block cyclic data and whole global rows
-  !! on each processor
-  subroutine sqr2rows_${VAR}$(square, row, denseDesc, blacsEnv)
-
-    !> Real matrix in block cyclic, last index over spin/kpts
-    ${VAR}$(dp), allocatable, intent(in) :: square(:,:,:)
-
-    !> Real matrix with individual rows on each processor, last index over spin/kpts
-    ${VAR}$(dp), allocatable, intent(inout) :: row(:,:,:)
-
-    !> Descriptors for dense matrices
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> BLACS environment and information on grids
-    type(TBlacsEnv), intent(in) :: blacsEnv
-
-    integer :: iKS
-
-    @:ASSERT(allocated(square) .eqv. allocated(row))
-
-    if (.not.allocated(square)) then
-      return
-    end if
-
-    #! same group choices over spin/k for the two grids, so same size on last index
-    @:ASSERT(size(square, dim=3) == size(row, dim=3))
-
-    #! Ensure these are over the same contexts
-    @:ASSERT(blacsEnv%orbitalGrid%ctxt == blacsEnv%rowOrbitalGrid%ctxt)
-
-    do iKS = 1, size(square, dim=3)
-      call blacsfx_gemr2d(blacsEnv%nn, blacsEnv%nn, square(:,:,iKS), 1, 1,&
-          & denseDesc%blacsOrbSqr, row(:,:,iKS), 1, 1, denseDesc%blacsColumnSqr,&
-          & blacsEnv%orbitalGrid%ctxt)
-    end do
-
-  end subroutine sqr2rows_${VAR}$
-
-
-  !> Re-distributes data for square matrices between BLACS whole global rows on each processor and
-  !! block cyclic data
-  subroutine rows2sqr_${VAR}$(row, square, denseDesc, blacsEnv)
-
-    !> Real matrix with individual rows on each processor, last index over spin/kpts
-    ${VAR}$(dp), allocatable, intent(in) :: row(:,:,:)
-
-    !> Real matrix in block cyclic, last index over spin/kpts
-    ${VAR}$(dp), allocatable, intent(inout) :: square(:,:,:)
-
-    !> Descriptors for dense matrices
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> BLACS environment and information on grids
-    type(TBlacsEnv), intent(in) :: blacsEnv
-
-    integer :: iKS
-
-    @:ASSERT(allocated(row) .eqv. allocated(square))
-
-    if (.not.allocated(row)) then
-      return
-    end if
-
-    #! same group choices over spin/k for the two grids, so same size on last index
-    @:ASSERT(size(row, dim=3) == size(square, dim=3))
-
-    #! Ensure these are over the same contexts
-    @:ASSERT(blacsEnv%orbitalGrid%ctxt == blacsEnv%rowOrbitalGrid%ctxt)
-
-    do iKS = 1, size(square, dim=3)
-      call blacsfx_gemr2d(blacsEnv%nn, blacsEnv%nn, row(:,:,iKS), 1, 1,&
-          & denseDesc%blacsColumnSqr, square(:,:,iKS), 1, 1, denseDesc%blacsOrbSqr,&
-          & blacsEnv%orbitalGrid%ctxt)
-    end do
-
-  end subroutine rows2sqr_${VAR}$
-
-#:endfor
-
-#:endif
 
 end module dftbp_math_sparseblas

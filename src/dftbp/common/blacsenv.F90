@@ -35,14 +35,18 @@ module dftbp_common_blacsenv
     !> Note: the grid always contains all processes in the group
     type(blacsgrid) :: rowOrbitalGrid
 
+    !> Group grid for (nOrb, nOrb) shaped square matrices ordered with entire columns on same
+    !! processor Note: the grid always contains all processes in the group
+    type(blacsgrid) :: colOrbitalGrid
+
     !> Row block size for square matrices
     integer :: rowBlockSize
 
     !> Column block size for square matrices
     integer :: columnBlockSize
 
-    !> Number of functions (needed for rowOrbitalGrids). In the case of Pauli this is twice nOrb,
-    !> but equal otherwise.
+    !> Number of functions (needed for row/col OrbitalGrids). In the case of Pauli this is twice
+    !! nOrb, but equal otherwise.
     integer :: nn
 
   end type TBlacsEnv
@@ -93,9 +97,11 @@ contains
     call getGridMap(myMpiEnv%groupMembersWorld, nProcRow, nProcCol, gridMap)
     call this%orbitalGrid%initmappedgrids(gridMap)
 
-    ! rectangular grid for the rowBlock
+    ! rectangular grids for the rowBlock/columnBlack
     call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
     call this%rowOrbitalGrid%initmappedgrids(gridMap)
+    call getGridMap(myMpiEnv%groupMembersWorld, nProcRow * nProcCol, 1, gridMap)
+    call this%colOrbitalGrid%initmappedgrids(gridMap)
     
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
@@ -122,6 +128,7 @@ contains
     call this%orbitalGrid%destruct()
     call this%atomGrid%destruct()
     call this%rowOrbitalGrid%destruct()
+    call this%colOrbitalGrid%destruct()
 
   end subroutine TBlacsEnv_final
 
