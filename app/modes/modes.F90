@@ -14,12 +14,13 @@ program modes
   use dftbp_common_file, only : TFileDescr, closeFile, openFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
-  use dftbp_math_eigensolver, only : heev
+  use dftbp_math_eigensolver, only : heev, heevd, heevr
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
       & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
-      & setEigvecGauge
+      & iSolver, solverTypes, setEigvecGauge
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -37,6 +38,7 @@ program modes
   real(dp) :: zStar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
   character(lc) :: lcTmp, lcTmp2
+  character(1) :: eigenSolverMode
   type(TFileDescr) :: fd
   logical :: isAppend
 
@@ -83,10 +85,22 @@ program modes
 
   ! solve the eigenproblem
   if (tEigenVectors) then
-    call heev(dynMatrix, eigenValues, "U", "V")
-    call setEigvecGauge(dynMatrix)
+    eigenSolverMode = "V"
   else
-    call heev(dynMatrix, eigenValues, "U", "N")
+    eigenSolverMode = "N"
+  end if
+  select case(iSolver)
+  case(solverTypes%qr)
+    call heev(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%divideandconquer)
+    call heevd(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%relativelyrobust)
+    call heevr(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case default
+    call error("Unknown eigensolver choice")
+  end select
+  if (tEigenVectors) then
+    call setEigvecGauge(dynMatrix)
   end if
 
   ! save original eigenvectors

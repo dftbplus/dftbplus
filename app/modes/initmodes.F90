@@ -36,7 +36,7 @@ module modes_initmodes
   private
   public :: initProgramVariables
   public :: geo, atomicMasses, dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, nModesToPlot
-  public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs
+  public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs, iSolver, solverTypes
   public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
   public :: setEigvecGauge
 
@@ -61,7 +61,6 @@ module modes_initmodes
 
   !> If program should be verbose
   logical :: tVerbose
-
 
   !> Atomic masses to build dynamical matrix
   real(dp), allocatable :: atomicMasses(:)
@@ -112,6 +111,24 @@ module modes_initmodes
 
   !> Number of derivatives
   integer :: nDerivs
+
+  !> Eigensolver choice
+  integer :: iSolver
+
+  !> Namespace for possible eigensolver methods
+  type :: TSolverTypesEnum
+
+    ! lapack/scalapack solvers
+    integer :: qr = 1
+    integer :: divideandconquer = 2
+    integer :: relativelyrobust = 3
+
+  end type TSolverTypesEnum
+
+
+  !> Actual values for solverTypes.
+  type(TSolverTypesEnum), parameter :: solverTypes = TSolverTypesEnum()
+
 
 contains
 
@@ -180,6 +197,19 @@ contains
 
     ! oscillation cycles in an animation
     nCycles = 3
+
+    ! Eigensolver
+    call getChildValue(root, "EigenSolver", buffer2, "qr")
+    select case(tolower(char(buffer2)))
+    case ("qr")
+      iSolver = solverTypes%qr
+    case ("divideandconquer")
+      iSolver = solverTypes%divideandconquer
+    case ("relativelyrobust")
+      iSolver = solverTypes%relativelyrobust
+    case default
+      call detailedError(root, "Unknown eigensolver "//char(buffer2))
+    end select
 
     ! Slater-Koster files
     call getParamSearchPaths(searchPath)
