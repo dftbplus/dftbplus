@@ -717,6 +717,10 @@ contains
     !> Whether line minimisation converged
     logical, intent(out) :: tConverged
 
+    tConverged = .false.
+    xNew(:) = 0.0_dp
+    this%tZoom = .false.
+
     if (this%iter == 0) then
       this%phi0 = phi
       this%dx0(:) = dx
@@ -817,6 +821,8 @@ contains
 
     real(dp) :: cCheck, qCheck, dAlpha
 
+    tConverged = .false.
+
     if (this%iter > this%mIter) then
       if (abs(this%alphaLo * maxval(this%d0)) < this%minAlpha) then
         if (abs(this%alphaNew * maxval(this%d0)) < this%minAlpha) then
@@ -903,7 +909,7 @@ contains
     end if
 
     this%xNew = this%x0 + this%alphaNew * this%d0
-    xNew = this%xNew
+    xNew(:) = this%xNew
 
   end subroutine TLineSearch_zoom
 
