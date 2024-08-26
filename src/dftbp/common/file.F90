@@ -282,6 +282,22 @@ contains
       end if
     end if
 
+  #:block DEBUG_CODE
+  #:if WITH_MPI
+    block
+      use dftbp_extlibs_mpifx, only : mpifx_comm
+      type(mpifx_comm) :: comm
+      character(100) :: msg
+      call comm%init()
+      if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
+        write(msg, "(a, i0, 3a)") "Follow process (rank ", comm%rank, ") tried to open file '",&
+            & file, "' for writing"
+        error stop msg
+      end if
+    end block
+  #:endif
+  #:endblock
+
     open(newunit=this%unit, file=file, access=opts%access, action=opts%action, form=opts%form,&
         & status=opts%status, position=opts%position, iostat=ioStat_, iomsg=ioMsg_)
 
