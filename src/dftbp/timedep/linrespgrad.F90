@@ -676,7 +676,7 @@ contains
           call getZVectorEqRHS(tRangeSep, xpy(:,iLev), xmy(:,iLev), win, iAtomStart, nocc_ud,&
               & transChrg, getIA, getIJ, getAB, iatrans, this%nAtom, species0, grndEigVal,&
               & ovrXev, grndEigVecs, gammaMat, lrGamma, this%spinW, omega, sym, rhs, t,&
-              & wov, woo, wvv, this%tTDA)
+              & wov, woo, wvv)
 
           call solveZVectorPrecond(rhs, this%tSpin, wij(:nxov_rd), win, nocc_ud, nvir_ud, nxoo_ud,&
               & nxvv_ud, nxov_ud, nxov_rd, iaTrans, getIA, getIJ, getAB, this%nAtom, iAtomStart, &
@@ -713,7 +713,7 @@ contains
                 & getIA, getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq, dqex, gammaMat, &
                 & lrGamma, this%HubbardU, this%spinW, shift, woo, wov, wvv, transChrg, xpy(:,iLev),&
                 & xmy(:,iLev), coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, deltaRho,  &
-                & tRangeSep, rangeSep, excgrad(:,:,iSav), this%tTDA)
+                & tRangeSep, rangeSep, excgrad(:,:,iSav))
           end if
         end do
       endif
@@ -1584,7 +1584,7 @@ contains
   !> do not depend on Z.
    subroutine getZVectorEqRHS(tRangeSep, xpy, xmy, win, iAtomStart, homo, transChrg, getIA, getIJ,&
       & getAB, iatrans, natom, species0, grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma,&
-      & spinW, omega, sym, rhs, t, wov, woo, wvv, tTDA)
+      & spinW, omega, sym, rhs, t, wov, woo, wvv)
 
     !> is calculation range-separated?
     logical, intent(in) :: tRangeSep
@@ -1663,9 +1663,6 @@ contains
 
     !> W vector virtual part
     real(dp), intent(out) :: wvv(:,:)
-
-    !> TDA approx
-    logical, intent(in) :: tTDA
 
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
@@ -1961,20 +1958,16 @@ contains
       allocate(vecHooT(sum(nxoo)))
 
       call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHvvXpY, tTDA)
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHvvXpY)
 
-      if (.not. tTDA)
-         call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-           & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHvvXmY, tTDA)
-      endif
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHvvXmY)
 
       call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHooXpY, tTDA)
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xpy, vecHooXpY)
 
-      if (.not. tTDA)
-         call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-            & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHooXmY, tTDA)
-      endif
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmy, vecHooXmY)
 
       call getHovT(nxoo, nxvv, homo, natom, iatrans, getIA, getIJ, getAB, win,&
         & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, t, vecHovT)
@@ -1985,35 +1978,26 @@ contains
         do b = homo(s) + 1, nOrb
           ibs = iaTrans(i, b, s)
           abs = iaTrans(a, b, s)
-          if (tTDA) then
-            rhs(ias) = rhs(ias) - 2.0_dp cExchange * xpy(ibs) * vecHvvXpY(abs)
+          rhs(ias) = rhs(ias) - cExchange * xpy(ibs) * vecHvvXpY(abs)
+          if (a >= b) then
+            rhs(ias) = rhs(ias) - cExchange * xmy(ibs) * vecHvvXmY(abs)
           else
-            rhs(ias) = rhs(ias) - cExchange * xpy(ibs) * vecHvvXpY(abs)
-            if (a >= b) then
-              rhs(ias) = rhs(ias) - cExchange * xmy(ibs) * vecHvvXmY(abs)
-            else
-              rhs(ias) = rhs(ias) + cExchange * xmy(ibs) * vecHvvXmY(abs)
-            end if
-          endif
+            rhs(ias) = rhs(ias) + cExchange * xmy(ibs) * vecHvvXmY(abs)
+          end if
         end do
 
         do j = 1, homo(s)
           jas = iaTrans(j, a, s)
           ijs = iaTrans(i, j, s)
-          if (tTDA) then
-             rhs(ias) = rhs(ias) + 2.0_dp * cExchange * xpy(jas) * vecHooXpY(ijs)
-             wov(ias) = wov(ias) + 2.0_dp * cExchange * xpy(jas) * vecHooXpY(ijs)
+          rhs(ias) = rhs(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
+          wov(ias) = wov(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
+          if (i >= j) then
+            rhs(ias) = rhs(ias) + cExchange * xmy(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) + cExchange * xmy(jas) * vecHooXmY(ijs)
           else
-             rhs(ias) = rhs(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
-             wov(ias) = wov(ias) + cExchange * xpy(jas) * vecHooXpY(ijs)
-             if (i >= j) then
-               rhs(ias) = rhs(ias) + cExchange * xmy(jas) * vecHooXmY(ijs)
-               wov(ias) = wov(ias) + cExchange * xmy(jas) * vecHooXmY(ijs)
-             else
-               rhs(ias) = rhs(ias) - cExchange * xmy(jas) * vecHooXmY(ijs)
-               wov(ias) = wov(ias) - cExchange * xmy(jas) * vecHooXmY(ijs)
-             end if
-          endif
+            rhs(ias) = rhs(ias) - cExchange * xmy(jas) * vecHooXmY(ijs)
+            wov(ias) = wov(ias) - cExchange * xmy(jas) * vecHooXmY(ijs)
+          end if
         end do
        rhs(ias) = rhs(ias) - cExchange * vecHovT(ias)
 
@@ -2145,11 +2129,7 @@ contains
       qTr = transChrg%qTransIA(ia, iAtomStart, ovrXev, grndEigVecs, getIA, win)
       call hemv(qTmp, gammaMat, qTr)
       if (.not. tSpin) then
-        if (tTDA) then
-           rs = 2.0_dp * dot_product(qTr, qTmp) + wij(ia)
-        else
-           rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
-        endif
+        rs = 4.0_dp * dot_product(qTr, qTmp) + wij(ia)
       else
         rs = 2.0_dp * dot_product(qTr, qTmp) + wij(ia)
         rs = rs + 2.0_dp * sum(qTr * qTr * spinW(species0))
@@ -2157,10 +2137,9 @@ contains
 
       !! Possibly reorder spin case
       if (tRangeSep) then
-        if (.not. tTDA) then
-           call hemv(qTmp, lrGamma, qTr)
-           rs = rs - cExchange * dot_product(qTr, qTmp)
-        endif
+        call hemv(qTmp, lrGamma, qTr)
+        rs = rs - cExchange * dot_product(qTr, qTmp)
+
         call indXov(win, ia, getIA, i, a, s)
         iis = iaTrans(i, i, s)
         qTr = transChrg%qTransIJ(iis, iAtomStart, ovrXev, grndEigVecs, getIJ)
@@ -2183,7 +2162,7 @@ contains
     ! we need the singlet action even for triplet excitations!
     call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
       & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, tTDA, lrGamma)
+      & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, rhs2, rkm1, tRangeSep, .false., lrGamma)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -2195,7 +2174,7 @@ contains
       ! action of matrix on vector
       call actionAplusB(tSpin, wij, 'S', win, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud,&
          & nxov_rd, iaTrans, getIA, getIJ, getAB, iAtomStart, ovrXev, grndEigVecs, occNr, sqrOccIA,&
-         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, tTDA, lrGamma)
+         & gammaMat, species0, spinW, onsMEs, orb, .true., transChrg, pkm1, apk, tRangeSep, .false., lrGamma)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
@@ -2369,7 +2348,7 @@ contains
 
       allocate(vecHooZ(sum(nxoo)))
       call getHooXY(1, nxoo, homo, natom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zz, vecHooZ, .False.)
+      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, zz, vecHooZ)
 
       !! woo should be made 1D
       do s = 1, nSpin
@@ -2489,7 +2468,7 @@ contains
   subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, getIA,&
       & getIJ, getAB, win, grndEigVecs, pc, ovrXev, dq_ud, dqex, gammaMat, lrGamma, HubbardU, &
       & spinW, shift, woo, wov, wvv, transChrg, xpy, xmy, coord0, orb, skHamCont, skOverCont, &
-      & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad, tTDA)
+      & derivator, rhoSqr, deltaRho, tRangeSep, rangeSep, excgrad)
 
     !> symmetry of the transition
     character, intent(in) :: sym
@@ -2601,9 +2580,6 @@ contains
 
     !> resulting excited state gradient
     real(dp), intent(out) :: excgrad(:,:)
-
-    !> TDA approximitaion 
-    logical, intent(in) :: tTDA
 
 
     real(dp), allocatable :: shift_excited(:,:), xpyq(:), xpyqds(:)
@@ -2938,16 +2914,14 @@ contains
           &   SXS(mu,nu,iSpin) * xpyas(nu,mu,iSpin) + SXS(nu,mu,iSpin) * xpyas(mu,nu,iSpin) +&
           &   xpyas(mu,nu,iSpin) * SXS(nu,mu,iSpin) + xpyas(nu,mu,iSpin) * SXS(mu,nu,iSpin) +&
           &   SX(mu,nu,iSpin) * SX(nu,mu,iSpin) + SX(nu,mu,iSpin) * SX(mu,nu,iSpin) )
-                if (.not. tTDA) then
-                   tmprs = tmprs + 2.0_dp *&
-             & ( xmyas(mu,nu,iSpin) * SYS(mu,nu,iSpin) + xmyas(nu,mu,iSpin) * SYS(nu,mu,iSpin) +&
-             &   SY(mu,nu,iSpin) * YS(mu,nu,iSpin) + SY(nu,mu,iSpin) * YS(nu,mu,iSpin) )
-                   tmprs = tmprs -&
-             & ( YS(mu,nu,iSpin) * YS(nu,mu,iSpin) + YS(nu,mu,iSpin) * YS(mu,nu,iSpin) +&
-             &   SYS(mu,nu,iSpin) * xmyas(nu,mu,iSpin) + SYS(nu,mu,iSpin) * xmyas(mu,nu,iSpin) +&
-             &   xmyas(mu,nu,iSpin) * SYS(nu,mu,iSpin) + xmyas(nu,mu,iSpin) * SYS(mu,nu,iSpin) +&
-             &   SY(mu,nu,iSpin) * SY(nu,mu,iSpin) + SY(nu,mu,iSpin) * SY(mu,nu,iSpin) )
-                endif
+                tmprs = tmprs + 2.0_dp *&
+          & ( xmyas(mu,nu,iSpin) * SYS(mu,nu,iSpin) + xmyas(nu,mu,iSpin) * SYS(nu,mu,iSpin) +&
+          &   SY(mu,nu,iSpin) * YS(mu,nu,iSpin) + SY(nu,mu,iSpin) * YS(nu,mu,iSpin) )
+                tmprs = tmprs -&
+          & ( YS(mu,nu,iSpin) * YS(nu,mu,iSpin) + YS(nu,mu,iSpin) * YS(mu,nu,iSpin) +&
+          &   SYS(mu,nu,iSpin) * xmyas(nu,mu,iSpin) + SYS(nu,mu,iSpin) * xmyas(mu,nu,iSpin) +&
+          &   xmyas(mu,nu,iSpin) * SYS(nu,mu,iSpin) + xmyas(nu,mu,iSpin) * SYS(mu,nu,iSpin) +&
+          &   SY(mu,nu,iSpin) * SY(nu,mu,iSpin) + SY(nu,mu,iSpin) * SY(mu,nu,iSpin) )
               end do
             end do
           end do
@@ -3003,22 +2977,18 @@ contains
             & ( xpyas(mu,ka,iSpin) * XS(nu,ka,iSpin) + xpyas(ka,mu,iSpin) * SX(ka,nu,iSpin) +&
             &   xpyas(nu,ka,iSpin) * XS(mu,ka,iSpin) + xpyas(ka,nu,iSpin) * SX(ka,mu,iSpin) )*&
             &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
-                    if (.not. tTDA) then
-                       tmprs = tmprs +&
-               & ( xmyas(mu,ka,iSpin) * YS(nu,ka,iSpin) + xmyas(ka,mu,iSpin) * SY(ka,nu,iSpin) +&
-               &   xmyas(nu,ka,iSpin) * YS(mu,ka,iSpin) + xmyas(ka,nu,iSpin) * SY(ka,mu,iSpin) ) *&
-               &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
-                    endif
+                    tmprs = tmprs +&
+            & ( xmyas(mu,ka,iSpin) * YS(nu,ka,iSpin) + xmyas(ka,mu,iSpin) * SY(ka,nu,iSpin) +&
+            &   xmyas(nu,ka,iSpin) * YS(mu,ka,iSpin) + xmyas(ka,nu,iSpin) * SY(ka,mu,iSpin) ) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                     tmprs = tmprs +&
             & ( XS(mu,ka,iSpin) * xpyas(ka,nu,iSpin) + XS(nu,ka,iSpin) * xpyas(ka,mu,iSpin) +&
             &   xpyas(mu,ka,iSpin) * SX(ka,nu,iSpin) + xpyas(nu,ka,iSpin) * SX(ka,mu,iSpin)) *&
             &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
-                    if (.not. tTDA) then
-                       tmprs = tmprs -&
-               & ( YS(mu,ka,iSpin) * xmyas(ka,nu,iSpin) + YS(nu,ka,iSpin) * xmyas(ka,mu,iSpin) +&
-               &   xmyas(mu,ka,iSpin) * SY(ka,nu,iSpin) + xmyas(nu,ka,iSpin) * SY(ka,mu,iSpin)) *&
-               &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
-                    endif
+                    tmprs = tmprs -&
+            & ( YS(mu,ka,iSpin) * xmyas(ka,nu,iSpin) + YS(nu,ka,iSpin) * xmyas(ka,mu,iSpin) +&
+            &   xmyas(mu,ka,iSpin) * SY(ka,nu,iSpin) + xmyas(nu,ka,iSpin) * SY(ka,mu,iSpin)) *&
+            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                   end do
                   ! Factor of 2 for spin-polarized calculations
                   tmprs2 = tmprs2 + cExchange * nSpin * dSo(n,m,xyz) * tmprs
@@ -3036,7 +3006,7 @@ contains
         end do
       end do
     end do
-
+    
   end subroutine addGradients
 
 
@@ -3432,7 +3402,7 @@ contains
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(ipm, nXvv, homo, nAtom, iaTrans, getIA, getAB, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHvv, tTDA)
+      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHvv)
 
     !> sign s of H in H^(s)[V]
     integer, intent(in) :: ipm
@@ -3479,9 +3449,6 @@ contains
     !> Output vector H[V] virtual-virtual
     real(dp), intent(out) :: vecHvv(:)
 
-    !> TDA Approximation
-    logical, intent(in)  :: tTDA
-
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, a, b, s, ias, ibs, abs, nOrb, nXov
 
@@ -3519,13 +3486,8 @@ contains
       do i = 1, homo(s)
         ias = iaTrans(i, a, s)
         ibs = iaTrans(i, b, s)
-        if (tTDA) then
-           vecHvv(abs) = vecHvv(abs) - dot_product(Gq(:,ias), qX(:,ibs))
-        else
-           vecHvv(abs) = vecHvv(abs) - ipm * (dot_product(qX(:,ias), Gq(:,ibs))&
-              & + ipm * dot_product(Gq(:,ias), qX(:,ibs)))
-        endif
-
+        vecHvv(abs) = vecHvv(abs) - ipm * (dot_product(qX(:,ias), Gq(:,ibs))&
+             & + ipm * dot_product(Gq(:,ias), qX(:,ibs)))
       end do
     end do
 
@@ -3535,7 +3497,7 @@ contains
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !> Here p/q are occupied orbitals and V is either X+Y or X-Y
   subroutine getHooXY(ipm, nXoo, homo, nAtom, iaTrans, getIA, getIJ, win,&
-      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHoo, tTDA)
+      & iAtomStart, ovrXev, grndEigVecs, lrGamma, transChrg, XorY, vecHoo)
 
     !> sign s of H in H^(s)[V]
     integer, intent(in) :: ipm
@@ -3582,9 +3544,6 @@ contains
     !> Output vector H[V] occ-occ
     real(dp), intent(out) :: vecHoo(:)
 
-    !> TDA Approximation
-    logical, intent(in) :: tTDA
-
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, j, a, s, ias, jas, ijs, nOrb, nXov
 
@@ -3623,12 +3582,8 @@ contains
       do a = homo(s) + 1, nOrb
         ias = iaTrans(i, a, s)
         jas = iaTrans(j, a, s)
-        if (tTDA) then
-          vecHoo(ijs) = vecHoo(ijs) - dot_product(Gq(:,ias), qX(:,jas))
-        else
-          vecHoo(ijs) = vecHoo(ijs) - ipm * (dot_product(qX(:,ias), Gq(:,jas))&
-              & + ipm * dot_product(Gq(:,ias), qX(:,jas)))
-        endif
+        vecHoo(ijs) = vecHoo(ijs) - ipm * (dot_product(qX(:,ias), Gq(:,jas))&
+            & + ipm * dot_product(Gq(:,ias), qX(:,jas)))
       end do
     end do
 
@@ -4446,18 +4401,14 @@ contains
       call getHvvXY( 1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
           & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHvvXpY)
 
-      if (.not. tTDA)
-        call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
-           & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
-      endif
+      call getHvvXY(-1, nxvv, homo, natom, iatrans, getIA, getAB, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHvvXmY)
 
       call getHooXY( 1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY, tTDA)
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xpyn, vecHooXpY)
 
-      if (.not. tTDA)
-        call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
-           & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
-      endif
+      call getHooXY(-1, nxoo, homo, natom, iatrans, getIA, getIJ, win, iAtomStart,&
+          & ovrXev, grndEigVecs, lrGamma, transChrg, xmyn, vecHooXmY)
 
       do ias = 1, nxov
 
