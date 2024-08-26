@@ -31,6 +31,7 @@ Additionally optional definitions may be present:
   \kw{Masses} & p & & & \pref{sec:modes.Masses} \\
   \kw{BornCharges} & p & & \cb & \pref{sec:modes.BornCharges} \\
   \kw{BornDerivs} & p & & \cb & \pref{sec:modes.BornDerivs} \\
+  \kw{EigenSolver} & s & & QR & \\
 \end{ptableh}
 
 \begin{description}
@@ -96,8 +97,11 @@ Example:
 \item[\is{RemoveRotation}] Explicitly set the rotation modes of the system to be
   at 0 frequency. Note, for periodic systems, this is usually incorrect (if used
   for a molecule full inside the central cell, it may be harmless).
-\item[\is{Masses}] If present, replace the atomic masses from the Slater-Koster files. See
-  p.~\pref{sec:modes.Masses}
+\item[\is{Masses}] If present, replace the atomic masses from the
+  Slater-Koster files. See p.~\pref{sec:modes.Masses}.
+\item[\is{EigenSolver}] Choice of solver for the dynamical matrix,
+  current choices are \kw{QR}, \kw{DivideAndConquer} or
+  \kw{RelativelyRobust}.
 \end{description}
 
 
