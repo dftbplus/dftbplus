@@ -22,7 +22,7 @@ module dftbp_math_eigensolver
   implicit none
 
   private
-  public :: heev, hegv, hegvd, gvr, geev
+  public :: heev, heevd, hegv, hegvd, gvr, geev
 #:if WITH_MAGMA
   public :: gpu_gvd
 #:endif
@@ -36,6 +36,14 @@ module dftbp_math_eigensolver
     module procedure cmplx_cheev
     module procedure dblecmplx_zheev
   end interface heev
+
+
+  !> Divide and conquer eigensolver for a symmetric/Hermitian matrix
+  !> Caveat: the matrix a is overwritten
+  interface heevd
+    module procedure real_ssyevd
+    module procedure dble_dsyevd
+  end interface heevd
 
 
   !> Simple eigensolver for a symmetric/Hermitian generalized matrix problem
@@ -308,6 +316,60 @@ contains
 
 
 #:for NAME, VTYPE, RP in [("Double", "d", "dble"),("Single", "s", "real")]
+
+  !> ${NAME}$ precision eigensolver for a symmetric matrix
+  subroutine ${RP}$_${VTYPE}$syevd(a,w,uplo,jobz)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
+    real(r${VTYPE}$p), intent(inout) :: a(:,:)
+
+    !> eigenvalues
+    real(r${VTYPE}$p), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
+    character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+    character, intent(in) :: jobz
+
+    real(r${VTYPE}$p), allocatable :: work(:)
+    integer n, lda, info, int_idealwork, tmpIWork(1), liwork
+    real(r${VTYPE}$p) :: idealwork(1)
+    character(len=100) :: error_string
+    integer, allocatable :: iwork(:)
+
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    lda = size(a,dim=1)
+    n = size(a,dim=2)
+    @:ASSERT(n > 0)
+    @:ASSERT(lda >= n)
+    @:ASSERT(n == size(w))
+    call ${VTYPE}$syevd(jobz, uplo, n, a, lda, w, idealwork, -1, tmpIWork,-1, info)
+    if (info/=0) then
+      call error("Failure in ${VTYPE}$syevd to determine optimum workspace")
+    endif
+    int_idealwork = nint(idealwork(1))
+    liwork = tmpIWork(1)
+    allocate(work(int_idealwork))
+    allocate(iwork(liwork))
+    call ${VTYPE}$syevd(jobz, uplo, n, a, n, w, work, int_idealwork, iWork, liWork, info)
+    if (info/=0) then
+      if (info<0) then
+        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$syevd, illegal ',&
+            & 'argument at position ',i6)") info
+        call error(error_string)
+      else
+        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$syevd, diagonal ',&
+            & 'element ', i6, ' did not converge to zero.')") info
+        call error(error_string)
+      endif
+    endif
+
+  end subroutine ${RP}$_${VTYPE}$syevd
+
+
   !> ${NAME}$ precision eigensolver for generalized symmetric matrix problem
   subroutine ${RP}$_${VTYPE}$sygv(a, b, w, uplo, jobz, itype)
 
