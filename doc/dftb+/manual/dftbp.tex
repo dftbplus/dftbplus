@@ -84,9 +84,10 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.ElectronDynamics}.
 \item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
   See p.~\pref{sec:dftbp.REKS}.
-\item[\is{InputVersion}] Program version, which the input file was written for.
+\item[\is{InputVersion}] Program version, which the input file was
+  written for. See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{ParserOptions}] Various options affecting the parser only.
-  See p.~\pref{sec:dftbp.ParserOptions}.
+  See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
   p.~\pref{sec:dftbp.Parallel}.
 \end{description}
@@ -5029,27 +5030,28 @@ This block collects some global options for the run.
   BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
-\item[\is{MDOutput}] Options controlling output of data during
-  molecular dynamics calculations.
-
-  \begin{ptable}
-    \kw{AppendBandOut} & l &  & No & \\
-    \kw{Derivatives} & l & & Yes & \\
-    \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
-  \end{ptable}
-  \begin{description}
-  \item[\is{AppendBandOut}] If enabled, add the band structure for the
-    current geometry to \verb|band.out| every \kw{MDRestartFrequency}
-    steps. If set to \is{No}, only the band structure for the most
-    recent geometry is stored in that file.
-  \item[\is{Derivatves}] If enabled, save forces (and stress if
-    periodic) data in \verb|md.out|.
-  \item[\is{Charges}] If enabled, save charges and charge related
-    quantities.
-  \end{description}
-
 \end{description}
 
+\subsection{MDOutput}
+\label{sec:dftbp.MDOutput}
+Options controlling output of data during molecular dynamics
+calculations.
+
+\begin{ptable}
+  \kw{AppendBandOut} & l &  & No & \\
+  \kw{Derivatives} & l & & Yes & \\
+  \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{AppendBandOut}] If enabled, add the band structure for the
+  current geometry to \verb|band.out| every \kw{MDRestartFrequency}
+  steps. If set to \is{No}, only the band structure for the most
+  recent geometry is stored in that file.
+\item[\is{Derivatves}] If enabled, save forces (and stress if
+  periodic) data in \verb|md.out|.
+\item[\is{Charges}] If enabled, save charges and charge related
+  quantities.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Analysis
