@@ -136,5 +136,15 @@ block
 end block
 #:enddef
 
+
+#! Simple macro to print (with flushing) to a unit
+#:def PRINT_ITEMS(format, *items)
+block
+  use iso_fortran_env, only : output_unit
+  write(output_unit, ${format}$) ${", ".join(items)}$
+  flush(output_unit)
+end block
+#:enddef
+
 #:endif
 #:endmute
