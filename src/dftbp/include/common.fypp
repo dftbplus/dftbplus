@@ -137,6 +137,7 @@ end block
 #:enddef
 
 
+#! Simple macro to print (with flushing) to a unit
 #:def PRINT_ITEMS(format, *items)
 block
   use iso_fortran_env, only : output_unit
