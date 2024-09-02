@@ -16,7 +16,12 @@ module modes_main
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
-  use modes_initmodes, only : TModesMain, setEigvecGauge
+  use modes_initmodes, only : TModesMain
+#:if WITH_MPI
+  use modes_initmodes, only : setEigvecGaugeBlacs
+#:else
+  use modes_initmodes, only : setEigvecGauge
+#:endif
   use dftbp_common_environment, only : TEnvironment
   use modes_modeprojection, only : project
   use dftbp_math_matrixops, only : adjointLowerTriangle
@@ -69,7 +74,7 @@ contains
           & this%eigenModesScaled, this%denseDesc%blacsOrbSqr, uplo="U", jobz="N")
     end if
     deallocate(this%dynMatrix)
-    call setEigvecGauge(env, this%denseDesc, this%eigenModesScaled)
+    call setEigvecGaugeBlacs(env, this%denseDesc, this%eigenModesScaled)
     eigenModes = this%eigenModesScaled
   #:else
     ! remove translations or rotations if necessary
@@ -95,7 +100,7 @@ contains
 
   #:if WITH_SCALAPACK
     call scaleNormalizeEigenmodesBlacs(env, this%denseDesc, this%atomicMasses, eigenModes)
-    call displFromEigenmodesBlacs(env, this%denseDesc, this%iMovedAtoms, eigenModes, this%displ)
+    ! call displFromEigenmodesBlacs(env, this%denseDesc, this%iMovedAtoms, eigenModes, this%displ)
   #:else
     call scaleNormalizeEigenmodes(this%atomicMasses, eigenModes)
     call displFromEigenmodes(this%iMovedAtoms, eigenModes, this%displ)
@@ -133,7 +138,8 @@ contains
         do ii = 1, this%nMovedAtom
           iAt = this%iMovedAtoms(ii)
           zStarDeriv(:,:,:) = reshape(this%bornDerivsMatrix(27 * (ii - 1) + 1:27 * ii), [3, 3, 3])
-          dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]), this%displ(:, iAt, jj)), [3, 3])
+          dQ(:,:) = dQ + reshape(matmul(reshape(zStarDeriv, [9, 3]),&
+              & this%displ(:, iAt, jj)), [3, 3])
         end do
         if (this%eigen(jj) > epsilon(0.0_dp)) then
           transPol(jj) = transPol(jj) + sum(dQ**2)
@@ -161,11 +167,15 @@ contains
       eigenModesFull = eigenModes
       eigenModesScaledFull = this%eigenModesScaled
     #:endif
-      call taggedWriter%write(fd%unit, "eigenmodes", eigenModesFull(:, this%modesToPlot))
+      if (env%tGlobalLead) then
+        call taggedWriter%write(fd%unit, "eigenmodes", eigenModesFull(:, this%modesToPlot))
+      end if
       write(stdout, *) "Plotting eigenmodes:"
       write(stdout, "(16I5)") this%modesToPlot
-      call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
-          & eigenModesScaledFull(:, this%modesToPlot))
+      if (env%tGlobalLead) then
+        call taggedWriter%write(fd%unit, "eigenmodes_scaled",&
+            & eigenModesScaledFull(:, this%modesToPlot))
+      end if
       if (this%tAnimateModes) then
         do ii = 1, this%nModesToPlot
           iMode = this%modesToPlot(ii)
@@ -226,17 +236,23 @@ contains
     end if
     write(stdout, *)
 
-    call taggedWriter%write(fd%unit, "frequencies", this%eigen)
+    if (env%tGlobalLead) then
+      call taggedWriter%write(fd%unit, "frequencies", this%eigen)
+    end if
 
     if (allocated(this%bornMatrix)) then
-      call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))
+      if (env%tGlobalLead) then
+        call taggedWriter%write(fd%unit, "intensities", degenTransDip(:nTrans))
+      end if
     end if
 
     if (allocated(this%bornDerivsMatrix)) then
-      if (this%tRemoveTranslate .or. this%tRemoveRotate) then
-        call taggedWriter%write(fd%unit, "scattering", degenTransPol(2:nTrans))
-      else
-        call taggedWriter%write(fd%unit, "scattering", degenTransPol(:nTrans))
+      if (env%tGlobalLead) then
+        if (this%tRemoveTranslate .or. this%tRemoveRotate) then
+          call taggedWriter%write(fd%unit, "scattering", degenTransPol(2:nTrans))
+        else
+          call taggedWriter%write(fd%unit, "scattering", degenTransPol(:nTrans))
+        end if
       end if
     end if
 
@@ -272,11 +288,11 @@ contains
 
     nDerivs = denseDesc%fullSize
     allocate(localLine(nDerivs))
-    if (env%mpi%tGlobalLead) allocate(collected(nDerivs, nDerivs), source=0.0_dp)
+    if (env%tGlobalLead) allocate(collected(nDerivs, nDerivs), source=0.0_dp)
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    if (env%mpi%tGlobalLead) then
+    if (env%tGlobalLead) then
       do iDerivs = 1, nDerivs
         call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, distrib, localLine)
         collected(:, iDerivs) = localLine
@@ -340,10 +356,11 @@ contains
     do iCount = 1, size(eigenModes, dim=2)
       iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
           & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-      sqrtModes(iDeriv) = sqrt(sum(eigenModes(:, iCount)**2))
+      sqrtModes(iDeriv) = sum(eigenModes(:, iCount)**2)
     end do
 
     call mpifx_allreduceip(env%mpi%globalComm, sqrtModes, MPI_SUM)
+    sqrtModes(:) = sqrt(sqrtModes)
 
     ! normalize total modes
     do iCount = 1, size(eigenModes, dim=2)

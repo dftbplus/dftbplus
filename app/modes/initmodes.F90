@@ -22,7 +22,7 @@ module modes_initmodes
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_math_bisect, only : bisection
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_send
+  use dftbp_extlibs_mpifx, only : mpifx_send, mpifx_bcast
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
@@ -33,7 +33,11 @@ module modes_initmodes
 
   private
   public :: TModesMain
+#:if WITH_MPI
+  public :: setEigvecGaugeBlacs
+#:else
   public :: setEigvecGauge
+#:endif
 
 
   type :: TModesMain
@@ -193,7 +197,6 @@ contains
     associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
       call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, this%nDerivs, this%nMovedAtom,&
           & errStatus)
-    @:PROPAGATE_ERROR(errStatus)
     if (errStatus%hasError()) then
       if (errStatus%code == -1) then
         call warning("Insufficient atoms for this number of MPI processors.")
@@ -272,6 +275,7 @@ contains
     !> Instance
     class(TModesMain), intent(inout) :: this
 
+    print *, '###########'
     if (allocated(this%denseDesc)) deallocate(this%denseDesc)
     allocate(this%denseDesc)
     allocate(this%denseDesc%iAtomStart(this%nMovedAtom + 1))
@@ -376,7 +380,6 @@ contains
     integer :: iCount, jCount, iDeriv1, iDeriv2, iAt1, iAt2
 
     @:ASSERT(all(shape(hessian) == shape(dynMatrix)))
-    @:ASSERT(3 * size(atomicMasses) == size(hessian, dim=1))
 
     dynMatrix(:,:) = hessian
 
@@ -403,7 +406,7 @@ contains
 
   !> Returns gauge-corrected eigenvectors, such that the fist non-zero coefficient of each mode is
   !! positive.
-  subroutine setEigvecGauge(env, denseDesc, eigvec)
+  subroutine setEigvecGaugeBlacs(env, denseDesc, eigvec)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -414,49 +417,56 @@ contains
     !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
     real(dp), intent(inout) :: eigvec(:,:)
 
+    !! Type for communicating a row or a column of a distributed matrix
+    type(linecomm) :: collector
+
+    !! Temporary storage for a single line of the collected, dense, square matrix
+    real(dp), allocatable :: localLine(:)
+
     !! Auxiliary variables
-    integer :: iMode, iCoeff
+    integer :: iCoeff, iDerivs, nDerivs, iCount, iGlobCol
 
-    do iMode = 1, size(eigvec, dim=2)
-      lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
-        if (abs(eigvec(iCoeff, iMode)) > 1.0e-10_dp) then
-          eigvec(:, iMode) = eigvec(:, iMode) * sign(1.0_dp, eigvec(iCoeff, iMode))
-          exit lpCoeff
+    integer, allocatable :: prefac(:)
+
+    nDerivs = denseDesc%fullSize
+    allocate(localLine(nDerivs))
+    allocate(prefac(nDerivs))
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    if (env%mpi%tGlobalLead) then
+      ! runs over eigenvectors
+      do iDerivs = 1, nDerivs
+        call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigvec, localLine)
+        ! runs over eigenvector coefficients
+        lpCoeff: do iCoeff = 1, size(localLine)
+          if (abs(localLine(iCoeff)) > 1.0e-10_dp) then
+            prefac(iDerivs) = nint(sign(1.0_dp, localLine(iCoeff)))
+            exit lpCoeff
+          end if
+        end do lpCoeff
+      end do
+    else
+      do iDerivs = 1, nDerivs
+        if (env%mpi%tGroupLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigvec, localLine)
+          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, iDerivs, eigvec)
         end if
-      end do lpCoeff
-    end do
+      end do
+    end if
 
-    ! determine position of first non-zero entry of distributed eigenvectors
-    do iCount = 1, size(eigvec, dim=2)
-      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
-          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-      tmp(:) = abs(eigvec(:, iCount)
-      firstNonZeroIdx(iDeriv) = denseDesc%fullSize
-      lpIdx: do idx = 1, size(tmp)
-        if (tmp(idx) > 1.0e-10_dp) then
-          iRow = scalafx_indxl2g(idx, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
-              & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-          ! does greater idx automatically ensure greater iRow?
-          firstNonZeroIdx(iDeriv) = iRow
-          exit lpIdx
-        end if
-      end do lpIdx
-    end do
-
-    do idx = 1, size(firstNonZeroIdx)
-      ! how do I call this?
-      call mpifx_allreduce(env%mpi%globalComm, firstNonZeroIdx(idx), rank, MPI_MINLOC)
-      call mpifx_bcast(env%mpi%globalComm, firstNonZeroVal(idx), root=rank)
-    end do
+    call mpifx_bcast(env%mpi%globalComm, prefac)
 
     ! set gauge
     do iCount = 1, size(eigvec, dim=2)
-      iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+      iGlobCol = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
           & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-      eigvec(:, iCount) = eigvec(:, iCount) * sign(1.0_dp, firstNonZeroVal(iDeriv))
+      eigvec(:, iCount) = eigvec(:, iCount) * real(prefac(iGlobCol), dp)
     end do
 
-  end subroutine setEigvecGauge
+  end subroutine setEigvecGaugeBlacs
 
 #:else
 

@@ -17,3 +17,7 @@ Hessian = DirectRead {
 }
 
 InputVersion = 3
+
+Parallel {
+  Blacs = BlockSize { 4 } # Very small
+}
