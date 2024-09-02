@@ -100,7 +100,7 @@ contains
 
   #:if WITH_SCALAPACK
     call scaleNormalizeEigenmodesBlacs(env, this%denseDesc, this%atomicMasses, eigenModes)
-    ! call displFromEigenmodesBlacs(env, this%denseDesc, this%iMovedAtoms, eigenModes, this%displ)
+    call displFromEigenmodesBlacs(env, this%denseDesc, this%iMovedAtoms, eigenModes, this%displ)
   #:else
     call scaleNormalizeEigenmodes(this%atomicMasses, eigenModes)
     call displFromEigenmodes(this%iMovedAtoms, eigenModes, this%displ)
@@ -409,26 +409,17 @@ contains
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    if (env%mpi%tGlobalLead) then
+    if (env%tGlobalLead) then
       ! runs over eigenvectors
       do iDerivs = 1, nDerivs
         call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigenModes, localLine)
-        ! ! runs over eigenvector coefficients
-        ! lpCoeff: do iCoeff = 1, size(localLine)
-        !   if (abs(localLine(iCoeff)) > 1.0e-10_dp) then
-        !     prefac(iDerivs) = nint(sign(1.0_dp, localLine(iCoeff)))
-        !     exit lpCoeff
-        !   end if
-        ! end do lpCoeff
-
         do iAt = 1, nAtom
           if (any(iMovedAtoms == iAt)) then
             ! index of atom in the list of moved atoms
             iAtMoved = minloc(abs(iMovedAtoms - iAt), dim=1)
-            displ(:, iAt, iDerivs) = eigenModes(3 * iAtMoved - 2:3 * iAtMoved, iDerivs)
+            displ(:, iAt, iDerivs) = localLine(3 * iAtMoved - 2:3 * iAtMoved)
           end if
         end do
-
       end do
     else
       do iDerivs = 1, nDerivs
@@ -442,52 +433,6 @@ contains
     end if
 
     call mpifx_bcast(env%mpi%globalComm, displ)
-    ! call mpifx_allreduceip(env%mpi%globalComm, displ, MPI_SUM)
-
-    ! ! set gauge
-    ! do iCount = 1, size(eigvec, dim=2)
-    !   iGlobCol = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
-    !       & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-    !   eigvec(:, iCount) = eigvec(:, iCount) * real(prefac(iGlobCol), dp)
-    ! end do
-
-    ! !!###############
-    ! do iCount = 1, size(eigenModes, dim=2)
-    !   iDeriv = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
-    !       & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
-    !   call bisection(iAt, denseDesc%iAtomStart, iDeriv)
-    !   if (any(iMovedAtoms == iAt)) then
-    !     ! index of atom in the list of moved atoms
-    !     iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
-
-    !   end if
-    !   displ(:, iAt, iDeriv)
-
-
-    !   do iMovedAt = 1, size(iMovedAtoms)
-
-
-    !   displ(:, iAt, iDeriv)
-
-    !   end if
-    ! end do
-
-    ! do ii = 1, nDerivs
-    !   do iMovedAt = 1, size(iMovedAtoms)
-    !     iAt = iMovedAtoms(iMovedAt)
-    !     displ(:, iAt, ii) = eigenModes(3 * iAtMoved - 2:3 * iMovedAt, ii)
-    !   end do
-    ! end do
-
-    ! do iAt = 1, nAtom
-    !   if (any(iMovedAtoms == iAt)) then
-    !     ! index of atom in the list of moved atoms
-    !     iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
-    !     do ii = 1, nDerivs
-    !       displ(:, iAt, ii) = eigenModes(3 * iAtMoved - 2:3 * iAtMoved, ii)
-    !     end do
-    !   end if
-    ! end do
 
   end subroutine displFromEigenmodesBlacs
 
