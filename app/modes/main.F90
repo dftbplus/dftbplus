@@ -277,14 +277,14 @@ contains
     !> Collected, full square matrix (target)
     real(dp), intent(out), allocatable :: collected(:,:)
 
-    !! Auxiliary variables
-    integer :: iDerivs, nDerivs
-
     !! Type for communicating a row or a column of a distributed matrix
     type(linecomm) :: collector
 
     !! Temporary storage for a single line of the collected, dense, square matrix
     real(dp), allocatable :: localLine(:)
+
+    !! Auxiliary variables
+    integer :: iDerivs, nDerivs
 
     nDerivs = denseDesc%fullSize
     allocate(localLine(nDerivs))
@@ -329,9 +329,6 @@ contains
     !! Number of derivatives
     integer :: nDerivs
 
-    !! Type for communicating a row or a column of a distributed matrix
-    type(linecomm) :: collector
-
     !! Auxiliary variables
     integer :: iCount, jCount, iDeriv, iAt
     real(dp), allocatable :: sqrtModes(:)
@@ -349,8 +346,6 @@ contains
 
     nDerivs = denseDesc%fullSize
     allocate(sqrtModes(nDerivs), source=0.0_dp)
-
-    ! eigenModes(iAtCoord, iDeriv)
 
     ! collect square roots of distributed eigenvectors
     do iCount = 1, size(eigenModes, dim=2)
@@ -390,22 +385,71 @@ contains
     !> Displacement vectors for every atom in every mode. Shape: [3, nAtom, nDerivs]
     real(dp), intent(out) :: displ(:,:,:)
 
-    ! !! Number of derivatives
-    ! integer :: nDerivs
+    !! Type for communicating a row or a column of a distributed matrix
+    type(linecomm) :: collector
 
-    ! !! Total number of atoms
-    ! integer :: nAtom
+    !! Temporary storage for a single line of the collected, dense, square matrix
+    real(dp), allocatable :: localLine(:)
 
-    ! !! Auxiliary variables
-    ! integer :: iAt, iAtMoved, ii
-    ! real(dp) :: tmp(3, 3)
+    !! Number of derivatives
+    integer :: nDerivs
 
-    ! nAtom = size(displ, dim=2)
-    ! nDerivs = size(displ, dim=3)
+    !! Total number of atoms
+    integer :: nAtom
 
-    ! displ(:,:,:) = 0.0_dp
+    !! Auxiliary variables
+    integer :: iAt, iAtMoved, iDerivs
 
+    nAtom = size(displ, dim=2)
+    nDerivs = size(displ, dim=3)
 
+    displ(:,:,:) = 0.0_dp
+
+    allocate(localLine(nDerivs))
+
+    call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    if (env%mpi%tGlobalLead) then
+      ! runs over eigenvectors
+      do iDerivs = 1, nDerivs
+        call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigenModes, localLine)
+        ! ! runs over eigenvector coefficients
+        ! lpCoeff: do iCoeff = 1, size(localLine)
+        !   if (abs(localLine(iCoeff)) > 1.0e-10_dp) then
+        !     prefac(iDerivs) = nint(sign(1.0_dp, localLine(iCoeff)))
+        !     exit lpCoeff
+        !   end if
+        ! end do lpCoeff
+
+        do iAt = 1, nAtom
+          if (any(iMovedAtoms == iAt)) then
+            ! index of atom in the list of moved atoms
+            iAtMoved = minloc(abs(iMovedAtoms - iAt), dim=1)
+            displ(:, iAt, iDerivs) = eigenModes(3 * iAtMoved - 2:3 * iAtMoved, iDerivs)
+          end if
+        end do
+
+      end do
+    else
+      do iDerivs = 1, nDerivs
+        if (env%mpi%tGroupLead) then
+          call collector%getline_lead(env%blacs%orbitalGrid, iDerivs, eigenModes, localLine)
+          call mpifx_send(env%mpi%interGroupComm, localLine, env%mpi%interGroupComm%leadrank)
+        else
+          call collector%getline_follow(env%blacs%orbitalGrid, iDerivs, eigenModes)
+        end if
+      end do
+    end if
+
+    call mpifx_bcast(env%mpi%globalComm, displ)
+    ! call mpifx_allreduceip(env%mpi%globalComm, displ, MPI_SUM)
+
+    ! ! set gauge
+    ! do iCount = 1, size(eigvec, dim=2)
+    !   iGlobCol = scalafx_indxl2g(iCount, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+    !       & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+    !   eigvec(:, iCount) = eigvec(:, iCount) * real(prefac(iGlobCol), dp)
+    ! end do
 
     ! !!###############
     ! do iCount = 1, size(eigenModes, dim=2)
@@ -415,7 +459,7 @@ contains
     !   if (any(iMovedAtoms == iAt)) then
     !     ! index of atom in the list of moved atoms
     !     iAtMoved = minloc(abs(iMovedAtoms - iAt), 1)
-        
+
     !   end if
     !   displ(:, iAt, iDeriv)
 
