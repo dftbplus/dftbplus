@@ -96,6 +96,9 @@ module dftbp_timedep_linresptypes
     !! natural orbitals
     logical :: tGrndState = .true.
 
+    !> Whether excitation information should be written
+    logical :: writeExcitations = .false.
+
     !> Whether excited Mulliken populations should be written
     logical :: writeMulliken = .false.
 
@@ -138,6 +141,9 @@ module dftbp_timedep_linresptypes
 
     !> Subspace dimension factor Stratmann diagonaliser
     integer :: subSpaceFactorStratmann
+
+    !> Whether the NACV file should be written
+    logical :: writeNacv  = .false.
 
     ! Data structure related
 

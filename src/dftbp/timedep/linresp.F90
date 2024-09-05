@@ -131,7 +131,7 @@ module dftbp_timedep_linresp
 contains
 
   !> Initialize an internal data type for linear response excitations.
-  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, nSpin, onSiteMatrixElements, isIoProc)
 
     !> Data structure for linear response
     type(TLinResp), intent(out) :: this
@@ -150,6 +150,9 @@ contains
 
     !> Onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
+    !> Whether current process is responsible for file I/O
+    logical, intent(in) :: isIoProc
 
     integer :: dLev
 
@@ -178,7 +181,7 @@ contains
     this%nStat = ini%nStat
     this%symmetry = ini%sym
 
-    this%tWriteDensityMatrix = ini%tWriteDensityMatrix
+    this%tWriteDensityMatrix = ini%tWriteDensityMatrix .and. isIoProc
 
     if (nSpin == 1) then
       this%tSpin = .false.
@@ -222,14 +225,15 @@ contains
     end if
     this%isCIopt = ini%isCIopt
     this%energyShiftCI = ini%energyShiftCI
-    this%writeMulliken = ini%tMulliken
-    this%writeCoeffs = ini%tCoeffs
+    this%writeMulliken = ini%tMulliken .and. isIoProc
+    this%writeCoeffs = ini%tCoeffs .and. isIoProc
     this%tGrndState = ini%tGrndState
-    this%writeTrans = ini%tTrans
-    this%writeTransQ = ini%tTransQ
-    this%writeSPTrans = ini%tSPTrans
-    this%writeXplusY = ini%tXplusY
-    this%writeTransDip = ini%tTradip
+    this%writeTrans = ini%tTrans .and. isIoProc
+    this%writeTransQ = ini%tTransQ .and. isIoProc
+    this%writeSPTrans = ini%tSPTrans .and. isIoProc
+    this%writeXplusY = ini%tXplusY .and. isIoProc
+    this%writeTransDip = ini%tTradip .and. isIoProc
+    this%writeNacv = this%tNaCoupling .and. isIoProc
 
     this%nAtom = nAtom
     this%nEl = nEl
@@ -245,7 +249,7 @@ contains
 
     select case(this%iLinRespSolver)
     case(linrespSolverTypes%Arpack)
-      this%testArnoldi = ini%tDiagnoseArnoldi
+      this%testArnoldi = ini%tDiagnoseArnoldi .and. isIoProc
       this%tArnoldi = ini%tArnoldi
     case(linrespSolverTypes%Stratmann)
       this%subSpaceFactorStratmann = ini%subSpaceFactorStratmann
