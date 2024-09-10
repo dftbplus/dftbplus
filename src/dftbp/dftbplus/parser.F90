@@ -3094,7 +3094,7 @@ contains
       allocate(ctrl%supercellFoldingDiag(3))
       do ii = 1, 3
         coeffsAndShifts(ii, ii) = 1.0_dp
-        ctrl%supercellFoldingDiag(ii) = coeffsAndShifts(ii, ii)
+        ctrl%supercellFoldingDiag(ii) = nint(coeffsAndShifts(ii, ii))
       end do
       ctrl%supercellFoldingMatrix = coeffsAndShifts
     end if
@@ -5641,7 +5641,10 @@ contains
 
     type(fnode), pointer :: child
     logical :: tLRNeedsSpinConstants, tShellResolvedW
-    integer :: iSp1
+    integer :: iSp1, nConstants
+    type(TListReal) :: realBuffer
+    character(lc) :: strTmp
+    real(dp) :: rWork(maxval(orb%nShell)**2)
 
     tLRNeedsSpinConstants = .false.
 
@@ -5671,20 +5674,34 @@ contains
         end if
       end if
 
-      if (tShellResolvedW) then
-        ! potentially unique values for each shell
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),&
-              & ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1))
-        end do
-      else
-        ! only one value per atom
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),ctrl%spinW(1, 1, iSp1))
-          ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
-              & ctrl%spinW(1, 1, iSp1)
-        end do
-      end if
+      do iSp1 = 1, geo%nSpecies
+        call init(realBuffer)
+        call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+        nConstants = len(realBuffer)
+        if (tShellResolvedW) then
+          if (nConstants == orb%nShell(iSp1)**2) then
+            call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
+                & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+          else
+            write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
+                & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                & '", as ShellResolvedSpin enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        else
+          if (nConstants == 1) then
+            call asArray(realBuffer, rWork(:1))
+            ! only one value for all atom spin constants
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
+          else
+            write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
+                & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        end if
+        call destruct(realBuffer)
+      end do
     end if
 
   end subroutine readSpinConstants
