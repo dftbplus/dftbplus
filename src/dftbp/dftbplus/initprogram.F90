@@ -1965,7 +1965,7 @@ contains
     if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
-    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
+    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile .and. isIoProc
 
     if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential)) then
       allocate(this%eField)
