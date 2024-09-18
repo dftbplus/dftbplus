@@ -16,6 +16,14 @@ int version(int major, int minor) {
     return 0;
 }
 
+int provides(typeof (capabilities) *cap) {
+    *cap = (capabilities) {
+        .provides_getSKIntegrals = 1,
+        .provides_setNeighbourList = 1
+    };
+    return 1;
+}
+
 void setNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
     nAtoms = n;
 }
