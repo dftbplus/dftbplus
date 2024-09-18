@@ -24,17 +24,25 @@ module dftbp_plugins_plugin
     type(c_ptr) :: cptr
   end type
 
-  !> Type to manage a plugin
-  type TPlugin
-
-    !> Handle to the plugin
-    type(c_handle), private :: handle
+  !> Type to manage plugin capabilities, i.e. what function the plugin actually implements
+  type TPluginCapabilities
 
     !> Whether the plugin provides SK data
     logical :: provides_getSKIntegrals = .false.
 
     !> Whether the plugin needs the neighbour list
     logical :: provides_setNeighbourList = .false.
+
+  end type TPluginCapabilities
+
+  !> Type to manage a plugin
+  type TPlugin
+
+    !> Handle to the plugin
+    type(c_handle), private :: handle
+
+    !> Plugin capabiltites
+    type(TPluginCapabilities) :: capabilities
 
     !> Whether the plugin is initialized
     logical :: initialized = .false.
@@ -47,6 +55,12 @@ module dftbp_plugins_plugin
     final :: TPlugin_final
 
   end type TPlugin
+
+  !> Type bound to C for fetching the plugin capabilities
+  type, bind(C) :: TPluginCapabilities_c
+    integer(c_int) :: provides_getSKIntegrals
+    integer(c_int) :: provides_setNeighbourList
+  end type TPluginCapabilities_c
 
   interface
 
@@ -72,10 +86,11 @@ module dftbp_plugins_plugin
     end function version_plugin_c
 
     !> Check if the plugin implements a certain function
-    function provides_plugin_c(handle, func) result(success) bind(C, name='provides_plugin')
-      import c_handle, c_char, c_int
+    function provides_plugin_c(handle, capabilities) result(success) bind(C, name='provides_plugin')
+      import TPluginCapabilities_c
+      import c_handle, c_int
       type(c_handle), value, intent(in) :: handle
-      character(kind=c_char), intent(in) :: func(*)
+      type(TPluginCapabilities_c), intent(out) :: capabilities
       integer(c_int) :: success
     end function provides_plugin_c
 
@@ -119,6 +134,8 @@ contains
     !> Success of initialization
     logical :: success
 
+    type(TPluginCapabilities_c) :: capabilities_c
+
     this%handle = init_plugin_c(trim(filename) // char(0))
     this%initialized = c_associated(this%handle%cptr)
 
@@ -130,10 +147,13 @@ contains
     end if
 
     if (this%initialized) then
-      this%provides_getSKIntegrals = provides_plugin_c(this%handle, "getSKIntegrals"//char(0))&
-          & == 1
-      this%provides_setNeighbourList = provides_plugin_c(this%handle, "setNeighbourList"//char(0))&
-          & == 1
+      if (provides_plugin_c(this%handle, capabilities_c) /= 1) then
+        call error("Unable to determine the capabilities of the plugin.")
+        this%initialized = .false.
+      else
+        this%capabilities%provides_getSKIntegrals = capabilities_c%provides_getSKIntegrals == 1
+        this%capabilities%provides_setNeighbourList = capabilities_c%provides_setNeighbourList == 1
+      end if
     end if
 
     success = this%initialized
@@ -190,7 +210,7 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%provides_getSKIntegrals) then
+    if (.not. this%capabilities%provides_getSKIntegrals) then
       call error("Trying to call a function not provided by the plugin")
     end if
 
@@ -224,7 +244,7 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%provides_setNeighbourList) then
+    if (.not. this%capabilities%provides_setNeighbourList) then
       call error("Trying to call a function not provided by the plugin")
     end if
 

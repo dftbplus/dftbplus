@@ -406,7 +406,7 @@ contains
 
   #:if WITH_PLUGINS
     if (associated(neigh%plugin)) then
-      if (neigh%plugin%provides_setNeighbourList) then
+      if (neigh%plugin%capabilities%provides_setNeighbourList) then
         call neigh%plugin%setNeighbourList(coord, img2CentCell, neigh%iNeighbour, neigh%neighDist2)
       end if
     end if

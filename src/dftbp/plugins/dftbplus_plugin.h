@@ -11,9 +11,15 @@
 extern "C" {
 #endif
 
+typedef struct {
+  int provides_getSKIntegrals;
+  int provides_setNeighbourList;
+} capabilities;
+
 int init();
 void final();
 int version(int, int);
+int provides(typeof (capabilities) *);
 
 int getSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
 

@@ -43,9 +43,14 @@ int version_plugin(void *handle, int major, int minor) {
   return 0;
 }
 
-int provides_plugin(void *handle, const char *func) {
-  void *funcpointer = dlsym(handle, func);
-  return funcpointer == NULL ? 0 : 1;
+int provides_plugin(void *handle, void *capabilities) {
+  int (*providesfunc)(void *);
+  providesfunc = dlsym(handle, "provides");
+  if (providesfunc != NULL) {
+    return (*providesfunc)(capabilities);
+  }
+
+  return 0;
 }
 
 int call_getSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab, double dist,
