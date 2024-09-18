@@ -149,19 +149,13 @@ contains
             ! Find l-shell for jOrb
             iSh2 = orb%iShellOrb(jOrb-ii+1,species(iAtom))
 
-            ! OC contribution except diagonal elements
-            if (iOrb /= jOrb) then
-              this%Omat0(iOrb,jOrb) = onSiteElements(iSh1,iSh2,3,species(iAtom))
-            end if
+            ! OC contribution
+            this%Omat0(iOrb,jOrb) = onSiteElements(iSh1,iSh2,3,species(iAtom))
 
-            ! RI loss correction for p orbitals
-            if (iSh1 == 2 .and. iSh2 == 2) then
-              if (iOrb == jOrb) then
-                fac = 2.0_dp
-              else
-                fac = -1.0_dp
-              end if
-              this%OmatRI(iOrb,jOrb) = fac * onSiteElements(iSh1,iSh2,3,species(iAtom))
+            ! RI loss correction
+            if (iSh1 == iSh2 .and. iSh1 > 1) then
+              this%OmatRI(iOrb,jOrb) = onSiteElements(iSh1,iSh2,3,species(iAtom)) &
+                  & / (2.0_dp * iSh1 - 1.0_dp) / 2.0_dp
             end if
 
           end do
@@ -339,6 +333,7 @@ contains
       real(dp), allocatable :: Hmat(:,:)
       real(dp), allocatable :: tmpVec(:)
       real(dp), allocatable :: Hvec(:)
+      real(dp), allocatable :: HamRI(:,:)
 
       real(dp) :: fac
       integer :: nOrb, iOrb, jOrb
@@ -350,6 +345,7 @@ contains
       allocate(Hmat(nOrb,nOrb))
       allocate(tmpVec(nOrb))
       allocate(Hvec(nOrb))
+      allocate(HamRI(nOrb,nOrb))
 
       call gemm(PS, Dmat, Smat)
 
@@ -407,26 +403,26 @@ contains
       call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       ! RI loss correction term
-      fac = 2.0_dp / 3.0_dp
+      HamRI(:,:) = 0.0_dp
 
       tmpMat(:,:) = transpose(PS) * this%OmatRI
-      call gemm(HlrOC, tmpMat, Smat, alpha=fac, beta=1.0_dp)
+      call gemm(HamRI, tmpMat, Smat)
 
       call gemm(tmpMat, Smat, PS)
       Hmat(:,:) = tmpMat * this%OmatRI
-      HlrOC(:,:) = HlrOC + HMat * fac
+      HamRI(:,:) = HamRI + HMat
 
       Hmat(:,:) = Dmat * this%OmatRI
       call gemm(tmpMat, Hmat, Smat)
-      call gemm(HlrOC, Smat, tmpMat, alpha=fac, beta=1.0_dp)
+      call gemm(HamRI, Smat, tmpMat, beta=1.0_dp)
 
       tmpMat(:,:) = PS * this%OmatRI
-      call gemm(HlrOC, Smat, tmpMat, alpha=fac, beta=1.0_dp)
+      call gemm(HamRI, Smat, tmpMat, beta=1.0_dp)
 
       if (this%tSpin) then
-        HlrOC(:,:) = -0.25_dp * HlrOC
+        HlrOC(:,:) = -0.25_dp * HlrOC + HamRI
       else
-        HlrOC(:,:) = -0.125_dp * HlrOC
+        HlrOC(:,:) = -0.125_dp * HlrOC + 0.5_dp * HamRI
       end if
 
     end subroutine evaluateHamiltonian
@@ -504,10 +500,10 @@ contains
     real(dp), allocatable :: Hvec(:)
 
     real(dp), allocatable :: shiftSqr(:,:,:)
+    real(dp), allocatable :: shiftSqrRI(:,:,:)
     real(dp), allocatable :: sPrimeTmp(:,:,:)
     real(dp), allocatable :: shift(:,:,:)
     real(dp), allocatable :: tmpForce(:)
-    real(dp), allocatable :: tmpDeriv(:,:)
 
     real(dp) :: fac
     integer :: nOrb, nSpin, nAtom
@@ -525,10 +521,10 @@ contains
     allocate(Hvec(nOrb))
 
     allocate(shiftSqr(nOrb,nOrb,nSpin))
+    allocate(shiftSqrRI(nOrb,nOrb,nSpin))
     allocate(sPrimeTmp(orb%mOrb,orb%mOrb,3))
     allocate(shift(orb%mOrb,orb%mOrb,nSpin))
     allocate(tmpForce(3))
-    allocate(tmpDeriv(3,nAtom))
 
     ! Initialize several matrices for calculation of gradients
     call allocateAndInit(this, overlap, densSqr, Smat, Dmat)
@@ -599,13 +595,14 @@ contains
     end do
 
     ! RI loss correction: 6th term - a
-    fac = 4.0_dp / 3.0_dp
+    fac = 2.0_dp
+    shiftSqrRI(:,:,:) = 0.0_dp
 
     do iSpin = 1, nSpin
 
       tmpMat(:,:) = 0.0_dp
       tmpMat(:,:) = PS(:,:,iSpin) * this%OmatRI
-      call gemm(shiftSqr(:,:,iSpin), tmpMat, Dmat(:,:,iSpin), alpha=fac, beta=1.0_dp)
+      call gemm(shiftSqrRI(:,:,iSpin), tmpMat, Dmat(:,:,iSpin), alpha=fac)
 
     end do
 
@@ -614,12 +611,11 @@ contains
 
       tmpMat(:,:) = 0.0_dp
       tmpMat(:,:) = Dmat(:,:,iSpin) * this%OmatRI
-      call gemm(shiftSqr(:,:,iSpin), tmpMat, PS(:,:,iSpin), transB="T", alpha=fac, beta=1.0_dp)
+      call gemm(shiftSqrRI(:,:,iSpin), tmpMat, PS(:,:,iSpin), transB="T", alpha=fac, beta=1.0_dp)
 
     end do
 
     ! Compute gradients originating from onsite contribution with range separated hybrid functional
-    tmpDeriv(:,:) = 0.0_dp
 
     ! sum A
     loopA: do iAtA = 1, nAtom
@@ -658,19 +654,45 @@ contains
           end do
 
           ! forces from atom A on atom B and B onto A
-          tmpDeriv(:,iAtA) = tmpDeriv(:,iAtA) + tmpForce(:)
-          tmpDeriv(:,iAtB) = tmpDeriv(:,iAtB) - tmpForce(:)
+          if (this%tSpin) then
+            gradients(:,iAtA) = gradients(:,iAtA) - 0.25_dp * tmpForce
+            gradients(:,iAtB) = gradients(:,iAtB) + 0.25_dp * tmpForce
+          else
+            gradients(:,iAtA) = gradients(:,iAtA) - 0.125_dp * tmpForce
+            gradients(:,iAtB) = gradients(:,iAtB) + 0.125_dp * tmpForce
+          end if
+
+          ! shift values for gradient
+          shift(:,:,:) = 0.0_dp
+          do iSpin = 1, nSpin
+            do mu = iAtMu1, iAtMu2
+              do nu = iAtNu1, iAtNu2
+                shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin) = shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin)&
+                    & + shiftSqrRI(mu,nu,iSpin) + shiftSqrRI(nu,mu,iSpin)
+              end do
+            end do
+          end do
+
+          tmpForce(:) = 0.0_dp
+          do ii = 1, 3
+            do iSpin = 1, nSpin
+              tmpForce(ii) = tmpForce(ii) + sum(shift(:,:,iSpin)*sPrimeTmp(:,:,ii))
+            end do
+          end do
+
+          ! forces from atom A on atom B and B onto A
+          if (this%tSpin) then
+            gradients(:,iAtA) = gradients(:,iAtA) + tmpForce
+            gradients(:,iAtB) = gradients(:,iAtB) - tmpForce
+          else
+            gradients(:,iAtA) = gradients(:,iAtA) + 0.5_dp * tmpForce
+            gradients(:,iAtB) = gradients(:,iAtB) - 0.5_dp * tmpForce
+          end if
 
         end if
 
       end do loopB
     end do loopA
-
-    if (this%tSpin) then
-      gradients(:,:) = gradients - 0.25_dp * tmpDeriv
-    else
-      gradients(:,:) = gradients - 0.125_dp * tmpDeriv
-    end if
 
   contains
 
