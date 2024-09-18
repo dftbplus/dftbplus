@@ -1,5 +1,5 @@
 Geometry = GenFormat {
-   <<< Acene_Primitive_Cell.gen
+  <<< Acene_Primitive_Cell.gen
 }
 
 Hamiltonian = DFTB {

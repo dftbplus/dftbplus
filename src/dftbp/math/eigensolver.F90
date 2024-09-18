@@ -144,7 +144,7 @@ contains
 
 
   !> Double precision eigensolver for a symmetric matrix
-  subroutine dble_dsyev(a,w,uplo,jobz)
+  subroutine dble_dsyev(a,w,uplo,jobz,infoVal)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -158,6 +158,9 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
 
     real(rdp), allocatable :: work(:)
     integer n, info
@@ -177,6 +180,10 @@ contains
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     call dsyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
     if (info/=0) then
       if (info<0) then
 99020 format ('Failure in diagonalisation routine dsyev,', &

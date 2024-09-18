@@ -1,44 +1,48 @@
 Geometry = GenFormat {
-    <<< "benzene.gen"
+  <<< "benzene.gen"
 }
 
-Driver = ConjugateGradient{MaxSteps=0}
+Driver = ConjugateGradient{MaxSteps = 0}
 
 Hamiltonian = DFTB {
-    SCC = Yes
-    SCCTolerance = 1e-8
-    MaxAngularMomentum = {
-        C = "p"
-        H = "s"
-    }
-    SlaterKosterFiles = Type2FileNames {
-        Prefix = "slakos/origin/ob2-1-1/shift/"
-        Separator = "-"
-        Suffix = ".skf"
-    }
-    Filling = Fermi {Temperature [K] = 0}
-    RangeSeparated = LC {
-      Screening = Thresholded {
-        Threshold = 1.0e-16
-      }
-    }
+
+  SCC = Yes
+  SCCTolerance = 1e-8
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Filling = Fermi {Temperature [K] = 0}
+
+  RangeSeparated = LC {
+    Screening = Thresholded {Threshold = 1.0e-16}
+  }
+
 }
 
 ExcitedState {
-    Casida {
-        NrOfExcitations = 20
-        StateOfInterest = 5
-        Symmetry = Singlet
-	Diagonaliser = Stratmann {}
-    }
+  Casida {
+    NrOfExcitations = 20
+    StateOfInterest = 5
+    Symmetry = Singlet
+    Diagonaliser = Stratmann {}
+  }
 }
 
 Options {
-    WriteAutotestTag = Yes
+  WriteAutotestTag = Yes
 }
 
 ParserOptions {
-    ParserVersion = 10
+  ParserVersion = 10
 }
 
 Parallel {
@@ -46,4 +50,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

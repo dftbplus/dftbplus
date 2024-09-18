@@ -1,5 +1,5 @@
 Geometry = VaspFormat {
-   <<< POSCAR_Primitive_Cell
+  <<< POSCAR_Primitive_Cell
 }
 
 Hamiltonian = DFTB {

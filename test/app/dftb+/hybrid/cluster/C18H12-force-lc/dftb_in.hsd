@@ -36,13 +36,16 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
+
   SCC = Yes
   SCCTolerance = 1.0E-008  # Extremely small
   MaxSCCIterations = 1000
+
   Mixer = Broyden {}
+
   MaxAngularMomentum = {
-   H = "s"
-   C = "p"
+    H = "s"
+    C = "p"
   }
 
   SlaterKosterFiles = Type2FileNames {
@@ -56,9 +59,10 @@ Hamiltonian = DFTB {
       Threshold = 1.0e-8
     }
   }
+
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
@@ -66,6 +70,6 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
+ParserOptions {
   ParserVersion = 5
 }

@@ -1,5 +1,5 @@
 Geometry = GenFormat {
-   <<< GaAs_2x2x2.gen
+  <<< GaAs_2x2x2.gen
 }
 
 Hamiltonian = DFTB {

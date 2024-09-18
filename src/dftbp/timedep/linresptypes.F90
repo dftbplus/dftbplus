@@ -13,7 +13,7 @@ module dftbp_timedep_linresptypes
   implicit none
 
   private
-  public :: linrespSolverTypes, TLinResp
+  public :: linrespSolverTypes, TLinResp, TCasidaParameter, TCasidaParameter_init
 
   !> Types for solution of RPA equations.
   type TSolverTypesEnum
@@ -145,5 +145,135 @@ module dftbp_timedep_linresptypes
     logical :: tInit = .false.
 
   end type TLinResp
+
+  !> Data type for common parameters of the Casida routines known only at runtime 
+  type :: TCasidaParameter 
+
+    !> Occupied orbitals per spin channel
+    integer, allocatable :: nocc_ud(:)
+
+    !> Virtual orbitals per spin channel
+    integer, allocatable :: nvir_ud(:)
+
+    !> Number of occ-occ transitions per spin channel
+    integer, allocatable :: nxoo_ud(:)
+
+    !> Number of vir-vir transitions per spin channel
+    integer, allocatable :: nxvv_ud(:)
+
+    !> Number of occ-vir transitions per spin channel
+    integer, allocatable :: nxov_ud(:)
+
+    !> Number of occupied-virtual transitions (possibly reduced by windowing)
+    integer :: nxov_rd
+
+    !> array from pairs of single particles states to compound index
+    integer, allocatable :: iaTrans(:,:,:)
+
+    !> Index array for occ-vir single particle excitations
+    integer, allocatable :: getIA(:,:)
+
+    !> Index array for occ-occ single particle excitations
+    integer, allocatable :: getIJ(:,:)
+
+    !> Index array for vir-vir single particle excitations
+    integer, allocatable :: getAB(:,:)
+
+    !> Index array for single particle transitions
+    integer, allocatable :: win(:)
+    
+    !> Single particle excitation energies
+    real(dp), allocatable :: wij(:)
+    
+    ! Square root of occupation difference between vir and occ states
+    real(dp), allocatable :: sqrOccIA(:)
+
+    !> Is calculation range-separated?
+    logical :: tHybridXc
+
+    !> Is a Z-vector calculation required?
+    logical :: tZVector
+        
+    end type TCasidaParameter
+
+  contains
+
+    !> Initialize the internal data type for the Casida calculations.
+    subroutine TCasidaParameter_init(this, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
+        & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
+    
+      !> Run time parameters of the Casida routine
+      type(TCasidaParameter), intent(out) :: this
+
+      !> Occupied orbitals per spin channel
+      integer, allocatable, intent(inout) :: nocc_ud(:)
+
+      !> Virtual orbitals per spin channel
+      integer, allocatable, intent(inout) :: nvir_ud(:)
+
+      !> Number of occ-occ transitions per spin channel
+      integer, allocatable, intent(inout) :: nxoo_ud(:)
+
+      !> Number of vir-vir transitions per spin channel
+      integer, allocatable, intent(inout) :: nxvv_ud(:)
+
+      !> Number of occ-vir transitions per spin channel
+      integer, allocatable, intent(inout) :: nxov_ud(:)
+
+      !> Number of occupied-virtual transitions (possibly reduced by windowing)
+      integer, intent(in) :: nxov_rd
+
+      !> array from pairs of single particles states to compound index
+      integer, allocatable, intent(inout) :: iaTrans(:,:,:)
+
+      !> Index array for occ-vir single particle excitations
+      integer, allocatable, intent(inout) :: getIA(:,:)
+
+      !> Index array for occ-occ single particle excitations
+      integer, allocatable, intent(inout) :: getIJ(:,:)
+
+      !> Index array for vir-vir single particle excitations
+      integer, allocatable, intent(inout) :: getAB(:,:)
+
+      !> Index array for single particle transitions
+      integer, allocatable, intent(inout) :: win(:)
+    
+      !> Single particle excitation energies
+      real(dp), allocatable, intent(inout) :: wij(:)
+
+      ! Square root of occupation difference between vir and occ states
+      real(dp), allocatable, intent(inout) :: sqrOccIA(:)
+
+      !> Is calculation range-separated?
+      logical, intent(in) :: tHybridXc
+
+      !> Is a Z-vector calculation required?
+      logical, intent(in) :: tZVector     
+
+      call move_alloc(nocc_ud, this%nocc_ud)
+      call move_alloc(nvir_ud, this%nvir_ud)
+      call move_alloc(nxoo_ud, this%nxoo_ud)
+      call move_alloc(nxvv_ud, this%nxvv_ud)
+      call move_alloc(nxov_ud, this%nxov_ud)
+      this%nxov_rd = nxov_rd
+      call move_alloc(iaTrans, this%iaTrans)
+      call move_alloc(getIA, this%getIA)
+      call move_alloc(getIJ, this%getIJ)
+      call move_alloc(getAB, this%getAB)
+      call move_alloc(win, this%win)
+      
+      ! Only windowed set of transitions is actually needed in what follows
+      allocate(this%wij(nxov_rd))
+      this%wij = wij(:nxov_rd)
+      deallocate(wij)
+      
+      allocate(this%sqrOccIA(nxov_rd))
+      this%sqrOccIA = sqrOccIA(:nxov_rd)
+      deallocate(sqrOccIA)
+
+      this%tHybridXc = tHybridXc
+      this%tZVector = tZVector
+      
+    end subroutine TCasidaParameter_init
 
 end module dftbp_timedep_linresptypes

@@ -36,11 +36,13 @@ Geometry = GenFormat {
 Driver = {}
 
 Hamiltonian = DFTB {
+
   SCC = Yes
   SCCTolerance = 1.0E-10  # Extremely small
+
   MaxAngularMomentum = {
-   H = "s"
-   C = "p"
+    H = "s"
+    C = "p"
   }
 
   Mixer = Simple {MixingParameter = 0.85}
@@ -54,9 +56,10 @@ Hamiltonian = DFTB {
   RangeSeparated = LC {
     Screening = MatrixBased {}
   }
+
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
 }
 
@@ -64,7 +67,7 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
+ParserOptions {
   ParserVersion = 8
 }
 

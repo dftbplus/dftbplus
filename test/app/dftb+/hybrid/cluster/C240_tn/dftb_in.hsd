@@ -3,39 +3,42 @@ Geometry = GenFormat {
 }
 
 Hamiltonian = DFTB {
-    SCC = Yes
-    SCCTolerance = 1.0E-8
-    MaxAngularMomentum = {
-        C = "p"
-    }
 
-    SlaterKosterFiles = Type2FileNames {
-      Prefix = "slakos/origin/ob2-1-1/shift/"
-      Separator = "-"
-      Suffix = ".skf"
-    }
+  SCC = Yes
+  SCCTolerance = 1.0E-8
 
-    Filling = Fermi {
-      Temperature [K] = 300
-    }
+  MaxAngularMomentum = {
+    C = "p"
+  }
 
-    RangeSeparated = LC {
-      Screening = Thresholded {
-        CutoffReduction [AA] = 3
-        Threshold = 5E-4
-      }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Filling = Fermi {
+    Temperature [K] = 300.0
+  }
+
+  RangeSeparated = LC {
+    Screening = Thresholded {
+      CutoffReduction [AA] = 3
+      Threshold = 5.0E-4
     }
+  }
+
 }
 
-Options = {
-    WriteAutotestTag = Yes
-    TimingVerbosity = -1
+Options {
+  WriteAutotestTag = Yes
+  TimingVerbosity = -1
 }
 
 Analysis {
-    CalculateForces = No
+  CalculateForces = No
 }
 
-ParserOptions = {
-    ParserVersion = 6
+ParserOptions {
+  ParserVersion = 6
 }

@@ -1,5 +1,5 @@
 Geometry = GenFormat {
-   <<< Acene_Primitive_Cell.gen
+  <<< Acene_Primitive_Cell.gen
 }
 
 Hamiltonian = DFTB {
@@ -47,7 +47,7 @@ Options {
 }
 
 ParserOptions {
-    ParserVersion = 14
+  ParserVersion = 14
 }
 
 Parallel {
