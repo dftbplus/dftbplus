@@ -266,7 +266,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
+
     !> data structure with additional linear response values
     type(TLinresp), intent(inout) :: this
 
@@ -344,7 +344,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
+
     !> Is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
@@ -445,8 +445,8 @@ contains
       if (allocated(occNatural)) then
         call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter,&
-            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,& 
-            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,& 
+            & hybridXc, excEnergy, allExcEnergies, deltaRho=deltaRho, shift=shiftPerAtom,&
+            & skHamCont=skHamCont, skOverCont=skOverCont, excgrad=excgradient, nacv=nacv,&
             & derivator=derivator, rhoSqr=rhoSqr, occNatural=occNatural, naturalOrbs=naturalOrbs)
       else
          call LinRespGrad_old(env, this, denseDesc, eigVec, eigVal, sccCalc, dqAt, coords0,&

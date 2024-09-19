@@ -152,8 +152,8 @@ module dftbp_timedep_linresptypes
 
   end type TLinResp
 
-  !> Data type for common parameters of the Casida routines known only at runtime 
-  type :: TCasidaParameter 
+  !> Data type for common parameters of the Casida routines known only at runtime
+  type :: TCasidaParameter
 
     !> Occupied orbitals per spin channel
     integer, allocatable :: nocc_ud(:)
@@ -187,10 +187,10 @@ module dftbp_timedep_linresptypes
 
     !> Index array for single particle transitions
     integer, allocatable :: win(:)
-    
+
     !> Single particle excitation energies
     real(dp), allocatable :: wij(:)
-    
+
     ! Square root of occupation difference between vir and occ states
     real(dp), allocatable :: sqrOccIA(:)
 
@@ -199,7 +199,7 @@ module dftbp_timedep_linresptypes
 
     !> Is a Z-vector calculation required?
     logical :: tZVector
-        
+
     end type TCasidaParameter
 
   contains
@@ -207,7 +207,7 @@ module dftbp_timedep_linresptypes
     !> Initialize the internal data type for the Casida calculations.
     subroutine TCasidaParameter_init(this, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
         & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
-    
+
       !> Run time parameters of the Casida routine
       type(TCasidaParameter), intent(out) :: this
 
@@ -243,7 +243,7 @@ module dftbp_timedep_linresptypes
 
       !> Index array for single particle transitions
       integer, allocatable, intent(inout) :: win(:)
-    
+
       !> Single particle excitation energies
       real(dp), allocatable, intent(inout) :: wij(:)
 
@@ -254,7 +254,7 @@ module dftbp_timedep_linresptypes
       logical, intent(in) :: tHybridXc
 
       !> Is a Z-vector calculation required?
-      logical, intent(in) :: tZVector     
+      logical, intent(in) :: tZVector
 
       call move_alloc(nocc_ud, this%nocc_ud)
       call move_alloc(nvir_ud, this%nvir_ud)
@@ -267,19 +267,19 @@ module dftbp_timedep_linresptypes
       call move_alloc(getIJ, this%getIJ)
       call move_alloc(getAB, this%getAB)
       call move_alloc(win, this%win)
-      
+
       ! Only windowed set of transitions is actually needed in what follows
       allocate(this%wij(nxov_rd))
       this%wij = wij(:nxov_rd)
       deallocate(wij)
-      
+
       allocate(this%sqrOccIA(nxov_rd))
       this%sqrOccIA = sqrOccIA(:nxov_rd)
       deallocate(sqrOccIA)
 
       this%tHybridXc = tHybridXc
       this%tZVector = tZVector
-      
+
     end subroutine TCasidaParameter_init
 
 end module dftbp_timedep_linresptypes
