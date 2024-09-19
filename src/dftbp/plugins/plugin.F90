@@ -58,8 +58,8 @@ module dftbp_plugins_plugin
 
   !> Type bound to C for fetching the plugin capabilities
   type, bind(C) :: TPluginCapabilities_c
-    integer(c_int) :: provides_getSKIntegrals
-    integer(c_int) :: provides_setNeighbourList
+    integer(c_int) :: provides_getSKIntegrals = 0
+    integer(c_int) :: provides_setNeighbourList = 0
   end type TPluginCapabilities_c
 
   interface
@@ -90,7 +90,7 @@ module dftbp_plugins_plugin
       import TPluginCapabilities_c
       import c_handle, c_int
       type(c_handle), value, intent(in) :: handle
-      type(TPluginCapabilities_c), intent(out) :: capabilities
+      type(TPluginCapabilities_c), intent(inout) :: capabilities
       integer(c_int) :: success
     end function provides_plugin_c
 
