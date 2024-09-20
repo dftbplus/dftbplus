@@ -290,8 +290,8 @@ contains
       character(100) :: msg
       call comm%init()
       if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
-        write(msg, "(a, i0, 3a)") "Follow process (rank ", comm%rank, ") tried to open file '",&
-            & file, "' for writing"
+        write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
+            & file, "' for writing (only leader can do this)"
         error stop msg
       end if
     end block
