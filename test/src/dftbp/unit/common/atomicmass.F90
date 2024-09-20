@@ -10,12 +10,12 @@
 module test_common_atomicmass
   use dftbp_common_accuracy, only : dp
   use dftbp_common_atomicmass, only : getAtomicSymbol
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: atomicmass_test_items
+  public :: tests
 
 contains
 
@@ -37,16 +37,16 @@ contains
   $:END_TEST()
 
 
-  function atomicmass_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("atomicmass", [&
+    tests = test_list([&
+        suite("atomicmass", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function atomicmass_test_items
+  end function tests
 
 end module test_common_atomicmass

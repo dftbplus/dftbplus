@@ -38,4 +38,4 @@
 	path = external/fortuno/origin
 	# url = https://github.com/fortuno-repos/fortuno.git
     url = https://github.com/aradi/fortuno.git
-    branch = fypp
+    branch = testlist

@@ -12,12 +12,12 @@ module test_dftb_periodic
   use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
       & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: periodic_test_items
+  public :: tests
 
 contains
 
@@ -200,17 +200,17 @@ contains
   $:END_TEST()
 
 
-  function periodic_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("periodic", [&
+    tests = test_list([&
+        suite("periodic", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function periodic_test_items
+  end function tests
 
 
   subroutine createTestArray_(input)

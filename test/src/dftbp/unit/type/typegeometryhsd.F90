@@ -13,12 +13,12 @@ module test_type_typegeometryhsd
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode, destroyNode
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: typegeometryhsd_test_items
+  public :: tests
 
 
   ! Floating point parsing precision
@@ -287,17 +287,17 @@ contains
   $:END_TEST()
 
 
-  function typegeometryhsd_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("typegeometryhsd", [&
+    tests = test_list([&
+        suite("typegeometryhsd", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function typegeometryhsd_test_items
+  end function tests
 
 
   !> Prepare the node for reading the geometry

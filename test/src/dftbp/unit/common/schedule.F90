@@ -9,12 +9,12 @@
 
 module test_common_schedule
   use dftbp_common_schedule, only : getChunkRanges, getIndicesWithWorkload
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: schedule_test_items
+  public :: tests
 
 contains
 
@@ -212,16 +212,16 @@ contains
   $:END_TEST()
 
 
-  function schedule_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("schedule", [&
+    tests = test_list([&
+        suite("schedule", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function schedule_test_items
+  end function tests
 
 end module test_common_schedule

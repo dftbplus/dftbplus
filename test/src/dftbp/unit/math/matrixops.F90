@@ -10,12 +10,12 @@
 module test_math_matrixops
   use dftbp_common_accuracy, only : dp
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: matrixops_test_items
+  public :: tests
 
 
   ! Matrix dimension
@@ -68,16 +68,16 @@ contains
   $:END_TEST()
 
 
-  function matrixops_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("matrixops", [&
+    tests = test_list([&
+        suite("matrixops", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function matrixops_test_items
+  end function tests
 
 end module test_math_matrixops

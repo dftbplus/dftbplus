@@ -9,12 +9,12 @@
 
 module test_include_allocatablelist
   use alloclisthelper, only : TIntList
-  use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item
+  use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: allocatablelist_test_items
+  public :: tests
 
 
   ! Fixtured test providing an initialized small list at startup
@@ -284,18 +284,18 @@ contains
   $:END_TEST()
 
   ! Returns the tests from this module.
-  function allocatablelist_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("allocatablelist", [&
+    tests = test_list([&
+        suite("allocatablelist", test_list([&
           $:TEST_ITEMS(label="", suffix=",")
           $:TEST_ITEMS(constructor="small_list_test", label="smallList")
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function allocatablelist_test_items
+  end function tests
 
 
   ! Convenience function returning a small_list_case instance wrapped as test_item.
@@ -304,7 +304,7 @@ contains
     procedure(small_list_case_proc) :: proc
     type(test_item) :: testitem
 
-    testitem%item = small_list_case(name=name, proc=proc)
+    testitem = test_item(small_list_case(name=name, proc=proc))
 
   end function small_list_test
 
@@ -317,6 +317,13 @@ contains
 
     call initSmallList_(list)
     call this%proc(list)
+    ! Workaround:gfortran:14.1 (bug 116679)
+    ! GFortran fails to finalize allocatable components of derived types within a pointer array
+    ! {+
+    block
+      call finalSmallList(list)
+    end block
+    ! +}
 
   end subroutine small_list_case_run
 
@@ -333,5 +340,23 @@ contains
     end do
 
   end subroutine initSmallList_
+
+
+  ! Workaround:gfortran:14.1 (bug 116679)
+  ! GFortran fails to finalize allocatable components of derived types within a pointer array
+  ! {+
+  subroutine finalSmallList(list)
+    type(TIntList), intent(inout) :: list
+
+    integer, allocatable :: item
+    integer :: ii
+
+    do ii = 1, list%size()
+      call list%pop(item)
+      deallocate(item)
+    end do
+
+  end subroutine finalSmallList
+  ! +}
 
 end module test_include_allocatablelist

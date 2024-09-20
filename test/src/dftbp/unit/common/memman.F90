@@ -10,12 +10,12 @@
 module test_common_memman
   use dftbp_common_accuracy, only : dp
   use dftbp_common_memman, only : TAlignedArray
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: memman_test_items
+  public :: tests
 
 contains
 
@@ -92,17 +92,17 @@ contains
   $:END_TEST()
 
 
-  function memman_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("memman", [&
+    tests = test_list([&
+        suite("memman", test_list([&
             $:TEST_ITEMS()
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function memman_test_items
+  end function tests
 
 
   subroutine triggerDeallocation_(instance)

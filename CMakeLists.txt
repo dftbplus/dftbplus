@@ -299,7 +299,7 @@ endif()
 # Fortuno currently can only be integrated as a submodule
 if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   set(FORTUNO_GIT_REPOSITORY "https://github.com/fortuno-repos/fortuno.git")
-  set(FORTUNO_GIT_TAG "ab39c4f4cfc29b16fb1b463b1c904e68ca2a5cd8")  # do not change manually!
+  set(FORTUNO_GIT_TAG "b1a252865d3be8aa22b4d0d8efaaf793c289b14b")  # do not change manually!
   dftbp_config_hybrid_dependency(Fortuno Fortuno::fortuno_serial "Submodule" "QUIET"
   external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
 endif()

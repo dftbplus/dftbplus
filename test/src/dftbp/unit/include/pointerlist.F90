@@ -9,12 +9,12 @@
 
 module test_include_pointerlist
   use ptrlisthelper, only : TInt, TIntList
-  use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item
+  use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: pointerlist_test_items
+  public :: tests
 
 
   ! Fixtured test providing an initialized small list at startup
@@ -74,6 +74,7 @@ contains
       @:ASSERT(associated(item))
       @:ASSERT(item%value == ii)
       @:ASSERT(list%size() == ii - 1)
+      deallocate(item)
     end do
 
   $:END_TEST()
@@ -292,18 +293,18 @@ contains
 
 
   ! Returns the tests from this module.
-  function pointerlist_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("pointerlist", [&
+    tests = test_list([&
+        suite("pointerlist", test_list([&
           $:TEST_ITEMS(label="", suffix=",")
           $:TEST_ITEMS(constructor="small_list_test", label="smallList")
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function pointerlist_test_items
+  end function tests
 
 
   ! Convenience function returning a small_list_case instance wrapped as test_item.
@@ -312,7 +313,7 @@ contains
     procedure(small_list_case_proc) :: proc
     type(test_item) :: testitem
 
-    testitem%item = small_list_case(name=name, proc=proc)
+    testitem = test_item(small_list_case(name=name, proc=proc))
 
   end function small_list_test
 

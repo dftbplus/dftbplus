@@ -10,12 +10,12 @@
 module test_io_indexselection
   use dftbp_common_status, only : TStatus
   use dftbp_io_indexselection, only : getIndexSelection, errors
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: indexselection_test_items
+  public :: tests
 
 
   ! Default initialized fixture for atomSelection tests
@@ -324,19 +324,19 @@ contains
   $:END_TEST()
 
 
-  function indexselection_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("indexselection", [&
+    tests = test_list([&
+        suite("indexselection", test_list([&
             $:TEST_ITEMS(label="atomSelection", suffix=",")
             $:TEST_ITEMS(label="numeric", suffix=",")
             $:TEST_ITEMS(label="negativeNumeric")
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function indexselection_test_items
+  end function tests
 
 
   !! Check whether the selected indices in a selection array match the expected ones

@@ -1,12 +1,8 @@
 program testapp
   use fortuno_serial, only : execute_serial_cmd_app
-  use test_math_matrixops, only : matrixops_test_items
+  use test_math_matrixops, only : matrixops_tests => tests
   implicit none
 
-  call execute_serial_cmd_app(&
-    testitems=[&
-      matrixops_test_items()&
-    ]&
-  )
+  call execute_serial_cmd_app(matrixops_tests())
 
 end program testapp

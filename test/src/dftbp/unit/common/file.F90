@@ -11,12 +11,12 @@ module test_common_file
   use dftbp_common_file, only : TFileDescr, TOpenOptions, fileExists, openFile, closeFile,&
       & clearFile, defaultBinaryAccess, defaultTextAccess
   use dftbp_io_charmanip, only : tolower
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: file_test_items
+  public :: tests
 
 
   ! Equality for TOpenOptions instances for easier testing
@@ -583,28 +583,28 @@ contains
   $:END_TEST()
 
 
-  function file_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("file", [&
-            suite("openOptions", [&
+    tests = test_list([&
+        suite("file", test_list([&
+            suite("openOptions", test_list([&
                 $:TEST_ITEMS(label="openOptions")
-            ]),&
-            suite("fileDescr", [&
+            ])),&
+            suite("fileDescr", test_list([&
                 $:TEST_ITEMS(label="fileDescr")
-            ]),&
-            suite("clearFile", [&
+            ])),&
+            suite("clearFile", test_list([&
                 $:TEST_ITEMS(label="clearFile")
-            ]),&
-            suite("fileAccess", [&
+            ])),&
+            suite("fileAccess", test_list([&
                 $:TEST_ITEMS(label="fileAccess")
-            ])&
-        ])&
-    ]
+            ]))&
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function file_test_items
+  end function tests
 
 
   ! Compares, whether two options are equal

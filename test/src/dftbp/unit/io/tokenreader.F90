@@ -11,12 +11,12 @@
 module test_io_tokenreader
   use dftbp_common_accuracy, only : dp
   use dftbp_io_tokenreader, only : getNextToken
-  use fortuno_serial, only : suite => serial_suite_item, test_item
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
-  public :: tokenreader_test_items
+  public :: tests
 
 
   ! Tolerance for recognizing floating point nr. when parsing
@@ -235,16 +235,16 @@ contains
   $:END_TEST()
 
 
-  function tokenreader_test_items() result(testitems)
-    type(test_item), allocatable :: testitems(:)
+  function tests()
+    type(test_list) :: tests
 
-    testitems = [&
-        suite("tokenreader", [&
+    tests = test_list([&
+        suite("tokenreader", test_list([&
             $:TEST_ITEMS(label="complex")
-        ])&
-    ]
+        ]))&
+    ])
     $:STOP_ON_MISSING_TEST_ITEMS()
 
-  end function tokenreader_test_items
+  end function tests
 
 end module test_io_tokenreader
