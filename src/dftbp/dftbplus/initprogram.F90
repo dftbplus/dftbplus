@@ -1347,6 +1347,8 @@ contains
     type(TStatus) :: errStatus
     integer :: nLocalRows, nLocalCols
 
+    logical :: isIoProc
+
   #:if WITH_MPI
     !! Number of k'-points
     integer :: nKPrime
@@ -1541,6 +1543,12 @@ contains
           & groups for (', env%mpi%globalComm%size, ') total MPI processes!'
       call error(trim(tmpStr))
     end if
+  #:endif
+
+  #:if WITH_MPI
+    isIoProc = env%mpi%tGlobalLead
+  #:else
+    isIoProc = .true.
   #:endif
 
   #:if WITH_SCALAPACK
@@ -1957,7 +1965,7 @@ contains
     if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
-    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
+    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile .and. isIoProc
 
     if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential)) then
       allocate(this%eField)
@@ -2599,7 +2607,7 @@ contains
       end if
 
       call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
-          & this%nSpin, this%onSiteElements)
+          & this%nSpin, this%onSiteElements, isIoProc)
 
     end if
 

@@ -223,7 +223,7 @@ contains
     !> Casida parameters (number of transitions, index arrays and alike)
     type(TCasidaParameter) :: rpa
 
-    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc
+    type(TFileDescr) :: fdTrans, fdTransDip, fdXPlusY, fdExc
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -264,10 +264,6 @@ contains
     if (this%writeMulliken) then
       call clearFile(excitedQOut)
       call clearFile(excitedDipoleOut)
-    end if
-
-    if (this%tArnoldi) then
-      call openFile(fdArnoldi, arpackOut, mode="w")
     end if
 
     nstat = this%nstat
@@ -580,19 +576,21 @@ contains
     end if
 
     ! excitation energies
-    call openFile(fdExc, excitationsOut, mode="w")
-    write(fdExc%unit, *)
-    if (this%tSpin) then
-      write(fdExc%unit, '(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
-          & 'Weight', 'KS [eV]','D<S*S>'
-    else
-      write(fdExc%unit, '(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
-          & 'Weight', 'KS [eV]','Sym.'
-    end if
+    if (this%writeExcitations) then
+      call openFile(fdExc, excitationsOut, mode="w")
+      write(fdExc%unit, *)
+      if (this%tSpin) then
+        write(fdExc%unit, '(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition',&
+            & 'Weight', 'KS [eV]','D<S*S>'
+      else
+        write(fdExc%unit, '(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition',&
+            & 'Weight', 'KS [eV]','Sym.'
+      end if
 
-    write(fdExc%unit, *)
-    write(fdExc%unit, '(1x,80("="))')
-    write(fdExc%unit, *)
+      write(fdExc%unit, *)
+      write(fdExc%unit, '(1x,80("="))')
+      write(fdExc%unit, *)
+    end if
 
     ! single particle excitations (output file and tagged file if needed).  
     call writeSPExcitations(this, rpa, sposz)    
@@ -653,7 +651,6 @@ contains
 
     end do
 
-    call closeFile(fdArnoldi)
     call closeFile(fdTrans)
     call closeFile(fdXPlusY)
     call closeFile(fdTransDip)
@@ -869,7 +866,10 @@ contains
         ! Convention to determine arbitrary phase
         call fixNACVPhase(nacv)
 
-        call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter, nacv)
+        if (this%writeNacv) then
+          call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter,&
+              & nacv)
+        end if
 
         call env%globalTimer%stopTimer(globalTimers%lrNAC)
 
@@ -2988,18 +2988,20 @@ contains
 
         call indxov(rpa%win, iweight, rpa%getIA, m, n, s)
         sign = sym
-        if (lr%tSpin) then
-          sign = " "
-          write(fdExc%unit,&
-              & '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,&
-              & f6.3)')&
-              & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
-              & Hartree__eV * rpa%wij(iWeight), Ssq(ii)
-        else
-          write(fdExc%unit,&
-              & '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
-              & Hartree__eV * rpa%wij(iWeight), sign
+        if (fdExc%isConnected()) then
+          if (lr%tSpin) then
+            sign = " "
+            write(fdExc%unit,&
+                & '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,&
+                & f6.3)')&
+                & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
+                & Hartree__eV * rpa%wij(iWeight), Ssq(ii)
+          else
+            write(fdExc%unit,&
+                & '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
+                & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
+                & Hartree__eV * rpa%wij(iWeight), sign
+          end if
         end if
 
         if (fdXplusY%isConnected()) then
@@ -3053,16 +3055,18 @@ contains
         call indxov(rpa%win, iWeight, rpa%getIA, m, n, s)
         sign = sym
 
-        if (lr%tSpin) then
-          sign = " "
-          write(fdExc%unit,&
-              & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)')&
-              & '< 0', osz(ii), m, '->', n, '-', Hartree__eV * rpa%wij(iWeight),&
-              & Ssq(ii)
-        else
-          write(fdExc%unit,&
-              & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * rpa%wij(iWeight), sign
+        if (fdExc%isConnected()) then
+          if (lr%tSpin) then
+            sign = " "
+            write(fdExc%unit,&
+                & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)')&
+                & '< 0', osz(ii), m, '->', n, '-', Hartree__eV * rpa%wij(iWeight),&
+                & Ssq(ii)
+          else
+            write(fdExc%unit,&
+                & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
+                & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * rpa%wij(iWeight), sign
+          end if
         end if
 
         if (fdXplusY%isConnected()) then

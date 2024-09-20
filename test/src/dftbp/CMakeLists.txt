@@ -1,4 +1,4 @@
-if(WITH_UNIT_TESTS)
+if(WITH_UNIT_TESTS AND NOT WITH_MPI)
   add_subdirectory(unittests)
 endif()
 
