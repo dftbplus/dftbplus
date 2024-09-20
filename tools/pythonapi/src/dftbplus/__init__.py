@@ -4,3 +4,5 @@
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
+
+from .dftbplus import DftbPlus
