@@ -28,7 +28,8 @@ Hamiltonian = DFTB {
   }
 
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
+    Prefix = "slakos/origin/pbc-0-3/"
+    Si-Si = "Si-Si.skf"
   }
 
   KPointsAndWeights = {

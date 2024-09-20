@@ -30,4 +30,8 @@ foreach(test IN LISTS tests)
         -r ${srcdir}/testcases -w ${builddir}/testcases
 	-d ${projectdir}/test/app/dftb+/bin/tagdiff
         -P "${TEST_RUNNER}" -s P,R,C,S ${test})
+  set_tests_properties(
+    pyapi_${test}
+    PROPERTIES
+    ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
 endforeach()
