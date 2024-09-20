@@ -78,7 +78,7 @@ program phonons
     call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
                         & twriteTunn, twriteLDOS)
 
-    if (tWriteTagged .and. tIoProc) then
+    if (tWriteTagged) then
       call writeTaggedOut(taggedWriter, tunnTot, ldosTot, conductance)
     end if
 
