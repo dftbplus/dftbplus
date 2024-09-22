@@ -85,7 +85,7 @@ contains
     ! diagonalisers may return garbage
     maxProcRow = (nOrb - 1) / rowBlock + 1
     maxProcColMax = (nOrb - 1) / colblock + 1
-    if (nProcRow > maxProcRow .or. nProcCol > maxProcColMax) then
+    if (nProcRow * nProcCol > maxProcRow * maxProcColMax) then
       write(buffer, "(A,I0,A,I0,A,I0,A,I0,A)") "Processor grid (", nProcRow, " x ",  nProcCol,&
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(errStatus, -1, trim(buffer))
