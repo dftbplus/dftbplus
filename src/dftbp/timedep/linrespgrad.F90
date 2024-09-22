@@ -46,7 +46,7 @@ module dftbp_timedep_linrespgrad
 #:if WITH_SCALAPACK
 
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_math_scalafxext, only : distrib2replicated
 
 #:endif
@@ -1317,6 +1317,12 @@ contains
 
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
+    #:if WITH_SCALAPACK
+      ! required for coherence between processors, as slices of eigenvectors are processed on
+      ! separate ranks, so need the same global phase convention:
+      call mpifx_bcast(env%mpi%globalComm, mH)
+    #:endif
+
       if (info /= 0) then
         if (lr%subSpaceFactorStratmann * nExc < rpa%nxov_rd) then
           write(tmpStr,'(A)') 'TDDFT diagonalisation failure. Increase SubSpaceFactor.'
@@ -1500,7 +1506,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
     do ii = 1, size(xpy, dim=2)
       osz(ii) = oscillatorStrength(lr%tSpin, snglPartTransDip, sqrt(eval(ii)), xpy(:,ii),&
-        & rpa%sqrOccIA)
+          & rpa%sqrOccIA)
     end do
     !$OMP  END PARALLEL DO
 
