@@ -13,7 +13,9 @@
 !> removed.
 module dftbp_math_eigensolver
   use dftbp_common_accuracy, only : rsp, rdp
-  use dftbp_extlibs_lapack, only : dlamch, slamch
+  use dftbp_extlibs_lapack, only : slamch, dlamch, spotrf, ssyev, ssyevd, ssyevr, ssygst, ssygv,&
+      & ssygvd, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, cheev, cheevd, cheevr,&
+      & chegst, chegv, chegvd, cpotrf, zheev, zheevd, zheevr, zhegst, zhegv, zhegvd, zpotrf
   use dftbp_io_message, only : error, warning
 #:if WITH_MAGMA
   use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
@@ -43,6 +45,8 @@ module dftbp_math_eigensolver
   interface heevd
     module procedure real_ssyevd
     module procedure dble_dsyevd
+    module procedure cmplx_cheevd
+    module procedure dblecmplx_zheevd
   end interface heevd
 
 
@@ -101,7 +105,7 @@ module dftbp_math_eigensolver
 contains
 
   !> Real eigensolver for a symmetric matrix
-  subroutine real_ssyev(a,w,uplo,jobz)
+  subroutine real_ssyev(a, w, uplo, jobz, infoVal)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -115,6 +119,9 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
 
     real(rsp), allocatable :: work(:)
     integer n, info
@@ -134,6 +141,10 @@ contains
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
     call ssyev(jobz, uplo, n, a, n, w, work, int_idealwork, info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
     if (info/=0) then
       if (info<0) then
 99000 format ('Failure in diagonalisation routine ssyev,', &
@@ -152,7 +163,7 @@ contains
 
 
   !> Double precision eigensolver for a symmetric matrix
-  subroutine dble_dsyev(a,w,uplo,jobz,infoVal)
+  subroutine dble_dsyev(a, w, uplo, jobz, infoVal)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -210,7 +221,7 @@ contains
 
 
   !> Complex eigensolver for a Hermitian matrix
-  subroutine cmplx_cheev(a,w,uplo,jobz)
+  subroutine cmplx_cheev(a, w, uplo, jobz, infoval)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -224,6 +235,9 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
 
     real(rsp), allocatable :: rwork(:)
     complex(rsp), allocatable :: work(:)
@@ -245,6 +259,10 @@ contains
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     call cheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
     if (info/=0) then
       if (info<0) then
 99040 format ('Failure in diagonalisation routine cheev,', &
@@ -263,7 +281,7 @@ contains
 
 
   !> Double complex eigensolver for a Hermitian matrix
-  subroutine dblecmplx_zheev(a,w,uplo,jobz)
+  subroutine dblecmplx_zheev(a, w, uplo, jobz, infoval)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -277,6 +295,9 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
 
     real(rdp), allocatable :: rwork(:)
     complex(rdp), allocatable :: work(:)
@@ -298,6 +319,10 @@ contains
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
     call zheev(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
     if (info/=0) then
       if (info<0) then
 99060 format ('Failure in diagonalisation routine zheev,', &
@@ -318,7 +343,7 @@ contains
 #:for NAME, VTYPE, RP in [("Double", "d", "dble"),("Single", "s", "real")]
 
   !> ${NAME}$ precision eigensolver for a symmetric matrix
-  subroutine ${RP}$_${VTYPE}$syevd(a,w,uplo,jobz)
+  subroutine ${RP}$_${VTYPE}$syevd(a, w, uplo, jobz, infoval)
 
     !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
     !> overwritten on return anyway)
@@ -332,6 +357,9 @@ contains
 
     !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
     character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
 
     real(r${VTYPE}$p), allocatable :: work(:)
     integer n, lda, info, int_idealwork, tmpIWork(1), liwork
@@ -355,6 +383,10 @@ contains
     allocate(work(int_idealwork))
     allocate(iwork(liwork))
     call ${VTYPE}$syevd(jobz, uplo, n, a, n, w, work, int_idealwork, iWork, liWork, info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
     if (info/=0) then
       if (info<0) then
         write(error_string, "('Failure in diagonalisation routine ${VTYPE}$syevd, illegal ',&
@@ -438,6 +470,75 @@ contains
     endif
 
   end subroutine ${RP}$_${VTYPE}$sygv
+#:endfor
+
+
+#:for NAME, VT, RP, CT in [("Double complex", "d", "dblecmplx", "z"),("Complex", "s", "cmplx", "c")]
+
+  !> ${NAME}$ precision eigensolver for a symmetric matrix
+  subroutine ${RP}$_${CT}$heevd(a, w, uplo, jobz, infoval)
+
+    !> contains the matrix for the solver, returns as eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
+    complex(r${VT}$p), intent(inout) :: a(:,:)
+
+    !> eigenvalues
+    real(r${VT}$p), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
+    character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+    character, intent(in) :: jobz
+
+    !> if present and info/=0 job is to be terminated by the calling routine
+    integer, optional, intent(out) :: infoVal
+
+    complex(r${VT}$p), allocatable :: work(:)
+    real(r${VT}$p), allocatable :: rwork(:)
+    integer n, lda, info, int_idealwork, tmpIWork(1), lrwork, liwork
+    complex(r${VT}$p) :: idealwork(1)
+    real(r${VT}$p) :: tmprwork(1)
+    character(len=100) :: error_string
+    integer, allocatable :: iwork(:)
+
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    lda = size(a,dim=1)
+    n = size(a,dim=2)
+    @:ASSERT(n > 0)
+    @:ASSERT(lda >= n)
+    @:ASSERT(n == size(w))
+    call ${CT}$heevd(jobz, uplo, n, a, lda, w, idealwork, -1, tmprwork, -1, tmpIWork,-1, info)
+    if (info/=0) then
+      call error("Failure in ${CT}$heevd to determine optimum workspace")
+    endif
+    int_idealwork = nint(real(idealwork(1)))
+    lrwork = nint(tmprwork(1))
+    liwork = tmpIWork(1)
+    allocate(work(int_idealwork))
+    allocate(rwork(lrwork))
+    allocate(iwork(liwork))
+    call ${CT}$heevd(jobz, uplo, n, a, n, w, work, int_idealwork, rwork, lrwork, iWork, liWork,&
+        & info)
+    if(present(infoVal)) then
+      infoVal = info
+      return
+    endif
+    if (info/=0) then
+      if (info<0) then
+        write(error_string, "('Failure in diagonalisation routine ${CT}$heevd, illegal ',&
+            & 'argument at position ',i6)") info
+        call error(error_string)
+      else
+        write(error_string, "('Failure in diagonalisation routine ${CT}$heevd, diagonal ',&
+            & 'element ', i6, ' did not converge to zero.')") info
+        call error(error_string)
+      endif
+    endif
+
+  end subroutine ${RP}$_${CT}$heevd
+
 #:endfor
 
 

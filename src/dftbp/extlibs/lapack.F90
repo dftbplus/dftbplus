@@ -253,6 +253,104 @@ module dftbp_extlibs_lapack
   end interface dsyevd
 
 
+  !> Complex hermitian eigensolver (divide and conquer)
+  interface cheevd
+
+    !> Complex hermitian eigensolver
+    subroutine cheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
+      import rsp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      complex(rsp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rsp), intent(out) :: ww(*)
+
+      !> Workspace
+      complex(rsp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Real workspace
+      real(rsp), intent(inout) :: rwork(*)
+
+      !> Size of rwork
+      integer, intent(in) :: lrwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine cheevd
+  end interface cheevd
+
+
+  !> Double complex hermitian eigensolver (divide and conquer)
+  interface zheevd
+
+    !> Double complex hermitian eigensolver
+    subroutine zheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
+      import rdp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      complex(rdp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rdp), intent(out) :: ww(*)
+
+      !> Workspace
+      complex(rdp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Real workspace
+      real(rdp), intent(inout) :: rwork(*)
+
+      !> Size of rwork
+      integer, intent(in) :: lrwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine zheevd
+  end interface zheevd
+
+
   !> Real symmetric generalised eigensolver
   interface ssygv
 
