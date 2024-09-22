@@ -181,6 +181,7 @@ contains
     this%nStat = ini%nStat
     this%symmetry = ini%sym
 
+    this%writeExcitations = isIoProc
     this%tWriteDensityMatrix = ini%tWriteDensityMatrix .and. isIoProc
 
     if (nSpin == 1) then
