@@ -111,9 +111,6 @@ module dftbp_timedep_linresptypes
     !> Whether for single particle transition dipole strengths should be written
     logical :: writeSPTrans = .false.
 
-    !> File handle for excitation energies
-    logical :: writeExc = .false.
-
     !> Whether transition dipole data should be written
     logical :: writeTransDip = .false.
 
