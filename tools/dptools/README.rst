@@ -40,12 +40,13 @@ summary about its usage and possible options.
 Testing dp_tools
 ================
 
-In the top directory of DFTB+, running::
+In the chosen build directory (as set via cmake), running
 
-  make test_dptools
+ctest -R dptools
 
 will validate the source of dp_tools for your python interpreter and
 environment.
+
 
 For developers
 --------------
@@ -60,10 +61,12 @@ individual scripts can be tested, for example by ::
 Installation
 ============
 
-Please note, that the package needs at least **Python 2.6** or later,
-with Python 3.X preferred. It additionally needs Numerical Python (the
-numpy module).
+Please note, that this package has been tested for **Python 3.X**
+support. It additionally needs Numerical Python (the numpy module).
 
-You can install the script package via the standard 'pip' mechanism::
+You can install the script package via the standard 'pip'
+mechanism::
 
-  pip install .
+  python -m pip install .
+
+with an appropriate level of permissions.
