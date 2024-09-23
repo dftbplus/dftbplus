@@ -1516,7 +1516,7 @@ contains
     if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
       call error("Multiple MPI groups not available for excited state calculations")
     end if
-    
+
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
@@ -2561,6 +2561,7 @@ contains
             & calculations using the Arpack solver.")
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
+
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
           & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
@@ -6021,6 +6022,21 @@ contains
     if (isOnsiteCorrected .and. input%ctrl%lrespini%iLinRespSolver == linRespSolverTypes%Stratmann)&
         & then
       call error("Onsite corrections not implemented for Stratmann diagonaliser.")
+    end if
+
+    if (input%ctrl%lrespini%tTransQ) then
+      if(input%ctrl%lrespini%nstat == 0) then
+        call error("WriteTransitionCharges incompatible with StateOfInterest = 0.")
+      end if
+      select case(input%ctrl%lrespini%sym)
+      case("S"," ")
+        ! Singlet or spin-polarized case, printing makes sense
+      case("T","B")
+        ! Triplet case
+        call error("Transition charges are not written for triplets.")
+      case default
+        call error("Unknown excitation type requested")
+      end select
     end if
 
     if (isHybLinResp) then
