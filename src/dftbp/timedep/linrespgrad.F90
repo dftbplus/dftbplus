@@ -37,12 +37,12 @@ module dftbp_timedep_linrespgrad
       & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
       & calcMatrixSqrt, incMemStratmann, orthonormalizeVectors, getSqrOcc
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes, TCasidaParameter,&
-      & TCasidaParameter_init 
+      & TCasidaParameter_init
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  
+
 #:if WITH_SCALAPACK
 
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
@@ -50,7 +50,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_math_scalafxext, only : distrib2replicated
 
 #:endif
-  
+
   implicit none
 
   private
@@ -63,6 +63,7 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: excitationsOut = "EXC.DAT"
   character(*), parameter :: transDipOut = "TDP.DAT"
   character(*), parameter :: naCouplingOut = "NACV.DAT"
+  character(*), parameter :: transChrgOut = "ATQ.DAT"
 
 
   ! Solver related variables
@@ -94,11 +95,11 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
+
     type(TLinResp), intent(inout) :: this
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Ground state MO-coefficients
     real(dp), intent(in) :: grndEigVecs(:,:,:)
@@ -223,7 +224,7 @@ contains
     !> Casida parameters (number of transitions, index arrays and alike)
     type(TCasidaParameter) :: rpa
 
-    type(TFileDescr) :: fdTrans, fdTransDip, fdXPlusY, fdExc
+    type(TFileDescr) :: fdTrans, fdTransDip, fdArnoldi, fdXPlusY, fdExc, fdTransQ
 
     !> Communication with ARPACK for progress information
     integer :: logfil, ndigit, mgetv0
@@ -436,17 +437,17 @@ contains
     call env%globalTimer%startTimer(globalTimers%lrCoulomb)
     call sccCalc%getAtomicGammaMatrixBlacs(gammaMat, iNeighbour, img2CentCell, env)
     call env%globalTimer%stopTimer(globalTimers%lrCoulomb)
-    
+
   #:else
-    
+
     do iSpin = 1, nSpin
       call symm(ovrXev(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
-    
+
     call env%globalTimer%startTimer(globalTimers%lrCoulomb)
     call sccCalc%getAtomicGammaMatrix(gammaMat, iNeighbour, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%lrCoulomb)
-   
+
   #:endif
 
     ! Oscillator strengths for exited states, when needed.
@@ -534,7 +535,7 @@ contains
     else
       nxov_rd = max(nxov_rd,min(this%nExc,nxov))
     end if
-    
+
     ! Recompute occ-vir transition charges, since win/wij and number has changed
     if (nxov_rd /= nxov .or. this%tOscillatorWindow .or. this%tEnergyWindow) then
       call env%globalTimer%startTimer(globalTimers%lrTransCharges)
@@ -548,12 +549,12 @@ contains
     allocate(iatrans(norb, norb, nSpin))
     call rindxov_array(win, nxov, nxoo, nxvv, getIA, getIJ, getAB, iatrans)
 
-    ! MPI distribution of RPA vectors according to these indices 
+    ! MPI distribution of RPA vectors according to these indices
     call distributeRangeInChunks(env, 1, nxov_rd, iGlobal, fGlobal)
 
     ! All relevant run time parameters of Casida are stored in a derived type
     ! Input arrays are deallocated on return
-    call TCasidaParameter_init(rpa, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,& 
+    call TCasidaParameter_init(rpa, nocc_ud, nvir_ud, nxoo_ud, nxvv_ud, nxov_ud, nxov_rd,&
         & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
 
     if (this%writeXplusY) then
@@ -564,14 +565,13 @@ contains
       call openFile(fdTrans, transitionsOut, mode="w")
       write(fdTrans%unit,*)
     end if
-
     ! Many-body transition dipole file to excited states
     if (this%writeTransDip) then
       call openFile(fdTransDip, transDipOut, mode="w")
       write(fdTransDip%unit, *)
       write(fdTransDip%unit, '(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(fdTransDip%unit, *)
-      write(fdTransDip%unit, '(1x,60("="))') 
+      write(fdTransDip%unit, '(1x,60("="))')
      write(fdTransDip%unit, *)
     end if
 
@@ -592,8 +592,8 @@ contains
       write(fdExc%unit, *)
     end if
 
-    ! single particle excitations (output file and tagged file if needed).  
-    call writeSPExcitations(this, rpa, sposz)    
+    ! single particle excitations (output file and tagged file if needed).
+    call writeSPExcitations(this, rpa, sposz)
 
     allocate(xpy(rpa%nxov_rd, this%nExc))
     if (tZVector .or. tHybridXc) then
@@ -614,10 +614,10 @@ contains
       case (linrespSolverTypes%arpack)
         call buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
             & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy)
-    
+
       case (linrespSolverTypes%stratmann)
         call buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, env, orb, this, rpa, transChrg,&
-            & denseDesc, ovrXev, grndEigVecs, gammaMat, lrGamma, species0, eval, sym, xpy, xmy) 
+            & denseDesc, ovrXev, grndEigVecs, gammaMat, lrGamma, species0, eval, sym, xpy, xmy)
       end select
       call env%globalTimer%stopTimer(globalTimers%lrSolver)
 
@@ -625,18 +625,24 @@ contains
       call getOscillatorStrengths(this, rpa, sym, eval, xpy, snglPartTransDip(1:rpa%nxov_rd,:),&
           & nstat, osz, transitionDipoles)
 
+      ! Transition charges for state nstat
+      if (this%writeTransQ) then
+        call getAndWriteTransitionCharges(env, this, rpa, transChrg, sym, denseDesc, ovrXev,&
+            & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+      end if
+
       if (this%tSpin) then
-        
+
         call getExcSpin(env, orb, rpa, denseDesc, Ssq, xpy, filling, ovrXev, grndEigVecs)
 
         call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
             & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
- 
+
       else
- 
+
         call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
             & transitionDipoles, fdTagged, taggedWriter, fdExc)
-        
+
       end if
 
       if (allocated(allOmega)) then
@@ -723,7 +729,7 @@ contains
       end if
 
       if (doVanillaZvector) then
-        
+
         call env%globalTimer%startTimer(globalTimers%lrGradients)
         do iLev = nStartLev, nEndLev
 
@@ -756,19 +762,19 @@ contains
           end if
 
           if (this%writeMulliken) then
-            ! For now, only total Mulliken charges
+            ! This prints charges for an excited state from the relaxed transition density
             call writeExcMulliken(sym, iLev, dq(:,1), sum(dqex,dim=2), coord0)
           end if
 
           if (tForces) then
             iSav = iLev - nStartLev + 1
-            call addGradients(env, orb, this, rpa, transChrg, hybridXc, denseDesc, sym, species0,& 
+            call addGradients(env, orb, this, rpa, transChrg, hybridXc, denseDesc, sym, species0,&
                 & ovrXev, grndEigVecs, gammaMat, lrGamma, coord0, dq, dqex, shift, xpy(:,iLev),&
                 & xmy(:,iLev), woo, wov, wvv, skHamCont, skOverCont, derivator, rhoSqr, pc,&
                 & excgrad(:,:,iSav), deltaRho=deltaRho)
           end if
         end do
-        call env%globalTimer%stopTimer(globalTimers%lrGradients)      
+        call env%globalTimer%stopTimer(globalTimers%lrGradients)
       end if
 
       if (this%tNaCoupling) then
@@ -799,7 +805,7 @@ contains
               xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
               call grndToExcDensityMatrices(env, this, rpa, transChrg, denseDesc, sym, species0,&
-                  & ovrXev, grndEigVecs, grndEigVal, gammaMat, lrGamma, omegaDif, pc, xpym, xmym,& 
+                  & ovrXev, grndEigVecs, grndEigVal, gammaMat, lrGamma, omegaDif, pc, xpym, xmym,&
                   & wov, woo)
 
               do iSpin = 1, nSpin
@@ -815,7 +821,7 @@ contains
               xmym(:) = 0.0_dp
               xpyn(:) = 0.0_dp
               xmyn(:) = 0.0_dp
-              
+
               call addGradients(env, orb, this, rpa, transChrg, hybridXc, denseDesc, sym, species0,&
                   & ovrXev, grndEigVecs, gammaMat, lrGamma, coord0, dq, dqex, shift, xpym, xmym,&
                   & woo, wov, wvv, skHamCont, skOverCont, derivator, rhoSqr, pc, nacv(:,:,iNac),&
@@ -833,7 +839,7 @@ contains
               ! compute + component of RHS for Z-vector eq. in the NaCoupling case
               ! also computes the + components of W and T
               call getNadiaZvectorEqRHS(env, this, rpa, transChrg, sym, denseDesc, species0,&
-                  & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omegaAvg, xpy(:,nCoupLev),& 
+                  & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omegaAvg, xpy(:,nCoupLev),&
                   & xmy(:,nCoupLev), xpy(:,mCoupLev), xmy(:,mCoupLev), rhs, t, wov, woo, wvv)
 
               call solveZVectorPrecond(env, orb, this, rpa, transChrg, denseDesc, species0, ovrXev,&
@@ -841,7 +847,7 @@ contains
 
               call calcWVectorZ(env, this, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs,&
                   & grndEigVal, gammaMat, lrGamma, rhs, wov, woo, wvv)
- 
+
               call calcPMatrix(rpa, t, rhs, pc)
 
               do iSpin = 1, nSpin
@@ -879,8 +885,10 @@ contains
 
     end if
 
-    !> Omega has possibly been overwritten for CI optimization or NA couplings, but should always
-    !! refer to nstat
+    call env%globalTimer%stopTimer(globalTimers%lrZVector)
+
+    ! Omega has possibly been overwritten for CI optimization or NA couplings, but should always
+    ! refer to nstat
     if (nstat == 0) then
       omega = 0.0_dp
     else
@@ -907,7 +915,7 @@ contains
   !! submatrices.
   !! See Dominguez JCTC 9 4901 (2013)
   subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
-    & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym,& 
+    & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym,&
     & xpy, xmy)
 
     !> Starting index of current rank in global RPA vectors
@@ -918,7 +926,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
+
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
@@ -964,19 +972,19 @@ contains
     integer :: iState, comm
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp), allocatable :: Hv(:), orthnorm(:,:)
-    real(dp) :: sigma, omega 
+    real(dp) :: sigma, omega
     logical, allocatable :: selection(:)
     logical :: rvec
     character(lc) :: tmpStr
     type(TFileDescr) :: fdArnoldiTest
 
   #:if WITH_PARPACK
-    comm = env%mpi%globalComm%id 
+    comm = env%mpi%globalComm%id
   #:endif
 
     ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
-    
+
     nexc = size(eval)
     natom = size(gammaMat, dim=1)
 
@@ -990,7 +998,7 @@ contains
 
     allocate(workl(lworkl))
     allocate(qij(natom))
-    allocate(selection(ncv))        
+    allocate(selection(ncv))
     allocate(workd(3 * nLoc))
     allocate(resid(nLoc))
     allocate(vv(nLoc, ncv))
@@ -1035,9 +1043,9 @@ contains
 
       ! Action of excitation supermatrix on supervector
       call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-          & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),& 
+          & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),&
           & workd(ipntr(2):ipntr(2)+nLoc-1))
-      
+
     end do
 
     ! check returned info flag for errors
@@ -1066,12 +1074,12 @@ contains
       call assembleChunks(env, xpy)
 
      #:else
-       
+
       call seupd(rvec, "All", selection, eval, xpy, rpa%nxov_rd, sigma, "I", rpa%nxov_rd, "SM",&
           & nexc, arTol, resid, ncv, vv, rpa%nxov_rd, iparam, ipntr, workd, workl, lworkl, info)
 
     #:endif
-            
+
       ! check for error on return
       if (info  /=  0) then
         write(tmpStr,"(' Error with ARPACK routine seupd, info = ',I0)")info
@@ -1094,9 +1102,9 @@ contains
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
           & ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
           & Hv(iGlobal:fGlobal))
-         
+
         call assembleChunks(env, Hv)
-        
+
         write(fdArnoldiTest%unit,"(I4,4E16.8)")iState,&
             & dot_product(Hv,xpy(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-xpy(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
@@ -1136,7 +1144,7 @@ contains
   !! Returns w^2 and (X+Y) (to be consistent with ARPACK diagonaliser)
   !!
   subroutine buildAndDiagExcMatrixStratmann(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
-    & denseDesc, ovrXev, grndEigVecs, gammaMat, lrGamma, species0, eval, sym, xpy, xmy) 
+    & denseDesc, ovrXev, grndEigVecs, gammaMat, lrGamma, species0, eval, sym, xpy, xmy)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -1146,7 +1154,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    
+
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
@@ -1173,7 +1181,7 @@ contains
 
     !> Electrostatic matrix, long-range corrected
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
-    
+
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
@@ -1193,7 +1201,7 @@ contains
     real(dp), allocatable :: evecL(:,:), evecR(:,:) ! left and right eigenvectors of Mnh
     real(dp), allocatable :: vP(:,:), vM(:,:) ! vec. for (A+B)b_i, (A-B)b_i
     ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subspace
-    real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:) 
+    real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:)
     ! Residual vectors
     real(dp), allocatable :: resR(:,:), resL(:,:), dummyM(:,:)
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
@@ -1206,10 +1214,10 @@ contains
     character(lc) :: tmpStr
 
     logical :: didConverge
-    
+
     ! Local chunk of RPA vectors have this size under MPI
     nLoc = fGlobal - iGlobal + 1
-    
+
     if (allocated(lr%onSiteMatrixElements)) then
       write(tmpStr,'(A)') 'Onsite corrections not available in Stratmann diagonaliser.'
       call error(tmpStr)
@@ -1249,7 +1257,7 @@ contains
     allocate(vP(nLoc, subSpaceDim))
     allocate(vM(nLoc, subSpaceDim))
     allocate(resL(nLoc, nExc))
-    allocate(resR(nLoc, nExc))   
+    allocate(resR(nLoc, nExc))
 
     ! set initial bs
     vecB(:,:) = 0.0_dp
@@ -1258,7 +1266,7 @@ contains
       if(ii > subSpaceDim) exit
       vecB(myii, ii) = 1.0_dp
     end do
-    
+
     if (rpa%tZVector) then
       xmy(:,:) = 0.0_dp
     end if
@@ -1277,10 +1285,10 @@ contains
           call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
               & species0, ovrXev, grndEigVecs, gammaMat, .true., vecB(:,ii), vP(:,ii), lrGamma)
           call actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,&
-              & ovrXev, grndEigVecs, vecB(:,ii), vM(:,ii), lrGamma)  
+              & ovrXev, grndEigVecs, vecB(:,ii), vM(:,ii), lrGamma)
 
         end do
- 
+
        do ii = prevSubSpaceDim + 1, subSpaceDim
           do jj = 1, ii
             dummyReal = dot_product(vecB(:,jj), vP(:,ii))
@@ -1298,12 +1306,12 @@ contains
         ! We need (A+B)_iajb. Could be realized by calls to actionAplusB.
         ! Specific routine for this task is more effective
         call initialSubSpaceMatrixApmB(iGlobal, fGlobal, env, lr, rpa, transChrg, sym, denseDesc,&
-            & species0, ovrXev, grndEigVecs, gammaMat, lrGamma, subSpaceDim, vP, vM, mP, mM) 
- 
+            & species0, ovrXev, grndEigVecs, gammaMat, lrGamma, subSpaceDim, vP, vM, mP, mM)
+
       end if
 
       call calcMatrixSqrt(mM, subSpaceDim, mMsqrt, mMsqrtInv)
-      
+
       call symm(dummyM, 'L', mP, mMsqrt, uplo='U')
       call symm(mH, 'L', mMsqrt, dummyM, uplo='U')
 
@@ -1361,7 +1369,7 @@ contains
         vecNorm(nExc+ii) = dummyReal
       end do
       didConverge = all(vecNorm < convThreshStrat)
-      
+
       if ((.not. didConverge) .and. (subSpaceDim > rpa%nxov_rd)) then
         write(tmpStr,'(A)') 'Linear Response calculation in subspace did not converge!&
              & Increase SubspaceFactor.'
@@ -1376,7 +1384,7 @@ contains
         xpy(:,:) = 0.0_dp
         xpy(iGlobal:fGlobal,:) = matmul(vecB, evecR)
         call assembleChunks(env, xpy)
-        
+
         ! Calc. X-Y, only when needed
         if (rpa%tZVector) then
           xmy(iGlobal:fGlobal,:) = matmul(vecB, evecL)
@@ -1395,7 +1403,7 @@ contains
           newVec = newVec + 1
         endif
       enddo
-      
+
       call incMemStratmann(subSpaceDim, subSpaceDim + newVec, vecB, vP, vM, mP, mM, mH, mMsqrt,&
             &  mMsqrtInv, dummyM, evalInt, evecL, evecR)
 
@@ -1410,7 +1418,7 @@ contains
             myjj = jj - iGlobal + 1
             vecB(myjj,dummyInt) = resR(myjj,ii) / (dummyReal - rpa%wij(jj))
           end do
-          
+
         end if
       end do
 
@@ -1426,7 +1434,7 @@ contains
 
         end if
       end do
-      
+
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
 
@@ -1516,21 +1524,21 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-     
+
     !> Machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
     !> Symmetry of the transitions
     character, intent(in) :: sym
-    
+
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
@@ -1578,7 +1586,7 @@ contains
     real(dp), allocatable :: xpyq(:), qTr(:), gamxpyq(:), qgamxpyq(:,:), gamqt(:)
     real(dp), allocatable :: xpyqds(:), gamxpyqds(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
-    real(dp), allocatable :: vecHovT(:), vecHooT(:)    
+    real(dp), allocatable :: vecHovT(:), vecHooT(:)
     real(dp) :: tmp1, tmp2, fact
     logical :: tSpin
 
@@ -1930,7 +1938,7 @@ contains
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
@@ -1948,7 +1956,7 @@ contains
 
     !> Overlap times eigenvector (nOrb, nOrb)
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> Eigenvectors (nOrb, nOrb)
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -1966,11 +1974,11 @@ contains
     real(dp), allocatable :: qTr(:), qTmp(:), P(:)
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: rs, alphakm1, tmp1, tmp2, bkm1
-    
+
     ! Need to change this for MPI, currently routine works on full RPA vectors
     iGlobal = 1
     fGlobal = rpa%nxov_rd
-    
+
     nxov = rpa%nxov_rd
     allocate(qTr(lr%nAtom))
     allocate(qTmp(lr%nAtom))
@@ -2014,7 +2022,7 @@ contains
     ! we need the singlet action even for triplet excitations!
     call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
         & ovrXev, grndEigVecs, gammaMat, .true., rhs2, rkm1, lrGamma)
-    
+
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
     pkm1(:) = zkm1
@@ -2068,7 +2076,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
@@ -2076,7 +2084,7 @@ contains
     type(TCasidaParameter), intent(in) :: rpa
 
     !> machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg    
+    type(TTransCharges), intent(in) :: transChrg
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -2088,7 +2096,7 @@ contains
     real(dp), intent(in) :: ovrXev(:,:,:)
 
     !> Ground state wavefunctions
-    real(dp), intent(in) :: grndEigVecs(:,:,:) 
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> Ground state MO-energies
     real(dp), intent(in) :: grndEigVal(:,:)
@@ -2098,7 +2106,7 @@ contains
 
     !> Long-range Gamma
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
-    
+
     !> Z vector
     real(dp), intent(in) :: zz(:)
 
@@ -2115,7 +2123,7 @@ contains
     integer :: ij, ias, ijs, ab, i, j, a, b, s
     real(dp), allocatable :: qTr(:), gamxpyq(:), zq(:), zqds(:), vecHooZ(:)
     real(dp) :: fact
-    
+
     nSpin = size(grndEigVal, dim=2)
 
     allocate(qTr(lr%nAtom))
@@ -2168,7 +2176,7 @@ contains
 
       allocate(vecHooZ(sum(rpa%nxoo_ud)))
       call getHooXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, zz,&
-          & vecHooZ)  
+          & vecHooZ)
 
       ! Array woo should be made 1D
       do s = 1, nSpin
@@ -2256,7 +2264,7 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-    
+
     !> density matrix
     real(dp), intent(in) :: pc(:,:)
 
@@ -2285,16 +2293,16 @@ contains
   !! 2. we need P,(T,Z),W, X + Y from linear response
   !! 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !! dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(env, orb, lr, rpa, transChrg, hybridXc, denseDesc, sym, species0, ovrXev,& 
+  subroutine addGradients(env, orb, lr, rpa, transChrg, hybridXc, denseDesc, sym, species0, ovrXev,&
       & grndEigVecs, gammaMat, lrGamma, coord0, dq_ud, dqex, shift, xpy, xmy, woo, wov, wvv,&
       & skHamCont, skOverCont, derivator, rhoSqr, pc, excgrad, deltaRho)
-    
+
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
@@ -2309,7 +2317,7 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-    
+
     !> Symmetry of the transition
     character, intent(in) :: sym
 
@@ -2366,7 +2374,7 @@ contains
 
     !> Ground state density matrix
     real(dp), intent(in) :: rhoSqr(:,:,:)
-    
+
     !> Transition density matrix
     real(dp), intent(in) :: pc(:,:,:)
 
@@ -3135,7 +3143,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> T matrix
     real(dp), intent(in) :: t(:,:,:)
 
@@ -3168,7 +3176,7 @@ contains
   !! Here p/q are virtual orbitals and V is either X+Y or X-Y
   subroutine getHvvXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, ipm, XorY,&
       & vecHvv)
-    
+
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
@@ -3177,7 +3185,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -3186,7 +3194,7 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -3204,7 +3212,7 @@ contains
 
     real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
     integer :: i, a, b, s, ias, ibs, abs, nOrb
-    
+
     nOrb = size(ovrXev, dim=1)
 
     allocate(qIJ(lr%nAtom))
@@ -3259,7 +3267,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -3268,7 +3276,7 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -3288,7 +3296,7 @@ contains
     integer :: i, j, a, s, ias, jas, ijs, nOrb
 
     nOrb = size(ovrXev, dim=1)
-    
+
     allocate(qIJ(lr%nAtom))
     allocate(gqIJ(lr%nAtom))
     allocate(qX(lr%nAtom, rpa%nxov_rd))
@@ -3341,7 +3349,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -3350,7 +3358,7 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -3445,7 +3453,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -3454,7 +3462,7 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
@@ -3643,13 +3651,13 @@ contains
   !> Compute (fake) transition density matrix and W for ground-to-excited state couplings
   !! See TCA 140 34 (2020) and JCP 132 044107 (2010)
   !! Actually omega * W is computed
-  !! TODO: Spin-polarized systems 
+  !! TODO: Spin-polarized systems
   subroutine grndToExcDensityMatrices(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev,&
       & grndEigVecs, grndEigVal, frGamma, lrGamma, omega, pc, xpy, xmy, wov, woo)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
@@ -3661,7 +3669,7 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-    
+
     !> Symmetry of the transition
     character, intent(in) :: sym
 
@@ -3682,7 +3690,7 @@ contains
 
     !> Electrostatic matrix, long-range corrected
     real(dp), allocatable, intent(in) :: lrGamma(:,:)
-  
+
     !> Excitation energy of states n
     real(dp), intent(in) :: omega
 
@@ -3704,7 +3712,7 @@ contains
     real(dp), allocatable :: p(:), vecHoo(:)
     integer :: soo(2), i, a, s, ias, j, ij, ijs, nSpin, nOrb
 
-    
+
     nOrb = size(ovrXev, dim=1)
     nSpin = size(rpa%nocc_ud)
 
@@ -3748,7 +3756,7 @@ contains
 
     if (rpa%tHybridXc) then
       call getHooXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, p, vecHoo)
-      
+
       do s = 1, nSpin
         do ij = 1, rpa%nxoo_ud(s)
           i = rpa%getIJ(ij + soo(s), 1)
@@ -3783,21 +3791,21 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-     
+
     !> Machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
     !> Symmetry of the transitions
     character, intent(in) :: sym
-    
+
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Central cell chemical species
     integer, intent(in) :: species0(:)
@@ -3943,7 +3951,7 @@ contains
 
     end do
 
-    ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]  
+    ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]
     call getHplusXYfr(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev, grndEigVecs,&
         & gammaMat, xpyn, vecHoo=vecHooXorY, vecHvv=vecHvvXorY)
 
@@ -4019,9 +4027,9 @@ contains
 
     rhs = rhs - vecHovT
 
-    ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
+    ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later
     call getHplusMfr(env, lr, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs, gammaMat,&
-        & 1, t, vecHooT)   
+        & 1, t, vecHooT)
 
     do s = 1, nSpin
       do ij = 1, rpa%nxoo_ud(s)
@@ -4038,11 +4046,11 @@ contains
       allocate(vecHooXmY(sum(rpa%nxoo_ud)))
 
       ! Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpyn,& 
-          & vecHvvXpY) 
+      call getHvvXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpyn,&
+          & vecHvvXpY)
 
       call getHvvXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmyn,&
-          & vecHvvXmY)     
+          & vecHvvXmY)
 
       call getHooXY(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpyn,&
           & vecHooXpY)
@@ -4132,7 +4140,7 @@ contains
 
       rhs(:) = rhs - cExchange * vecHovT
 
-      ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later 
+      ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later
       call getHooT(env, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHooT)
 
       do s = 1, nSpin
@@ -4189,16 +4197,16 @@ contains
 
 
   !> Calculation of nacv using gradient routine
-  subroutine addNadiaGradients(env, orb, lr, rpa, transChrg, hybridXc, denseDesc, sym, species0,& 
+  subroutine addNadiaGradients(env, orb, lr, rpa, transChrg, hybridXc, denseDesc, sym, species0,&
       & ovrXev, grndEigVecs, gammaMat, lrGamma, coord0, dq_ud, dqex, shift, xpyn, xmyn, xpym, xmym,&
       & woo, wov, wvv, skHamCont, skOverCont, derivator, rhoSqr, pc, nacv, deltaRho)
-    
+
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
-     
+
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
 
@@ -4213,7 +4221,7 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
-    
+
     !> Symmetry of the transition
     character, intent(in) :: sym
 
@@ -4254,7 +4262,7 @@ contains
     real(dp), intent(in) :: xpym(:)
 
     !> X-Y Furche term (state m)
-    real(dp), intent(in) :: xmym(:)  
+    real(dp), intent(in) :: xmym(:)
 
     !> W vector occupied part
     real(dp), intent(in) :: woo(:,:)
@@ -4578,7 +4586,7 @@ contains
         diffvec = diffvec / rab
 
         ! Calculate the derivative of gamma
-        dgab(:) = diffvec * (-1.0_dp / rab**2 - expGammaPrime(rab, lr%HubbardU(iSp1),& 
+        dgab(:) = diffvec * (-1.0_dp / rab**2 - expGammaPrime(rab, lr%HubbardU(iSp1),&
             & lr%HubbardU(iSp2)))
 
         tmp3a = 0.0_dp
@@ -4795,7 +4803,7 @@ contains
 
   !> Computes full range part of H^+_pq [X+-Y] as defined in Furche JCP 117 7433 (2002) eq. 20
   !! Here p/q are both virtual or both occupied orbitals and V is either X+Y or X-Y
-  !! Note: The full range part of H^- is zero! 
+  !! Note: The full range part of H^- is zero!
   !! Note: This routine is specific for X+Y, for other quantities factors of 2 arise
   subroutine getHplusXYfr(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev, grndEigVecs,&
       & frGamma, XorY, vecHoo, vecHvv)
@@ -4808,7 +4816,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -4823,11 +4831,11 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> full-range Gamma 
+    !> full-range Gamma
     real(dp), intent(in) :: frGamma(:,:)
 
     !> RPA eigenvectors, either (X+Y) or (X-Y)
@@ -4844,7 +4852,7 @@ contains
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
 
     nSpin = size(grndEigVecs, dim=3)
-    
+
     allocate(xpyq(lr%nAtom))
     allocate(qTr(lr%nAtom))
     allocate(gamxpyq(lr%nAtom))
@@ -4937,7 +4945,7 @@ contains
   !! iMode = 1: returns oo components of H
   !! iMode = 2: returns vv components of H
   !! iMode = 3: returns ov components of H
-  !! Note: The full range part of H^- is zero! 
+  !! Note: The full range part of H^- is zero!
   !! Routine currently does not work for M_ia /= 0 on entry!
   subroutine getHplusMfr(env, lr, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs,&
       & frGamma, iMode, matM, vecH)
@@ -4950,7 +4958,7 @@ contains
 
     !> Run time parameters of the Casida routine
     type(TCasidaParameter), intent(in) :: rpa
-    
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -4962,13 +4970,13 @@ contains
 
     !> overlap times eigenvector. (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: ovrXev(:,:,:)
-    
+
     !> eigenvectors (nOrb, nOrb) [distributed]
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    !> full-range Gamma 
+    !> full-range Gamma
     real(dp), intent(in) :: frGamma(:,:)
-    
+
     !> Type of return vector (oo, vv, ov)
     integer , intent(in)  :: iMode
 
@@ -5225,5 +5233,89 @@ contains
     write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
 
   end subroutine conicalIntersectionOptimizer
+
+
+  !> Computes transition charges for a given excited state according to
+  !! JCP 140, 174101 (2014). Works for singlet states and spin polarized calculations.
+  !! Initialization prevents entering this routine for triplets for which the charges
+  !! would simply be zero.
+  subroutine getAndWriteTransitionCharges(env, lr, rpa, transChrg, sym, denseDesc, ovrXev, &
+      & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Data structure for linear response
+    type(TLinResp), intent(in) :: lr
+
+    !> Run time parameters of the Casida routine
+    type(TCasidaParameter), intent(in) :: rpa
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> symmetry flag (singlet or triplet)
+    character, intent(in) :: sym
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> overlap times eigenvector. (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: ovrXev(:,:,:)
+
+    !> eigenvectors (nOrb, nOrb) [distributed]
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> (X+Y) RPA eigenvectors (global)
+    real(dp), intent(in) :: xpy(:,:)
+
+    !> File descriptor for ATQ.DAT
+    type(TFileDescr) :: fdTransQ
+
+    !> File unit for tagged output (> -1 for write out)
+    type(TFileDescr), intent(in) :: fdTagged
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    integer :: i, ia
+    real(dp), allocatable :: atomicTransQ(:), qia(:)
+    real(dp) :: preFactor
+
+    @:ASSERT(size(xpy(:, lr%nstat)) == rpa%nxov_rd)
+
+    if (lr%tSpin) then
+      preFactor = 1.0_dp
+    else
+      preFactor = sqrt(2.0_dp)
+    endif
+
+    allocate(atomicTransQ(lr%nAtom))
+    allocate(qia(lr%nAtom))
+
+    atomicTransQ(:) = 0.0_dp
+    do ia = 1, rpa%nxov_rd
+      qia(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+      atomicTransQ(:) = atomicTransQ + preFactor * qia * xpy(ia,lr%nstat)
+    end do
+
+    call openfile(fdTransQ, transChrgOut, mode="w")
+
+
+    write(fdTransQ%unit, '(a)') "#"
+    write(fdTransQ%unit, '(a,2x,a,5x,a)') "#", "atom", "transition charge"
+    write(fdTransQ%unit, '(a)') "#"
+
+    do i = 1, lr%nAtom
+      write(fdTransQ%unit, '(2x,i5,5x,f12.9)') i, atomicTransQ(i)
+    end do
+
+    call closeFile(fdTransQ)
+
+    if (fdTagged%isConnected()) then
+      call taggedWriter%write(fdTagged%unit, tagLabels%transQ, atomicTransQ**2)
+    end if
+
+  end subroutine getAndWriteTransitionCharges
 
 end module dftbp_timedep_linrespgrad
