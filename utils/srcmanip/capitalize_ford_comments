@@ -18,8 +18,8 @@ suffix '.cap' is created, that contains the modified source code. Should such a
 file already exist, the script exits with an appropriate error message.
 """
 
-PATTERN_SEARCH = re.compile("\s*!>\s*[a-zA-Z]")
-PATTERN_REPLACE = re.compile("\s*!>\s*[a-z]")
+PATTERN_SEARCH = re.compile(r"\s*!>\s*[a-zA-Z]")
+PATTERN_REPLACE = re.compile(r"\s*!>\s*[a-z]")
 
 
 def main():
