@@ -41,6 +41,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
   use dftbp_dftb_hamiltonian, only : TRefExtPot
+  use dftbp_dftb_multiexpan, only : TDftbMultiExpan, TDftbMultiExpanInp, dftbMultiExpan_init
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
@@ -501,6 +502,9 @@ module dftbp_dftbplus_initprogram
     !> Calculate an electric dipole?
     logical :: tDipole
 
+    !> calculate an electric Quadrupole?
+    logical :: tQuadrupole = .false.
+
     !> Do we need atom resolved E?
     logical :: tAtomicEnergy
 
@@ -820,6 +824,15 @@ module dftbp_dftbplus_initprogram
     !> Linear response calculation with hybrid xc-functional
     logical :: isHybLinResp
 
+    !> Multipole DFTB
+    logical :: isDftbMultiExpan
+
+    !> input data structure for multipole
+    type(TDftbMultiExpanInp) :: dftbMultiExpanInp
+
+    !> data structure for multipole
+    type(TDftbMultiExpan), allocatable :: dftbMultiExpan
+
     !> If initial charges/dens mtx. from external file.
     logical :: tReadChrg
 
@@ -999,6 +1012,9 @@ module dftbp_dftbplus_initprogram
 
     !> Additional dipole moment related message to write out
     character(lc) :: dipoleMessage
+
+    !> quadrupole moments, when availables
+    real(dp), allocatable :: quadrupoleMoment(:,:)
 
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
@@ -1401,6 +1417,7 @@ contains
     else
       this%hybridXcAlg = hybridXcAlgo%none
     end if
+    this%isDftbMultiExpan = input%ctrl%isDftbMultiExpan
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1771,6 +1788,72 @@ contains
         call ThirdOrder_init(this%thirdOrd, thirdInp)
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%thirdOrd%getCutOff())
       end if
+
+      ! Initialize multipole module
+      if (this%isDftbMultiExpan) then
+        @:ASSERT(this%tSccCalc)
+        this%dftbMultiExpanInp%orb => this%orb
+        this%dftbMultiExpanInp%nOrb = this%nOrb
+        this%dftbMultiExpanInp%nSpin = this%nSpin
+        this%dftbMultiExpanInp%nSpecies = this%nType
+
+        allocate(this%dftbMultiExpanInp%atomicDIntgrlScaling(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicQIntgrlScaling(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicOnsiteScaling(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSXPxIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPxXDxxyyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPxXDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPyYDxxyyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPzZDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSXXSIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPxXXPxIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicPyXXPyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSXXDxxyyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSXXDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSYYDxxyyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicSZZDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDxyXXDxyIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDyzXXDyzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDxxyyXXDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDzzXXDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDxxyyYYDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDzzZZDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDxzXZDzzIntgrl(this%nType))
+        allocate(this%dftbMultiExpanInp%atomicDyzYZDxxyyIntgrl(this%nType))
+
+        this%dftbMultiExpanInp%atomicDIntgrlScaling(:) = input%ctrl%atomicDIntgrlScaling
+        this%dftbMultiExpanInp%atomicQIntgrlScaling(:) = input%ctrl%atomicQIntgrlScaling
+        this%dftbMultiExpanInp%atomicOnsiteScaling(:) = input%ctrl%atomicOnsiteScaling
+        this%dftbMultiExpanInp%atomicSXPxIntgrl(:) = input%ctrl%atomicSXPxIntgrl
+        this%dftbMultiExpanInp%atomicPxXDxxyyIntgrl(:) = input%ctrl%atomicPxXDxxyyIntgrl
+        this%dftbMultiExpanInp%atomicPxXDzzIntgrl(:) = input%ctrl%atomicPxXDzzIntgrl
+        this%dftbMultiExpanInp%atomicPyYDxxyyIntgrl(:) = input%ctrl%atomicPyYDxxyyIntgrl
+        this%dftbMultiExpanInp%atomicPzZDzzIntgrl(:) = input%ctrl%atomicPzZDzzIntgrl
+        this%dftbMultiExpanInp%atomicSXXSIntgrl(:) = input%ctrl%atomicSXXSIntgrl
+        this%dftbMultiExpanInp%atomicPxXXPxIntgrl(:) = input%ctrl%atomicPxXXPxIntgrl
+        this%dftbMultiExpanInp%atomicPyXXPyIntgrl(:) = input%ctrl%atomicPyXXPyIntgrl
+        this%dftbMultiExpanInp%atomicSXXDxxyyIntgrl(:) = input%ctrl%atomicSXXDxxyyIntgrl
+        this%dftbMultiExpanInp%atomicSXXDzzIntgrl(:) = input%ctrl%atomicSXXDzzIntgrl
+        this%dftbMultiExpanInp%atomicSYYDxxyyIntgrl(:) = input%ctrl%atomicSYYDxxyyIntgrl
+        this%dftbMultiExpanInp%atomicSZZDzzIntgrl(:) = input%ctrl%atomicSZZDzzIntgrl
+        this%dftbMultiExpanInp%atomicDxyXXDxyIntgrl(:) = input%ctrl%atomicDxyXXDxyIntgrl
+        this%dftbMultiExpanInp%atomicDyzXXDyzIntgrl(:) = input%ctrl%atomicDyzXXDyzIntgrl
+        this%dftbMultiExpanInp%atomicDxxyyXXDzzIntgrl(:) = input%ctrl%atomicDxxyyXXDzzIntgrl
+        this%dftbMultiExpanInp%atomicDzzXXDzzIntgrl(:) = input%ctrl%atomicDzzXXDzzIntgrl
+        this%dftbMultiExpanInp%atomicDxxyyYYDzzIntgrl(:) = input%ctrl%atomicDxxyyYYDzzIntgrl
+        this%dftbMultiExpanInp%atomicDzzZZDzzIntgrl(:) = input%ctrl%atomicDzzZZDzzIntgrl
+        this%dftbMultiExpanInp%atomicDxzXZDzzIntgrl(:) = input%ctrl%atomicDxzXZDzzIntgrl
+        this%dftbMultiExpanInp%atomicDyzYZDxxyyIntgrl(:) = input%ctrl%atomicDyzYZDxxyyIntgrl
+
+        allocate(this%dftbMultiExpanInp%hubbU(size(hubbU, dim=2)))
+        this%dftbMultiExpanInp%hubbU = hubbU(1,:)
+        allocate(this%dftbMultiExpanInp%species(this%nAtom))
+        this%dftbMultiExpanInp%species(:) = input%geom%species
+        allocate(this%dftbMultiExpan)
+        allocate(this%quadrupoleMoment(3,3))
+        call dftbMultiExpan_init(this%dftbMultiExpan, this%dftbMultiExpanInp)
+      end if
+
     end if
 
   #:block DEBUG_CODE
@@ -1827,6 +1910,8 @@ contains
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
+    ! else if (allocated(this%dftbMultiExpan)) then
+    !   call this%dftbMultiExpan%getMultiExpanInfo(this%nDipole, this%nQuadrupole)
     end if
     call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
@@ -1987,7 +2072,7 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or.&
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isDftbMultiExpan .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -2438,8 +2523,10 @@ contains
         end if
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%cm5Cont%getRCutOff())
       end if
+      this%tQuadrupole = input%ctrl%isDftbMultiExpan
     else
       this%tNetAtomCharges = .false.
+      this%tQuadrupole = .false.
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
@@ -3347,6 +3434,9 @@ contains
       !if (this%tPeriodic) then
       !  write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
       !end if
+      if (this%isDftbMultiExpan) then
+        write(stdOut, "(A,':',T30,A)") "MultiPole expansion", "Yes"
+      end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
@@ -4178,6 +4268,20 @@ contains
         deallocate(iEqDip)
         deallocate(iEqQuad)
       end if
+
+      ! if (allocated(this%dftbMultiExpan)) then
+      !   allocate(iEqDip(this%nDipole, this%nAtom), source=0)
+      !   allocate(iEqQuad(this%nQuadrupole, this%nAtom), source=0)
+      !   call this%dftbMultiExpan%getOrbitalEquiv(iEqDip, iEqQuad)
+      !   this%iEqDipole(:,:) = iEqDip
+      !   this%iEqQuadrupole(:,:) = iEqQuad
+      !   this%nIneqOrb = maxval(this%iEqOrbitals)
+      !   this%nIneqDip = maxval(this%iEqDipole)
+      !   this%nIneqQuad = maxval(this%iEqQuadrupole)
+      !   this%nMixElements = this%nIneqOrb + this%nIneqDip + this%nIneqQuad
+      !   deallocate(iEqDip)
+      !   deallocate(iEqQuad)
+      ! end if
 
       if (allocated(this%onSiteElements)) then
         allocate(iEqOrbSpin(this%orb%mOrb, this%nAtom, this%nSpin))
@@ -5909,6 +6013,10 @@ contains
       call error("Global hybrid functionals not currently implemented for linear response.")
     end if
 
+    if (this%tQuadrupole) then
+      call error("DFTB quadrupoles currently unsupported for hybrid functionals.")
+    end if
+
   end subroutine ensureHybridXcReqs
 
 
@@ -6242,7 +6350,7 @@ contains
         & deallocate(this%densityMatrix%deltaRhoOutCplxHS)
 
     if (this%tRealHS) then
-      ! Prevent for deleting charges read in from file
+      ! Prevent for deleting charges that are read in from file
       if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
         allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
       end if
