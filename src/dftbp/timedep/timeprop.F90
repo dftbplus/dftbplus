@@ -33,6 +33,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_hamiltonian, only : addBlockChargePotentials, addChargePotentials,&
       & getSccHamiltonian, resetExternalPotentials, resetInternalPotentials, TRefExtPot
   use dftbp_dftb_hybridxc, only : THybridXcFunc
+  use dftbp_dftb_mdftb, only : TMdftb
   use dftbp_dftb_nonscc, only : buildH0, buildS, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : addOnsShift
   use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList, TAuxNeighbourList,&
@@ -1470,6 +1471,8 @@ contains
     real(dp), allocatable :: T2(:,:)
     integer :: iAtom, iEatom, iSpin, iKS, iK
     logical :: tImHam
+    ! Multipole expansion
+    type(TMdftb), allocatable :: mdftb
 
     allocate(T2(this%nOrbs,this%nOrbs))
 
@@ -1520,7 +1523,7 @@ contains
     potential%intShell = potential%intShell + potential%extShell
 
     call getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, speciesAll, orb,&
-        & iSparseStart, img2CentCell, potential, .false., ints%hamiltonian, iHam)
+        & iSparseStart, img2CentCell, potential, mdftb, .false., ints%hamiltonian, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
@@ -2011,6 +2014,9 @@ contains
     real(dp) :: TS(this%nSpin)
     type(TReksCalc), allocatable :: reks ! never allocated
 
+    ! Multipole expansion
+    type(TMdftb), allocatable :: mdftb
+
     ! if Forces are calculated, rhoPrim has already been calculated
     ! check allways that calcEnergy is called AFTER getForces
     if (.not. this%tForces) then
@@ -2032,8 +2038,8 @@ contains
 
     TS = 0.0_dp
     call calcEnergies(env, this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
-        & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
-        & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
+        & mdftb, this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim,&
+        & ham0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
         & potential, energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock,&
         & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, .true., onSiteElements, errStatus)
     @:PROPAGATE_ERROR(errStatus)

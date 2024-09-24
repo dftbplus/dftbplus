@@ -1,0 +1,79 @@
+Geometry = GenFormat {
+8 C
+O N H
+1   1  -1.3553680000E+00   2.0000000000E-06  -2.2800000000E-04
+2   2   1.3378370000E+00  -1.0000000000E-06   3.2000000000E-04
+3   3   2.8006900000E-01   2.0000000000E-05  -2.6080000000E-03
+4   3   1.6815190000E+00  -1.7750000000E-03   9.5936000000E-01
+5   3  -1.9285510000E+00   7.6916600000E-01   7.0000000000E-05
+6   3  -1.9285250000E+00  -7.6918100000E-01   1.3300000000E-04
+7   3   1.6868040000E+00   8.2951400000E-01  -4.7715000000E-01
+8   3   1.6867740000E+00  -8.2775100000E-01  -4.8022500000E-01
+}
+
+Hamiltonian = DFTB {
+  Charge = +1
+  SCC = Yes
+  SCCTolerance = 1.0E-9
+  MaxSCCIterations = 300
+  Filling = Fermi {
+    Temperature = 0.0
+  }
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    H = "s"
+    N = "p"
+    O = "p"
+  }
+
+  ThirdOrderFull = Yes
+  HubbardDerivs = {
+    H = -0.1857
+    N = -0.1535
+    O = -0.1575
+  }
+
+  Mdftb = OneCenterApproximation {
+    AtomDIntegralScalings = {
+      H = 0.0
+      N = 0.6
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 0.0
+      N = 3.4
+      O = 3.0
+    }
+    OneCenterAtomIntegrals = {
+      H:S|XX|S   = 0.55976
+      N:S|X|Px   = 0.68857
+      N:S|XX|S   = 0.57638
+      N:Px|XX|Px = 1.05308
+      N:Py|XX|Py = 0.35103
+      O:S|X|Px   = 0.60894
+      O:S|XX|S   = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+  }
+
+  SlaterKosterFiles = Type2Filenames {
+    Prefix = {slakos/origin/m3ob-test/}
+    Suffix = ".skf"
+    Separator = "-"
+  }
+}
+
+ParserOptions = {
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
+}
+
+Analysis = {
+  PrintForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+}

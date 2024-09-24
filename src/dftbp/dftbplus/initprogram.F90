@@ -43,9 +43,10 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_hamiltonian, only : TRefExtPot
   use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo, hybridXcFunc,&
       & hybridXcGammaTypes, THybridXcFunc, THybridXcFunc_init
+  use dftbp_dftb_mdftb, only : TMdftb, TMdftbAtomicIntegrals, TMdftbInp, TMdftb_init
   use dftbp_dftb_nonscc, only : diffTypes, NonSccDiff_init, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
-  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
+ use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
       & TAuxNeighbourList, TAuxNeighbourList_init
   use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
@@ -472,6 +473,9 @@ module dftbp_dftbplus_initprogram
     !> Calculate an electric dipole?
     logical :: tDipole
 
+    !> calculate an electric Quadrupole?
+    logical :: tQuadrupole = .false.
+
     !> Do we need atom resolved E?
     logical :: tAtomicEnergy
 
@@ -791,6 +795,15 @@ module dftbp_dftbplus_initprogram
     !> Linear response calculation with hybrid xc-functional
     logical :: isHybLinResp
 
+    !> Multipole DFTB
+    logical :: isMdftb
+
+    !> input data structure for multipole
+    type(TMdftbInp) :: mdftbInp
+
+    !> data structure for multipole
+    type(TMdftb), allocatable :: mdftb
+
     !> If initial charges/dens mtx. from external file.
     logical :: tReadChrg
 
@@ -973,6 +986,9 @@ module dftbp_dftbplus_initprogram
 
     !> Additional dipole moment related message to write out
     character(lc) :: dipoleMessage
+
+    !> quadrupole moments, when availables
+    real(dp), allocatable :: quadrupoleMoment(:,:)
 
     !> Coordinates to print out
     real(dp), pointer :: pCoord0Out(:,:)
@@ -1739,6 +1755,26 @@ contains
         call ThirdOrder_init(this%thirdOrd, thirdInp)
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%thirdOrd%getCutOff())
       end if
+
+      ! Initialize multipole module
+      this%isMdftb = input%ctrl%isMdftb
+      if (this%isMdftb) then
+        @:ASSERT(this%tSccCalc)
+        call ensureMdftbCompatibility(this, input)
+
+        this%tQuadrupole = .true.
+        allocate(this%quadrupoleMoment(3,3), source=0.0_dp)
+
+        this%mdftbInp%orb => this%orb
+        this%mdftbInp%nOrb = this%nOrb
+        this%mdftbInp%nSpin = this%nSpin
+        this%mdftbInp%nSpecies = this%nType
+        this%mdftbInp%hubbU = hubbU(1,:)
+        this%mdftbInp%species = input%geom%species
+        this%mdftbInp%mdftbAtomicIntegrals = input%ctrl%mdftbAtomicIntegrals
+        allocate(this%mdftb)
+        call TMdftb_init(this%mdftb, this%mdftbInp)
+      end if
     end if
 
   #:block DEBUG_CODE
@@ -1788,6 +1824,8 @@ contains
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
+    else if (allocated(this%mdftb)) then
+      call this%mdftb%getMultiExpanInfo(this%nDipole, this%nQuadrupole)
     end if
     call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
@@ -1800,8 +1838,12 @@ contains
     else
       allocate(this%chargePerShell(0,0,0))
     end if
-    call TIntegral_init(this%ints, this%nSpin, .not. allocated(this%reks), this%tImHam,&
-        & this%nDipole, this%nQuadrupole)
+    if (allocated(this%mdftb)) then
+      call TIntegral_init(this%ints, this%nSpin, .not. allocated(this%reks), this%tImHam, 0, 0)
+    else
+      call TIntegral_init(this%ints, this%nSpin, .not. allocated(this%reks), this%tImHam,&
+          & this%nDipole, this%nQuadrupole)
+    end if
     allocate(this%iSparseStart(0, this%nAtom))
 
     this%tempAtom = input%ctrl%tempAtom
@@ -1889,7 +1931,7 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or.&
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isMdftb .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -3272,6 +3314,9 @@ contains
       !if (this%tPeriodic) then
       !  write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
       !end if
+      if (this%isMdftb) then
+        write(stdOut, "(A,':',T30,A)") "Multipole expansion", "Yes"
+      end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
@@ -4106,6 +4151,20 @@ contains
         this%nMixElements = this%nIneqOrb + this%nIneqDip + this%nIneqQuad
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+        deallocate(iEqDip)
+        deallocate(iEqQuad)
+      end if
+
+      if (allocated(this%mdftb)) then
+        allocate(iEqDip(this%nDipole, this%nAtom), source=0)
+        allocate(iEqQuad(this%nQuadrupole, this%nAtom), source=0)
+        call this%mdftb%getOrbitalEquiv(iEqDip, iEqQuad)
+        this%iEqDipole = iEqDip
+        this%iEqQuadrupole = iEqQuad
+        this%nIneqOrb = maxval(this%iEqOrbitals)
+        this%nIneqDip = maxval(this%iEqDipole)
+        this%nIneqQuad = maxval(this%iEqQuadrupole)
+        this%nMixElements = this%nIneqOrb + this%nIneqDip + this%nIneqQuad
         deallocate(iEqDip)
         deallocate(iEqQuad)
       end if
@@ -5154,8 +5213,13 @@ contains
       end if
     end if
 
-    call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
-        & this%nDipole, this%nQuadrupole, input%ctrl%atomicExtPotential)
+    if (allocated(this%mdftb)) then
+      call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
+          & 0, 0, input%ctrl%atomicExtPotential)
+    else
+      call TPotentials_init(this%potential, this%orb, this%nAtom, this%nSpin, &
+          & this%nDipole, this%nQuadrupole, input%ctrl%atomicExtPotential)
+    end if
 
     ! Nr. of independent spin Hamiltonians
     select case (this%nSpin)
@@ -6875,6 +6939,62 @@ contains
     coulombInput%boundaryCond = boundaryCond
 
   end subroutine initCoulombInput_
+
+
+  !> Checkcompatibility with mdftb
+  subroutine ensureMdftbCompatibility(this, input)
+
+    !> DftbPlusMain instance
+    class(TDftbPlusMain), intent(in), target :: this
+
+    !> Holds the parsed input data.
+    type(TInputData), intent(in), target :: input
+
+    if (this%tPeriodic) then
+      call error("DFTB multipole expansion currently unsupported for periodic systems")
+    end if
+    if (this%tExtChrg) then
+      call error("DFTB multipole expansion currently unsupported for external charges")
+    end if
+    if (allocated(this%eField)) then
+      call error("DFTB multipole expansion currently unsupported for external electric field")
+    end if
+    if (input%ctrl%tSpin) then
+      call error("DFTB multipole expansion currently unsupported for spin-polarised&
+          & calculations")
+    end if
+    if (allocated(input%ctrl%lrespini)) then
+      call error("DFTB multipole expansion currently unsupported for excited state&
+          & calculations")
+    end if
+    if (allocated(input%ctrl%hybridXcInp)) then
+      call error("DFTB multipole expansion currently incompatible with hybrid functionals")
+    end if
+    if (allocated(this%onSiteElements)) then
+      call error("DFTB multipole expansion currently incompatible with onsite corrections")
+    end if
+    if (input%ctrl%tShellResolved) then
+      call error("DFTB multipole expansion currently incompatible with shell-resolved SCC")
+    end if
+    if (allocated(input%ctrl%elecDynInp)) then
+      call error("DFTB multipole expansion currently unsupported for electron dynamics&
+          & calculations")
+    end if
+    if (allocated(input%ctrl%perturbInp)) then
+      call error("DFTB multipole expansion currently incompatible with perturbation&
+          & calculations")
+    end if
+    if (allocated(this%reks)) then
+      call error("DFTB multipole expansion currently incompatible with REKS calculations")
+    end if
+  #:if WITH_TRANSPORT
+    ! Check for incompatible options if this is a transport calculation
+    if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
+      call error("DFTB multipole expansion currently incompatible with transport calculations")
+    endif
+  #:endif
+
+  end subroutine ensureMdftbCompatibility
 
 
 #:if WITH_POISSON

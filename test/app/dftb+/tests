@@ -205,6 +205,25 @@ reks/Thymine_single                    #? not WITH_MPI
 reks/Thymine_T1                        #? not WITH_MPI
 reks/Thymine_T1_rangesep               #? not WITH_MPI
 
+mdftb/2H2O                             #? OMP_THREADS <= 2 and not WITH_MPI
+mdftb/32H2O                            #? MPI_PROCS <= 4
+mdftb/Glycine                          #? not WITH_MPI
+mdftb/Glycine_mDFTBoff1                #? not WITH_MPI
+mdftb/Glycine_mDFTBoff2                #? not WITH_MPI
+mdftb/Glycine_mDFTBoff3                #? OMP_THREADS <= 4 and not WITH_MPI
+mdftb/Glycine_Ordering                 #? not WITH_MPI
+mdftb/Glycine_RotTran1                 #? not WITH_MPI
+mdftb/Glycine_RotTran2                 #? not WITH_MPI
+mdftb/Glycine_RotTran3                 #? OMP_THREADS <= 4 and not WITH_MPI
+mdftb/OH-H2O                           #? not WITH_MPI
+mdftb/OH-H2O_RotTran1                  #? not WITH_MPI
+mdftb/OH-H2O_RotTran2                  #? not WITH_MPI
+mdftb/OH-H2O_RotTran3                  #? OMP_THREADS <= 4 and not WITH_MPI
+mdftb/NH4+H2O                          #? not WITH_MPI
+mdftb/NH4+H2O_RotTran1                 #? not WITH_MPI
+mdftb/NH4+H2O_RotTran2                 #? not WITH_MPI
+mdftb/NH4+H2O_RotTran3                 #? OMP_THREADS <= 4 and not WITH_MPI
+
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
