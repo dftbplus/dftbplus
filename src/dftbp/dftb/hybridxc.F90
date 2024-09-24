@@ -36,11 +36,8 @@ module dftbp_dftb_hybridxc
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
-#:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send
-#:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, mpifx_recv, mpifx_send, MPI_SUM
   use dftbp_extlibs_scalapackfx, only : CSRC_, linecomm, MB_, NB_, pblasfx_pgemm, pblasfx_psymm,&
       & pblasfx_ptran, RSRC_, scalafx_addl2g, scalafx_indxl2g
   use dftbp_math_binarysearch, only : search_int
@@ -603,7 +600,7 @@ contains
     end if
 
     if (.not. any([hybridXcAlgo%neighbourBased, hybridXcAlgo%thresholdBased,&
-          & hybridXcAlgo%matrixBased] == this%hybridXcAlg)) then
+        & hybridXcAlgo%matrixBased] == this%hybridXcAlg)) then
       @:RAISE_ERROR(errStatus, -1, "Unknown algorithm for screening the exchange in&
           & range-separation!")
     end if
@@ -1588,11 +1585,11 @@ contains
             & symNeighbourList, nNeighbourCamSym, rCellVecs, cellVecs, denseDesc%iAtomStart, orb,&
             & kPoints, densityMatrix%iKiSToiGlobalKS, HSqrCplxCam, errStatus)
         @:PROPAGATE_ERROR(errStatus)
-    else
-      call addCamHamiltonianNeighbour_kpts_ct(this, env, densityMatrix%deltaRhoInCplxHS,&
-          & symNeighbourList, nNeighbourCamSym, cellVecs, denseDesc%iAtomStart, orb, kPoints,&
-          & densityMatrix%iKiSToiGlobalKS, HSqrCplxCam, errStatus)
-      @:PROPAGATE_ERROR(errStatus)
+      else
+        call addCamHamiltonianNeighbour_kpts_ct(this, env, densityMatrix%deltaRhoInCplxHS,&
+            & symNeighbourList, nNeighbourCamSym, cellVecs, denseDesc%iAtomStart, orb, kPoints,&
+            & densityMatrix%iKiSToiGlobalKS, HSqrCplxCam, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       end if
     case (hybridXcAlgo%matrixBased)
       call addCamHamiltonianMatrix_kpts(this, env, denseDesc, ints, densityMatrix, neighbourList,&
@@ -5680,7 +5677,7 @@ contains
     ! calculate second symmetrized square matrix of Eq.(B5)
     ! this term is already symmetric, therefore drop the symmetrization operation at the end
     allocate(symSqrMat2, mold=deltaRhoSqr)
-        do iKS = 1, parallelKS%nLocalKS
+    do iKS = 1, parallelKS%nLocalKS
       call pblasfx_ptran(deltaRhoOverlap(:,:, iKS), denseDesc%blacsOrbSqr,&
           & symSqrMat2(:,:, iKS), denseDesc%blacsOrbSqr, alpha=1.0_dp, beta=0.0_dp)
       symSqrMat2(:,:, iKS) = symSqrMat2(:,:, iKS) * deltaRhoOverlap(:,:, iKS)
