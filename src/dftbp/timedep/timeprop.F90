@@ -2983,7 +2983,7 @@ contains
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
       write(currentDat%unit, "(2X,2F25.15)", advance="no") time * au__fs
       do iAtom = 1, this%nAtom
-        do iAtom2 = 1, this%nAllAtom
+        do iAtom2 = 1, this%nAtom
           write(currentDat%unit, "(F25.15)", advance="no")this%atomCurrents(iAtom, iAtom2)
         end do
       end do
@@ -4272,7 +4272,7 @@ contains
     allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
     if (this%tCurrents) then
       allocate(this%orbCurrents(this%nOrbs, this%nOrbs))
-      allocate(this%atomCurrents(this%nAtom, this%nAllAtom))
+      allocate(this%atomCurrents(this%nAtom, this%nAtom))
     end if
     
     allocate(this%occ(this%nOrbs))
