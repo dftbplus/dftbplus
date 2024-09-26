@@ -333,9 +333,8 @@ contains
       real(dp), allocatable :: Hmat(:,:)
       real(dp), allocatable :: tmpVec(:)
       real(dp), allocatable :: Hvec(:)
-      real(dp), allocatable :: HamRI(:,:)
 
-      real(dp) :: fac
+      real(dp) :: fac, facRI
       integer :: nOrb, iOrb, jOrb
 
       nOrb = size(Smat,dim=1)
@@ -345,51 +344,53 @@ contains
       allocate(Hmat(nOrb,nOrb))
       allocate(tmpVec(nOrb))
       allocate(Hvec(nOrb))
-      allocate(HamRI(nOrb,nOrb))
+
+      if (this%tSpin) then
+        fac = -0.25_dp
+        facRI = 1.0_dp
+      else
+        fac = -0.125_dp
+        facRI = 0.5_dp
+      end if
 
       call gemm(PS, Dmat, Smat)
 
       HlrOC(:,:) = 0.0_dp
 
-      ! OC contribution: 1st term
+      ! OC contribution: external overlap term
       tmpMat(:,:) = Dmat * Smat
-      call gemm(Hmat, this%Omat0, tmpMat)
-      Hvec(:) = sum(Hmat,dim=2)
+      tmpVec(:) = sum(tmpMat,dim=2)
+      call gemv(Hvec, this%Omat0, tmpVec)
       do iOrb = 1, nOrb
         do jOrb = 1, nOrb
-          HlrOC(iOrb,jOrb) = HlrOC(iOrb,jOrb) + Smat(iOrb,jOrb) * &
+          HlrOC(iOrb,jOrb) = HlrOC(iOrb,jOrb) + fac * Smat(iOrb,jOrb) * &
               & (Hvec(iOrb) + Hvec(jOrb))
         end do
       end do
 
-      ! OC contribution: 2nd term
-      call gemm(Hmat, Smat, PS)
-      HlrOC(:,:) = HlrOC + this%Omat0 * Hmat
+      ! OC & RI contributions: S(P*O)S + SPS*O
+      tmpMat(:,:) = fac * Dmat * this%Omat0 + facRI * Dmat * this%OmatRI
+      call gemm(Hmat, tmpMat, Smat)
+      call gemm(HlrOC, Smat, Hmat, beta=1.0_dp)
 
-      Hmat(:,:) = Dmat * this%Omat0
-      call gemm(tmpMat, Hmat, Smat)
-      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
-
-      ! OC contribution: 3rd term
-      tmpMat(:,:) = PS * this%Omat0
-      call gemm(HlrOC, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
-
-      ! OC contribution: 4th term
-      tmpMat(:,:) = transpose(PS) * this%Omat0
-      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
-
-      ! OC contribution: 5th term
       call gemm(tmpMat, Smat, PS)
-      tmpVec(:) = 0.0_dp
-      do iOrb = 1, nOrb
-        tmpVec(iOrb) = tmpMat(iOrb,iOrb)
-      end do
+      HlrOC(:,:) = HlrOC + tmpMat * (fac * this%Omat0 + facRI * this%OmatRI)
+
+      ! OC & RI contributions: S(PS*O) and its transpose part
+      tmpMat(:,:) = fac * PS * this%Omat0 + facRI * transpose(PS) * this%OmatRI
+      call gemm(HlrOC, tmpMat, Smat, beta=1.0_dp)
+
+      call gemm(HlrOC, Smat, tmpMat, transB="T", beta=1.0_dp)
+
+      ! OC contribution: diagonal element for Hamiltonian
+      tmpMat(:,:) = PS * Smat
+      tmpVec(:) = sum(tmpMat,dim=1)
       call gemv(Hvec, this%Omat0, tmpVec)
       do iOrb = 1, nOrb
-        HlrOC(iOrb,iOrb) = HlrOC(iOrb,iOrb) + Hvec(iOrb)
+        HlrOC(iOrb,iOrb) = HlrOC(iOrb,iOrb) + fac * Hvec(iOrb)
       end do
 
-      ! OC contribution: 6th term
+      ! OC contribution: diagonal element for density
       tmpVec(:) = 0.0_dp
       do iOrb = 1, nOrb
         tmpVec(iOrb) = Dmat(iOrb,iOrb)
@@ -400,30 +401,7 @@ contains
         Hmat(iOrb,iOrb) = Hvec(iOrb)
       end do
       call gemm(tmpMat, Hmat, Smat)
-      call gemm(HlrOC, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
-
-      ! RI loss correction term
-      HamRI(:,:) = 0.0_dp
-
-      tmpMat(:,:) = transpose(PS) * this%OmatRI
-      call gemm(HamRI, tmpMat, Smat)
-
-      call gemm(tmpMat, Smat, PS)
-      Hmat(:,:) = tmpMat * this%OmatRI
-      HamRI(:,:) = HamRI + HMat
-
-      Hmat(:,:) = Dmat * this%OmatRI
-      call gemm(tmpMat, Hmat, Smat)
-      call gemm(HamRI, Smat, tmpMat, beta=1.0_dp)
-
-      tmpMat(:,:) = PS * this%OmatRI
-      call gemm(HamRI, Smat, tmpMat, beta=1.0_dp)
-
-      if (this%tSpin) then
-        HlrOC(:,:) = -0.25_dp * HlrOC + HamRI
-      else
-        HlrOC(:,:) = -0.125_dp * HlrOC + 0.5_dp * HamRI
-      end if
+      call gemm(HlrOC, Smat, tmpMat, alpha=fac, beta=1.0_dp)
 
     end subroutine evaluateHamiltonian
 
@@ -500,12 +478,11 @@ contains
     real(dp), allocatable :: Hvec(:)
 
     real(dp), allocatable :: shiftSqr(:,:,:)
-    real(dp), allocatable :: shiftSqrRI(:,:,:)
     real(dp), allocatable :: sPrimeTmp(:,:,:)
-    real(dp), allocatable :: shift(:,:,:)
+    real(dp), allocatable :: shift(:,:)
     real(dp), allocatable :: tmpForce(:)
 
-    real(dp) :: fac
+    real(dp) :: fac, facRI
     integer :: nOrb, nSpin, nAtom
     integer :: iOrb, mu, nu, iSpin, iAtA, iAtB, iNeighA, ii
     integer :: iAtMu1, iAtMu2, iAtNu1, iAtNu2
@@ -521,13 +498,20 @@ contains
     allocate(Hvec(nOrb))
 
     allocate(shiftSqr(nOrb,nOrb,nSpin))
-    allocate(shiftSqrRI(nOrb,nOrb,nSpin))
     allocate(sPrimeTmp(orb%mOrb,orb%mOrb,3))
-    allocate(shift(orb%mOrb,orb%mOrb,nSpin))
+    allocate(shift(orb%mOrb,orb%mOrb))
     allocate(tmpForce(3))
 
     ! Initialize several matrices for calculation of gradients
     call allocateAndInit(this, overlap, densSqr, Smat, Dmat)
+
+    if (this%tSpin) then
+      fac = -0.25_dp
+      facRI = 1.0_dp
+    else
+      fac = -0.125_dp
+      facRI = 0.5_dp
+    end if
 
     do iSpin = 1, nSpin
       call gemm(PS(:,:,iSpin), Dmat(:,:,iSpin), Smat)
@@ -536,15 +520,14 @@ contains
     ! shift values
     shiftSqr(:,:,:) = 0.0_dp
 
-    ! OC contribution: 4th term - a
     do iSpin = 1, nSpin
 
+      ! OC contribution: diagonal element for PS
       tmpVec(:) = 0.0_dp
       do iOrb = 1, nOrb
         tmpVec(iOrb) = PS(iOrb,iOrb,iSpin)
       end do
-      call gemv(Hvec, this%Omat0, tmpVec)
-
+      call gemv(Hvec, this%Omat0, tmpVec, alpha=fac)
       do mu = 1, nOrb
         do nu = 1, nOrb
           shiftSqr(mu,nu,iSpin) = shiftSqr(mu,nu,iSpin)&
@@ -552,39 +535,12 @@ contains
         end do
       end do
 
-    end do
-
-    ! OC contribution: 4th term - b
-    do iSpin = 1, nSpin
-
-      tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = Dmat(:,:,iSpin) * this%Omat0
-      call gemm(Hmat, PS(:,:,iSpin), tmpMat)
-
-      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
-
-    end do
-
-    ! OC contribution: 5th term - a
-    do iSpin = 1, nSpin
-
-      tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = PS(:,:,iSpin) * this%Omat0
-      call gemm(Hmat, Dmat(:,:,iSpin), tmpMat)
-
-      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
-
-    end do
-
-    ! OC contribution: 5th term - b
-    do iSpin = 1, nSpin
-
+      ! OC contribution: diagonal element for density
       tmpVec(:) = 0.0_dp
       do iOrb = 1, nOrb
         tmpVec(iOrb) = Dmat(iOrb,iOrb,iSpin)
       end do
-      call gemv(Hvec, this%Omat0, tmpVec)
-
+      call gemv(Hvec, this%Omat0, tmpVec, alpha=fac)
       do mu = 1, nOrb
         do nu = 1, nOrb
           shiftSqr(mu,nu,iSpin) = shiftSqr(mu,nu,iSpin)&
@@ -592,26 +548,18 @@ contains
         end do
       end do
 
-    end do
+      ! OC & RI contributions: PS(P*O) + (P*O)SP
+      tmpMat(:,:) = fac * Dmat(:,:,iSpin) * this%Omat0 + &
+          & facRI * Dmat(:,:,iSpin) * this%OmatRI
+      call gemm(Hmat, PS(:,:,iSpin), tmpMat)
+      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
 
-    ! RI loss correction: 6th term - a
-    fac = 2.0_dp
-    shiftSqrRI(:,:,:) = 0.0_dp
-
-    do iSpin = 1, nSpin
-
-      tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = PS(:,:,iSpin) * this%OmatRI
-      call gemm(shiftSqrRI(:,:,iSpin), tmpMat, Dmat(:,:,iSpin), alpha=fac)
-
-    end do
-
-    ! RI loss correction: 6th term - b
-    do iSpin = 1, nSpin
-
-      tmpMat(:,:) = 0.0_dp
-      tmpMat(:,:) = Dmat(:,:,iSpin) * this%OmatRI
-      call gemm(shiftSqrRI(:,:,iSpin), tmpMat, PS(:,:,iSpin), transB="T", alpha=fac, beta=1.0_dp)
+      ! OC contribution: (SP*O)P + P(PS*O)
+      ! RI contribution: (PS*O)P + P(SP*O)
+      tmpMat(:,:) = fac * PS(:,:,iSpin) * this%Omat0 + &
+          & facRI * transpose(PS(:,:,iSpin)) * this%OmatRI
+      call gemm(Hmat, Dmat(:,:,iSpin), tmpMat)
+      shiftSqr(:,:,iSpin) = shiftSqr(:,:,iSpin) + (transpose(Hmat) + Hmat)
 
     end do
 
@@ -636,11 +584,11 @@ contains
           iAtNu2 = iSquare(iAtB+1) - 1
 
           ! shift values for gradient
-          shift(:,:,:) = 0.0_dp
+          shift(:,:) = 0.0_dp
           do iSpin = 1, nSpin
             do mu = iAtMu1, iAtMu2
               do nu = iAtNu1, iAtNu2
-                shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin) = shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin)&
+                shift(nu-iAtNu1+1,mu-iAtMu1+1) = shift(nu-iAtNu1+1,mu-iAtMu1+1)&
                     & + shiftSqr(mu,nu,iSpin) + shiftSqr(nu,mu,iSpin)
               end do
             end do
@@ -648,46 +596,12 @@ contains
 
           tmpForce(:) = 0.0_dp
           do ii = 1, 3
-            do iSpin = 1, nSpin
-              tmpForce(ii) = tmpForce(ii) + sum(shift(:,:,iSpin)*sPrimeTmp(:,:,ii))
-            end do
+            tmpForce(ii) = sum(shift(:,:)*sPrimeTmp(:,:,ii))
           end do
 
           ! forces from atom A on atom B and B onto A
-          if (this%tSpin) then
-            gradients(:,iAtA) = gradients(:,iAtA) - 0.25_dp * tmpForce
-            gradients(:,iAtB) = gradients(:,iAtB) + 0.25_dp * tmpForce
-          else
-            gradients(:,iAtA) = gradients(:,iAtA) - 0.125_dp * tmpForce
-            gradients(:,iAtB) = gradients(:,iAtB) + 0.125_dp * tmpForce
-          end if
-
-          ! shift values for gradient
-          shift(:,:,:) = 0.0_dp
-          do iSpin = 1, nSpin
-            do mu = iAtMu1, iAtMu2
-              do nu = iAtNu1, iAtNu2
-                shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin) = shift(nu-iAtNu1+1,mu-iAtMu1+1,iSpin)&
-                    & + shiftSqrRI(mu,nu,iSpin) + shiftSqrRI(nu,mu,iSpin)
-              end do
-            end do
-          end do
-
-          tmpForce(:) = 0.0_dp
-          do ii = 1, 3
-            do iSpin = 1, nSpin
-              tmpForce(ii) = tmpForce(ii) + sum(shift(:,:,iSpin)*sPrimeTmp(:,:,ii))
-            end do
-          end do
-
-          ! forces from atom A on atom B and B onto A
-          if (this%tSpin) then
-            gradients(:,iAtA) = gradients(:,iAtA) + tmpForce
-            gradients(:,iAtB) = gradients(:,iAtB) - tmpForce
-          else
-            gradients(:,iAtA) = gradients(:,iAtA) + 0.5_dp * tmpForce
-            gradients(:,iAtB) = gradients(:,iAtB) - 0.5_dp * tmpForce
-          end if
+          gradients(:,iAtA) = gradients(:,iAtA) + tmpForce
+          gradients(:,iAtB) = gradients(:,iAtB) - tmpForce
 
         end if
 
