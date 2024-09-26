@@ -424,12 +424,65 @@ contains
   end subroutine addLrOcEnergy
 
 
+  !> Interface routine.
+  subroutine addLrOcGradients(this, gradients, derivator, skOverCont, coords, nNeighbourSK,&
+      & iNeighbour, iSquare, species, orb, densSqr, overlap)
+
+    !> class instance
+    class(TRangeSepOnsCorrFunc), intent(inout) :: this
+
+    !> energy gradients
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !> differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> sparse overlap part
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> number of atoms neighbouring each site where the overlap is non-zero
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> species of all atoms
+    integer, intent(in) :: species(:)
+
+    !> orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Square (unpacked) density matrix
+    real(dp), intent(in) :: densSqr(:,:,:)
+
+    !> square real overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    select case(this%hybridXcAlg)
+    case (hybridXcAlgo%thresholdBased)
+      ! not supported at the moment
+    case (hybridXcAlgo%neighbourBased)
+      ! not supported at the moment
+    case (hybridXcAlgo%matrixBased)
+      call addLrOcGradientsMatrix(this, gradients, derivator, skOverCont, coords, nNeighbourSK,&
+          & iNeighbour, iSquare, species, orb, densSqr, overlap)
+    end select
+
+  end subroutine addLrOcGradients
+
+
   !> Update gradients with long-range onsite contribution
   !>
   !> The routine provides a matrix-matrix multiplication based implementation of
   !> Eq. 29 in https://doi.org/10.1021/acs.jctc.2c00037
   !>
-  subroutine addLrOcGradients(this, gradients, derivator, skOverCont, coords, nNeighbourSK,&
+  subroutine addLrOcGradientsMatrix(this, gradients, derivator, skOverCont, coords, nNeighbourSK,&
       & iNeighbour, iSquare, species, orb, densSqr, overlap)
 
     !> class instance
@@ -643,6 +696,6 @@ contains
 
     end subroutine allocateAndInit
 
-  end subroutine addLrOcGradients
+  end subroutine addLrOcGradientsMatrix
 
 end module dftbp_dftb_rangeseponscorr
