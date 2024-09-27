@@ -4046,23 +4046,19 @@ contains
     this%atomCurrents = 0.0_dp
     
     do iKS = 1, this%parallelKS%nLocalKS
-      iK = this%parallelKS%localKS(1, iKS)
+     iK = this%parallelKS%localKS(1, iKS)
 
      ! build E = S^{-1} H \rho
      call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
      call gemm(T2, T1, rho(:,:,iKS)) ! E(k) = T2 here
 
-     ! T2 = S.Im(E), since S is defined as complex, we take real part
-     call gemm(T3, real(this%Ssqr(:,:,iKS)), aimag(T2), transB='t')
-     ! T2 = - ( H Im(\rho) - S Im(E) ), this has a minus sign already
-     ! since H is defined as complex, and S.Im(E) is real, we take real part
-     call gemm(T3, real(this%H1(:,:,iKS)), aimag(rho(:,:,iKS)), alpha=-1.0_dp, transB='t')
-
      ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
      ! and e = hbar = 1
-     this%orbCurrents(:,:) = this%orbCurrents + 4.0_dp * this%kWeight(iK) * T3
+      this%orbCurrents(:,:) = this%orbCurrents + 4.0_dp * this%kWeight(iK) * &
+          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:)))
     end do
 
+    !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
        iStart1 = iSquare(iAt1)
@@ -4072,6 +4068,7 @@ contains
        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
       end do
     end do
+    !$OMP END PARALLEL DO
 
     deallocate(T1, T2, T3)
     
