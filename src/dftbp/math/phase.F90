@@ -16,8 +16,8 @@ module dftbp_math_phase
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blacsfx_gemr2d, scalafx_indxl2g, DLEN_, CSRC_,&
-      & NB_
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blacsfx_gemr2d, scalafx_indxl2g,&
+      & scalafx_getlocalshape, DLEN_, CSRC_, NB_
   use dftbp_type_densedescr, only : TDenseDescr
 #:endif
 
@@ -29,18 +29,18 @@ module dftbp_math_phase
   !> Enforce (an arbitrary) phase convention on eigenvectors, including for denerate states
   interface phaseLock
     module procedure phaseLock_real
+  #:if WITH_SCALAPACK
+    module procedure phaseLock_real_BLACS
+  #:endif
   end interface phaseLock
 
 contains
 
+
   !> Apply a phase convention to a set of eigenvectors, including definited unitary choice for
   !! degenerate sets of vectors.  Note : need to also include generalised eigenvectors (with an
   !! overlap matrix).
-#:if WITH_SCALAPACK
-  subroutine phaseLock_real(env, evec, eval, tolerance, denseDesc)
-#:else
   subroutine phaseLock_real(env, evec, eval, tolerance)
-#:endif
 
     !> Computatonal environment settings
     type(TEnvironment), intent(in) :: env
@@ -54,7 +54,113 @@ contains
     !> Optional tolerance
     real(dp), intent(in), optional :: tolerance
 
-  #:if WITH_SCALAPACK
+    integer :: ii, jj, iDegen, nDegen,  maxDegen, nDegenVectors
+    integer, allocatable :: degenerate(:,:) ! (start & end, n degenerate sub-spaces)
+    logical :: isDegenerate
+    real(dp) :: tol
+    real(dp), parameter :: tolMax = 100.0_dp * epsilon(1.0_dp)
+    real(dp), allocatable :: vTrial(:, :)
+    type(TDegeneracyFind) :: DegeneracyFind
+
+    tol = elecTolMax
+    if (present(tolerance)) tol = tolerance
+
+    ! set phase of each row of the matrix
+    call simplePhase(eVec, tol)
+
+    call degeneracyFind%init(tol)
+    call degeneracyFind%degeneracyTest(eval, isDegenerate)
+
+    ! Harmless to use the above simplePhase transformation on degenerate subspaces, even though that
+    ! still leaves them with an undetermined unitary choice, so wastes a small amount of time.
+    if (.not. isDegenerate) then
+
+      return
+
+    endif
+
+    degenerate = degeneracyFind%degenerateRanges()
+    maxDegen = maxval(degenerate(2,:) - degenerate(1,:)) + 1
+
+
+    allocate(vTrial(size(evec, dim=1), maxDegen), source=0.0_dp)
+
+    lpDegen : do iDegen = 1, size(degenerate, dim=2)
+
+      nDegen = degenerate(2,iDegen) - degenerate(1,iDegen) + 1
+
+      if (nDegen < 2) cycle lpDegen
+
+      nDegenVectors = 0
+
+      lpStartIndex : do ii = 1, size(evec, dim=1)
+
+        if (sum(abs(evec(ii,degenerate(1,iDegen):degenerate(2,iDegen)))) <= tolMax) then
+
+          ! Zero projection (L1) of +ve ii-th cartesian unit vector onto the subspace, not a
+          ! suitable candidate vector.
+          cycle lpStartIndex
+
+        else
+
+          vTrial(:,nDegenVectors+1) = 0.0_dp
+          do jj = degenerate(1,iDegen), degenerate(2,iDegen)
+            ! project the defined unit vector onto the orthonormal vectors of the subspace
+            vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1) + evec(:, jj) * evec(ii, jj)
+          end do
+          vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1)&
+              & / sqrt(sum(vTrial(:,nDegenVectors+1)**2))
+
+          if (nDegenVectors == 0) then
+            ! first vector in the subspace
+            nDegenVectors = 1
+
+          else
+
+            call orthonormalizeVectors(env, nDegenVectors+1, nDegenVectors+1,&
+                & vTrial(:,:nDegenVectors+1), nullTol = 1000.0_dp * epsilon(0.0_dp))
+
+            if (sum(vTrial(:,nDegenVectors+1)**2) > 0.0_dp) then
+              ! Orthonormal state is inside the subspace
+              nDegenVectors = nDegenVectors + 1
+            end if
+
+          end if
+
+        end if
+
+        if (nDegenVectors == nDegen) exit lpStartIndex ! Enough vectors have been found
+
+      end do lpStartIndex
+
+      eVec(:, degenerate(1,iDegen):degenerate(2,iDegen)) = vTrial(:,:nDegenVectors)
+
+      ! ensure the vectors spanning the subspace are orthogonal to all of the other eigenvectors
+      call orthonormalizeVectors(env, degenerate(1,iDegen), degenerate(2,iDegen), eVec,&
+          & orthogonaliseFrom = degenerate(2,iDegen) + 1)
+
+    end do lpDegen
+
+  end subroutine phaseLock_real
+
+#:if WITH_SCALAPACK
+
+  !> Apply a phase convention to a set of eigenvectors, including definited unitary choice for
+  !! degenerate sets of vectors.  Note : need to also include generalised eigenvectors (with an
+  !! overlap matrix).
+  subroutine phaseLock_real_BLACS(env, evec, eval, tolerance, denseDesc)
+
+    !> Computatonal environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Eigenvectors
+    real(dp), intent(inout) :: evec(:,:)
+
+    !> Eigenvalues
+    real(dp), intent(in) :: eval(:)
+
+    !> Optional tolerance
+    real(dp), intent(in), optional :: tolerance
 
     !> Descriptor of the dense matrix
     type(TDenseDescr), intent(in) :: denseDesc
@@ -67,8 +173,6 @@ contains
     ! Work matrix for entire columns of the matrix on a given rank
     real(dp), allocatable :: workColMatrix(:,:)
 
-  #:endif
-
     integer :: ii, jj, iDegen, nDegen,  maxDegen, nDegenVectors
     integer, allocatable :: degenerate(:,:) ! (start & end, n degenerate sub-spaces)
     logical :: isDegenerate
@@ -80,19 +184,15 @@ contains
     tol = elecTolMax
     if (present(tolerance)) tol = tolerance
 
-  #:if WITH_SCALAPACK
     call scalafx_getlocalshape(env%blacs%rowOrbitalGrid, denseDesc%blacsRowSqr, nLocalRows,&
         & nLocalCols)
     allocate(workRowMatrix(nLocalRows, nLocalCols), source=0.0_dp)
     ! redistribute global matrix to row form
     call blacsfx_gemr2d(denseDesc%nOrb, denseDesc%nOrb, eVec, 1, 1, denseDesc%blacsOrbSqr,&
         & workRowMatrix, 1, 1, denseDesc%blacsRowSqr, env%blacs%orbitalGrid%ctxt)
+
     ! set phase of each row of the matrix
     call simplePhase(workRowMatrix, tol)
-  #:else
-    ! set phase of each row of the matrix
-    call simplePhase(eVec, tol)
-  #:endif
 
     call degeneracyFind%init(tol)
     call degeneracyFind%degeneracyTest(eval, isDegenerate)
@@ -101,8 +201,6 @@ contains
     ! still leaves them with an undetermined unitary choice, so wastes a small amount of time.
     if (.not. isDegenerate) then
 
-    #:if WITH_SCALAPACK
-
       ! redistribute processed row matrix back to block cyclic form. No degenerate cases processed,
       ! so matrices still in row storage
       call blacsfx_gemr2d(denseDesc%nOrb, denseDesc%nOrb, workRowMatrix, 1, 1,&
@@ -110,16 +208,10 @@ contains
 
       return
 
-    #:endif
-
-      return
-
     endif
 
     degenerate = degeneracyFind%degenerateRanges()
     maxDegen = maxval(degenerate(2,:) - degenerate(1,:)) + 1
-
-  #:if WITH_SCALAPACK
 
     ! convert row stored matrix to column storage
     call scalafx_getlocalshape(env%blacs%colOrbitalGrid, denseDesc%blacsColSqr, nLocalRows,&
@@ -208,78 +300,10 @@ contains
     call blacsfx_gemr2d(denseDesc%nOrb, denseDesc%nOrb, workColMatrix, 1, 1,&
         & denseDesc%blacsColSqr, eVec, 1, 1, denseDesc%blacsOrbSqr, env%blacs%orbitalGrid%ctxt)
 
-  #:else
 
-    allocate(vTrial(size(evec, dim=1), maxDegen), source=0.0_dp)
+  end subroutine phaseLock_real_BLACS
 
-    lpDegen : do iDegen = 1, size(degenerate, dim=2)
-
-      nDegen = degenerate(2,iDegen) - degenerate(1,iDegen) + 1
-
-      if (nDegen < 2) cycle lpDegen
-
-      nDegenVectors = 0
-
-      lpStartIndex : do ii = 1, size(evec, dim=1)
-
-        if (sum(abs(evec(ii,degenerate(1,iDegen):degenerate(2,iDegen)))) <= tolMax) then
-
-          ! Zero projection (L1) of +ve ii-th cartesian unit vector onto the subspace, not a
-          ! suitable candidate vector.
-          cycle lpStartIndex
-
-        else
-
-          vTrial(:,nDegenVectors+1) = 0.0_dp
-          do jj = degenerate(1,iDegen), degenerate(2,iDegen)
-            ! project the defined unit vector onto the orthonormal vectors of the subspace
-            vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1) + evec(:, jj) * evec(ii, jj)
-          end do
-          vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1)&
-              & / sqrt(sum(vTrial(:,nDegenVectors+1)**2))
-
-          if (nDegenVectors == 0) then
-            ! first vector in the subspace
-            nDegenVectors = 1
-
-          else
-
-            call orthonormalizeVectors(env, nDegenVectors+1, nDegenVectors+1,&
-                & vTrial(:,:nDegenVectors+1), nullTol = 1000.0_dp * epsilon(0.0_dp))
-
-            if (sum(vTrial(:,nDegenVectors+1)**2) > 0.0_dp) then
-              ! Orthonormal state is inside the subspace
-              nDegenVectors = nDegenVectors + 1
-            end if
-
-          end if
-
-        end if
-
-        if (nDegenVectors == nDegen) exit lpStartIndex ! Enough vectors have been found
-
-      end do lpStartIndex
-
-      write(*,*)'Grp', iDegen, nDegenVectors,  degenerate(2,iDegen)-degenerate(1,iDegen)+1
-      do ii = 1, nDegenVectors
-        do jj = degenerate(1,iDegen), degenerate(2,iDegen)
-          write(*,*)dot_product(evec(:, jj), vTrial(:, ii))
-        end do
-      end do
-      write(*,*)
-
-      eVec(:, degenerate(1,iDegen):degenerate(2,iDegen)) = vTrial(:,:nDegenVectors)
-
-      ! ensure the vectors spanning the subspace are orthogonal to all of the other eigenvectors
-      call orthonormalizeVectors(env, degenerate(1,iDegen), degenerate(2,iDegen), eVec,&
-          & orthogonaliseFrom = degenerate(2,iDegen) + 1)
-
-    end do lpDegen
-
-  #:endif
-
-  end subroutine phaseLock_real
-
+#:endif
 
   !> Simple phase convention for eigenvectors to make first non-negligible element positive for each
   !! row.
@@ -295,8 +319,6 @@ contains
 
     nLev = size(matrix, dim=2)
 
-    !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iOrb) SCHEDULE(RUNTIME)
     do iLev = 1, nLev
       lpPhase : do iOrb = 1, size(matrix, dim=1)
         if (abs(matrix(iOrb, iLev)) >= tol) then ! test needs work
@@ -305,7 +327,6 @@ contains
         end if
       end do lpPhase
     end do
-    !$OMP END PARALLEL DO
 
   end subroutine simplePhase
 

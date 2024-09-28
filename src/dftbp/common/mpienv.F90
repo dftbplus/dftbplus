@@ -39,10 +39,10 @@ module dftbp_common_mpienv
     type(mpifx_comm) :: nodeComm
 
     !> Size of the process groups
-    integer :: groupSize
+    integer :: groupSize = 0
 
     !> Number of processor groups
-    integer :: nGroup
+    integer :: nGroup = 0
 
     !> Group index of the current process (starts with 0)
     integer :: myGroup

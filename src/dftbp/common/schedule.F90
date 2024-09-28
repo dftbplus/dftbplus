@@ -176,7 +176,7 @@ contains
     ${DTYPE}$, intent(inout) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
   #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, chunks, MPI_SUM)
+    if (env%mpi%groupSize > 0) call mpifx_allreduceip(env%mpi%groupComm, chunks, MPI_SUM)
   #:endif
 
   end subroutine assemble${NAME}$Chunks

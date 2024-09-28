@@ -40,7 +40,7 @@ module modes_initmodes
   public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs
   public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
 
-  public :: isPhaseLocked, degenTol, setEigvecGauge
+  public :: isPhaseLocked, degenTol
 
   !> Program version
   character(len=*), parameter :: version = "0.03"
@@ -340,7 +340,6 @@ contains
 
     tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
 
-  #:if not WITH_MPI
     if (tEigenVectors) then
       call getChildValue(root, "PhaseLock", isPhaseLocked, .false.)
       if (isPhaseLocked) then
@@ -349,7 +348,6 @@ contains
         call convertUnitHsd(char(modifier), energyUnits, child, degenTol)
       end if
     end if
-  #:endif
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
@@ -449,27 +447,5 @@ contains
     call destroyNodeList(children)
 
   end subroutine getInputMasses
-
-
-  !> Returns gauge-corrected eigenvectors, such that the first non-zero coefficient of each mode is
-  !! positive.
-  subroutine setEigvecGauge(eigvec)
-
-    !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
-    real(dp), intent(inout) :: eigvec(:,:)
-
-    !! Auxiliary variables
-    integer :: iMode, iCoeff
-
-    do iMode = 1, size(eigvec, dim=2)
-      lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
-        if (abs(eigvec(iCoeff, iMode)) > 1e2_dp * epsilon(1.0_dp)) then
-          eigvec(:, iMode) = sign(1.0_dp, eigvec(iCoeff, iMode)) * eigvec(:, iMode)
-          exit lpCoeff
-        end if
-      end do lpCoeff
-    end do
-
-  end subroutine setEigvecGauge
 
 end module modes_initmodes

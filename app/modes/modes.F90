@@ -22,7 +22,7 @@ program modes
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
       & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
-      & isPhaseLocked, degenTol, setEigvecGauge
+      & isPhaseLocked, degenTol
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -89,15 +89,17 @@ program modes
   ! solve the eigenproblem
   if (tEigenVectors) then
     call heev(dynMatrix, eigenValues, "U", "V")
-  #:if WITH_SCALAPACK
-    call setEigvecGauge(dynMatrix) ! single processor case, hack for the moment until merged
-  #:else
     if (isPhaseLocked) then
+    #:if WITH_SCALAPACK
+      if (mpiEnv%globalComm%size == 1) then
+        call phaseLock(env, dynMatrix, eigenValues, degenTol)
+      else
+        ! call phaseLock(env, dynMatrix, eigenValues, degenTol, denseDesc)
+      end if
+    #:else
       call phaseLock(env, dynMatrix, eigenValues, degenTol)
-    else
-      call setEigvecGauge(dynMatrix) ! hack for the moment until merged
+    #:endif
     end if
-  #:endif
   else
     call heev(dynMatrix, eigenValues, "U", "N")
   end if

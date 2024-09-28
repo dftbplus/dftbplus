@@ -210,7 +210,7 @@ contains
     integer :: ii, jj
     real(dp) :: dummyReal, nullTol_
 
-    @:ASSERT(iStart < iEnd)
+    @:ASSERT(iStart <= iEnd)
 
     if (present(nullTol)) then
       nullTol_ = nullTol
@@ -368,11 +368,9 @@ contains
       end do
       dummyReal = dot_product(vecs(:,ii), sVecs(:,ii))
       if (dummyReal > nullTol_) then
-        write(*,*)'NORM', ii, dummyReal
         vecs(:,ii) = vecs(:,ii) / sqrt(dummyReal)
         sVecs(:,ii) = sVecs(:,ii) / sqrt(dummyReal)
       else
-        write(*,*)'NULL'
         ! null space
         vecs(:,ii) = 0.0_dp
         sVecs(:,ii) = 0.0_dp
