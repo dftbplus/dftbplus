@@ -50,28 +50,30 @@ contains
 
     real(dp), allocatable :: vectorsToNull(:,:), projector(:,:)
     real(dp) :: centreOfMass(3), rTmp(3), vTmp(3), inertia(3,3), moments(3)
-    integer :: nToNull, ii, jj, iAt
+    integer :: nToNull, ii, jj, iAt, iStart, iEnd
 
+    ! count number of modes expected to be zeroed by the projection (may be upper limit)
     nToNull = 0
     if (tRemoveTranslate) nToNull = nToNull + 3
     if (tRemoveRotate) nToNull = nToNull + 3
     if (nToNull == 0) return
 
-    allocate(vectorsToNull(nDerivs, nToNull))
-    allocate(projector(nDerivs, nDerivs))
-    projector(:,:) = 0.0_dp
-    vectorsToNull(:,:) = 0.0_dp
+    ! vectors to remove out and the projection matrix to do it
+    allocate(vectorsToNull(nDerivs, nToNull), source=0.0_dp)
+    allocate(projector(nDerivs, nDerivs), source=0.0_dp)
 
     ! symmetrize dynamical matrix
     do jj = 1, nDerivs
       dynMatrix(jj, jj + 1 :) = dynMatrix(jj + 1 :, jj)
     end do
 
+    ! Identity matrix, as will eventually need it to form 1 - v * v^T
     do jj = 1, nDerivs
       projector(jj, jj) = 1.0_dp
     end do
 
     if (tRemoveTranslate) then
+      ! Vectors for each atom to point along each of the Cartesian directions
       do iAt = 1, nMovedAtom
         do ii = 1, 3
           vectorsToNull((iAt - 1) * 3 + ii, ii) = 1.0_dp
@@ -80,6 +82,8 @@ contains
     end if
 
     if (tRemoveRotate) then
+      ! Vectors for each atom that are tangential to the principle rotation axes
+
       if (geo%tPeriodic) then
         call warning("Rotational modes were requested to be removed for a periodic geometry -&
             & results probably unphysical!")
@@ -92,43 +96,47 @@ contains
 
       call getPrincipleAxes(inertia, moments, geo%coords, atomicMasses, centreOfMass, nMovedAtom)
 
-      ! axis to project with respect to
+      ! Rotational axis with respect to project tangential directions for rotation
       do ii = 1, 3
         if (moments(ii) < epsilon(0.0_dp)) then
-          ! zero moment of inertia - linear molecule, and this direction is along its axis
+          ! a zero moment of inertia - linear molecule, and this direction is along its axis
           cycle
         end if
         vTmp(:) = inertia(:,ii)
         do iAt = 1, nMovedAtom
+          iStart = (iAt - 1) * 3 + 1
+          iEnd = iAt * 3
           rTmp = cross3(vTmp, geo%coords(:,iAt) - centreOfMass)
-          vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
+          vectorsToNull(iStart:iEnd, nToNull - ii + 1) = rTmp
         end do
       end do
     end if
 
-    ! Change from displacements to weighted displacements basis of the Hessian
+    ! Change from displacements to the weighted displacements basis of the Hessian
     do iAt = 1, nMovedAtom
-      vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :) = vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, :)&
-          & * sqrt(atomicMasses(iAt))
+      iStart = (iAt - 1) * 3 + 1
+      iEnd = iAt * 3
+      vectorsToNull(iStart:iEnd, :) = vectorsToNull(iStart:iEnd, :) * sqrt(atomicMasses(iAt))
     end do
 
-    ! normalise non-null vectors
+    ! normalise any non-null vectors
     do ii = 1, nToNull
       if (sum(vectorsToNull(:,ii)**2) > epsilon(1.0_dp)) then
         vectorsToNull(:,ii) = vectorsToNull(:,ii) / sqrt(sum(vectorsToNull(:,ii)**2))
       end if
     end do
 
+    ! Form 1 - v * v^T matrix for projection
     call herk(projector, vectorsToNull, alpha=-1.0_dp, beta=1.0_dp)
 
     deallocate(vectorsToNull)
 
-    ! copy to other triangle
+    ! copy projector to other triangle
     do jj = 1, nDerivs
       projector(jj,jj+1:) = projector(jj+1:,jj)
     end do
 
-    ! project out removed degrees of freedom
+    ! project out the removed degrees of freedom
     dynMatrix(:,:) = matmul(projector, matmul(dynMatrix, projector))
 
     deallocate(projector)
@@ -136,7 +144,7 @@ contains
   end subroutine project
 
 
-  !> Principle moment of inertia axes.
+  !> Principle moments of the inertia axes.
   subroutine getPrincipleAxes(inertia, ei, coords, masses, centreOfMass, nMovedAtom)
 
     !> Intertia axes
@@ -162,6 +170,7 @@ contains
     inertia(:,:) = 0.0_dp
     ei(:) = 0.0_dp
 
+    ! traceless inertia matrix
     do iAt = 1, nMovedAtom
       do ii = 1, 3
         inertia(ii, ii) = inertia(ii, ii) + masses(iAt) * sum((coords(:,iAt) - centreOfMass(:))**2)
@@ -176,6 +185,7 @@ contains
       end do
     end do
 
+    ! principle axes of the distribution
     call heev(inertia, ei, 'U', 'V')
 
   end subroutine getPrincipleAxes
