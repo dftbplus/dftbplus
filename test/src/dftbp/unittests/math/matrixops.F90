@@ -137,8 +137,8 @@
           overReal(ii, jj) = overReal(jj, ii)
         end do
       end do
-      call generalOrthonormalizeVectors(env, 1, n, overReal, matReal)
       overReal(:, :) = matmul(overReal,matReal)
+      call generalOrthonormalizeVectors(env, 1, n, matReal, overReal)
       matReal(:,:) = matmul(transpose(matReal), overReal)
       @:ASSERT(all(abs(matReal - eye) < 1000.0_dp * epsilon(0.0_dp)))
     #:endblock
@@ -162,8 +162,8 @@
           overCmplx(ii, jj) = conjg(overCmplx(jj, ii))
         end do
       end do
-      call generalOrthonormalizeVectors(env, 1, n, overCmplx, matCmplx)
       overCmplx(:, :) = matmul(overCmplx, matCmplx)
+      call generalOrthonormalizeVectors(env, 1, n, matCmplx, overCmplx)
       matCmplx(:,:) = matmul(transpose(conjg(matCmplx)), overCmplx)
       @:ASSERT(all(abs(matCmplx - eye) < 1000.0_dp * epsilon(0.0_dp)))
     #:endblock

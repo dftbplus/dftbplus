@@ -24,10 +24,9 @@ module dftbp_math_matrixops
 
   private
   public :: adjointLowerTriangle, orthonormalizeVectors, iterOrthonorm
+  public :: generalOrthonormalizeVectors
 #:if WITH_SCALAPACK
   public :: adjointLowerTriangle_BLACS
-#:else
-  public :: generalOrthonormalizeVectors
 #:endif
 
   !> Copy lower triangle into the upper triangle of a square matrix, obeying hermitian symmetry if
@@ -48,6 +47,11 @@ module dftbp_math_matrixops
     module procedure iGS_cmplx
   end interface iterOrthonorm
 
+  interface generalOrthonormalizeVectors
+    module procedure realGeneralGramSchmidt
+    module procedure cmplxGeneralGramSchmidt
+  end interface generalOrthonormalizeVectors
+
 #:if WITH_SCALAPACK
 
   !> Copy lower triangle of distributed matrix into the upper triangle, obeying hermitian symmetry
@@ -57,15 +61,7 @@ module dftbp_math_matrixops
     module procedure hermitian_BLACS
   end interface adjointLowerTriangle_BLACS
 
-#:else
-
-  interface generalOrthonormalizeVectors
-    module procedure realGeneralGramSchmidt
-    module procedure cmplxGeneralGramSchmidt
-  end interface generalOrthonormalizeVectors
-
 #:endif
-
 
 contains
 
@@ -133,6 +129,7 @@ contains
       do ii = 1, size(matrix,dim=1)
         iGlob = scalafx_indxl2g(ii, desc(MB_), myrow, desc(RSRC_), nrow)
         if (iGlob < jGlob) then
+          ! copy transposed work matrix into the lower triangle of the main matrix
           matrix(ii, jj) = work(ii, jj)
         end if
       end do
@@ -172,8 +169,10 @@ contains
       do ii = 1, size(matrix,dim=1)
         iGlob = scalafx_indxl2g(ii, desc(MB_), myrow, desc(RSRC_), nrow)
         if (iGlob < jGlob) then
+          ! copy transposed work matrix into the lower triangle of the main matrix
           matrix(ii, jj) = work(ii, jj)
         elseif (iGlob == jGlob) then
+          ! diagonal should be real for hermitian matrix
           matrix(ii, jj) = real(matrix(ii, jj),dp)
         end if
       end do
@@ -198,7 +197,7 @@ contains
     !> Ending place in vectors
     integer, intent(in) :: iEnd
 
-    !> Vectors to be orthogonalized against 1:end vectors
+    !> Vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
     real(dp), intent(inout) :: vecs(:,:)
 
     !> Optional tolerance to drop orthogonalised vectors (before normalisation)
@@ -268,7 +267,7 @@ contains
     !> Ending place in vectors
     integer, intent(in) :: iEnd
 
-    !> Vectors to be orthogonalized against 1:end vectors
+    !> Vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
     complex(dp), intent(inout) :: vecs(:,:)
 
     !> Optional tolerance to drop orthogonalised vectors (before normalisation)
@@ -322,12 +321,11 @@ contains
 
   end subroutine cmplxGramSchmidt
 
-#:if not WITH_SCALAPACK
 
   !> Perform modified Gram-Schmidt orthonormalization of the vectors in the columns of
   !! vecs(:,start:end), while also keeping them orthogonal to vecs(:,:start-1) (which are assumed to
   !! already be orthogonal)
-  subroutine realGeneralGramSchmidt(env, iStart, iEnd, overlap, vecs, nullTol)
+  subroutine realGeneralGramSchmidt(env, iStart, iEnd, vecs, sVecs, nullTol, orthogonaliseFrom)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -338,18 +336,22 @@ contains
     !> Ending place in vectors
     integer, intent(in) :: iEnd
 
-    !> Overlap matrix for generalized product
-    real(dp), intent(in) :: overlap(:,:)
-
-    !> Vectors to be orthogonalized against 1:end vectors
+    !> Vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
     real(dp), intent(inout) :: vecs(:,:)
+
+    !> Overlap times vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
+    real(dp), intent(inout) :: sVecs(:,:)
 
     !> Optional tolerance to drop orthogonalised vectors (before normalisation)
     real(dp), intent(in), optional :: nullTol
 
+    !> If we need to orthogonalize against fixed vectors after iEnd
+    integer, intent(in), optional :: orthogonaliseFrom
+
     integer :: ii, jj
     real(dp) :: dummyReal, nullTol_
-    real(dp), allocatable :: sVecs(:, :)
+
+    @:ASSERT(iStart <= iEnd)
 
     if (present(nullTol)) then
       nullTol_ = nullTol
@@ -358,23 +360,40 @@ contains
       nullTol_ = -1.0_dp
     end if
 
-    allocate(sVecs(size(vecs, dim=1), iEnd))
-    call symm(sVecs, 'l', overlap, vecs(:, :iEnd))
+    ! Obviously, not optimal in terms of communication, can be optimized if necessary. Assumes vecs
+    ! are column block distributed (not block cyclic column and row) if parallel.
     do ii = iStart, iEnd
+
       do jj = 1, ii - 1
-        dummyReal = dot_product(vecs(:, jj), sVecs(:, ii))
+        dummyReal = dot_product(vecs(:,jj), sVecs(:,ii))
+        call assembleChunks(env, dummyReal)
         vecs(:,ii) = vecs(:,ii) - dummyReal * vecs(:,jj)
         sVecs(:,ii) = sVecs(:,ii) - dummyReal * sVecs(:, jj)
       end do
+
+      if (present(orthogonaliseFrom)) then
+        @:ASSERT(orthogonaliseFrom > iEnd)
+        do jj = orthogonaliseFrom, size(vecs, dim=2)
+          dummyReal = dot_product(vecs(:,jj), sVecs(:,ii))
+          call assembleChunks(env, dummyReal)
+          vecs(:,ii) = vecs(:,ii) - dummyReal * vecs(:,jj)
+          sVecs(:,ii) = sVecs(:,ii) - dummyReal * sVecs(:,jj)
+        end do
+      end if
+
+      ! Normalize the resulting vector.
       dummyReal = dot_product(vecs(:,ii), sVecs(:,ii))
+      call assembleChunks(env, dummyReal)
+
       if (dummyReal > nullTol_) then
         vecs(:,ii) = vecs(:,ii) / sqrt(dummyReal)
         sVecs(:,ii) = sVecs(:,ii) / sqrt(dummyReal)
       else
-        ! null space
+        ! In the null space
         vecs(:,ii) = 0.0_dp
         sVecs(:,ii) = 0.0_dp
       end if
+
     end do
 
   end subroutine realGeneralGramSchmidt
@@ -383,7 +402,7 @@ contains
   !> Perform modified Gram-Schmidt orthonormalization of the vectors in the columns of
   !! vecs(:,start:end), while also keeping them orthogonal to vecs(:,:start-1) (which are assumed to
   !! already be orthogonal)
-  subroutine cmplxGeneralGramSchmidt(env, iStart, iEnd, overlap, vecs, nullTol)
+  subroutine cmplxGeneralGramSchmidt(env, iStart, iEnd, vecs, sVecs, nullTol, orthogonaliseFrom)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -394,19 +413,21 @@ contains
     !> Ending place in vectors
     integer, intent(in) :: iEnd
 
-    !> Overlap matrix for generalized product
-    complex(dp), intent(in) :: overlap(:,:)
-
-    !> Vectors to be orthogonalized against 1:end vectors
+    !> Vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
     complex(dp), intent(inout) :: vecs(:,:)
+
+    !> Overlap times vectors, iStart:iEnd to be orthogonalized against 1:iEnd vectors
+    complex(dp), intent(inout) :: sVecs(:,:)
 
     !> Optional tolerance to drop orthogonalised vectors (before normalisation)
     real(dp), intent(in), optional :: nullTol
 
+    !> If we need to orthogonalize against fixed vectors after iEnd
+    integer, intent(in), optional :: orthogonaliseFrom
+
     integer :: ii, jj
     real(dp) :: dummyReal, nullTol_
     complex(dp) :: dummyCmplx
-    complex(dp), allocatable :: sVecs(:,:)
 
     if (present(nullTol)) then
       nullTol_ = nullTol
@@ -415,29 +436,43 @@ contains
       nullTol_ = -1.0_dp
     end if
 
-    allocate(sVecs(size(vecs, dim=1), iEnd))
-    call hemm(sVecs, 'l', overlap, vecs(:,:iEnd))
-
+    ! Obviously, not optimal in terms of communication, can be optimized if necessary. Assumes vecs
+    ! are column distributed (not column and row distributed) if parallel.
     do ii = iStart, iEnd
+
       do jj = 1, ii - 1
-        dummyCmplx = dot_product(vecs(:, jj), sVecs(:, ii))
-        vecs(:,ii) = vecs(:, ii) - dummyCmplx * vecs(:, jj)
-        sVecs(:,ii) = sVecs(:, ii) - dummyCmplx * sVecs(:, jj)
+        dummyCmplx = dot_product(vecs(:,jj), sVecs(:,ii))
+        call assembleChunks(env, dummyCmplx)
+        vecs(:,ii) = vecs(:,ii) - dummyCmplx * vecs(:,jj)
+        sVecs(:,ii) = sVecs(:,ii) - dummyCmplx * sVecs(:,jj)
       end do
-      dummyReal = real(dot_product(vecs(:, ii), sVecs(:, ii)), dp)
+
+      if (present(orthogonaliseFrom)) then
+        @:ASSERT(orthogonaliseFrom > iEnd)
+        do jj = orthogonaliseFrom, size(vecs, dim=2)
+          dummyCmplx = dot_product(vecs(:,jj), sVecs(:,ii))
+          call assembleChunks(env, dummyCmplx)
+          vecs(:,ii) = vecs(:,ii) - dummyCmplx * vecs(:,jj)
+          sVecs(:,ii) = sVecs(:,ii) - dummyCmplx * sVecs(:,jj)
+        end do
+      end if
+
+      ! Normalize the resulting vector.
+      dummyReal = real(dot_product(vecs(:,ii), sVecs(:,ii)),dp)
+      call assembleChunks(env, dummyReal)
+
       if (dummyReal > nullTol_) then
-        vecs(:,ii) = vecs(:, ii) / sqrt(dummyReal)
-        sVecs(:,ii) = sVecs(:, ii) / sqrt(dummyReal)
+        vecs(:,ii) = vecs(:,ii) / sqrt(dummyReal)
+        sVecs(:,ii) = sVecs(:,ii) / sqrt(dummyReal)
       else
         ! null space
         vecs(:,ii) = cmplx(0,0,dp)
         sVecs(:,ii) = cmplx(0,0,dp)
       end if
+
     end do
 
   end subroutine cmplxGeneralGramSchmidt
-
-#:endif
 
 
   !> Performs (unmodified) iterative Gram-Schmidt orthonormalization
@@ -574,12 +609,6 @@ contains
         q(:,iNew) = q(:, iOld) - matmul(vecs(:, :ii-1), p(:ii-1))
 
         norm(iNew) = sqrt(real(dot_product(q(:, iNew), q(:, iNew)), dp))
-        !if (norm(iNew) < epsilon(1.0_dp)) then
-        !  write(*,*)'Bailing out at', ii
-        !  q(:,iNew) = cmplx(0, 0, dp)
-        !  norm(iNew) = cmplx(1, 0, dp)
-        !  exit lpIter
-        !end if
         if (norm(iNew) > alpha * norm(iOld) ) then
           ! L2 norm test passed
           exit lpIter
