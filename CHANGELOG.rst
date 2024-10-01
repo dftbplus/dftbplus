@@ -30,8 +30,11 @@ Added
 
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
+- ASI interface for accessing H, S and density matrix
+
 - More control over output of data and band structures during MD
   calculations
+
 
 Fixed
 -----
