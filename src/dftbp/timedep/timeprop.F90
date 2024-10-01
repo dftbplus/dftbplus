@@ -635,13 +635,16 @@ module dftbp_timedep_timeprop
     logical :: tCurrents = .false.
 
     !> Orbital currents
-    real(dp) :: orbCurrents
+    real(dp), allocatable :: orbCurrents(:,:)
 
     !> Atomic currents
-    real(dp) :: atomCurrents
+    real(dp), allocatable :: atomCurrents(:,:)
 
     !> Pairwise atomic currents file ID
     type(TFileDescr) :: currentDat
+
+    !> Most recently calculated bond population (retained for final write out)
+    real(dp), allocatable :: totalCurrent(:)
 
     complex(dp), allocatable :: Ssqr0(:,:,:)     !overlap matrix of the GS
     real(dp), allocatable :: H0sqr(:,:)     !hamiltonian square matrix of the GS
@@ -2739,6 +2742,12 @@ contains
     if (this%tCurrents) then
       call openOutputFile(this, currentDat, 'tdcurrents.dat')
     end if
+    write(currentDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
+    write(currentDat%unit, "(A)", advance = "NO")"   total current - x (a.u.)  |"
+    write(currentDat%unit, "(A)", advance = "NO")"   total current - y (a.u.)  |"
+    write(currentDat%unit, "(A)", advance = "NO")"   total current - z (a.u.)  |"
+    write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_1) (e)   |"
+    write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_2) (e)   |  ..."
 
     if (this%tPopulations) then
       do iKS = 1, this%parallelKS%nLocalKS
@@ -2981,7 +2990,8 @@ contains
     end if
 
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
-      write(currentDat%unit, "(2X,2F25.15)", advance="no") time * au__fs
+      write(currentDat%unit, "(F25.15)", advance="no") time * au__fs
+      write(currentDat%unit, "(3X,3F25.15)", advance="no") (this%totalCurrent(iDir), iDir=1, 3)
       do iAtom = 1, this%nAtom
         do iAtom2 = 1, this%nAtom
           write(currentDat%unit, "(F25.15)", advance="no")this%atomCurrents(iAtom, iAtom2)
@@ -4006,8 +4016,7 @@ contains
 
   !> calculate pairwise currents as -4e/h * (H Im(\rho) - S Im(E))
   !> following Horsfield, A. P.; et al. Phys. Rev. B 2016, 94 (7), 1-10.
-  subroutine getTdCurrents(this, rho, iSquare, neighbourList, nNeighbourSK, orb,&
-      & iSparseStart, img2CentCell)
+  subroutine getTdCurrents(this, rho, iSquare, coordAll)
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -4017,58 +4026,65 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
-    !> Image atom indices to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> List of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iSparseStart(0:,:)
-
-    !> data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), intent(in) :: coordAll(:,:)
 
     complex(dp), allocatable :: T1(:,:), T2(:,:)
-    real(dp), allocatable :: T3(:,:)
-    real(dp) :: orbCurrentsPrim(orb%mOrb**2)
-    integer :: iAt1, iAt2, iStart1, iStart2, iEnd1, iEnd2, iKS, iK
+    real(dp), allocatable :: T3(:,:,:)
+    real(dp) :: r12(3), norm
+    integer :: iAt1, iAt2, iStart1, iStart2, iEnd1, iEnd2, iKS, iK, iOrb, iDir
     integer :: iSpin, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iOrig, iNeigh
 
     allocate(T1(this%nOrbs,this%nOrbs))
     allocate(T2(this%nOrbs,this%nOrbs))
-    allocate(T3(this%nOrbs,this%nOrbs))
+    allocate(T3(this%nOrbs,this%nOrbs,3))
 
     this%orbCurrents = 0.0_dp
     this%atomCurrents = 0.0_dp
     
     do iKS = 1, this%parallelKS%nLocalKS
-     iK = this%parallelKS%localKS(1, iKS)
+      iK = this%parallelKS%localKS(1, iKS)
 
-     ! build E = S^{-1} H \rho
-     call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
-     call gemm(T2, T1, rho(:,:,iKS)) ! E(k) = T2 here
+      ! build E = S^{-1} H \rho
+      call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
+      call gemm(T2, T1, rho(:,:,iKS)) ! E(k) = T2 here
 
-     ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
-     ! and e = hbar = 1
-      this%orbCurrents(:,:) = this%orbCurrents + 4.0_dp * this%kWeight(iK) * &
-          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:)))
+      ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
+      ! and e = hbar = 1
+      this%orbCurrents(:,:) = this%orbCurrents(:,:) +  this%kWeight(iK) * 4.0_dp * &
+          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:))) 
     end do
+
+    ! T3 is the orbital currents projected along the bonds in real space
+    T3 = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
-       iStart1 = iSquare(iAt1)
-       iEnd1 = iSquare(iAt1+1)-1
-       iStart2 = iSquare(iAt2)
-       iEnd2 = iSquare(iAt2+1)-1
-       this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
+        iStart1 = iSquare(iAt1)
+        iEnd1 = iSquare(iAt1+1)-1
+        iStart2 = iSquare(iAt2)
+        iEnd2 = iSquare(iAt2+1)-1
+        ! for the atomCurrent only the contribution with iK = 1
+        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2)) 
+
+        if (iAt1 /= iAt2) then
+          r12(:) = coordAll(:,iAt2) - coordAll(:,iAt1)
+          norm = sqrt(dot_product(r12(:), r12(:)))
+          do iKS = 1, this%parallelKS%nLocalKS
+            T3(iStart1:iEnd1, iStart2:iEnd2, 1) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(1) / norm
+            T3(iStart1:iEnd1, iStart2:iEnd2, 2) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(2) / norm
+            T3(iStart1:iEnd1, iStart2:iEnd2, 3) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(3) / norm
+          end do
+        end if
       end do
     end do
     !$OMP END PARALLEL DO
+
+    this%totalCurrent = 0.0_dp
+    do iDir = 1,3
+      this%totalCurrent(iDir) = this%totalCurrent(iDir) + sum(T3(:,:,iDir))
+    end do
 
     deallocate(T1, T2, T3)
     
@@ -4270,6 +4286,8 @@ contains
     if (this%tCurrents) then
       allocate(this%orbCurrents(this%nOrbs, this%nOrbs))
       allocate(this%atomCurrents(this%nAtom, this%nAtom))
+      allocate(this%totalCurrent(3))
+      this%totalCurrent = 0.0_dp
     end if
     
     allocate(this%occ(this%nOrbs))
@@ -4426,8 +4444,7 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tCurrents) then
-      call getTdCurrents(this, this%trho, iSquare, neighbourList, nNeighbourSK, orb,&
-          & iSparseStart, img2CentCell)
+      call getTdCurrents(this, this%trho, iSquare, coordAll)
     end if
 
     if (.not. this%tReadRestart .or. this%tProbe) then
@@ -4659,8 +4676,7 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
-      call getTdCurrents(this, this%rho, iSquare, neighbourList, nNeighbourSK, orb,&
-          & iSparseStart, img2CentCell)
+      call getTdCurrents(this, this%rho, iSquare, coordAll)
     end if
 
     if ((mod(iStep, this%writeFreq) == 0)) then
@@ -4933,6 +4949,7 @@ contains
     if (this%tCurrents) then
       deallocate(this%orbCurrents)
       deallocate(this%atomCurrents)
+      deallocate(this%totalCurrent)
     end if
     if (allocated(this%Dsqr)) then
       deallocate(this%Dsqr)
