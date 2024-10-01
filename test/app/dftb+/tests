@@ -408,6 +408,7 @@ timedep/Furan-NACV-LC                  #? not WITH_MPI
 
 timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 4
 timedep/C4H6-Triplet                   #? WITH_ARPACK and MPI_PROCS <= 4
+timedep/C4H6-TransCharges              #? MPI_PROCS <= 4
 timedep/2CH3-Temp-Stratmann            #? MPI_PROCS <= 4
 timedep/C4H6-Singlet-Stratmann         #? MPI_PROCS <= 4
 timedep/C4H6-Triplet-Stratmann         #? MPI_PROCS <= 4

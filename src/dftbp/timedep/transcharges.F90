@@ -15,13 +15,13 @@ module dftbp_timedep_transcharges
   use dftbp_io_message, only : error
 
 #:if WITH_SCALAPACK
-  
+
   use dftbp_extlibs_scalapackfx, only : DLEN_, M_, NB_, N_, CSRC_, MB_, RSRC_, scalafx_indxl2g
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
-  
-#:endif  
-  
+
+#:endif
+
   implicit none
 
   private
@@ -88,7 +88,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -97,7 +97,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> number of orbitals
-    integer, intent(in) :: nOrb   
+    integer, intent(in) :: nOrb
 
     !> number of transitions in the system
     integer, intent(in) :: nTrans
@@ -139,14 +139,14 @@ contains
     logical :: updwn
 
   #:if WITH_SCALAPACK
-    
+
     integer :: iSpin, iAtom, nSpin, nOrbs, nLocRow, nLocCol
     integer :: desc(DLEN_), iLoc, mLoc, iGlb, mGlb, jLoc, jGlb
     real(dp), allocatable :: maskMat(:,:), workLocal(:,:), workGlobal(:,:,:)
 
   #:endif
-    
-    this%nTransitions = nTrans  
+
+    this%nTransitions = nTrans
     this%nAtom = size(denseDesc%iAtomStart) - 1
     this%nMatUp = nMatUp
     this%nMatUpOccOcc = nXooUD(1)
@@ -155,7 +155,7 @@ contains
   #:if WITH_SCALAPACK
 
     nSpin = size(grndEigVecs, dim=3)
-     
+
     if (tStoreSame) then
 
       @:ASSERT(tStoreOccVir)
@@ -165,15 +165,15 @@ contains
         @:ASSERT(.not.allocated(this%qCacheVirVir))
         allocate(this%qCacheVirVir(this%nAtom, sum(nXvvUD)))
       end if
-      
+
     else
-      
+
       this%tCacheChargesSame = .false.
-      
+
     end if
-    
+
     if (tStoreOccVir) then
-      
+
       if (tFirstCall) then
         @:ASSERT(.not.allocated(this%qCacheOccVir))
       else
@@ -193,7 +193,7 @@ contains
           workGlobal(:,:,:) = 0.0_dp
           workLocal(:,:) = 0.0_dp
           maskMat(:,:) = 0.0_dp
-          
+
           do mLoc = 1, size(grndEigVecs, dim=1)
             mGlb = scalafx_indxl2g(mLoc, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_), &
                 & env%blacs%orbitalGrid%nrow)
@@ -202,10 +202,10 @@ contains
               maskMat(mLoc,:) = sTimesGrndEigVecs(mLoc,:,iSpin)
             end if
           end do
-          
+
           call pblasfx_pgemm(grndEigVecs(:,:,iSpin), denseDesc%blacsOrbSqr, maskMat, &
               & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="T")
-          
+
           do jLoc = 1, size(grndEigVecs, dim=2)
             jGlb = scalafx_indxl2g(jLoc, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_), &
                 & env%blacs%orbitalGrid%ncol)
@@ -215,26 +215,26 @@ contains
               workGlobal(iGlb,jGlb,iSpin) =  workLocal(iLoc,jLoc)
             enddo
           enddo
-          
+
           call mpifx_allreduceip(env%mpi%groupComm, workGlobal, MPI_SUM)
-          
+
           do ia = 1, nTrans
             kk = win(ia)
             ii = getia(kk,1)
             aa = getia(kk,2)
             ss = getia(kk,3)
-   
+
             if (ss == iSpin) then
               if (kk <= nMatUp) then
                 this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,1)+workGlobal(aa,ii,1))
               else
                 this%qCacheOccVir(iAtom, ia) = 0.5_dp * (workGlobal(ii,aa,2)+workGlobal(aa,ii,2))
               end if
-            end if 
+            end if
           enddo
 
           if (tStoreSame .and. tFirstCall) then
-            
+
             do ij = 1, sum(nXooUD)
               ii = getij(ij,1)
               jj = getij(ij,2)
@@ -260,24 +260,24 @@ contains
                 end if
               end if
             end do
-            
+
           endif
-          
+
         enddo
       enddo
-      
+
       this%tCacheChargesOccVir = .true.
- 
+
     else
- 
+
       this%tCacheChargesOccVir = .false.
-      
+
     end if
-                       
+
   #:else
 
     if (tStoreOccVir) then
-      
+
        if (tFirstCall) then
         @:ASSERT(.not.allocated(this%qCacheOccVir))
       else
@@ -338,9 +338,9 @@ contains
       this%tCacheChargesSame = .false.
 
     end if
-    
+
   #:endif
-      
+
   end subroutine TTransCharges_init
 
 
@@ -358,7 +358,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
 
@@ -403,7 +403,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -427,7 +427,7 @@ contains
       jj = getij(ij, 2)
       updwn = (ij <= this%nMatUpOccOcc)
       q(:) = transq(ii, jj, env, denseDesc, updwn, sTimesgrndEigVecs, grndEigVecs)
-      
+
     end if
 
   end function TTransCharges_qTransIJ
@@ -446,7 +446,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -485,9 +485,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -534,7 +534,7 @@ contains
         kk = win(iOff+ij)
         ii = getia(kk,1)
         jj = getia(kk,2)
-        
+
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(:) = qProduct + qij * vector(ij)
@@ -557,9 +557,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -631,7 +631,7 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
@@ -691,9 +691,9 @@ contains
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
@@ -757,7 +757,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc 
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Up spin channel (T) or down spin channel (F)
     logical, intent(in) :: updwn
@@ -775,11 +775,11 @@ contains
     real(dp), allocatable :: qTmp(:)
 
   #:if WITH_SCALAPACK
-    
+
     call error('Direct call to transq not allowed under MPI.')
-    
-  #:endif 
-    
+
+  #:endif
+
     ss = 1
     if (.not. updwn) then
       ss = 2
@@ -788,7 +788,7 @@ contains
     allocate(qTmp(size(grndEigVecs,dim=1)))
     qTmp(:) =  grndEigVecs(:,ii,ss) * sTimesGrndEigVecs(:,jj,ss)&
           & + grndEigVecs(:,jj,ss) * sTimesGrndEigVecs(:,ii,ss)
-    
+
     do kk = 1, size(qij)
       aa = denseDesc%iAtomStart(kk)
       bb = denseDesc%iAtomStart(kk + 1) -1

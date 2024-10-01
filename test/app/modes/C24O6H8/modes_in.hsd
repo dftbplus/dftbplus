@@ -1,11 +1,11 @@
 # Needs the equilibrium geometry, at which the Hessian had been calculated
-Geometry = GenFormat { 
-  <<< geom.gen
+Geometry = GenFormat {
+  <<< geo.gen
 }
 
 # You need to specify the SK-files, as the mass of the elements is needed
 SlaterKosterFiles = Type2FileNames {
-  Prefix = "./"
+  Prefix = "slakos/origin/mio-1-1/"
   Separator = "-"
   Suffix = ".skf"
 }

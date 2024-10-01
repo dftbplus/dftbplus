@@ -418,6 +418,7 @@ contains
     end if
 
     call getChildValue(node, "WriteAutotestTag", tWriteTagged, .false.)
+    tWriteTagged = tWriteTagged .and. tIoProc
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 

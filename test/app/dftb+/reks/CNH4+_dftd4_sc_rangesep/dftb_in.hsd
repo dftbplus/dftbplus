@@ -9,7 +9,7 @@ C N H
      6   3   1.2336137800E+00  -9.2302252000E-01  -2.1522395000E-01
 }
 
-Hamiltonian = DFTB { 
+Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-6
   MaxSCCIterations = 1000
@@ -21,7 +21,7 @@ Hamiltonian = DFTB {
     N = { -0.04687 -0.03170 -0.03170 -0.03072 }
   }
   RangeSeparated = LC{
-    Screening = MatrixBased{}
+    Screening = MatrixBased {}
   }
   Dispersion = dftd4{
     s8 = 1.2916225
@@ -35,16 +35,10 @@ Hamiltonian = DFTB {
     C = "p"
     N = "p"
   }
-  SlaterKosterFiles = {
-    N-N = "N-N.skf"
-    N-C = "N-C.skf"
-    N-H = "N-H.skf"
-    C-N = "C-N.skf"
-    C-C = "C-C.skf"
-    C-H = "C-H.skf"
-    H-N = "H-N.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix  = ".skf"
   }
 }
 

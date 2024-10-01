@@ -74,6 +74,9 @@ module dftbp_io_taggedoutput
     !> Transition dipole moments for excitations
     character(lenLabel) :: excDipole = 'exc_transdip'
 
+    !> Square of transition charges for target state
+    character(lenLabel) :: transQ = 'transq_sqr'
+
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
 

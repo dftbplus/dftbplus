@@ -21,7 +21,7 @@ Geometry = GenFormat {
       0.0 0.0 15.0
 }
 
-Hamiltonian = DFTB { 
+Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-6
   MaxSCCIterations = 1000
@@ -38,7 +38,7 @@ Hamiltonian = DFTB {
     N = "p"
   }
   SlaterKosterFiles = Type2Filenames {
-    Prefix = {slakos/origin/3ob-3-1/}
+    Prefix = "slakos/origin/3ob-3-1/"
     Separator = "-"
     Suffix = ".skf"
   }

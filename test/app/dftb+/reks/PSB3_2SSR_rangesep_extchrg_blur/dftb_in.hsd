@@ -17,7 +17,7 @@ Geometry = GenFormat {
       14   1  -4.4638409000E-01   6.9751780000E-01   7.4822584200E+00
 }
 
-Hamiltonian = DFTB { 
+Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-6
   MaxSCCIterations = 1000
@@ -29,23 +29,17 @@ Hamiltonian = DFTB {
     N = { -0.033 -0.027 -0.027 -0.026 }
   }
   RangeSeparated = LC{
-    Screening = MatrixBased{}
+    Screening = MatrixBased {}
   }
   MaxAngularMomentum = {
     H = "s"
     C = "p"
     N = "p"
   }
-  SlaterKosterFiles = {
-    N-N = "N-N.skf"
-    N-C = "N-C.skf"
-    N-H = "N-H.skf"
-    C-N = "C-N.skf"
-    C-C = "C-C.skf"
-    C-H = "C-H.skf"
-    H-N = "H-N.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix  = ".skf"
   }
   ElectricField = PointCharges {
     GaussianBlurWidth = 10.0
