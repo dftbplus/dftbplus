@@ -2380,13 +2380,12 @@ contains
 
       call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
           & iSparseStart, Dsqr, Qsqr)
-      
-      allocate(this%H0sqr(this%nOrbs, this%nOrbs))
-      call unpackHS(this%H0sqr, ham0, iNeighbour, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell)
-      call blockSymmetrizeHS(this%H0sqr, iSquare)
-      
     end if
+
+    allocate(this%H0sqr(this%nOrbs, this%nOrbs))
+    call unpackHS(this%H0sqr, ham0, iNeighbour, nNeighbourSK, iSquare,&
+        & iSparseStart, img2CentCell)
+    call blockSymmetrizeHS(this%H0sqr, iSquare)
 
     if (this%tPopulations) then
       allocate(Eiginv(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
@@ -2741,13 +2740,13 @@ contains
 
     if (this%tCurrents) then
       call openOutputFile(this, currentDat, 'tdcurrents.dat')
+      write(currentDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
+      write(currentDat%unit, "(A)", advance = "NO")"   total current - x (a.u.)  |"
+      write(currentDat%unit, "(A)", advance = "NO")"   total current - y (a.u.)  |"
+      write(currentDat%unit, "(A)", advance = "NO")"   total current - z (a.u.)  |"
+      write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_1) (e)   |"
+      write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_2) (e)   |  ..."
     end if
-    write(currentDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
-    write(currentDat%unit, "(A)", advance = "NO")"   total current - x (a.u.)  |"
-    write(currentDat%unit, "(A)", advance = "NO")"   total current - y (a.u.)  |"
-    write(currentDat%unit, "(A)", advance = "NO")"   total current - z (a.u.)  |"
-    write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_1) (e)   |"
-    write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_2) (e)   |  ..."
 
     if (this%tPopulations) then
       do iKS = 1, this%parallelKS%nLocalKS
