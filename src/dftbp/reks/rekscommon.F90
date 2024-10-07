@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -15,10 +17,18 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_rekscommon
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only: error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+#:endif
+#:if WITH_SCALAPACK
+  use dftbp_extlibs_scalapackfx, only : CSRC_, RSRC_, MB_, NB_, scalafx_indxl2g,&
+      & pblasfx_pgemm
+#:endif
 
   implicit none
 
@@ -27,7 +37,7 @@ module dftbp_reks_rekscommon
   public :: getTwoIndices
   public :: qm2udL, ud2qmL
   public :: qmExpandL, udExpandL
-  public :: matAO2MO, matMO2AO
+  public :: convertMatrix
   public :: getSpaceSym
   public :: findShellOfAO
   public :: assignIndex, assignEpsilon, assignFilling
@@ -64,8 +74,11 @@ module dftbp_reks_rekscommon
 
   !> Check whether the cell size is proper to the Gamma point
   !> calculation or not, and set several convenient variables
-  subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
+  subroutine checkGammaPoint(env, denseDesc, iNeighbour, nNeighbourSK,&
       & iPair, img2CentCell, over, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -88,12 +101,13 @@ module dftbp_reks_rekscommon
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
+    real(dp), allocatable :: globOverSqr(:,:)
     integer :: mu, nu, nAtom, nOrb, nAtomSparse
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh1, iOrig1
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
 
     nAtom = size(denseDesc%iAtomStart,dim=1) - 1
-    nOrb = size(this%overSqr,dim=1)
+    nOrb = denseDesc%fullSize
 
     nAtomSparse = 0
     do iAtom1 = 1, nAtom ! mu
@@ -102,6 +116,21 @@ module dftbp_reks_rekscommon
 
     deallocate(this%getDenseAtom)
     allocate(this%getDenseAtom(nAtomSparse,2))
+
+  #:if WITH_SCALAPACK
+    allocate(globOverSqr(nOrb,nOrb))
+    globOverSqr(:,:) = 0.0_dp
+    do jj = 1, size(this%overSqr, dim=2)
+      ll = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
+          & denseDesc%blacsOrbSqr(CSRC_), env%blacs%orbitalGrid%ncol)
+      do ii = 1, size(this%overSqr, dim=1)
+        kk = scalafx_indxl2g(ii, denseDesc%blacsOrbSqr(MB_), env%blacs%orbitalGrid%myrow,&
+            & denseDesc%blacsOrbSqr(RSRC_), env%blacs%orbitalGrid%nrow)
+        globOverSqr(kk,ll) = this%overSqr(ii,jj)
+      end do
+    end do
+    call mpifx_allreduceip(env%mpi%globalComm, globOverSqr, MPI_SUM)
+  #:endif
 
     ll = 1
     this%getDenseAO(:,:) = 0
@@ -133,9 +162,15 @@ module dftbp_reks_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
+        #:if WITH_SCALAPACK
+          if (abs(globOverSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
+            call error("Inconsistent matching exists between sparse and dense")
+          end if
+        #:else
           if (abs(this%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
             call error("Inconsistent matching exists between sparse and dense")
           end if
+        #:endif
           this%getDenseAO(iOrig1+kk-1,1) = mu
           this%getDenseAO(iOrig1+kk-1,2) = nu
         end do
@@ -376,7 +411,7 @@ module dftbp_reks_rekscommon
   !> Decide a correct up/down in REKS
   subroutine udExpand3(x, Lpaired)
 
-    !> array of data, third index spin, fourth index Lmax
+    !> Array of data, third index spin, fourth index Lmax
     real(dp), intent(inout) :: x(:,:,:,:)
 
     !> Number of spin-paired microstates
@@ -404,7 +439,7 @@ module dftbp_reks_rekscommon
   !> Decide a correct up/down in REKS
   subroutine udExpand4(x, Lpaired)
 
-    !> array of data, fourth index spin, fifth index Lmax
+    !> Array of data, fourth index spin, fifth index Lmax
     real(dp), intent(inout) :: x(:,:,:,:,:)
 
     !> Number of spin-paired microstates
@@ -430,58 +465,44 @@ module dftbp_reks_rekscommon
 
 
   !> Convert the matrix from AO basis to MO basis
-  subroutine matAO2MO(mat, eigenvecs)
+  subroutine convertMatrix(denseDesc, eigenvecs, mat, choice)
 
-    !> matrix converted from AO basis to MO basis
-    real(dp), intent(inout) :: mat(:,:)
-
-    !> eigenvectors
-    real(dp), intent(in) :: eigenvecs(:,:)
-
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
-
-    nOrb = size(eigenvecs,dim=1)
-
-    allocate(tmpMat(nOrb,nOrb))
-
-    tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, mat, eigenvecs)
-    call gemm(mat, eigenvecs, tmpMat, transA='T')
-
-  end subroutine matAO2MO
-
-
-  !> Convert the matrix from MO basis to AO basis
-  subroutine matMO2AO(mat, eigenvecs)
-
-    !> matrix converted from MO basis to AO basis
-    real(dp), intent(inout) :: mat(:,:)
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> eigenvectors
     real(dp), intent(in) :: eigenvecs(:,:)
 
-    real(dp), allocatable :: tmpMat(:,:)
-    integer :: nOrb
+    !> Matrix to be converted
+    real(dp), intent(inout) :: mat(:,:)
 
-    nOrb = size(eigenvecs,dim=1)
+    !> 1: AO basis to MO basis, 2: MO basis to AO basis
+    integer, intent(in) :: choice
 
-    allocate(tmpMat(nOrb,nOrb))
+    if (choice == 1) then
+    #:if WITH_SCALAPACK
+      call matAO2MOBlacs_(mat, denseDesc%blacsOrbSqr, eigenvecs)
+    #:else
+      call matAO2MO_(mat, eigenvecs)
+    #:endif
+    else if (choice == 2) then
+    #:if WITH_SCALAPACK
+      call matMO2AOBlacs_(mat, denseDesc%blacsOrbSqr, eigenvecs)
+    #:else
+      call matMO2AO_(mat, eigenvecs)
+    #:endif
+    end if
 
-    tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, mat, eigenvecs, transB='T')
-    call gemm(mat, eigenvecs, tmpMat)
-
-  end subroutine matMO2AO
+  end subroutine convertMatrix
 
 
-  !> find proper string for active orbital
+  !> Find proper string for active orbital
   subroutine getSpaceSym(ii, st)
 
-    !> index for active space
+    !> Index for active space
     integer, intent(in) :: ii
 
-    !> string for active space
+    !> String for active space
     character(len=1), intent(inout) :: st
 
     if (ii == 1) then
@@ -500,27 +521,27 @@ module dftbp_reks_rekscommon
   !> Find shell of index alpha with respect to mu (reference)
   subroutine findShellOfAO(al, mu, getAtomIndex, iSquare, iSpA, facP, facD)
 
-    !> input AO index
+    !> Input AO index
     integer, intent(in) :: al
 
-    !> reference AO index (standard of atom)
+    !> Reference AO index (standard of atom)
     integer, intent(in) :: mu
 
-    !> get atom index from AO index
+    !> Get atom index from AO index
     integer, intent(in) :: getAtomIndex(:)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !> output shell (s,p,d) for input AO index
+    !> Output shell (s,p,d) for input AO index
     integer, intent(out) :: iSpA
 
-    !> check whether al is included in p or d orbitals
+    !> Check whether al is included in p or d orbitals
     real(dp), intent(out) :: facP, facD
 
     integer :: iAtM, iAtA, iShA
 
-    ! set the orbital shell for al index w.r.t mu
+    ! Set the orbital shell for al index w.r.t mu
     iAtM = getAtomIndex(mu)
     iAtA = getAtomIndex(al)
     if (iAtA == iAtM) then
@@ -556,10 +577,10 @@ module dftbp_reks_rekscommon
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> index for super matrix form
+    !> Index for super matrix form
     integer, intent(in) :: ij
 
-    !> index for dense form
+    !> Index for dense form
     integer, intent(out) :: i, j
 
     select case (reksAlg)
@@ -577,10 +598,10 @@ module dftbp_reks_rekscommon
   subroutine assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, t, &
       & chk, reksAlg, e1, e2)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
     !> Weights used in state-averaging
@@ -595,13 +616,13 @@ module dftbp_reks_rekscommon
     !> MO index for converged fock matrix
     integer, intent(in) :: i, j, t
 
-    !> choice of calculations for converged fock matrix
+    !> Choice of calculations for converged fock matrix
     integer, intent(in) :: chk
 
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> output multiplier from converged fock matrix
+    !> Output multiplier from converged fock matrix
     real(dp), intent(out) :: e1, e2
 
     select case (reksAlg)
@@ -628,13 +649,13 @@ module dftbp_reks_rekscommon
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> orbital index
+    !> Orbital index
     integer, intent(in) :: i
 
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
 
-    !> output filling from fractional occupation numbers
+    !> Output filling from fractional occupation numbers
     real(dp), intent(out) :: fi
 
     select case (reksAlg)
@@ -652,6 +673,107 @@ module dftbp_reks_rekscommon
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+#:if WITH_SCALAPACK
+  !> Convert the matrix from AO basis to MO basis
+  subroutine matAO2MOBlacs_(mat, desc, eigenvecs)
+
+    !> Matrix converted from AO basis to MO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
+
+    allocate(tmpMat(nLocalRows,nLocalCols))
+
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc)
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc, transA='T')
+
+  end subroutine matAO2MOBlacs_
+
+
+  !> Convert the matrix from MO basis to AO basis
+  subroutine matMO2AOBlacs_(mat, desc, eigenvecs)
+
+    !> Matrix converted from MO basis to AO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nLocalRows, nLocalCols
+
+    nLocalRows = size(eigenvecs,dim=1)
+    nLocalCols = size(eigenvecs,dim=2)
+
+    allocate(tmpMat(nLocalRows,nLocalCols))
+
+    tmpMat(:,:) = 0.0_dp
+    call pblasfx_pgemm(mat, desc, eigenvecs, desc, tmpMat, desc, transB='T')
+    call pblasfx_pgemm(eigenvecs, desc, tmpMat, desc, Mat, desc)
+
+  end subroutine matMO2AOBlacs_
+#:else
+  !> Convert the matrix from AO basis to MO basis
+  subroutine matAO2MO_(mat, eigenvecs)
+
+    !> Matrix converted from AO basis to MO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+
+    allocate(tmpMat(nOrb,nOrb))
+
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, mat, eigenvecs)
+    call gemm(mat, eigenvecs, tmpMat, transA='T')
+
+  end subroutine matAO2MO_
+
+
+  !> Convert the matrix from MO basis to AO basis
+  subroutine matMO2AO_(mat, eigenvecs)
+
+    !> Matrix converted from MO basis to AO basis
+    real(dp), intent(inout) :: mat(:,:)
+
+    !> eigenvectors
+    real(dp), intent(in) :: eigenvecs(:,:)
+
+    real(dp), allocatable :: tmpMat(:,:)
+    integer :: nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+
+    allocate(tmpMat(nOrb,nOrb))
+
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, mat, eigenvecs, transB='T')
+    call gemm(mat, eigenvecs, tmpMat)
+
+  end subroutine matMO2AO_
+#:endif
+
+
   !> Assign index in terms of dense form from super matrix form in REKS(2,2)
   subroutine assignIndex22_(Nc, Na, Nv, ij, i, j)
 
@@ -664,10 +786,10 @@ module dftbp_reks_rekscommon
     !> Number of vacant orbitals
     integer, intent(in) :: Nv
 
-    !> index for super matrix form
+    !> Index for super matrix form
     integer, intent(in) :: ij
 
-    !> index for dense form
+    !> Index for dense form
     integer, intent(out) :: i, j
 
     ! (i,j) = (core,active)
@@ -739,10 +861,10 @@ module dftbp_reks_rekscommon
   subroutine assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
       & t, chk, e1, e2)
 
-    !> dense fock matrix for core orbitals
+    !> Dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
 
-    !> dense fock matrix for active orbitals
+    !> Dense fock matrix for active orbitals
     real(dp), intent(in) :: Fa(:,:,:)
 
     !> Weights used in state-averaging
@@ -757,10 +879,10 @@ module dftbp_reks_rekscommon
     !> MO index for converged fock matrix
     integer, intent(in) :: i, j, t
 
-    !> choice of calculations for converged fock matrix
+    !> Choice of calculations for converged fock matrix
     integer, intent(in) :: chk
 
-    !> output multiplier from converged fock matrix
+    !> Output multiplier from converged fock matrix
     real(dp), intent(out) :: e1, e2
 
     real(dp) :: n_a, n_b
@@ -851,10 +973,10 @@ module dftbp_reks_rekscommon
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
-    !> orbital index
+    !> Orbital index
     integer, intent(in) :: i
 
-    !> output filling from fractional occupation numbers
+    !> Output filling from fractional occupation numbers
     real(dp), intent(out) :: fi
 
     real(dp) :: n_a, n_b
