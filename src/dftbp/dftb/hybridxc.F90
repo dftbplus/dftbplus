@@ -668,7 +668,7 @@ contains
 
 
   !> Checks if obtained supercell folding matrix meets current requirements.
-  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus, supercellFoldingDiagOut)
+  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus)
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
     !! (should be integer values) and shift of the grid along the three small reciprocal lattice
@@ -678,9 +678,6 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    !> Diagonal elements of supercell folding matrix, if present
-    integer, intent(out), optional :: supercellFoldingDiagOut(:)
-
     !! Supercell folding coefficients and shifts
     real(dp), pointer :: coeffs(:,:), shifts(:)
 
@@ -689,10 +686,6 @@ contains
 
     !! Auxiliary variables
     integer :: ii, jj
-
-    if (present(supercellFoldingDiagOut)) then
-      @:ASSERT(size(supercellFoldingDiagOut) == 3)
-    end if
 
     coeffs => supercellFoldingMatrix(:, 1:3)
     shifts => supercellFoldingMatrix(:, 4)
@@ -717,23 +710,14 @@ contains
       end do
     end do lpOuter
     if (tNotMonkhorstPack) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
-          & Monkhorst-Pack-like sampling, i.e. a uniform extension of the lattice.")
+      @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
+          & Monkhorst-Pack-like sampling, i.e., a uniform extension of the lattice.")
     end if
 
     ! Check if shifts are zero
     if (any(abs(shifts) > 1e-06_dp)) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
+      @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
           & Monkhorst-Pack-like sampling with zero shift.")
-    end if
-
-    ! All checks have passed, continue...
-
-    ! Get diagonal elements as integers, if requested
-    if (present(supercellFoldingDiagOut)) then
-      do ii = 1, 3
-        supercellFoldingDiagOut(ii) = nint(coeffs(ii, ii))
-      end do
     end if
 
   end subroutine checkSupercellFoldingMatrix
