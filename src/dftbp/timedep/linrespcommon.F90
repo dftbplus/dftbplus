@@ -567,7 +567,11 @@ contains
         ! 4 * wn * (o * Q)
         vOut = 0.0_dp
         call transChrg%qVecMat(iAtomStart, ovrXev, grndEigVecs, getIA, win, oTmp, vOut)
-        vOut(:) = 4.0_dp * sqrOccIA * vOut
+        if (tTDA) then
+           vOut(:) = 2.0_dp * sqrOccIA * vOut
+        else
+           vOut(:) = 4.0_dp * sqrOccIA * vOut
+        endif
 
 
       end if
@@ -1014,7 +1018,11 @@ contains
 
           do ia = 1, nMat
             qTr(:) = transChrg%qTransIA(ia, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getIA, win)
-            vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            if (tTDA) then
+               vP(ia,jb) = vP(ia,jb) + 2.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            else
+               vP(ia,jb) = vP(ia,jb) + 4.0_dp * sqrOccIA(ia) * dot_product(qTr, oTmp)
+            endif
           end do
 
         end do

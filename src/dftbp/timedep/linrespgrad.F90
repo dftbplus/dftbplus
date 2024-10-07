@@ -547,8 +547,8 @@ contains
       call error("Range separation requires the Stratmann solver for excitations")
     end if
 
-    if (this%tTDA .and. this%symmetry /= "S") then
-       call error("Tamm-Dancoff Approximation is only implemented for Singlets")
+    if (this%tTDA .and. this%tSpin) then
+       call error("Tamm-Dancoff Approximation is only implemented for spin-unpolarized Systems")
     endif
 
     do isym = 1, size(symmetries)
@@ -1368,7 +1368,6 @@ contains
 
       !see if more memory is needed to save extended basis. If so increase amount of memory.
       if (subSpaceDim + 2 * nExc > memDim) then
-        write(*,*) 'GDM: TODO: Checking memory....'
         call incMemStratmann(memDim, workDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, &
              &  dummyM, evalInt, workArray, evecL, evecR, vecNorm)
       end if
