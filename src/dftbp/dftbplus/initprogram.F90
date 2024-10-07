@@ -97,7 +97,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, diagonal
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
@@ -1415,9 +1415,7 @@ contains
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
         & errStatus)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    if (errStatus%hasError()) call error(errStatus%message)
 
     ! Get species names and output file
     this%geoOutFile = input%ctrl%outFile
@@ -1708,9 +1706,7 @@ contains
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
         & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS, errStatus)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    if (errStatus%hasError()) call error(errStatus%message)
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
@@ -2455,9 +2451,7 @@ contains
       allocate(this%electrostatPot)
       call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
           & allocated(this%eField) .or. this%tExtChrg, this%hamiltonianType, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2813,9 +2807,13 @@ contains
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
     if (allocated(this%symNeighbourList)) then
-      if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
+      if ((.not. this%tReadChrg) .and. this%tPeriodic) then
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
+        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix(:,:3), errStatus)
+        if (errStatus%hasError()) call error(errStatus%message)
         this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
+        @:ASSERT(all(this%supercellFoldingDiag ==&
+            & nint(diagonal(this%supercellFoldingMatrix(:,:3)))))
       end if
       if (this%isHybridXc) then
         call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
@@ -2823,23 +2821,25 @@ contains
           if (this%tPeriodic .and. this%tRealHS) then
             ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
             call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
-                & input%ctrl%hybridXcInp%cutoffRed,&
+                & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
                 & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
                 & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
           elseif (.not. this%tRealHS) then
             ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
             call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
-                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag, errStatus,&
                 & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
                 & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
                 & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
           end if
+          if (errStatus%hasError()) call error(errStatus%message)
         end if
 
         ! Non-periodic system (cluster)
         if (.not. this%tPeriodic) then
           call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
         end if
+
       end if
 
     #:if WITH_SCALAPACK
@@ -2909,16 +2909,17 @@ contains
       if (this%tPeriodic .and. this%tRealHS) then
         ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
         call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
-            & input%ctrl%hybridXcInp%cutoffRed,&
+            & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
             & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
       elseif (.not. this%tRealHS) then
         ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
         call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
-            & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+            & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag, errStatus,&
             & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
             & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
             & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
       end if
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (this%isHybridXc) then
@@ -2932,9 +2933,7 @@ contains
           & gSummationCutoff=this%cutOff%gSummationCutoff,&
           & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
           & latVecs=input%geom%latVecs)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      if (errStatus%hasError()) call error(errStatus%message)
       ! now all information is present to properly allocate density matrices and associate pointers
       call reallocateHybridXc(this, input%ctrl%hybridXcInp%hybridXcAlg, nLocalRows, nLocalCols,&
           & size(this%parallelKS%localKS, dim=2))
@@ -4025,9 +4024,7 @@ contains
           & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
           & this%kPoint, this%kWeight, this%isHybridXc, this%scc, this%tblite, this%eFieldScaling,&
           & this%hamiltonianType, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      if (errStatus%hasError()) call error(errStatus%message)
 
     end if
 
@@ -4331,6 +4328,7 @@ contains
 
     ! Charges read from file
     if (this%tReadChrg) then
+
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
@@ -4356,14 +4354,6 @@ contains
         end if
       end if
 
-      ! Check if obtained supercell folding matrix meets current requirements
-      if (this%isHybridXc .and. this%tPeriodic) then
-        allocate(this%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix, errStatus,&
-            & supercellFoldingDiagOut=this%supercellFoldingDiag)
-        @:PROPAGATE_ERROR(errStatus)
-      end if
-
     #:if WITH_TRANSPORT
       if (this%tUpload) then
         call overrideContactCharges(this%qInput, this%chargeUp, this%transpar, this%qBlockIn,&
@@ -4371,7 +4361,12 @@ contains
       end if
     #:endif
 
+      if (this%isHybridXc .and. this%tPeriodic) then
+        this%supercellFoldingDiag = nint(diagonal(this%supercellFoldingMatrix(:,:3)))
+      end if
+
     endif
+
 
     if (.not. allocated(this%reks)) then
       !Input charges packed into unique equivalence elements
@@ -6094,7 +6089,7 @@ contains
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, gSummationCutoff,&
+  subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, errStatus, gSummationCutoff,&
       & gammaCutoff)
 
     !> Resulting cutoff
@@ -6106,14 +6101,14 @@ contains
     !> CAM-neighbour list cutoff reduction
     real(dp), intent(in) :: cutoffRed
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
-
-    !! Error status
-    type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
@@ -6133,7 +6128,6 @@ contains
       allocate(cutOff%gammaCutoff)
       call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus)
       @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
@@ -6147,7 +6141,7 @@ contains
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag,&
+  subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag, errStatus,&
       & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
 
     !> Resulting cutoff
@@ -6162,6 +6156,9 @@ contains
     !> Supercell folding coefficients and shifts
     integer, intent(in) :: supercellFoldingDiag(:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
@@ -6171,9 +6168,6 @@ contains
 
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
-
-    !! Error status
-    type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
@@ -6194,7 +6188,6 @@ contains
       call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus,&
           & nK=supercellFoldingDiag)
       @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
