@@ -2817,14 +2817,14 @@ contains
       end if
       if (this%isHybridXc) then
         call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
-        if (.not. this%tReadChrg) then
-          if (this%tPeriodic .and. this%tRealHS) then
+        if (this%tPeriodic .and. .not. this%tReadChrg) then
+          if (this%tRealHS) then
             ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
             call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
                 & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
                 & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
                 & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
-          elseif (.not. this%tRealHS) then
+          else
             ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
             call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
                 & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag, errStatus,&
@@ -2888,14 +2888,16 @@ contains
     ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb
     ! truncation cutoff, therefore calling getHybridXcCutoff(), needs this information.
     if (this%isHybridXc .and. this%tReadChrg) then
-      ! First, check if supercell folding matrix is identical to previous run, if specified in input
+
+      ! First, check if supercell folding matrix is identical to the previous run, if it is
+      ! specified in the input
       if (allocated(input%ctrl%supercellFoldingMatrix)) then
         if (any(abs(input%ctrl%supercellFoldingMatrix&
             & - this%supercellFoldingMatrix) > 1e-06_dp)) then
           write(tmpStr, "(A,3I5,A,3I5,A,3I5,A,3F10.6)")&
               & 'Error while processing k-point sampling for hybrid run.'&
               & // NEW_LINE('A')&
-              & // '   When restarting, only identical k-point samplings to previous run are'&
+              & // '   When restarting, only identical k-point samplings to the previous run are'&
               & // NEW_LINE('A') // '   supported. In this case this would correspond to the&
               & following supercell' // NEW_LINE('A') // '   folding matrix:'&
               & // NEW_LINE('A'),&
@@ -2906,6 +2908,7 @@ contains
           call error(trim(tmpStr))
         end if
       end if
+
       if (this%tPeriodic .and. this%tRealHS) then
         ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
         call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
@@ -2919,7 +2922,9 @@ contains
             & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
             & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
       end if
+
       if (errStatus%hasError()) call error(errStatus%message)
+
     end if
 
     if (this%isHybridXc) then
