@@ -56,7 +56,7 @@ module dftbp_io_charmanip
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
-  public :: convertWhitespaces
+  public :: convertWhitespaces, endsWith
 
 contains
 
@@ -446,5 +446,35 @@ contains
     end do
 
   end subroutine convertWhitespaces
+
+
+  !> Tests if a string ends with a specified suffix.
+  pure function endsWith(str, suffix)
+
+    !> String to check
+    character(len=*), intent(in) :: str
+
+    !> Suffix to check for
+    character(len=*), intent(in) :: suffix
+
+    !> True, if string ends with suffix, otherwise false
+    logical :: endsWith
+
+    !! Length of str
+    integer :: lenStr
+
+    !! Start index of suffix in str
+    integer :: iSuffixStart
+
+    lenStr = len(str)
+    iSuffixStart = lenStr - len(suffix) + 1
+
+    if (iSuffixStart < 1) then
+      endsWith = .false.
+    else
+      endsWith = (str(iSuffixStart:lenStr) == suffix)
+    end if
+
+  end function endsWith
 
 end module dftbp_io_charmanip
