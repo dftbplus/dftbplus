@@ -46,6 +46,10 @@ Fixed
 
 - DeltaDFTB purified forces used correctly.
 
+- All solvent models had a bug leading to the energy showing a
+  dependence on the ordering of the atoms in the system.
+
+
 24.1 (2024-02-12)
 =================
 
