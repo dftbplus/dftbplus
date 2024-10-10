@@ -209,7 +209,7 @@ contains
     !> List of all atomic coordinates
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> List of all atomic species
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
     !> Neighbour list for atoms
@@ -354,7 +354,7 @@ contains
     !> List of all atomic coordinates
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> List of all atomic species
+    !> List of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
     !> Neighbour list for atoms
