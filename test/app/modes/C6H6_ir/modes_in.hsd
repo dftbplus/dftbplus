@@ -19,5 +19,8 @@ BornDerivs = {
   <<< bornderiv.out
 }
 
+# Lock the phase and degenerate eigenvectors for test purposes
+PhaseLock = Yes
+
 # This file uses the 3rd input format of the modes code
 InputVersion = 3

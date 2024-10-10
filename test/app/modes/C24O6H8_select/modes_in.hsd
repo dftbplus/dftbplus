@@ -17,4 +17,7 @@ Hessian = {
   <<< "hessian.out"
 }
 
+# Lock the phase and degenerate eigenvectors for test purposes
+PhaseLock = Yes
+
 InputVersion = 3
