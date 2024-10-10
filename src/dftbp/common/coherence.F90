@@ -155,7 +155,7 @@ contains
     ${TYPE}$, intent(in) :: data${SHAPE}$
   #:endif
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Error code return, 0 if no problems
@@ -251,7 +251,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Tolerance for comparison, if absent use eps

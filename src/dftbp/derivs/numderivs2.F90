@@ -39,7 +39,7 @@ module dftbp_derivs_numderivs2
     !> Which component, x,y,z are we currently differentiating with respect to?
     integer :: iComponent
 
-    !> displacement along + or - for central difference
+    !> Displacement along + or - for central difference
     real(dp) :: iDelta
 
     !> Step size for derivative
@@ -79,22 +79,22 @@ contains
 
 
   !> Create new instance of derivative object
-  !> Note: Use pre-relaxed coordinates when starting this, as the truncation at second
-  !> derivatives is only valid at the minimum position.
-  !> The subroutine can allocate a rectangular matrix with parameter nDerivAtoms,
-  !> Useful for distributed calculations of the Hessian
+  !! Note: Use pre-relaxed coordinates when starting this, as the truncation at second
+  !! derivatives is only valid at the minimum position.
+  !! The subroutine can allocate a rectangular matrix with parameter nDerivAtoms,
+  !! Useful for distributed calculations of the Hessian
   subroutine derivs_create(this, xInit, nDerivAtoms, delta, isDipoleDiff, isPolDiff)
 
     !> Pointer to the initialised object on exit.
     type(TNumDerivs), allocatable, intent(out) :: this
 
-    !> initial atomic coordinates (3, nMovedAtom)
+    !> Initial atomic coordinates (3, nMovedAtom)
     real(dp), intent(inout) :: xInit(:,:)
 
-    !> number of atoms for which derivatives should be calculated (>= nMovedAtom)
+    !> Number of atoms for which derivatives should be calculated (>= nMovedAtom)
     integer, intent(in) :: nDerivAtoms
 
-    !> step size for numerical derivative
+    !> Step size for numerical derivative
     real(dp), intent(in) :: delta
 
     !> Are dipole derivatives accumulated
@@ -136,7 +136,7 @@ contains
 
 
   !> Takes the next step for derivatives using the central difference formula to choose the new
-  !> coordinates for differentiation of the forces with respect to atomic coordinates
+  !! coordinates for differentiation of the forces with respect to atomic coordinates
   subroutine derivs_next(this, xNew, fOld, tGeomEnd)
 
     !> Derivatives instance to propagate
@@ -188,10 +188,10 @@ contains
       ! assemble actual derivatives
       this%forceDerivs(:,:) = 0.5_dp * this%forceDerivs / this%delta
       if (associated(this%dipoleDerivs)) then
-        this%dipoleDerivs(:, :) = 0.5_dp * this%dipoleDerivs / this%delta
+        this%dipoleDerivs(:,:) = 0.5_dp * this%dipoleDerivs / this%delta
       end if
       if (associated(this%polDerivs)) then
-        this%polDerivs(:, :, :) = 0.5_dp * this%polDerivs / this%delta
+        this%polDerivs(:,:,:) = 0.5_dp * this%polDerivs / this%delta
       end if
       ! set xnew to an arbitrary value
       xNew(:,:) = this%x0
@@ -247,13 +247,13 @@ contains
     type(TNumDerivs), intent(in) :: this
 
     !> Pointer to the Hessian matrix to allow retrieval
-    real(dp), pointer, intent(out) :: d2(:, :)
+    real(dp), pointer, intent(out) :: d2(:,:)
 
     !> Pointer to the dipole derivative matrix to allow retrieval
-    real(dp), pointer, intent(out), optional :: dip(:, :)
+    real(dp), pointer, intent(out), optional :: dip(:,:)
 
     !> Pointer to the polarisability derivative matrix to allow retrieval
-    real(dp), pointer, intent(out), optional :: pol(:, :, :)
+    real(dp), pointer, intent(out), optional :: pol(:,:,:)
 
     d2 => this%forceDerivs
 
@@ -274,15 +274,9 @@ contains
     !> Instance
     type(TNumDerivs), intent(inout) :: this
 
-    if (associated(this%forceDerivs)) then
-      deallocate(this%forceDerivs)
-    end if
-    if (associated(this%dipoleDerivs)) then
-      deallocate(this%dipoleDerivs)
-    end if
-    if (associated(this%polDerivs)) then
-      deallocate(this%polDerivs)
-    end if
+    if (associated(this%forceDerivs)) deallocate(this%forceDerivs)
+    if (associated(this%dipoleDerivs)) deallocate(this%dipoleDerivs)
+    if (associated(this%polDerivs)) deallocate(this%polDerivs)
 
   end subroutine TNumDerivs_final
 

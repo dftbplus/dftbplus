@@ -115,12 +115,38 @@ class DpdosTest(common.TestWithWorkDir):
         with self.assertRaises(ScriptError):
             dp_dos.main(cmdargs)
 
+    def test_auto_alignment(self):
+        '''Single spin channel, multiple enumerated k-points, auto-aligned.'''
+        infile = self.get_input('TiO2_band.out')
+        reffile = self.get_input('TiO2_auto-align.dat')
+        outfile = self.get_output('TiO2_auto-align.dat')
+        cmdargs = ['-A', infile, outfile]
+        dp_dos.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
+    def test_manual_alignment(self):
+        '''Single spin channel, multiple enum. k-points, manually-aligned.'''
+        infile = self.get_input('TiO2_band.out')
+        reffile = self.get_input('TiO2_manual-align.dat')
+        outfile = self.get_output('TiO2_manual-align.dat')
+        cmdargs = ['-a -1.0', infile, outfile]
+        dp_dos.main(cmdargs)
+        self.assertTrue(common.nxy_file_equals(outfile, reffile))
+
     def test_fail_invalid_infile(self):
         '''Failing due to invalid input file.'''
         tempname = common.get_temporary_filename(self.workroot)
         nonexisting_infile = os.path.join(self.workdir, tempname)
         outfile = self.get_output('TiO2.dat')
         cmdargs = [nonexisting_infile, outfile]
+        with self.assertRaises(ScriptError):
+            dp_dos.main(cmdargs)
+
+    def test_fail_incompatible_args(self):
+        '''Failing due to incompatible (optional) arguments.'''
+        infile = self.get_input('TiO2_band.out')
+        outprefix = self.get_output('TiO2')
+        cmdargs = ['-A', '-a 1.0', infile, outprefix]
         with self.assertRaises(ScriptError):
             dp_dos.main(cmdargs)
 

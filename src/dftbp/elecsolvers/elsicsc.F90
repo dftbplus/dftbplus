@@ -10,7 +10,7 @@
 !> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elecsolvers_elsicsc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_io_message, only : error
@@ -458,7 +458,7 @@ contains
         end if
 
         iVec = iCellVec(iAtom2)
-        phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+        phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
 
         tmpSqr(:nOrb2, :nOrb1) = reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])
 
@@ -732,7 +732,7 @@ contains
             & this%blockRow(iNeigh, iAtom1), tmpSqr(1:nOrb2,1:nOrb1))
 
         iVec = iCellVec(iAtom2)
-        phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+        phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
 
         ! Hermitian conjugate the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then

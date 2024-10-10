@@ -74,6 +74,9 @@ module dftbp_io_taggedoutput
     !> Transition dipole moments for excitations
     character(lenLabel) :: excDipole = 'exc_transdip'
 
+    !> Square of transition charges for target state
+    character(lenLabel) :: transQ = 'transq_sqr'
+
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
 
@@ -166,6 +169,9 @@ module dftbp_io_taggedoutput
 
     !> total internal energy
     character(lenLabel) :: egyTotal   = 'total_energy'
+
+    !> total internal energy for averaged state in REKS
+    character(lenLabel) :: egyAvg   = 'averaged_energy'
 
     !> total internal energy extrapolated to 0 K
     character(lenLabel) :: egy0Total   = 'extrapolated0_energy'

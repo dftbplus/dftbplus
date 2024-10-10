@@ -1,6 +1,6 @@
 # Needs the equilibrium geometry, at which the Hessian had been calculated
-Geometry = GenFormat { 
-  <<< geom.gen
+Geometry = GenFormat {
+  <<< geo.gen
 }
 
 RemoveTranslation = Yes

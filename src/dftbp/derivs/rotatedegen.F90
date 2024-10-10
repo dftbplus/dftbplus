@@ -9,7 +9,7 @@
 #:include 'error.fypp'
 
 !> Module containing routines to make linear combinations of orbitals for degenerate perturbation
-!> from a hermitian/symmetric matrix
+!! from a hermitian/symmetric matrix
 module dftbp_derivs_rotatedegen
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
@@ -47,7 +47,7 @@ module dftbp_derivs_rotatedegen
     !> To which group of states any particular one belongs
     integer, allocatable :: degenerateGroup(:)
 
-    !> numerical tolerance for deciding degeneracy
+    !> Numerical tolerance for deciding degeneracy
     real(dp) :: tolerance
 
     !> Sub-range of states if needed
@@ -166,7 +166,7 @@ contains
 #:for NAME, TYPE, LABEL in FLAVOURS
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
-  !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
+  !! orthogonal under the action of the matrix. This is the ${TYPE}$ case.
   subroutine generate${LABEL}$Unitary(self, env, matrixToProcess, ei, eigVecs, denseDesc,&
       & tTransformed, errStatus)
 
@@ -334,7 +334,7 @@ contains
 #:for NAME, TYPE, LABEL in FLAVOURS
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
-  !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
+  !! orthogonal under the action of the matrix. This is the ${TYPE}$ case.
   subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei, errStatus, tDegenerate)
 
     !> Instance
@@ -485,7 +485,7 @@ contains
 
 
   !> ${TYPE}$ case of orthogonalising a hermitian/symmetric matrix against degenerate perturbation
-  !> operations by applying a (stored) unitary transform
+  !! Operations by applying a (stored) unitary transform
   subroutine degenerate${LABEL}$Transform(self, matrixToProcess)
 
     !> Instance
@@ -648,7 +648,7 @@ contains
     !> First state
     integer, intent(in) :: ii
 
-    !> second state
+    !> Second state
     integer, intent(in) :: jj
 
     !> Resulting test
@@ -660,8 +660,8 @@ contains
 
 
   !> Find which groups of eigenvales are degenerate to within a tolerance
-  !> Note, similar process is used in Casida excited state calculations, so should spin off as its
-  !> own module at some point
+  !! Note, similar process is used in Casida excited state calculations, so should spin off as its
+  !! own module at some point
   subroutine degeneracyRanges(blockRange, nGrp, Ei, errStatus, tol, eiRange, grpMembership)
 
     !> Index array for lower and upper states in degenerate group
@@ -679,7 +679,7 @@ contains
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tol
 
-    !> sub range of eigenvalues to process
+    !> Sub range of eigenvalues to process
     integer, intent(in), optional :: eiRange(2)
 
     integer, intent(out), optional :: grpMembership(:)

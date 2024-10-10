@@ -130,6 +130,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DINSTANCE_SAFE_BUILD)
   endif()
 
+  if(WITH_UNIT_TESTS)
+    list(APPEND _fyppflags -DWITH_UNIT_TESTS)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
@@ -193,10 +197,6 @@ function (dftbp_ensure_config_consistency)
 
   if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))
     message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
-  endif()
-
-  if(WITH_ARPACK AND WITH_MPI)
-    message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
   if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)

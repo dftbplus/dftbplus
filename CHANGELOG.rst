@@ -11,10 +11,72 @@ Unreleased
 Added
 -----
 
+- Generalization of mixers to also handle complex density matrices
+
+- General range-separated, long-range corrected CAM hybrid functionals for
+  ground-state periodic systems (MPI-parallel Fock-type exchange and energy
+  gradient construction by neighbour-list and matrix-multiplication based
+  algorithms)
+
+- Generalization of non-periodic, ground-state LC-DFTB Hamiltonian to general
+  range-separated, long-range corrected CAM hybrid functionals
+  (MPI-parallelization of matrix-multiplication based Fock-type exchange
+  construction, MPI-parallel matrix-multiplication based energy gradient
+  evaluation, restart of matrix-multiplication based hybrid-DFTB calculations)
+
+- Electronic constraints on arbitrary regions, targeting the electronic ground
+  state by determining a self-consistent constraint potential (restricted to
+  Mulliken populations at the moment)
+
+- Density Matrix construction on GPU using MAGMA-BLAS routines
+
+- More control over output of data and band structures during MD
+  calculations
+
+Fixed
+-----
+
+- SK-file parser extra-/spline-tag sequence dependent
+
+- Incorrect excited gradients for spin-polarized long-range corrected
+  linear-response TD-DFTB calculations.
+
+- Temporarily remove free energy for Delta-DFTB calculations, as this
+  is not formally derived in the general case.
+
+- DeltaDFTB purified forces used correctly.
+
+24.1 (2024-02-12)
+=================
+
+Added
+-----
+
+- CI optimizer to locate conical intersections
+
+
+Fixed
+-----
+
+- Memory leak for MPI enabled code with many geometric steps.
+
+- API call to setExternalCharges was not marking calculation to be re-evaluated.
+
+- Calls to setExternalCharges were failing if number of external charges changes.
+
+
+23.1 (2023-07-05)
+=================
+
+Added
+-----
+
 - Non-adiabatic coupling vectors for linear response calculations
 
 - Hellmann-Feynman testing for the xTB hamiltonian dipoles
 
+- Born charges and derivatives can now be calculated for a subset of the desired
+  atoms (similar to the Hessian).
 
 Changed
 -------
@@ -29,9 +91,6 @@ Fixed
 
 - Tool dp_dos produced obviously incorrect results for Pauli-Hamiltonians (e.g.
   when using spin-orbit coupling). Other Hamiltonians were not affected.
-
-- Born charges and derivatives can now be calculated for a subset of the desired
-  atoms (similar to the Hessian).
 
 
 22.2 (2022-12-20)

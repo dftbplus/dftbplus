@@ -22,6 +22,15 @@ module dftbp_dftb_scc
   use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
+  
+#:if WITH_SCALAPACK
+
+  use mpi
+  use dftbp_extlibs_scalapackfx, only : MB_, NB_, CSRC_, RSRC_, scalafx_indxl2g
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+
+#:endif
+  
   implicit none
 
   private
@@ -151,6 +160,13 @@ module dftbp_dftb_scc
 
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
+
+  #:if WITH_SCALAPACK
+    
+    !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+    procedure :: getAtomicGammaMatrixBlacs
+
+  #:endif 
 
     !> Routine for returning lower triangle of atomic resolved gamma for specified U values
     procedure :: getAtomicGammaMatU
@@ -488,6 +504,12 @@ contains
     !> Spatial extension of external charge distribution
     real(dp), intent(in), optional :: blurWidths(:)
 
+    if ( allocated(this%extCharges) ) then
+       if ( this%extCharges%getNumCharges() /= size(chargeQs) ) then
+          deallocate(this%extCharges)
+       end if
+    end if
+
     if (.not. allocated(this%extCharges)) then
       allocate(this%extCharges)
       call TExtCharges_init(this%extCharges, this%nAtom, size(chargeQs), this%tPeriodic)
@@ -526,20 +548,71 @@ contains
     !> index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
+    integer :: iam, nprocs
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
+    
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
+    
   #:endif
-
     gammamat(:,:) = this%coulomb%invRMat
     call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
   end subroutine getAtomicGammaMatrix
 
+#:if WITH_SCALAPACK
 
+  !> Returns a local copy of the lower triange of the whole gamma matrix to each processor
+  subroutine getAtomicGammaMatrixBlacs(this, gammaMat, iNeighbour, img2CentCell, env)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atom resolved gamma
+    real(dp), intent(out) :: gammaMat(:,:)
+
+    !> Neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Index array between images and central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
+
+    gammaMat(:,:) = 0.0_dp
+    if (env%blacs%atomGrid%iproc /= -1) then
+      ! holds part of the atom grid
+      do jLoc = 1, size(this%coulomb%invRMat, dim=2)
+        jj = scalafx_indxl2g(jLoc, this%coulomb%descInvRMat_(NB_), env%blacs%atomGrid%mycol,&
+            & this%coulomb%descInvRMat_(CSRC_), env%blacs%atomGrid%ncol)
+        do iLoc = 1, size(this%coulomb%invRMat, dim=1)
+          ii = scalafx_indxl2g(iLoc, this%coulomb%descInvRMat_(MB_), env%blacs%atomGrid%myrow,&
+              & this%coulomb%descInvRMat_(RSRC_), env%blacs%atomGrid%nrow)
+          if (ii >= jj) then
+            gammaMat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
+            call this%shortGamma%addAtomicMatrix(gammaMat, iNeighbour, img2CentCell, ii, jj)
+          end if
+        end do
+      end do
+    end if
+    ! Assemble and distribute to all processors in the global grid
+    call mpifx_allreduceip(env%mpi%globalComm, gammaMat, MPI_SUM)
+
+  end subroutine getAtomicGammaMatrixBlacs
+
+#:endif
+  
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
   !>
   !> Works only, if SCC-instance uses Gamma-electrostatics.

@@ -34,7 +34,8 @@ option(WITH_TBLITE "Whether xTB support should be included via tblite." FALSE)
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
-# Works only with non-MPI (serial) build, needed for Casida linear response
+# For MPI-parallel builds, the MPI-parallel version of ARPACK (PARPACK) must also be present if
+# this options is turned on.
 
 option(WITH_SDFTD3 "Whether the s-dftd3 library should be included" FALSE)
 
@@ -86,11 +87,25 @@ set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
+option(TEST_WITH_VALGRIND "Whether valgrind should be invoked when testing binaries" FALSE)
+# Turn this on, then VALGRIND should be invoked when testing binaries. Note, that this is currently
+# only active when testing serial (non-mpi) binaries. You also should consider setting OMP-threads
+# to 1 (see above) to avoid false positives triggered by the threading library.
+
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
 if(WITH_MPI)
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} mpiexec -n \${TEST_MPI_PROCS}"
     CACHE STRING "How to run the tests")
+elseif(TEST_WITH_VALGRIND)
+  set(VALGRIND_OPTIONS
+    "--exit-on-first-error=yes --error-exitcode=1 --leak-check=full --show-leak-kinds=definite,possible --errors-for-leak-kinds=definite,possible"
+    CACHE STRING "Options to use for the valgrind wrapper"
+  )
+  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} \${VALGRIND} \${VALGRIND_OPTIONS}" CACHE STRING
+    "How to run the tests")
+  set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} \${VALGRIND} \${VALGRIND_OPTIONS}" CACHE STRING
+    "How to run the modes code for tests")
 else()
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the tests")

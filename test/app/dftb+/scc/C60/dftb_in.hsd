@@ -96,4 +96,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

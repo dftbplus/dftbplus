@@ -5,6 +5,9 @@
 #! If under travis CI, avoid longer tests
 #:set LONG_TEST = not defined('TRAVIS')
 
-C24O6H8                  #? MPI_PROCS <= 1
-C24O6H8_prefix           #? MPI_PROCS <= 1
+C6H6_eigvec              #? MPI_PROCS <= 1
 C6H6_ir                  #? MPI_PROCS <= 1
+C24O6H8                  #? MPI_PROCS <= 1
+C24O6H8_atoms            #? MPI_PROCS <= 1
+C24O6H8_extfile          #? MPI_PROCS <= 1
+C24O6H8_select           #? MPI_PROCS <= 1

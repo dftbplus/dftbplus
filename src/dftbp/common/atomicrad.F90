@@ -57,7 +57,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     radius = getAtomicRad(symbolToNumber(symbol))
@@ -71,7 +71,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     if (number > 0 .and. number <= size(atomicRadii, dim=1)) then

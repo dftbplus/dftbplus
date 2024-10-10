@@ -14,19 +14,19 @@ module dftbp_common_accuracy
 
   public
 
-  !> precision of the real data type
+  !> Precision of the real data type
   integer, parameter :: dp = kind(1.0d0)
 
-  !> precision of the complex data type
+  !> Precision of the complex data type
   integer, parameter :: cp = dp
 
-  !> length of a short string
+  !> Length of a short string
   integer, parameter :: sc = 10
 
-  !> length of a medium length string
+  !> Length of a medium length string
   integer, parameter :: mc = 50
 
-  !> length of a long string
+  !> Length of a long string
   integer, parameter :: lc = 1024
 
 
@@ -48,14 +48,14 @@ module dftbp_common_accuracy
 
 
   !> Desired tolerance for number of total electrons when finding electron chemical potential The
-  !> Fermi level is searched to give the number of electrons as accurate as elecTol. If bisection
-  !> ends and difference between nr. of electrons calculated/theoretical is bigger than elecTolMax,
-  !> the program stops.
+  !! Fermi level is searched to give the number of electrons as accurate as elecTol. If bisection
+  !! ends and difference between nr. of electrons calculated/theoretical is bigger than elecTolMax,
+  !! the program stops.
   real(dp), parameter :: elecTol = 1.0e-15_dp
 
 
-  !> Maximal allowed tolerance for number of total electrons when finding Ef
-  !> or when reading in charges from external file
+  !> Maximal allowed tolerance for number of total electrons when finding Ef or when reading in
+  !! charges from external file
   real(dp), parameter :: elecTolMax = 1.0e-7_dp
 
 
@@ -64,7 +64,7 @@ module dftbp_common_accuracy
 
 
   !> Tolerance for atomic distances. Atoms closer than that are regarded to sit on the same
-  !> positions. (Dummy atoms)
+  !! positions. (Dummy atoms)
   real(dp), parameter :: tolSameDist = 1.0e-5_dp
 
 
@@ -73,9 +73,7 @@ module dftbp_common_accuracy
 
 
   !> Minimal distance between neighbours. (Neighbour distances smaller than that
-  !> are meaningless because the parametrisation usually do not cover this
-
-  !> region.)
+  !! are meaningless because the parametrisation usually do not cover this region.)
   real(dp), parameter :: minNeighDist = 1.0e-2_dp
 
 
@@ -116,7 +114,7 @@ module dftbp_common_accuracy
 
 
   !> Exponential function treated as infinity with arguments higher than this
-  !> (=-int(log(epsilon(1.0_8)))).
+  !! (=-int(log(epsilon(1.0_8)))).
   real(dp), parameter :: mExpArg = 36.043653389117154_dp
 
 

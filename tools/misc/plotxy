@@ -10,8 +10,56 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import matplotlib.pylab as plt
+import re
 
-parser = argparse.ArgumentParser(description='Plot 2D data as ((N)X)Y plot')
+
+def check_input(parser, args):
+    """Checks the compatibility of the arguments xticks and xticklabels"""
+    if args.xticklabels is not None:
+        if args.xticks is None:
+            parser.error("To use ’--xticklabels' you must also use ’--xticks’!")
+        elif (len_xticks := len(args.xticks)) != (len_xticklabels := len(args.xticklabels)):
+            parser.error(f"The number of xticks ({len_xticks}) must equal "
+                         f"the number of xticklabels ({len_xticklabels})!")
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser class for modifying the 'convert_arg_line_to_args' method"""
+    QUOTE_PATTERN = re.compile(r"(['\"])(.*?)\1")
+    SPACE_PATTERN = re.compile(r"[ \t]+")
+
+    def convert_arg_line_to_args(self, cmdline):
+        """Converts the arguments in the specified argument file line by line
+        into arguments parsed by argparse"""
+        cmdline = cmdline.strip()
+        args = []
+        lastend = 0
+        for match in self.QUOTE_PATTERN.finditer(cmdline.strip()):
+            start, end = match.span()
+            unquoted = match.group(2)
+            newargs = self.SPACE_PATTERN.split(cmdline[lastend:start])
+            if firstarg := newargs[0]:
+                prefix = args.pop() if args else ""
+                args.append(prefix + firstarg)
+            args += newargs[1:-1]
+            if len(newargs) == 1:
+                prefix = args.pop() if args else ""
+                args.append(prefix + unquoted)
+            elif lastarg := newargs[-1]:
+                args.append(lastarg + unquoted)
+            else:
+                args.append(unquoted)
+            lastend = end
+        newargs = self.SPACE_PATTERN.split(cmdline[lastend:])
+        if firstarg := newargs[0]:
+            prefix = args.pop() if args else ""
+            args.append(prefix + firstarg)
+        args += newargs[1:]
+        return args
+
+
+parser = ArgumentParser(description='Plot 2D data as ((N)X)Y plot',
+                        fromfile_prefix_chars='@')
 parser.add_argument('--version', action='version', version='1.1')
 parser.add_argument('-L', '--no-legend', action='store_false', default=True,
                     dest='legend', help='omit legends')
@@ -54,22 +102,31 @@ parser.add_argument('--logscale', action='store',
                     '(default: none)')
 parser.add_argument('--zero-line', action='store_true', default=False,
                     dest='zeroline', help='draw extra line for y=0')
+parser.add_argument('--xticks', dest='xticks', metavar='XTICKS',
+                    nargs='+', default=None, type=float,
+                    help='ticks on x axis')
+parser.add_argument('--xticklabels', dest='xticklabels', metavar='XTICKLABELS',
+                    nargs='+', default=None,
+                    help='label for ticks on x axis')
 
 args = parser.parse_args()
+
+check_input(parser, args)
 
 axis = plt.gca()
 
 if args.logscale == 'none':
-    plot = plt.plot
+    plot = axis.plot
 elif args.logscale == 'x':
-    plot = plt.semilogx
+    plot = axis.semilogx
 elif args.logscale == 'y':
-    plot = plt.semilogy
+    plot = axis.semilogy
 else:
-    plot = plt.loglog
+    plot = axis.loglog
 
 if not args.colors:
-    axis.set_color_cycle([ (0.0, 0.0, 0.0) ])
+    axis.set_prop_cycle(color=[(0.0, 0.0, 0.0)])
+label_index = 0
 for datafile in args.datafile:
     data = np.loadtxt(datafile, skiprows=args.skiprows)
     if len(data.shape) == 1:
@@ -90,8 +147,9 @@ for datafile in args.datafile:
     for ii in range(yy.shape[1]):
         if ii not in ycols:
             continue
-        if args.labels is not None and len(args.labels) > ii:
-            label = args.labels[ii]
+        if args.labels is not None and len(args.labels) > label_index:
+            label = args.labels[label_index]
+            label_index += 1
         else:
             label = '{}:{:d}'.format(datafile, colshift + ii)
         plot(xx, yy[:,ii], label=label)
@@ -100,18 +158,22 @@ if args.zeroline:
     plot([ min(xx), max(xx) ], [ 0.0, 0.0 ], 'k--')
 
 if args.legend:
-    plt.legend()
+    axis.legend()
 if args.grid:
-    plt.grid()
+    axis.grid()
 if args.xlabel:
-    plt.xlabel(args.xlabel)
+    axis.set_xlabel(args.xlabel)
 if args.ylabel:
-    plt.ylabel(args.ylabel)
+    axis.set_ylabel(args.ylabel)
 if args.title:
-    plt.title(args.title)
+    axis.set_title(args.title)
 if args.xlim:
-    plt.xlim(args.xlim[0], args.xlim[1])
+    axis.set_xlim(args.xlim[0], args.xlim[1])
 if args.ylim:
-    plt.ylim(args.ylim[0], args.ylim[1])
+    axis.set_ylim(args.ylim[0], args.ylim[1])
+if args.xticks:
+    axis.set_xticks(args.xticks)
+if args.xticklabels:
+    axis.set_xticklabels(args.xticklabels)
 
 plt.show()

@@ -32,7 +32,7 @@ Fortran compiler
 
 The following Fortran compilers are known to build DFTB+ correctly:
 
-* GNU >= 9
+* GNU >= 10
 
 * Intel >= 2021
 
@@ -46,7 +46,6 @@ The following Fortran compilers are known to fail to build DFTB+:
 
 * NVIDIA (internal compiler error & unsupported OpenMP 4.0 constructs, last
   tested version: 22.3)
-
 
 Older versions of the compilers above are likely to fail due to missing Fortran
 features and/or compiler bugs. Compilers by other vendors may work, but have not
@@ -68,7 +67,9 @@ Additionally there are optional requirements for some DFTB+ features:
   support of 2.5.0). If ELSI was compiled with PEXSI included, you
   will also need a C++ compiler.
 
-* The ARPACK-ng library if using the excited state DFTB functionality.
+* The ARPACK-ng library if using the excited state DFTB functionality. For
+  MPI-parallel builds, the parallel version of ARPACK-ng (containing also
+  PARPACK) is needed.
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU
   accelerated computation (note that within ELSI, the ELPA library
@@ -117,31 +118,38 @@ following architectures:
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
 +===============+======================+=============+==================+=====+
-| x86_64 /      | GNU Fortran/C 9.2    | OpenMPI 4.0 | OpenBlas 0.3.7,  |     |
-| Linux         |                      |             | ScaLAPACK 2.1    |     |
+| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, |     |
+| Linux         |                      |             | ScaLAPACK 2.1,   |     |
 |               |                      |             | ELSI 2.6.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | GNU Fortran/C 11.2   | OpenMPI 4.1 | OpenBlas 0.3.18, |     |
-| Linux         |                      |             | ScaLAPACK 2.1    |     |
+| Linux         |                      |             | ScaLAPACK 2.1,   |     |
 |               |                      |             | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2021         |     |
-| Linux         | 2021.5               | 2021.5      | ELSI 2.8.2       |     |
+| x86_64 /      | GNU Fortran/C 12.2   | OpenMPI 4.1 | OpenBlas 0.3.21, |     |
+| Linux         |                      |             | ScaLAPACK 2.2,   |     |
+|               |                      |             | ELSI 2.9.1       |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2022         |     |
+| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2021,        |     |
+| Linux         | 2021.1               | 2021.1      | ELSI 2.8.2       |     |
++---------------+----------------------+-------------+------------------+-----+
+| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2022,        |     |
 | Linux         | 2022.1               | 2022.1      | ELSI 2.8.2       |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | NAG Fortran 7.1      | MPICH 3.4   | OpenBlas 0.3.18  | [1] |
 | Linux         | GNU C 11.2           |             | ScaLAPACK 2.1    |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 11.3   | --          | OpenBlas 0.3.20  | [2] |
+| x86_64 /      | GNU Fortran/C 12.2   | MPICH 4.1.1 | OpenBlas 0.3.23  | [2] |
+| OS X          |                      |             |                  |     |
++---------------+----------------------+-------------+------------------+-----+
+| x86_64 /      | GNU Fortran/C 12.2   | OpenMPI 4.1 | OpenBlas 0.3.23  | [2] |
 | OS X          |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
 Notes:
 
 [1] Only Debug build is tested regulary with OpenMP turned off and without ELSI.
-[2] Only partial testing of the serial version.
+[2] Only partial testing
 
 
 Obtaining the source
@@ -176,6 +184,7 @@ include the Slater-Koster (slako) data for testing the compiled code.
 
 For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
+
 
 Slater-Koster file locations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -241,8 +250,8 @@ In order to build DFTB+ carry out the following steps:
 
     -DLAPACK_LIBRARY_DIR=/opt/custom-openblas
 
-  Setting those variables is not normally necessary, if the right search path is
-  already present in the ``CMAKE_PREFIX_PATH`` environment variable.
+  Setting those variables is normally not necessary, provided the right search
+  path is already present in the ``CMAKE_PREFIX_PATH`` environment variable.
 
 
 * If the configuration was successful, start the build by ::
@@ -262,18 +271,19 @@ In order to build DFTB+ carry out the following steps:
   better when using OpenMP parallelism only and an optimised thread aware BLAS
   library is used.
 
-Cmake options for additional functionality
+
+CMake options for additional functionality
 ------------------------------------------
 
-A subset of the cmake comand line options are listed below (for full
-details, check the `config.cmake` file in the top repository
-directory).
+A subset of the cmake comand line options are listed below (for full details,
+check the `config.cmake` file in the top repository directory).
+
 
 Enabling optional code functionality
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 +-----------------+---------+------------------------------------------------+
-|cmake option     |Default  |Notes                                           |
+|CMake option     |Default  |Notes                                           |
 +=================+=========+================================================+
 |-DWITH_ARPACK    |N        |Required for some types of excited state        |
 |                 |         |calculations (the Stratmann solver does not     |
@@ -288,7 +298,7 @@ Enabling optional code functionality
 |                 |         |be available for MD calculations.               |
 +-----------------+---------+------------------------------------------------+
 |-DWITH_POISSON   |N        |Required for Poisson solver (also enabled for   |
-|                 |         |transport builds).                              | 
+|                 |         |transport builds).                              |
 +-----------------+---------+------------------------------------------------+
 |-DWITH_SDFTD3    |N        |Required for 'simple' DFT-D3 dispersion to be   |
 |                 |         |enabled.                                        |
@@ -302,11 +312,12 @@ Enabling optional code functionality
 |                 |         |enabled.                                        |
 +-----------------+---------+------------------------------------------------+
 
+
 Parallelism options
 ^^^^^^^^^^^^^^^^^^^
 
 +-----------------+--------+--------------------------------------------------+
-|Cmake option     | Default| Notes                                            |
+|CMake option     | Default| Notes                                            |
 +=================+========+==================================================+
 |-DWITH_OMP       | Y      |OpenMP parallelism enabled in the build.          |
 +-----------------+--------+--------------------------------------------------+
@@ -318,6 +329,7 @@ Parallelism options
 |                 |        |will use GPU accelerated ELPA (if provided) or the|
 |                 |        |MAGMA library (if provided) for GPU acceleration. |
 +-----------------+--------+--------------------------------------------------+
+
 
 Testing DFTB+
 =============
@@ -359,15 +371,15 @@ Testing DFTB+
     cmake -B _build -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 .
     pushd _build; ctest; popd
 
-    
-Testing related cmake options
+
+Testing related CMake options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some of the command line options for cmake to modify testing behaviour
-before building are below.
+Some of the command line options for CMake to modify testing behaviour before
+building are below.
 
 +------------------------+----------------------------------------------------+
-|Option                  |Notes                                               |
+|CMake option            |Notes                                               |
 +========================+====================================================+
 |-DTEST_MPI_PROCS        |Number of MPI processes used if testing an MPI build|
 |                        |with ctest.                                         |
@@ -404,29 +416,32 @@ the ``WITH_API`` option to ``TRUE`` in the CMake config file
 library, the C-include file and the Fortran module files, which are necessary
 for linking DFTB+ with C and Fortran programs.
 
-DFTB+ cmake library options
+
+DFTB+ CMake library options
 ---------------------------
 
-See `config.cmake` for details, but the main configuration options for
-building are listed below.
+See `config.cmake` for details, but the main configuration options for building
+are listed below.
 
 +-------------------------+---------+-----------------------------------------+
-|cmake option             |Default  |Notes                                    |
+|CMake option             |Default  |Notes                                    |
 +=========================+=========+=========================================+
-|-DBUILD_SHARED_LIBS      |N        |Build libDftbplus and other components as|
+|-DBUILD_SHARED_LIBS      |N        |Build libdftbplus and other components as|
 |                         |         |shared libraries.                        |
 +-------------------------+---------+-----------------------------------------+
 |-DENABLE_DYNAMIC_LOADING |N        |Use shared libraries externally (where   |
-|                         |         |possible) for libDftbPlus.               |
+|                         |         |possible) for libdftbplus.               |
 +-------------------------+---------+-----------------------------------------+
-|-DINSTANCE_SAFE_BUILD    |N        |Compile libDftbplus as a thread safe     |
-|                         |         |library.                                 |
+|-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe  |
+|                         |         |library (the build stops, if a           |
+|                         |         |non-instance-safe component had been     |
+|                         |         |selected)                                |
 +-------------------------+---------+-----------------------------------------+
-|-DWITH_API               |N        |Build the API bindings to use libDftbplus|
+|-DWITH_API               |N        |Build the API bindings to use libdftbplus|
 |                         |         |externally.                              |
 +-------------------------+---------+-----------------------------------------+
 |-DWITH_PYTHON            |N        |Build the Python3 bindings for           |
-|                         |         |libDftbplus. Note that this should also  |
+|                         |         |libdftbplus. Note that this should also  |
 |                         |         |be built for shared libraries.           |
 +-------------------------+---------+-----------------------------------------+
 
@@ -454,10 +469,12 @@ create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
 the DFTB+ source to find those libraries (and to define the corresponding
 targets) or create your own, provided they define the appropriate CMake
-targets. The ELSI library offers a CMake export file providing the
-``elsi::elsi`` target. Make sure, that CMake can find this export file if the
-DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
+targets. The  arpack-ng and ELSI libraries offer CMake export files providing the
+``ARPACK::ARPACK`` and ``elsi::elsi`` targets, respectively. Make sure, that CMake can find the relevant export file if the
+DFTB+ library was compiled with ELSI or ARPACK required (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
+Note: you may need to install ELSI (not just point the prefix path to its build system) to generate
+this file correctly.
 
 
 Linking the library in non-CMake based builds
@@ -479,12 +496,14 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure
-that pkg-config can also find the respective pkconfig files for these
-packages, as those libraries are declared as dependencies in the DFTB+
-pkg-config file. For external dependencies without pkg-config files
-(e.g. mbd, negf) the options for linking those libraries can not be
-queried via pkg-config and must be added manually.
+If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that pkg-config can also find the
+respective pkconfig files for these packages. If you enable support for these components, their
+libraries are declared as dependencies in the DFTB+ pkg-config file. Note, if you compile these
+libraries themselves, you may have to follow their install processes to generate suitable
+pkg-config files in their specified install location(s).
+
+For external dependencies without pkg-config files (e.g. mbd, negf), the options for linking those
+libraries can not be queried via pkg-config, and they must be added manually.
 
 
 Generating developer documentation
@@ -515,14 +534,15 @@ stage. If your config file contains toolchain dependent options, consider
 defining the ``DFTBPPLUS_TOOLCHAIN`` environment variable and query it in your
 config file.
 
-Relevant cmake options
+
+Relevant CMake options
 ----------------------
 
 +-------------------+--------------+------------------------------------------+
-|cmake option       |Default       |Notes                                     |
+|CMake option       |Default       |Notes                                     |
 +===================+==============+==========================================+
 |-DLCOV_REPORT      |N             |Generate coverage reports if using        |
-|                   |              |gfortran and gcov is available.           |
+|                   |              |gfortran and lcov is available.           |
 +-------------------+--------------+------------------------------------------+
 |-CMAKE_BUILD_TYPE  |RelWithDebInfo|Can generate a binary with extra checking |
 |                   |              |or profiling enabled.                     |

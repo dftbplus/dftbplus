@@ -225,6 +225,7 @@ int main()
 
   /* Set up the calculator by processing the input tree */
   dftbp_process_input(&calculator, &input);
+  dftbp_input_final(&input);
 
   /* Register the callback functions calculating population dependent external potential */
   dftbp_register_ext_pot_generator(&calculator, &cont, get_external_potential,

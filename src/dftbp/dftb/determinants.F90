@@ -38,6 +38,10 @@ module dftbp_dftb_determinants
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
 
 
+  !> Names of the determinants, matching TDeterminantsEnum
+  character(len=2), parameter :: detNames(0:2) = ['s0', 't1', 's1']
+
+
   !> Control type for Delta DFTB / TI-DFTB
   type TDftbDeterminants
 
@@ -80,6 +84,7 @@ module dftbp_dftb_determinants
     procedure :: nDeterminant
     procedure :: whichDeterminant
     procedure :: detFilling
+    procedure :: determinantName
 
   end type TDftbDeterminants
 
@@ -117,6 +122,26 @@ contains
     det = this%determinants(iDet)
 
   end function whichDeterminant
+
+
+  !> Converts determinant number into what it is called
+  function determinantName(this, iDet) result(det)
+
+    !> Instance
+    class(TDftbDeterminants), intent(in) :: this
+
+    !> Number of current determinant
+    integer, intent(in) :: iDet
+
+    character(2) :: det
+
+    if (iDet > size(this%determinants)) then
+      call error("Internal error: invalid determinant")
+    endif
+
+    det = detNames(this%determinants(iDet))
+
+  end function determinantName
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces

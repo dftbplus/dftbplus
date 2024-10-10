@@ -1,0 +1,57 @@
+Geometry = GenFormat {
+  <<< Acene_Primitive_Cell.gen
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  MaxSccIterations = 100
+  SccTolerance = 1e-08
+
+  Filling = Fermi {
+    Temperature [K] = 0.0
+  }
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Hybrid = LC {
+    CoulombMatrix = Truncated {}
+    Screening = NeighbourBased {
+      Threshold = 1e-100
+    }
+  }
+
+  KPointsAndWeights = SupercellFolding {
+     1   0   0
+     0   1   0
+     0   0   9
+    0.0 0.0 0.0
+  }
+
+}
+
+Analysis {
+  PrintForces = No
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}
+
+Parallel {
+  UseOmpThreads = Yes
+  Groups = 2
+}

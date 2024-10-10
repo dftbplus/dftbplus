@@ -13,8 +13,13 @@
 module dftbp_dftb_sparse2dense
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, imag
-  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_dftb_dense, only : getDescriptor
+  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS
+  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
+  use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_math_angmomentum, only : rotateZ
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
@@ -25,10 +30,10 @@ module dftbp_dftb_sparse2dense
 
   private
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ
-  public :: blockSymmetrizeHS, blockHermitianHS, symmetrizeHS, hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
+  public :: getUnpackedOverlapPrime_real, getUnpackedOverlapPrime_kpts
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -90,36 +95,15 @@ module dftbp_dftb_sparse2dense
   end interface packErho
 
 
-  !> Symmetrize the square matrix except the on-site blocks
-  interface blockSymmetrizeHS
-    module procedure blockSymmetrizeHS_real
-    module procedure blockSymmetrizeHS_cmplx
-  end interface blockSymmetrizeHS
-
-
-  !> Hermitian the square matrix except the on-site blocks
-  interface blockHermitianHS
-    module procedure blockSymmetrizeHS_real
-    module procedure blockHermitianHS_cmplx
-  end interface blockHermitianHS
-
-
-  !> Symmetrize the square matrix including the on-site blocks
-  interface symmetrizeHS
-    module procedure symmetrizeHS_real
-  end interface symmetrizeHS
-
-
 contains
 
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
-  !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
-  !> blockSymmetrizeHS subroutine.
+  !> filled in the lower triangle part of the matrix.
   subroutine unpackHS_cmplx_kpts(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iSparseStart, img2CentCell)
 
     !> Square form matrix on exit.
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
@@ -137,7 +121,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -166,7 +150,7 @@ contains
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
@@ -182,7 +166,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
@@ -194,20 +178,19 @@ contains
 
 
   !> Unpacks sparse matrix to square form (real version for Gamma point)
-  !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !!
+  !! Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHS_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell)
 
     !> Square form matrix on exit.
-    real(dp), intent(out) :: square(:, :)
+    real(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
 
     !> Neighbour list for each atom (First index from 0!)
-    integer, intent(in) :: iNeighbour(0:, :)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Nr. of neighbours for each atom (incl. itself).
     integer, intent(in) :: nNeighbourSK(:)
@@ -216,7 +199,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(0:, :)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -235,7 +218,7 @@ contains
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-    square(:, :) = 0.0_dp
+    square(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
       ii = iAtomStart(iAtom1)
@@ -256,13 +239,12 @@ contains
 
 
   !> Unpacks sparse matrix to square form (complex version) for helical geometries. Note the non
-  !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
-  !> completely, apply the blockSymmetrizeHS subroutine.
+  !> on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHSHelical_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
       & cellVec, iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
 
     !> Square form matrix on exit.
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
@@ -280,7 +262,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -307,7 +289,7 @@ contains
     integer :: lShellVals(orb%mShell)
 
     nAtom = size(iNeighbour, dim=2)
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
@@ -324,7 +306,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
+          phase = exp(imag * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
           iOldVec = iVec
         end if
         tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2, nOrb1/))
@@ -346,13 +328,12 @@ contains
 
   !> Unpacks sparse matrix to square form (real version for Gamma point) for helical geometry
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, orb, species, coord)
 
     !> Square form matrix on exit.
-    real(dp), intent(out) :: square(:, :)
+    real(dp), intent(out) :: square(:,:)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
@@ -386,7 +367,7 @@ contains
     integer :: lShellVals(orb%mShell), iSh, iSp
 
     nAtom = size(iNeighbour, dim=2)
-    square(:, :) = 0.0_dp
+    square(:,:) = 0.0_dp
 
     lShellVals(:) = 0
     rotZ(:,:) = 0.0_dp
@@ -424,10 +405,10 @@ contains
     complex(dp), intent(out) :: square(:, :, :)
 
     !> Sparse matrix
-    real(dp), intent(in) :: origBra(:, :)
+    real(dp), intent(in) :: origBra(:,:)
 
     !> Sparse matrix
-    real(dp), intent(in) :: origKet(:, :)
+    real(dp), intent(in) :: origKet(:,:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
@@ -442,7 +423,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -490,7 +471,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(:, jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
@@ -513,10 +494,10 @@ contains
     real(dp), intent(out) :: square(:, :, :)
 
     !> Sparse matrix
-    real(dp), intent(in) :: origBra(:, :)
+    real(dp), intent(in) :: origBra(:,:)
 
     !> Sparse matrix
-    real(dp), intent(in) :: origKet(:, :)
+    real(dp), intent(in) :: origKet(:,:)
 
     !> Neighbour list for each atom (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -576,15 +557,14 @@ contains
 
   !> Unpacks sparse matrices to square form (2 component version for k-points)
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackHPauli(ham, kPoint, iNeighbour, nNeighbourSK, iSparseStart, iAtomStart,&
       & img2CentCell, iCellVec, cellVec, HSqrCplx, iHam)
 
     !> sparse hamiltonian
-    real(dp), intent(in) :: ham(:, :)
+    real(dp), intent(in) :: ham(:,:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -594,7 +574,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(:, :)
+    integer, intent(in) :: iSparseStart(:,:)
 
     !> Atom offset for the square Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -606,15 +586,15 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> vectors to periodic unit cells
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> dense hamiltonian matrix
-    complex(dp), intent(out) :: HSqrCplx(:, :)
+    complex(dp), intent(out) :: HSqrCplx(:,:)
 
     !> imaginary part of sparse hamiltonian
-    real(dp), intent(in), optional :: iHam(:, :)
+    real(dp), intent(in), optional :: iHam(:,:)
 
-    complex(dp), allocatable :: work(:, :)
+    complex(dp), allocatable :: work(:,:)
     integer :: nOrb
     integer :: ii
 
@@ -622,7 +602,7 @@ contains
 
     ! for the moment, but will use S as workspace in the future
     allocate(work(nOrb, nOrb))
-    HSqrCplx(:, :) = 0.0_dp
+    HSqrCplx(:,:) = 0.0_dp
 
     ! 1 0 charge part
     ! 0 1
@@ -634,10 +614,10 @@ contains
       call unpackHS(work, iHam(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
-          & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
+          & + 0.5_dp*imag*work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) =&
           & HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
-          & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
+          & + 0.5_dp*imag*work(1:nOrb, 1:nOrb)
     end if
 
     ! 0 1 x part
@@ -657,7 +637,7 @@ contains
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
       end do
       HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
-          & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & + 0.5_dp * imag * work(1:nOrb, 1:nOrb)
     end if
 
     ! 0 -i y part
@@ -695,9 +675,9 @@ contains
       call unpackHS(work, iHam(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
-          & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & + 0.5_dp * imag * work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
-          & - 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
+          & - 0.5_dp * imag * work(1:nOrb, 1:nOrb)
     end if
 
   end subroutine unpackHPauli
@@ -705,15 +685,14 @@ contains
 
   !> Unpacks sparse overlap matrices to square form (2 component version for k-points)
   !>
-  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
-  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix.
   subroutine unpackSPauli(over, kPoint, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, iCellVec, cellVec, SSqrCplx)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for each atom (First index from 0!)
@@ -726,7 +705,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(:, :)
+    integer, intent(in) :: iSparseStart(:,:)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -735,17 +714,17 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> vectors to periodic unit cells
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> dense overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:, :)
+    complex(dp), intent(out) :: SSqrCplx(:,:)
 
-    complex(dp), allocatable :: work(:, :)
+    complex(dp), allocatable :: work(:,:)
     integer :: nOrb
 
     nOrb = size(SSqrCplx, dim=1) / 2
     allocate(work(nOrb, nOrb))
-    SSqrCplx(:, :) = 0.0_dp
+    SSqrCplx(:,:) = 0.0_dp
     call unpackHS(work, over, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
         & iSparseStart, img2CentCell)
     SSqrCplx(1:nOrb, 1:nOrb) = work(1:nOrb, 1:nOrb)
@@ -762,7 +741,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
     real(dp), intent(in) :: kPoint(:)
@@ -771,7 +750,7 @@ contains
     real(dp), intent(in) :: kweight
 
     !> Neighbour list for the atoms (First index from 0!)
-    integer, intent(in) :: iNeighbour(0:, :)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Nr. of neighbours for the atoms.
     integer, intent(in) :: nNeighbourSK(:)
@@ -783,13 +762,13 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iSparseStart(0:, :)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -835,7 +814,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
@@ -864,7 +843,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    real(dp), intent(in) :: square(:, :)
+    real(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -940,7 +919,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
     real(dp), intent(in) :: kPoint(:)
@@ -961,7 +940,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
@@ -1010,7 +989,7 @@ contains
         theta = mod(theta,2.0_dp*pi)
         call rotateZ(rotZ,lShellVals(:iSh), theta)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
@@ -1039,7 +1018,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    real(dp), intent(in) :: square(:, :)
+    real(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -1109,10 +1088,10 @@ contains
       & iSparseStart, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -1219,10 +1198,10 @@ contains
       & iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> location in the BZ in units of 2pi
     real(dp), intent(in) :: kPoint(:)
@@ -1243,7 +1222,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
@@ -1302,7 +1281,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -1340,7 +1319,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
@@ -1379,10 +1358,10 @@ contains
       & iSparseStart, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -1492,10 +1471,10 @@ contains
       & mOrb, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point
     real(dp), intent(in) :: kPoint(:)
@@ -1516,7 +1495,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
@@ -1575,7 +1554,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -1614,7 +1593,7 @@ contains
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp)*dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         @:ASSERT(sizePrim >= iOrig + nOrb1*nOrb2 - 1)
@@ -1653,7 +1632,7 @@ contains
     real(dp), intent(inout) :: iPrim(:)
 
     !> Hermitian matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -1718,7 +1697,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -1799,7 +1778,7 @@ contains
     real(dp), intent(inout) :: primitive(:)
 
     !> Square form matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
@@ -1820,7 +1799,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> Atom offset for the square matrix
     integer, intent(in) :: iAtomStart(:)
@@ -1877,7 +1856,7 @@ contains
           nOrb2 = iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           tmpSqr(1:nOrb2, 1:nOrb1) = square(jj+iBlock*nOrb:jj+nOrb2-1+iBlock*nOrb,&
@@ -1897,128 +1876,6 @@ contains
     end do
 
   end subroutine packHSPauliERho_kpts
-
-
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone.  (Complex version)
-  subroutine blockSymmetrizeHS_cmplx(square, iAtomStart)
-
-    !> Square form matrix.
-    complex(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart, dim=1) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT((size(square, dim=1) == 2*mOrb) .or. (size(square, dim=1) == mOrb))
-    @:ASSERT(size(square, dim=1) == mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb, iStart:iEnd))
-    end do
-
-  end subroutine blockSymmetrizeHS_cmplx
-
-
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone. (Complex version)
-  subroutine blockHermitianHS_cmplx(square, iAtomStart)
-
-    !> Square form matrix.
-    complex(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart, dim=1) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT((size(square, dim=1) == mOrb) .or. (size(square, dim=1) == 2*mOrb))
-    @:ASSERT(size(square, dim=1) == mOrb .or. size(square, dim=1) == 2*mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(conjg(square(iEnd+1:mOrb, iStart:iEnd)))
-    end do
-
-    if (size(square, dim=1) == 2*mOrb) then
-      ! 2 component matrix
-      do iAtom = 1, nAtom
-        iStart = iAtomStart(iAtom) + mOrb
-        iEnd = iAtomStart(iAtom+1) + mOrb - 1
-        square(iStart:iEnd, iEnd+1:) = transpose(conjg(square(iEnd+1:, iStart:iEnd)))
-      end do
-    end if
-
-  end subroutine blockHermitianHS_cmplx
-
-
-  !> Symmetrize a square matrix leaving the on-site atomic blocks alone.  (Real version)
-  subroutine blockSymmetrizeHS_real(square, iAtomStart)
-
-    !> Square form matrix.
-    real(dp), intent(inout) :: square(:, :)
-
-    !> Returns the offset array for each atom.
-    integer, intent(in) :: iAtomStart(:)
-
-    integer :: nAtom, iAtom, iStart, iEnd, mOrb
-
-    nAtom = size(iAtomStart) - 1
-    mOrb = iAtomStart(nAtom+1) - 1
-
-    @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT(size(square, dim=1) == mOrb)
-
-    do iAtom = 1, nAtom
-      iStart = iAtomStart(iAtom)
-      iEnd = iAtomStart(iAtom+1) - 1
-      square(iStart:iEnd, iEnd+1:mOrb) = transpose(square(iEnd+1:mOrb, iStart:iEnd))
-    end do
-
-  end subroutine blockSymmetrizeHS_real
-
-
-  !> Copy lower triangle to upper for a square matrix. (Real version)
-  subroutine symmetrizeHS_real(matrix)
-
-    !> matrix to symmetrize
-    real(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = matrix(ii + 1 : matSize, ii)
-    end do
-
-  end subroutine symmetrizeHS_real
-
-
-  !> copy lower triangle to upper for a square matrix
-  subroutine hermitianSquareMatrix(matrix)
-
-    !> matrix to symmetrize
-    complex(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
-    end do
-
-  end subroutine hermitianSquareMatrix
 
 
 #:if WITH_SCALAPACK
@@ -2056,7 +1913,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> dense matrix part of distributed whole
-    real(dp), intent(out) :: square(:, :)
+    real(dp), intent(out) :: square(:,:)
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -2069,7 +1926,7 @@ contains
     @:ASSERT(size(nNeighbourSK) == nAtom)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
-    square(:, :) = 0.0_dp
+    square(:,:) = 0.0_dp
 
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
@@ -2120,7 +1977,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2132,7 +1989,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> dense matrix part of distributed whole
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     complex(dp) :: phase
     integer :: nAtom
@@ -2149,7 +2006,7 @@ contains
     @:ASSERT(size(nNeighbourSK) == nAtom)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
@@ -2164,7 +2021,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_addl2g(myBlacs%orbitalGrid, phase&
@@ -2192,7 +2049,7 @@ contains
     type(TBlacsEnv), intent(in) :: myBlacs
 
     !> sparse matrix
-    real(dp), intent(in) :: orig(:, :)
+    real(dp), intent(in) :: orig(:,:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
     real(dp), intent(in) :: kPoint(:)
@@ -2207,7 +2064,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2222,17 +2079,17 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> local part of distributed whole dense matrix
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     !> imaginary part of sparse matrix
-    real(dp), intent(in), optional :: iorig(:, :)
+    real(dp), intent(in), optional :: iorig(:,:)
 
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
         & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
     if (present(iorig)) then
       call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-          & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc,&
+          & cellVec, iSparseStart, img2CentCell, mOrb, imag, cmplx(-1, 0, dp), desc,&
           & square)
     end if
 
@@ -2251,9 +2108,9 @@ contains
     type(TBlacsEnv), intent(in) :: myBlacs
 
     !> sparse matrix to unpack
-    real(dp), intent(in) :: orig(:, :)
+    real(dp), intent(in) :: orig(:,:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2266,7 +2123,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2287,7 +2144,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> local part of distributed whole dense matrix to add to
-    complex(dp), intent(inout) :: square(:, :)
+    complex(dp), intent(inout) :: square(:,:)
 
     integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
     integer :: iNeigh, iOrig, ii, jj, kk, iOldVec, iVec
@@ -2379,7 +2236,7 @@ contains
     !> sparse matrix to unpack
     real(dp), intent(in) :: orig(:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> Neighbour list for the atoms (First index from 0!)
@@ -2392,7 +2249,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2407,16 +2264,16 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> Local part of of distributed whole dense matrix
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     integer :: iAtom1, iAtom2, iAtom2f, nAtom, nOrb1, nOrb2, nOrb
     integer :: iNeigh, iOrig, ii, jj, iOldVec, iVec
     complex(dp), target :: tmpSqr(mOrb, mOrb)
-    complex(dp), pointer :: ptmp(:, :)
+    complex(dp), pointer :: ptmp(:,:)
     real(dp) :: kPoint2p(3)
     complex(dp) :: phase
 
-    square(:, :) = (0.0_dp, 0.0_dp)
+    square(:,:) = (0.0_dp, 0.0_dp)
     nAtom = size(nNeighbourSK)
     nOrb = desc%iAtomStart(nAtom + 1) - 1
     kPoint2p(:) = 2.0_dp * pi * kPoint
@@ -2437,7 +2294,7 @@ contains
           iOldVec = iVec
         end if
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
-        ptmp(:, :) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+        ptmp(:,:) = phase * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
         ! up-up component
         call scalafx_addl2g(myBlacs%orbitalGrid, ptmp, desc%blacsOrbSqr, jj, ii, square)
         ! down-down component
@@ -2466,7 +2323,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> distributed dense matrix to pack
-    real(dp), intent(in) :: square(:, :)
+    real(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -2542,9 +2399,9 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> Distributed dense matrix to pack
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2563,7 +2420,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2612,7 +2469,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
@@ -2645,9 +2502,9 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> dense distributed matrix to pack
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2666,7 +2523,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2675,16 +2532,16 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> sparse matrix to pack into
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     !> Imaginary part of sparse matrix
-    real(dp), intent(inout), optional :: iprimitive(:, :)
+    real(dp), intent(inout), optional :: iprimitive(:,:)
 
     call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
         & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(1, 0, dp), .true., primitive)
     if (present(iprimitive)) then
       call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
-          & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(0, -1, dp),&
+          & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, -imag,&
           & .false., iprimitive)
     end if
 
@@ -2703,9 +2560,9 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> distributed sparse matrix to pack
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
-    !> k-point at which to unpack
+    !> The k-point at which to unpack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -2724,7 +2581,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2739,7 +2596,7 @@ contains
     logical, intent(in) :: symmetrize
 
     !> sparse matrix to add this contribution to
-    real(dp), intent(inout) :: primitive(:, :)
+    real(dp), intent(inout) :: primitive(:,:)
 
     complex(dp) :: phase
     real(dp) :: zprefac
@@ -2752,7 +2609,7 @@ contains
     real(dp) :: kPoint2p(3)
     complex(dp), target :: tmpSqr(mOrb, mOrb)
     complex(dp), target :: tmpSqr1(mOrb, mOrb), tmpSqr2(mOrb, mOrb)
-    complex(dp), pointer :: ptmp(:, :), ptmp1(:, :), ptmp2(:, :)
+    complex(dp), pointer :: ptmp(:,:), ptmp1(:,:), ptmp2(:,:)
   #:block DEBUG_CODE
     integer :: sizePrim
   #:endblock DEBUG_CODE
@@ -2790,7 +2647,7 @@ contains
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
@@ -2803,7 +2660,7 @@ contains
               ptmp(kk, kk+1:) = conjg(ptmp(kk+1:, kk))
             end do
           end if
-          ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+          ptmp(:,:) = 0.5_dp * imagprefac * phase * kWeight * ptmp
           primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1) =&
               & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 1)&
               & + reshape(real(ptmp), [nOrb1 * nOrb2])
@@ -2828,7 +2685,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1)
@@ -2837,23 +2694,23 @@ contains
         ! take the Pauli part of the block
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + nOrb, ii, square, ptmp1)
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, ii + nOrb, jj, square, ptmp2)
-        ptmp(:, :) = ptmp1 + conjg(transpose(ptmp2))
+        ptmp(:,:) = ptmp1 + conjg(transpose(ptmp2))
         if (symmetrize .and. iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
             ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
           end do
         end if
-        ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+        ptmp(:,:) = 0.5_dp * imagprefac * phase * kWeight * ptmp
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2) =&
             & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 2)&
             & + reshape(real(ptmp), [nOrb1 * nOrb2])
-        ptmp(:, :) = ptmp1 - conjg(transpose(ptmp2))
+        ptmp(:,:) = ptmp1 - conjg(transpose(ptmp2))
         if (symmetrize .and. iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
             ptmp(kk, kk+1:) = ptmp(kk+1:, kk)
           end do
         end if
-        ptmp(:, :) = 0.5_dp * imagprefac * phase * kWeight * ptmp
+        ptmp(:,:) = 0.5_dp * imagprefac * phase * kWeight * ptmp
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3) =&
             & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1, 3)&
             & + reshape(aimag(ptmp), [nOrb1 * nOrb2])
@@ -2874,9 +2731,9 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> local part of the distributed matrix
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight at this k-point
@@ -2895,7 +2752,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -2947,7 +2804,7 @@ contains
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
-            phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+            phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
             iOldVec = iVec
           end if
           call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj + iBlock * nOrb,&
@@ -3007,14 +2864,14 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> dense matrix part of distributed whole
-    real(dp), intent(out) :: square(:, :)
+    real(dp), intent(out) :: square(:,:)
 
     integer :: nAtom, iOrig, ii, jj, nOrb1, nOrb2, iNeigh, iAtom1, iAtom2, iAtom2f
     real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta, tmpSqr(orb%mOrb,orb%mOrb)
     integer :: lShellVals(orb%mShell), iSh, iSp
 
     nAtom = size(iNeighbour, dim=2)
-    square(:, :) = 0.0_dp
+    square(:,:) = 0.0_dp
     do iAtom1 = 1, nAtom
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
@@ -3071,7 +2928,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -3092,7 +2949,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> dense matrix part of distributed whole
-    complex(dp), intent(out) :: square(:, :)
+    complex(dp), intent(out) :: square(:,:)
 
     complex(dp) :: phase, tmpSqr(orb%mOrb,orb%mOrb)
     integer :: nAtom, iOrig, nOrb1, nOrb2, ii, jj, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
@@ -3100,7 +2957,7 @@ contains
     integer :: iSh, iSp, lShellVals(orb%mShell)
 
     nAtom = size(iNeighbour, dim=2)
-    square(:, :) = cmplx(0, 0, dp)
+    square(:,:) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
@@ -3117,7 +2974,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
 
@@ -3159,7 +3016,7 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> distributed dense matrix to pack
-    real(dp), intent(in) :: square(:, :)
+    real(dp), intent(in) :: square(:,:)
 
     !> Neighbour list for the atoms (First index from 0!)
     integer, intent(in) :: iNeighbour(0:, :)
@@ -3237,9 +3094,9 @@ contains
     type(TDenseDescr), intent(in) :: desc
 
     !> Distributed dense matrix to pack
-    complex(dp), intent(in) :: square(:, :)
+    complex(dp), intent(in) :: square(:,:)
 
-    !> k-point at which to pack
+    !> The k-point at which to pack
     real(dp), intent(in) :: kPoint(:)
 
     !> weight for this k-point
@@ -3255,7 +3112,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Relative coordinates of the cell translation vectors.
-    real(dp), intent(in) :: cellVec(:, :)
+    real(dp), intent(in) :: cellVec(:,:)
 
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iSparseStart(0:, :)
@@ -3297,7 +3154,7 @@ contains
         nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
-          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          phase = exp(-imag * dot_product(kPoint2p(:), cellVec(:, iVec)))
           iOldVec = iVec
         end if
         call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
@@ -3324,17 +3181,252 @@ contains
 
   end subroutine packRhoHelicalCplxBlacs
 
+
+  !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
+  !! position of a given atom (in the central cell if periodic).
+  !!
+  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  subroutine getUnpackedOverlapPrime_real(env, denseDesc, iAtomPrime, skOverCont, orb, derivator,&
+      & symNeighbourList, nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Overlap derivative calculated w.r.t. this atom in the central cell
+    integer, intent(in) :: iAtomPrime
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Atomic coordinates in absolute units, potentially including periodic images
+    real(dp), intent(in) :: rCoords(:,:)
+
+    !> Overlap derivative
+    real(dp), intent(out) :: overSqrPrime(:,:,:)
+
+    !! Temporary overlap derivative storage
+    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Stores start/end index and number of orbitals of square matrices
+    integer :: descAt1(descLen), descAt2(descLen)
+
+    !! Atom to calculate energy gradient components for
+    integer :: iAt2, iAt2fold, iNeigh
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    overSqrPrime(:,:,:) = 0.0_dp
+
+    descAt1 = getDescriptor(iAtomPrime, iSquare)
+    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
+      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
+      iAt2fold = symNeighbourList%img2CentCell(iAt2)
+      if (iAtomPrime == iAt2fold) cycle
+      descAt2 = getDescriptor(iAt2fold, iSquare)
+      overPrime(:,:,:) = 0.0_dp
+      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
+          & iAtomPrime, iAt2, orb)
+      do iCoord = 1, 3
+        call scalafx_addl2g(env%blacs%orbitalGrid, overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb),&
+            & iCoord), denseDesc%blacsOrbSqr, descAt2(iStart), descAt1(iStart),&
+            & overSqrPrime(iCoord, :,:))
+      end do
+    end do
+
+  end subroutine getUnpackedOverlapPrime_real
+
+#:else
+
+
+  !> Calculates the derivative of the square, dense, unpacked, Gamma-point overlap matrix w.r.t.
+  !! a given atom (in the central cell if periodic).
+  !!
+  !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  subroutine getUnpackedOverlapPrime_real(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
+      & nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
+
+    !> Overlap derivative calculated w.r.t. this atom in the central cell
+    integer, intent(in) :: iAtomPrime
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Atomic coordinates in absolute units, potentially including periodic images
+    real(dp), intent(in) :: rCoords(:,:)
+
+    !> Overlap derivative
+    real(dp), intent(out) :: overSqrPrime(:,:,:)
+
+    !! Temporary overlap derivative storage
+    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Stores start/end index and number of orbitals of square matrices
+    integer :: descAt1(descLen), descAt2(descLen)
+
+    !! Atom to calculate energy gradient components for
+    integer :: iAt2, iAt2fold, iNeigh
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    overSqrPrime(:,:,:) = 0.0_dp
+
+    descAt1 = getDescriptor(iAtomPrime, iSquare)
+    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
+      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
+      iAt2fold = symNeighbourList%img2CentCell(iAt2)
+      if (iAtomPrime == iAt2fold) cycle
+      descAt2 = getDescriptor(iAt2fold, iSquare)
+      overPrime(:,:,:) = 0.0_dp
+      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
+            & iAtomPrime, iAt2, orb)
+      do iCoord = 1, 3
+        overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord)
+      end do
+    end do
+
+  end subroutine getUnpackedOverlapPrime_real
+
 #:endif
+
+  !> Calculates the derivative of the square, dense, unpacked, dual-space overlap matrix w.r.t.
+  !! position of a given atom in the central cell.
+  !! van der Heide, Unpublished (2024).
+  subroutine getUnpackedOverlapPrime_kpts(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
+      & nNeighbourCamSym, iSquare, cellVec, rCoords, kPoint, overSqrPrime)
+
+    !> Overlap derivative calculated w.r.t. this atom in the central cell
+    integer, intent(in) :: iAtomPrime
+
+    !> Sparse overlap container
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> Orbital information.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Differentiation object
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TSymNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> Vectors to neighboring unit cells in relative units
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Atomic coordinates in absolute units, potentially including periodic images
+    real(dp), intent(in) :: rCoords(:,:)
+
+    !> Relative coordinates of the k-point where the overlap should be constructed
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Overlap derivative
+    complex(dp), intent(out) :: overSqrPrime(:,:,:)
+
+    !! Temporary overlap derivative storage
+    real(dp) :: overPrime(orb%mOrb, orb%mOrb, 3)
+
+    !! Dense matrix descriptor indices
+    integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+
+    !! Stores start/end index and number of orbitals of square matrices
+    integer :: descAt1(descLen), descAt2(descLen)
+
+    !! Atom to calculate energy gradient components for
+    integer :: iAt2, iAt2fold, iNeigh
+
+    !! Iterates over coordinates
+    integer :: iCoord
+
+    !! The k-point in relative coordinates, multiplied by 2pi
+    real(dp) :: kPoint2p(3)
+
+    !! Phase factor
+    complex(dp) :: phase
+
+    !! Auxiliary variables
+    integer :: iVec
+
+    overSqrPrime(:,:,:) = (0.0_dp, 0.0_dp)
+
+    kPoint2p(:) = 2.0_dp * pi * kPoint
+
+    descAt1 = getDescriptor(iAtomPrime, iSquare)
+    do iNeigh = 0, nNeighbourCamSym(iAtomPrime)
+      iAt2 = symNeighbourList%neighbourList%iNeighbour(iNeigh, iAtomPrime)
+      iAt2fold = symNeighbourList%img2CentCell(iAt2)
+      if (iAtomPrime == iAt2fold) cycle
+      descAt2 = getDescriptor(iAt2fold, iSquare)
+      iVec = symNeighbourList%iCellVec(iAt2)
+      overPrime(:,:,:) = 0.0_dp
+      call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
+          & iAtomPrime, iAt2, orb)
+      phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+      do iCoord = 1, 3
+        overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
+            & + overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb), iCoord) * phase
+      end do
+    end do
+
+  end subroutine getUnpackedOverlapPrime_kpts
 
 
   !> Calculate indexing array and number of elements in sparse arrays like the real space overlap
-  subroutine getSparseDescriptor(iNeighbour, nNeighbourSK, img2CentCell, orb, iPair, sparseSize)
+  subroutine getSparseDescriptor(iNeighbour, nNeighbour, img2CentCell, orb, iPair, sparseSize)
 
     !> Neighbours of each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
     !> Number of neighbours of each atom
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbour(:)
 
     !> Indexing for mapping image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
@@ -3365,7 +3457,7 @@ contains
     ind = 0
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
-      do iNeigh1 = 0, nNeighbourSK(iAt1)
+      do iNeigh1 = 0, nNeighbour(iAt1)
         iPair(iNeigh1, iAt1) = ind
         nOrb2 = orb%nOrbAtom(img2CentCell(iNeighbour(iNeigh1, iAt1)))
         ind = ind + nOrb1 * nOrb2

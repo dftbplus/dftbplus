@@ -8,10 +8,9 @@
 #:include "common.fypp"
 
 !> Contains a file descriptor and methods to set the default file access type globally.
-!>
-!> Note, setDefaultBinaryAccess() manipulates a global variable and is not thread or even
-!> multi-instance safe!
-!>
+!!
+!! Note, setDefaultBinaryAccess() manipulates a global variable and is not thread or even
+!! multi-instance safe!
 module dftbp_common_file
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_message, only : error
@@ -33,8 +32,8 @@ module dftbp_common_file
   type :: TOpenOptions
 
     !> File access ("sequential", "direct", "stream" or "default"), default: "default"
-    !> "default" indicates to use the global default values defined in defaultBinaryAccess and
-    !> defaultTextAccess for binary (unformatted) and text (formatted) files, respetively.
+    !! "default" indicates to use the global default values defined in defaultBinaryAccess and
+    !! defaultTextAccess for binary (unformatted) and text (formatted) files, respetively.
     character(openOptionCharLen_) :: access = "default"
 
     !> File action ("read", "write", "readwrite"), default: "read"
@@ -44,8 +43,8 @@ module dftbp_common_file
     character(openOptionCharLen_) :: form = "formatted"
 
     !> File status ("unknown", "old", "replace", "oldnew"), default: "unknown"
-    !> Oldnew is an extension of the standard values. If the file exists, it will be opened,
-    !> if it does not, it will be newly created.
+    !! Oldnew is an extension of the standard values. If the file exists, it will be opened,
+    !! if it does not, it will be newly created.
     character(openOptionCharLen_) :: status = "unknown"
 
     !> File position ("asis", "rewind", "append"), default: "asis"
@@ -62,11 +61,10 @@ module dftbp_common_file
   type :: TFileDescr
 
     !> File unit
-    !>
-    !> The file unit should be treated as read-only field and never changed manually.
-    !> Also, never call any Fortran statements, which change the unit association status, such
-    !> as open() or close(). If you wish to close the file, deallocate the file descriptor instance.
-    !>
+    !!
+    !! The file unit should be treated as read-only field and never changed manually.
+    !! Also, never call any Fortran statements, which change the unit association status, such
+    !! as open() or close(). If you wish to close the file, deallocate the file descriptor instance.
     integer :: unit = -1
 
     !> The file the descriptor is associated with (unallocated if not associated)
@@ -214,18 +212,17 @@ contains
     type(TOpenOptions), optional, intent(in) :: options
 
     !> C-style mode specification for file opening options with following possible values:
-    !> * "r": read (file must exist, positioned at start),
-    !> * "r+": read/write (file must exist, positioned at start),
-    !> * "w": write (file created or truncated if it already exists)
-    !> * "w+": readwrite (file created or truncated if it already exists)
-    !> * "a": append-write (file opened if exists, otherwise created, positioned at the end)
-    !> * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !> The values above can be followed by "t" for text/unformatted mode (default) or "b" for
-    !> binary/unformatted mode.
-    !>
-    !> When arguments options and mode are both specified, the resulting options are determined by
-    !> applying options first and then set the fields which mode manipulates.
-    !>
+    !! * "r": read (file must exist, positioned at start),
+    !! * "r+": read/write (file must exist, positioned at start),
+    !! * "w": write (file created or truncated if it already exists)
+    !! * "w+": readwrite (file created or truncated if it already exists)
+    !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
+    !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
+    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! binary/unformatted mode.
+    !!
+    !! When arguments options and mode are both specified, the resulting options are determined by
+    !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
 
     !> I/O stat error generated during open, zero on exit, if no error occured.
@@ -284,6 +281,22 @@ contains
         opts%status = "new"
       end if
     end if
+
+  #:block DEBUG_CODE
+  #:if WITH_MPI
+    block
+      use dftbp_extlibs_mpifx, only : mpifx_comm
+      type(mpifx_comm) :: comm
+      character(100) :: msg
+      call comm%init()
+      if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
+        write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
+            & file, "' for writing (only leader can do this)"
+        error stop msg
+      end if
+    end block
+  #:endif
+  #:endblock
 
     open(newunit=this%unit, file=file, access=opts%access, action=opts%action, form=opts%form,&
         & status=opts%status, position=opts%position, iostat=ioStat_, iomsg=ioMsg_)
@@ -405,18 +418,17 @@ contains
     type(TOpenOptions), optional, intent(in) :: options
 
     !> C-style mode specification for file opening options with following possible values:
-    !> * "r": read (file must exist, positioned at start),
-    !> * "r+": read/write (file must exist, positioned at start),
-    !> * "w": write (file created or truncated if it already exists)
-    !> * "w+": readwrite (file created or truncated if it already exists)
-    !> * "a": append-write (file opened if exists, otherwise created, positioned at the end)
-    !> * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !> The values above can be followed by "t" for text/unformatted mode (default) or "b" for
-    !> binary/unformatted mode.
-    !>
-    !> When arguments options and mode are both specified, the resulting options are determined by
-    !> applying options first and then set the fields which mode manipulates.
-    !>
+    !! * "r": read (file must exist, positioned at start),
+    !! * "r+": read/write (file must exist, positioned at start),
+    !! * "w": write (file created or truncated if it already exists)
+    !! * "w+": readwrite (file created or truncated if it already exists)
+    !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
+    !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
+    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! binary/unformatted mode.
+    !!
+    !! When arguments options and mode are both specified, the resulting options are determined by
+    !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
 
     !> I/O stat error generated during open
@@ -442,9 +454,8 @@ contains
 
 
   !> Sets the default access type for file opening operations
-  !>
-  !> Note: this routine is not thread of multi-instance-safe!
-  !>
+  !!
+  !! Note: this routine is not thread of multi-instance-safe!
   subroutine setDefaultBinaryAccess(readAccess, writeAccess, readwriteAccess)
 
     !> Access type to use for read access ("sequential", "direct", "stream")

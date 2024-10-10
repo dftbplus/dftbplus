@@ -8,17 +8,20 @@ Geometry = GenFormat {
  0.0  3.0  3.0
  3.0  0.0  3.0
 }
+
 Driver = GeometryOptimization {
  Optimizer = Rational {}
  MovedAtoms = {1 2}
  LatticeOpt = Yes
- Convergence = { GradAMax = 1.0E-8 }
+ Convergence = { GradElem = 1.0E-6 }
+ MaxSteps = 200
 }
+
 Hamiltonian = DFTB {
   MaxAngularMomentum = {
     Si = "p"
   }
-  Eigensolver = Standard {}
+  Solver = QR {}
   Filling = Fermi {}
   SlaterKosterFiles = {
     Si-Si = "slakos/origin/pbc-0-3/Si-Si.skf"
@@ -30,11 +33,11 @@ Hamiltonian = DFTB {
    0.5 0.5 0.5
   }
 }
+
 Options = { WriteAutotestTag = Yes }
 
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 12
 }
 
 Parallel { UseOmpThreads = Yes }
-

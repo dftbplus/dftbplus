@@ -76,8 +76,10 @@ set(C_FLAGS_COVERAGE "-O0 -g --coverage")
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
-#set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack libraries")
-#set(ARPACK_LIBRARY_DIR "" CACHE STRING "Directories where Arpack library can be found")
+#set(ARPACK_LIBRARY "arpack" CACHE STRING "ARPACK library (with path if necessary)")
+
+# PARPACK -- only needed when built with ARPACK and MPI support
+#set(PARPACK_LIBRARY "parpack" CACHE STRING "PARPACK library (with path if necessary)")
 
 # ScaLAPACK -- only needed for MPI-parallel build
 #set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")

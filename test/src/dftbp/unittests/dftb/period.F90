@@ -139,10 +139,10 @@
 
       call createTestArray(neighDist2)
 
-      call allocateNeighbourArrays(neigh, maxNeighbour, nAtom, .false.)
+      call allocateNeighbourArrays(neigh, maxNeighbour, nAtom)
 
       call fillNeighbourArrays(neigh, iNeighbour, neighDist2, startAtom, endAtom, maxNeighbour,&
-          & nAtom, .false.)
+          & nAtom)
 
       @:ASSERT(lbound(neigh%iNeighbour, dim=1) == 0)
       @:ASSERT(ubound(neigh%iNeighbour, dim=1) == maxNeighbour)

@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Module containing finite temperature function distributions and derivatives for the Fermi-Dirac
-!> distribution
+!! distribution.
 module dftbp_derivs_fermihelper
   use dftbp_common_accuracy, only : dp, mExpArg
   implicit none
@@ -32,7 +32,7 @@ contains
     !> Occupied energy
     real(dp), intent(in) :: Em
 
-    !> distribution width
+    !> Distribution width
     real(dp), intent(in) :: sigma
 
     !> Resulting occupation value
@@ -40,7 +40,7 @@ contains
 
     real(dp) :: x
 
-    x = ( En - Em ) / sigma
+    x = (En - Em) / sigma
   #:if EXP_TRAP
     ! Where the compiler does not handle inf gracefully, trap the exponential function for small
     ! values
@@ -71,13 +71,13 @@ contains
     !> Width of distribution
     real(dp), intent(in) :: sigma
 
-    !> resulting value
+    !> Resulting value
     real(dp) :: invDiffStatic
 
-    if ( abs(En - Em) > 10.0_dp * epsilon(1.0_dp) ) then
-      invDiffStatic = ( theta(En,Ef,sigma) - theta(Em,Ef,sigma) ) / (En - Em)
+    if (abs(En - Em) > 10.0_dp * epsilon(1.0_dp)) then
+      invDiffStatic = (theta(En, Ef, sigma) - theta(Em, Ef, sigma)) / (En - Em)
     else
-      invDiffStatic = -deltamn(En,Ef,sigma)
+      invDiffStatic = -deltamn(En, Ef, sigma)
     end if
 
   end function invDiffStatic
@@ -101,10 +101,10 @@ contains
     !> Complex frequency
     complex(dp), intent(in) :: omega
 
-    !> resulting value
+    !> Resulting value
     complex(dp) :: invDiffDynamic
 
-    invDiffDynamic = ( theta(En,Ef,sigma) - theta(Em,Ef,sigma) ) / (En - Em + omega)
+    invDiffDynamic = (theta(En, Ef, sigma) - theta(Em, Ef, sigma)) / (En - Em + omega)
 
   end function invDiffDynamic
 
@@ -128,7 +128,7 @@ contains
 
     invSigma = 1.0_dp / sigma
 
-    deltamn = deltatilde( (En-Em)*invSigma ) * invSigma
+    deltamn = deltatilde((En - Em) * invSigma) * invSigma
 
   end function deltamn
 
@@ -148,7 +148,7 @@ contains
 
 
   !> Evaluates the derivative of the Fermi energy given derivatives of eigenvalues with respect to a
-  !> perturbation
+  !! perturbation
   pure function dEfda(f, dei)
 
     !> Occupations
@@ -160,7 +160,7 @@ contains
     !> Derivative of Fermi energy
     real(dp) :: dEfda
 
-    dEfda = sum(f * (1.0_dp-f) * dei) / sum(f * (1.0_dp-f))
+    dEfda = sum(f * (1.0_dp - f) * dei) / sum(f * (1.0_dp - f))
 
   end function dEfda
 
@@ -186,9 +186,7 @@ contains
     dEf = dEfda(f, dEi)
 
     do ii = 1, size(f)
-
       dfill(ii) = -(dEi(ii) - deF) * f(ii) * (1.0_dp - f(ii)) / kT
-
     end do
 
   end subroutine dEida

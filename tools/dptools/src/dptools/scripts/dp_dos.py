@@ -9,12 +9,12 @@
 '''Convolves band.out-like files into DOS/PDOS via broadening functions'''
 
 from __future__ import print_function
-import argparse
+from argparse import ArgumentParser
 import math
 import numpy as np
 import numpy.polynomial.hermite as  H
 from dptools.bandout import BandOut
-from dptools.scripts.common import ScriptError
+from dptools.scripts.common import ScriptError, find_auto_alignment
 
 USAGE = '''
 Reads the band structure information stored in a file INPUT created by
@@ -71,7 +71,7 @@ def parse_arguments(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = argparse.ArgumentParser(description=USAGE)
+    parser = ArgumentParser(description=USAGE)
 
     msg = "grid separation (default: {0:.2f})".format(DEFAULT_GRID_SEPARATION)
     parser.add_argument("-g", "--gridres", type=float, dest="gridres",
@@ -97,7 +97,7 @@ def parse_arguments(cmdlineargs=None):
                         dest="broadwidth", help=msg, default=-1.0)
 
     msg = "number of sigmas after which the broadening function is considered "\
-          "to be zero (default: gauss {0:.2f}, fermi {1:.2f}, mp {1:.2f})"\
+          "to be zero (default: gauss {:.2f}, fermi {:.2f}, mp {:.2f})"\
            .format(DEFAULT_RANGES[GAUSS_BROADENING],
                    DEFAULT_RANGES[FERMI_BROADENING],
                    DEFAULT_RANGES[MP_BROADENING])
@@ -107,6 +107,20 @@ def parse_arguments(cmdlineargs=None):
     msg = "turn on verbose operation"
     parser.add_argument("-v", "--verbose", action="store_true", dest="verbose",
                         default=False, help=msg)
+
+    msg = "Aligns an estimate of the level of half-occupation to the zero of" +\
+        " energy. Integer occupations: Shifts the VBM to zero energy." +\
+        " Fractional occupations: Shifts approximate Fermi level, i.e. the highest" +\
+        " eigenvalue that is at least half occupied, to zero energy." +\
+        " Note that this energy does not necessarily correspond to the" +\
+        " real Fermi level. Please consult the appropriate output files" +\
+        " (detailed.out|results.tag) to obtain the Fermi level of the" +\
+        " calculation."
+    parser.add_argument("-A", "--auto-align", action="store_true",
+                        default=False, dest="autoalign", help=msg)
+
+    msg = "manually defines zero energy [eV]"
+    parser.add_argument("-a", "--align", type=float, default=None, help=msg)
 
     msg = "input file name"
     parser.add_argument("infile", metavar="INPUT", help=msg)
@@ -122,6 +136,12 @@ def parse_arguments(cmdlineargs=None):
             raise ScriptError(msg)
         if args.mporder < 1:
             raise ScriptError(msg)
+
+    # check for argument collisions
+    if args.autoalign and args.align is not None:
+        raise ScriptError(
+            'Collision of incompatible options. Auto-alignment ' + \
+            'and simultaneous manual shifting of eigenvalues is not supported.')
 
     infile = args.infile
     outfile = args.outfile
@@ -156,12 +176,20 @@ def dp_dos(args, broadening, sigma, sigmarange, infile, outfile):
     try:
         bandout = BandOut.fromfile(infile)
     except OSError:
-        raise ScriptError('You must enter a valid path to the input file.')
+        raise ScriptError('You must enter a valid path to the input file.') \
+            from OSError
+
     # For spin. unpol. and collinear spin, take energy and occ, for
     # non-collinear spin take energy and occ_q (and ignore occ_m{x,y,z})
     eigvals = np.array(bandout.eigvalarray[:, :, :, 0:2])
     if not args.occweight:
         eigvals[:, :, :, 1] = 1.0
+
+    if args.autoalign:
+        eigvals[:, :, :, 0] -= find_auto_alignment(bandout)
+
+    if args.align is not None:
+        eigvals[:, :, :, 0] -= args.align
 
     if broadening == FERMI_BROADENING:
         aa = 0.5 / sigma

@@ -1,0 +1,77 @@
+Geometry = GenFormat {
+  <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1.0e-10
+
+  Mixer = Broyden {}
+
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 2
+  }
+
+  SpinConstants = {
+    O = {
+      -0.04782
+      -0.03335
+      -0.03335
+      -0.03307
+    }
+    N = {
+      -0.04687
+      -0.03170
+      -0.03165
+      -0.03072
+    }
+    C = {
+      -0.04559
+      -0.02930
+      -0.02930
+      -0.02755
+    }
+    H = {
+      -0.07925
+    }
+    ShellResolvedSpin = Yes
+  }
+
+  Hybrid = LC {
+    Screening = MatrixBased {}
+  }
+
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  PrintForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}
+
+Parallel {
+  Groups = 2
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

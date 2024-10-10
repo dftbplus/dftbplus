@@ -75,8 +75,7 @@ program waveplot
   !> MPI environment
   type(TMpiEnv) :: mpiEnv
 
-  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
-  ! build
+  ! As this is serial code, trap for run time execution on more than 1 processor with MPI enabled
   call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
   call TMpiEnv_init(mpiEnv)
   call mpiEnv%mpiSerialEnv()
@@ -398,7 +397,6 @@ contains
 
     !> How often the grid should be repeated along the direction of the grid vectors
     integer, intent(in), optional :: repeatBox(:)
-
 
     integer, parameter :: bufferSize = 6
     real(dp) :: buffer(bufferSize)

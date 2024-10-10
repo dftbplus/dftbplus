@@ -7,7 +7,7 @@
 
 #:include "common.fypp"
 
-!> Contains the calculator for the short-range part of the Gamma-electrostatics
+!> Contains the calculator for the short-range part of the Gamma-electrostatics.
 module dftbp_dftb_shortgamma
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -27,7 +27,7 @@ module dftbp_dftb_shortgamma
   public :: TShortGammaInput, TShortGamma, TShortGamma_init, TShortGammaDamp
 
 
-  !> Contains damping details
+  !> Contains damping details.
   type :: TShortGammaDamp
 
     !> Flag for each species, whether damping should be applied to it. Shape: [nSpecies]
@@ -39,7 +39,7 @@ module dftbp_dftb_shortgamma
   end type TShortGammaDamp
 
 
-  !> Input parameters for short gamma calculation
+  !> Input parameters for short gamma calculation.
   type :: TShortGammaInput
 
     !> Unique Hubbard U parameters
@@ -58,40 +58,40 @@ module dftbp_dftb_shortgamma
   type :: TShortGamma
     private
 
-    ! Nr. of species
+    !> Nr. of species
     integer :: nSpecies_
 
-    ! Maximal shells per species
+    !> Maximal shells per species
     integer :: mShell_
 
-    ! Nr. of atoms
+    !> Nr. of atoms
     integer :: nAtom_
 
-    ! Contracted Hubbard U values
+    !> Contracted Hubbard U values
     type(TUniqueHubbard), allocatable :: hubbU_
 
-    ! Cutoff for short range interaction. Shape [mHubbU, mHubbU, nSpecies, nSpecies]
+    !> Cutoff for short range interaction. Shape [mHubbU, mHubbU, nSpecies, nSpecies]
     real(dp), allocatable :: shortCutoffs_(:,:,:,:)
 
-    ! Number of neighbours. Shape: [mHubbU, mHubbU, nSpecies, nAtom]
+    !> Number of neighbours. Shape: [mHubbU, mHubbU, nSpecies, nAtom]
     integer, allocatable :: nNeigh_(:,:,:,:)
 
-    ! Net charges per shell
+    !> Net charges per shell
     real(dp), allocatable :: deltaQShell_(:,:)
 
-    ! Net charges summed up over equivalent Hubbard U values
+    !> Net charges summed up over equivalent Hubbard U values
     real(dp), allocatable :: deltaQUniqU_(:,:)
 
-    ! H5 correction calculator
+    !> H5 correction calculator
     type(TH5Correction), allocatable :: h5Correction_
 
-    ! Gamma damping calculator
+    !> Gamma damping calculator
     type(TShortGammaDamp), allocatable :: damping_
 
-    ! Shell resolved shift
+    !> Shell resolved shift
     real(dp), allocatable :: shiftShell_(:,:)
 
-    ! Cache storing the short gamma interaction
+    !> Cache storing the short gamma interaction
     real(dp), allocatable :: shortGamma_(:,:,:,:)
 
   contains
@@ -113,11 +113,10 @@ module dftbp_dftb_shortgamma
 
 contains
 
-
   !> Initializes a TShortGamma instance.
   subroutine TShortGamma_init(this, input, orb)
 
-    !> Initialized instance.
+    !> Initialized instance
     type(TShortGamma), intent(out) :: this
 
     !> Input parameters
@@ -162,10 +161,10 @@ contains
   !> Returns the real space cutoff needed for the neighbour list.
   function getCutoff(this) result(cutoff)
 
-    !> Instance.
+    !> Instance
     class(TShortGamma), intent(in) :: this
 
-    !> Cutoff until which neighbours are required by the instance.
+    !> Cutoff until which neighbours are required by the instance
     real(dp) :: cutoff
 
     cutoff = maxval(this%shortCutoffs_)
@@ -173,10 +172,10 @@ contains
   end function getCutoff
 
 
-  !> Updates the coordinates
+  !> Updates the coordinates.
   subroutine updateCoords(this, coords, species, neighList)
 
-    !> Instance.
+    !> Instance
     class(TShortGamma), intent(inout) :: this
 
     !> Coordinates
@@ -204,10 +203,10 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Species of each atom.
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> Shell resolved net charges. Shape [mShell, nAtom].
+    !> Shell resolved net charges. Shape [mShell, nAtom]
     real(dp), intent(in) :: deltaQShell(:,:)
 
     this%deltaQShell_(:,:) = deltaQShell
@@ -228,7 +227,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Species of each atom.
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
     !> Index of the neighbours
@@ -237,7 +236,7 @@ contains
     !> Mapping of the atoms into the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    call buildShifts_(env, orb, species, iNeighbour, img2CentCell, this%hubbU_, this%nNeigh_, &
+    call buildShifts_(env, orb, species, iNeighbour, img2CentCell, this%hubbU_, this%nNeigh_,&
         & this%shortGamma_, this%deltaQShell_, this%shiftShell_)
 
   end subroutine updateShifts
@@ -252,18 +251,18 @@ contains
     !> Shell resolved shift vectors. Shape: [mShell, nAtom]
     real(dp), intent(out) :: shiftShell(:,:)
 
-    shiftShell(:,:) = this%shiftShell_(:,:)
+    shiftShell(:,:) = this%shiftShell_
 
   end subroutine getShiftPerShell
 
 
-  !> Adds the atom resolved interaction matrix
-  subroutine addAtomicMatrix(this, gammamat, iNeighbour, img2CentCell)
+  !> Adds the atom resolved interaction matrix.
+  subroutine addAtomicMatrix(this, gammamat, iNeighbour, img2CentCell, iAt, jAt)
 
     !> Instance
     class(TShortGamma), intent(in) :: this
 
-    !> Atomic interaction matrix.
+    !> Atomic interaction matrix
     real(dp), intent(inout) :: gammamat(:,:)
 
     !> Index of the neighbours
@@ -272,25 +271,38 @@ contains
     !> Mapping of the atoms into the central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Optional pair of atoms for which to evaluate and add interaction
+    integer, intent(in), optional :: iAt, jAt
+
     integer :: iAt1, iAt2f, iNeigh
 
-    do iAt1 = 1, this%nAtom_
-      do iNeigh = 0, maxval(this%nNeigh_(:,:,:, iAt1))
-        iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
-        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma_(1, 1, iNeigh, iAt1)
+    if (present(jAt)) then
+      @:ASSERT(present(iAt))
+      @:ASSERT(iAt >= jAt)
+      do iNeigh = 0, maxval(this%nNeigh_(:,:,:, jAt))
+        iAt2f = img2CentCell(iNeighbour(iNeigh, jAt))
+        if (iAt2f == iAt) then
+          gammamat(iAt, jAt) = gammamat(iAt, jAt) - this%shortGamma_(1, 1, iNeigh, jAt)
+        end if
       end do
-    end do
+    else
+      do iAt1 = 1, this%nAtom_
+        do iNeigh = 0, maxval(this%nNeigh_(:,:,:, iAt1))
+          iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
+          gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - this%shortGamma_(1, 1, iNeigh, iAt1)
+        end do
+      end do
+    end if
 
   end subroutine addAtomicMatrix
 
 
-  !> Adds the atom resolved interaction matrix using customized Us
-  !>
-  !> Note: Although the customized U-values are customised passed as arguments, the neighbours
-  !> considered during the calculation are determined by the U values which had been used to
-  !> initialize this instance. If the two sets of U-values differ significantly, the results
-  !> may be very inaccurate.
-  !>
+  !> Adds the atom resolved interaction matrix using customized Us.
+  !!
+  !! Note: Although the customized U-values are customised passed as arguments, the neighbours
+  !! considered during the calculation are determined by the U values which had been used to
+  !! initialize this instance. If the two sets of U-values differ significantly, the results
+  !! may be very inaccurate.
   subroutine addAtomicMatrixCustomU(this, gammamat, hubbU, species, coords, iNeighbour,&
       & img2CentCell)
 
@@ -303,7 +315,7 @@ contains
     !> Customized hubbard U values to use
     real(dp), intent(in) :: hubbU(:)
 
-    !> Species of each atom.
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
     !> Coordinates of the atoms. Shape [3, nAtom]
@@ -314,7 +326,6 @@ contains
 
     !> Mapping of the atoms into the central cell
     integer, intent(in) :: img2CentCell(:)
-
 
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
     real(dp) :: dist
@@ -339,19 +350,19 @@ contains
     !> Resulting module variables
     class(TShortGamma), intent(in) :: this
 
-    !> force vector to add the short-range part of gamma contribution
+    !> Force vector to add the short-range part of gamma contribution
     real(dp), intent(inout) :: force(:,:)
 
-    !> List of the species for each atom.
+    !> List of the species for each atom
     integer, intent(in) :: species(:)
 
     !> Atom coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> Index of neighbouring atoms for each atom.
+    !> Index of neighbouring atoms for each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Image of each atom in the central cell.
+    !> Image of each atom in the central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, iSp1, iSp2
@@ -370,7 +381,7 @@ contains
           u1 = this%hubbU_%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%hubbU_%nHubbU(species(iAt2f))
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
+            if (iNeigh <= this%nNeigh_(iU2, iU1, species(iAt2f), iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
               else
@@ -382,12 +393,12 @@ contains
                 end if
               end if
               do ii = 1,3
-                force(ii,iAt1) = force(ii,iAt1) - this%deltaQUniqU_(iU1,iAt1) *&
-                    & this%deltaQUniqU_(iU2,iAt2f)*tmpGammaPrime*(coords(ii,iAt1)&
-                    & - coords(ii,iAt2))/rab
-                force(ii,iAt2f) = force(ii,iAt2f) + this%deltaQUniqU_(iU1,iAt1) *&
-                    & this%deltaQUniqU_(iU2,iAt2f)*tmpGammaPrime*(coords(ii,iAt1)&
-                    & - coords(ii,iAt2))/rab
+                force(ii, iAt1) = force(ii, iAt1) - this%deltaQUniqU_(iU1, iAt1)&
+                    & * this%deltaQUniqU_(iU2, iAt2f) * tmpGammaPrime&
+                    & * (coords(ii, iAt1) - coords(ii, iAt2)) / rab
+                force(ii, iAt2f) = force(ii, iAt2f) + this%deltaQUniqU_(iU1, iAt1)&
+                    & * this%deltaQUniqU_(iU2, iAt2f) * tmpGammaPrime&
+                    & * (coords(ii, iAt1) - coords(ii, iAt2)) / rab
               end do
             end if
           end do
@@ -416,10 +427,10 @@ contains
     !> Volume of the system
     real(dp), intent(in) :: volume
 
-    !> Index of neighbouring atoms for each atom.
+    !> Index of neighbouring atoms for each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Image of each atom in the central cell.
+    !> Image of each atom in the central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, ii, jj, iSp1, iSp2
@@ -444,7 +455,7 @@ contains
           u1 = this%hubbU_%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%hubbU_%nHubbU(species(iAt2f))
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
+            if (iNeigh <= this%nNeigh_(iU2, iU1, species(iAt2f), iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
               else
@@ -456,9 +467,9 @@ contains
                 end if
               end if
               do ii = 1,3
-                intermed(ii) = intermed(ii) &
-                    & - this%deltaQUniqU_(iU1,iAt1) * this%deltaQUniqU_(iU2,iAt2f)&
-                    & * tmpGammaPrime*vect(ii)/rab
+                intermed(ii) = intermed(ii)&
+                    & - this%deltaQUniqU_(iU1, iAt1) * this%deltaQUniqU_(iU2, iAt2f)&
+                    & * tmpGammaPrime * vect(ii) / rab
               end do
             end if
           end do
@@ -466,27 +477,27 @@ contains
         if (iAt2f /= iAt1) then
           do ii = 1, 3
             do jj = 1, 3
-              st(jj,ii) = st(jj,ii) + (vect(jj)*intermed(ii) + intermed(jj)*vect(ii))
+              st(jj,ii) = st(jj,ii) + (vect(jj) * intermed(ii) + intermed(jj) * vect(ii))
             end do
           end do
         else
           do ii = 1, 3
             do jj = 1, 3
-              st(jj,ii) = st(jj,ii) + 0.5_dp * (vect(jj)*intermed(ii) + intermed(jj)*vect(ii))
+              st(jj,ii) = st(jj,ii) + 0.5_dp * (vect(jj) * intermed(ii) + intermed(jj) * vect(ii))
             end do
           end do
         end if
       end do
     end do
 
-    st(:,:) = st / volume
-    stress(:,:) = stress - 0.5_dp * st
+    st(:,:) = -0.5_dp * st / volume
+    stress(:,:) = stress + st
 
   end subroutine addStressDc
 
 
   !> Calculate the derivative of the short range contributions using the linearized XLBOMD
-  !> formulation with auxiliary charges.
+  !! formulation with auxiliary charges.
   subroutine addGradientsDcXlbomd(this, dQInShell, dQOutShell, coords, species, orb, iNeighbour,&
       & img2CentCell, force)
 
@@ -499,7 +510,7 @@ contains
     !> Output charges
     real(dp), intent(in) :: dQOutShell(:,:)
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
     !> Atom coordinates
@@ -508,13 +519,13 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> neighbours around atoms
+    !> Neighbours around atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> image to real atom indexing
+    !> Image to real atom indexing
     integer, intent(in) :: img2CentCell(:)
 
-    !> term to add force contributions to
+    !> Term to add force contributions to
     real(dp), intent(inout) :: force(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
@@ -538,7 +549,7 @@ contains
           u1 = this%hubbU_%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%hubbU_%nHubbU(species(iAt2f))
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
+            if (iNeigh <= this%nNeigh_(iU2, iU1, species(iAt2f), iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
               else
@@ -559,7 +570,7 @@ contains
   end subroutine addGradientsDcXlbomd
 
 
-  !> Adds the atom pair resolved gradients
+  !> Adds the atom pair resolved gradients.
   subroutine addDerivativeMatrix(this, coords, species, iNeighbour, img2CentCell, derivMat)
 
     !> Instance
@@ -577,7 +588,7 @@ contains
     !> Mapping of atoms into central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Atom-pair resolved derivative matrix. Shape: [nAtom, nAtom, 3].
+    !> Atom-pair resolved derivative matrix. Shape: [nAtom, nAtom, 3]
     real(dp), intent(inout) :: derivMat(:,:,:)
 
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh, iU1, iU2, ii
@@ -594,7 +605,7 @@ contains
           u1 = this%hubbU_%uniqHubbU(iU1, iSp1)
           do iU2 = 1, this%hubbU_%nHubbU(species(iAt2f))
             u2 = this%hubbU_%uniqHubbU(iU2, species(iAt2f))
-            if (iNeigh <= this%nNeigh_(iU2,iU1,species(iAt2f),iAt1)) then
+            if (iNeigh <= this%nNeigh_(iU2, iU1, species(iAt2f), iAt1)) then
               if (this%damping_%isDamped(iSp1) .or. this%damping_%isDamped(iSp2)) then
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%damping_%exponent)
               else
@@ -623,7 +634,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-  ! Sets up cutoffs for the short gamma interaction
+  !> Sets up cutoffs for the short gamma interaction.
   subroutine setupShortGammaCutoffs_(hubb, shortCutoffs)
     type(TUniqueHubbard), intent(in) :: hubb
     real(dp), intent(out) :: shortCutoffs(:,:,:,:)
@@ -649,7 +660,7 @@ contains
   end subroutine setupShortGammaCutoffs_
 
 
-  ! Updates the number of neighbours.
+  !> Updates the number of neighbours.
   subroutine updateNrOfNeighbours_(shortCutoffs, species, hubb, neighList, nNeigh)
     real(dp), intent(in) :: shortCutoffs(:,:,:,:)
     integer, intent(in) :: species(:)
@@ -674,7 +685,7 @@ contains
   end subroutine updateNrOfNeighbours_
 
 
-  ! Set up the storage and internal values for the short range part of Gamma.
+  !> Set up the storage and internal values for the short range part of Gamma.
   subroutine updateShortGammaValues_(coords, species, neighList, nNeigh, hubb, damping,&
       & h5Correction, shortGamma)
     real(dp), intent(in) :: coords(:,:)
@@ -713,11 +724,11 @@ contains
             u2 = hubb%uniqHubbU(iU2, iSp2)
             if (iNeigh <= nNeigh(iU2, iU1, iSp2, iAt1)) then
               if (damping%isDamped(iSp1) .or. damping%isDamped(iSp2)) then
-                shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, damping%exponent)
+                shortGamma(iU2, iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, damping%exponent)
               else
                 shortGamma(iU2, iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 if (present(h5Correction)) then
-                  call h5Correction%scaleShortGamma(shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2,&
+                  call h5Correction%scaleShortGamma(shortGamma(iU2, iU1, iNeigh, iAt1), iSp1, iSp2,&
                       & rab)
                 end if
               end if
@@ -730,9 +741,10 @@ contains
   end subroutine updateShortGammaValues_
 
 
-  ! Builds the short range shell resolved part of the shift vector
+  !> Builds the short range shell resolved part of the shift vector.
   subroutine buildShifts_(env, orb, species, iNeighbours, img2CentCell, hubb, nNeigh, shortGamma,&
       & deltaQShell, shiftShell)
+
     type(TEnvironment), intent(in) :: env
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: species(:)
@@ -743,7 +755,7 @@ contains
     real(dp), intent(in) :: shortGamma(:,:,0:,:), deltaQShell(:,:)
     real(dp), intent(out) :: shiftShell(:,:)
 
-    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iIter, iNeigh, iAt1Start, iAt1End
+    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iU1, iU2, iIter, iNeigh
     integer :: nAtom, maxShell1, maxShell2
     integer, allocatable :: maxNeigh(:)
     real(dp) :: shortGammaValue, deltaQShellValue
@@ -789,7 +801,7 @@ contains
               iU2 = hubb%iHubbU(iSh2, iSp2)
               shortGammaValue = shortGamma(iU2, iU1, iNeigh, iAt1)
               shiftShell(iSh1, iAt1) = shiftShell(iSh1, iAt1)&
-                    & - shortGammaValue * deltaQShell(iSh2, iAt2f)
+                  & - shortGammaValue * deltaQShell(iSh2, iAt2f)
               if (iAt2f /= iAt1) then
                 shiftShell(iSh2, iAt2f) = shiftShell(iSh2, iAt2f)&
                     & - shortGammaValue * deltaQShellValue
@@ -805,6 +817,5 @@ contains
     #:endif
 
     end subroutine buildShifts_
-
 
 end module dftbp_dftb_shortgamma

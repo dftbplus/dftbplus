@@ -67,7 +67,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     mass = getAtomicMass(symbolToNumber(symbol))
@@ -81,7 +81,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     if (number > 0 .and. number <= size(atomicMassNist, dim=1)) then

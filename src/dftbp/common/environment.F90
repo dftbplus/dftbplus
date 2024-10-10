@@ -92,7 +92,8 @@ module dftbp_common_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(25) = [&
+  !> Timers and their required verbosity levels. Order must match the helper index type
+  type(TTimerItem), parameter :: globalTimerItems(33) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -107,7 +108,7 @@ module dftbp_common_environment
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
-      & TTimerItem("Range separated Hamiltonian", 4),&
+      & TTimerItem("Hybrid Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
@@ -117,9 +118,19 @@ module dftbp_common_environment
       & TTimerItem("Stress calculation", 2),&
       & TTimerItem("Post-geometry optimisation", 1),&
       & TTimerItem("Electron dynamics initialisation", 2),&
-      & TTimerItem("Electron dynamics loop", 2)&
+      & TTimerItem("Electron dynamics loop", 2),&
+      & TTimerItem("Linear response excitation", 2),&
+      & TTimerItem("Linear response setup", 3),&
+      & TTimerItem("Linear response coulomb", 4),&
+      & TTimerItem("Linear response transition charges", 4),&
+      & TTimerItem("Linear response solver", 3),&
+      & TTimerItem("Linear response Z vector", 3),&
+      & TTimerItem("Linear response gradients", 3),&
+      & TTimerItem("Linear response NAC", 3)&
       & ]
 
+
+  !> Numerical identifiers to distinguish timers, matching labels above
   type :: TGlobalTimersHelper
     integer :: globalInit = 1
     integer :: preSccInit = 2
@@ -135,7 +146,7 @@ module dftbp_common_environment
     integer :: diagonalization = 12
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
-    integer :: rangeSeparatedH = 15
+    integer :: hybridXcH = 15
     integer :: densityMatrix = 16
     integer :: energyEval = 17
     integer :: postScc = 18
@@ -146,9 +157,18 @@ module dftbp_common_environment
     integer :: postGeoOpt = 23
     integer :: elecDynInit = 24
     integer :: elecDynLoop = 25
-
+    integer :: lrExcitation = 26
+    integer :: lrSetup = 27
+    integer :: lrCoulomb = 28
+    integer :: lrTransCharges = 29
+    integer :: lrSolver = 30
+    integer :: lrZVector = 31
+    integer :: lrGradients = 32
+    integer :: lrNAC = 33
   end type TGlobalTimersHelper
 
+
+  !> Instance of timer labels
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
 
 
