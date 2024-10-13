@@ -138,7 +138,7 @@ contains
     logical, intent(in), optional :: tWriteAscii
 
     type(TFileDescr) :: fdHS
-    integer :: nAtom, nSpin, iAt, iSp
+    integer :: nAtom, nSpin, iAt, iSp, iPL
     logical :: tAsciiFile
 
     nSpin = size(charges, dim=3)
@@ -156,15 +156,23 @@ contains
       ! now with a version number on the top of the file:
       write(fdHS%unit, *) contactFormatVersion
 
-      write(fdHS%unit, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS%unit, *) orb%nOrbAtom
-      write(fdHS%unit, *) shiftPerL(:,:,1)
-      write(fdHS%unit, *) charges
+      write(fdHS%unit, *) 2*nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS%unit, *) orb%nOrbAtom, orb%nOrbAtom ! replicated contact PLs
+      do iPl = 1, 2 ! replicated contact PLs
+        write(fdHS%unit, *) shiftPerL(:,:nAtom,1)
+      end do
+      do iSp = 1, nSpin
+        do iPl = 1, 2 ! replicated contact PLs
+          write(fdHS%unit, *) charges(:,:,iSp)
+        end do
+      end do
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS%unit, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+          do iPL = 1, 2 ! replicated contact PLs
+            do iAt = 1, nAtom
+              write(fdHS%unit, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            end do
           end do
         end do
       end if
@@ -187,15 +195,23 @@ contains
       ! now with a version number on the top of the file:
       write(fdHS%unit) contactFormatVersion
 
-      write(fdHS%unit) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
-      write(fdHS%unit) orb%nOrbAtom
-      write(fdHS%unit) shiftPerL(:,:,1)
-      write(fdHS%unit) charges
+      write(fdHS%unit) 2*nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
+      write(fdHS%unit) orb%nOrbAtom, orb%nOrbAtom ! replicated contact PLs
+      write(fdHS%unit) shiftPerL(:,:nAtom,1), shiftPerL(:,:nAtom,1)
+      select case(nSpin)
+      case(1)
+        write(fdHS%unit) charges(:,:nAtom,1), charges(:,:nAtom,1)
+      case(2)
+        write(fdHS%unit) charges(:,:nAtom,1), charges(:,:nAtom,1), charges(:,:nAtom,2),&
+            & charges(:,:nAtom,2)
+      end select
 
       if (allocated(blockCharges)) then
         do iSp = 1, nSpin
-          do iAt = 1, nAtom
-            write(fdHS%unit) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+          do iPL = 1, 2 ! replicated contact PLs
+            do iAt = 1, nAtom
+              write(fdHS%unit) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            end do
           end do
         end do
       end if
