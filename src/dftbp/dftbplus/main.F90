@@ -1130,6 +1130,18 @@ contains
         @:PROPAGATE_ERROR(errStatus)
     end if
 
+  #:if WITH_PLUGINS
+    if (this%plugin%initialized) then
+      if (this%plugin%capabilities%provides_setAtomSelfEnergy) then
+        call this%plugin%setAtomSelfEnergy(this%atomEigVal)
+      end if
+      if (this%plugin%capabilities%provides_setHubbardU) then
+        call this%plugin%setHubbardU(this%uniqHubbU%nHubbU, this%uniqHubbU%uniqHubbU,&
+          & this%uniqHubbU%iHubbU)
+      end if
+    end if
+  #:endif
+
   #:if WITH_TRANSPORT
     if (this%tNegf .and. isFirstDet) then
       call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
