@@ -14,6 +14,8 @@ extern "C" {
 typedef struct {
   int provides_getSKIntegrals;
   int provides_setNeighbourList;
+  int provides_setAtomSelfEnergy;
+  int provides_setHubbardU;
 } capabilities;
 
 int init();
@@ -24,6 +26,10 @@ int provides(typeof (capabilities) *);
 int getSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
 
 void setNeighbourList(int, int, double*, int*, int*, double*);
+
+void setAtomSelfEnergy(int, int, double*);
+
+void setHubbardU(int, int, int*, double*);
 
 #ifdef __cplusplus
 }

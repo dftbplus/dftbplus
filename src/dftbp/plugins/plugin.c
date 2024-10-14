@@ -72,3 +72,19 @@ void call_setNeighbourList(void *handle, int nAtoms, int nAtomsCent, double *coo
     (*func)(nAtoms, nAtomsCent, coords, img2CentCell, iNeighbour, neightDist2);
   }
 }
+
+void call_setAtomSelfEnergy(void *handle, int nOrbitals, int nAtoms, double *atomEigVal) {
+  int (*func)(int, int, double *);
+  func = dlsym(handle, "setAtomSelfEnergy");
+  if (func != NULL) {
+    (*func)(nOrbitals, nAtoms, atomEigVal);
+  }
+}
+
+void call_setHubbardU(void *handle, int nShells, int nSpecies, int *nHubbU, double *uniqHubbU) {
+  int (*func)(int, int, int *, double *);
+  func = dlsym(handle, "setHubbardU");
+  if (func != NULL) {
+    (*func)(nShells, nSpecies, nHubbU, uniqHubbU);
+  }
+}

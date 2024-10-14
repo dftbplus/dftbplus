@@ -19,7 +19,9 @@ int version(int major, int minor) {
 int provides(typeof (capabilities) *cap) {
     *cap = (capabilities) {
         .provides_getSKIntegrals = 1,
-        .provides_setNeighbourList = 1
+        .provides_setNeighbourList = 1,
+        .provides_setAtomSelfEnergy = 0,
+        .provides_setHubbardU = 0
     };
     return 1;
 }

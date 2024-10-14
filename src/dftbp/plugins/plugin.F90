@@ -33,6 +33,12 @@ module dftbp_plugins_plugin
     !> Whether the plugin needs the neighbour list
     logical :: provides_setNeighbourList = .false.
 
+    !> Whether the plugin needs the atomic self energy
+    logical :: provides_setAtomSelfEnergy = .false.
+
+    !> Whether the plugin needs the Hubbard Us
+    logical :: provides_setHubbardU = .false.
+
   end type TPluginCapabilities
 
   !> Type to manage a plugin
@@ -52,6 +58,8 @@ module dftbp_plugins_plugin
     procedure :: init => TPlugin_init
     procedure :: getSKIntegrals => TPlugin_getSKIntegrals
     procedure :: setNeighbourList => TPlugin_setNeighbourList
+    procedure :: setAtomSelfEnergy => TPlugin_setAtomSelfEnergy
+    procedure :: setHubbardU => TPlugin_setHubbardU
     final :: TPlugin_final
 
   end type TPlugin
@@ -60,6 +68,8 @@ module dftbp_plugins_plugin
   type, bind(C) :: TPluginCapabilities_c
     integer(c_int) :: provides_getSKIntegrals = 0
     integer(c_int) :: provides_setNeighbourList = 0
+    integer(c_int) :: provides_setAtomSelfEnergy = 0
+    integer(c_int) :: provides_setHubbardU = 0
   end type TPluginCapabilities_c
 
   interface
@@ -118,6 +128,25 @@ module dftbp_plugins_plugin
       real(c_double), intent(in) :: neightDist2(*)
     end subroutine call_setNeighbourList_c
 
+    !> Call the implemented function for setting the atomic self energy
+    subroutine call_setAtomSelfEnergy_c(handle, nOrbitals, nAtoms, atomEigVal)&
+          & bind(C, name='call_setAtomSelfEnergy')
+      import c_handle, c_double, c_int
+      type(c_handle), value, intent(in) :: handle
+      integer(c_int), value, intent(in) :: nOrbitals, nAtoms
+      real(c_double), intent(in) :: atomEigVal(*)
+    end subroutine call_setAtomSelfEnergy_c
+
+    !> Call the implemented function for setting the Hubbard Us
+    subroutine call_setHubbardU_c(handle, nShells, nSpecies, nHubbU, uniqHubbU)&
+          & bind(C, name='call_setHubbardU')
+      import c_handle, c_double, c_int
+      type(c_handle), value, intent(in) :: handle
+      integer(c_int), value, intent(in) :: nShells, nSpecies
+      integer(c_int), intent(in) :: nHubbU(*)
+      real(c_double), intent(in) :: uniqHubbU(*)
+    end subroutine call_setHubbardU_c
+
   end interface
 
 contains
@@ -153,6 +182,9 @@ contains
       else
         this%capabilities%provides_getSKIntegrals = capabilities_c%provides_getSKIntegrals == 1
         this%capabilities%provides_setNeighbourList = capabilities_c%provides_setNeighbourList == 1
+        this%capabilities%provides_setAtomSelfEnergy =&
+            & capabilities_c%provides_setAtomSelfEnergy == 1
+        this%capabilities%provides_setHubbardU = capabilities_c%provides_setHubbardU == 1
       end if
     end if
 
@@ -252,5 +284,53 @@ contains
         & coords, img2CentCell, iNeighbour, neightDist2)
 
   end subroutine TPlugin_setNeighbourList
+
+  !> Sets the atomic self energy
+  subroutine TPlugin_setAtomSelfEnergy(this, atomEigVal)
+
+    !> Instance
+    class(TPlugin), intent(in) :: this
+
+    !> Self energy (orbital, atom)
+    real(dp), intent(inout) :: atomEigVal(:,:)
+
+    if (.not. this%initialized) then
+      call error("Trying to call a function in an uninitialized plugin")
+    end if
+    if (.not. this%capabilities%provides_setAtomSelfEnergy) then
+      call error("Trying to call a function not provided by the plugin")
+    end if
+
+    call call_setAtomSelfEnergy_c(this%handle, size(atomEigVal, dim=1), size(atomEigVal, dim=2),&
+        & atomEigVal)
+
+  end subroutine TPlugin_setAtomSelfEnergy
+
+  !> Sets the Hubbard Us
+  subroutine TPlugin_setHubbardU(this, nHubbU, uniqHubbU, iHubbU)
+
+    !> Instance
+    class(TPlugin), intent(in) :: this
+
+    !> Nr. of uniq Us per species. Shape: [nSpecies]
+    integer, intent(in) :: nHubbU(:)
+
+    !> Uniq Us per species. Shape: [mShell, nSpecies]
+    real(dp), intent(inout) :: uniqHubbU(:,:)
+
+    !> Mapping L-shell to unique Hubbard U. Shape: [mShell, nSpecies]
+    integer, intent(in) :: iHubbU(:, :)
+
+    if (.not. this%initialized) then
+      call error("Trying to call a function in an uninitialized plugin")
+    end if
+    if (.not. this%capabilities%provides_setHubbardU) then
+      call error("Trying to call a function not provided by the plugin")
+    end if
+
+    call call_setHubbardU_c(this%handle, size(uniqHubbU, dim=1), size(uniqHubbU, dim=2),&
+        & nHubbU, uniqHubbU)
+
+  end subroutine TPlugin_setHubbardU
 
 end module dftbp_plugins_plugin
