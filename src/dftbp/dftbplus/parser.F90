@@ -5796,13 +5796,6 @@ contains
     real (dp) :: defPpRange(2)
     logical :: defaultWrite
 
-  #:if WITH_MPI
-    if (associated(node)) then
-      call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
-          & electron dynamics are not currently available for distributed parallel calculations.')
-    end if
-  #:endif
-
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, child=child)
     call convertUnitHsd(char(modifier), timeUnits, child, input%dt)

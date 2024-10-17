@@ -4074,12 +4074,24 @@ contains
         call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
       end if
 
-      if (withMpi) then
-        call error("Electron dynamics does not work with MPI yet")
+      if (input%ctrl%elecDynInp%tIons .and. withMPI) then
+        call error("Ion dynamics time propagation does not work with MPI yet")
       end if
 
-      if (this%tFixEf) then
-        call error("Electron dynamics does not work with fixed Fermi levels yet")
+      if (.not. this%tRealHS .and. withMpi) then
+        call error("Electron dynamics of periodic systems does not work with MPI yet")
+      end if
+
+      if (.not. this%tRealHS .and. withMpi) then
+        call error("Electron dynamics of periodic systems does not work with MPI yet")
+      end if
+
+      if (this%isHybridXc .and. withMpi) then
+        call error("Electron dynamics with range-separated functionals not implemented with MPI yet")
+      end if
+
+      if ((allocated(this%dftbU) .or. allocated(this%onSiteElements)) .and. withMpi) then
+        call error("Electron dynamics with DFTB+U or onsite corrections not implemented with MPI yet")
       end if
 
       if (this%tSpinSharedEf) then
@@ -4118,7 +4130,7 @@ contains
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
           & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
-          & errStatus)
+          & this%denseDesc, errStatus)
       if (errStatus%hasError()) call error(errStatus%message)
 
     end if

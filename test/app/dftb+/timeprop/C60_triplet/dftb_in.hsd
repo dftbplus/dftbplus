@@ -104,3 +104,13 @@ ElectronDynamics = {
     }
     FieldStrength [v/a] = 0.001
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  # Due to small size of problem, allow 2 MPI processors by shrinking blocks
+  Blacs = BlockSize {
+    16
+  }
+}
