@@ -2913,6 +2913,7 @@ contains
         ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
         call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
             & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
+            & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
             & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
       elseif (.not. this%tRealHS) then
         ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
