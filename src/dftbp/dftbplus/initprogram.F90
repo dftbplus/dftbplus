@@ -129,6 +129,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_eleccutoffs, only : TCutoffs
   use dftbp_type_integral, only : TIntegral, TIntegral_init
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
@@ -156,7 +157,7 @@ module dftbp_dftbplus_initprogram
   implicit none
 
   private
-  public :: TDftbPlusMain, TCutoffs, TNegfInt
+  public :: TDftbPlusMain, TNegfInt
   public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -164,30 +165,6 @@ module dftbp_dftbplus_initprogram
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
-
-  !> Interaction cutoff distances
-  type :: TCutoffs
-
-    !> Cutoff for overlap and Hamiltonian according to SK-files
-    real(dp) :: skCutOff
-
-    !> Cutoff for overlap and Hamiltonian according to SK-files minus possible cutoff reduction
-    real(dp) :: camCutOff
-
-    !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
-    real(dp), allocatable :: gSummationCutoff
-
-    !> Number of unit cells along each supercell folding direction to substract from MIC
-    !! Wigner-Seitz cell construction
-    integer, allocatable :: wignerSeitzReduction
-
-    !> Cutoff for truncated long-range Gamma integral
-    real(dp), allocatable :: gammaCutoff
-
-    !> Max. of all cutoffs
-    real(dp) :: mCutOff
-
-  end type TCutoffs
 
 
 #:if not WITH_TRANSPORT
@@ -4010,6 +3987,10 @@ contains
       end if
 
       if (this%isHybridXc) then
+        if (this%tPeriodic) then
+          call error("Electron dynamics with hybrid xc-functionals are currently only available for&
+              & non-periodic systems.")
+        end if
         if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
           call error("Triplet perturbations currently disabled for electron dynamics with hybrid&
               & xc-functionals.")
@@ -4025,11 +4006,11 @@ contains
       allocate(this%electronDynamics)
 
       call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
-          & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
-          & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
-          & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isHybridXc, this%scc, this%tblite, this%eFieldScaling,&
-          & this%hamiltonianType, errStatus)
+          & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%cutOff,&
+          & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
+          & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
+          & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
+          & errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -4046,7 +4027,7 @@ contains
 
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
-  !> particularly for external driving via API)
+  !! particularly for external driving via API)
   subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, speciesName,&
        & tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 

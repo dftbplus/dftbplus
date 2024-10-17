@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/densedescr.F90
   ${curdir}/dynneighlist.F90
   ${curdir}/latpointiter.F90
+  ${curdir}/eleccutoffs.F90
   ${curdir}/integral.F90
   ${curdir}/linkedlist.F90
   ${curdir}/linkedlistc0.F90
