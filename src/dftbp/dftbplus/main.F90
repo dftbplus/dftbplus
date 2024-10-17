@@ -61,7 +61,7 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TCutoffs, TNegfInt
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TNegfInt
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
       & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
@@ -111,6 +111,7 @@ module dftbp_dftbplus_main
   use dftbp_timedep_pprpa, only : ppRpaEnergies
   use dftbp_timedep_timeprop, only : runDynamics
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
+  use dftbp_type_cutoff, only : TCutoffs
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
@@ -440,12 +441,13 @@ contains
     if (allocated(this%electronDynamics)) then
       call runDynamics(this%electronDynamics, this%boundaryCond, this%eigvecsReal, this%H0,&
           & this%species, this%q0, this%referenceN0, this%ints, this%filling, this%neighbourList,&
-          & this%nNeighbourSK, this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell,&
-          & this%orb, this%coord0, this%spinW, this%repulsive, env, this%tDualSpinOrbit, this%xi,&
-          & this%thirdOrd, this%solvation, this%eFieldScaling, this%hybridXc, this%qDepExtPot,&
-          & this%dftbU, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord,&
-          & this%onsiteElements, this%skHamCont, this%skOverCont, this%latVec, this%invLatVec,&
-          & this%iCellVec, this%rCellVec, this%cellVec, this%electronicSolver, this%densityMatrix,&
+          & this%nNeighbourSK, this%symNeighbourList, this%nNeighbourCamSym,&
+          & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%orb, this%coord0,&
+          & this%spinW, this%repulsive, env, this%tDualSpinOrbit, this%xi, this%thirdOrd,&
+          & this%solvation, this%eFieldScaling, this%hybridXc, this%qDepExtPot, this%dftbU,&
+          & this%iAtInCentralRegion, this%tFixEf, this%Ef, this%coord, this%onsiteElements,&
+          & this%skHamCont, this%skOverCont, this%latVec, this%invLatVec, this%iCellVec,&
+          & this%rCellVec, this%cellVec, this%electronicSolver, this%densityMatrix,&
           & this%eigvecsCplx, this%taggedWriter, this%refExtPot, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -2226,7 +2228,7 @@ contains
     !> Third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
-    !> Range separation contributions
+    !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Data type for REKS
@@ -2302,7 +2304,7 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
-    !> sparsity pattern
+    !! sparsity pattern
     integer :: sparseSize
 
     coord0Fold(:,:) = coord0
@@ -2335,6 +2337,7 @@ contains
           & symNeighbourList%img2CentCell, symNeighbourList%iCellVec,&
           & symNeighbourList%neighbourList, symNeighbourList%nAllAtom, coord0Fold, species0,&
           & cutoff%camCutOff, rCellVec, errStatus, symmetric=.true.)
+      @:PROPAGATE_ERROR(errStatus)
       if (allocated(nNeighbourCamSym)) then
         ! count neighbours for CAM interactions (for symmetric neighbour list)
         call getNrOfNeighboursForAll(nNeighbourCamSym, symNeighbourList%neighbourList,&
@@ -3163,7 +3166,7 @@ contains
     !> The k-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
-    !>Data for hybrid xc-functional calculation
+    !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
     !> Change in density matrix during last hybridXc SCC cycle
@@ -5255,7 +5258,7 @@ contains
     !> Natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
 
-    !> Data for range-separated calculation
+    !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     real(dp), allocatable :: dQAtom(:,:)
@@ -6485,7 +6488,7 @@ contains
     !> Dispersion interactions
     class(TDispersionIface), intent(inout), allocatable :: dispersion
 
-    !> Data from hybrid xc-functional calculations
+    !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
     !> Dense overlap matrix, required for hybridXc

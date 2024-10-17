@@ -2,6 +2,7 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(sources-fpp
   ${curdir}/commontypes.F90
+  ${curdir}/cutoff.F90
   ${curdir}/densedescr.F90
   ${curdir}/dynneighlist.F90
   ${curdir}/latpointiter.F90
