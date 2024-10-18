@@ -49,7 +49,8 @@ module dftbp_dftb_hybridxc
 
   implicit none
 
-#:set FLAVOURS = [('real', 'real', 'symm'), ('cmplx', 'complex', 'hemm')]
+! Routine NAME label, main variable TYPE, variable CONVersion, matrix multiplication routine (MATOP)
+#:set FLAVOURS = [('real', 'real', 'real', 'symm'), ('cmplx', 'complex', 'cmplx', 'hemm')]
 
   private
 
@@ -2145,10 +2146,10 @@ contains
 
 #:else
 
-#:for NAME, TYPE, MATOP in FLAVOURS
+#:for NAME, TYPE, CONV, MATOP in FLAVOURS
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (${TYPE}$ non-periodic and ${TYPE}$ Gamma-only version)
+  !! (${NAME}$ non-periodic and ${NAME}$ Gamma-only version)
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_${NAME}$(this, iSquare, sSqr, rhoSqr, hamSqr)
@@ -2168,13 +2169,13 @@ contains
     !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
     ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Symmetrized, dense, square, unpacked overlap matrix
-    ${TYPE}$(dp), allocatable :: sSqrSym(:,:)
+    !! Both triangles of the dense, square, unpacked overlap matrix
+    ${TYPE}$(dp), allocatable :: sSqrTri(:,:)
 
-    !! Symmetrized, dense, square, unpacked density matrix
-    ${TYPE}$(dp), allocatable :: rhoSqrSym(:,:)
+    !! Both triangles of the dense, square, unpacked density matrix
+    ${TYPE}$(dp), allocatable :: rhoSqrTri(:,:)
 
-    !! Symmetric, dense, square, unpacked HFX contributions to the total Hamiltonian
+    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
     ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
@@ -2186,21 +2187,21 @@ contains
 
     nOrb = size(sSqr, dim=1)
 
-    allocate(sSqrSym(nOrb, nOrb))
-    allocate(rhoSqrSym(nOrb, nOrb))
+    allocate(sSqrTri(nOrb, nOrb))
+    allocate(rhoSqrTri(nOrb, nOrb))
     allocate(camGammaAO(nOrb, nOrb))
     allocate(hamCamSqr(nOrb, nOrb))
 
-    call allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrSym, rhoSqrSym, camGammaAO)
-    call evaluateHamiltonian(this, sSqrSym, rhoSqrSym, camGammaAO, hamCamSqr)
+    call allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    call evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
     hamSqr(:,:) = hamSqr + hamCamSqr
-    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqrSym)
+    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqrTri)
 
   contains
 
-    !> Sets up symmetrized matrices and the orbital-by-orbital gamma matrix.
-    subroutine allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrSym, rhoSqrSym, camGammaAO)
+    !> Sets up matrices with both triangles filled and the orbital-by-orbital gamma matrix.
+    subroutine allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
 
       !> Class instance
       class(THybridXcFunc), intent(in) :: this
@@ -2217,13 +2218,13 @@ contains
       !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
       ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-      !> Symmetrized, dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(out)  :: sSqrSym(:,:)
+      !> Both triangles of the dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(out)  :: sSqrTri(:,:)
 
-      !> Symmetrized, dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(out)  :: rhoSqrSym(:,:)
+      !> Both triangles of the dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(out)  :: rhoSqrTri(:,:)
 
-      !> Symmetrized orbital-by-orbital CAM gamma matrix
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
       ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
 
       !! Number of atoms in the central cell
@@ -2234,15 +2235,15 @@ contains
 
       nAtom = size(this%camGammaEval0, dim=1)
 
-      ! Symmetrize Hamiltonian, overlap, and density matrices
+      ! Construct both triangles of Hamiltonian, overlap, and density matrices
       call adjointLowerTriangle(hamSqr)
-      sSqrSym(:,:) = sSqr
-      call adjointLowerTriangle(sSqrSym)
-      rhoSqrSym(:,:) = rhoSqr
-      call adjointLowerTriangle(rhoSqrSym)
+      sSqrTri(:,:) = sSqr
+      call adjointLowerTriangle(sSqrTri)
+      rhoSqrTri(:,:) = rhoSqr
+      call adjointLowerTriangle(rhoSqrTri)
 
       ! Get orbital-resolved CAM gamma matrix
-      camGammaAO(:,:) = ${NAME}$(0, kind=dp)
+      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           camGammaAO(iSquare(jAt):iSquare(jAt+1)-1, iSquare(iAt):iSquare(iAt+1)-1)&
@@ -2253,22 +2254,22 @@ contains
     end subroutine allocateAndInit
 
 
-    !> Evaluates the HFX Hamiltonian contributions, using SYMM operations.
-    subroutine evaluateHamiltonian(this, sSqrSym, rhoSqrSym, camGammaAO, hamCamSqr)
+    !> Evaluates the HFX Hamiltonian contributions, using ${MATOP}$ operations.
+    subroutine evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
       !> Class instance
       class(THybridXcFunc), intent(in) :: this
 
-      !> Symmetrized, dense, square, unpacked overlap matrix
-      ${TYPE}$(dp), intent(in)  :: sSqrSym(:,:)
+      !> Both triangles of the dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(in)  :: sSqrTri(:,:)
 
-      !> Symmetrized, dense, square, unpacked density matrix
-      ${TYPE}$(dp), intent(in)  :: rhoSqrSym(:,:)
+      !> Both triangles of the dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(in)  :: rhoSqrTri(:,:)
 
-      !> Symmetrized orbital-by-orbital CAM gamma matrix
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
       ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
 
-      !> Symmetric, dense, square, unpacked HFX contributions to the total Hamiltonian
+      !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
       ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
       !! Temporary storage
@@ -2277,28 +2278,28 @@ contains
       !! Number of orbitals in square matrices
       integer :: nOrb
 
-      nOrb = size(sSqrSym, dim=1)
+      nOrb = size(sSqrTri, dim=1)
 
       allocate(Hmat(nOrb, nOrb))
       allocate(tmpMat(nOrb, nOrb))
 
-      call ${MATOP}$(tmpMat, 'l', sSqrSym, rhoSqrSym)
-      call ${MATOP}$(hamCamSqr, 'r', sSqrSym, tmpMat)
+      call ${MATOP}$(tmpMat, 'l', sSqrTri, rhoSqrTri)
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat)
       hamCamSqr(:,:) = hamCamSqr * camGammaAO
 
       tmpMat(:,:) = tmpMat * camGammaAO
-      call ${MATOP}$(hamCamSqr, 'r', sSqrSym, tmpMat, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      Hmat(:,:) = rhoSqrSym * camGammaAO
-      call ${MATOP}$(tmpMat, 'l', sSqrSym, Hmat)
-      call ${MATOP}$(hamCamSqr, 'r', sSqrSym, tmpMat, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      Hmat(:,:) = rhoSqrTri * camGammaAO
+      call ${MATOP}$(tmpMat, 'l', sSqrTri, Hmat)
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      call ${MATOP}$(tmpMat, 'l', rhoSqrSym, sSqrSym)
+      call ${MATOP}$(tmpMat, 'l', rhoSqrTri, sSqrTri)
       tmpMat(:,:) = tmpMat * camGammaAO
-      call ${MATOP}$(hamCamSqr, 'l', sSqrSym, tmpMat, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      call ${MATOP}$(hamCamSqr, 'l', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       if (this%tSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
