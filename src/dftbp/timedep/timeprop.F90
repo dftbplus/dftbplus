@@ -1539,18 +1539,24 @@ contains
 
     ! add hybrid xc-functional contribution
     if (this%isHybridXc) then
+    #:if WITH_MPI
+      @:RAISE_ERROR(errStatus, -1, "Timeprop Module: MPI-parallelization not implemented for hybrid&
+          & xc-functionals.")
+    #:else
       deltaRho = rho
       if (this%nSpin > 2) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
       end if
       call denseSubtractDensityOfAtomsCmplxNonperiodic(q0, iSquare, deltaRho)
+
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
-        call hybridXc%addCamHamiltonianMatrix_cluster_cmplx(iSquare, sSqr(:,:, iSpin),&
+        call hybridXc%addCamHamiltonianMatrix_cmplx(iSquare, sSqr(:,:, iSpin),&
             & deltaRho(:,:, iSpin), H1LC)
         call adjointLowerTriangle(H1LC)
         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
       end do
+    #:endif
     end if
 
   end subroutine updateH
