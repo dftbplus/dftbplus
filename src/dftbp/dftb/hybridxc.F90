@@ -1994,10 +1994,10 @@ contains
 
 #:if WITH_SCALAPACK
 
-#:for NAME, TYPE, MATOP in FLAVOURS
+#:for NAME, TYPE, CONV, MATOP in FLAVOURS
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (${TYPE}$ non-periodic and ${TYPE}$ Gamma-only version)
+  !! (${NAME}$ non-periodic and ${NAME}$ Gamma-only version)
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_${NAME}$_blacs(this, env, denseDesc, sSqr, rhoSqr, hamSqr)
@@ -2011,16 +2011,16 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Symmetric, dense, square, unpacked overlap matrix
+    !> Both triangles of the dense, square, unpacked overlap matrix
     ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-    !> Symmetric, dense, square, unpacked density matrix
+    !> Both triangles of the dense, square, unpacked density matrix
     ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-    !> Symmetric, dense, square, unpacked Hamiltonian to add the HFX contributions to
+    !> Both triangles of the dense, square, unpacked Hamiltonian to add the HFX contributions to
     ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Symmetric, dense, square, unpacked HFX contributions to the total Hamiltonian
+    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
     ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
@@ -2061,14 +2061,14 @@ contains
       !> Dense matrix descriptor
       type(TDenseDescr), intent(in) :: denseDesc
 
-      !> Symmetric, orbital-by-orbital CAM gamma matrix
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
       ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
 
       !! Auxiliary variables
       integer :: iAt1, iAt2, ii, jj, iOrb1, iOrb2
 
       ! Get orbital-resolved CAM gamma matrix
-      camGammaAO(:,:) = ${NAME}$(0, kind=dp)
+      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
 
       do jj = 1, size(camGammaAO, dim=2)
         iOrb2 = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
@@ -2094,16 +2094,16 @@ contains
       !> BLACS matrix descriptor
       integer, intent(in) :: desc(:)
 
-      !> Symmetric, dense, square, unpacked overlap matrix
+      !> Both triangles of the dense, square, unpacked overlap matrix
       ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-      !> Symmetric, dense, square, unpacked density matrix
+      !> Both triangles of the dense, square, unpacked density matrix
       ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-      !> Symmetric, orbital-by-orbital CAM gamma matrix
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
       ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
 
-      !> Symmetric, dense, square, unpacked HFX contributions to the total Hamiltonian
+      !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
       ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
       !! Temporary storage
@@ -2115,28 +2115,28 @@ contains
       nRows = size(sSqr, dim=1)
       nCols = size(sSqr, dim=2)
 
-      allocate(Hmat(nRows, nCols), source=${NAME}$(0, kind=dp))
-      allocate(tmpMat(nRows, nCols), source=${NAME}$(0, kind=dp))
+      allocate(Hmat(nRows, nCols), source=${CONV}$(0, kind=dp))
+      allocate(tmpMat(nRows, nCols), source=${CONV}$(0, kind=dp))
 
-      hamCamSqr(:,:) = ${NAME}$(0, kind=dp)
+      hamCamSqr(:,:) = ${CONV}$(0, kind=dp)
 
       call pblasfx_pgemm(sSqr, desc, rhoSqr, desc, tmpMat, desc)
       call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc)
       hamCamSqr(:,:) = hamCamSqr * camGammaAO
 
       tmpMat(:,:) = tmpMat * camGammaAO
-      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       Hmat(:,:) = rhoSqr * camGammaAO
       call pblasfx_pgemm(sSqr, desc, hMat, desc, tmpMat, desc)
-      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       call pblasfx_pgemm(rhoSqr, desc, sSqr, desc, tmpMat, desc)
       tmpMat(:,:) = tmpMat * camGammaAO
-      call pblasfx_pgemm(sSqr, desc, tmpMat, desc, hamCamSqr, desc, alpha=${NAME}$(1, kind=dp),&
-          & beta=${NAME}$(1, kind=dp))
+      call pblasfx_pgemm(sSqr, desc, tmpMat, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       if (this%tSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
