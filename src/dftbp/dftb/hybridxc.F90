@@ -49,8 +49,8 @@ module dftbp_dftb_hybridxc
 
   implicit none
 
-! Routine NAME label, main variable TYPE, variable CONVersion, matrix multiplication routine (MATOP)
-#:set FLAVOURS = [('real', 'real', 'real', 'symm'), ('cmplx', 'complex', 'cmplx', 'hemm')]
+#! Routine NAME label, main variable TYPE
+#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex')]
 
   private
 
@@ -2146,10 +2146,15 @@ contains
 
 #:else
 
-#:for NAME, TYPE, CONV, MATOP in FLAVOURS
+#:for NAME, TYPE in FLAVOURS
+
+#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
+#:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
+#:set MATOP = 'hemm' if TYPE == 'complex' else 'symm'
+
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (${NAME}$ non-periodic and ${NAME}$ Gamma-only version)
+  !! (${LABEL}$ non-periodic and ${LABEL}$ Gamma-only version)
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine addCamHamiltonianMatrix_${NAME}$(this, iSquare, sSqr, rhoSqr, hamSqr)
@@ -2310,6 +2315,7 @@ contains
     end subroutine evaluateHamiltonian
 
   end subroutine addCamHamiltonianMatrix_${NAME}$
+
 #:endfor
 
 #:endif
