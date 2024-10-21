@@ -2389,7 +2389,7 @@ contains
         write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
           ! meV accuracy for eigenvalues
-          write(fd%unit, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+          write(fd%unit, "(I6, F12.4, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
               & filling(iEgy, iK, iSpin)
         end do
         write(fd%unit, *)
