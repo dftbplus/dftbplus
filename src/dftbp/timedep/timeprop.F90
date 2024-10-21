@@ -646,6 +646,10 @@ module dftbp_timedep_timeprop
     !> Most recently calculated bond population (retained for final write out)
     real(dp), allocatable :: totalCurrent(:)
 
+    !> Number of all atoms
+    integer :: nAllAtom
+    
+    !TODO: implement correct energy for Peierls Hamiltonian (substract diag elements)
     complex(dp), allocatable :: Ssqr0(:,:,:)     !overlap matrix of the GS
     real(dp), allocatable :: H0sqr(:,:)     !hamiltonian square matrix of the GS
 
@@ -2385,7 +2389,7 @@ contains
     allocate(this%H0sqr(this%nOrbs, this%nOrbs))
     call unpackHS(this%H0sqr, ham0, iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell)
-    call blockSymmetrizeHS(this%H0sqr, iSquare)
+    call adjointLowerTriangle(this%H0sqr)
 
     if (this%tPopulations) then
       allocate(Eiginv(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
@@ -2876,8 +2880,8 @@ contains
 
   !> Write results to file
   subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
-      & fdBondEnergy, atomEnergyDat, time, energy, energyKin, dipole, deltaQ, coord, totalForce,&
-      & currentDat, iStep)
+      & fdBondEnergy, atomEnergyDat, currentDat, time, energy, energyKin, dipole, deltaQ, coord,&
+      & totalForce, iStep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
