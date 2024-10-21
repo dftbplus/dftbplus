@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> COSMO solvent model routines
 module dftbp_solvation_cosmo
   use ddcosmo_core, only : ddupdate, TDomainDecomposition_init, wghpot, intrhs, fdoka, fdokb,&
       & fdoga
@@ -152,14 +153,17 @@ module dftbp_solvation_cosmo
 
   end type TCosmo
 
-
+  !> Constant for electrostatics
   real(dp), parameter :: fourpi = 4.0_dp * pi
-  integer, parameter :: ndiis=25
+
+  !> Max number of DIIS extrapolating steps for library
+  integer, parameter :: diis_max=25
 
 
 contains
 
 
+  !> Initialise the model
   subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, latVecs)
 
     !> Instance of the solvation model
@@ -217,6 +221,7 @@ contains
   end subroutine TCosmo_init
 
 
+  !> Print COSMO settings to external file
   subroutine writeCosmoInfo(unit, solvation)
 
     !> Formatted unit for IO
@@ -590,11 +595,17 @@ contains
   end function getEpsilon_r
 
 
-  !> Evaluate the Coulomb interactions between the atomic sides (xyz) and the
-  !> surface elements of the cavity (ccav).
+  !> Evaluate the Coulomb interactions between the atomic sites (xyz) and the
+  !! surface elements of the cavity (ccav).
   subroutine getCoulombMatrix(xyz, ccav, jmat)
+
+    !> Positions of atoms
     real(dp), intent(in) :: xyz(:, :)
+
+    !> Cavity surface points
     real(dp), intent(in) :: ccav(:, :)
+
+    !> Coulomb matrix
     real(dp), intent(inout) :: jmat(:, :)
 
     integer :: ic, j
@@ -617,7 +628,11 @@ contains
 
   !> Routine to compute the psi vector
   subroutine getPsi(charge, psi)
+
+    !> Atomic net charges
     real(dp), intent(in) :: charge(:)
+
+    !>
     real(dp), intent(out) :: psi(:, :)
 
     integer :: iat
@@ -635,8 +650,14 @@ contains
 
   !> Routine to compute the potential vector
   subroutine getPhi(charge, jmat, phi)
+
+    !> Net atomic charges
     real(dp), intent(in) :: charge(:)
+
+    !> Coulomb matrix
     real(dp), intent(in) :: jmat(:, :)
+
+    !>
     real(dp), intent(out) :: phi(:)
 
     @:ASSERT(size(jmat, 1) == size(phi))
@@ -650,13 +671,12 @@ contains
 
 
   !> Wrapper for the linear solvers for COSMO equation
-  !    L sigma = G
-  !  This routine performs the following operations :
-  !   - allocates memory for the linear solvers
-  !   - if star is false and cart is true, assembles the right-hand side for the COSMO
-  !     equations.
-  !   - computes a guess for the solution (using the inverse diagonal);
-  !   - calls the iterative solver;
+  !!   L sigma = G
+  !! This routine performs the following operations :
+  !!  - allocates memory for the linear solvers
+  !!  - if restart is false and cart is true, assembles the right-hand side for the COSMO equations.
+  !!  - computes a guess for the solution (using the inverse diagonal);
+  !!  - calls the iterative solver;
   subroutine solveCosmoDirect(ddCosmo, cart, phi, glm, sigma, restart)
 
     !> Error source
@@ -664,18 +684,18 @@ contains
     type(TDomainDecomposition), intent(in) :: ddCosmo
 
     !> true:  the right-hand side for the COSMO has to be assembled
-    !         inside this routine and the unscaled potential at the
-    !         external points of the cavity is provided in phi.
-    !  false: the right-hand side for the COSMO equations is provided
-    !         in glm.
+    !!        inside this routine and the unscaled potential at the
+    !!        external points of the cavity is provided in phi.
+    !! false: the right-hand side for the COSMO equations is provided
+    !!        in glm.
     logical, intent(in) :: cart
 
     !> Contains the potential at the external cavity points if cart is true.
-    !  phi is not referenced in any other case.
+    !! phi is not referenced in any other case.
     real(dp), intent(in) :: phi(:)
 
     !> Contains the right-hand side for the COSMO equations if cart is false.
-    !  glm is not referenced in any other case
+    !! glm is not referenced in any other case
     real(dp), intent(in) :: glm(:, :)
 
     !> The solution to the COSMO (adjoint) equations
@@ -691,8 +711,8 @@ contains
     real(dp), allocatable :: g(:,:), rhs(:,:)
 
     ! parameters for the solver and matvec routine
-    tol     = ddCosmo%conv
-    n_iter  = 200
+    tol = ddCosmo%conv
+    n_iter = 200
 
     ! DIRECT COSMO EQUATION L X = g
 
@@ -744,7 +764,7 @@ contains
     ! action of  diag^-1 :  ldm1x
     ! action of  offdiag :  lx
     call jacobi_diis(ddCosmo, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
-      & ndiis, 4, tol, rhs, sigma, n_iter, ok, lx, ldm1x, hnorm)
+      & diis_max, 4, tol, rhs, sigma, n_iter, ok, lx, ldm1x, hnorm)
 
     ! check solution
     if (.not.ok) then
@@ -788,7 +808,7 @@ contains
     else
       tol = ddCosmo%conv
     end if
-    n_iter  = 200
+    n_iter = 200
 
     ! 1. INITIAL GUESS
     if (.not.restart) then
@@ -800,7 +820,7 @@ contains
     ! 2. SOLVER CALL
     ! Jacobi method : see above
     call jacobi_diis(ddCosmo, ddCosmo%nat*ddCosmo%nylm, ddCosmo%iprint, &
-      & ndiis, 4, tol, psi, sigma, n_iter, ok, lstarx, ldm1x, hnorm)
+      & diis_max, 4, tol, psi, sigma, n_iter, ok, lstarx, ldm1x, hnorm)
 
     ! check solution
     if (.not.ok) then
@@ -905,7 +925,7 @@ contains
     deallocate (xi, phiexp)
 
     ! scale the forces time the cosmo factor:
-    fx  = keps*fx
+    fx = keps*fx
 
   end subroutine forces
 

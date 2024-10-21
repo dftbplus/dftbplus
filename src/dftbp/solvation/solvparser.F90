@@ -201,7 +201,7 @@ contains
     case("unity")
       input%descreening(:) = 1.0_dp
     case("values")
-      call readSpeciesList(value1, geo%speciesNames, input%descreening)
+      call readSpeciesList(value1, geo%speciesNames, input%descreening, units=lengthUnits)
     end select
 
     call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
@@ -589,7 +589,7 @@ contains
         & conv=conv)
       deallocate(vdwRadDefault)
     case("values")
-      call readSpeciesList(value1, geo%speciesNames, vdwRad, conv=conv)
+      call readSpeciesList(value1, geo%speciesNames, vdwRad, conv=conv, units=lengthUnits)
     end select
     vdwRad(:) = vdwRad * conv
 

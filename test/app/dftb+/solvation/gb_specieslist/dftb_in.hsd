@@ -123,6 +123,7 @@ Analysis = {
 
 ParserOptions = {
   ParserVersion = 8
+  IgnoreUnprocessedNodes = Yes
 }
 
 Parallel {
