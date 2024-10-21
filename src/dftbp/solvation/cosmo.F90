@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> COSMO solvent model routines
 module dftbp_solvation_cosmo
@@ -14,13 +15,13 @@ module dftbp_solvation_cosmo
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, Hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_extlibs_ddcosmo, only : TDomainDecompositionInput, TDomainDecomposition, jacobi_diis,&
       & lx, lstarx, ldm1x, hnorm
   use dftbp_extlibs_lebedev, only : getAngGrid, gridSize
   use dftbp_io_charmanip, only : tolower
-  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemv
   use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
@@ -68,10 +69,10 @@ module dftbp_solvation_cosmo
     !> Domain decomposition COSMO solver
     type(TDomainDecomposition) :: ddCosmo
 
-    !> Electrostatic potential phi(ncav)
+    !> Electrostatic solute potential at the cavity phi(ncav)
     real(dp), allocatable :: phi(:)
 
-    !> Psi vector psi(nylm, nAtom)
+    !> Psi vector of solute atomic multipoles with radial factor psi(nylm, nAtom)
     real(dp), allocatable :: psi(:, :)
 
     !> ddcosmo solution sigma(nylm, nAtom)
@@ -164,7 +165,7 @@ contains
 
 
   !> Initialise the model
-  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TCosmo_init(this, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Instance of the solvation model
     type(TCosmo), intent(out) :: this
@@ -180,6 +181,9 @@ contains
 
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
@@ -203,7 +207,7 @@ contains
     allocate(this%angWeight(gridSize(input%gridSize)))
     call getAngGrid(input%gridSize, this%angGrid, this%angWeight, stat)
     if (stat /= 0) then
-      call error("Could not initialize angular grid for COSMO model")
+      @:RAISE_ERROR(errStatus, stat, "Could not initialize angular grid for COSMO model")
     end if
 
     allocate(this%chargesPerAtom(nAtom))
@@ -215,7 +219,8 @@ contains
     if (allocated(input%sasaInput)) then
        allocate(this%sasaCont)
        call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
-           & speciesNames, latVecs)
+           & speciesNames, errStatus, latVecs)
+       @:PROPAGATE_ERROR(errStatus)
     end if
 
   end subroutine TCosmo_init
@@ -224,7 +229,7 @@ contains
   !> Print COSMO settings to external file
   subroutine writeCosmoInfo(unit, solvation)
 
-    !> Formatted unit for IO
+    !> Unit for IO
     integer, intent(in) :: unit
 
     !> Solvation model
@@ -344,7 +349,7 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients, errStatus)
 
     !> Data structure
     class(TCosmo), intent(inout) :: this
@@ -367,6 +372,9 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     integer :: ii, iat, ig
     real(dp), allocatable :: fx(:,:), zeta(:), ef1(:,:), ef2(:,:)
 
@@ -375,7 +383,9 @@ contains
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     allocate(fx(3, this%nAtom), zeta(this%ddCosmo%ncav), &
@@ -384,8 +394,9 @@ contains
     ! reset Psi
     call getPsi(this%chargesPerAtom, this%psi)
 
-    call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, .true., &
-      & accuracy=this%ddCosmo%conv*1e-3_dp)
+    call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, .true., errStatus,&
+        & accuracy=this%ddCosmo%conv*1e-3_dp)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! reset Phi
     call getPhi(this%chargesPerAtom, this%jmat, this%phi)
@@ -471,7 +482,7 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb, errStatus)
 
     !> Data structure
     class(TCosmo), intent(inout) :: this
@@ -497,13 +508,18 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp) :: xx(1, 1)
     logical :: restart
 
     @:ASSERT(this%tCoordsUpdated)
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     restart = allocated(this%sigma)
@@ -515,7 +531,8 @@ contains
 
     call getPhi(this%chargesPerAtom, this%jmat, this%phi)
 
-    call solveCosmoDirect(this%ddCosmo, .true., this%phi, xx, this%sigma, restart)
+    call solveCosmoDirect(this%ddCosmo, .true., this%phi, xx, this%sigma, restart, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     restart = allocated(this%s)
     if (.not.allocated(this%s)) then
@@ -525,7 +542,8 @@ contains
     call getPsi(this%chargesPerAtom, this%psi)
 
     ! solve adjoint ddCOSMO equation to get full potential contributions
-    call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, restart)
+    call solveCosmoAdjoint(this%ddCosmo, this%psi, this%s, restart, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     this%tChargesUpdated = .true.
 
@@ -626,13 +644,13 @@ contains
   end subroutine getCoulombMatrix
 
 
-  !> Routine to compute the psi vector
+  !> Routine to compute the psi vector (monopole)
   subroutine getPsi(charge, psi)
 
     !> Atomic net charges
     real(dp), intent(in) :: charge(:)
 
-    !>
+    !> Field from solute charged
     real(dp), intent(out) :: psi(:, :)
 
     integer :: iat
@@ -641,6 +659,7 @@ contains
     fac = sqrt(fourpi)
     psi(:,:) = 0.0_dp
 
+    ! Eqn 24 of http://dx.doi.org/10.1063/1.4901304
     do iat = 1, size(charge)
       psi(1, iat) = fac*charge(iat)
     end do
@@ -657,7 +676,7 @@ contains
     !> Coulomb matrix
     real(dp), intent(in) :: jmat(:, :)
 
-    !>
+    !> potential at the external cavity points
     real(dp), intent(out) :: phi(:)
 
     @:ASSERT(size(jmat, 1) == size(phi))
@@ -677,11 +696,7 @@ contains
   !!  - if restart is false and cart is true, assembles the right-hand side for the COSMO equations.
   !!  - computes a guess for the solution (using the inverse diagonal);
   !!  - calls the iterative solver;
-  subroutine solveCosmoDirect(ddCosmo, cart, phi, glm, sigma, restart)
-
-    !> Error source
-    character(len=*), parameter :: source = 'cosmo::solveCosmoDirect'
-    type(TDomainDecomposition), intent(in) :: ddCosmo
+  subroutine solveCosmoDirect(ddCosmo, cart, phi, glm, sigma, restart, errStatus)
 
     !> true:  the right-hand side for the COSMO has to be assembled
     !!        inside this routine and the unscaled potential at the
@@ -704,10 +719,13 @@ contains
     !> Initial guess is provided on sigma
     logical, intent(in) :: restart
 
-    integer :: iat, istatus, n_iter
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    type(TDomainDecomposition), intent(in) :: ddCosmo
+    integer :: iat, iStatus, n_iter
     real(dp) :: tol
     logical :: ok
-
     real(dp), allocatable :: g(:,:), rhs(:,:)
 
     ! parameters for the solver and matvec routine
@@ -717,9 +735,9 @@ contains
     ! DIRECT COSMO EQUATION L X = g
 
     ! allocate workspace for rhs
-    allocate(rhs(ddCosmo%nylm, ddCosmo%nat), stat=istatus)
-    if (istatus /= 0) then
-      write(*, *) ' cosmo: [2] failed allocation'
+    allocate(rhs(ddCosmo%nylm, ddCosmo%nat), stat=iStatus)
+    if (iStatus /= 0) then
+      @:RAISE_ERROR(errStatus, iStatus, 'cosmo: [2] failed allocation')
     endif
 
     ! 1. RHS
@@ -727,9 +745,9 @@ contains
     if (cart) then
 
       ! allocate workspace for weighted potential
-      allocate(g(ddCosmo%ngrid, ddCosmo%nat) , stat=istatus)
-      if (istatus /= 0) then
-        write(*, *) ' cosmo: [3] failed allocation'
+      allocate(g(ddCosmo%ngrid, ddCosmo%nat) , stat=iStatus)
+      if (iStatus /= 0) then
+        @:RAISE_ERROR(errStatus, iStatus, 'cosmo: [3] failed allocation')
       endif
 
       ! weight the potential...
@@ -741,9 +759,9 @@ contains
       enddo
 
       ! deallocate workspace
-      deallocate(g , stat=istatus)
-      if (istatus /= 0) then
-        write(*, *) 'cosmo: [1] failed deallocation'
+      deallocate(g , stat=iStatus)
+      if (iStatus /= 0) then
+        @:RAISE_ERROR(errStatus, iStatus, 'cosmo: [1] failed deallocation')
       endif
 
     else
@@ -768,8 +786,7 @@ contains
 
     ! check solution
     if (.not.ok) then
-      call error('direct ddCOSMO did not converge!')
-      return
+      @:RAISE_ERROR(errStatus, -1, 'direct ddCOSMO did not converge!')
     endif
 
   end subroutine solveCosmoDirect
@@ -779,11 +796,11 @@ contains
   !>   L^* sigma = Psi
   !> This routine performs the following operations :
   !>  - allocates memory for the linear solvers
-  !>  - computes a guess for the solution (using the inverse diagonal);
-  !>  - calls the iterative solver;
-  subroutine solveCosmoAdjoint(ddCosmo, psi, sigma, restart, accuracy)
-    ! Error source
-    character(len=*), parameter :: source = 'cosmo::solveCosmoAdjoint'
+  !>  - computes a guess for the solution (using the inverse diagonal)
+  !>  - calls the iterative solver
+  subroutine solveCosmoAdjoint(ddCosmo, psi, sigma, restart, errStatus, accuracy)
+
+    !> COSMO solver instance
     type(TDomainDecomposition), intent(in) :: ddCosmo
 
     !> The psi vector. it is used as a right-hand side
@@ -794,6 +811,9 @@ contains
 
     !> Initial guess is provided on sigma
     logical, intent(in) :: restart
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     !> Overwrite accuracy
     real(dp), intent(in), optional :: accuracy
@@ -824,24 +844,31 @@ contains
 
     ! check solution
     if (.not.ok) then
-      call error('adjoint ddCOSMO did not converge!')
-      return
+      @:RAISE_ERROR(errStatus, -1, 'adjoint ddCOSMO did not converge!')
     endif
 
   end subroutine solveCosmoAdjoint
 
 
   !> Compute
-  !
-  ! \zeta(n, i) =
-  !
-  !  1/2 f(\eps) sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
-  !              l, m
-  !
+  !!
+  !! \zeta(n, i) =
+  !!
+  !!  1/2 f(\eps) sum w_n U_n^i Y_l^m(s_n) [S_i]_l^m
+  !!              l, m
+  !!
   subroutine getZeta(ddCosmo, keps, s, zeta)
+
+    !> COSMO instance
     type(TDomainDecomposition), intent(in) :: ddCosmo
+
+    !> dielectric scaling factor
     real(dp), intent(in) :: keps
+
+    !> ddcosmo adjoint solution
     real(dp), intent(in) :: s(:, :) ! [ddCosmo%nylm, ddCosmo%nat]
+
+    !> zeta intermediate for solvent
     real(dp), intent(inout) :: zeta(:) ! [ddCosmo%ncav]
 
     integer :: its, iat, ii
@@ -868,15 +895,26 @@ contains
 
   !> Sample driver for the calculation of the ddCOSMO forces.
   subroutine forces(ddCosmo, keps, phi, sigma, s, fx)
+
+    !> COSMO instance
     type(TDomainDecomposition), intent(in) :: ddCosmo
+
+    !> dielectric scaling factor
     real(dp), intent(in) :: keps
+
+    !> potential at the external cavity points
     real(dp), intent(in) :: phi(:)
+
+    !> Solution to the COSMO (adjoint) equations
     real(dp), intent(in) :: sigma(:, :)
+
+    !> ddcosmo adjoint solution (charges on cavity surface)
     real(dp), intent(in) :: s(:, :)
+
+    !> Forces
     real(dp), intent(inout) :: fx(:, :)
 
     integer :: iat, ig, ii
-
     real(dp), allocatable :: xi(:,:), phiexp(:,:)
     real(dp), allocatable :: basloc(:), dbsloc(:,:), vplm(:), vcos(:), vsin(:)
 
@@ -931,12 +969,25 @@ contains
 
 
   !> Computes the electric field produced by the sources src (nsrc point charges
-  !  with coordinates csrc) at the ntrg target points ctrg:
+  !!  with coordinates csrc) at the ntrg target points ctrg:
   subroutine efld(nsrc, src, csrc, ntrg, ctrg, ef)
-    integer, intent(in) :: nsrc, ntrg
+
+    !> Number of sources
+    integer, intent(in) :: nsrc
+
+    !> Charges of sources
     real(dp), intent(in) :: src(:)
+
+    !> Coordinates of sources
     real(dp), intent(in) :: csrc(:, :)
+
+    !> Target points
+    integer, intent(in) :: ntrg
+
+    !> Target points
     real(dp), intent(in) :: ctrg(:, :)
+
+    !> Field at target points
     real(dp), intent(inout) :: ef(:, :)
 
     integer :: i, j
@@ -1089,6 +1140,5 @@ contains
       end do
     end do
   end subroutine writeCosmoFile
-
 
 end module dftbp_solvation_cosmo

@@ -702,7 +702,7 @@ contains
 
 
   !> Process the various potential contributions to give final potential to be added to the model
-  subroutine processPotentials(env, this, iSccIter, updateScc, q, qBlock, qiBlock)
+  subroutine processPotentials(env, this, iSccIter, updateScc, q, qBlock, qiBlock, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -724,6 +724,9 @@ contains
 
     !> Imaginary part of dual atomic charges
     real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
 
     ! Shift due to constraints
     real(dp) :: constrShift(this%orb%mOrb, this%orb%mOrb, this%nAtom, this%nSpin)
@@ -752,7 +755,8 @@ contains
       call addChargePotentials(env, this%scc, this%tblite, updateScc, q, this%q0,&
           & this%chargePerShell, this%orb, this%multipoleInp, this%species, this%neighbourList,&
           & this%img2CentCell, this%spinW, this%solvation, this%thirdOrd, this%dispersion,&
-          & this%potential)
+          & this%potential, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       call addBlockChargePotentials(qBlock, qiBlock, this%dftbU, this%tImHam,&
           & this%species, this%orb, this%potential)
@@ -1373,7 +1377,8 @@ contains
         lpConstrInner: do iConstrIter = 1, nConstrIter
 
           call processPotentials(env, this, iSccIter, .true., this%qInput, this%qBlockIn,&
-              & this%qiBlockIn)
+              & this%qiBlockIn, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
 
           if (this%electronicSolver%iSolver == electronicSolverTypes%pexsi .and. this%tSccCalc) then
             call this%electronicSolver%elsi%updatePexsiDeltaVRanges(this%potential)
@@ -1440,7 +1445,8 @@ contains
           if (.not. this%isXlbomd) then
             ! iteration is +1 as output potential in iteration 1 only available after solution of H
             call processPotentials(env, this, iSccIter+1, this%updateSccAfterDiag, this%qOutput,&
-                & this%qBlockOut, this%qiBlockOut)
+                & this%qBlockOut, this%qiBlockOut, errStatus)
+            @:PROPAGATE_ERROR(errStatus)
           end if
 
           call calcEnergies(env, this%scc, this%tblite, this%qOutput, this%q0, this%chargePerShell,&
@@ -6644,10 +6650,12 @@ contains
         if (areSolventNeighboursSym) then
           call solvation%addGradients(env, symNeighbourList%neighbourList,&
               & symNeighbourList%species, symNeighbourList%coord, symNeighbourList%img2CentCell,&
-              & derivs)
+              & derivs, errStatus)
         else
-          call solvation%addGradients(env, neighbourList, species, coord, img2CentCell, derivs)
+          call solvation%addGradients(env, neighbourList, species, coord, img2CentCell, derivs,&
+              & errStatus)
         end if
+        @:PROPAGATE_ERROR(errStatus)
       end if
     end if
 
@@ -8152,7 +8160,8 @@ contains
       call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
       call addChargePotentials(env, sccCalc, tblite, .true., reks%qOutputL(:,:,:,iL), q0,&
           & reks%chargePerShellL(:,:,:,iL), orb, multipole, species, neighbourList,&
-          & img2CentCell, spinW, solvation, thirdOrd, dispersion, potential)
+          & img2CentCell, spinW, solvation, thirdOrd, dispersion, potential, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
 
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell

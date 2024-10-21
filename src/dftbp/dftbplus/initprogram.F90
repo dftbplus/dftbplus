@@ -2350,30 +2350,33 @@ contains
       if (allocated(input%ctrl%solvInp%GBInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
         this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
         this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
         this%areSolventNeighboursSym = .true.
+      end if
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
       if (.not.allocated(this%solvation)) then
         call error("Could not initialize solvation model!")
