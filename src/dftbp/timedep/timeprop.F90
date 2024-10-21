@@ -1480,7 +1480,8 @@ contains
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, this%tblite, .true., qq, q0, chargePerShell,&
         & orb, this%multipole, speciesAll, neighbourList, img2CentCell, spinW, solvation,&
-        & thirdOrd, dispersion, potential)
+        & thirdOrd, dispersion, potential, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
