@@ -2669,7 +2669,7 @@ contains
 
     character(20) :: dipoleFileName
     character(1) :: strSpin
-    character(3) :: strK
+    character(6) :: strK
     integer :: iSpin, iKS, iK, iErr
 
     if (.not. this%tVerboseDyn) return
@@ -2762,19 +2762,19 @@ contains
               & "#  GS molecular orbital populations, spin channel : ", trim(strSpin)
         else
           iK = this%parallelKS%localKS(1, iKS)
-          write(strK,'(i0.3)')iK
+          write(strK,'(i0.6)')iK
           call openOutputFile(this, populDat(iKS),&
               & 'molpopul' // trim(strSpin) // '-' // trim(strK) // '.dat')
           write(populDat(iKS)%unit, "(A,A,A,A,A,3(F8.6,2x))") "#  GS molecular orbital populations, spin channel : ",&
               & trim(strSpin), ", k-point number: ", trim(strK), &
               & ", k-point coordinate: ", this%kPoint(:,iK)
+          write(populDat(iKS)%unit, "(A)", advance = "NO")"#          time (fs)            |"
+          write(populDat(iKS)%unit, "(A)", advance = "NO")"   population (orb 1)       |"
+          write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb 2)      |"
+          write(populDat(iKS)%unit, "(A)", advance = "NO")"           ...              |"
+          write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb N)      |"
+          write(populDat(iKS)%unit, "(A)")
         end if
-        write(populDat(iKS)%unit, "(A)", advance = "NO")"#          time (fs)            |"
-        write(populDat(iKS)%unit, "(A)", advance = "NO")"   population (orb 1)       |"
-        write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb 2)      |"
-        write(populDat(iKS)%unit, "(A)", advance = "NO")"           ...              |"
-        write(populDat(iKS)%unit, "(A)", advance = "NO")"    population (orb N)      |"
-        write(populDat(iKS)%unit, "(A)")
       end do
     end if
 
