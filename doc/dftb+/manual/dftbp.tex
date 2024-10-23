@@ -366,9 +366,9 @@ Driver = GeometryOptimisation {
 \label{sec:dftbp.Optimiser.RF}
 
 Provides a rational function based optimiser.
-The geometry displacement step is determining obtaining the lowest eigenvalue of the augmented Hessian matrix as proposed by Puley {\itshape et al.}~\cite{Eckert1997}
+The geometry displacement step is determined from the lowest eigenvalue of the augmented Hessian matrix as proposed by Pulay {\itshape et al.}~\cite{Eckert1997}.
 The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimisation cycle.
-The augmented Hessian is build from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme.~\cite{Broyden1970}
+The augmented Hessian is built from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme~\cite{Broyden1970}.
 A unit matrix is used as guess for the model hessian.
 
 The scaling behaviour of the computational cost and memory usage for this optimisation step is quadratic in the number of optimised variables.
