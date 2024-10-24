@@ -1854,7 +1854,7 @@ Hamiltonian = xTB {
 
 \subsection{ElectronicConstraints}
 \label{sec:dftbp.ElectronicConstraints}
-Allows to impose constraints on the electronic ground state by finding
+Allows imposition of constraints on the electronic ground state by finding
 the ground state of the system in a (carefully chosen) external
 potential~\cite{Hourahine2010}.
 
@@ -1903,9 +1903,13 @@ potential~\cite{Hourahine2010}.
     \item[\iscb{LBFGS}] Propagate micro-iterations using the LBFGS
       algorithm. See p.~\pref{sec:dftbp.Optimiser.LBFGS}.
   \end{description}
-  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb} optimiser proved to be most
-  stable, when propagating the micro-iterations. However, your experience may vary and
-  manual testing based on your particular system is advised.
+  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb}
+  optimiser proved to be most stable, when propagating the
+  micro-iterations. However, your experience may vary and manual
+  testing based on your particular system is advised.\footnote{For
+  transport calculations, section~\ref{app:transp}, gradient-only
+  optimizers, i.e., \kw{SteepestDescent\cb} and \kw{FIRE\cb} are to be
+  preferred.}
 
 \item[\is{ConstrTolerance}] Stopping criteria for the micro-iterations.
   Specifies the tolerance for the maximum difference in any condition of

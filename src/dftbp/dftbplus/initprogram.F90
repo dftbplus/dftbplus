@@ -2110,9 +2110,6 @@ contains
       if (this%isHybridXc) then
         call error("Range separated calculations do not yet work with transport calculations")
       end if
-      if (this%isElecConstr) then
-        call error("Constrained DFTB calculations do not yet support electron transport.")
-      end if
     end if
   #:endif
 
