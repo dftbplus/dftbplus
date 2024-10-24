@@ -1,0 +1,88 @@
+geometry = genformat {
+    <<< "30h.gen"
+}
+
+Transport {
+    Device {
+        AtomRange = 1 11
+    }
+    Contact {
+        Id = "Source"
+        AtomRange = 12 21
+        FermiLevel [eV] = -6.4926472360850
+        Potential [eV] = 0.0
+    }
+    Contact {
+        Id = "Drain"
+        AtomRange = 22 31
+        FermiLevel [eV] = -6.4926472360850
+        Potential [eV] = 2.0
+    }
+    ReadBinaryContact = No
+}
+
+Hamiltonian = Dftb {
+    Scc = yes
+    SccTolerance = 1E-6
+    MaxAngularMomentum = {
+        H = s
+    }
+
+    Electrostatics = Poisson {
+        Poissonbox [Angstrom] = 20.0 20.0 20.0
+        MinimalGrid [Angstrom] = 0.4 0.4 0.4
+        AtomDensityCutoff [Angstrom] = 7.05
+        CutoffCheck = No
+        SavePotential = Yes
+        PoissonAccuracy = 1e-5
+        BuildBulkPotential = Yes
+    }
+
+    SlaterKosterFiles = {
+        Prefix = {slakos/origin/transtest/}
+        H-H = "H-H-noS.skf"
+    }
+
+    Solver = GreensFunction{
+        Verbosity = 51
+        RealAxisPoints = 100
+        EnclosedPoles = 3
+    }
+
+    ElectronicConstraints {
+        Regions {
+            Atoms {
+                Domain = 6
+                Population = 0.5
+            }
+            Atoms {
+                Domain = 1:11
+                Population = 11
+            }
+        }
+        MaxConstrIterations = 10
+        ConstrTolerance = 1.0E-5
+    }
+}
+
+Analysis{
+    TunnelingAndDOS{
+        EnergyRange [eV] = -0.0  0.0
+        EnergyStep [eV] = 0.02
+    }
+}
+
+Parallel = {
+    Blacs{BlockSize = 4}
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotesttag = yes
+}
+
+ParserOptions = {
+    ParserVersion = 14
+}

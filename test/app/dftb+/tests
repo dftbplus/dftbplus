@@ -68,6 +68,7 @@ elecconstraints/H2O_scc                #? MPI_PROCS <= 1
 elecconstraints/H2O_gfn1               #? WITH_TBLITE and MPI_PROCS <= 1
 elecconstraints/H2O_non-converged      #? MPI_PROCS <= 1
 elecconstraints/Si8_spin               #? MPI_PROCS <= 1
+elecconstraints/H-chain_transport      #? WITH_TRANSPORT and MPI_PROCS <= 4
 
 chimes/CNOH                            #? WITH_CHIMES and MPI_PROCS <= 1
 
