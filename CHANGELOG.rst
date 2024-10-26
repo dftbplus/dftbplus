@@ -33,6 +33,11 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
+Changed
+-------
+
+- Components of xtb energies are now resolved
+
 Fixed
 -----
 

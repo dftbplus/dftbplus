@@ -1133,8 +1133,11 @@ module dftbp_dftbplus_initprogram
     !> List of atoms in the central cell (or device region if transport)
     integer, allocatable :: iAtInCentralRegion(:)
 
-    !> Correction for {O,N}-X bonds
+    !> DFTB correction for {O,N}-X bonds
     type(THalogenX), allocatable :: halogenXCorrection
+
+    !> Should halogen energy contribution be printed?
+    logical :: isHalogenEgyPrinted = .false.
 
     !> All of the excited energies actually solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
@@ -1460,6 +1463,9 @@ contains
       ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
       !this%orb = input%slako%orb
       call move_alloc(input%slako%orb, this%orb)
+    #:if WITH_TBLITE
+      this%isHalogenEgyPrinted = allocated(this%tblite%calc%halogen)
+    #:endif
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1788,6 +1794,7 @@ contains
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
+      this%isHalogenEgyPrinted = .true.
     end if
 
     allocate(this%mass(this%nAtom))
