@@ -3053,7 +3053,16 @@ contains
     type(TFileDescr) :: fdAutotest
 
     call openFile(fdAutotest, trim(this%autotestTag), mode="a")
-    call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC)
+
+    select case(this%hamiltonianType)
+    case(hamiltonianTypes%dftb)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC)
+    case(hamiltonianTypes%xtb)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC + energy%Erep&
+          & + energy%EDisp + energy%EHalogenX)
+    end select
+
+
     call taggedWriter%write(fdAutotest%unit, tagLabels%tddipole, dipole)
     call taggedWriter%write(fdAutotest%unit, tagLabels%tdcharges, deltaQ)
     if (this%tIons) then
