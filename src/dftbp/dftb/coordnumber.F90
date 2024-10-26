@@ -19,7 +19,7 @@ module dftbp_dftb_coordnumber
 
   private
   public :: TCNCont, TCNInput, cnType, init
-  public :: getElectronegativity, getCovalentRadius
+  public :: getElectronegativity, getD3Radius, getCovalentRadius
 
 
   !> Get electronegativity for a species
@@ -34,6 +34,13 @@ module dftbp_dftb_coordnumber
     module procedure :: getCovalentRadiusSymbol
     module procedure :: getCovalentRadiusNumber
   end interface getCovalentRadius
+
+
+  !> Get D3 atomic radius for atoms (scaled covalent radii)
+  interface getD3Radius
+    module procedure :: getD3RadiusSymbol
+    module procedure :: getD3RadiusNumber
+  end interface getD3Radius
 
 
   !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009,
@@ -62,7 +69,11 @@ module dftbp_dftb_coordnumber
     &                 1.45_dp,1.41_dp,1.34_dp,1.29_dp,1.27_dp, & ! Lr-
     &                 1.21_dp,1.16_dp,1.15_dp,1.09_dp,1.22_dp, & ! -Cn
     &                 1.36_dp,1.43_dp,1.46_dp,1.58_dp,1.48_dp,1.57_dp] & ! Nh-Og
-    & * AA__Bohr * 4.0_dp / 3.0_dp
+    & * AA__Bohr
+
+
+  !> D3 covalent radii scaling factor
+  real(dp), parameter :: d3Scaling = 4.0_dp / 3.0_dp
 
 
   !> Pauling electronegativities, used for the covalent coordination number.
@@ -748,27 +759,6 @@ contains
   end function dCutCn
 
 
-  !> Populate covalent radius field from speciesNames
-  subroutine covRadFromSpecies(this, speciesNames)
-
-    !> Instance of the CN input data
-    class(TCNInput), intent(inout) :: this
-
-    !> Element symbols for all species
-    character(len=*), intent(in) :: speciesNames(:)
-
-    integer :: iSp
-
-    @:ASSERT(.not.allocated(this%covRad))
-
-    allocate(this%covRad(size(speciesNames)))
-    do iSp = 1, size(speciesNames)
-      this%covRad(iSp) = getCovalentRadius(speciesNames(iSp))
-    end do
-
-  end subroutine covRadFromSpecies
-
-
   !> Get covalent radius for species with a given symbol
   elemental function getCovalentRadiusSymbol(symbol) result(radius)
 
@@ -799,6 +789,38 @@ contains
     end if
 
   end function getCovalentRadiusNumber
+
+
+  !> Get covalent D3 scale covalent radius for species with a given symbol
+  elemental function getD3RadiusSymbol(symbol) result(radius)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> atomic radius
+    real(dp) :: radius
+
+    radius = d3Scaling * getCovalentRadius(symbolToNumber(symbol))
+
+  end function getD3RadiusSymbol
+
+
+  !> Get D3 scaled covalent radius for species with a given atomic number
+  elemental function getD3RadiusNumber(number) result(radius)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> atomic radius
+    real(dp) :: radius
+
+    if (number > 0 .and. number <= size(covalentRadii, dim=1)) then
+      radius = d3Scaling * covalentRadii(number)
+    else
+      radius = -1.0_dp
+    end if
+
+  end function getD3RadiusNumber
 
 
   !> Populate electronegativity field from speciesNames

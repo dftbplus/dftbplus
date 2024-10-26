@@ -22,7 +22,7 @@ module dftbp_dftbplus_parser
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
   use dftbp_dftb_elecconstraints, only : readElecConstraintInput
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
+  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getD3Radius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
@@ -4733,7 +4733,7 @@ contains
       call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
     case("covalentradiid3")
       allocate(kRadDefault(geo%nSpecies))
-      kRadDefault(:) = getCovalentRadius(geo%speciesNames)
+      kRadDefault(:) = getD3Radius(geo%speciesNames)
       call readSpeciesList(value2, geo%speciesNames, input%covRad, default=kRadDefault)
       deallocate(kRadDefault)
     case("values")
