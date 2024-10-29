@@ -4071,10 +4071,11 @@ contains
 
     allocate(T1(this%nOrbs,this%nOrbs))
     allocate(T2(this%nOrbs,this%nOrbs))
-    allocate(T3(this%nOrbs,this%nOrbs,3))
+    allocate(T3(this%nAtom,this%nAtom,3))
 
     this%orbCurrents = 0.0_dp
     this%atomCurrents = 0.0_dp
+    this%totalCurrent = 0.0_dp
     
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
@@ -4083,16 +4084,15 @@ contains
       call gemm(T1, this%Sinv(:,:,iKS), this%H1(:,:,iKS))
       call gemm(T2, T1, rho(:,:,iKS)) ! E(k) = T2 here
 
-      ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
+      ! I = e/hbar (H Im(\rho) - S*Im(E))
       ! and e = hbar = 1
-      this%orbCurrents(:,:) = this%orbCurrents(:,:) +  this%kWeight(iK) * 4.0_dp * &
-          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:))) 
+      this%orbCurrents(:,:) = this%orbCurrents(:,:) - this%kWeight(iK) * &
+          & (real(this%H1(:,:,iKS), dp) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS), dp) * aimag(T2(:,:)))
     end do
 
     ! T3 is the orbital currents projected along the bonds in real space
     T3 = 0.0_dp
 
-    !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
         iStart1 = iSquare(iAt1)
@@ -4100,24 +4100,20 @@ contains
         iStart2 = iSquare(iAt2)
         iEnd2 = iSquare(iAt2+1)-1
         ! for the atomCurrent only the contribution with iK = 1
-        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2)) 
+        this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2))
 
         if (iAt1 /= iAt2) then
           r12(:) = coordAll(:,iAt2) - coordAll(:,iAt1)
           norm = sqrt(dot_product(r12(:), r12(:)))
-          do iKS = 1, this%parallelKS%nLocalKS
-            T3(iStart1:iEnd1, iStart2:iEnd2, 1) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(1) / norm
-            T3(iStart1:iEnd1, iStart2:iEnd2, 2) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(2) / norm
-            T3(iStart1:iEnd1, iStart2:iEnd2, 3) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(3) / norm
-          end do
+          T3(iAt1, iAt2, 1) = this%atomCurrents(iAt1,iAt2) * r12(1) / norm
+          T3(iAt1, iAt2, 2) = this%atomCurrents(iAt1,iAt2) * r12(2) / norm
+          T3(iAt1, iAt2, 3) = this%atomCurrents(iAt1,iAt2) * r12(3) / norm
         end if
       end do
     end do
-    !$OMP END PARALLEL DO
 
-    this%totalCurrent = 0.0_dp
     do iDir = 1,3
-      this%totalCurrent(iDir) = this%totalCurrent(iDir) + sum(T3(:,:,iDir))
+      this%totalCurrent(iDir) = sum(T3(:,:,iDir))
     end do
 
     deallocate(T1, T2, T3)
