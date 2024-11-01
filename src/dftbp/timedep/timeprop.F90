@@ -2717,6 +2717,7 @@ contains
       write(currentDat%unit, "(A)", advance = "NO")"   total current - z (a.u.)  |"
       write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_1) (e)   |"
       write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_2) (e)   |  ..."
+      write(currentDat%unit, "(A)")
     end if
 
     if (this%tPopulations) then
