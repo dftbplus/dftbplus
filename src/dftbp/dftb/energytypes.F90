@@ -83,6 +83,9 @@ module dftbp_dftb_energytypes
     !> total energy (Erep+Etotal)
     real(dp) :: Etotal = 0.0_dp
 
+    !> total energy from real-time dynamics (Etotal_2 = Tr[\Rho*H])
+    real(dp) :: Etotal_2 = 0.0_dp
+
     !> Total energy for averaged state in REKS
     real(dp) :: Eavg = 0.0_dp
 
@@ -224,6 +227,7 @@ contains
     this%E3rd = 0.0_dp
     this%ESolv = 0.0_dp
     this%Etotal = 0.0_dp
+    this%Etotal_2 = 0.0_dp     !for real-time dynamics Etotal_2 = Tr[\Rho*H]
     this%EMermin = 0.0_dp
     this%EGibbs = 0.0_dp
     this%EKin = 0.0_dp
