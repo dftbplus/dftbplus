@@ -2003,6 +2003,14 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+    end if
+
   end subroutine readXTBHam
 
 
