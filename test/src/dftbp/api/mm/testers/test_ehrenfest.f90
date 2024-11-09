@@ -61,7 +61,7 @@ contains
     real(dp) :: norm, fielddir(3), angFreq, envelope, field(3), time
     real(dp) :: time0 = 0.0_dp, time1 = 6.0_dp ! fs
     type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pElecDyn
-    type(fnode), pointer :: pPerturb, pLaser
+    type(fnode), pointer :: pPerturb, pLaser, pParserOpt
 
     character(:), allocatable :: DftbVersion
     integer :: major, minor, patch, istep, ii
@@ -76,6 +76,10 @@ contains
 
     call dftbp%getEmptyInput(input)
     call input%getRootNode(pRoot)
+
+    call setChild(pRoot, "ParserOptions", pParserOpt)
+    call setChildValue(pParserOpt, "ParserVersion", 13)
+
     call setChild(pRoot, "Geometry", pGeo)
     call setChildValue(pGeo, "Periodic", .false.)
     call setChildValue(pGeo, "TypeNames", ["C", "H"])

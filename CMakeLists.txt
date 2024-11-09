@@ -166,6 +166,16 @@ else()
   option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
+#
+# Add external model from a library
+#
+#if (WITH_EXTERNALMODEL)
+set(DFTBP_EXTMODEL_GIT_REPOSITORY "https://github.com/bhourahine/dftbp-extmodel.git")
+set(DFTBP_EXTMODEL_GIT_TAG "6e303b272896544c776a67e7c06c76dcec68eb4c")  # do not change manually!
+dftbp_config_hybrid_dependency(ExternalModel ExternalModel::ExternalModel "${HYBRID_CONFIG_METHODS}" "QUIET"
+  external/dftbp-extmodel "${exclude}" "${DFTBP_EXTMODEL_GIT_REPOSITORY}" "${DFTBP_EXTMODEL_GIT_TAG}")
+#endif()
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 

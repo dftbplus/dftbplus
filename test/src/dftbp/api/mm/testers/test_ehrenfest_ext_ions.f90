@@ -97,11 +97,11 @@ contains
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 
-  call setChild(pRoot, "ParserOptions", pParserOpt)
-  call setChildValue(pParserOpt, "ParserVersion", 13)
+    call setChild(pRoot, "ParserOptions", pParserOpt)
+    call setChildValue(pParserOpt, "ParserVersion", 13)
 
-  call setChild(pRoot, "Analysis", pAnalysis)
-  call setChildValue(pAnalysis, "CalculateForces", .true.)
+    call setChild(pRoot, "Analysis", pAnalysis)
+    call setChildValue(pAnalysis, "CalculateForces", .true.)
 
     !  set up electron dynamics options
     call setChild(pRoot, "ElectronDynamics", pElecDyn)

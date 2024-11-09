@@ -32,6 +32,7 @@ add_subdirectory(io)
 add_subdirectory(math)
 add_subdirectory(md)
 add_subdirectory(mixer)
+add_subdirectory(modelindependent)
 add_subdirectory(reks)
 add_subdirectory(timedep)
 add_subdirectory(type)
@@ -74,6 +75,8 @@ endif()
 
 
 # External libraries
+
+target_link_libraries(dftbplus PUBLIC ExternalModel::ExternalModel)
 
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -126,6 +129,11 @@ endif()
 if(WITH_PLUMED)
   target_link_libraries(dftbplus PRIVATE Plumed::Plumed)
 endif()
+
+if (EXTERNALMODEL_LIBRARY)
+  target_link_libraries(dftbplus PRIVATE ExternalModel::ExternalModel)
+endif()
+target_link_libraries(dftbplus PRIVATE ${EXTRA_LIBS})
 
 if(WITH_CHIMES)
   target_link_libraries(dftbplus PUBLIC ChimesCalc::ChimesCalc_Fortran)
@@ -193,6 +201,7 @@ if(INSTALL_INCLUDE_FILES)
       install(DIRECTORY "${moddir}/" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
     endforeach()
   endif()
+
 endif()
 
 list(APPEND PKG_CONFIG_LIBS dftbplus)

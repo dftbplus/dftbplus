@@ -84,6 +84,9 @@ contains
       case (13)
         call convert_13_14(root)
         version = 14
+      case (14)
+        call convert_14_15(root)
+        version = 15
       end select
     end do
 
@@ -856,6 +859,25 @@ contains
     end if
 
   end subroutine convert_13_14
+
+
+  !> Converts input from version 14 to 15. (Version 15 introduced in March 2024)
+  subroutine convert_14_15(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, par
+
+    call getDescendant(root, "Hamiltonian", ch1, parent=par)
+    if (.not.associated(ch1)) then
+      call detailedError(root, "Input file missing Hamiltonian{} block.")
+    else
+      call setNodeName(ch1, "Model")
+      call detailedWarning(ch1, "Hamiltonian{} environment renamed to Model{} block.")
+    end if
+
+  end subroutine convert_14_15
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

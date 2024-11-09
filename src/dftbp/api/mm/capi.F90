@@ -10,6 +10,7 @@ module dftbp_capi
   use, intrinsic :: iso_c_binding
   use, intrinsic :: iso_fortran_env
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_clang, only : fortranChar, handleOutputFileName
   use dftbp_common_file, only : TFileDescr, openFile
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only :&
@@ -622,37 +623,6 @@ end subroutine c_DftbPlusInput_final
     call TDftbPlus_destruct(this%TDftbPlus)
 
   end subroutine TDftbPlusC_final
-
-
-  !> Converts a 0-char terminated C-type string into a Fortran string.
-  function fortranChar(cstring, maxlen)
-
-    !> C-type string as array
-    character(kind=c_char), intent(in) :: cstring(*)
-
-    !> Maximal string length. If C-string is longer, it will be chopped.
-    integer, intent(in), optional  :: maxlen
-
-    !> Resulting Fortran string
-    character(:, kind=c_char), allocatable :: fortranChar
-
-    integer :: ii, maxlen0
-
-    if (present(maxlen)) then
-      maxlen0 = maxlen
-    else
-      maxlen0 = huge(maxlen0) - 1
-    end if
-
-    do ii = 1, maxlen0
-      if (cstring(ii) == c_null_char) then
-        exit
-      end if
-    end do
-    allocate(character(ii - 1) :: fortranChar)
-    fortranChar = transfer(cstring(1 : ii - 1), fortranChar)
-
-  end function fortranChar
 
 
   ! Returns a unit for an opened output file.
