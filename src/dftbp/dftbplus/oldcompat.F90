@@ -869,20 +869,6 @@ contains
 
     type(fnode), pointer :: ch1, par
 
-  #:for LABEL in [("Kick"), ("Laser")]
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/PolarizationDirection", ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'PolarisationDirection'.")
-      call setNodeName(ch1, "PolarisationDirection")
-    end if
-    call getDescendant(root, "ElectronDynamics/Perturbation/${LABEL}$/ImagPolarizationDirection",&
-        & ch1)
-    if (associated(ch1)) then
-      call detailedWarning(ch1, "Keyword renamed to 'ImagPolarisationDirection'.")
-      call setNodeName(ch1, "ImagPolarisationDirection")
-    end if
-  #:endfor
-
     call getDescendant(root, "Hamiltonian", ch1, parent=par)
     if (.not.associated(ch1)) then
       call detailedError(root, "Input file missing Hamiltonian{} block.")
