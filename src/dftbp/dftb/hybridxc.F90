@@ -50,7 +50,7 @@ module dftbp_dftb_hybridxc
   implicit none
 
 #! Routine NAME label, main variable TYPE
-#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex')]
+#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex'), ('pauli', 'complex')]
 
   private
 
@@ -163,10 +163,16 @@ module dftbp_dftb_hybridxc
     real(dp), allocatable :: rCoords(:,:)
 
     !> Evaluated (long-range + HF full-range) gamma of Atom1 and Atom2 (central cell only)
-    real(dp), allocatable :: camGammaEval0(:,:), camdGammaEval0(:,:,:)
+    real(dp), allocatable :: camGammaEval0(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative of Atom1 and Atom2 (central cell
+    !> only)
+    real(dp), allocatable :: camdGammaEval0(:,:,:)
 
     !> Evaluated (long-range + HF full-range) gamma in the general k-point case
     type(TWrappedReal1), allocatable :: camGammaEvalG(:,:)
+
+    !> Evaluated (long-range + HF full-range) gamma derivative in the general k-point case
     type(TWrappedReal2), allocatable :: camdGammaEvalG(:,:)
 
     !> Number of numerically non-zero gamma's
@@ -209,7 +215,10 @@ module dftbp_dftb_hybridxc
     real(dp) :: camEnergy
 
     !> Is this a spin restricted (false) or unrestricted (true) calculation?
-    logical :: tSpin
+    logical :: isSpin
+
+    !> Number of independent spin channels
+    integer :: nSpin
 
     !> Is this a DFTB/REKS calculation (true)?
     logical :: tREKS
@@ -280,6 +289,7 @@ module dftbp_dftb_hybridxc
     procedure :: addCamHamiltonianMatrix_cmplx_blacs
   #:else
     procedure :: addCamHamiltonianMatrix_cmplx
+    procedure :: addCamHamiltonianMatrix_pauli
   #:endif
 
     procedure :: getHybridEnergy_real
@@ -389,8 +399,8 @@ contains
 
   !> Intitializes the range-separated hybrid DFTB module.
   subroutine THybridXcFunc_init(this, nAtom0, species0, hubbu, screeningThreshold, omega, camAlpha,&
-      & camBeta, tSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, tPeriodic, tRealHS, errStatus,&
-      & gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
+      & camBeta, isSpin, nSpin, tREKS, hybridXcAlg, hybridXcType, gammaType, isPeriodic, tRealHS,&
+      & errStatus, gammaCutoff, gSummationCutoff, wignerSeitzReduction, coeffsDiag, latVecs)
 
     !> Class instance
     class(THybridXcFunc), intent(out), allocatable :: this
@@ -417,7 +427,10 @@ contains
     real(dp), intent(in) :: camBeta
 
     !> Is this spin restricted (F) or unrestricted (T)
-    logical, intent(in) :: tSpin
+    logical, intent(in) :: isSpin
+
+    !> Number of indepdendent spin channels (1, 2 or 4)
+    integer, intent(in) :: nSpin
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: tREKS
@@ -432,7 +445,7 @@ contains
     integer, intent(in) :: gammaType
 
     !> True, if system is periodic (i.e. Gamma-only or k-points)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> True, if overlap and Hamiltonian are real-valued
     logical, intent(in) :: tRealHS
@@ -456,14 +469,14 @@ contains
     !> Lattice vectors of (periodic) geometry
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    !! Species indices
+    ! Species indices
     integer :: iSp1, iSp2
 
-    !! Number of unique species in system
+    ! Number of unique species in system
     integer :: nUniqueSpecies
 
     ! Perform basic consistency checks for optional arguments
-    if (tPeriodic .and. (.not. present(gSummationCutoff))) then
+    if (isPeriodic .and. (.not. present(gSummationCutoff))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic systems require g-summation cutoff,&
           & which is not present.")
     end if
@@ -507,7 +520,9 @@ contains
     this%omega = omega
     this%hybridXcAlg = hybridXcAlg
     this%hybridXcType = hybridXcType
-    this%tSpin = tSpin
+    this%isSpin = isSpin
+    this%nSpin = nSpin
+    @:ASSERT(this%isSpin .eqv. this%nSpin > 1)
     this%tREKS = tREKS
     this%camAlpha = camAlpha
     this%camBeta = camBeta
@@ -572,11 +587,10 @@ contains
     allocate(this%rCoords(3, nAtom0))
     this%rCoords(:,:) = 0.0_dp
 
-    allocate(this%camGammaEval0(nAtom0, nAtom0))
-    this%camGammaEval0(:,:) = 0.0_dp
+    allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
-    if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
+    if (this%isSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
       @:RAISE_ERROR(errStatus, -1, "Spin-unrestricted calculation for thresholded range-separation&
           & not yet implemented!")
     end if
@@ -592,7 +606,7 @@ contains
           & range-separation!")
     end if
 
-    if (tPeriodic .and. (.not. present(latVecs))) then
+    if (isPeriodic .and. (.not. present(latVecs))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic structure, but no lattice vectors&
           & handed over.")
     end if
@@ -614,7 +628,7 @@ contains
       !> Number of unique entries
       integer :: nUnique
 
-      !! Auxiliary variables
+      ! Auxiliary variables
       integer :: ii, jj, tmp(size(array))
 
       tmp(:) = array
@@ -641,10 +655,10 @@ contains
       !> The k-point compatible BvK real-space shifts in relative coordinates
       real(dp), intent(out), allocatable :: bvKShifts(:,:)
 
-      !! Number of BvK real-space shifts
+      ! Number of BvK real-space shifts
       integer :: nBvKShifts
 
-      !! Auxiliary variables
+      ! Auxiliary variables
       integer :: ii, jj, kk, ind
 
       nBvKShifts = product(coeffsDiag)
@@ -681,13 +695,13 @@ contains
     !> Diagonal elements of supercell folding matrix, if present
     integer, intent(out), optional :: supercellFoldingDiagOut(:)
 
-    !! Supercell folding coefficients and shifts
+    ! Supercell folding coefficients and shifts
     real(dp), pointer :: coeffs(:,:), shifts(:)
 
-    !! True, if the supercell folding does not correspond to a MP-like scheme
+    ! True, if the supercell folding does not correspond to a MP-like scheme
     logical :: tNotMonkhorstPack
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: ii, jj
 
     if (present(supercellFoldingDiagOut)) then
@@ -783,13 +797,13 @@ contains
     !> Atomic coordinates in absolute units
     real(dp), intent(in) :: rCoords(:,:)
 
-    !! Indices of interacting atoms in central cell, as well as their global species index
+    ! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtom1, iAtom2, iSp1, iSp2
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Distance between two interacting atoms
+    ! Distance between two interacting atoms
     real(dp) :: dist
 
     this%rCoords(:,:) = rCoords
@@ -846,10 +860,10 @@ contains
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !! Indices of interacting atoms in central cell, as well as their global species index
+    ! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtM, iAtN, iSpM, iSpN
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
     ! range-separated type is initialized with nAtom0 coordinates, therefore re-allocate for
@@ -936,35 +950,35 @@ contains
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Index array for descending sorting of Gamma arrays
+    ! Index array for descending sorting of Gamma arrays
     integer, allocatable :: gammasortIdx(:)
 
-    !! Temporary storage for g-resolved gamma values (+ directional derivatives)
+    ! Temporary storage for g-resolved gamma values (+ directional derivatives)
     real(dp), allocatable :: gammaEvalGTmp(:), dGammaEvalGTmp(:,:)
 
-    !! Number of non-zero entries of (sorted) array
+    ! Number of non-zero entries of (sorted) array
     integer :: nNonZeroEntries
 
-    !! Indices of interacting atoms in central cell, as well as their global species index
+    ! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtM, iAtN, iSpM, iSpN
 
-    !! Number of atoms in the central cell
+    ! Number of atoms in the central cell
     integer :: nAtom0
 
-    !! Number of g-summation summands
+    ! Number of g-summation summands
     integer :: nGShifts
 
-    !! Composite index iAtM/iAtN
+    ! Composite index iAtM/iAtN
     integer :: ii
     integer, allocatable :: iAtMN(:,:)
 
-    !! Dummy array with zeros
+    ! Dummy array with zeros
     real(dp) :: zeros(3)
 
-    !! Iterates over g-vectors
+    ! Iterates over g-vectors
     integer :: iG
 
     zeros(:) = 0.0_dp
@@ -1078,7 +1092,7 @@ contains
       !> Number of non-zero entries
       integer :: nNonZeroEntries
 
-      !! iterates over all array elements
+      ! iterates over all array elements
       integer :: ii
 
       nNonZeroEntries = 0
@@ -1111,28 +1125,28 @@ contains
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
 
-    !! Diatomic blocks from sparse, real-space overlap matrix S_{\beta\nu}
+    ! Diatomic blocks from sparse, real-space overlap matrix S_{\beta\nu}
     real(dp), pointer :: pSbn(:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Index of atom in central cell
+    ! Index of atom in central cell
     integer :: iAtN
 
-    !! Neighbour index (+corresponding atom index)
+    ! Neighbour index (+corresponding atom index)
     integer :: iNeighN, iAtB
 
-    !! Folded (to central cell) atom index
+    ! Folded (to central cell) atom index
     integer :: iAtBfold
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descN(descLen), descB(descLen)
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Auxiliary variables for setting up 2D pointer to sparse overlap
+    ! Auxiliary variables for setting up 2D pointer to sparse overlap
     integer :: ind, nOrbAt, nOrbNeigh
 
     ! get number of atoms in central cell
@@ -1182,7 +1196,7 @@ contains
     !> Composite index for two nested loops
     integer, intent(out), allocatable :: iComposite(:,:)
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: ind, ii, jj
 
     allocate(iComposite(2, nInner * nOuter))
@@ -1215,13 +1229,13 @@ contains
     !> Composite index for two nested loops over central cell
     integer, intent(out), allocatable :: iKSComposite(:,:)
 
-    !! Indices of spins/k-points
+    ! Indices of spins/k-points
     integer :: iS, iK, iKPrime
 
-    !! Loop counters for global and local composite index
+    ! Loop counters for global and local composite index
     integer :: indGlobal, indLocal
 
-    !! Start and end index for MPI parallelization, if applicable
+    ! Start and end index for MPI parallelization, if applicable
     integer :: iParallelStart, iParallelEnd
 
     call getStartAndEndIndex(env, nS * nK * nKPrime, iParallelStart, iParallelEnd)
@@ -1261,7 +1275,7 @@ contains
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
 
-    !! Max estimate for delta-delta density matrix
+    ! Max estimate for delta-delta density matrix
     real(dp), intent(in) :: pMax
 
     !> Composite index for four nested loops
@@ -1270,28 +1284,28 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    !! Loop counters for global and local composite index
+    ! Loop counters for global and local composite index
     integer :: indGlobal, indLocal
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtM, iAtN
 
-    !! Neighbour indices
+    ! Neighbour indices
     integer :: iNeighN, iNeighM
 
-    !! Sorted (according to max overlap estimates) neighbour indices
+    ! Sorted (according to max overlap estimates) neighbour indices
     integer :: iNeighMsort, iNeighNsort
 
-    !! Max. estimate for products of delta-delta density matrix and max overlap estimates
+    ! Max. estimate for products of delta-delta density matrix and max overlap estimates
     real(dp) :: maxEstimate, pSbnPabMax
 
-    !! Start and end index for MPI parallelization, if applicable
+    ! Start and end index for MPI parallelization, if applicable
     integer :: iParallelStart, iParallelEnd
 
-    !! Loop counter
+    ! Loop counter
     integer :: ind
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
     if (.not. (allocated(this%squareOverEst) .and. allocated(this%overlapIndices))) then
@@ -1415,7 +1429,7 @@ contains
   !> Interface routine for adding CAM range-separated contributions to the Hamiltonian.
   !! (non-periodic and Gamma-only version)
   subroutine addCamHamiltonian_real(this, env, deltaRhoSqr, SSqrReal, overSparse, iNeighbour,&
-      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, tPeriodic, HSqrReal, errStatus)
+      & nNeighbourCam, iSquare, iPair, orb, img2CentCell, isPeriodic, HSqrReal, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -1452,7 +1466,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
@@ -1464,7 +1478,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Thresholded algorithm not implemented for&
             & Gamma-point periodic systems.")
       else
@@ -1608,7 +1622,7 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
     real(dp), allocatable :: tmpOvr(:,:), tmpDRho(:,:), testOvr(:,:), tmpDDRho(:,:), tmpDHam(:,:)
@@ -1797,7 +1811,7 @@ contains
     !> Square (unpacked) Hamiltonian to be updated
     real(dp), intent(inout) :: HSqrReal(:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
     real(dp), dimension(orb%mOrb**2), target :: Sma, Sam, Snb, Sbn
@@ -1815,7 +1829,7 @@ contains
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       tmpHH(:,:) = 0.25_dp * tmpHH
     else
       tmpHH(:,:) = 0.125_dp * tmpHH
@@ -2024,14 +2038,14 @@ contains
     !> Both triangles of the dense, square, unpacked Hamiltonian to add the HFX contributions to
     ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+    ! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
     ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
-    !! Square matrix filled with orbital-resolved gamma values
-    !! Actually, the diatomic gamma elements are just spread to all orbitals
+    ! Square matrix filled with orbital-resolved gamma values
+    ! Actually, the diatomic gamma elements are just spread to all orbitals
     ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
 
-    !! Number of local rows and columns
+    ! Number of local rows and columns
     integer :: nLocRow, nLocCol
 
     nLocRow = size(sSqr, dim=1)
@@ -2110,10 +2124,10 @@ contains
       !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
       ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
-      !! Temporary storage
+      ! Temporary storage
       ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
-      !! Size of distributed matrices
+      ! Size of distributed matrices
       integer :: nRows, nCols
 
       nRows = size(sSqr, dim=1)
@@ -2142,7 +2156,7 @@ contains
       call pblasfx_pgemm(sSqr, desc, tmpMat, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
         hamCamSqr(:,:) = -0.125_dp * hamCamSqr
@@ -2157,7 +2171,7 @@ contains
 
 #:for NAME, TYPE in FLAVOURS
 
-#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
+#:set LABEL = 'two component' if NAME == 'pauli' else 'complex' if NAME == 'cmplx' else 'real'
 #:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
 #:set MATOP = 'hemm' if TYPE == 'complex' else 'symm'
 
@@ -2183,39 +2197,44 @@ contains
     !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
     ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Both triangles of the dense, square, unpacked overlap matrix
+    ! Both triangles of the dense, square, unpacked overlap matrix
     ${TYPE}$(dp), allocatable :: sSqrTri(:,:)
 
-    !! Both triangles of the dense, square, unpacked density matrix
+    ! Both triangles of the dense, square, unpacked density matrix
     ${TYPE}$(dp), allocatable :: rhoSqrTri(:,:)
 
-    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+    ! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
     ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
-    !! Square matrix filled with orbital-resolved gamma values
-    !! Actually, the diatomic gamma elements are just spread to all orbitals
-    ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
+    ! Square matrix filled with orbital-resolved gamma values
+    ! Actually, the diatomic gamma elements are just spread to all orbitals
+    real(dp), allocatable :: camGammaAO(:,:)
 
-    !! Number of orbitals in square matrices
+    ! Number of orbitals in square matrices
     integer :: nOrb
 
     nOrb = size(sSqr, dim=1)
 
     allocate(sSqrTri(nOrb, nOrb))
     allocate(rhoSqrTri(nOrb, nOrb))
-    allocate(camGammaAO(nOrb, nOrb))
     allocate(hamCamSqr(nOrb, nOrb))
 
-    call allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    if (this%nSpin == 4) then
+      allocate(camGammaAO(nOrb/2, nOrb/2))
+    else
+      allocate(camGammaAO(nOrb, nOrb))
+    end if
+
+    call init(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
     call evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
     hamSqr(:,:) = hamSqr + hamCamSqr
-    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqrTri)
+    this%camEnergy = this%camEnergy + evaluateEnergy_${CONV}$(hamCamSqr, rhoSqrTri)
 
   contains
 
     !> Sets up matrices with both triangles filled and the orbital-by-orbital gamma matrix.
-    subroutine allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    subroutine init(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
 
       !> Class instance
       class(THybridXcFunc), intent(in) :: this
@@ -2239,12 +2258,12 @@ contains
       ${TYPE}$(dp), intent(out) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
+      real(dp), intent(out) :: camGammaAO(:,:)
 
-      !! Number of atoms in the central cell
+      ! Number of atoms in the central cell
       integer :: nAtom
 
-      !! Indices iterating over atoms
+      ! Indices iterating over atoms
       integer :: iAt, jAt
 
       nAtom = size(this%camGammaEval0, dim=1)
@@ -2257,7 +2276,7 @@ contains
       call adjointLowerTriangle(rhoSqrTri)
 
       ! Get orbital-resolved CAM gamma matrix
-      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
+      camGammaAO(:,:) = 0.0_dp
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           camGammaAO(iSquare(jAt):iSquare(jAt+1)-1, iSquare(iAt):iSquare(iAt+1)-1)&
@@ -2265,7 +2284,7 @@ contains
         end do
       end do
 
-    end subroutine allocateAndInit
+    end subroutine init
 
 
     !> Evaluates the HFX Hamiltonian contributions, using ${MATOP}$ operations.
@@ -2281,41 +2300,41 @@ contains
       ${TYPE}$(dp), intent(in) :: rhoSqrTri(:,:)
 
       !> Both triangles of the orbital-by-orbital CAM gamma matrix
-      ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
+      real(dp), intent(in) :: camGammaAO(:,:)
 
       !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
       ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
-      !! Temporary storage
+      ! Temporary storage
       ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
-      !! Number of orbitals in square matrices
+      ! Number of orbitals in square matrices
       integer :: nOrb
 
       nOrb = size(sSqrTri, dim=1)
 
-      allocate(Hmat(nOrb, nOrb))
-      allocate(tmpMat(nOrb, nOrb))
+      allocate(Hmat(nOrb, nOrb), source=${CONV}$(0, kind=dp))
+      allocate(tmpMat(nOrb, nOrb), source=${CONV}$(0, kind=dp))
 
       call ${MATOP}$(tmpMat, 'l', sSqrTri, rhoSqrTri)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat)
-      hamCamSqr(:,:) = hamCamSqr * camGammaAO
+      call hadamardProduct(hamCamSqr, hamCamSqr, camGammaAO)
 
-      tmpMat(:,:) = tmpMat * camGammaAO
+      call hadamardProduct(tmpMat, tmpMat, camGammaAO)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      Hmat(:,:) = rhoSqrTri * camGammaAO
+      call hadamardProduct(Hmat, rhoSqrTri, camGammaAO)
       call ${MATOP}$(tmpMat, 'l', sSqrTri, Hmat)
       call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
       call ${MATOP}$(tmpMat, 'l', rhoSqrTri, sSqrTri)
-      tmpMat(:,:) = tmpMat * camGammaAO
+      call hadamardProduct(tmpMat, tmpMat, camGammaAO)
       call ${MATOP}$(hamCamSqr, 'l', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
           & beta=${CONV}$(1, kind=dp))
 
-      if (this%tSpin .or. this%tREKS) then
+      if (this%isSpin .or. this%tREKS) then
         hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
         hamCamSqr(:,:) = -0.125_dp * hamCamSqr
@@ -2323,11 +2342,56 @@ contains
 
     end subroutine evaluateHamiltonian
 
+  #:if NAME == 'pauli'
+
+    !> Hadamard product C = A * B, allowing for the possibility of 2-component matrices
+    pure subroutine hadamardProduct(C, A, B)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(inout) :: C(:,:)
+
+      !> Square matrix to multiply and accumulate into
+      complex(dp), intent(in) :: A(:,:)
+
+      !> Square matrix to multiply
+      real(dp), intent(in) :: B(:,:)
+
+      integer :: nBasis
+
+      nBasis = size(A, dim=2)/2
+      C(:nBasis, :nBasis) = A(:nBasis, :nBasis) * B
+      C(nBasis+1:, :nBasis) = A(nBasis+1:, :nBasis) * B
+      C(nBasis+1:, nBasis+1:) = A(nBasis+1:, nBasis+1:) * B
+      C(:nBasis, nBasis+1:) = A(:nBasis, nBasis+1:) * B
+
+    end subroutine hadamardProduct
+
+  #:else
+
+    !> Hadamard product C = A * B
+    pure subroutine hadamardProduct(C, A, B)
+
+      !> Square matrix to multiply and accumulate into
+      ${TYPE}$(dp), intent(inout) :: C(:,:)
+
+      !> Square matrix to multiply and accumulate into
+      ${TYPE}$(dp), intent(in) :: A(:,:)
+
+      !> Square matrix to multiply
+      real(dp), intent(in) :: B(:,:)
+
+      C(:,:) = A * B
+
+    end subroutine hadamardProduct
+
+  #:endif
+
   end subroutine addCamHamiltonianMatrix_${NAME}$
 
 #:endfor
 
 #:endif
+
 
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
@@ -2376,58 +2440,58 @@ contains
     !> Square (unpacked) Hamiltonian for all k-point/spin composite indices
     complex(dp), intent(out), allocatable :: HSqrCplxCam(:,:,:)
 
-    !! Temporary y-storage
+    ! Temporary y-storage
     complex(dp), allocatable :: gammaAO(:,:), gammaAOCc(:,:)
 
-    !! Size of square matrices (e.g. Hamiltonian)
+    ! Size of square matrices (e.g. Hamiltonian)
     integer :: squareSize
 
-    !! Number of k-point-spin compound indices
+    ! Number of k-point-spin compound indices
     integer :: nKS
 
-    !! K-point indices
+    ! K-point indices
     integer :: iK, iKPrime
 
-    !! Spin index
+    ! Spin index
     integer :: iS
 
-    !! Number of k-points and spins
+    ! Number of k-points and spins
     integer :: nK, nKPrime, nS
 
-    !! Global iKS for arrays present at every MPI rank
+    ! Global iKS for arrays present at every MPI rank
     integer :: iGlobalKS, iGlobalKPrimeS
 
-    !! Temporary storage
+    ! Temporary storage
     complex(dp), allocatable :: tmp(:,:), tmp2(:,:)
     complex(dp), dimension(:,:), allocatable :: Sp_c, dPp_c, Sp_dPp, dPp_Sp, Sp_dPp_cc, dPp_Sp_cc
 
-    !! Composite index for two nested loops over central cell
+    ! Composite index for two nested loops over central cell
     integer, allocatable :: iKSComposite(:,:)
 
-    !! Dense, square, k-space overlap matrices S(k) on all MPI processes
+    ! Dense, square, k-space overlap matrices S(k) on all MPI processes
     complex(dp), allocatable, target :: SSqrCplx(:,:,:)
 
-    !! Pointer to dense, square, k-space overlap matrices S(k') on all MPI processes
+    ! Pointer to dense, square, k-space overlap matrices S(k') on all MPI processes
     complex(dp), pointer :: SSqrCplxPrime(:,:,:)
 
-    !! Buffer for dense, square, k-space overlap matrices S(k')
+    ! Buffer for dense, square, k-space overlap matrices S(k')
     complex(dp), allocatable, target :: SSqrCplxBuffer(:,:,:)
 
-    !! Pointer to composite index for mapping iKPrime/iS --> iGlobalKPrimeS
-    !! (for arrays present at every MPI rank)
+    ! Pointer to composite index for mapping iKPrime/iS --> iGlobalKPrimeS
+    ! (for arrays present at every MPI rank)
     integer, pointer :: iKPrimeiSToiGlobalKPrimeS(:,:)
 
-    !! Buffer for composite index for mapping iKPrime/iS --> iGlobalKPrimeS
+    ! Buffer for composite index for mapping iKPrime/iS --> iGlobalKPrimeS
     integer, allocatable, target :: iKPrimeiSToiGlobalKPrimeSBuffer(:,:)
 
-    !! Pointer to k' k-points that are possibly different from the current ones in case of a
-    !! bandstructure calculation
+    ! Pointer to k' k-points that are possibly different from the current ones in case of a
+    ! bandstructure calculation
     real(dp), pointer :: kPointPrime(:,:)
 
-    !> Pointer to weights of k' k-points
+    ! Pointer to weights of k' k-points
     real(dp), pointer :: kWeightPrime(:)
 
-    !! Auxiliary variable
+    ! Auxiliary variable
     integer :: ii
 
     squareSize = size(densityMatrix%deltaRhoInCplx, dim=1)
@@ -2571,7 +2635,7 @@ contains
 
     end do
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -2631,13 +2695,13 @@ contains
     !> Dense, square, k-space overlap matrices S(k) on all MPI processes
     complex(dp), intent(out), allocatable :: SSqrCplx(:,:,:)
 
-    !! Start and end index for MPI parallelization, if applicable
+    ! Start and end index for MPI parallelization, if applicable
     integer :: iParallelStart, iParallelEnd
 
-    !! Number of k-points
+    ! Number of k-points
     integer :: nKpoints
 
-    !! Iterates over tile of k-points
+    ! Iterates over tile of k-points
     integer :: iK
 
     nKpoints = size(kPoint, dim=2)
@@ -2709,94 +2773,94 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Atom blocks from sparse, real-space overlap matrices S_{\alpha\mu}, S_{\beta\nu}
+    ! Atom blocks from sparse, real-space overlap matrices S_{\alpha\mu}, S_{\beta\nu}
     real(dp), pointer :: pSam(:,:), pSbn(:,:)
     real(dp), allocatable :: pSamT(:,:)
 
-    !! \tilde{\gamma}_{\mu\nu}, \tilde{\gamma}_{\mu\beta},
-    !! \tilde{\gamma}_{\alpha\nu}, \tilde{\gamma}_{\alpha\beta}
+    ! \tilde{\gamma}_{\mu\nu}, \tilde{\gamma}_{\mu\beta},
+    ! \tilde{\gamma}_{\alpha\nu}, \tilde{\gamma}_{\alpha\beta}
     real(dp), allocatable :: gammaMN(:), gammaMB(:), gammaAN(:), gammaAB(:)
 
-    !! Density matrix block \alpha\beta
+    ! Density matrix block \alpha\beta
     real(dp), allocatable :: Pab(:,:,:,:,:)
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descA(descLen), descB(descLen), descM(descLen), descN(descLen)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: deltaDeltaRhoSqr(:,:,:,:,:,:)
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Real-space \vec{h} and \vec{l} vectors in relative coordinates
+    ! Real-space \vec{h} and \vec{l} vectors in relative coordinates
     real(dp) :: vecH(3), vecL(3)
 
-    !! Real-space \vec{h} and \vec{l} vectors in absolute coordinates
+    ! Real-space \vec{h} and \vec{l} vectors in absolute coordinates
     real(dp) :: rVecH(3), rVecL(3)
 
-    !! Temporary arrays for gemm operations
+    ! Temporary arrays for gemm operations
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab, pSamT_Pab_pSbn, Pab_Sbn
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab_gammaAB, pSamT_Pab_gammaMB_pSbn
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab_Sbn_gammaAN, pSamT_Pab_gammaAB_pSbn
     complex(dp) :: tot(orb%mOrb, orb%mOrb, size(kPoints, dim=2) * size(deltaRhoSqr, dim=6))
 
-    !! K-point-spin compound index
+    ! K-point-spin compound index
     integer :: iGlobalKS
 
-    !! K-point index
+    ! K-point index
     integer :: iK
 
-    !! Spin index
+    ! Spin index
     integer :: iS
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtM, iAtN
 
-    !! Neighbour indices (+corresponding atom indices)
+    ! Neighbour indices (+corresponding atom indices)
     integer :: iAtA, iAtB
 
-    !! Folded (to central cell) atom indices
+    ! Folded (to central cell) atom indices
     integer :: iAtAfold, iAtBfold
 
-    !! Sorted (according to max overlap estimates) neighbour indices
+    ! Sorted (according to max overlap estimates) neighbour indices
     integer :: iNeighMsort, iNeighNsort
 
-    !! Auxiliary variables for setting up 2D pointer to sparse overlap
+    ! Auxiliary variables for setting up 2D pointer to sparse overlap
     integer :: ind, nOrbAt, nOrbNeigh
 
-    !! Size of square matrices (e.g. Hamiltonian)
+    ! Size of square matrices (e.g. Hamiltonian)
     integer :: squareSize
 
-    !! Max estimate for difference of square delta rho to previous SCC iteration
+    ! Max estimate for difference of square delta rho to previous SCC iteration
     real(dp) :: pMax
 
-    !! Integer BvK index
+    ! Integer BvK index
     integer :: bvKIndex(3)
 
-    !! Phase factor
+    ! Phase factor
     complex(dp) :: phase
 
-    !! Species indices
+    ! Species indices
     integer :: iSpM, iSpN, iSpA, iSpB
 
-    !! Iterates over all BvK real-space vectors
+    ! Iterates over all BvK real-space vectors
     integer :: iG
 
-    !! Composite index for four nested loops
+    ! Composite index for four nested loops
     integer :: ii
     integer, allocatable :: compositeIndex(:,:)
 
-    !! Dummy array with zeros
+    ! Dummy array with zeros
     real(dp) :: zeros(3)
 
-    !! Number of k-points and spins
+    ! Number of k-points and spins
     integer :: nK, nS
 
-    !! Number of k-point-spin compound indices
+    ! Number of k-point-spin compound indices
     integer :: nKS
 
     zeros(:) = 0.0_dp
@@ -2965,7 +3029,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3033,81 +3097,81 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Atom blocks from sparse, real-space overlap matrices S_{\alpha\mu}, S_{\beta\nu}
+    ! Atom blocks from sparse, real-space overlap matrices S_{\alpha\mu}, S_{\beta\nu}
     real(dp), pointer :: pSam(:,:), pSbn(:,:)
     real(dp), allocatable :: pSamT(:,:)
 
-    !! Density matrix block \alpha\beta
+    ! Density matrix block \alpha\beta
     real(dp), allocatable :: Pab(:,:,:,:,:)
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descA(descLen), descB(descLen), descM(descLen), descN(descLen)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: deltaDeltaRhoSqr(:,:,:,:,:,:)
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Real-space \vec{h} and \vec{l} vectors in relative coordinates
+    ! Real-space \vec{h} and \vec{l} vectors in relative coordinates
     real(dp) :: vecH(3), vecL(3)
 
-    !! Temporary arrays for gemm operations
+    ! Temporary arrays for gemm operations
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab, pSamT_Pab_pSbn, Pab_Sbn
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab_gammaAB, pSamT_Pab_gammaMB_pSbn
     real(dp), dimension(orb%mOrb, orb%mOrb) :: pSamT_Pab_Sbn_gammaAN, pSamT_Pab_gammaAB_pSbn
     complex(dp) :: tot(orb%mOrb, orb%mOrb, size(kPoints, dim=2) * size(deltaRhoSqr, dim=6))
 
-    !! K-point-spin compound index
+    ! K-point-spin compound index
     integer :: iGlobalKS
 
-    !! K-point index
+    ! K-point index
     integer :: iK
 
-    !! Spin index
+    ! Spin index
     integer :: iS
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtM, iAtN
 
-    !! Neighbour indices (+corresponding atom indices)
+    ! Neighbour indices (+corresponding atom indices)
     integer :: iAtA, iAtB
 
-    !! Folded (to central cell) atom indices
+    ! Folded (to central cell) atom indices
     integer :: iAtAfold, iAtBfold
 
-    !! Sorted (according to max overlap estimates) neighbour indices
+    ! Sorted (according to max overlap estimates) neighbour indices
     integer :: iNeighMsort, iNeighNsort
 
-    !! Auxiliary variables for setting up 2D pointer to sparse overlap
+    ! Auxiliary variables for setting up 2D pointer to sparse overlap
     integer :: ind, nOrbAt, nOrbNeigh
 
-    !! Size of square matrices (e.g. Hamiltonian)
+    ! Size of square matrices (e.g. Hamiltonian)
     integer :: squareSize
 
-    !! Max estimate for difference of square delta rho to previous SCC iteration
+    ! Max estimate for difference of square delta rho to previous SCC iteration
     real(dp) :: pMax
 
-    !! Integer BvK index
+    ! Integer BvK index
     integer :: bvKIndex(3)
 
-    !! Phase factor
+    ! Phase factor
     complex(dp) :: phase
 
-    !! Iterates over all BvK real-space vectors
+    ! Iterates over all BvK real-space vectors
     integer :: iG, iGMN, iGMB, iGAN, iGAB
 
-    !! Composite index for four nested loops
+    ! Composite index for four nested loops
     integer :: ii
     integer, allocatable :: compositeIndex(:,:)
 
-    !! Number of k-points and spins
+    ! Number of k-points and spins
     integer :: nK, nS
 
-    !! Number of k-point-spin compound indices
+    ! Number of k-point-spin compound indices
     integer :: nKS
 
     tot(:,:,:) = (0.0_dp, 0.0_dp)
@@ -3284,7 +3348,7 @@ contains
 
     end do loopMNBA
 
-    if (this%tSpin .or. this%tREKS) then
+    if (this%isSpin .or. this%tREKS) then
       HSqrCplxCam(:,:,:) = -0.25_dp * HSqrCplxCam
     else
       HSqrCplxCam(:,:,:) = -0.125_dp * HSqrCplxCam
@@ -3359,10 +3423,10 @@ contains
     !> Total Fock-type exchange energy contribution
     real(dp), intent(out) :: camEnergy
 
-    !! Spin and k-point indices
+    ! Spin and k-point indices
     integer :: iS, iK
 
-    !! Local and global iKS for arrays present at every MPI rank
+    ! Local and global iKS for arrays present at every MPI rank
     integer :: iLocalKS, iGlobalKS, iDensMatKS
 
     camEnergy = 0.0_dp
@@ -3445,17 +3509,17 @@ contains
     !> True, if the derivative at xx is desired, otherwise the function value it returned
     logical, intent(in), optional :: tDerivative
 
-    !! True, if the derivative at xx is desired, otherwise the function value it returned
-    !! Default: .false.
+    ! True, if the derivative at xx is desired, otherwise the function value it returned
+    ! Default: .false.
     logical :: tPrime
 
-    !! Value of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
+    ! Value of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
     real(dp) :: yy
 
-    !! Polynomial coefficients
+    ! Polynomial coefficients
     real(dp) :: aa, bb, cc, dd, ee, ff
 
-    !! rCut - rDamp
+    ! rCut - rDamp
     real(dp) :: delta
 
     if (present(tDerivative)) then
@@ -3750,10 +3814,10 @@ contains
     !> Resulting Gamma, summed up for g-vectors
     real(dp) :: gamma
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     gamma = 0.0_dp
@@ -3797,16 +3861,16 @@ contains
     !> Pseudo Fourier transform of square gamma matrix
     complex(dp), intent(out) :: camGammaSqr(:,:)
 
-    !! Indices of shifted atom
+    ! Indices of shifted atom
     integer :: iAt1, iSp1
 
-    !! Indices of atom in central cell
+    ! Indices of atom in central cell
     integer :: iAt2, iSp2
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: iOrbStart1, iOrbEnd1, iOrbStart2, iOrbEnd2
 
     nAtom0 = size(this%species0)
@@ -3855,16 +3919,16 @@ contains
     !> Resulting Gamma, summed up for g-vectors
     complex(dp) :: gamma
 
-    !! Phase factor
+    ! Phase factor
     complex(dp) :: phase
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Difference (k - k') with both k-points in relative coordinates, multiplied by 2pi
+    ! Difference (k - k') with both k-points in relative coordinates, multiplied by 2pi
     real(dp) :: kPoint2p(3)
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     kPoint2p(:) = 2.0_dp * pi * (kPoint - kPointPrime)
@@ -3916,22 +3980,22 @@ contains
     !> Pseudo Fourier transform of square gamma matrix
     complex(dp), intent(out) :: camdGammaAO(:,:,:)
 
-    !! Indices of atom to calculate derivative for
+    ! Indices of atom to calculate derivative for
     integer :: iSpAtPrime, iOrbStartAtPrime, iOrbEndAtPrime
 
-    !! Indices of atom in central cell
+    ! Indices of atom in central cell
     integer :: iAt2, iSp2
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Temporary storage for Gamma derivative
+    ! Temporary storage for Gamma derivative
     complex(dp) :: dGamma(3)
 
-    !! Iterates over coordinates
+    ! Iterates over coordinates
     integer :: iCoord
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: iOrbStart2, iOrbEnd2
 
     nAtom0 = size(this%species0)
@@ -3982,19 +4046,19 @@ contains
     !> Resulting Gamma derivative, summed up for g-vectors
     complex(dp) :: dGamma(3)
 
-    !! Phase factor
+    ! Phase factor
     complex(dp) :: phase
 
-    !! Temporary distance vector
+    ! Temporary distance vector
     real(dp) :: distVect(3)
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Difference (k - k') with both k-points in relative coordinates, multiplied by 2pi
+    ! Difference (k - k') with both k-points in relative coordinates, multiplied by 2pi
     real(dp) :: kPoint2p(3)
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     kPoint2p(:) = 2.0_dp * pi * (kPoint - kPointPrime)
@@ -4048,13 +4112,13 @@ contains
     !> Resulting Gammas, g-vector resolved
     real(dp) :: gammas(size(rCellVecsG, dim=2))
 
-    !! Total shift of atom position (Gamma arguments) in absolute coordinates
+    ! Total shift of atom position (Gamma arguments) in absolute coordinates
     real(dp) :: rTotshift(3)
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     gammas(:) = 0.0_dp
@@ -4309,13 +4373,13 @@ contains
     !> Resulting Gamma derivative (1st), summed up for g-vectors
     real(dp) :: dGamma(3)
 
-    !! Temporary distance vector
+    ! Temporary distance vector
     real(dp) :: distVect(3)
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     dGamma(:) = 0.0_dp
@@ -4359,13 +4423,13 @@ contains
     !> Resulting Gamma derivative (1st), for each g-vector
     real(dp) :: dGammas(3, size(rCellVecsG, dim=2))
 
-    !! Temporary distance vector
+    ! Temporary distance vector
     real(dp) :: distVect(3)
 
-    !! Distance between the two atoms
+    ! Distance between the two atoms
     real(dp) :: dist
 
-    !! Index of real-space \vec{g} summation
+    ! Index of real-space \vec{g} summation
     integer :: iG
 
     dGammas(:,:) = 0.0_dp
@@ -4432,10 +4496,10 @@ contains
     !> Second atom
     integer, intent(in) :: iAtom2
 
-    !! Species index of first and second atom
+    ! Species index of first and second atom
     integer :: iSp1, iSp2
 
-    !! Distance(-vector) of the two atoms
+    ! Distance(-vector) of the two atoms
     real(dp) :: vect(3), dist
 
     grad(:) = 0.0_dp
@@ -4477,10 +4541,10 @@ contains
     !> Map images of atoms to the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !! Species index of first and second atom
+    ! Species index of first and second atom
     integer :: iSp1, iSp2
 
-    !! Distance(-vector) of the two atoms
+    ! Distance(-vector) of the two atoms
     real(dp) :: vect(3), dist
 
     iSp1 = this%species0(img2CentCell(iAtom1))
@@ -4507,8 +4571,8 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, env, parallelKS, deltaRhoSqr, SSqrReal, skOverCont,&
-      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, tPeriodic, gradients,&
-      & errStatus)
+      & symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc, nSpin, isPeriodic,&
+      & gradients, errStatus)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -4547,7 +4611,7 @@ contains
     integer, intent(in) :: nSpin
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4555,7 +4619,7 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma()
     else
       call this%tabulateCamdGammaEval0_cluster()
@@ -4578,7 +4642,7 @@ contains
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
   subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
-      & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
+      & iNeighbour, nNeighbourSK, derivator, isPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
@@ -4609,7 +4673,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> True, if system is periodic (i.e. Gamma-only)
-    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: isPeriodic
 
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -4620,7 +4684,7 @@ contains
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
 
-    if (tPeriodic) then
+    if (isPeriodic) then
       call this%tabulateCamdGammaEval0_gamma()
     else
       call this%tabulateCamdGammaEval0_cluster()
@@ -4628,7 +4692,7 @@ contains
 
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased, hybridXcAlgo%neighbourBased)
-      if (tPeriodic) then
+      if (isPeriodic) then
         @:ASSERT(present(symNeighbourList) .and. present(nNeighbourCamSym))
         call addCamGradientsNeighbour_gamma(this, deltaRhoSqr, skOverCont, symNeighbourList,&
             & nNeighbourCamSym, iSquare, orb, derivator, gradients)
@@ -4795,16 +4859,16 @@ contains
       !> Workspace for the derivatives
       real(dp), allocatable, intent(inout) :: tmpderiv(:,:)
 
-      !! Holds long-range gamma derivatives of a single interaction
+      ! Holds long-range gamma derivatives of a single interaction
       real(dp) :: tmp(3)
 
-      !! Atom indices
+      ! Atom indices
       integer :: iAt1, iAt2
 
-      !! Spin channel index
+      ! Spin channel index
       integer :: iSpin
 
-      !! Number of atoms
+      ! Number of atoms
       integer :: nAtom0
 
       nAtom0 = size(this%species0)
@@ -4858,73 +4922,73 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Atom blocks from sparse, real-space overlap matrices
+    ! Atom blocks from sparse, real-space overlap matrices
     real(dp), pointer :: pSam(:,:), pSbk(:,:)
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descA(descLen), descB(descLen), descM(descLen)
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descK(descLen)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: tmpDeltaRhoSqr(:,:,:), tmpGradients(:,:)
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Overlap matrix elements
+    ! Overlap matrix elements
     real(dp) :: Sam, Sbk
 
-    !! Density matrix elements
+    ! Density matrix elements
     real(dp) :: dPab, dPmk
 
-    !! Overlap derivatives
+    ! Overlap derivatives
     real(dp), dimension(orb%mOrb, orb%mOrb, 3) :: SbnPrimeKequalsN
 
-    !! \tilde{\gamma}_{\mu\kappa}, \tilde{\gamma}_{\alpha\kappa},
-    !! \tilde{\gamma}_{\alpha\beta}
+    ! \tilde{\gamma}_{\mu\kappa}, \tilde{\gamma}_{\alpha\kappa},
+    ! \tilde{\gamma}_{\alpha\beta}
     real(dp) :: gammaMK, gammaAK, gammaAB, gammaMKMB, gammaTot
 
-    !! 1st derivatives of
-    !! \tilde{\gamma}_{\mu\nu}, \tilde{\gamma}_{\mu\beta},
-    !! \tilde{\gamma}_{\alpha\nu}, \tilde{\gamma}_{\alpha\beta}
+    ! 1st derivatives of
+    ! \tilde{\gamma}_{\mu\nu}, \tilde{\gamma}_{\mu\beta},
+    ! \tilde{\gamma}_{\alpha\nu}, \tilde{\gamma}_{\alpha\beta}
     real(dp), dimension(3) :: dGammaMK, dGammaAK
 
-    !! Atom to calculate energy gradient components for
+    ! Atom to calculate energy gradient components for
     integer :: iAtK, iNeighK
 
-    !! Index of atom in central cell
+    ! Index of atom in central cell
     integer :: iAtM
 
-    !! Neighbour indices (+corresponding atom indices)
+    ! Neighbour indices (+corresponding atom indices)
     integer :: iNeighM, iAtA, iAtB
 
-    !! Folded (to central cell) atom indices
+    ! Folded (to central cell) atom indices
     integer :: iAtAfold, iAtBfold
 
-    !! Auxiliary variables for setting up 2D pointer to sparse overlap
+    ! Auxiliary variables for setting up 2D pointer to sparse overlap
     integer :: ind, nOrbAt, nOrbNeigh
 
-    !! Spin index and total number of spin channels
+    ! Spin index and total number of spin channels
     integer :: iSpin, nSpin
 
-    !! Orbital indices
+    ! Orbital indices
     integer :: mu, kk, alpha, beta
 
-    !! Product dPmk * Sam
+    ! Product dPmk * Sam
     real(dp) :: dPmkSam
 
-    !! Product dPmk * gammaTot
+    ! Product dPmk * gammaTot
     real(dp) :: dPmkGammaTot
 
-    !! Product dPmk * gammaTot * Sam
+    ! Product dPmk * gammaTot * Sam
     real(dp) :: dPmkGammaTotSam
 
-    !! Composite index iAtM/iAtN
+    ! Composite index iAtM/iAtN
     integer, allocatable :: iAtMN(:,:)
 
     nAtom0 = size(this%species0)
@@ -5112,13 +5176,13 @@ contains
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
 
-    !! Holds long-range gamma derivatives of a single interaction
+    ! Holds long-range gamma derivatives of a single interaction
     real(dp) :: tmp(3)
 
-    !! Indices of interacting atoms in central cell
+    ! Indices of interacting atoms in central cell
     integer :: iAt1, iAt2
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
     nAtom0 = size(this%species0)
@@ -5145,10 +5209,10 @@ contains
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
 
-    !! Indices of interacting atoms in central cell, as well as their global species index
+    ! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtM, iSpM, iAtN, iSpN
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
     nAtom0 = size(this%species0)
@@ -5191,16 +5255,16 @@ contains
     !> Collected, full square matrix (target)
     real(dp), intent(out), allocatable :: collected(:,:,:)
 
-    !! Spin and composite index
+    ! Spin and composite index
     integer :: nSpin, iSpin, iKS
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: iGroup, iEig, nOrb
 
-    !! Type for communicating a row or a column of a distributed matrix
+    ! Type for communicating a row or a column of a distributed matrix
     type(linecomm) :: collector
 
-    !! Temporary storage for a single line of the collected, dense, square matrix
+    ! Temporary storage for a single line of the collected, dense, square matrix
     real(dp), allocatable :: localLine(:)
 
     nOrb = denseDesc%fullSize
@@ -5263,16 +5327,16 @@ contains
     !> Distributed matrix (target)
     real(dp), intent(out) :: distrib(:,:,:)
 
-    !! Spin and composite index
+    ! Spin and composite index
     integer :: iSpin, iKS
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: iGroup, iEig, nOrb
 
-    !! Type for communicating a row or a column of a distributed matrix
+    ! Type for communicating a row or a column of a distributed matrix
     type(linecomm) :: collector
 
-    !! Temporary storage for a single line of the collected, dense, square matrix
+    ! Temporary storage for a single line of the collected, dense, square matrix
     real(dp), allocatable :: localLine(:)
 
     nOrb = denseDesc%fullSize
@@ -5361,35 +5425,35 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
-    !! Temporary energy gradients
+    ! Temporary energy gradients
     real(dp), allocatable :: tmpGradients(:,:)
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Overlap derivative
+    ! Overlap derivative
     real(dp), allocatable :: overSqrPrime(:,:,:)
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtForce, iAt1, iAt2
 
-    !! CAM gamma matrix, including periodic images
+    ! CAM gamma matrix, including periodic images
     real(dp), allocatable :: camGammaAO(:,:), camdGammaAO(:,:,:)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:), symSqrMatTmp(:,:)
     real(dp), allocatable :: deltaRhoOverlap(:,:,:)
 
-    !! Composite index (iK, iS)
+    ! Composite index (iK, iS)
     integer :: iKS
 
-    !! Iterates over coordinates
+    ! Iterates over coordinates
     integer :: iCoord
 
-    !! Number of local rows and columns
+    ! Number of local rows and columns
     integer :: nLocRow, nLocCol
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: ii, jj, iOrb1, iOrb2
 
     nLocCol = size(overlap, dim=1)
@@ -5513,13 +5577,13 @@ contains
     !> CAM gamma matrix, including periodic images
     real(dp), intent(out) :: camdGammaAO(:,:,:)
 
-    !! Atom interacting with iAtomPrime
+    ! Atom interacting with iAtomPrime
     integer :: iAt2
 
-    !! Gamma derivatives of current diatomic block
+    ! Gamma derivatives of current diatomic block
     real(dp) :: tmp(orb%nOrb, orb%nOrb)
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     integer :: iOrbStart1, iOrbEnd1, nOrbAtomPrime, iOrbStart2, iOrbEnd2, nOrb2, iCoord
 
     camdGammaAO(:,:,:) = 0.0_dp
@@ -5580,41 +5644,41 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
-    !! Temporary energy gradients
+    ! Temporary energy gradients
     real(dp), allocatable :: tmpGradients(:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Overlap derivative
+    ! Overlap derivative
     real(dp), allocatable :: overSqrPrime(:,:,:)
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtForce, iAt1, iAt2
 
-    !! CAM gamma matrix, including periodic images
+    ! CAM gamma matrix, including periodic images
     real(dp), allocatable :: camGammaAO(:,:), camdGammaAO(:,:,:)
 
-    !! Symmetrized, square (unpacked) overlap matrix
+    ! Symmetrized, square (unpacked) overlap matrix
     real(dp), allocatable :: overlapSym(:,:)
 
-    !! Symmetrized, square (unpacked) delta density matrix
+    ! Symmetrized, square (unpacked) delta density matrix
     real(dp), allocatable :: deltaRhoSqrSym(:,:,:)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: symSqrMat1(:,:,:), symSqrMat2(:,:,:), symSqrMat2Tmp(:,:)
     real(dp), allocatable :: deltaRhoOverlap(:,:,:)
 
-    !! Spin index and total number of spin channels
+    ! Spin index and total number of spin channels
     integer :: iSpin, nSpin
 
-    !! Number of orbitals in square matrices
+    ! Number of orbitals in square matrices
     integer :: nOrb
 
-    !! Iterates over coordinates
+    ! Iterates over coordinates
     integer :: iCoord
 
     nAtom0 = size(this%species0)
@@ -5726,16 +5790,16 @@ contains
     !> CAM gamma matrix, including periodic images
     real(dp), intent(out) :: camdGammaAO(:,:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descAt1(descLen), descAt2(descLen)
 
-    !! Atom interacting with iAtomPrime
+    ! Atom interacting with iAtomPrime
     integer :: iAt2
 
-    !! Iterates over coordinates
+    ! Iterates over coordinates
     integer :: iCoord
 
     camdGammaAO(:,:,:) = 0.0_dp
@@ -5909,56 +5973,56 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
-    !! Temporary energy gradients
+    ! Temporary energy gradients
     real(dp), allocatable :: tmpGradients(:,:)
 
-    !! Temporary y-storage
+    ! Temporary y-storage
     complex(dp), allocatable :: gammaAO(:,:), gammaAOCc(:,:)
 
-    !! Temporary y-storage
+    ! Temporary y-storage
     complex(dp), allocatable :: dGammaAO(:,:,:), dGammaAOCc(:,:,:)
 
-    !! Temporary storage for derivative of S(k')
+    ! Temporary storage for derivative of S(k')
     complex(dp), allocatable :: overSqrPrime(:,:,:)
 
-    !! Size of square matrices (e.g. Hamiltonian)
+    ! Size of square matrices (e.g. Hamiltonian)
     integer :: squareSize
 
-    !! Number of k-point-spin compound indices
+    ! Number of k-point-spin compound indices
     integer :: nKS
 
-    !! K-point indices
+    ! K-point indices
     integer :: iK, iKPrime
 
-    !! Spin index
+    ! Spin index
     integer :: iS
 
-    !! Number of k-points and spins
+    ! Number of k-points and spins
     integer :: nK, nS
 
-    !! Global iKS for arrays present at every MPI rank
+    ! Global iKS for arrays present at every MPI rank
     integer :: iGlobalKS, iGlobalKPrimeS
 
-    !! Index of atom to calculate derivative for
+    ! Index of atom to calculate derivative for
     integer :: iAtForce
 
-    !! Iterates over coordinates
+    ! Iterates over coordinates
     integer :: iCoord
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Temporary storage
+    ! Temporary storage
     complex(dp), allocatable :: tmp(:,:)
     complex(dp), dimension(:,:), allocatable :: dPm, dP_S_cc, dP_S, dPp_Sp, dPp_Sp_T, Sp_dPp_Sp_T
 
-    !! Composite index for two nested loops over central cell
+    ! Composite index for two nested loops over central cell
     integer, allocatable :: iKSComposite(:,:)
 
-    !! Dense, square, k-space overlap matrices S(k) on all MPI processes
+    ! Dense, square, k-space overlap matrices S(k) on all MPI processes
     complex(dp), allocatable :: SSqrCplx(:,:,:)
 
-    !! Auxiliary variables
+    ! Auxiliary variables
     real(dp) :: wk_wkp
     integer :: ii
 
@@ -6169,105 +6233,105 @@ contains
     !> Energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
-    !! Dense matrix descriptor indices
+    ! Dense matrix descriptor indices
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
-    !! Atom blocks from sparse, real-space overlap matrices
+    ! Atom blocks from sparse, real-space overlap matrices
     real(dp), pointer :: pSak(:,:), pSam(:,:), pSbk(:,:), pSbn(:,:)
 
-    !! Stores start/end index and number of orbitals of square matrices
+    ! Stores start/end index and number of orbitals of square matrices
     integer :: descA(descLen), descB(descLen), descM(descLen), descN(descLen), descK(descLen)
 
-    !! Temporary storages
+    ! Temporary storages
     real(dp), allocatable :: tmpGradients(:,:)
 
-    !! Overlap derivatives
+    ! Overlap derivatives
     real(dp), dimension(orb%mOrb, orb%mOrb, 3) :: SbnPrimeKequalsN
 
-    !! Number of atoms in central cell
+    ! Number of atoms in central cell
     integer :: nAtom0
 
-    !! Real-space \vec{h} and \vec{l} vectors in relative coordinates
+    ! Real-space \vec{h} and \vec{l} vectors in relative coordinates
     real(dp) :: vecH(3), vecL(3)
 
-    !! K-point index
+    ! K-point index
     integer :: iK
 
-    !! Spin index
+    ! Spin index
     integer :: iS
 
-    !! Atom indices (central cell)
+    ! Atom indices (central cell)
     integer :: iAtM, iAtN, iAtK
 
-    !! Neighbour indices (+corresponding atom indices)
+    ! Neighbour indices (+corresponding atom indices)
     integer :: iNeighK, iNeighM, iNeighN, iAtA, iAtB
 
-    !! Folded (to central cell) atom indices
+    ! Folded (to central cell) atom indices
     integer :: iAtAfold, iAtBfold
 
-    !! Auxiliary variables for setting up 2D pointer to sparse overlap
+    ! Auxiliary variables for setting up 2D pointer to sparse overlap
     integer :: ind, nOrbAt, nOrbNeigh
 
-    !! Integer BvK index
+    ! Integer BvK index
     integer :: bvKIndex(3)
 
-    !! Phase factor
+    ! Phase factor
     complex(dp) :: phase
 
-    !! Iterates over all BvK real-space vectors
+    ! Iterates over all BvK real-space vectors
     integer :: iG, iGKB, iGMK, iGMB, iGAK, iGAB
 
-    !! Orbital indices
+    ! Orbital indices
     integer :: mu, nu, kk, alpha, beta
 
-    !! Number of k-points and spins
+    ! Number of k-points and spins
     integer :: nK, nS
 
-    !! Overlap matrix elements
+    ! Overlap matrix elements
     real(dp) :: Sam, Sak, Sbk, Sbn
 
-    !! Density matrix elements
+    ! Density matrix elements
     real(dp) :: dPab
     complex(dp) :: dPkm, dPnk, dPnm
 
-    !! Products phase * gammaMK, phase * gammaMB, phase * gammaAK, phase * gammaAB
+    ! Products phase * gammaMK, phase * gammaMB, phase * gammaAK, phase * gammaAB
     complex(dp) :: phaseGammaMK, phaseGammaMB, phaseGammaAK, phaseGammaAB
 
-    !! Product dPkm * phase * gammaMK
+    ! Product dPkm * phase * gammaMK
     complex(dp) :: dPkmPhaseGammaMK
 
-    !! Product dPkm * phase * gammaMB
+    ! Product dPkm * phase * gammaMB
     complex(dp) :: dPkmPhaseGammaMB
 
-    !! Product dPkm * phase * gammaAK
+    ! Product dPkm * phase * gammaAK
     complex(dp) :: dPkmPhaseGammaAK
 
-    !! Product dPkm * phase * gammaAB
+    ! Product dPkm * phase * gammaAB
     complex(dp) :: dPkmPhaseGammaAB
 
-    !! Product dPkm * phase * gammaMK * Sam
+    ! Product dPkm * phase * gammaMK * Sam
     complex(dp) :: dPkmPhaseGammaMKSam
 
-    !! Product dPkm * phase * gammaMB * Sam
+    ! Product dPkm * phase * gammaMB * Sam
     complex(dp) :: dPkmPhaseGammaMBSam
 
-    !! Product dPkm * phase * gammaAK * Sam
+    ! Product dPkm * phase * gammaAK * Sam
     complex(dp) :: dPkmPhaseGammaAKSam
 
-    !! Product dPkm * phase * gammaAB * Sam
+    ! Product dPkm * phase * gammaAB * Sam
     complex(dp) :: dPkmPhaseGammaABSam
 
-    !! Directional derivatives
+    ! Directional derivatives
     real(dp), allocatable :: dGammaMK(:,:), dGammaAK(:,:), dGammaKB(:,:)
 
-    !! Product phase * dGammaMK(:, iG)
+    ! Product phase * dGammaMK(:, iG)
     complex(dp) :: phasedGammaMK(3), phasedGammaKB(3), phasedGammaAK(3)
 
     complex(dp) :: dPkmPhasedGammaMK(3), dPkmPhasedGammaMKSam(3), dPnkPhasedGammaKB(3)
     complex(dp) :: dPnkPhasedGammaKBSak(3), dPkmPhasedGammaAK(3), dPkmPhasedGammaAKSam(3)
     complex(dp) :: dPnmPhasedGammaAK(3), dPnmPhasedGammaAKSam(3)
 
-    !! Composite index for mapping iK/iS --> iGlobalKS
+    ! Composite index for mapping iK/iS --> iGlobalKS
     integer, allocatable :: iKiSToiGlobalKS(:,:)
     integer :: iGlobalKS
 
@@ -6783,10 +6847,10 @@ contains
     !> Long-range + full-range Hartree-Fock gamma derivative integrals
     real(dp), intent(out) :: camGammaDeriv0(:,:,:)
 
-    !! Holds long-range + full-range Hartree-Fock gamma derivatives of a single interaction
+    ! Holds long-range + full-range Hartree-Fock gamma derivatives of a single interaction
     real(dp) :: tmp(3)
 
-    !! Number of atoms and indices of interacting atoms
+    ! Number of atoms and indices of interacting atoms
     integer :: nAtom0, iAt1, iAt2
 
     nAtom0 = size(camGammaDeriv0, dim=1)
