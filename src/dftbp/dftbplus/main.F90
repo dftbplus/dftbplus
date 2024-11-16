@@ -2853,7 +2853,7 @@ contains
       if (electronicSolver%iSolver == electronicSolverTypes%onlyTransport) then
         call error("OnlyTransport solver cannot calculate the density matrix")
       else
-        call error("Cannot calculate the density matrix with the hosen electronic solver")
+        call error("Cannot calculate the density matrix with the chosen electronic solver")
       end if
 
     case(densityMatrixTypes%fromEigenVecs, densityMatrixTypes%magma_fromEigenVecs)
