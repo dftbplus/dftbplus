@@ -431,10 +431,10 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(modifier)) modifier = ""
       if (present(isDefaultExported)) then
         if (.not. isDefaultExported) return
       end if
-      if (present(modifier)) modifier = ""
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
@@ -776,11 +776,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
+      if (present(modifier)) modifier = ""
       if (present(isDefaultExported)) then
         if (.not. isDefaultExported) return
-      end if
-      if (present(modifier)) then
-        modifier = ""
       end if
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
