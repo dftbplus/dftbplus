@@ -14,7 +14,7 @@ module dftbp_dftbplus_specieslist
   use dftbp_common_unitconversion, only : TUnit
   use dftbp_extlibs_xmlf90, only : char, fnode, string
   use dftbp_io_hsdutils, only : getChild, getChildValue
-  use dftbp_io_hsdutils2, only : convertUnitHsd
+  use dftbp_io_hsdutils2, only : convertUnitHsd, setProcessed
   implicit none
 
   private
@@ -32,16 +32,16 @@ contains
 
 
   !> Read a list of real valued species data
-  subroutine readSpeciesListReal(node, speciesNames, array, default, units)
+  subroutine readSpeciesListReal(node, speciesNames, array, default, units, markAllProcessed)
 
     !> Node to process
     type(fnode), pointer :: node
 
-    !> Data array to read
-    real(dp), intent(inout) :: array(:)
-
     !> Names of all species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Data array to read
+    real(dp), intent(inout) :: array(:)
 
     !> Optional default values of data array to be read
     real(dp), intent(in), optional :: default(:)
@@ -49,9 +49,13 @@ contains
     !> Conversion factor
     type(TUnit), intent(in), optional :: units(:)
 
+    !> Whether all unread subnodes should also be marked as processed (default: .true.)
+    logical, optional, intent(in) :: markAllProcessed
+
     type(fnode), pointer :: child
     type(string) :: modifier
     integer :: iSp
+    logical :: markAllProcessed_
 
     if (present(default)) then
       if (present(units)) then
@@ -79,25 +83,33 @@ contains
       end if
     end if
 
+    markAllProcessed_ = .true.
+    if (present(markAllProcessed)) markAllProcessed_ = markAllProcessed
+    if (markAllProcessed_) call setProcessed(node, recursive=.true.)
+
   end subroutine readSpeciesListReal
 
 
   !> Read a list of integer valued species data
-  subroutine readSpeciesListInt(node, speciesNames, array, default)
+  subroutine readSpeciesListInt(node, speciesNames, array, default, markAllProcessed)
 
     !> Node to process
     type(fnode), pointer :: node
-
-    !> Data array to read
-    integer, intent(out) :: array(:)
 
     !> Names of all species
     character(len=*), intent(in) :: speciesNames(:)
 
     !> Data array to read
-    integer, intent(in), optional :: default(:)
+    integer, intent(out) :: array(:)
+
+    !> Data array to read
+    integer, optional, intent(in) :: default(:)
+
+    !> Whether all unread subnodes should also be marked as processed (default: .true.)
+    logical, optional, intent(in) :: markAllProcessed
 
     integer :: iSp
+    logical :: markAllProcessed_
 
     if (present(default)) then
       do iSp = 1, size(speciesNames)
@@ -110,7 +122,10 @@ contains
       end do
     end if
 
-  end subroutine readSpeciesListInt
+    markAllProcessed_ = .true.
+    if (present(markAllProcessed)) markAllProcessed_ = markAllProcessed
+    if (markAllProcessed_) call setProcessed(node, recursive=.true.)
 
+  end subroutine readSpeciesListInt
 
 end module dftbp_dftbplus_specieslist

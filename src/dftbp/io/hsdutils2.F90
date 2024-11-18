@@ -16,7 +16,8 @@ module dftbp_io_hsdutils2
   use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
   use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
       & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
-      & normalize, append_to_string, destroyNodeList, removeAttribute, getItem1
+      & normalize, append_to_string, destroyNodeList, removeAttribute, getItem1, getFirstChild,&
+      & getNextSibling
   use dftbp_io_charmanip, only : newline, tolower, i2c
   use dftbp_io_hsdparser, only : attrName, attrModifier
   use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
@@ -30,7 +31,7 @@ module dftbp_io_hsdutils2
   public :: getUnprocessedNodes, warnUnprocessedNodes
   public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
-  public :: setUnprocessed, getDescendant
+  public :: setUnprocessed, getDescendant, setProcessed
   public :: convertUnitHsd
   public :: renameChildren
 
@@ -65,6 +66,40 @@ contains
     end if
 
   end subroutine setUnprocessed
+
+
+  !> Sets the processed flag on a node (and eventually on all its children)
+  recursive subroutine setProcessed(node, recursive)
+
+    !> The node to process
+    type(fnode), pointer, intent(in) :: node
+
+    !> Whether also all subnodes should be recursively included
+    logical, optional, intent(in) :: recursive
+
+    if (.not. associated(node)) return
+    call setAttribute(node, attrProcessed, "")
+    if (present(recursive)) then
+      if (recursive) call setChildrenProcessed_(node)
+    end if
+
+  contains
+
+    recursive subroutine setChildrenProcessed_(node)
+      type(fnode), pointer, intent(in) :: node
+
+      type(fnode), pointer :: child
+
+      child => getFirstChild(node)
+      do while (associated(child))
+        call setAttribute(node, attrProcessed, "")
+        call setChildrenProcessed_(child)
+        child => getNextSibling(child)
+      end do
+
+    end subroutine setChildrenProcessed_
+
+  end subroutine setProcessed
 
 
   !> Prints a warning message about unprocessed nodes
