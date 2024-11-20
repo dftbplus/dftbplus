@@ -43,8 +43,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtomsReal,&
       & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
-      & denseSubtractDensityOfAtomsNospinRealNonperiodicReks,&
-      & denseSubtractDensityOfAtomsSpinRealNonperiodicReks, mulliken, denseMullikenReal,&
+      & denseSubtractDensityOfAtomsRealNonperiodicReks, mulliken, denseMullikenReal,&
       & denseBlockMulliken, skewMulliken, getOnsitePopulation, getAtomicMultipolePopulation
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
@@ -98,9 +97,9 @@ module dftbp_dftbplus_main
   use dftbp_md_xlbomd, only : TXLBOMD
   use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, TMixerReal_reset, TMixerCmplx_reset,&
       & TMixerReal_mix, TMixerCmplx_mix, TMixerReal_getInverseJacobian
-  use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
-      & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
-      & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
+  use dftbp_reks_reks, only : TReksCalc, guessneweigvecsReks, optimizeFONs, calcweights,&
+      & activeorbswap, getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates,&
+      & qmexpandl, ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
       & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
       & getReksStress
   use dftbp_solvation_cm5, only : TChargeModel5
@@ -119,7 +118,8 @@ module dftbp_dftbplus_main
   use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
-      & denseSubtractDensityOfAtomsRealPeriodicBlacs
+      & denseSubtractDensityOfAtomsRealPeriodicBlacs,&
+      & denseSubtractDensityOfAtomsRealNonperiodicReksBlacs
   use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
       & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
       & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
@@ -1277,7 +1277,8 @@ contains
             & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks,&
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
+        call optimizeFONsAndWeights(env, this%denseDesc, this%eigvecsReal, this%filling,&
+            & this%dftbEnergy(1), this%reks)
 
         call getFockandDiag(env, this%denseDesc, this%neighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%eigvecsReal, this%electronicSolver,&
@@ -1292,8 +1293,13 @@ contains
         @:PROPAGATE_ERROR(errStatus)
         ! For hybrid xc-functional calculations deduct atomic charges from deltaRho
         if (this%isHybridXc) then
-          call denseSubtractDensityOfAtomsNospinRealNonperiodicReks(this%q0,&
-              & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut)
+        #:if WITH_SCALAPACK
+          call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, this%parallelKS,&
+              & this%q0, this%denseDesc, this%densityMatrix%deltaRhoOut, 2)
+        #:else
+          call denseSubtractDensityOfAtomsRealNonperiodicReks(this%q0,&
+              & this%denseDesc%iAtomStart, this%densityMatrix%deltaRhoOut, 2)
+        #:endif
         end if
         call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
@@ -1303,14 +1309,13 @@ contains
         ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (this%isHybridXc) then
-          call getReksNextInputDensity(sccErrorQ, this%sccTol, tConverged, iSccIter,&
-              & this%minSccIter, this%maxSccIter, iGeoStep, tStopScc, this%eigvecsReal,&
-              & this%densityMatrix%deltaRhoOut, this%densityMatrix%deltaRhoIn,&
-              & this%reks)
+          call getReksNextInputDensity(env, this%denseDesc, sccErrorQ, this%sccTol, tConverged,&
+              & iSccIter, this%minSccIter, this%maxSccIter, iGeoStep, tStopScc, this%eigvecsReal,&
+              & this%densityMatrix%deltaRhoOut, this%densityMatrix%deltaRhoIn, this%reks)
         else
-          call getReksNextInputCharges(this%qInput, this%qOutput, this%qDiff, sccErrorQ,&
-              & this%sccTol, tConverged, iSccIter, this%minSccIter, this%maxSccIter, iGeoStep,&
-              & tStopScc, this%eigvecsReal, this%reks)
+          call getReksNextInputCharges(this%denseDesc, this%qInput, this%qOutput, this%qDiff,&
+              & sccErrorQ, this%sccTol, tConverged, iSccIter, this%minSccIter, this%maxSccIter,&
+              & iGeoStep, tStopScc, this%eigvecsReal, this%reks)
         end if
 
         call getSccInfo(iSccIter, this%dftbEnergy(1)%Eavg, Eold, diffElec)
@@ -7660,32 +7665,48 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
+  #:if WITH_SCALAPACK
+    call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
+        & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+  #:else
     call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    call adjointLowerTriangle(SSqrReal)
+  #:endif
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
     reks%overSqr(:,:) = SSqrReal
-    call adjointLowerTriangle(reks%overSqr)
 
     if (iGeoStep == 0) then
 
       if (.not. reks%tReadMO) then
 
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, h0, neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+      #:else
         call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
         eigen(:,:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%diagonalization)
+      #:if WITH_SCALAPACK
+        call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+            & eigen(:,1,1), eigvecsReal(:,:,1), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+      #:else
         call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1), errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call env%globalTimer%stopTimer(globalTimers%diagonalization)
         eigvecsReal(:,:,1) = HSqrReal
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
       else
 
         call readEigenvecs(eigvecsReal(:,:,1))
+        ! TODO : Not MPI parallelized at the moment
         call renormalizeEigenvecs(env, eigvecsReal, reks)
 
       end if
@@ -7694,11 +7715,12 @@ contains
 
     else
 
+      ! TODO : Not MPI parallelized at the moment
       call renormalizeEigenvecs(env, eigvecsReal, reks)
 
     end if
 
-    call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
+    call checkGammaPoint(env, denseDesc, neighbourList%iNeighbour, &
         & nNeighbourSK, iSparseStart, img2CentCell, ints%overlap, reks)
 
   end subroutine getReksInitialSettings
@@ -7871,13 +7893,21 @@ contains
         reks%deltaRhoSqrL(:,:,1,iL) = densityMatrix%deltaRhoOut(:,:,1)
       end if
 
+    #:if not WITH_SCALAPACK
       if (reks%tForces) then
         call adjointLowerTriangle(reks%rhoSqrL(:,:,1,iL))
       end if
+    #:endif
+
       if (reks%isHybridXc) then
+      #:if WITH_SCALAPACK
+        call denseSubtractDensityOfAtomsRealNonperiodicReksBlacs(env, parallelKS, q0,&
+            & denseDesc, reks%deltaRhoSqrL(:,:,:,iL), 1)
+      #:else
         call adjointLowerTriangle(reks%deltaRhoSqrL(:,:,1,iL))
-        call denseSubtractDensityOfAtomsSpinRealNonperiodicReks(q0, denseDesc%iAtomStart,&
+        call denseSubtractDensityOfAtomsRealNonperiodicReks(q0, denseDesc%iAtomStart,&
             & reks%deltaRhoSqrL(:,:,:,iL), 1)
+      #:endif
       end if
 
     end do
@@ -7949,8 +7979,16 @@ contains
       if (reks%tForces) then
         rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
+      #:if WITH_SCALAPACK
+        call packRhoRealBlacs(env%blacs, denseDesc, reks%rhoSqrL(:,:,1,iL),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+            & rhoPrim(:,1))
+        ! Add up and distribute density matrix contribution from each group
+        call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+      #:else
         call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,iL), neighbourlist%iNeighbour, &
             & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
@@ -8196,10 +8234,15 @@ contains
         ! reks%hamSqrL has (my_qm) component
         reks%hamSqrL(:,:,1,iL) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      #:if WITH_SCALAPACK
+        call unpackHSRealBlacs(env%blacs, tmpHamSp(:,1), neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, reks%hamSqrL(:,:,1,iL))
+      #:else
         call unpackHS(reks%hamSqrL(:,:,1,iL), tmpHamSp(:,1), neighbourList%iNeighbour, &
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         call adjointLowerTriangle(reks%hamSqrL(:,:,1,iL))
+      #:endif
+        call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       else
         ! reks%hamSpL has (my_qm) component
         reks%hamSpL(:,1,iL) = tmpHamSp(:,1)
@@ -8256,9 +8299,16 @@ contains
         rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         ! reks%rhoSqrL has (my_qm) component
-        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,tmpL), &
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:if WITH_SCALAPACK
+        call packRhoRealBlacs(env%blacs, denseDesc, reks%rhoSqrL(:,:,1,tmpL),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
+            & rhoPrim(:,1))
+        ! Add up and distribute density matrix contribution from each group
+        call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
+      #:else
+        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,tmpL), neighbourlist%iNeighbour, &
+            & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      #:endif
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         ! reks%rhoSpL has (my_qm) component
@@ -8332,7 +8382,13 @@ contains
   !> Optimize the fractional occupation numbers (FONs) and weights
   !> Swap the active orbitals when fa < fb
   !> Compute the several energy contributions
-  subroutine optimizeFONsAndWeights(eigvecs, filling, energy, reks)
+  subroutine optimizeFONsAndWeights(env, denseDesc, eigvecs, filling, energy, reks)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Eigenvectors
     real(dp), intent(inout) :: eigvecs(:,:,:)
@@ -8349,7 +8405,7 @@ contains
     call optimizeFons(reks)
     call calcWeights(reks)
 
-    call activeOrbSwap(reks, eigvecs(:,:,1))
+    call activeOrbSwap(env, denseDesc, reks, eigvecs(:,:,1))
     call getFilling(reks, filling(:,1,1))
 
     call calcSaReksEnergy(reks, energy)
@@ -8362,8 +8418,11 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getReksNextInputCharges(qInput, qOutput, qDiff, sccErrorQ, sccTol, tConverged,&
-      & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
+  subroutine getReksNextInputCharges(denseDesc, qInput, qOutput, qDiff, sccErrorQ, sccTol,&
+      & tConverged, iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, reks)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Input charges (for potentials)
     real(dp), intent(inout) :: qInput(:, :, :)
@@ -8411,15 +8470,22 @@ contains
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       qInput(:,:,:) = qOutput
-      call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
+      call guessNewEigvecsReks(denseDesc, reks%eigvecsFock, eigvecs(:,:,1))
     end if
 
   end subroutine getReksNextInputCharges
 
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
-  subroutine getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
-      & maxSccIter, iGeoStep, tStopScc, eigvecs, deltaRhoOut, deltaRhoIn, reks)
+  subroutine getReksNextInputDensity(env, denseDesc, sccErrorQ, sccTol, tConverged,&
+      & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecs, deltaRhoOut,&
+      & deltaRhoIn, reks)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
 
     !> Self-consistency error
     real(dp), intent(out) :: sccErrorQ
@@ -8462,12 +8528,15 @@ contains
 
     deltaRhoDiffSqr = deltaRhoOut - deltaRhoIn
     sccErrorQ = maxval(abs(deltaRhoDiffSqr))
+  #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%globalComm, sccErrorQ, MPI_MAX)
+  #:endif
 
     tConverged = (sccErrorQ < sccTol) &
         & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       deltaRhoIn(:,:,:) = deltaRhoOut
-      call guessNewEigvecs(eigvecs(:,:, 1), reks%eigvecsFock)
+      call guessNewEigvecsReks(denseDesc, reks%eigvecsFock, eigvecs(:,:,1))
     end if
 
   end subroutine getReksNextInputDensity

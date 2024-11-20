@@ -545,8 +545,9 @@ module dftbp_reks_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(this, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, blurWidths, &
-      & t3rd, isHybridXc, isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
+  subroutine REKS_init(this, inp, orb, nLocalRows, nLocalCols, spinW, nSpin, nEl, nChrgs,&
+      & extChrg, blurWidths, t3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
+      & tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: this
@@ -556,6 +557,9 @@ module dftbp_reks_reksvar
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols
 
     !> Spin W values
     real(dp), intent(inout) :: spinW(:,:,:)
@@ -700,17 +704,17 @@ module dftbp_reks_reksvar
     allocate(this%getDenseAO(0,2))
     allocate(this%getDenseAtom(0,2))
 
-    allocate(this%overSqr(nOrb,nOrb))
+    allocate(this%overSqr(nLocalRows,nLocalCols))
     allocate(this%fillingL(nOrb,nSpin,Lmax))
 
     if (this%tForces) then
-      allocate(this%rhoSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%rhoSqrL(nLocalRows,nLocalCols,1,Lmax))
     else
       allocate(this%rhoSpL(0,1,Lmax))
     end if
 
     if (this%isHybridXc) then
-      allocate(this%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%deltaRhoSqrL(nLocalRows,nLocalCols,1,Lmax))
     end if
 
     allocate(this%qOutputL(mOrb,nAtom,nSpin,Lmax))
@@ -724,7 +728,7 @@ module dftbp_reks_reksvar
     allocate(this%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
     if (this%isHybridXc) then
-      allocate(this%hamSqrL(nOrb,nOrb,1,Lmax))
+      allocate(this%hamSqrL(nLocalRows,nLocalCols,1,Lmax))
     else
       allocate(this%hamSpL(0,1,Lmax))
     end if
@@ -753,11 +757,11 @@ module dftbp_reks_reksvar
 
     allocate(this%enLtot(Lmax))
 
-    allocate(this%fockFc(nOrb,nOrb))
-    allocate(this%fockFa(nOrb,nOrb,Na))
-    allocate(this%fock(nOrb,nOrb))
+    allocate(this%fockFc(nLocalRows,nLocalCols))
+    allocate(this%fockFa(nLocalRows,nLocalCols,Na))
+    allocate(this%fock(nLocalRows,nLocalCols))
 
-    allocate(this%eigvecsFock(nOrb,nOrb))
+    allocate(this%eigvecsFock(nLocalRows,nLocalCols))
     allocate(this%eigvecsSSR(nstates,nstates))
 
     ! REKS: gradient variables
@@ -854,10 +858,10 @@ module dftbp_reks_reksvar
 
     ! REKS: relaxed density & transition dipole variables
 
-    allocate(this%unrelRhoSqr(nOrb,nOrb))
+    allocate(this%unrelRhoSqr(nLocalRows,nLocalCols))
 
     if (this%tTDP .and. this%Lstate == 0) then
-      allocate(this%unrelTdm(nOrb,nOrb,nstHalf))
+      allocate(this%unrelTdm(nLocalRows,nLocalCols,nstHalf))
     end if
 
     if (this%tRD) then

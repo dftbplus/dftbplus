@@ -16,7 +16,7 @@
 module dftbp_reks_reks
   use dftbp_reks_rekscommon, only : checkGammaPoint, qm2udL, qmExpandL, ud2qmL
   use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
-      & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
+      & getFilling, getFockandDiag, guessNewEigvecsReks, setReksTargetEnergy
   use dftbp_reks_reksfon, only : optimizeFons
   use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradProperties,&
       & getReksGradients, getReksStress, getStateInteraction
@@ -45,7 +45,7 @@ module dftbp_reks_reks
   !> dftbp_reks_reksen modules used in main.F90, mainio.F90
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
-  public :: getFockandDiag, guessNewEigvecs
+  public :: getFockandDiag, guessNewEigvecsReks
   public :: setReksTargetEnergy
 
   !> dftbp_reks_reksfon module used in main.F90

@@ -3025,16 +3025,26 @@ contains
     end if
 
     if (allocated(this%reks)) then
+
+    #:if WITH_SCALAPACK
+      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+          & nLocalCols)
+    #:else
+      nLocalRows = this%denseDesc%fullSize
+      nLocalCols = this%denseDesc%fullSize
+    #:endif
+
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tHelical,&
+          & this%tLatOpt, this%tForces, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
-          & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
-          & this%hamiltonianType, this%nSpin, this%nExtChrg, this%t3rd.or.this%t3rdFull,&
-          & this%isHybridXc, allocated(this%dispersion), this%isQNetAllocated, this%tForces,&
-          & this%tPeriodic, this%tStress, this%tDipole)
+          & nLocalRows, nLocalCols, this%spinW, this%nEl, input%ctrl%extChrg,&
+          & input%ctrl%extChrgBlurWidth, this%hamiltonianType, this%nSpin, this%nExtChrg,&
+          & this%t3rd.or.this%t3rdFull, this%isHybridXc, allocated(this%dispersion),&
+          & this%isQNetAllocated, this%tForces, this%tPeriodic, this%tStress, this%tDipole)
+
     end if
 
     call this%initDetArrays(nLocalRows, nLocalCols)
@@ -6368,8 +6378,8 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
-      & tPoisson, isShellResolved)
+      & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tHelical,&
+      & tLatOpt, tForces, tReadChrg, tPoisson, isShellResolved)
 
     !> Data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -6410,8 +6420,14 @@ contains
     !> If calculation is periodic
     logical, intent(in) :: tPeriodic
 
+    !> If the calculation is helical geometry
+    logical, intent(in) :: tHelical
+
     !> Optimise lattice constants?
     logical, intent(in) :: tLatOpt
+
+    !> Do we need forces?
+    logical, intent(in) :: tForces
 
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
@@ -6421,6 +6437,14 @@ contains
 
     !> l-shell resolved SCC
     logical, intent(in) :: isShellResolved
+
+    if (withMpi) then
+      if (tForces) then
+        call error("Force evalulation with REKS does not work with MPI yet")
+      else if (reksInp%tReadMO) then
+        call error("Reading eigenvectors as initial guess in REKS does not work with MPI yet")
+      end if
+    end if
 
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
@@ -6455,6 +6479,8 @@ contains
       if ( .not. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
         call error("REKS can compute only gamma-point in periodic case")
       end if
+    else if (tHelical) then
+      call error("Helical boundaries are not tested with REKS")
     end if
 
     if (reksInp%Efunction /= 1 .and. tLatOpt) then
@@ -6514,9 +6540,9 @@ contains
   end subroutine densityMatrixSource
 
 
-  subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
-      & hamiltonianType, nSpin, nExtChrg, is3rd, isHybridXc, isDispersion, isQNetAllocated,&
-      & tForces, tPeriodic, tStress, tDipole)
+  subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, nLocalRows, nLocalCols,&
+      & spinW, nEl, extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, isHybridXc,&
+      & isDispersion, isQNetAllocated, tForces, tPeriodic, tStress, tDipole)
 
     !> Data type for REKS
     type(TReksCalc), intent(out) :: reks
@@ -6529,6 +6555,9 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Size descriptors for MPI parallel execution
+    integer, intent(in) :: nLocalRows, nLocalCols
 
     !> Spin W values
     real(dp), intent(inout) :: spinW(:,:,:)
@@ -6589,9 +6618,9 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
-            & tPeriodic, tStress, tDipole)
+        call REKS_init(reks, reksInp, orb, nLocalRows, nLocalCols, spinW, nSpin, nEl(1),&
+            & nExtChrg, extChrg, blurWidths, is3rd, isHybridXc, isDispersion, isQNetAllocated,&
+            & tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%magma_gvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&

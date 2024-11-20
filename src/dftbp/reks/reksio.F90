@@ -91,7 +91,7 @@ module dftbp_reks_reksio
   end subroutine printSaReksEnergy
 
 
-  !> print SA-REKS result in standard output
+  !> Print SA-REKS result in standard output
   subroutine printReksSAInfo(this, Eavg)
 
     !> data type for REKS
@@ -112,19 +112,19 @@ module dftbp_reks_reksio
   end subroutine printReksSAInfo
 
 
-  !> print SI-SA-REKS result in standard output
+  !> Print SI-SA-REKS result in standard output
   subroutine printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
 
     !> SA-REKS energies
     real(dp), intent(in) :: tmpEn(:)
 
-    !> state-interaction term between SA-REKS states
+    !> State-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
     select case (this%reksAlg)
@@ -139,7 +139,7 @@ module dftbp_reks_reksio
   end subroutine printReksSSRInfo
 
 
-  !> print gradient results for REKS calculation
+  !> Print gradient results for REKS calculation
   subroutine printReksGradInfo(this, derivs)
 
     !> data type for REKS
@@ -243,20 +243,17 @@ module dftbp_reks_reksio
   end subroutine printReksGradInfo
 
 
-  !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
+  !> Print unrelaxed FONs for target state
+  subroutine printUnrelaxedFONs(tmpActive, rstate, Lstate, Na, tSSR)
 
-    !> Occupation number matrix
-    real(dp), intent(in) :: tmpRho(:,:)
+    !> Active space elements
+    real(dp), intent(in) :: tmpActive(:)
 
     !> Target SSR state
     integer, intent(in) :: rstate
 
     !> Target microstate
     integer, intent(in) :: Lstate
-
-    !> Number of core orbitals
-    integer, intent(in) :: Nc
 
     !> Number of active orbitals
     integer, intent(in) :: Na
@@ -281,16 +278,16 @@ module dftbp_reks_reksio
     end if
     do ii = 1, Na
       if (ii == Na) then
-        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+        write(stdOut,'(1(f10.6))') tmpActive(ii)
       else
-        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+        write(stdOut,'(1(f10.6))',advance="no") tmpActive(ii)
       end if
     end do
 
   end subroutine printUnrelaxedFONs
 
 
-  !> print Relaxed FONs for target state
+  !> Print Relaxed FONs for target state
   subroutine printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
 
     !> Occupation number matrix
@@ -329,7 +326,7 @@ module dftbp_reks_reksio
   end subroutine printRelaxedFONs
 
 
-  !> print Relaxed FONs for target L-th microstate
+  !> Print Relaxed FONs for target L-th microstate
   subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
 
     !> Occupation number matrix
@@ -436,16 +433,16 @@ module dftbp_reks_reksio
 !!!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> print SA-REKS(2,2) result in standard output
+  !> Print SA-REKS(2,2) result in standard output
   subroutine printReksSAInfo22_(Eavg, enLtot, energy, FONs, Efunction, Plevel)
 
     !> Total energy for averaged state in REKS
     real(dp), intent(in) :: Eavg
 
-    !> total energy for each microstate
+    !> Total energy for each microstate
     real(dp), intent(in) :: enLtot(:)
 
-    !> energy of states
+    !> Energy of states
     real(dp), intent(in) :: energy(:)
 
     !> Fractional occupation numbers of active orbitals
@@ -514,23 +511,23 @@ module dftbp_reks_reksio
   end subroutine printReksSAInfo22_
 
 
-  !> print SI-SA-REKS(2,2) result in standard output
+  !> Print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22_(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
       & Na, tAllStates, tSSR)
 
-    !> converged Lagrangian values within active space
+    !> Converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
 
     !> SA-REKS energies
     real(dp), intent(in) :: tmpEn(:)
 
-    !> state-interaction term between SA-REKS states
+    !> State-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    !> energy of states
+    !> Energy of states
     real(dp), intent(in) :: energy(:)
 
-    !> eigenvectors from SA-REKS state
+    !> Eigenvectors from SA-REKS state
     real(dp), intent(in) :: eigvecsSSR(:,:)
 
     !> Number of active orbitals
