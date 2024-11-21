@@ -28,16 +28,16 @@ module dftbp_plugins_plugin
   type TPluginCapabilities
 
     !> Whether the plugin provides SK data
-    logical :: provides_getSKIntegrals = .false.
+    logical :: provides_updateSKIntegrals = .false.
 
     !> Whether the plugin needs the neighbour list
-    logical :: provides_setNeighbourList = .false.
+    logical :: provides_readNeighbourList = .false.
 
     !> Whether the plugin needs the atomic self energy
-    logical :: provides_setAtomSelfEnergy = .false.
+    logical :: provides_readAtomSelfEnergy = .false.
 
     !> Whether the plugin needs the Hubbard Us
-    logical :: provides_setHubbardU = .false.
+    logical :: provides_readHubbardU = .false.
 
   end type TPluginCapabilities
 
@@ -56,20 +56,20 @@ module dftbp_plugins_plugin
   contains
 
     procedure :: init => TPlugin_init
-    procedure :: getSKIntegrals => TPlugin_getSKIntegrals
-    procedure :: setNeighbourList => TPlugin_setNeighbourList
-    procedure :: setAtomSelfEnergy => TPlugin_setAtomSelfEnergy
-    procedure :: setHubbardU => TPlugin_setHubbardU
+    procedure :: updateSKIntegrals => TPlugin_updateSKIntegrals
+    procedure :: readNeighbourList => TPlugin_readNeighbourList
+    procedure :: readAtomSelfEnergy => TPlugin_readAtomSelfEnergy
+    procedure :: readHubbardU => TPlugin_readHubbardU
     final :: TPlugin_final
 
   end type TPlugin
 
   !> Type bound to C for fetching the plugin capabilities
   type, bind(C) :: TPluginCapabilities_c
-    integer(c_int) :: provides_getSKIntegrals = 0
-    integer(c_int) :: provides_setNeighbourList = 0
-    integer(c_int) :: provides_setAtomSelfEnergy = 0
-    integer(c_int) :: provides_setHubbardU = 0
+    integer(c_int) :: provides_updateSKIntegrals = 0
+    integer(c_int) :: provides_readNeighbourList = 0
+    integer(c_int) :: provides_readAtomSelfEnergy = 0
+    integer(c_int) :: provides_readHubbardU = 0
   end type TPluginCapabilities_c
 
   interface
@@ -105,8 +105,8 @@ module dftbp_plugins_plugin
     end function provides_plugin_c
 
     !> Call the implemented function for SK integrals
-    function call_getSKIntegrals_c(handle, nSkgrid, nSkIntg, skTab, dist, atom1, atom2, species1,&
-          & species2, HorS, interdist) result(success) bind(C, name='call_getSKIntegrals')
+    function call_updateSKIntegrals_c(handle, nSkgrid, nSkIntg, skTab, dist, atom1, atom2, species1,&
+          & species2, HorS, interdist) result(success) bind(C, name='call_updateSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nSkgrid, nSkIntg
@@ -115,37 +115,37 @@ module dftbp_plugins_plugin
       integer(c_int), value, intent(in) :: atom1, atom2, species1, species2, HorS
       real(c_double), value, intent(in) :: interdist
       integer(c_int) :: success
-    end function call_getSKIntegrals_c
+    end function call_updateSKIntegrals_c
 
     !> Call the implemented function for setting the neighbour list
-    subroutine call_setNeighbourList_c(handle, nAtoms, nAtomsCent, coords, img2CentCell,&
-          & iNeighbour, neightDist2) bind(C, name='call_setNeighbourList')
+    subroutine call_readNeighbourList_c(handle, nAtoms, nAtomsCent, coords, img2CentCell,&
+          & iNeighbour, neightDist2) bind(C, name='call_readNeighbourList')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nAtoms, nAtomsCent
       real(c_double), intent(in) :: coords(*)
       integer(c_int), intent(in) :: img2CentCell(*), iNeighbour(*)
       real(c_double), intent(in) :: neightDist2(*)
-    end subroutine call_setNeighbourList_c
+    end subroutine call_readNeighbourList_c
 
     !> Call the implemented function for setting the atomic self energy
-    subroutine call_setAtomSelfEnergy_c(handle, nOrbitals, nAtoms, atomEigVal)&
-          & bind(C, name='call_setAtomSelfEnergy')
+    subroutine call_readAtomSelfEnergy_c(handle, nOrbitals, nAtoms, atomEigVal)&
+          & bind(C, name='call_readAtomSelfEnergy')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nOrbitals, nAtoms
       real(c_double), intent(in) :: atomEigVal(*)
-    end subroutine call_setAtomSelfEnergy_c
+    end subroutine call_readAtomSelfEnergy_c
 
     !> Call the implemented function for setting the Hubbard Us
-    subroutine call_setHubbardU_c(handle, nShells, nSpecies, nHubbU, uniqHubbU)&
-          & bind(C, name='call_setHubbardU')
+    subroutine call_readHubbardU_c(handle, nShells, nSpecies, nHubbU, uniqHubbU)&
+          & bind(C, name='call_readHubbardU')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nShells, nSpecies
       integer(c_int), intent(in) :: nHubbU(*)
       real(c_double), intent(in) :: uniqHubbU(*)
-    end subroutine call_setHubbardU_c
+    end subroutine call_readHubbardU_c
 
   end interface
 
@@ -180,11 +180,11 @@ contains
         call error("Unable to determine the capabilities of the plugin.")
         this%initialized = .false.
       else
-        this%capabilities%provides_getSKIntegrals = capabilities_c%provides_getSKIntegrals == 1
-        this%capabilities%provides_setNeighbourList = capabilities_c%provides_setNeighbourList == 1
-        this%capabilities%provides_setAtomSelfEnergy =&
-            & capabilities_c%provides_setAtomSelfEnergy == 1
-        this%capabilities%provides_setHubbardU = capabilities_c%provides_setHubbardU == 1
+        this%capabilities%provides_updateSKIntegrals = capabilities_c%provides_updateSKIntegrals == 1
+        this%capabilities%provides_readNeighbourList = capabilities_c%provides_readNeighbourList == 1
+        this%capabilities%provides_readAtomSelfEnergy =&
+            & capabilities_c%provides_readAtomSelfEnergy == 1
+        this%capabilities%provides_readHubbardU = capabilities_c%provides_readHubbardU == 1
       end if
     end if
 
@@ -206,7 +206,7 @@ contains
   end subroutine TPlugin_final
 
   !> Returns the Slater-Koster integrals for a given distance for a given atom pair
-  function TPlugin_getSKIntegrals(this, skTab, dist, atom1, atom2, species1, species2, isH,&
+  function TPlugin_updateSKIntegrals(this, skTab, dist, atom1, atom2, species1, species2, isH,&
         & interdist) result(success)
 
     !> Instance
@@ -242,7 +242,7 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%capabilities%provides_getSKIntegrals) then
+    if (.not. this%capabilities%provides_updateSKIntegrals) then
       call error("Trying to call a function not provided by the plugin")
     end if
 
@@ -250,13 +250,13 @@ contains
     if (.not. isH) then
       HorS = 1
     end if
-    success = call_getSKIntegrals_c(this%handle, size(skTab,1), size(skTab,2), skTab, dist, atom1,&
+    success = call_updateSKIntegrals_c(this%handle, size(skTab,1), size(skTab,2), skTab, dist, atom1,&
         & atom2, species1, species2, HorS, interdist) == 1
 
-  end function TPlugin_getSKIntegrals
+  end function TPlugin_updateSKIntegrals
 
   !> Sets the neighbour list
-  subroutine TPlugin_setNeighbourList(this, coords, img2CentCell, iNeighbour, neightDist2)
+  subroutine TPlugin_readNeighbourList(this, coords, img2CentCell, iNeighbour, neightDist2)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -276,17 +276,17 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%capabilities%provides_setNeighbourList) then
+    if (.not. this%capabilities%provides_readNeighbourList) then
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    call call_setNeighbourList_c(this%handle, size(img2CentCell, dim=1), size(iNeighbour, dim=2),&
+    call call_readNeighbourList_c(this%handle, size(img2CentCell, dim=1), size(iNeighbour, dim=2),&
         & coords, img2CentCell, iNeighbour, neightDist2)
 
-  end subroutine TPlugin_setNeighbourList
+  end subroutine TPlugin_readNeighbourList
 
   !> Sets the atomic self energy
-  subroutine TPlugin_setAtomSelfEnergy(this, atomEigVal)
+  subroutine TPlugin_readAtomSelfEnergy(this, atomEigVal)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -297,17 +297,17 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%capabilities%provides_setAtomSelfEnergy) then
+    if (.not. this%capabilities%provides_readAtomSelfEnergy) then
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    call call_setAtomSelfEnergy_c(this%handle, size(atomEigVal, dim=1), size(atomEigVal, dim=2),&
+    call call_readAtomSelfEnergy_c(this%handle, size(atomEigVal, dim=1), size(atomEigVal, dim=2),&
         & atomEigVal)
 
-  end subroutine TPlugin_setAtomSelfEnergy
+  end subroutine TPlugin_readAtomSelfEnergy
 
   !> Sets the Hubbard Us
-  subroutine TPlugin_setHubbardU(this, nHubbU, uniqHubbU, iHubbU)
+  subroutine TPlugin_readHubbardU(this, nHubbU, uniqHubbU, iHubbU)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -324,13 +324,13 @@ contains
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
     end if
-    if (.not. this%capabilities%provides_setHubbardU) then
+    if (.not. this%capabilities%provides_readHubbardU) then
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    call call_setHubbardU_c(this%handle, size(uniqHubbU, dim=1), size(uniqHubbU, dim=2),&
+    call call_readHubbardU_c(this%handle, size(uniqHubbU, dim=1), size(uniqHubbU, dim=2),&
         & nHubbU, uniqHubbU)
 
-  end subroutine TPlugin_setHubbardU
+  end subroutine TPlugin_readHubbardU
 
 end module dftbp_plugins_plugin

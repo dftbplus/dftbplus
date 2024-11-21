@@ -12,10 +12,10 @@ extern "C" {
 #endif
 
 typedef struct {
-  int provides_getSKIntegrals;
-  int provides_setNeighbourList;
-  int provides_setAtomSelfEnergy;
-  int provides_setHubbardU;
+  int provides_updateSKIntegrals;
+  int provides_readNeighbourList;
+  int provides_readAtomSelfEnergy;
+  int provides_readHubbardU;
 } capabilities;
 
 int init();
@@ -23,13 +23,13 @@ void final();
 int version(int, int);
 int provides(typeof (capabilities) *);
 
-int getSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
+int updateSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
 
-void setNeighbourList(int, int, double*, int*, int*, double*);
+void readNeighbourList(int, int, double*, int*, int*, double*);
 
-void setAtomSelfEnergy(int, int, double*);
+void readAtomSelfEnergy(int, int, double*);
 
-void setHubbardU(int, int, int*, double*);
+void readHubbardU(int, int, int*, double*);
 
 #ifdef __cplusplus
 }

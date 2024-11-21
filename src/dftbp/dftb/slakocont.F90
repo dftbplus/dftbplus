@@ -190,8 +190,8 @@ contains
 
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
-      if (this%plugin%capabilities%provides_getSKIntegrals) then
-        if (.not. this%plugin%getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid%skTab, dist, atom1,&
+      if (this%plugin%capabilities%provides_updateSKIntegrals) then
+        if (.not. this%plugin%updateSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid%skTab, dist, atom1,&
             & atom2, sp1, sp2, this%isH, this%slakos(sp2, sp1)%pSlakoEqGrid%dist)) then
           call error("Cannot fetch SK integrals from plugin")
         end if

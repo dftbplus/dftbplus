@@ -1132,11 +1132,11 @@ contains
 
   #:if WITH_PLUGINS
     if (this%plugin%initialized) then
-      if (this%plugin%capabilities%provides_setAtomSelfEnergy) then
-        call this%plugin%setAtomSelfEnergy(this%atomEigVal)
+      if (this%plugin%capabilities%provides_readAtomSelfEnergy) then
+        call this%plugin%readAtomSelfEnergy(this%atomEigVal)
       end if
-      if (this%plugin%capabilities%provides_setHubbardU) then
-        call this%plugin%setHubbardU(this%uniqHubbU%nHubbU, this%uniqHubbU%uniqHubbU,&
+      if (this%plugin%capabilities%provides_readHubbardU) then
+        call this%plugin%readHubbardU(this%uniqHubbU%nHubbU, this%uniqHubbU%uniqHubbU,&
           & this%uniqHubbU%iHubbU)
       end if
     end if

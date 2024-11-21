@@ -18,19 +18,19 @@ int version(int major, int minor) {
 
 int provides(typeof (capabilities) *cap) {
     *cap = (capabilities) {
-        .provides_getSKIntegrals = 1,
-        .provides_setNeighbourList = 1,
-        .provides_setAtomSelfEnergy = 0,
-        .provides_setHubbardU = 0
+        .provides_updateSKIntegrals = 1,
+        .provides_readNeighbourList = 1,
+        .provides_readAtomSelfEnergy = 0,
+        .provides_readHubbardU = 0
     };
     return 1;
 }
 
-void setNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
+void readNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
     nAtoms = n;
 }
 
-int getSKIntegrals(int nSkgrid, int nSkIntg, double *skTab, double dist,
+int updateSKIntegrals(int nSkgrid, int nSkIntg, double *skTab, double dist,
     int atom1, int atom2, int species1, int species2, int HorS, double interdist) {
     skTab[0] = 0.0;
     if (nAtoms != 2 || species1 != 1 || species2 != 1) {

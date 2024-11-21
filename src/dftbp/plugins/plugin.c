@@ -53,10 +53,10 @@ int provides_plugin(void *handle, void *capabilities) {
   return 0;
 }
 
-int call_getSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab, double dist,
+int call_updateSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab, double dist,
     int atom1, int atom2, int species1, int species2, int HorS, double interdist) {
   int (*func)(int, int, double *, double, int, int, int, int, int, double);
-  func = dlsym(handle, "getSKIntegrals");
+  func = dlsym(handle, "updateSKIntegrals");
   if (func != NULL) {
     return (*func)(nSkgrid, nSkIntg, skTab, dist, atom1, atom2, species1, species2, HorS, interdist);
   }
@@ -64,26 +64,26 @@ int call_getSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab, d
   return 0;
 }
 
-void call_setNeighbourList(void *handle, int nAtoms, int nAtomsCent, double *coords,
+void call_readNeighbourList(void *handle, int nAtoms, int nAtomsCent, double *coords,
     int *img2CentCell, int *iNeighbour, double *neightDist2) {
   int (*func)(int, int, double *, int *, int *, double *);
-  func = dlsym(handle, "setNeighbourList");
+  func = dlsym(handle, "readNeighbourList");
   if (func != NULL) {
     (*func)(nAtoms, nAtomsCent, coords, img2CentCell, iNeighbour, neightDist2);
   }
 }
 
-void call_setAtomSelfEnergy(void *handle, int nOrbitals, int nAtoms, double *atomEigVal) {
+void call_readAtomSelfEnergy(void *handle, int nOrbitals, int nAtoms, double *atomEigVal) {
   int (*func)(int, int, double *);
-  func = dlsym(handle, "setAtomSelfEnergy");
+  func = dlsym(handle, "readAtomSelfEnergy");
   if (func != NULL) {
     (*func)(nOrbitals, nAtoms, atomEigVal);
   }
 }
 
-void call_setHubbardU(void *handle, int nShells, int nSpecies, int *nHubbU, double *uniqHubbU) {
+void call_readHubbardU(void *handle, int nShells, int nSpecies, int *nHubbU, double *uniqHubbU) {
   int (*func)(int, int, int *, double *);
-  func = dlsym(handle, "setHubbardU");
+  func = dlsym(handle, "readHubbardU");
   if (func != NULL) {
     (*func)(nShells, nSpecies, nHubbU, uniqHubbU);
   }
