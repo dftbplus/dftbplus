@@ -27,7 +27,7 @@ module dftbp_plugins_plugin
   !> Type to manage plugin capabilities, i.e. what function the plugin actually implements
   type TPluginCapabilities
 
-    !> Whether the plugin provides SK data
+    !> Whether the plugin updates SK data
     logical :: provides_updateSKIntegrals = .false.
 
     !> Whether the plugin needs the neighbour list
@@ -105,8 +105,9 @@ module dftbp_plugins_plugin
     end function provides_plugin_c
 
     !> Call the implemented function for SK integrals
-    function call_updateSKIntegrals_c(handle, nSkgrid, nSkIntg, skTab, dist, atom1, atom2, species1,&
-          & species2, HorS, interdist) result(success) bind(C, name='call_updateSKIntegrals')
+    function call_updateSKIntegrals_c(handle, nSkgrid, nSkIntg, skTab, dist, atom1, atom2,&
+          & species1, species2, HorS, interdist) result(updated)&
+          & bind(C, name='call_updateSKIntegrals')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
       integer(c_int), value, intent(in) :: nSkgrid, nSkIntg
@@ -114,10 +115,10 @@ module dftbp_plugins_plugin
       real(c_double), value, intent(in) :: dist
       integer(c_int), value, intent(in) :: atom1, atom2, species1, species2, HorS
       real(c_double), value, intent(in) :: interdist
-      integer(c_int) :: success
+      integer(c_int) :: updated
     end function call_updateSKIntegrals_c
 
-    !> Call the implemented function for setting the neighbour list
+    !> Call the implemented function with the neighbour list
     subroutine call_readNeighbourList_c(handle, nAtoms, nAtomsCent, coords, img2CentCell,&
           & iNeighbour, neightDist2) bind(C, name='call_readNeighbourList')
       import c_handle, c_double, c_int
@@ -128,7 +129,7 @@ module dftbp_plugins_plugin
       real(c_double), intent(in) :: neightDist2(*)
     end subroutine call_readNeighbourList_c
 
-    !> Call the implemented function for setting the atomic self energy
+    !> Call the implemented function with the atomic self energy
     subroutine call_readAtomSelfEnergy_c(handle, nOrbitals, nAtoms, atomEigVal)&
           & bind(C, name='call_readAtomSelfEnergy')
       import c_handle, c_double, c_int
@@ -137,7 +138,7 @@ module dftbp_plugins_plugin
       real(c_double), intent(in) :: atomEigVal(*)
     end subroutine call_readAtomSelfEnergy_c
 
-    !> Call the implemented function for setting the Hubbard Us
+    !> Call the implemented function with the Hubbard Us
     subroutine call_readHubbardU_c(handle, nShells, nSpecies, nHubbU, uniqHubbU)&
           & bind(C, name='call_readHubbardU')
       import c_handle, c_double, c_int
@@ -180,11 +181,14 @@ contains
         call error("Unable to determine the capabilities of the plugin.")
         this%initialized = .false.
       else
-        this%capabilities%provides_updateSKIntegrals = capabilities_c%provides_updateSKIntegrals == 1
-        this%capabilities%provides_readNeighbourList = capabilities_c%provides_readNeighbourList == 1
+        this%capabilities%provides_updateSKIntegrals =&
+            & capabilities_c%provides_updateSKIntegrals == 1
+        this%capabilities%provides_readNeighbourList =&
+            & capabilities_c%provides_readNeighbourList == 1
         this%capabilities%provides_readAtomSelfEnergy =&
             & capabilities_c%provides_readAtomSelfEnergy == 1
-        this%capabilities%provides_readHubbardU = capabilities_c%provides_readHubbardU == 1
+        this%capabilities%provides_readHubbardU =&
+            & capabilities_c%provides_readHubbardU == 1
       end if
     end if
 
@@ -205,9 +209,9 @@ contains
 
   end subroutine TPlugin_final
 
-  !> Returns the Slater-Koster integrals for a given distance for a given atom pair
+  !> Updates the Slater-Koster integrals for a given distance for a given atom pair
   function TPlugin_updateSKIntegrals(this, skTab, dist, atom1, atom2, species1, species2, isH,&
-        & interdist) result(success)
+        & interdist) result(updated)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -236,7 +240,7 @@ contains
     !> Distance between the two interpolation in skTab.
     real(dp), intent(in) :: interdist
 
-    logical :: success
+    logical :: updated
     integer :: HorS
 
     if (.not. this%initialized) then
@@ -250,8 +254,8 @@ contains
     if (.not. isH) then
       HorS = 1
     end if
-    success = call_updateSKIntegrals_c(this%handle, size(skTab,1), size(skTab,2), skTab, dist, atom1,&
-        & atom2, species1, species2, HorS, interdist) == 1
+    updated = call_updateSKIntegrals_c(this%handle, size(skTab,1), size(skTab,2), skTab, dist,&
+        & atom1, atom2, species1, species2, HorS, interdist) == 1
 
   end function TPlugin_updateSKIntegrals
 
