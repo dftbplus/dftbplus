@@ -187,6 +187,8 @@ contains
     !> Index of the second interacting species.
     integer, intent(in) :: sp2
 
+    logical :: updated
+
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%capabilities%provides_updateSKIntegrals) then
