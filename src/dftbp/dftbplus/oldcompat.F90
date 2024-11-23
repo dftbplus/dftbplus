@@ -840,7 +840,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1
+    type(fnode), pointer :: ch1, ch2, par, dummy
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
@@ -853,6 +853,14 @@ contains
       call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
           & 'Hamiltonian/DFTB/Hybrid'.")
       call setNodeName(ch1, "Hybrid")
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Hybrid", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations are&
+          & always SCC.")
+      call getDescendant(root, "Hamiltonian/DFTB/SCC", ch2, parent=par)
+      dummy => removeChild(par, ch2)
     end if
 
   end subroutine convert_13_14

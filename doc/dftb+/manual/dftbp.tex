@@ -1411,8 +1411,9 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
 
 \begin{description}
 \item[\is{SCC}] If set to \is{Yes}, a self consistent charge (SCC)
-  calculation is made.
-
+  calculation is made. {\bf Note:} this keyword is not read for hybrid
+  calculations (\pref{sec:dftbp.Hybrid}), as these are {\em always}
+  SCC.
 \item[\is{SCCTolerance}] Stopping criteria for the SCC.  Specifies the
   tolerance for the maximum difference in any charge between two SCC
   cycles.
@@ -4553,7 +4554,9 @@ Hamiltonian = DFTB {
 \subsection{Hybrid}
 \label{sec:dftbp.Hybrid}
 
-The \kw{Hybrid} keyword specifies the use of a (range-separated) hybrid functional.
+The \kw{Hybrid} keyword specifies the use of a (range-separated)
+hybrid functional.  This model automatically enforces self-consistent
+(SCC) calculations, so does not use the \kw{SCC} keyword in its input.
 For the non-periodic formalism we refer to
 Refs.~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}, whereas the formalism for
 periodic boundary conditions is developed in Ref.~\cite{vdH-PRM-7-063802}.

@@ -1397,6 +1397,7 @@ contains
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
     this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
+    if (this%isHybridXc .and. .not. this%tSccCalc) call error("Hybrid calculations must be SCC")
     if (this%isHybridXc) then
       this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
       this%checkStopHybridCalc = input%ctrl%checkStopHybridCalc
