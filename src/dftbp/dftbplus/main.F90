@@ -11,7 +11,7 @@
 !> The main routines for DFTB+
 module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : pi, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut, withMpi
@@ -89,6 +89,7 @@ module dftbp_dftbplus_main
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_blasroutines, only : hemm, symm
+  use dftbp_math_eigensolver, only : gegv
   use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
@@ -1084,13 +1085,19 @@ contains
     !! Charge difference
     real(dp), allocatable :: dQ(:,:,:)
 
+    !! loop index
+    integer :: iSpin, iKS, iOrb
+
     !! Auxiliary dipole storage
     real(dp), allocatable :: dipoleTmp(:)
+    complex(dp), allocatable :: eigs(:)
 
     !! Whether constraints are converged
     logical :: constrConverged
 
-    integer :: iKS, iConstrIter, nConstrIter
+    ! Constraint loop variables
+    integer :: iConstrIter, nConstrIter
+
     logical :: isFirstDet
 
     if (this%tDipole) allocate(dipoleTmp(3))
@@ -1521,6 +1528,41 @@ contains
       end if
     end if
   #:endif
+
+    if (allocated(this%cmplxKPoints)) then
+      do iKS = 1, size(this%cmplxKPoints, dim=2)
+        write(stdOut,*)'Analysis step'
+        this%hSqrCplx(:,:) = (0.0_dp, 0.0_dp)
+        call unpackHS(this%hSqrCplx, this%ints%hamiltonian(:,1), this%cmplxKPoints(:,iKS),&
+            & this%neighbourList%iNeighbour, this%nNeighbourSK, this%iCellVec, this%cellVec,&
+            & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
+        this%sSqrCplx(:,:) = (0.0_dp, 0.0_dp)
+        call unpackHS(this%sSqrCplx, this%ints%overlap, this%cmplxKPoints(:,iKS),&
+            & this%neighbourList%iNeighbour, this%nNeighbourSK, this%iCellVec, this%cellVec,&
+            & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
+        allocate(eigs(size(this%sSqrCplx, dim=2)))
+        block
+          complex(dp), allocatable :: vl(:,:), vr(:,:)
+          allocate(vl(size(this%sSqrCplx, dim=2), size(this%sSqrCplx, dim=2)))
+          allocate(vr(size(this%sSqrCplx, dim=2), size(this%sSqrCplx, dim=2)))
+          call gegv(this%hSqrCplx, this%sSqrCplx, eigs) !, vl, vr)
+          !call unpackHS(this%sSqrCplx, this%ints%overlap, this%cmplxKPoints(:,iKS),&
+          !    & this%neighbourList%iNeighbour, this%nNeighbourSK, this%iCellVec, this%cellVec,&
+          !    & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
+          !call unpackHS(this%hSqrCplx, this%ints%hamiltonian(:,1), this%cmplxKPoints(:,iKS),&
+          !    & this%neighbourList%iNeighbour, this%nNeighbourSK, this%iCellVec, this%cellVec,&
+          !    & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell)
+          do iOrb = 1, size(this%sSqrCplx, dim=2)
+            !write(stdOut, *)iOrb, dot_product(vl(:,iOrb), matmul(this%sSqrCplx, conjg(vr(:,iOrb)))),&
+            ! & dot_product(vl(:,iOrb), matmul(this%hSqrCplx, conjg(vr(:,iOrb)))),eigs(iOrb) * Hartree__eV
+            write(stdOut, *)iOrb, eigs(iOrb) * Hartree__eV
+          end do
+          deallocate(vl)
+          deallocate(vr)
+        end block
+        deallocate(eigs)
+      end do
+    end if
 
     if (allocated(this%dispersion) .and. .not.allocated(this%reks)) then
       ! If we get to this point for a dispersion model, if it is charge dependent it may require
@@ -3375,7 +3417,7 @@ contains
     complex(dp), allocatable :: SSqrCplxCam(:,:,:)
 
     !! Indices for k-points and spins + composite
-    integer :: iK, iSpin, iKS
+    integer :: iKS, iK, iSpin
 
     eigen(:,:,:) = 0.0_dp
 

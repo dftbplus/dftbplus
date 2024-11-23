@@ -12,8 +12,9 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_math_eigensolver
-  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_common_accuracy, only : rsp, rdp, dp
   use dftbp_extlibs_lapack, only : dlamch, slamch
+  use dftbp_math_lapackroutines, only : getrf, getri
   use dftbp_io_message, only : error, warning
 #:if WITH_MAGMA
   use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
@@ -22,7 +23,7 @@ module dftbp_math_eigensolver
   implicit none
 
   private
-  public :: heev, hegv, hegvd, gvr, geev
+  public :: heev, hegv, hegvd, gvr, geev, gegv
 #:if WITH_MAGMA
   public :: gpu_gvd
 #:endif
@@ -87,6 +88,8 @@ module dftbp_math_eigensolver
   interface geev
     module procedure real_sgeev
     module procedure dble_dgeev
+    module procedure cmplx_cgeev
+    module procedure dblecmplx_zgeev
   end interface geev
 
 
@@ -1817,7 +1820,7 @@ contains
 #:endif
 
 
-#:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sgeev'), ('dble', 'd', 'real', 'dgeev')]
+#:for DTYPE, VPREC, NAME in [('real', 's', 'sgeev'), ('dble', 'd', 'dgeev')]
 
   !> Simple general matrix eigensolver
   subroutine ${DTYPE}$_${NAME}$(a, wr, wi, vl, vr, err)
@@ -1922,5 +1925,162 @@ contains
   end subroutine ${DTYPE}$_${NAME}$
 
 #:endfor
+
+
+#:for DTYPE, VPREC, NAME in [('cmplx', 's', 'c'), ('dblecmplx', 'd', 'z')]
+
+  !> Simple general matrix eigensolver
+  subroutine ${DTYPE}$_${NAME}$geev(a, w, vl, vr, err)
+
+    !> Matrix, overwritten on exit
+    complex(r${VPREC}$p), intent(inout) :: a(:,:)
+
+    !> Eigenvalues
+    complex(r${VPREC}$p), intent(out) :: w(:)
+
+    !> Left eigenvectors
+    complex(r${VPREC}$p), intent(out), optional :: vl(:,:)
+
+    !> Right eigenvectors
+    complex(r${VPREC}$p), intent(out), optional :: vr(:,:)
+
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+
+    complex(r${VPREC}$p), allocatable :: work(:)
+    real(r${VPREC}$p), allocatable :: rwork(:)
+    integer :: n, lda, info, int_idealwork, ldvl, ldvr
+    complex(r${VPREC}$p) :: idealwork(1)
+    character :: jobvl, jobvr
+    character(len=100) :: error_string
+
+    ! If no eigenvectors requested, need a dummy array for lapack call
+    complex(r${VPREC}$p) :: dummyvl(1,1), dummyvr(1,1)
+
+    if (present(err)) then
+      err = 0
+    end if
+    lda = size(a, dim=1)
+    n = size(a, dim=2)
+    @:ASSERT(n>0)
+    @:ASSERT(size(w) >= n)
+    allocate(rwork(n))
+    if (present(vl)) then
+      jobvl = 'V'
+      ldvl = size(vl, dim=1)
+      @:ASSERT(all(shape(vl)>=[n,n]))
+    else
+      jobvl = 'N'
+      ldvl = 1
+    end if
+    if (present(vr)) then
+      jobvr = 'V'
+      ldvr = size(vr, dim=1)
+      @:ASSERT(all(shape(vr)>=[n,n]))
+    else
+      jobvr = 'N'
+      ldvr = 1
+    end if
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, vl, ldvl, vr, ldvr, idealwork, -1,&
+          & rwork, info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, vl, ldvl, dummyvr, ldvr, idealwork, -1,&
+          & rwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, dummyvl, ldvl, vr, ldvr, idealwork, -1,&
+          & rwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, dummyvl, ldvl, dummyvr, ldvr, idealwork,&
+          & -1, rwork, info)
+    end if
+    if (info/=0) then
+      @:ERROR_HANDLING(err, -1, "Failue in ${NAME}$geev to determine optimum workspace")
+    endif
+    int_idealwork = nint(real(idealwork(1)))
+    allocate(work(int_idealwork))
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, vl, ldvl, vr, ldvr, work, int_idealwork,&
+          & rwork, info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, vl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, rwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, dummyvl, ldvl, vr, ldvr, work,&
+          & int_idealwork, rwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${NAME}$geev(jobvl, jobvr, n, a, lda, w, dummyvl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, rwork, info)
+    end if
+    if (info/=0) then
+      if (info<0) then
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", 'Failure in diagonalisation routine&
+            & ${NAME}$geev, illegal argument at position ', info)
+      else
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
+            & ${NAME}$geev, diagonal element ', info, ' did not converge to zero.')
+      endif
+    endif
+
+  end subroutine ${DTYPE}$_${NAME}$geev
+
+#:endfor
+
+
+  !> Generalised eigen-problem for general complex pair of matrices, assuming matrix B is invertable
+  subroutine gegv(A, B, w, vl, vr)
+
+    !> Matrix to diagonalise
+    complex(dp), intent(inout) :: A(:,:)
+
+    !> Second matrix to diagonalise, over-written by its inverse
+    complex(dp), intent(inout) :: B(:,:)
+
+    !> eigenvalues
+    complex(dp), intent(out) :: w(:)
+
+    !> Left eigenvectors, found if present
+    complex(dp), intent(out), optional :: vl(:,:)
+
+    !> Right eigenvectors, found if present
+    complex(dp), intent(out), optional :: vr(:,:)
+
+    integer, allocatable :: iPiv(:)
+    complex(dp), allocatable :: Bold(:,:)
+
+    allocate(iPiv(size(B, dim=2)))
+
+    if (present(vl) .and. present(vr)) then
+      Bold = B
+    end if
+
+    B(:,:) = conjg(B)
+
+    call getrf(B, iPiv)
+    call getri(B, iPiv)
+
+    !if (present(vl) .or. present(vl) .eqv. present(vr)) then
+      ! solves left eigenvector, so calculate B^-1 A, then requiring transformation of right vector
+      ! afterwards if required
+      !A(:,:) = matmul(transpose(conjg(B)), A)
+    !else
+      ! possibly solves right eigenvector, but not left one, so calculates A B^-1
+    A(:,:) = matmul(A, B)
+    !end if
+
+    call geev(A, w, vl, vr)
+
+    if (present(vl) .and. present(vr)) then
+      ! need to transform right vector
+      vr(:,:) = matmul(Bold, vr)
+    end if
+
+    if (present(vr)) then
+      ! vr^* has been evaluated
+      vr(:,:) = conjg(vr)
+    end if
+
+  end subroutine gegv
+
 
 end module dftbp_math_eigensolver

@@ -77,6 +77,7 @@ module dftbp_math_lapackroutines
   interface getri
     module procedure getri_real
     module procedure getri_dble
+    module procedure getri_dcmplx
   end interface getri
 
 
@@ -565,7 +566,7 @@ contains
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rsp), intent(inout) :: aa(:,:)
 
-    !> Pivot indices, as calculated by getri
+    !> Pivot indices, as calculated by getrf
     integer, intent(in) :: ipiv(:)
 
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
@@ -623,7 +624,7 @@ contains
     !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
     real(rdp), intent(inout) :: aa(:,:)
 
-    !> Pivot indices, as calculated by getri
+    !> Pivot indices, as calculated by getrf
     integer, intent(in) :: ipiv(:)
 
     !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
@@ -673,6 +674,62 @@ contains
     end if
 
   end subroutine getri_dble
+
+
+  !> Double complex precision version of getri.
+  subroutine getri_dcmplx(aa, ipiv, nRow, iError)
+
+    !> Matrix to decompose on entry, L and U on exit. Unit diagonal elements of L are not stored.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Pivot indices, as calculated by getrf
+    integer, intent(in) :: ipiv(:)
+
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
+    !> the passed matrix)
+    integer, intent(in), optional :: nRow
+
+    !> iError Error flag. Zero on successful exit. If not present, any lapack error causes program
+    !> termination. If present, only fatal lapack errors with error flag < 0 cause abort.
+    integer, intent(out), optional :: iError
+
+    integer :: nn, lda, info, lwork
+    complex(rdp), allocatable :: work(:)
+    complex(rdp) :: work2(1)
+    character(len=100) :: error_string
+
+    lda = size(aa, dim=1)
+    if (present(nRow)) then
+      @:ASSERT(nRow >= 1 .and. nRow <= lda)
+      nn = nRow
+    else
+      nn = lda
+    end if
+    @:ASSERT(size(aa, dim=2) >= nn)
+    @:ASSERT(size(ipiv) == nn)
+
+    lwork = -1
+    call zgetri(nn, aa, lda, ipiv, work2, lwork, info)
+    lwork = int(work2(1))
+
+    allocate(work(lwork))
+    call zgetri(nn, aa, lda, ipiv, work, lwork, info)
+
+    if (info < 0) then
+99101 format ('Failure in LU factorisation (zgetri), illegal argument at position ', i10)
+      write (error_string, 99101) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99111   format ('Factor U is exactly zero in zgetri, info flag is ',i10)
+      write (error_string, 99111) info
+      call error(error_string)
+      end if
+    end if
+
+  end subroutine getri_dcmplx
 
 
   !> Inverts a matrix.
