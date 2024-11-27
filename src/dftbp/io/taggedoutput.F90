@@ -225,7 +225,7 @@ module dftbp_io_taggedoutput
     character(lenLabel) :: scaledDipole = 'scaled_dipole'
 
     !> Atomic dipole moments
-    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
+    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moment'
 
   end type TTagLabelsEnum
 
