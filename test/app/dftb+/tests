@@ -22,32 +22,32 @@ timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_kick_gfn1             #? OMP_THREADS <= 4 and not WITH_MPI and WITH_TBLITE
-timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_laser_gfn2            #? OMP_THREADS <= 4 and not WITH_MPI and WITH_TBLITE
-timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and  MPI_PROCS <=2
+timeprop/benzene_kick_gfn1             #? OMP_THREADS <= 4 and MPI_PROCS <=2 and WITH_TBLITE
+timeprop/benzene_laser                 #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/benzene_laser_gfn2            #? OMP_THREADS <= 4 and MPI_PROCS <= 2 and WITH_TBLITE
+timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/GNR_kpoint_restart            #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
-timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/H2_exc_atoms                  #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
-timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/H2_singlet                    #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/H2_triplet                    #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/H2_exc_atoms                  #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/C60_kick                      #? OMP_THREADS <= 4 and MPI_PROCS <=2 and LONG_TEST
+timeprop/C60_triplet                   #? OMP_THREADS <= 4 and MPI_PROCS <=2 and LONG_TEST
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_kick_periodic         #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
-timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
-timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/NO_onsite                     #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_kick_periodic         #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_periodic_kick             #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/CH3_dftbu_singlet             #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_periodic_laser            #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/benzene_ions_pulse            #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_periodic_ions             #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/graphite_dispersion_pulse     #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
+timeprop/PDI_charged                   #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/benzene_circpol               #? OMP_THREADS <= 4 and MPI_PROCS <=2
 
-timeprop/benzene_rs                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/benzene_rs                    #? OMP_THREADS == 1 and not WITH_MPI
 
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1

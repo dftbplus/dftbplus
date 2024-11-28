@@ -680,13 +680,16 @@ contains
 
 
   !> Finalizes the dynamics (releases memory, closes eventual open files)
-  subroutine finalizeTimeProp(main)
+  subroutine finalizeTimeProp(env, main)
+
+    !> dftb+ environment
+    type(TEnvironment), intent(inout) :: env
 
     !> Instance
     type(TDftbPlusMain), intent(inout) :: main
 
     if (allocated(main%electronDynamics)) then
-      call finalizeDynamics(main%electronDynamics)
+      call finalizeDynamics(main%electronDynamics, env)
     end if
 
   end subroutine finalizeTimeProp
