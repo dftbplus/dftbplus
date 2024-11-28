@@ -394,7 +394,7 @@ contains
   end subroutine dielectric
 
 
-  !> Evaluate onsite dipole matrix elements using the approximation in Sandu PRB, doi:
+  !> Evaluate onsite dipole matrix elements using the approximation in the PRB of Sandu, doi:
   !> 10.1103/PhysvB.72.125105
   subroutine approxAtomDipole(over, nNeighbour, iNeighbour, iSparseStart, img2CentCell, orb,&
       & species, coord)
