@@ -3690,7 +3690,7 @@ contains
     real(dp) :: coord0Fold(3,this%nAtom)
     integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS, iK, nLocalRows, nLocalCols
 #:if WITH_SCALAPACK
-    integer :: desc(DLEN_)
+    integer :: desc(DLEN_), nn
 #:endif
 
     coord0Fold(:,:) = coord
@@ -3771,7 +3771,8 @@ contains
           call psymmatinv(this%denseDesc%blacsOrbSqr, Sreal, errStatus)
           Sinv(:,:,iKS) = cmplx(Sreal, 0, dp)
 
-          call scalafx_getdescriptor(env%blacs%orbitalGrid, this%nOrbs, this%nOrbs, env%blacs%rowBlockSize,&
+          nn = this%denseDesc%fullSize
+          call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
               & env%blacs%columnBlockSize, desc)
           call adjointLowerTriangle_BLACS(desc, env%blacs%orbitalGrid%myCol,  env%blacs%orbitalGrid%myRow,&
               & env%blacs%orbitalGrid%nCol, env%blacs%orbitalGrid%nRow, Sinv(:,:,iKS))
