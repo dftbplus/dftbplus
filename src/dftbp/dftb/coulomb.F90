@@ -36,7 +36,7 @@ module dftbp_dftb_coulomb
   public :: TCoulombInput, TCoulomb, TCoulomb_init
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
-  public :: addInvRPrimeXlbomd
+  public :: addInvRPrimeXlbomd, invRPrime
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
 
 
@@ -193,6 +193,14 @@ module dftbp_dftb_coulomb
     module procedure addInvRPrimeXlbomdCluster
     module procedure addInvRPrimeXlbomdPeriodic
   end interface addInvRPrimeXlbomd
+
+
+  !> 1/r^2 potential
+  interface invRPrime
+    module procedure invRPrimeCluster
+    ! To do :
+    !module procedure invRPrimePeriodic
+  end interface invRPrime
 
 
   !> Maximal argument value of erf, after which it is constant
@@ -2716,5 +2724,46 @@ contains
     end if
 
   end subroutine addExternalPotGrad
+
+
+  !> Calculates the -1/R**2 deriv contribution for potentials for the non-periodic case, without
+  !! storing anything.
+  subroutine invRPrimeCluster(nAtom, coord, deltaQAtom, iCart, iAt, vPrime)
+
+    !> Number of atoms.
+    integer, intent(in) :: nAtom
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of charges on each atom.
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Component of derivative
+    integer, intent(in) :: iCart
+
+    !> Atom to differentiate wrt to
+    integer, intent(in) :: iAt
+
+    !> Contains the derivative of potential
+    real(dp), intent(inout) :: vprime(:)
+
+    integer :: jj
+    real(dp) :: dist, vect(3), fTmp
+
+    do jj = 1, nAtom
+
+      if (iAt == jj) cycle
+
+      vect(:) = coord(:,iAt) - coord(:,jj)
+      dist = sqrt(sum(vect(:)**2))
+      fTmp = -vect(iCart) / (dist**3)
+
+      vprime(iAt) = vprime(iAt) + deltaQAtom(jj)*fTmp
+      vprime(jj) = vprime(jj) + deltaQAtom(iAt)*fTmp
+
+    end do
+
+  end subroutine invRPrimeCluster
 
 end module dftbp_dftb_coulomb
