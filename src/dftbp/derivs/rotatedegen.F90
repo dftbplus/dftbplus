@@ -50,15 +50,15 @@ module dftbp_derivs_rotatedegen
     !> Numerical tolerance for deciding degeneracy
     real(dp) :: tolerance
 
-    !> Sub-range of states if needed
+    !> Sub-range of states to consider, if needed
     integer :: eiRange(2)
 
     !> Maximum fraction of total states in a single degenerate group before instead using dense
-    !> transform on the whole matrix
+    !! transform on the whole matrix
     real(dp) :: maxDegenerateFraction
 
     !> Maximum number of states in a degenerate group before instead using dense transforms on the
-    !> whole matrix
+    !! whole matrix
     integer :: maxDegenerateStates
 
     !> Should the order of states (derivatives) be reversed compared to the eigensolver return
@@ -96,8 +96,11 @@ module dftbp_derivs_rotatedegen
 
   #:endif
 
-    !> Are a pair of states in the same degenerate group
+    !> Are a pair of states in the same degenerate group?
     procedure :: isDegenerate
+
+    !> Are any of the states degenerate?
+    procedure :: isAnyDegenerate
 
     !> Release memory and cleans up
     procedure :: destroy
@@ -122,7 +125,8 @@ contains
     !> Smallest fraction of the matrix at which the dense algorithm should be used
     real, intent(in), optional :: smallestFraction
 
-    !> Sub-range of states if needed, for example for metallic finite temperature in parallel gauge
+    !> Sub-range of states to consider, if needed, for example for metallic finite temperature in
+    !! parallel gauge when only partially filed states would be included
     integer, intent(in), optional :: eiRange(2)
 
     if (present(smallestBlock)) then
@@ -138,7 +142,12 @@ contains
     end if
 
     ! Tolerance for degeneracy detection
-    self%tolerance = tolerance
+    if (present(tolerance)) then
+      self%tolerance = tolerance
+    else
+      ! a few times eps, just in case of minor symmetry breaking
+      self%tolerance = 128.0_dp * epsilon(0.0_dp)
+    end if
 
     if (present(eiRange)) then
       self%eiRange(:) = eiRange
@@ -220,7 +229,7 @@ contains
       allocate(self%degenerateGroup(self%nOrb))
     end if
 
-    call degeneracyRanges(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
+    call degeneracyRanges_(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
         & self%degenerateGroup)
     @:PROPAGATE_ERROR(errStatus)
 
@@ -378,7 +387,7 @@ contains
       allocate(self%degenerateGroup(self%nOrb))
     end if
 
-    call degeneracyRanges(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
+    call degeneracyRanges_(self%blockRange, self%nGrp, Ei, errStatus, self%tolerance, eiRange,&
         & self%degenerateGroup)
     @:PROPAGATE_ERROR(errStatus)
 
@@ -647,10 +656,46 @@ contains
   end function isDegenerate
 
 
+  !> Returns whether any states are degenerate
+  pure function isAnyDegenerate(self, ei)
+
+    !> Instance
+    class(TRotateDegen), intent(in) :: self
+
+    !> Eigenvalues for degeneracy testing
+    real(dp), intent(in) :: ei(:)
+
+    !> Resulting test
+    logical :: isAnyDegenerate
+
+    integer :: ii, nOrb, eiRange(2)
+
+    nOrb = size(ei)
+    if (all(self%eiRange == [-1,-1] )) then
+      eiRange(:) = [1, nOrb]
+    else
+      eiRange(:) = self%eiRange
+    end if
+
+    isAnyDegenerate = .false.
+    do ii = eiRange(1)+1, eiRange(2)
+      ! assumes sorted:
+      if ( ei(ii) - ei(ii-1) < self%tolerance) then
+        isAnyDegenerate = .true.
+        return
+      end if
+    end do
+
+  end function isAnyDegenerate
+
+
+  ! Internal routines
+
+
   !> Find which groups of eigenvales are degenerate to within a tolerance
   !! Note, similar process is used in Casida excited state calculations, so should spin off as its
   !! own module at some point
-  subroutine degeneracyRanges(blockRange, nGrp, Ei, errStatus, tol, eiRange, grpMembership)
+  subroutine degeneracyRanges_(blockRange, nGrp, Ei, errStatus, tol, eiRange, grpMembership)
 
     !> Index array for lower and upper states in degenerate group
     integer, intent(out) :: blockRange(:,:)
@@ -659,7 +704,7 @@ contains
     integer, intent(out) :: nGrp
 
     !> Eigenvalues for degeneracy testing
-    real(dp), intent(in) :: Ei(:)
+    real(dp), intent(in) :: ei(:)
 
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
@@ -712,7 +757,7 @@ contains
       grpMembership(ii) = nGrp
       do jj = ii + 1, iEnd
         ! assumes sorted:
-        if ( abs(ei(jj) - ei(jj-1)) > localTol) then
+        if ( ei(jj) - ei(jj-1) > localTol) then
           exit
         end if
         grpMembership(jj) = nGrp
@@ -730,6 +775,6 @@ contains
       end do
     end if
 
-  end subroutine degeneracyRanges
+  end subroutine degeneracyRanges_
 
 end module dftbp_derivs_rotatedegen

@@ -43,6 +43,10 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+- Linear response derivatives for atom positions (DFTB1/DFTB2 only)
+  for cluster boundary conditions in low symmetry (non-degenerate)
+  systems (and currently not MPI parallel)
+
 - Addition of developer documentation for code internals in doc/dftb+/code/
 
 - Optional GPU acceleration for the modes code via the MAGMA library
@@ -63,10 +67,8 @@ Changed
 - Raise a warning if neither the input of parser version is set in the
   input
 
-
 - Degeneracy tolerance for perturbation theory switched to absolute
   tolerance of differences between eigenvalues.
-
 
 Fixed
 -----

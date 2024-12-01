@@ -549,6 +549,9 @@ module dftbp_dftbplus_initprogram
     !> Static polarisability
     logical :: isEResp = .false.
 
+    !> Derivatives with respect to atomic positions
+    logical :: isAtomCoordPerturb = .false.
+
     !> Dynamic polarisability at finite frequencies
     real(dp), allocatable :: dynRespEFreq(:)
 
@@ -1935,7 +1938,7 @@ contains
       this%eField%EfieldOmega = input%ctrl%electricField%EfieldOmega
       this%eField%EfieldPhase = input%ctrl%electricField%EfieldPhase
       if (this%eField%isTDEfield .and. .not. this%tMD) then
-        call error ("Time dependent electric fields only possible for MD!")
+        call error("Time dependent electric fields only possible for MD!")
       end if
       ! parser should catch all of these:
       @:ASSERT(.not.this%eField%isTDEfield .or. this%tMD)
@@ -1976,29 +1979,15 @@ contains
       call error("Invalid force evaluation method for non-SCC calculations.")
     end if
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
-       call error("This ForceEvaluation method requires the electron temperature to be zero")
-     end if
-     if (this%isLinResp) then
-       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
-     else
-       tRequireDerivator = this%tForces
-     end if
-     if (.not. tRequireDerivator .and. this%isElecDyn) then
-       tRequireDerivator = input%ctrl%elecDynInp%tIons
-     end if
-     if (tRequireDerivator) then
-      select case(input%ctrl%iDerivMethod)
-      case (diffTypes%finiteDiff)
-        ! set step size from input
-        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
-              & input%ctrl%deriv1stDelta
-          call error(tmpStr)
-        end if
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
-      case (diffTypes%richardson)
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
-      end select
+      call error("This ForceEvaluation method requires the electron temperature to be zero")
+    end if
+    if (this%isLinResp) then
+      tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
+    else
+      tRequireDerivator = this%tForces
+    end if
+    if (.not. tRequireDerivator .and. this%isElecDyn) then
+      tRequireDerivator = input%ctrl%elecDynInp%tIons
     end if
 
     call this%getDenseDescCommon()
@@ -2055,7 +2044,7 @@ contains
             & (electrostatic gates are available).")
       end if
       if (this%t3rdFull .or. this%t3rd) then
-        call error ("Third order DFTB is not currently available for transport calculations")
+        call error("Third order DFTB is not currently available for transport calculations")
       end if
       if (this%isHybridXc) then
         call error("Hybrid functional calculations do not yet work with transport calculations")
@@ -2299,7 +2288,7 @@ contains
     #:if WITH_TRANSPORT
       if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
         if (allocated(this%dispersion)) then
-          call error ("Dispersion interactions are not currently available for transport&
+          call error("Dispersion interactions are not currently available for transport&
               & calculations")
         end if
       end if
@@ -2465,6 +2454,41 @@ contains
         end if
       end if
 
+      this%isAtomCoordPerturb = input%ctrl%perturbInp%isAtomCoordPerturb
+      if (this%isAtomCoordPerturb) then
+        if (withMpi) then
+          call error("Coordinate derivative perturbations do not yet work with MPI enabled DFTB+")
+        end if
+        if (this%isHybridXc) then
+          call error("Coordinate derivative perturbations do not yet work with hybrid functionals")
+        end if
+        if (this%tempElec > minTemp) then
+          call warning("Fractional occupation is not yet supported for coordinate derivative&
+              & perturbations, so may halt with finite temperatures")
+        end if
+        if (this%nSpin > 1) then
+          call error("Spin polarised calculations are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (allocated(this%dftbU)) then
+          call error("DFTB+U calculations are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (allocated(this%onSiteElements)) then
+          call error("Onsite corrected calculations are not yet supported for coordinate&
+              & derivative perturbations")
+        end if
+        if (this%isMdftb) then
+          call error("Multipolar DFTB models are not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+        if (this%tSpinOrbit) then
+          call error("Spin-orbit coupling is not yet supported for coordinate derivative&
+              & perturbations")
+        end if
+      end if
+      tRequireDerivator = tRequireDerivator .or. this%isAtomCoordPerturb
+
       if (this%iDistribFn /= fillingTypes%Fermi) then
         call error("Choice of filling function currently incompatible with perturbation&
             & calculations")
@@ -2511,8 +2535,10 @@ contains
       end if
 
     else
+
       this%isEResp = .false.
       this%isKernelResp = .false.
+
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
@@ -3953,9 +3979,25 @@ contains
       end if
 
       if (this%t3rd .or. this%t3rdFull) then
-        call error ("Third order DFTB is not currently compatible with linear response excitations")
+        call error("Third order DFTB is not currently compatible with linear response excitations")
       end if
 
+    end if
+
+
+    if (tRequireDerivator) then
+      select case(input%ctrl%iDerivMethod)
+      case (diffTypes%finiteDiff)
+        ! set step size from input
+        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
+          call error(tmpStr)
+        end if
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
+      case (diffTypes%richardson)
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
+      end select
     end if
 
     ! Electron dynamics stuff
