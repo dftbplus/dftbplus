@@ -37,6 +37,8 @@ Added
 
 - MAGMA GPU accelerated solver for the modes code
 
+- Liner response derivatives for atom positions (DFTB1/DFTB2 only)
+
 Fixed
 -----
 
