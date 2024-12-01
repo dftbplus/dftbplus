@@ -5143,6 +5143,7 @@ calculation and/or calculate properties.
   \pref{sec:dftbp.eperturb} \\
   \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
   \pref{sec:dftbp.rperturb} \\
+  \kw{CoordDerivatives} & l & & No & \\
 \end{ptable}
 
 \begin{description}
@@ -5184,6 +5185,12 @@ calculation and/or calculate properties.
 
 \item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
+
+\item[\is{CoordDerivatives}] Calculate second derivatives with respect
+  to atomic positions (currently only molecular boundary conditions
+  and non-SCC or SCC serial code). Derivatives of the band structure
+  are written to \verb|dBand_dx.out|, and Born effective charges are
+  evaluated.
 
 \end{description}
 
