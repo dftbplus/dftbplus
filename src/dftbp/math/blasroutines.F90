@@ -1025,8 +1025,6 @@ contains
     @:ASSERT(size(a,dim=2)>=ka)
     @:ASSERT(ldb>=im)
     @:ASSERT(ldc>=im)
-    @:ASSERT(size(B,dim=2)>=in)
-    @:ASSERT(size(C,dim=2)>=in)
 
     call dsymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 

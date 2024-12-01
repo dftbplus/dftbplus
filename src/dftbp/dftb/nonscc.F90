@@ -38,7 +38,9 @@ module dftbp_dftb_nonscc
   contains
 
     !> Evaluate first derivative
-    procedure :: getFirstDeriv
+    procedure, private :: getFirstDerivMatrix
+    procedure, private :: getFirstDerivBlock
+    generic :: getFirstDeriv => getFirstDerivMatrix, getFirstDerivBlock
 
     !> Evaluate second derivative
     procedure :: getSecondDeriv
@@ -55,6 +57,7 @@ module dftbp_dftb_nonscc
   type(TDiffTypesEnum), parameter :: diffTypes = TDiffTypesEnum(1, 2)
 
 contains
+
 
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
   subroutine buildH0(env, ham, skHamCont, selfegy, coords, nNeighbourSK, iNeighbours, species,&
@@ -117,6 +120,7 @@ contains
 
   end subroutine buildH0
 
+
   !> Driver for making the overlap matrix in the primitive sparse format.
   subroutine buildS(env, over, skOverCont, coords, nNeighbourSK, iNeighbours, species, iPair, orb)
 
@@ -173,6 +177,7 @@ contains
 
   end subroutine buildS
 
+
   !> Initializes a differentiator for the non-scc contributions.
   !> Note: Second derivative can not be calculated currently via Richardson
   !> interpolation, so the finite difference method is invoked instead.
@@ -197,8 +202,9 @@ contains
 
   end subroutine NonSccDiff_init
 
-  !> Calculates the first derivative of H0 or S.
-  subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ, orb)
+
+  !> Calculates the first derivative of H0 or S between two atoms.
+  subroutine getFirstDerivBlock(this, deriv, skCont,coords, species, atomI, atomJ, orb)
 
     !> Instance
     class(TNonSccDiff), intent(in) :: this
@@ -232,7 +238,84 @@ contains
       call getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
     end select
 
-  end subroutine getFirstDeriv
+  end subroutine getFirstDerivBlock
+
+
+  !> Calculates the first derivative of all of H0 or S matrix with respect to iAt position
+  subroutine getFirstDerivMatrix(this, deriv, env, skCont, coords, species, iAt, orb, nNeighbourSK,&
+      & iNeighbours, iPair)
+
+    !> Instance
+    class(TNonSccDiff), intent(in) :: this
+
+    !> Derivative of H0 or S diatomic block, with respect to x,y,z (last index).
+    real(dp), intent(out) :: deriv(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Container for the SK integrals
+    type(TSlakoCont), intent(in) :: skCont
+
+    !> List of all coordinates, including possible periodic images of atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Chemical species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Atom to differentiate wrt
+    integer, intent(in) :: iAt
+
+    !> Orbital informations
+    type(TOrbitals), intent(in) :: orb
+
+    !> Number of neighbours for each central cell atom
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of neighbours for each central cell
+    integer, intent(in) :: iNeighbours(0:,:)
+
+    !> Index in the sparse matrix for the start of diatomic pairs
+    integer, intent(in) :: iPair(0:,:)
+
+    real(dp) :: tmp(size(deriv,dim=1))
+    real(dp), allocatable :: coordTmp(:,:)
+    integer :: ii, iCart
+
+    deriv(:,:) = 0.0_dp
+
+    select case (this%diffType)
+    case (diffTypes%finiteDiff)
+
+      coordTmp = coords
+      do iCart = 1, 3
+        tmp(:) = 0.0_dp
+        do ii = -1, 1, 2
+          coordTmp(:,iAt) = coords(:,iAt)
+          coordTmp(iCart,iAt) = coords(iCart,iAt) + ii * this%deltaXDiff
+          if (ii == 1) then
+            ! onsites cancel in difference formula, so can use same call for either H0 or S
+            call buildS(env, deriv(:,iCart), skCont, coordTmp, nNeighbourSK, iNeighbours, species,&
+                & iPair, orb)
+          else
+            call buildS(env, tmp, skCont, coordTmp, nNeighbourSK, iNeighbours, species, iPair, orb)
+          end if
+        end do
+        deriv(:,iCart) = (deriv(:,iCart) - tmp) / (2.0_dp * this%deltaXDiff)
+      end do
+
+    case (diffTypes%richardson)
+
+      call error("Finite difference method not currently implemented for full derivatives")
+
+    case default
+
+      call error("Derivator not initialised")
+
+    end select
+
+  end subroutine getFirstDerivMatrix
+
 
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
   subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ, orb)
@@ -360,6 +443,7 @@ contains
 
   end subroutine getFirstDerivFiniteDiff
 
+
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
     real(dp), intent(out) :: deriv(:,:,:)
@@ -459,6 +543,7 @@ contains
     end do
 
   end subroutine getFirstDerivRichardson
+
 
   !> Contains code to calculate the numerical second derivative of a diatomic block of the H0
   !> Hamiltonian and overlap.
