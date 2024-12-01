@@ -14,7 +14,7 @@ module dftbp_dftb_scc
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
+  use dftbp_dftb_coulomb, only : invRPrime, TCoulomb, TCoulomb_init, TCoulombInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
@@ -187,6 +187,9 @@ module dftbp_dftb_scc
 
     !> Returns the shift per L contribution of the SCC.
     procedure :: getShiftPerL
+
+    !> Derivative of the shift potentials with respect an atom position
+    procedure :: addPotentialDeriv
 
     !> Calculate the "double counting" force term using linearized XLBOMD form
     procedure :: addForceDcXlbomd
@@ -896,6 +899,59 @@ contains
     end if
 
   end subroutine getShiftPerL
+
+
+  !> Derivative of the shift potentials with respect to atom positions
+  subroutine addPotentialDeriv(this, env, vAt, vShell, species, iNeighbour, img2CentCell, coord,&
+      & orb, iCart, iAt)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atomic part of derivative
+    real(dp), intent(inout) :: vAt(:)
+
+    !> Shell part of derivative
+    real(dp), intent(inout) :: vShell(:,:,:)
+
+    !> Chemical species of atoms
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Cartesian component of displacement
+    integer, intent(in) :: iCart
+
+    !> Atom displaced
+    integer, intent(in) :: iAt
+
+    ! Short-range part of gamma contribution
+    call this%shortGamma%getShiftPerShellDerivative(env, iAt, iCart, orb, this%coord, species,&
+        & iNeighbour, img2CentCell, vShell)
+
+    ! 1/R contribution
+    if (this%tPeriodic) then
+      call error("Missing at moment")
+    !  call invRPrime(vAt, nAtom_, coord, nNeighEwald_, iNeighbour, img2CentCell, gLatPoint_,&
+    !      & alpha_, volume_, deltaQAtom_, iCart, iAt)
+    else
+      call invRPrime(this%nAtom, this%coord, this%deltaQAtom, iCart, iAt, vAt)
+    end if
+
+  end subroutine addPotentialDeriv
 
 
   !> Calculate the "double counting" force term using linearized XLBOMD form.

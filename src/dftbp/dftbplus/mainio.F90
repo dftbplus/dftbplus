@@ -2558,7 +2558,7 @@ contains
   end subroutine writeHessianOut
 
 
-  !> Write the dipole derivative wrt.coordinates matrix/Born charges
+  !> Write the dipole derivative wrt.coordinates matrix (i.e. Born charges)
   subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
@@ -2612,13 +2612,13 @@ contains
   end subroutine writeBornChargesOut
 
 
-  !> Write the Derivatives of the polarizability
+  !> Write the Derivatives of the polarizability with respect to atom positions
   subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
 
-    !> Born (dipole derivatives or force wrt electric field)
+    !> Born matrix (dipole derivatives wrt positions or forces wrt external electric field)
     real(dp), intent(in) :: pdBornMatrix(:, :, :)
 
     !> Indices of moved atoms

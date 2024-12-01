@@ -5380,22 +5380,19 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
+      ! electric field polarisability of system
       call renameChildren(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
-      call getChild(node, "ResponseKernel", child=child2, requested=.false.)
-      if (associated(child) .or. associated(child2)) then
-        allocate(ctrl%perturbInp)
-      end if
-
-      ! electric field polarisability of system
-      call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
+        if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
         ctrl%perturbInp%isEPerturb = .true.
         call freqRanges(child, ctrl%perturbInp%dynEFreq)
       end if
 
+      ! Perturbation with respect to on-site potentials (related to Fukui charges)
       call getChild(node, "ResponseKernel", child=child, requested=.false.)
       if (associated(child)) then
+        if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
         ctrl%perturbInp%isRespKernelPert = .true.
         if (ctrl%tSCC) then
           call getChildValue(child, "RPA", ctrl%perturbInp%isRespKernelRPA, .false.)
@@ -5403,6 +5400,18 @@ contains
           ctrl%perturbInp%isRespKernelRPA = .true.
         end if
         call freqRanges(child, ctrl%perturbInp%dynKernelFreq)
+      end if
+
+      ! Perturbation with respect to atom positions
+      call getChild(node, "CoordDerivatives", child=child, requested=.false.)
+      if (associated(child)) then
+        if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
+      #:if WITH_MPI
+        call detailedError(node, "CoordDerivatives not currently available for MPI enabled code")
+        ctrl%perturbInp%isAtomCoordPerturb = .false.
+      #:else
+        ctrl%perturbInp%isAtomCoordPerturb = .true.
+      #:endif
       end if
 
       if (allocated(ctrl%perturbInp)) then
@@ -5432,6 +5441,7 @@ contains
                 & small")
           end if
         end if
+
       end if
 
       if (allocated(ctrl%perturbInp)) then
