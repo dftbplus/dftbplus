@@ -13,7 +13,7 @@ module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp
   use dftbp_extlibs_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength,&
       & getNodeName, destroyNode, getItem1, destroyNodeList
-  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_charmanip, only : i2c, tolower
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
       & detailedError, getChildren
   use dftbp_io_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
@@ -779,7 +779,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, par1
+    type(fnode), pointer :: ch1, ch2, par1
     integer :: maxIter
     logical :: isPerturb, isConvRequired
     real(dp) :: sccTol
@@ -840,7 +840,9 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, par, dummy
+    type(fnode), pointer :: ch1, ch2, ch3, par, dummy, hybridAlgorithm
+    type(string) :: buffer
+    logical :: isScc, isNoneAlgorithm
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
@@ -857,10 +859,36 @@ contains
 
     call getDescendant(root, "Hamiltonian/DFTB/Hybrid", ch1)
     if (associated(ch1)) then
-      call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations are&
-          & always SCC.")
+      ! test if old input was actually SCC
+      isScc = .true.
       call getDescendant(root, "Hamiltonian/DFTB/SCC", ch2, parent=par)
-      dummy => removeChild(par, ch2)
+      if (.not. associated(ch2)) then
+        isScc = .false.
+      else
+        call getChildValue(ch2, "", isScc, child=ch3)
+        call setUnprocessed(ch3)
+      end if
+
+      call getChildValue(ch1, "", hybridAlgorithm, child=ch3)
+      call getNodeName(hybridAlgorithm, buffer)
+
+      isNoneAlgorithm = tolower(char(buffer)) == "none" ! as this is allowed as an input choice
+
+      if (.not.isNoneAlgorithm) then
+        call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations&
+            & are always SCC.")
+        dummy => removeChild(par, ch2)
+      end if
+
+      if (.not. isScc .and. .not.isNoneAlgorithm) then
+        call detailedError(ch1, "Old input versions (<14) require SCC=Yes explicitly for hybrid&
+            & functional calculations.")
+      end if
+
+      call setUnprocessed(ch3)
+      call setUnprocessed(ch2)
+      call setUnprocessed(ch1)
+
     end if
 
   end subroutine convert_13_14
