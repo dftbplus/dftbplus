@@ -3264,6 +3264,11 @@ contains
   !! a given atom (in the central cell if periodic).
   !!
   !! 1st term of Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, 1st term of Eq.(6.3.16)
   subroutine getUnpackedOverlapPrime_real(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
       & nNeighbourCamSym, iSquare, rCoords, overSqrPrime)
 
@@ -3333,7 +3338,11 @@ contains
 
   !> Calculates the derivative of the square, dense, unpacked, dual-space overlap matrix w.r.t.
   !! position of a given atom in the central cell.
-  !! van der Heide, Unpublished (2024).
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.1, 1st term of Eq.(6.3.11)
   subroutine getUnpackedOverlapPrime_kpts(iAtomPrime, skOverCont, orb, derivator, symNeighbourList,&
       & nNeighbourCamSym, iSquare, cellVec, rCoords, kPoint, overSqrPrime)
 
