@@ -1097,6 +1097,8 @@ contains
 
 
   !> Tabulates (descending) overlap estimates for SPS-product screening.
+  !!
+  !! see Eq.(48) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine calculateOverlapEstimates(this, symNeighbourList, nNeighbourCamSym, iSquare)
 
     !> Class instance
@@ -2331,6 +2333,11 @@ contains
 
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, Eq.(6.3.6)
   subroutine addCamHamiltonianMatrix_kpts(this, env, denseDesc, ints, densityMatrix, neighbourList,&
       & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, kPoints, kWeights, HSqrCplxCam)
 
@@ -2520,43 +2527,43 @@ contains
       call getCamGammaFourierAO(this, denseDesc%iAtomStart, this%cellVecsG, this%rCellVecsG,&
           & kPoints(:, iK), -kPointPrime(:, iKPrime), gammaAOCc)
 
-      ! Term 1
+      ! Term 1 of Eq.(6.3.6)
       call hemm(tmp, 'r', SSqrCplxPrime(:,:, iKPrime), Sp_dPp)
       tmp(:,:) = tmp * gammaAO
-      ! Term 1 (complex conjugated for inverse k-points)
+      ! Term 1 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       ! use conjg(S(k)) = transpose(S(k)) = S(-k)
       call hemm(tmp2, 'r', Sp_c, Sp_dPp_cc)
       tmp2(:,:) = tmp2 * gammaAOCc
       tmp(:,:) = tmp + tmp2
 
-      ! Term 2
+      ! Term 2 of Eq.(6.3.6)
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp * gammaAO, beta=(1.0_dp, 0.0_dp))
-      ! Term 2 (complex conjugated for inverse k-points)
+      ! Term 2 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
 
-      ! Term 3
+      ! Term 3 of Eq.(6.3.6)
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp * gammaAO, beta=(1.0_dp, 0.0_dp))
-      ! Term 3 (complex conjugated for inverse k-points)
+      ! Term 3 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
 
-      ! Add terms 1-3
+      ! Add terms 1-3 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
 
-      ! Term 4
+      ! Term 4 of Eq.(6.3.6)
       tmp(:,:) = densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS) * gammaAO
       tmp2(:,:) = tmp
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), tmp2)
       tmp2(:,:) = tmp
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
-      ! Add term 4
+      ! Add term 4 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
 
-      ! Term 4 (complex conjugated for inverse k-points)
+      ! Term 4 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       ! use conjg(dP(k)) = transpose(dP(k)) = dP(-k)
       tmp(:,:) = dPp_c * gammaAOCc
       tmp2(:,:) = tmp
@@ -2564,7 +2571,7 @@ contains
       tmp2(:,:) = tmp
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
-      ! Add term 4
+      ! Add term 4 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
@@ -2595,6 +2602,8 @@ contains
 
 
   !> Calculates the dense, square, dual-space overlap matrices S(k) on all MPI processes.
+  !!
+  !! see Eq.(8) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getDenseSqrDualSpaceOverlap(env, denseDesc, ints, neighbourList, nNeighbourSK,&
       & iCellVec, cellVec, iSparseStart, img2CentCell, kPoint, SSqrCplx)
 
@@ -2666,6 +2675,11 @@ contains
   !! (k-point version)
   !!
   !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.2, Eq.(6.2.4)
   subroutine addCamHamiltonianNeighbour_kpts_mic(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam,&
       & errStatus)
@@ -2994,6 +3008,11 @@ contains
   !! (k-point version)
   !!
   !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.2, Eq.(6.2.3)
   subroutine addCamHamiltonianNeighbour_kpts_ct(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam, errStatus)
 
@@ -3334,6 +3353,11 @@ contains
 
 
   !> Returns the Fock-type exchange contribution to the total energy (complex version).
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 3.2, Eq.(3.2.5)
   subroutine getHybridEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
       & camEnergy)
 
@@ -3395,6 +3419,11 @@ contains
 
   !> Evaluates energy from CAM Hamiltonian and density matrix.
   !! (${LABEL}$ non-periodic and ${LABEL}$ Gamma-only version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 3.2, Eq.(3.2.5)
   pure function evaluateEnergy_${NAME}$(hamCamSqr, rhoSqr) result(energy)
 
     !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
@@ -3831,6 +3860,11 @@ contains
 
 
   !> Returns pseudo Fourier transform of long-range and full-range Hartree-Fock gammas.
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, Eq.(6.3.5)
   function getCamGammaFourier(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(gamma)
 
@@ -3958,6 +3992,11 @@ contains
 
 
   !> Calculates derivative w.r.t. given atom of the pseudo Fourier transformed square CAM y-matrix.
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, derivative of Eq.(6.3.5)
   function getCamGammaFourierPrime(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(dGamma)
 
@@ -5318,6 +5357,11 @@ contains
   !! (non-periodic and Gamma-only version)
   !!
   !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
   subroutine addCamGradientsMatrix_real_blacs(this, env, parallelKS, deltaRhoSqr,&
       & overlap, skOverCont, symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc,&
       & nSpin, gradients)
@@ -5547,6 +5591,11 @@ contains
   !! (non-periodic and Gamma-only version)
   !!
   !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
   subroutine addCamGradientsMatrix_real(this, deltaRhoSqr, overlap, skOverCont,&
       & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
 
@@ -5848,6 +5897,11 @@ contains
 
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.1, Eq.(6.3.11)
   subroutine addCamGradientsMatrix_kpts_ct(this, env, denseDesc, skOverCont, derivator, orb, ints,&
       & densityMatrix, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, iCellVec,&
       & cellVec, iSparseStart, img2CentCell, kPoints, kWeights, gradients)
@@ -6056,11 +6110,11 @@ contains
             & nNeighbourCamSym, denseDesc%iAtomStart, cellVec, this%rCoords, kPoints(:, iKPrime),&
             & overSqrPrime)
 
-        ! Term 1
+        ! Term 1 of Eq.(6.3.11)
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS) * gammaAO, dPp_Sp)
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS), dP_S * gammaAO,&
             & beta=(1.0_dp, 0.0_dp))
-        ! Term 1 (complex conjugated for inverse k-points, k -> -k)
+        ! Term 1 of Eq.(6.3.11) (complex conjugated for inverse k-points, k -> -k)
         call hemm(tmp, 'r', dPm * gammaAOCc, dPp_Sp, beta=(1.0_dp, 0.0_dp))
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
             & dP_S_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
@@ -6070,7 +6124,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 1
+        ! Add term 1 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
@@ -6078,7 +6132,7 @@ contains
               & - wk_wkp * sum(overSqrPrime(iCoord, :,:) * tmp)
         end do
 
-        ! Term 2
+        ! Term 2 of Eq.(6.3.11)
         tmp(:,:) = dP_S * dPp_Sp_T + Sp_dPp_Sp_T * densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS)
         ! [...]^adj = 0.5 * [(...) + (...)^adj]
         ! we actually calculate ([...]^adj)^T here, so that the transpose in dS(k') * tmp^T can be
@@ -6086,7 +6140,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 2
+        ! Add term 2 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
@@ -6094,7 +6148,7 @@ contains
               & - 0.5_dp * wk_wkp * sum(dGammaAO(:,:, iCoord) * tmp)
         end do
 
-        ! Term 2 (complex conjugated for inverse k-points, k -> -k)
+        ! Term 2 of Eq.(6.3.11) (complex conjugated for inverse k-points, k -> -k)
         tmp(:,:) = dP_S_cc * dPp_Sp_T + Sp_dPp_Sp_T * dPm
         ! [...]^adj = 0.5 * [(...) + (...)^adj]
         ! we actually calculate ([...]^adj)^T here, so that the transpose in dS(k') * tmp^T can be
@@ -6102,7 +6156,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 2
+        ! Add term 2 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
