@@ -1460,8 +1460,14 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
-    ! SCC
-    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
+
+    if (allocated(ctrl%hybridXcInp)) then
+      ctrl%tSCC = .true.
+    else
+      ! SCC
+      call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    end if
 
     if (ctrl%tSCC) then
       call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
@@ -1475,8 +1481,6 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-
-    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
 
     if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
