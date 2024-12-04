@@ -66,7 +66,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
   use dftbp_mixer_mixer, only : mixerTypes
@@ -2970,9 +2970,8 @@ contains
         call detailedError(value1, "The components of the supercell matrix must be integers.")
       end if
       if (allocated(ctrl%hybridXcInp)) then
-        allocate(ctrl%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
-            & supercellFoldingDiagOut=ctrl%supercellFoldingDiag)
+        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus)
+        ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
         @:PROPAGATE_ERROR(errStatus)
         ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
@@ -3091,12 +3090,11 @@ contains
     if (allocated(ctrl%hybridXcInp) .and. tGammaOnly&
         & .and. (char(buffer) /= "supercellfolding")) then
       coeffsAndShifts(:,:) = 0.0_dp
-      allocate(ctrl%supercellFoldingDiag(3))
       do ii = 1, 3
         coeffsAndShifts(ii, ii) = 1.0_dp
-        ctrl%supercellFoldingDiag(ii) = nint(coeffsAndShifts(ii, ii))
       end do
       ctrl%supercellFoldingMatrix = coeffsAndShifts
+      ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
     end if
 
   end subroutine getEuclideanKSampling

@@ -13,7 +13,7 @@ module dftbp_math_simplealgebra
   implicit none
 
   private
-  public :: cross3, determinant33, derivDeterminant33, invert33
+  public :: cross3, determinant33, derivDeterminant33, invert33, diagonal
 
 contains
 
@@ -122,5 +122,23 @@ contains
     inverted = inverted / det
 
   end subroutine invert33
+
+
+  !> Extract diagonal of a 3x3 matrix
+  function diagonal(A)
+
+    !> Matrix
+    real(dp), intent(in) :: A(3,3)
+
+    !> Diagonal entries
+    real(dp) :: diagonal(3)
+
+    integer :: ii
+
+    do ii = 1, size(A,dim=1)
+      diagonal(ii) = A(ii,ii)
+    end do
+
+  end function diagonal
 
 end module dftbp_math_simplealgebra
