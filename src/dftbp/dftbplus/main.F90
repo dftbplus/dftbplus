@@ -1031,7 +1031,7 @@ contains
           & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
           & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
           & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
-          & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
+          & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
           & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
     end if
 
@@ -1194,6 +1194,8 @@ contains
       call this%halogenXCorrection%getEnergies(this%dftbEnergy(&
           & this%deltaDftb%iDeterminant)%atomHalogenX, this%coord, this%species,&
           & this%neighbourList, this%img2CentCell)
+    end if
+    if (this%isHalogenEgyPrinted) then
       this%dftbEnergy(this%deltaDftb%iDeterminant)%EHalogenX =&
           & sum(this%dftbEnergy(this%deltaDftb%iDeterminant)%atomHalogenX(this%iAtInCentralRegion))
     end if
@@ -1562,7 +1564,7 @@ contains
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
-            & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
+            & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
             & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
