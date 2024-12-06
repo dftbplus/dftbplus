@@ -58,6 +58,9 @@ module dftbp_derivs_dielectric
     !> (Gaussian) broadening factor for the transitions
     real(dp) :: sigma = 0.1_dp * eV__Hartree
 
+    !> Should atomic dipole, either approximated or calculated, be included
+    logical :: isAtomicDipoleIncluded = .false.
+
   end type TDielectricSettings
 
 
@@ -72,7 +75,8 @@ contains
   subroutine dielectric(env, settings, parallelKS, eigvals, filling, eigVecsCplx, ints,&
       & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
       & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, latVecs,&
-      & densityMatrix, hybridXc, taggedWriter, isAutotestWritten, isResultsTagWritten, errStatus)
+      & densityMatrix, hybridXc, taggedWriter, isAutotestWritten, isResultsTagWritten, dab,&
+      & errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -152,13 +156,16 @@ contains
     !> Should the results tag file be writted to disc?
     logical, intent(in) :: isResultsTagWritten
 
+    !> On-site atomic dipole matrix elements to second order in overlap
+    real(dp), allocatable, intent(in) :: dab(:,:,:,:)
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
     integer :: iK, iKS, iS, iCart, nOrbs, nSpin, nKpts, nIndepHam
     integer :: iTrans, nLocCol, nLocRow, iFil, iEmp, iOrb, ii, jj, kk
     real(dp) :: maxFill, cellVol, chiTmp(6)
-    complex(dp), allocatable :: work(:,:), work2(:,:), work3(:,:,:,:)
+    complex(dp), allocatable :: work(:,:), work2(:,:), work3(:,:,:,:), work4(:,:)
     integer, allocatable :: nFilled(:,:), nEmpty(:,:)
     integer, allocatable :: nTrans(:), win(:)
     type(TWrappedInt2), allocatable :: getIA(:)
@@ -168,11 +175,14 @@ contains
     real(dp) :: norm, lambda, widthOfNonZero
     integer :: nEgyPts, nNonZero
     real(dp) :: lowerEgy, upperEgy
+
     !! Small complex broadening
     complex(dp) :: eta
 
     real(dp), allocatable :: imChi(:,:), reChi(:,:)
     complex(dp), allocatable :: pElement(:,:)
+
+    integer :: iAt
 
     if (settings%sigma < epsilon(0.0_dp)) then
       @:RAISE_ERROR(errStatus, -1, "dielectric module: Broadening sigma too small")
@@ -258,6 +268,8 @@ contains
 
     allocate(imChi(6, 0:nEgyPts), source = 0.0_dp)
 
+    if (allocated(dab)) allocate(work4(nLocCol, nLocRow), source=(0.0_dp,0.0_dp))
+
   #:if WITH_SCALAPACK
 
     @:ASSERT(.false.)
@@ -306,6 +318,25 @@ contains
           pElement(iCart, iTrans) = dot_product(eigVecsCplx(:,iEmp,iKS), work(:,iFil))
         end do
 
+        if (allocated(dab)) then
+
+          do iAt = 1, size(nNeighbourSK)
+            ii = denseDesc%iAtomStart(iAt)
+            jj = denseDesc%iAtomStart(iAt+1)-1
+            work4(ii:jj,ii:jj) = dab(orb%nOrbAtom(iAt), orb%nOrbAtom(iAt), iAt, iCart)
+          end do
+
+          call hemm(work2, 'l', work4, eigVecsCplx(:,:,iKS))
+
+          do iTrans = 1, nTrans(iKS)
+            iFil = getIA(iKS)%data(iTrans, 1)
+            iEmp = getIA(iKS)%data(iTrans, 2)
+            pElement(iCart, iTrans) = pElement(iCart, iTrans)&
+                & +wij(iKS)%data(nTrans(iTrans))*dot_product(eigVecsCplx(:,iEmp,iKS),work2(:,iFil))
+          end do
+
+        end if
+
       end do
 
       do iTrans = 1, nTrans(iKS)
@@ -332,8 +363,11 @@ contains
 
     deallocate(work)
     deallocate(work2)
-    if (allocated(hybridXc)) then
+    if (allocated(work3)) then
       deallocate(work3)
+    end if
+    if (allocated(work4)) then
+      deallocate(work4)
     end if
     deallocate(getIA)
     deallocate(wij)
@@ -397,10 +431,7 @@ contains
   !> Evaluate onsite dipole matrix elements using the approximation in the PRB of Sandu, doi:
   !> 10.1103/PhysvB.72.125105
   subroutine approxAtomDipole(over, nNeighbour, iNeighbour, iSparseStart, img2CentCell, orb,&
-      & species, coord)
-
-    !!> On-site dipole matrix elements to second order in overlap
-    !real(dp), intent(out) :: dab(:,:,:,:)
+      & species, coord, dab)
 
     !> Overlap matrix
     real(dp), intent(in) :: over(:)
@@ -426,11 +457,12 @@ contains
     !> List of all atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    real(dp) :: tmp(orb%mOrb,orb%mOrb), tmpA(orb%mOrb,orb%mOrb)
+    !> On-site atomic dipole matrix elements to second order in overlap
+    real(dp), intent(out) :: dab(:,:,:,:)
+
+    real(dp) :: tmpS21(orb%mOrb,orb%mOrb), tmpSdotS(orb%mOrb,orb%mOrb)
     integer :: nAtom0, iAt1, iAt2, iAt2f, iNeigh
     integer :: iSp1, iSp2, nOrb1, nOrb2, iOrig, iCart
-
-    real(dp) :: dab(orb%mOrb,orb%mOrb,size(nNeighbour),3)
 
     nAtom0 = size(nNeighbour)
     @:ASSERT(all(shape(dab) == [orb%mOrb, orb%mOrb, nAtom0, 3]))
@@ -446,36 +478,24 @@ contains
         nOrb2 = orb%nOrbSpecies(iSp2)
         iOrig = iSparseStart(iNeigh, iAt1) + 1
 
-        tmp(:nOrb2, :nOrb1) = reshape(over(iOrig:iOrig+nOrb2*nOrb1-1), [nOrb2, nOrb1])
+        tmpS21(:nOrb2, :nOrb1) = reshape(over(iOrig:iOrig+nOrb2*nOrb1-1), [nOrb2, nOrb1])
 
-        tmpA(:nOrb1,:nOrb1) = matmul(transpose(tmp(:nOrb2, :nOrb1)), tmp(:nOrb2, :nOrb1))
+        tmpSdotS(:nOrb1,:nOrb1) = matmul(transpose(tmpS21(:nOrb2, :nOrb1)), tmpS21(:nOrb2, :nOrb1))
         do iCart = 1, 3
           dab(:nOrb1, :nOrb1, iAt1, iCart) = dab(:nOrb1, :nOrb1, iAt1, iCart)&
-              & +(coord(iCart, iAt2) - coord(iCart, iAt1)) * tmpA(:nOrb1,:nOrb1)
+              & +(coord(iCart, iAt2) - coord(iCart, iAt1)) * tmpSdotS(:nOrb1,:nOrb1)
         end do
 
-        tmpA(:nOrb2,:nOrb2) = matmul(tmp(:nOrb2, :nOrb1), transpose(tmp(:nOrb2, :nOrb1)))
+        tmpSdotS(:nOrb2,:nOrb2) = matmul(tmpS21(:nOrb2, :nOrb1), transpose(tmpS21(:nOrb2, :nOrb1)))
         do iCart = 1, 3
           dab(:nOrb2, :nOrb2, iAt2f, iCart) = dab(:nOrb2, :nOrb2, iAt2f, iCart)&
-              & +(coord(iCart, iAt1) - coord(iCart, iAt2)) * tmpA(:nOrb2,:nOrb2)
+              & +(coord(iCart, iAt1) - coord(iCart, iAt2)) * tmpSdotS(:nOrb2,:nOrb2)
         end do
 
       end do
     end do
 
     dab(:,:,:,:) = 0.25_dp * dab
-
-    do iAt1 = 1, nAtom0
-      iSp1 = species(iAt1)
-      nOrb1 = orb%nOrbSpecies(iSp1)
-      write(stdOut,*)iAt1
-      do iCart = 1, 3
-        do iOrig = 1, nOrb1
-          write(stdOut,*)dab(:nOrb1, iOrig, iAt1, iCart)
-        end do
-        write(stdOut,*)
-      end do
-    end do
 
   end subroutine approxAtomDipole
 

@@ -5215,6 +5215,8 @@ contains
             & call detailedError(child, "Negative sigma for dielectric broadening")
         if (ctrl%evaluateDielectricFn%sigma < epsilon(0.0_dp))&
             & call detailedError(child, "Too small sigma for dielectric broadening")
+        call getChildValue(child, "AtomDipole", ctrl%evaluateDielectricFn%isAtomicDipoleIncluded,&
+            & .false.)
       end if
 
       call renameChildren(node, "Localize", "Localise")
