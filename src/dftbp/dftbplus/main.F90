@@ -3134,10 +3134,12 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
-      if (evaluateDielectricFn%isAtomicDipoleIncluded) then
-        allocate(dab(orb%mOrb, orb%mOrb, size(nNeighbourSK), 3), source=0.0_dp)
-        call approxAtomDipole(ints%overlap, nNeighbourSK, neighbourList%iNeighbour, iSparseStart,&
-            & img2CentCell, orb, species, coord, dab)
+      if (allocated(evaluateDielectricFn)) then
+        if (evaluateDielectricFn%isAtomicDipoleIncluded) then
+          allocate(dab(orb%mOrb, orb%mOrb, size(nNeighbourSK), 3), source=0.0_dp)
+          call approxAtomDipole(ints%overlap, nNeighbourSK, neighbourList%iNeighbour, iSparseStart,&
+              & img2CentCell, orb, species, coord, dab)
+        end if
       end if
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
