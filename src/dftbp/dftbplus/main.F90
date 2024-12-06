@@ -3090,6 +3090,7 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     integer :: nSpin
+    real(dp), allocatable :: dab(:,:,:,:)
 
     nSpin = size(ints%hamiltonian, dim=2)
 
@@ -3133,8 +3134,11 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
-      !call approxAtomDipole(ints%overlap, nNeighbourSK, neighbourList%iNeighbour, iSparseStart,&
-      !    & img2CentCell, orb, species, coord)
+      if (evaluateDielectricFn%isAtomicDipoleIncluded) then
+        allocate(dab(orb%mOrb, orb%mOrb, size(nNeighbourSK), 3), source=0.0_dp)
+        call approxAtomDipole(ints%overlap, nNeighbourSK, neighbourList%iNeighbour, iSparseStart,&
+            & img2CentCell, orb, species, coord, dab)
+      end if
       if (tRealHS) then
         call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, species, coord, tPeriodic, tHelical, eigVecsReal,&
@@ -3149,7 +3153,7 @@ contains
               & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, orb, denseDesc,&
               & iSparseStart, img2CentCell, kPoint, kWeight, rCellVecs, cellVec, iCellVec, latVecs,&
               & densityMatrix, hybridXc, taggedWriter, this%tWriteAutotest, this%tWriteResultsTag,&
-              & errStatus)
+              & dab, errStatus)
           @:PROPAGATE_ERROR(errStatus)
         end if
       #:endif
