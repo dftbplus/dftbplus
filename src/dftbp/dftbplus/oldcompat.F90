@@ -872,7 +872,8 @@ contains
       call getChildValue(ch1, "", hybridAlgorithm, child=ch3)
       call getNodeName(hybridAlgorithm, buffer)
 
-      isNoneAlgorithm = tolower(char(buffer)) == "none" ! as this is allowed as an input choice
+      ! as this is allowed as an input choice
+      isNoneAlgorithm = tolower(char(buffer)) == "none"
 
       if (.not.isNoneAlgorithm) then
         call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations&
