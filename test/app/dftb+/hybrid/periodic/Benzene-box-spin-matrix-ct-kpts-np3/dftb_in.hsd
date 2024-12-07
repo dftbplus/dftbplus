@@ -4,7 +4,6 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
 
-  SCC = Yes
   SCCTolerance = 1e-08
 
   Charge = 2

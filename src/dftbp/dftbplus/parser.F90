@@ -7964,11 +7964,13 @@ contains
 
     if (isHybridInp .and. .not. isHybridSk) then
       call error("Hybrid input block present, but SK-file '" // trim(fileName)&
-          & // "' appears to be (semi-)local.")
+          & // "'" // newline // "   appears to be (semi-)local.")
     elseif (isHybridSk .and. .not. isHybridInp) then
-      call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
+      call error("Hybrid SK-file '" // trim(fileName) // "' provided," // newline //&
+          & "   but the hybrid block is missing from the HSD input file.")
     end if
 
+    hybridXcInputTag = hybridXcFunc%none
     if (isHybridInp) then
       ! Convert hybrid functional type of user input to enumerator
       select case(tolower(char(buffer)))
@@ -7985,7 +7987,8 @@ contains
 
       ! Check if hybrid functional type is in line with SK-files
       if (.not. hybridXcInputTag == hybridXcSkTag) then
-        call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
+        call detailedError(hybridChild, "Requested hybrid functional type conflict with provided&
+            & SK-file(s).")
       end if
 
       allocate(input)
@@ -8071,10 +8074,6 @@ contains
         allocate(input%wignerSeitzReduction)
         call getChildValue(cmValue, "WignerSeitzReduction", input%wignerSeitzReduction, default=0)
       end if
-
-    else
-
-      hybridXcInputTag = hybridXcFunc%none
 
     end if
 
