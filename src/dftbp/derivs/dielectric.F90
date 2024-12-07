@@ -254,12 +254,10 @@ contains
     lowerEgy = huge(1.0_dp)
     upperEgy = -huge(1.0_dp)
     do iKS = 1, parallelKS%nLocalKS
-      lowerEgy = min(lowerEgy, wij(iKS)%data(1))
-      upperEgy = max(upperEgy, wij(iKS)%data(nTrans(iKS)))
+      lowerEgy = min(lowerEgy, wij(iKS)%data(1) - widthOfNonZero)
+      upperEgy = max(upperEgy, wij(iKS)%data(nTrans(iKS)) + widthOfNonZero)
     end do
-    !lowerEgy = lowerEgy - widthOfNonZero
     lowerEgy = min(0.0_dp, lowerEgy)
-    !upperEgy = upperEgy + widthOfNonZero
     nEgyPts = ceiling((upperEgy-lowerEgy) / settings%gridSpacing)
     nEgyPts = nEgyPts + 2 * nNonZero
 
@@ -332,7 +330,7 @@ contains
             iFil = getIA(iKS)%data(iTrans, 1)
             iEmp = getIA(iKS)%data(iTrans, 2)
             pElement(iCart, iTrans) = pElement(iCart, iTrans)&
-                & +wij(iKS)%data(nTrans(iTrans))*dot_product(eigVecsCplx(:,iEmp,iKS),work2(:,iFil))
+                & +wij(iKS)%data(nTrans(iKS))*dot_product(eigVecsCplx(:,iEmp,iKS),work2(:,iFil))
           end do
 
         end if
@@ -350,7 +348,7 @@ contains
 
         chiTmp(:) = 2.0_dp * pi * fij(iKS)%data(iTrans) * kWeight(iK) * chiTmp
         chiTmp(:) = real(chiTmp / (cellVol * (wij(iKS)%data(iTrans)**2 + eta)), dp)
-        jj = nint((wij(iKS)%data(iTrans) - lowerEgy) / settings%gridSpacing)
+        jj = ceiling((wij(iKS)%data(iTrans) - lowerEgy) / settings%gridSpacing)
         do ii = -nNonZero, nNonZero
           imChi(:, jj+ii) = imChi(:, jj+ii) + chiTmp*norm*exp(lambda * (ii*settings%gridSpacing)**2)
         end do
