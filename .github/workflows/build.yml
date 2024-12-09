@@ -9,6 +9,7 @@ env:
   HOMEBREW_NO_GITHUB_API: "ON"
   HOMEBREW_NO_INSTALL_CLEANUP: "ON"
   BUILD_DIR: _build
+  INSTALL_DIR: _install
   CMAKE_OPTIONS: >-
     -DWITH_API=true
     -DWITH_SDFTD3=true
@@ -26,6 +27,11 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    env:
+      FC: gfortran
+      CC: gcc
+      CXX: g++
+
     strategy:
       fail-fast: false
       matrix:
@@ -33,18 +39,13 @@ jobs:
         mpi: [nompi, openmpi]
         config: [Debug]
         version: [13]
-        # include:
-        #   - os: ubuntu-latest
-        #     mpi: nompi
-        #     config: Coverage
-        #     version: 13
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
@@ -69,9 +70,9 @@ jobs:
 
     - name: Set Compiler
       run: |
-        echo "FC=gfortran" >> $GITHUB_ENV
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "CXX=g++" >> $GITHUB_ENV
+        echo "FC=${FC}" >> ${GITHUB_ENV}
+        echo "CC=${CC}" >> ${GITHUB_ENV}
+        echo "CXX=${CXX}" >> ${GITHUB_ENV}
 
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
@@ -98,7 +99,7 @@ jobs:
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
 
-    - name: Install cmake
+    - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
@@ -107,48 +108,48 @@ jobs:
     - name: Set extra CMake flags
       run: |
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+        if [[ "${{ matrix.mpi }}" == "openmpi" || "${{ matrix.mpi }}" == "mpich" ]]; then
+          echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DTEST_MPI_PROCS=2" >> $GITHUB_ENV
+        fi
 
     - name: Configure build
       run: >-
-        cmake -B _build -G Ninja
-        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        cmake -B ${BUILD_DIR} -G Ninja
+        -DCMAKE_INSTALL_PREFIX=${PWD}/${INSTALL_DIR}
         -DCMAKE_BUILD_TYPE=${{ matrix.config }}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
     - name: Build project
-      run: cmake --build ${BUILD_DIR}
+      run: cmake --build ${BUILD_DIR} -j
 
     - name: Run regression tests
       run: |
+        if [[ "${{ matrix.mpi }}" == "nompi" ]]; then
+          echo "TEST_OMP_PROCS=4" >> $GITHUB_ENV
+        else
+          echo "TEST_OMP_PROCS=2" >> $GITHUB_ENV
+        fi
         pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
+        ctest -j ${TEST_OMP_PROCS} --output-on-failure
         popd
 
     - name: Install project
-      run: |
-        cmake --install ${BUILD_DIR}
+      run: cmake --install ${BUILD_DIR}
 
     - name: Create gcov reports
       if: contains(matrix.config, 'Coverage')
-      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
-
-    # - name: Upload coverage report
-    #   if: contains(matrix.config, 'Coverage')
-    #   uses: codecov/codecov-action@v1
-    #   with:
-    #     directory: _build/gcovs
-    #     functionalities: gcov
+      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/${BUILD_DIR}/gcovs ${PWD}/${BUILD_DIR}/src ${PWD}/${BUILD_DIR}/app
 
     - name: Run integration CMake test
       run: >-
-        CMAKE_PREFIX_PATH="${PWD}/_install:${CMAKE_PREFIX_PATH}"
+        CMAKE_PREFIX_PATH="${PWD}/${INSTALL_DIR}:${CMAKE_PREFIX_PATH}"
         ./test/src/dftbp/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
         ${CMAKE_DEP_OPTIONS}
 
     - name: Run integration pkg-config test
       run: >-
-        PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
+        PKG_CONFIG_PATH="${PWD}/${INSTALL_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
         ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
 
@@ -175,10 +176,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: 3.x
 
@@ -186,43 +187,38 @@ jobs:
       uses: rscohn2/setup-oneapi@v0
       with:
         components: |
-          icx@2024.0.0
-          ifx@2024.0.0
-          mkl@2024.0.0
+          icx@2025.0.0
+          ifx@2025.0.0
+          mkl@2025.0.0
 
     - name: Setup Intel environment
       run: |
         source /opt/intel/oneapi/setvars.sh
         printenv >> ${GITHUB_ENV}
-        echo "FC=ifx" >> ${GITHUB_ENV}
-        echo "CC=icx" >> ${GITHUB_ENV}
+        echo "FC=${FC}" >> ${GITHUB_ENV}
+        echo "CC=${CC}" >> ${GITHUB_ENV}
 
-    - name: Install tools via pip
+    - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
-    - name: Set extra CMake flags (Linux)
-      run: |
-        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+    - name: Set extra CMake flags
+      run: echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
     - name: Configure build
       run: >-
-        cmake -B _build -G Ninja
-        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        cmake -B ${BUILD_DIR} -G Ninja
+        -DCMAKE_INSTALL_PREFIX=${PWD}/${INSTALL_DIR}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
     - name: Build project
-      run: cmake --build ${BUILD_DIR}
+      run: cmake --build ${BUILD_DIR} -j
 
     - name: Run regression tests
       run: |
         pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
+        ctest -j --output-on-failure
         popd
-
-    # - name: Install project
-    #   run: |
-    #     cmake --install ${BUILD_DIR}
