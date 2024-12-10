@@ -69,7 +69,6 @@ module dftbp_dftbplus_parser
   use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
-  use dftbp_mixer_mixer, only : mixerTypes
   use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
@@ -1046,15 +1045,9 @@ contains
     end if
     call getChildValue(pRoot, 'PreSteps', input%nPreSteps, 0)
 
-    ! Since inverse Jacobian is not enabled, we can set FullSccSteps
-    ! to its minimal value (no averaging of inverse Jacobians is done)
-    !call getChildValue(child, 'FullSccSteps', input%nFullSccSteps, &
-    !    & input%nKappa + 1, child=child2)
+    ! Since support for inverse Jacobian has been removed, we can set FullSccSteps
+    ! to its minimal value (no averaging of inverse Jacobians is done anymore)
     input%nFullSccSteps = input%nKappa + 1
-    !if (input%nFullSccSteps < input%nKappa + 1) then
-    !  call detailedError(child2, 'Nr. of full SCC steps must be greater by&
-    !      & one than integration steps')
-    !end if
 
     if (tXlbomdFast) then
       call getChildValue(pRoot, 'TransientSteps', input%nTransientSteps, 10)
@@ -1068,15 +1061,6 @@ contains
             & (0.0, 1.0]')
       end if
 
-      !! Inverse Jacobian is experimental feature so far.
-      !call getChildValue(child, "UseJacobianKernel", &
-      !    & input%useInverseJacobian, .false.)
-      !if (input%useInverseJacobian) then
-      !  call getChildValue(child, "ReadJacobianKernel", &
-      !      & input%readInverseJacobian, .false.)
-      !end if
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     else
       input%nTransientSteps = 0
       call getChildValue(pRoot, 'MinSccIterations', input%minSCCIter, 1)
@@ -1086,8 +1070,6 @@ contains
       end if
       call getChildValue(pRoot, 'SccTolerance', input%sccTol, 1e-5_dp)
       input%scale = 1.0_dp
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     end if
 
   end subroutine readXlbomdOptions
@@ -5519,49 +5501,48 @@ contains
         select case(char(buffer))
 
         case ("broyden")
-
-          ctrl%iMixSwitch = mixerTypes%broyden
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+          
+          allocate(ctrl%mixerInp%broydenMixerInp)
+          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%broydenMixerInp%mixParam, 0.2_dp)
+          call getChildValue(value1, "InverseJacobiWeight", ctrl%mixerInp%broydenMixerInp%omega0, 0.01_dp)
+          call getChildValue(value1, "MinimalWeight", ctrl%mixerInp%broydenMixerInp%minWeight, 1.0_dp)
+          call getChildValue(value1, "MaximalWeight", ctrl%mixerInp%broydenMixerInp%maxWeight, 1.0e5_dp)
+          call getChildValue(value1, "WeightFactor", ctrl%mixerInp%broydenMixerInp%weightFac, 1.0e-2_dp)
 
         case ("anderson")
 
-          ctrl%iMixSwitch = mixerTypes%anderson
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-              & allowEmptyValue=.true.)
+          allocate(ctrl%mixerInp%andersonMixerInp)
+          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%andersonMixerInp%mixParam, 0.05_dp)
+          call getChildValue(value1, "Generations", ctrl%mixerInp%andersonMixerInp%iGenerations, 4)
+          call getChildValue(value1, "InitMixingParameter", ctrl%mixerInp%andersonMixerInp%initMixParam, 0.01_dp)
+          call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
           call getNodeName2(value2, buffer2)
           if (char(buffer2) == "") then
-            ctrl%andersonNrDynMix = 0
+            ctrl%mixerInp%andersonMixerInp%nConvMixParam = 0
           else
             call init(lr1)
             call getChildValue(child, "", 2, lr1, child=child2)
             if (len(lr1) < 1) then
               call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
             end if
-            ctrl%andersonNrDynMix = len(lr1)
-            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-            call asArray(lr1, ctrl%andersonDynMixParams)
+            ctrl%mixerInp%andersonMixerInp%nConvMixParam = len(lr1)
+            allocate(ctrl%mixerInp%andersonMixerInp%convMixParam(2, ctrl%mixerInp%andersonMixerInp%nConvMixParam))
+            call asArray(lr1, ctrl%mixerInp%andersonMixerInp%convMixParam)
             call destruct(lr1)
           end if
-          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+          call getChildValue(value1, "DiagonalRescaling", ctrl%mixerInp%andersonMixerInp%omega0, 1.0e-2_dp)
 
         case ("simple")
+        
+          allocate(ctrl%mixerInp%simpleMixerInp)
+          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%simpleMixerInp%mixParam, 0.05_dp)
 
-          ctrl%iMixSwitch = mixerTypes%simple
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+        case ("diis")
 
-        case("diis")
-
-          ctrl%iMixSwitch = mixerTypes%diis
-          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+          allocate(ctrl%mixerInp%diisMixerInp)
+          call getChildValue(value1, "InitMixingParameter", ctrl%mixerInp%diisMixerInp%initMixParam, 0.2_dp)
+          call getChildValue(value1, "Generations", ctrl%mixerInp%diisMixerInp%iGenerations, 6)
+          call getChildValue(value1, "UseFromStart", ctrl%mixerInp%diisMixerInp%tFromStart, .true.)
 
         case default
 
