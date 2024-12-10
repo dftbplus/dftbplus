@@ -14,6 +14,9 @@ module modes_initmodes
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdOut
+#:if WITH_MAGMA
+  use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
+#:endif
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
@@ -115,6 +118,11 @@ module modes_initmodes
   !> Eigensolver choice
   integer :: iSolver
 
+#:if WITH_MAGMA
+  !> Global GPU settings
+  type(TGpuEnv), public :: gpu
+#:endif
+
   !> Namespace for possible eigensolver methods
   type :: TSolverTypesEnum
 
@@ -122,6 +130,9 @@ module modes_initmodes
     integer :: qr = 1
     integer :: divideandconquer = 2
     integer :: relativelyrobust = 3
+
+    ! GPU accelerated solver using MAGMA
+    integer :: magma_evd = 4
 
   end type TSolverTypesEnum
 
@@ -207,6 +218,13 @@ contains
       iSolver = solverTypes%divideandconquer
     case ("relativelyrobust")
       iSolver = solverTypes%relativelyrobust
+    case ("magma")
+    #:if WITH_MAGMA
+      call TGpuEnv_init(gpu)
+    #:else
+      call error("Magma-solver selected, but program was compiled without MAGMA")
+    #:endif
+      iSolver = solverTypes%magma_evd
     case default
       call detailedError(root, "Unknown eigensolver "//char(buffer2))
     end select
