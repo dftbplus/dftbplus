@@ -10,8 +10,7 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_reset, TDiisMixerReal_init,&
-      & TDiisMixerReal_mix
+  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerInp
   implicit none
 
   private
@@ -25,7 +24,7 @@ module dftbp_geoopt_gdiis
     private
 
     !> DIIS object itself
-    type(TDiisMixerReal) :: pDiis
+    type(TDiisMixerReal) :: diis
 
     !> Vector of current coordinate
     real(dp), allocatable :: x(:)
@@ -79,10 +78,14 @@ contains
     !> Number of vectors to use in building DIIS space
     integer, intent(in) :: nGens
 
+    type(TDiisMixerInp) :: mixerInp
+
     this%nElem = nElem
     this%tolerance = tol
     allocate(this%x(this%nElem))
-    call TDiisMixerReal_init(this%pDiis, nGens, alpha, .true., alpha)
+
+    mixerInp = TDiisMixerInp(nGens, alpha, .true., alpha)
+    call TDiisMixerReal_init(this%diis, mixerInp)
     this%tInitialized = .true.
 
   end subroutine gDiis_init
@@ -97,7 +100,7 @@ contains
     !> Point to start from
     real(dp) :: x(:)
 
-    call TDiisMixerReal_reset(this%pDiis, this%nElem)
+    call this%diis%reset(this%nElem)
     this%x(:) = x
 
   end subroutine gDiis_reset
@@ -125,7 +128,7 @@ contains
     @:ASSERT(size(dx) == this%nElem)
 
     xNew(:) = this%x
-    call TDiisMixerReal_mix(this%pDiis, this%x, dx)
+    call this%diis%mix1d(this%x, dx)
     tConverged = maxval(abs(xNew - this%x)) < this%tolerance .or. (maxval(abs(dx)) < this%tolerance)
     xNew(:) = this%x
 

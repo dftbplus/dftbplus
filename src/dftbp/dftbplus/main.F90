@@ -95,8 +95,7 @@ module dftbp_dftbplus_main
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_xlbomd, only : TXLBOMD
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, TMixerReal_reset, TMixerCmplx_reset,&
-      & TMixerReal_mix, TMixerCmplx_mix, TMixerReal_getInverseJacobian
+  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx
   use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
       & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
       & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
@@ -318,7 +317,7 @@ contains
               & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
               & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
               & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-              & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%pChrgMixerReal,&
+              & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
               & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
               & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
           if (errStatus%hasError()) then
@@ -494,7 +493,7 @@ contains
             & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
             & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
             & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-            & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%pChrgMixerReal,&
+            & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
             & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
             & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
         if (errStatus%hasError()) then
@@ -520,7 +519,7 @@ contains
             & this%perturbSccTol, this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb,&
             & this%iEqOrbitals, this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU,&
             & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%hybridXc,&
-            & this%nNeighbourCam, this%pChrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
+            & this%nNeighbourCam, this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
             & this%cellVec, this%neFermi, errStatus, this%dynKernelFreq, this%tHelical, this%coord)
         if (errStatus%hasError()) then
           call error(errStatus%message)
@@ -931,7 +930,7 @@ contains
       ! Mix charges Input/Output
 
       if (.not. this%isHybridXc) then
-        call getNextInputCharges(env, this%pChrgMixerReal, this%qOutput, this%qOutRed, this%orb,&
+        call getNextInputCharges(env, this%chrgMixerReal, this%qOutput, this%qOutRed, this%orb,&
             & this%nIneqOrb, this%iEqOrbitals, iGeoStep, iSccIter, this%minSccIter,&
             & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
             & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
@@ -942,7 +941,7 @@ contains
         if (this%tRealHS) then
           call getNextInputDensityReal(env, this%parallelKS, this%SSqrReal, this%ints,&
               & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
-              & this%img2CentCell, this%pChrgMixerReal, this%qOutput, this%orb, this%tHelical,&
+              & this%img2CentCell, this%chrgMixerReal, this%qOutput, this%orb, this%tHelical,&
               & this%species0, this%species, this%coord, iGeoStep, iSccIter, this%minSccIter,&
               & this%maxSccIter, this%sccTol, tStopScc, this%tReadChrg, this%q0, this%hybridXc,&
               & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
@@ -950,8 +949,8 @@ contains
           @:PROPAGATE_ERROR(errStatus)
         else
           call getNextInputDensityCplx(env, this%ints, this%neighbourList, this%nNeighbourSK,&
-              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%pChrgMixerReal,&
-              & this%pChrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
+              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%chrgMixerReal,&
+              & this%chrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
               & this%kWeight, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%sccTol,&
               & tStopScc, this%tReadChrg, this%checkStopHybridCalc, this%q0, this%iCellVec,&
               & this%cellVec, this%hybridXc, this%qInput, sccErrorQ, tConverged,&
@@ -1142,14 +1141,14 @@ contains
       if (this%isHybridXc) then
         if (withMpi .and. this%tRealHS&
             & .and. this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
-          call TMixerReal_reset(this%pChrgMixerReal, this%nOrb**2 * this%nSpin)
-        elseif (allocated(this%pChrgMixerCmplx)) then
-          call TMixerCmplx_reset(this%pChrgMixerCmplx, this%nMixElements)
+          call this%chrgMixerReal%reset(this%nOrb**2 * this%nSpin)
+        elseif (allocated(this%chrgMixerCmplx)) then
+          call this%chrgMixerCmplx%reset(this%nMixElements)
         else
-          call TMixerReal_reset(this%pChrgMixerReal, this%nMixElements)
+          call this%chrgMixerReal%reset(this%nMixElements)
         end if
       else
-        call TMixerReal_reset(this%pChrgMixerReal, this%nMixElements)
+        call this%chrgMixerReal%reset(this%nMixElements)
       end if
     end if
 
@@ -1648,7 +1647,7 @@ contains
     end if
 
     if (this%isXlbomd) then
-      call getXlbomdCharges(this%xlbomdIntegrator, this%qOutRed, this%pChrgMixerReal, this%orb,&
+      call getXlbomdCharges(this%xlbomdIntegrator, this%qOutRed, this%chrgMixerReal, this%orb,&
           & this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed, this%dftbU,&
           & this%iEqBlockDftbU, this%qBlockIn, this%species0, this%iEqBlockDftbuLs, this%qiBlockIn,&
           & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
@@ -4319,7 +4318,7 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getNextInputCharges(env, pChrgMixerReal, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+  subroutine getNextInputCharges(env, chrgMixerReal, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
       & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
@@ -4329,7 +4328,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -4463,7 +4462,7 @@ contains
         end if
         multipoleInp = multipoleOut
       else
-        call TMixerReal_mix(pChrgMixerReal, qInpRed, qDiffRed)
+        call chrgMixerReal%mix(qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart
         call mpifx_bcast(env%mpi%globalComm, qInpRed)
@@ -4490,7 +4489,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityReal(env, parallelKS, SSqrReal, ints, neighbourList, nNeighbourSK,&
-      & denseDesc, iSparseStart, img2CentCell, pChrgMixerReal, qOutput, orb, tHelical, species0,&
+      & denseDesc, iSparseStart, img2CentCell, chrgMixerReal, qOutput, orb, tHelical, species0,&
       & species, coord, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
       & q0, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn, qBlockOut, errStatus)
 
@@ -4522,7 +4521,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -4654,7 +4653,7 @@ contains
           if (env%tGlobalLead) then
             ! Re-allocate difference, this time for full density collected from all MPI ranks
             deltaRhoDiffSqr = collectedDeltaRhoOutSqr - collectedDeltaRhoInSqr
-            call TMixerReal_mix(pChrgMixerReal, collectedDeltaRhoInSqr, deltaRhoDiffSqr)
+            call chrgMixerReal%mix(collectedDeltaRhoInSqr, deltaRhoDiffSqr)
           end if
           ! scatter mixed full, square density matrix to MPI ranks
           call scatterFullToDistributed(env, denseDesc, parallelKS, collectedDeltaRhoInSqr,&
@@ -4664,7 +4663,7 @@ contains
               & SSqrReal, qInput)
         end if
       #:else
-        call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
+        call chrgMixerReal%mix(densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
         call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
       #:endif
 
@@ -4706,7 +4705,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityCplx(env, ints, neighbourList, nNeighbourSK, denseDesc,&
-      & iSparseStart, img2CentCell, pChrgMixerReal, pChrgMixerCmplx, qOutput, orb, parallelKS,&
+      & iSparseStart, img2CentCell, chrgMixerReal, chrgMixerCmplx, qOutput, orb, parallelKS,&
       & kPoint, kWeight, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
       & checkStopHybridCalc, q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged,&
       & densityMatrix, qBlockIn, qBlockOut)
@@ -4733,10 +4732,10 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Complex charge mixing object
-    type(TMixerCmplx), intent(inout), allocatable :: pChrgMixerCmplx
+    class(TMixerCmplx), intent(inout), allocatable :: chrgMixerCmplx
 
     !> Output electrons
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -4861,7 +4860,7 @@ contains
 
         if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
           if (env%tGlobalLead) then
-            call TMixerCmplx_mix(pChrgMixerCmplx, densityMatrix%deltaRhoInCplx, deltaRhoDiffSqrCplx)
+            call chrgMixerCmplx%mix(densityMatrix%deltaRhoInCplx, deltaRhoDiffSqrCplx)
           end if
         #:if WITH_MPI
           call mpifx_bcast(env%mpi%globalComm, densityMatrix%deltaRhoInCplx)
@@ -4902,7 +4901,7 @@ contains
           end do
 
         else ! hybridXc%hybridXcAlg /= hybridXcAlgo%matrixBased
-          call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoInCplxHS, deltaRhoDiffSqrCplxHS)
+          call chrgMixerReal%mix(densityMatrix%deltaRhoInCplxHS, deltaRhoDiffSqrCplxHS)
           call mulliken(qInput, ints%overlap, densityMatrix%deltaRhoInCplxHS, orb,&
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
               & denseDesc%iAtomStart, iCellVec, cellVec, hybridXc)
@@ -5344,7 +5343,7 @@ contains
 
 
   !> Get the XLBOMD charges for the current geometry.
-  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixerReal, orb, nIneqOrb,&
+  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, chrgMixerReal, orb, nIneqOrb,&
       & iEqOrbitals, qInput, qInpRed, dftbU, iEqBlockDftbu, qBlockIn, species0, iEqBlockDftbuLS,&
       & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
 
@@ -5355,7 +5354,7 @@ contains
     real(dp), intent(in) :: qOutRed(:)
 
     !> SCC mixer
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5396,15 +5395,6 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary part
     integer, intent(inout), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
-    real(dp), allocatable :: invJacobian(:,:)
-
-    if (xlbomdIntegrator%needsInverseJacobian()) then
-      write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
-      allocate(invJacobian(nIneqOrb, nIneqOrb))
-      call TMixerReal_getInverseJacobian(pChrgMixerReal, invJacobian)
-      call xlbomdIntegrator%setInverseJacobian(invJacobian)
-      deallocate(invJacobian)
-    end if
     call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
     call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn, iEqBlockDftbu,&
         & species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
