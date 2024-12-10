@@ -17,10 +17,16 @@ program modes
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev, heevd, heevr
+#:if WITH_MAGMA
+  use dftbp_math_eigensolver, only : gpu_evd
+#:endif
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
       & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
       & iSolver, solverTypes, setEigvecGauge
+#:if WITH_MAGMA
+  use modes_initmodes, only : gpu
+#:endif
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
@@ -92,10 +98,16 @@ program modes
   select case(iSolver)
   case(solverTypes%qr)
     call heev(dynMatrix, eigenValues, "U", eigenSolverMode)
-  case(solverTypes%divideandconquer)
+  case(solverTypes%divideAndConquer)
     call heevd(dynMatrix, eigenValues, "U", eigenSolverMode)
-  case(solverTypes%relativelyrobust)
+  case(solverTypes%relativelyRobust)
     call heevr(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%magmaEvd)
+  #:if WITH_MAGMA
+    call gpu_evd(gpu%nGpu, dynMatrix, eigenValues, "U", eigenSolverMode)
+  #:else
+    call error("Magma-solver selected, but program was compiled without MAGMA")
+  #:endif
   case default
     call error("Unknown eigensolver choice")
   end select
