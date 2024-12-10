@@ -33,6 +33,8 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
+- MAGMA GPU accelerated solver for the modes code
+
 Fixed
 -----
 
