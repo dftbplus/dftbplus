@@ -82,7 +82,7 @@ module dftbp_timedep_linrespgrad
   character(*), parameter :: arpackOut = "ARPACK.DAT"
   character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
 
-  !> Treshold for near-identical NACV values to fix phase
+  !> Threshold for near-identical NACV values to fix phase
   real(dp), parameter :: nacTol = 1.0e-6_dp
 
 contains
@@ -1317,6 +1317,7 @@ contains
 
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
+
     #:if WITH_SCALAPACK
       ! required for coherence between processors, as slices of eigenvectors are processed on
       ! separate ranks, so need the same global phase convention:
@@ -1384,6 +1385,7 @@ contains
 
       ! if converged then exit loop:
       if (didConverge) then
+
         eval(:) = evalInt(1:nExc)
 
         ! Calc. X+Y
@@ -1399,6 +1401,7 @@ contains
 
         write(stdOut,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
+
       end if
 
       ! Otherwise calculate new basis vectors and extend subspace with them
