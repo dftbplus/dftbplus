@@ -32,6 +32,7 @@ Additionally optional definitions may be present:
   \kw{BornCharges} & p & & \cb & \pref{sec:modes.BornCharges} \\
   \kw{BornDerivs} & p & & \cb & \pref{sec:modes.BornDerivs} \\
   \kw{EigenSolver} & s & & QR & \\
+  \kw{PhaseLock} & p & & \cb & \pref{sec:modes.PhaseLock} \\
 \end{ptableh}
 
 \begin{description}
@@ -243,3 +244,14 @@ Slater-Koster file. An example is given below:
   }
 \end{verbatim}
 where \kw{Atoms} specifies the atom or atoms which each have a mass of \kw{MassPerAtom} assigned.
+
+\subsubsection{PhaseLock}
+\label{sec:modes.PhaseLock}
+
+\begin{ptable}
+  \kw{DegenerateAt} & r & & 4.5563351E-9 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{DegenerateAt}] Corresponds to $1.0\times10^{-3}$~cm$^{-1}$
+\end{description}
