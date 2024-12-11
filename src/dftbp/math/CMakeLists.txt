@@ -16,6 +16,7 @@ set(sources-fpp
   ${curdir}/interpolation.F90
   ${curdir}/lapackroutines.F90
   ${curdir}/matrixops.F90
+  ${curdir}/phase.F90
   ${curdir}/qm.F90
   ${curdir}/quaternions.F90
   ${curdir}/randomgenpool.F90

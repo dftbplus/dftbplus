@@ -1505,19 +1505,19 @@ contains
     end if REKS_SCC
 
   #:if WITH_SCALAPACK
-    if (this%isSparseReorderRequired) then
+    if (this%isRowReorderRequired) then
       if (allocated(this%eigvecsReal)) then
         do iKS = 1, this%parallelKS%nLocalKS
           call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
               & this%eigvecsReal(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
-              & this%eigVecsRealReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & this%eigVecsRealRowReord(:,:,iKS), 1, 1, this%denseDesc%blacsRowSqr,&
               & env%blacs%orbitalGrid%ctxt)
         end do
       else if (allocated(this%eigvecsCplx)) then
         do iKS = 1, this%parallelKS%nLocalKS
           call blacsfx_gemr2d(this%denseDesc%nOrb, this%denseDesc%nOrb,&
               & this%eigvecsCplx(:,:,iKS), 1, 1, this%denseDesc%blacsOrbSqr,&
-              & this%eigVecsCplxReordered(:,:,iKS), 1, 1, this%denseDesc%blacsColumnSqr,&
+              & this%eigVecsCplxRowReord(:,:,iKS), 1, 1, this%denseDesc%blacsRowSqr,&
               & env%blacs%orbitalGrid%ctxt)
         end do
       end if

@@ -9,7 +9,7 @@
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be assembled
 #:set CHUNK_TYPES_ASSEM = [('real(dp)', 0, 'R0'), ('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
-    & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), &
+    & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), ('complex(dp)', 0, 'C0'), &
     & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), &
     & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4'), &
     & ('integer', 1, 'I1')]
@@ -176,7 +176,7 @@ contains
     ${DTYPE}$, intent(inout) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
   #:if WITH_MPI
-    call mpifx_allreduceip(env%mpi%groupComm, chunks, MPI_SUM)
+    if (env%mpi%groupSize > 0) call mpifx_allreduceip(env%mpi%groupComm, chunks, MPI_SUM)
   #:endif
 
   end subroutine assemble${NAME}$Chunks
