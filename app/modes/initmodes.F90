@@ -376,9 +376,11 @@ contains
     tEigenVectors = tPlotModes .or. allocated(bornMatrix) .or. allocated(bornDerivsMatrix)
 
     if (tEigenVectors) then
-      call getChildValue(root, "PhaseLock", isPhaseLocked, .false.)
-      if (isPhaseLocked) then
-        call getChildValue(root, "DegenerateAt", degenTol, 1.0E-3_dp/Hartree__cm,&
+      isPhaseLocked = .false.
+      call getChild(root, "PhaseLock", child=node, requested=.false.)
+      if (associated(node)) then
+        isPhaseLocked = .true.
+        call getChildValue(node, "DegenerateAt", degenTol, 1.0E-3_dp/Hartree__cm,&
             & modifier=modifier, child=child)
         call convertUnitHsd(char(modifier), energyUnits, child, degenTol)
       end if

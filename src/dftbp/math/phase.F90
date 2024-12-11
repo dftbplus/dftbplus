@@ -12,6 +12,7 @@ module dftbp_math_phase
   use dftbp_common_accuracy, only : dp, elecTolMax
   use dftbp_common_environment, only : TEnvironment
   use dftbp_math_degeneracy, only : TDegeneracyFind
+  use dftbp_math_blasroutines, only : symm
   use dftbp_math_matrixops, only : orthonormalizeVectors
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv
@@ -32,14 +33,14 @@ module dftbp_math_phase
   #:if WITH_SCALAPACK
     module procedure phaseLock_real_BLACS
   #:endif
+    module procedure phaseLockGeneral_real
   end interface phaseLock
 
 contains
 
 
-  !> Apply a phase convention to a set of eigenvectors, including definited unitary choice for
-  !! degenerate sets of vectors.  Note : need to also include generalised eigenvectors (with an
-  !! overlap matrix).
+  !> Apply a phase convention to a set of eigenvectors, including defined unitary choice for
+  !! degenerate sets of vectors.
   subroutine phaseLock_real(env, evec, eval, tolerance)
 
     !> Computatonal environment settings
@@ -81,7 +82,6 @@ contains
 
     degenerate = degeneracyFind%degenerateRanges()
     maxDegen = maxval(degenerate(2,:) - degenerate(1,:)) + 1
-
 
     allocate(vTrial(size(evec, dim=1), maxDegen), source=0.0_dp)
 
@@ -143,9 +143,113 @@ contains
 
   end subroutine phaseLock_real
 
+
+  !> Apply a phase convention to a set of generalised eigenvectors, including defined unitary
+  !! choice for degenerate sets of vectors.
+  subroutine phaseLockGeneral_real(env, evec, overlap, eval, tolerance)
+
+    !> Computatonal environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Eigenvectors
+    real(dp), intent(inout) :: evec(:,:)
+
+    !> Overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Eigenvalues
+    real(dp), intent(in) :: eval(:)
+
+    !> Optional tolerance
+    real(dp), intent(in), optional :: tolerance
+
+    integer :: ii, jj, iDegen, nDegen,  maxDegen, nDegenVectors
+    integer, allocatable :: degenerate(:,:) ! (start & end, n degenerate sub-spaces)
+    logical :: isDegenerate
+    real(dp) :: tol
+    real(dp), parameter :: tolMax = 100.0_dp * epsilon(1.0_dp)
+    real(dp), allocatable :: vTrial(:, :), sVTrial(:,:), sEvec(:,:)
+    type(TDegeneracyFind) :: DegeneracyFind
+
+    tol = elecTolMax
+    if (present(tolerance)) tol = tolerance
+
+    ! set phase of each row of the matrix
+    call simplePhase(eVec, tol)
+
+    call degeneracyFind%init(tol)
+    call degeneracyFind%degeneracyTest(eval, isDegenerate)
+
+    ! Harmless to use the above simplePhase transformation on degenerate subspaces, even though that
+    ! still leaves them with an undetermined unitary choice, so wastes a small amount of time.
+    if (.not. isDegenerate) then
+
+      return
+
+    endif
+
+    degenerate = degeneracyFind%degenerateRanges()
+    maxDegen = maxval(degenerate(2,:) - degenerate(1,:)) + 1
+
+    allocate(vTrial(size(evec, dim=1), maxDegen), source=0.0_dp)
+    allocate(sVTrial(size(evec, dim=1), maxDegen), source=0.0_dp)
+
+    lpDegen : do iDegen = 1, size(degenerate, dim=2)
+
+      nDegen = degenerate(2,iDegen) - degenerate(1,iDegen) + 1
+
+      if (nDegen < 2) cycle lpDegen
+
+      allocate(sEvec(size(eVec, dim=1), size(eVec, dim=2)))
+      call symm(sEvec, 'L', overlap, eVec)
+
+      nDegenVectors = 0
+
+      lpStartIndex : do ii = 1, size(evec, dim=1)
+
+        vTrial(:,nDegenVectors+1) = 0.0_dp
+        do jj = degenerate(1,iDegen), degenerate(2,iDegen)
+          ! project the defined unit vector onto the orthonormal vectors of the subspace
+          vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1) + evec(:, jj) * evec(ii, jj)
+        end do
+
+        vTrial(:,nDegenVectors+1) = vTrial(:,nDegenVectors+1)&
+            & / sqrt(sum(vTrial(:,nDegenVectors+1)**2))
+
+        if (nDegenVectors == 0) then
+          ! first vector in the subspace
+          nDegenVectors = 1
+
+        else
+
+          call orthonormalizeVectors(env, nDegenVectors+1, nDegenVectors+1,&
+              & vTrial(:,:nDegenVectors+1), nullTol = 1000.0_dp * epsilon(0.0_dp))
+
+          if (sum(vTrial(:,nDegenVectors+1)**2) > 0.0_dp) then
+            ! Orthonormal state is inside the subspace
+            nDegenVectors = nDegenVectors + 1
+          end if
+
+        end if
+
+
+        if (nDegenVectors == nDegen) exit lpStartIndex ! Enough vectors have been found
+
+      end do lpStartIndex
+
+      eVec(:, degenerate(1,iDegen):degenerate(2,iDegen)) = vTrial(:,:nDegenVectors)
+
+      ! ensure the vectors spanning the subspace are orthogonal to all of the other eigenvectors
+      call orthonormalizeVectors(env, degenerate(1,iDegen), degenerate(2,iDegen), eVec,&
+          & orthogonaliseFrom = degenerate(2,iDegen) + 1)
+
+    end do lpDegen
+
+  end subroutine phaseLockGeneral_real
+
 #:if WITH_SCALAPACK
 
-  !> Apply a phase convention to a set of eigenvectors, including definited unitary choice for
+  !> Apply a phase convention to a set of eigenvectors, including defined unitary choice for
   !! degenerate sets of vectors.  Note : need to also include generalised eigenvectors (with an
   !! overlap matrix).
   subroutine phaseLock_real_BLACS(env, evec, eval, tolerance, denseDesc)

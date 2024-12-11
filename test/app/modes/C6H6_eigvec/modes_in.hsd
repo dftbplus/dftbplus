@@ -17,6 +17,6 @@ Hessian = {
 }
 
 # Lock the phase and degenerate eigenvectors for test purposes
-PhaseLock = Yes
+PhaseLock = {}
 
 InputVersion = 3
