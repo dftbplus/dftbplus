@@ -8,7 +8,7 @@
 # archive_name: The name of the tarball to create
 #
 # The program assumes that the test names in the failure log are of the form *:<test_name>
-# <test_name> is the name of the test directory below <build_dir>/test.
+# <test_name> is the name of the test directory that is below <build_dir>/test.
 #
 
 BUILD_DIR="$1"
