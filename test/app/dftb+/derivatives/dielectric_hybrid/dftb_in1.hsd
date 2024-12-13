@@ -4,7 +4,6 @@ Geometry = VaspFormat {
 
 Hamiltonian = DFTB {
 
-    SCC = Yes
     SccTolerance = 1E-8
     
     Filling = Fermi {
