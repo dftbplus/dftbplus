@@ -74,7 +74,9 @@ Additionally there are optional requirements for some DFTB+ features:
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU
   accelerated computation (note that within ELSI, the ELPA library
   also supports distributed multiple GPUs if compiled with the correct
-  options).
+  options). The number of the available GPUs used by the MAGMA library
+  is controlled at runtime by the `MAGMA_NUM_GPUS` shell variable
+  (the usual default is 1).
 
 * The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for
   metadynamics simulations. If you build DFTB+ with MPI, the linked
