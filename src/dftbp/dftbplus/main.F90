@@ -1394,7 +1394,7 @@ contains
           if (this%tWriteRealHS .or. this%tWriteHS&
               & .and. any(this%electronicSolver%iSolver ==&
               & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-              & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
+              & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magmaGvd])) then
             call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
                 & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
                 & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
@@ -5688,7 +5688,7 @@ contains
 
     case (electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa, &
-        & electronicSolverTypes%magma_gvd)
+        & electronicSolverTypes%magmaGvd)
 
       call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&

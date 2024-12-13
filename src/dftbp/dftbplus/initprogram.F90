@@ -3400,7 +3400,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Electronic solver", this%electronicSolver%getSolverName()
     end if
 
-    if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    if (this%electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       #:if WITH_MAGMA
         call env%initGpu()
       #:else
@@ -6484,7 +6484,7 @@ contains
     if (electronicSolver%providesEigenvals) then
       iDm = densityMatrixTypes%fromEigenVecs
     end if
-    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    if (electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       if (isGpuUsed) then
         iDm = densityMatrixTypes%magma_fromEigenVecs
       else
@@ -6574,7 +6574,7 @@ contains
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
             & blurWidths, is3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
             & tPeriodic, tStress, tDipole)
-      case(electronicSolverTypes%magma_gvd)
+      case(electronicSolverTypes%magmaGvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
           & electronicSolverTypes%elpadm, electronicSolverTypes%elpa)

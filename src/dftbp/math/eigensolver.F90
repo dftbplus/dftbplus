@@ -27,7 +27,7 @@ module dftbp_math_eigensolver
   private
   public :: heev, heevd, heevr, hegv, hegvd, gvr, geev
 #:if WITH_MAGMA
-  public :: gpu_gvd, gpu_evd
+  public :: magmaHegvd, magmaHeevd
 #:endif
 
 
@@ -99,20 +99,21 @@ module dftbp_math_eigensolver
 #:if WITH_MAGMA
 
   !> Divide and conquer MAGMA GPU generalised eigensolver
-  interface gpu_gvd
+  interface magmaHegvd
     module procedure real_magma_ssygvd
     module procedure dble_magma_dsygvd
     module procedure cmplx_magma_chegvd
     module procedure dblecmplx_magma_zhegvd
-  end interface gpu_gvd
+  end interface magmaHegvd
+
 
   !> Divide and conquer MAGMA GPU eigensolver
-  interface gpu_evd
+  interface magmaHeevd
     module procedure real_magma_ssyevd
     module procedure dble_magma_dsyevd
     module procedure cmplx_magma_cheevd
     module procedure dblecmplx_magma_zheevd
-  end interface gpu_evd
+  end interface magmaHeevd
 
 #:endif
 

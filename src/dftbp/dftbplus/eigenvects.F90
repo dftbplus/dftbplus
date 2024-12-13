@@ -20,7 +20,7 @@ module dftbp_dftbplus_eigenvects
   use dftbp_io_message, only : cleanShutdown
   use dftbp_math_eigensolver, only : hegv, hegvd, gvr
 #:if WITH_MAGMA
-  use dftbp_math_eigensolver, only : gpu_gvd
+  use dftbp_math_eigensolver, only : magmaHegvd
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, MB_, NB_, scalafx_phegv,&
@@ -89,9 +89,9 @@ contains
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(electronicSolverTypes%magma_gvd)
+    case(electronicSolverTypes%magmaGvd)
   #:if WITH_MAGMA
-      call gpu_gvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
+      call magmaHegvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
   #:else
       @:RAISE_ERROR(errStatus, -1, "This binary is compiled without GPU support")
   #:endif
@@ -147,9 +147,9 @@ contains
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(electronicSolverTypes%magma_gvd)
+    case(electronicSolverTypes%magmaGvd)
   #:if WITH_MAGMA
-      call gpu_gvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
+      call magmaHegvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
   #:else
       @:RAISE_ERROR(errStatus, -1, "This binary is compiled without GPU support")
   #:endif

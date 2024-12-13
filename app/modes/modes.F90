@@ -18,7 +18,7 @@ program modes
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev, heevd, heevr
 #:if WITH_MAGMA
-  use dftbp_math_eigensolver, only : gpu_evd
+  use dftbp_math_eigensolver, only : magmaHeevd
 #:endif
   use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
       & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
@@ -104,7 +104,7 @@ program modes
     call heevr(dynMatrix, eigenValues, "U", eigenSolverMode)
   case(solverTypes%magmaEvd)
   #:if WITH_MAGMA
-    call gpu_evd(gpu%nGpu, dynMatrix, eigenValues, "U", eigenSolverMode)
+    call magmaHeevd(gpu%nGpu, dynMatrix, eigenValues, "U", eigenSolverMode)
   #:else
     call error("Magma-solver selected, but program was compiled without MAGMA")
   #:endif
