@@ -29,14 +29,14 @@ endforeach()
 
 foreach(test IN LISTS tests)
   add_test(
-    NAME dftb+_${test}
+    NAME app/dftb+/${test}
     COMMAND ${srcdir}/bin/autotest2
         -r ${srcdir} -w ${builddir} -d ${srcdir}/bin/tagdiff
         -P "${TEST_RUNNER}" -p "$<TARGET_FILE:dftb+>"
 	-G ${srcdir}/bin/globalpostrun.sh
         -s P,R,C,S ${test})
   set_tests_properties(
-    dftb+_${test}
+    app/dftb+/${test}
     PROPERTIES
     ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
 endforeach()
