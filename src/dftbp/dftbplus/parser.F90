@@ -2654,7 +2654,7 @@ contains
 
     case ("magma")
   #:if WITH_MAGMA
-      ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+      ctrl%solver%isolver = electronicSolverTypes%magmaGvd
       call getChildValue(value1, "DensityMatrixGPU", ctrl%isDmOnGpu, .true.)
   #:else
       call detailedError(node, "DFTB+ must be compiled with MAGMA support in order to enable&
