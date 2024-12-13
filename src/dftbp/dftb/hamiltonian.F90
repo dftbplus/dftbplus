@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> update the SCC hamiltonian
+!> Update the SCC hamiltonian
 module dftbp_dftb_hamiltonian
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
@@ -88,7 +88,7 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> species for atoms
+    !> Species for atoms
     integer, intent(in) :: species(:)
 
     !> Potential energy contributions
@@ -112,13 +112,13 @@ contains
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> potentials in the system
+    !> Potentials in the system
     type(TPotentials), intent(inout) :: potential
 
     @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
@@ -165,34 +165,34 @@ contains
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
 
-    !> reference atomic occupations
+    !> Reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> charges per atomic shell
+    !> Charges per atomic shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Multipole information
     type(TMultipole), intent(in) :: multipole
 
-    !> species of all atoms
+    !> Species of all atoms
     integer, target, intent(in) :: species(:)
 
-    !> neighbours to atoms
+    !> Neighbours to atoms
     type(TNeighbourList), intent(in) :: neighbourList
 
-    !> map from image atom to real atoms
+    !> Map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Solvation mode
     class(TSolvation), allocatable, intent(inout) :: solvation
 
-    !> third order SCC interactions
+    !> Third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> Potentials acting
@@ -295,25 +295,25 @@ contains
   !> Add potentials coming from on-site block of the dual density matrix.
   subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam, species, orb, potential)
 
-    !> block input charges
+    !> Block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
 
-    !> imaginary part
+    !> Imaginary part
     real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
 
-    !> is this a +U calculation
+    !> Is this a +U calculation
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> does the hamiltonian have an imaginary part in real space?
+    !> Does the hamiltonian have an imaginary part in real space?
     logical, intent(in) :: tImHam
 
-    !> chemical species of all atoms
+    !> Chemical species of all atoms
     integer, intent(in) :: species(:)
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> potentials acting in system
+    !> Potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
     if (allocated(dftbU)) then

@@ -23,10 +23,10 @@ contains
   !> Add the block shift due to onsite matrix element contributions
   subroutine addOnsShift(potential, iPotential, qBlock, qiBlock, onsMEs, species, orb, q0)
 
-    !> resulting onsite matrix elements
+    !> Resulting onsite matrix elements
     real(dp), intent(inout) :: potential(:,:,:,:)
 
-    !> resulting onsite matrix elements (imaginary part)
+    !> Resulting onsite matrix elements (imaginary part)
     real(dp), allocatable, intent(inout) :: iPotential(:,:,:,:)
 
     !> Block charges
@@ -35,16 +35,16 @@ contains
     !> Block charges (imaginary part)
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in) :: onsMEs(:,:,:,:)
 
-    !> species of each atom
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in), optional :: q0(:,:,:)
 
     integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
@@ -129,16 +129,16 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
-    !> species of atom
+    !> Species of atom
     integer, intent(in) :: iSp
 
-    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    !> Onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in) :: onsMEs(:,:,:,:)
 
-    !> orbital information
+    !> Orbital information
     integer, intent(in) :: nOrb
 
-    !> resulting block of elements
+    !> Resulting block of elements
     real(dp), intent(out) :: blockME(:,:,:)
 
     integer :: ud, iSh, jSh
@@ -169,7 +169,7 @@ contains
 
   end subroutine getOnsME
 
-  !> get the onsite energy correction
+  !> Get the onsite energy correction
   subroutine getEons(Eons, qBlock, qiBlock, q0, onsMEs, species, orb)
 
     !> Onsite energy correction
@@ -181,13 +181,13 @@ contains
     !> Block charges imaginary part
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> onsite matrix elements for shells (diagonals are xx' elements and ss' are ignored)
+    !> Onsite matrix elements for shells (diagonals are xx' elements and ss' are ignored)
     real(dp), intent(in) :: onsMEs(:,:,:,:)
 
-    !> species of each atom
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
     !> Information about the orbitals in the system
@@ -306,10 +306,10 @@ contains
   !> Adds blocks onto end of a 1D vector
   subroutine onsBlock_reduce(input, equiv, orb, output, isSkew)
 
-    !> unpacked data
+    !> Unpacked data
     real(dp), intent(in) :: input(:,:,:,:)
 
-    !> equivalences
+    !> Equivalences
     integer, intent(in) :: equiv(:,:,:,:)
 
     !> Information about the orbitals and their angular momenta
@@ -318,7 +318,7 @@ contains
     !> 1D array with appended data
     real(dp), intent(inout) :: output(:)
 
-    !> is skew symmetry required
+    !> Is skew symmetry required
     logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin
@@ -369,19 +369,19 @@ contains
     !> 1D array of packed data
     real(dp), intent(in) :: input(:)
 
-    !> equivalences for blocks on atomic sites
+    !> Equivalences for blocks on atomic sites
     integer, intent(in) :: blockEquiv(:,:,:,:)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
-    !> unpacked data
+    !> Unpacked data
     real(dp), intent(out) :: output(:,:,:,:)
 
-    !> equivalences for atoms
+    !> Equivalences for atoms
     integer, intent(in),optional :: orbEquiv(:,:,:)
 
-    !> is skew symmetry required
+    !> Is skew symmetry required
     logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin

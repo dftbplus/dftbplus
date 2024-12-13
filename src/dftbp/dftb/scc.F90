@@ -40,16 +40,16 @@ module dftbp_dftb_scc
   !> Data necessary to initialize the SCC module
   type TSccInput
 
-    !> external charges
+    !> External charges
     real(dp), allocatable :: extCharges(:,:)
 
-    !> if broadened external charges
+    !> If broadened external charges
     real(dp), allocatable :: blurWidths(:)
 
-    !> any constraints on atomic charges
+    !> Any constraints on atomic charges
     real(dp), allocatable :: chrgConstraints(:,:)
 
-    !> third order energy contributions
+    !> Third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
 
     !> Calculator for short gamma
@@ -67,7 +67,7 @@ module dftbp_dftb_scc
   end type TSccInput
 
 
-  !> private module variables for SCC
+  !> Private module variables for SCC
   type TScc
     private
 
@@ -116,7 +116,7 @@ module dftbp_dftb_scc
     !> Object for charge constraints
     type(TChrgConstr), allocatable :: chrgConstr
 
-    !> use third order contributions
+    !> Use third order contributions
     logical :: tThirdOrder
 
     !> Shifts due to 3rd order
@@ -489,7 +489,7 @@ contains
   end subroutine updateShifts
 
 
-  !> set external charge field
+  !> Set external charge field
   subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
 
     !> Instance
@@ -542,10 +542,10 @@ contains
     !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
 
-    !> neighbours of atoms
+    !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index array between images and central cell
+    !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer :: iam, nprocs
@@ -625,16 +625,16 @@ contains
     !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
 
-    !> ppRPA Hubbard parameters
+    !> PpRPA Hubbard parameters
     real(dp), intent(in) :: hubbU(:)
 
     !> List of the species for each atom.
     integer,  intent(in) :: species(:)
 
-    !> neighbours of atoms
+    !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index array between images and central cell
+    !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer  :: iAt1, iAt2
@@ -702,19 +702,19 @@ contains
     !> Resulting module variables
     class(TScc), intent(in) :: this
 
-    !> atomic species
+    !> Atomic species
     integer, intent(in) :: species(:)
 
-    !> orbital information
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> output charges
+    !> Output charges
     real(dp), intent(in) :: qOut(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> energy contributions
+    !> Energy contributions
     real(dp), intent(out) :: eScc(:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
@@ -763,7 +763,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> has force contribution added
+    !> Has force contribution added
     real(dp), intent(inout) :: force(:,:)
 
     !> Species for each atom.
@@ -913,22 +913,22 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> atomic species
+    !> Atomic species
     integer, intent(in) :: species(:)
 
-    !> orbital information
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> neighbours surrounding each atom
+    !> Neighbours surrounding each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index from image atoms to central cell
+    !> Index from image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> output charges
+    !> Output charges
     real(dp), intent(in) :: qOrbitalOut(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Force terms are added to this
@@ -972,10 +972,10 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
@@ -1004,10 +1004,10 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
@@ -1031,16 +1031,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> atom resolved scc gamma derivative, \gamma_{A,B}
+    !> Atom resolved scc gamma derivative, \gamma_{A,B}
     !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
     real(dp), intent(out) :: gammaDeriv(:,:,:)
 

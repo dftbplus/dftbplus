@@ -37,10 +37,10 @@ module dftbp_dftb_nonscc
     integer :: diffType
   contains
 
-    !> evaluate first derivative
+    !> Evaluate first derivative
     procedure :: getFirstDeriv
 
-    !> evaluate second derivative
+    !> Evaluate second derivative
     procedure :: getSecondDeriv
 
   end type TNonSccDiff

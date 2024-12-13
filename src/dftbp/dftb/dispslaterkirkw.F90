@@ -75,7 +75,7 @@ module dftbp_dftb_dispslaterkirkw
     !> Gradients (3, nAtom)
     real(dp), allocatable :: gradients(:,:)
 
-    !> stress tensor components
+    !> Stress tensor components
     real(dp) :: stress(3,3)
 
     !> If system is periodic
@@ -107,22 +107,22 @@ module dftbp_dftb_dispslaterkirkw
 
   contains
 
-    !> update internal copy of coordinates
+    !> Update internal copy of coordinates
     procedure :: updateCoords
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     procedure :: updateLatVecs
 
-    !> energy contribution
+    !> Energy contribution
     procedure :: getEnergies
 
-    !> force contributions
+    !> Force contributions
     procedure :: addGradients
 
-    !> stress tensor contribution
+    !> Stress tensor contribution
     procedure :: getStress
 
-    !> real space cutoff
+    !> Real space cutoff
     procedure :: getRCutoff
 
   end type TDispSlaKirk
@@ -335,16 +335,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> The vector to increase by the gradients.
@@ -369,7 +369,7 @@ contains
     !> The data object for dispersion
     class(TDispSlaKirk), intent(inout) :: this
 
-    !> tensor from the dispersion
+    !> Tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(this%coordsUpdated)
@@ -538,7 +538,7 @@ contains
     !> Tolerance value.
     real(dp), intent(in) :: tol
 
-    !> cutoff
+    !> Cutoff
     real(dp) :: xx
 
     ! solve: 1 - tol < (1-exp(-d*(r/r0)^N))^M for r and hope that the logarithm is not blowing up

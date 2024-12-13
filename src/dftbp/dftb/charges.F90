@@ -73,13 +73,13 @@ contains
   end subroutine getSummedCharges
 
 
-  !> orbital resolved charges
+  !> Orbital resolved charges
   pure subroutine getSummedChargesPerOrbital(qOrbital, q0, deltaQ)
 
-    !> charges per orbital
+    !> Charges per orbital
     real(dp), intent(in) :: qOrbital(:,:)
 
-    !> reference atomic charges
+    !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:)
 
     !> Summed charges (q - q0)
@@ -90,13 +90,13 @@ contains
   end subroutine getSummedChargesPerOrbital
 
 
-  !> atom resolved charges
+  !> Atom resolved charges
   subroutine getSummedChargesPerAtom(deltaQ, deltaQAtom)
 
-    !> gross charge for all atomic orbitals on atoms
+    !> Gross charge for all atomic orbitals on atoms
     real(dp), intent(in) :: deltaQ(:,:)
 
-    !> gross charge for each atom
+    !> Gross charge for each atom
     real(dp), intent(out) :: deltaQAtom(:)
 
     deltaQAtom(:) = sum(deltaQ, dim=1)
@@ -104,19 +104,19 @@ contains
   end subroutine getSummedChargesPerAtom
 
 
-  !> shell resolved charges
+  !> Shell resolved charges
   subroutine getSummedChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
 
-    !> chemical species of each atom
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-    !> species resolved atomic orbital information
+    !> Species resolved atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> gross charge for each orbital
+    !> Gross charge for each orbital
     real(dp), intent(in) :: deltaQ(:,:)
 
-    !> gross charge for each atomic shell
+    !> Gross charge for each atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
     integer :: iAt, iSp, iSh, iStart, iEnd
@@ -134,22 +134,22 @@ contains
   end subroutine getSummedChargesPerLShell
 
 
-  !> charges for regions with common U values
+  !> Charges for regions with common U values
   subroutine getSummedChargesPerUniqueU(species, orb, hubbU, deltaQPerLShell, deltaQUniqU)
 
-    !> chemical species of each atom
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-    !> species resolved atomic orbital information
+    !> Species resolved atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Contracted Hubbard U parameters
     type(TUniqueHubbard), intent(in) :: hubbU
 
-    !> charge per atomic shell
+    !> Charge per atomic shell
     real(dp), intent(in) :: deltaQPerLShell(:,:)
 
-    !> charges for atomic shells with a common U value
+    !> Charges for atomic shells with a common U value
     real(dp), intent(out) :: deltaQUniqU(:,:)
 
     call hubbU%sumOverUniqueU(deltaQPerLShell, species, orb, deltaQUniqU)

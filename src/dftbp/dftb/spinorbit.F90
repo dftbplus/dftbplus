@@ -34,7 +34,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> returned energy for each atom
+    !> Returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
     !> Density matrix in dense format
@@ -43,7 +43,7 @@ contains
     !> Offset array in the square matrix.
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> spin orbit constants for each shell of each species
+    !> Spin orbit constants for each shell of each species
     real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.
@@ -137,13 +137,13 @@ contains
     !> Spin orbit constants for each species
     real(dp), intent(in) :: xi(:,:)
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> index array for atomic blocks in dense matrices
+    !> Index array for atomic blocks in dense matrices
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Dense hamiltonian matrix (2 component)
@@ -197,13 +197,13 @@ contains
   !> Calculates the spin orbit energy and angular momentum for dual L.S coupling
   subroutine getDualSpinOrbitEnergy(Eatom, qBlockSkew, xi, orb, species)
 
-    !> returned energy for each atom
+    !> Returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
     !> Antisymmetric Mulliken block populations for imaginary coefficients of Pauli matrics
     real(dp), intent(in) :: qBlockSkew(:,:,:,:)
 
-    !> spin orbit constants for each shell of each species
+    !> Spin orbit constants for each shell of each species
     real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.
@@ -256,10 +256,10 @@ contains
   !> Constructs shift potential for spin-orbit
   subroutine getDualSpinOrbitShift(shift, xi, orb, species)
 
-    !> block shift from the potential
+    !> Block shift from the potential
     real(dp), intent(inout) :: shift(:,:,:,:)
 
-    !> spin orbit constants for each shell of each species
+    !> Spin orbit constants for each shell of each species
     real(dp), intent(in) :: xi(:,:)
 
     !> Information about the orbitals in the system.

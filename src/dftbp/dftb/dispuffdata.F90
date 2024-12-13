@@ -26,7 +26,7 @@ module dftbp_dftb_dispuffdata
     !> vdW minimum distance
     real(dp) :: distance
 
-    !> depth of minimum
+    !> Depth of minimum
     real(dp) :: energy
   end type TUFF
 
