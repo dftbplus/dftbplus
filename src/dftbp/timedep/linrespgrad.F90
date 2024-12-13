@@ -33,10 +33,10 @@ module dftbp_timedep_linrespgrad
   use dftbp_math_qm, only : makeSimilarityTrans
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
-      & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array,&
-      & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
-      & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
-      & calcMatrixSqrt, incMemStratmann, getSqrOcc
+      & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array, getSPExcitations,&
+      & calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations, getExcSpin,&
+      & writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB, calcMatrixSqrt,&
+      & incMemStratmann, getSqrOcc
   use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes, TCasidaParameter,&
       & TCasidaParameter_init
   use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
