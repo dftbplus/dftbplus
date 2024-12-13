@@ -130,9 +130,21 @@ jobs:
         else
           echo "TEST_OMP_PROCS=2" >> $GITHUB_ENV
         fi
-        pushd ${BUILD_DIR}
-        ctest -j ${TEST_OMP_PROCS} --output-on-failure
-        popd
+        echo "TEST_UUID=$(uuidgen)" >> ${GITHUB_ENV}
+        ctest -j ${TEST_OMP_PROCS} --output-on-failure --test-dir ${BUILD_DIR}
+
+    - name: Archive any failed test output
+      if: failure()
+      run: |
+        ./utils/test/collect_failed_output.sh ${BUILD_DIR} ${BUILD_DIR}/failed-tests.${TEST_UUID}.tar
+
+    - name: Upload the archive of failed test output
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: failed-tests.${{ env.TEST_UUID }}.tar
+        path: ${{ env.BUILD_DIR }}/failed-tests.${{ env.TEST_UUID }}.tar
+        retention-days: 2
 
     - name: Install project
       run: cmake --install ${BUILD_DIR}
