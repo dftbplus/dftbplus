@@ -628,10 +628,10 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block Mulliken population for LDA+U etc.
+    !> Block Mulliken population for LDA+U etc.
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
-    !> block Mulliken imagninary population for LDA+U and L.S
+    !> Block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> Holds real and complex delta density matrices

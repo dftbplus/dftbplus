@@ -78,10 +78,10 @@ module dftbp_dftb_slakoeqgrid
   ! left points, to remain compatible with the old code.
 
 
-  !> value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
+  !> Value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterOld_ = 2
 
-  !> value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
+  !> Value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
 
 
@@ -166,7 +166,7 @@ contains
     !>  SlakoEqGrid instance.
     type(TSlakoEqGrid), intent(in) :: this
 
-    !> grid cutoff
+    !> Grid cutoff
     real(dp) :: cutoff
 
     cutoff = real(this%nGrid, dp) * this%dist
@@ -188,7 +188,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance between two atoms of interest
+    !> Distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(this%nInteg,nInterNew_), y1, y1p, y1pp
@@ -253,7 +253,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance between two atoms of interest
+    !> Distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterOld_), yb(this%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp

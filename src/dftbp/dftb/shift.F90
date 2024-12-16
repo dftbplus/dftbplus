@@ -21,7 +21,7 @@ module dftbp_dftb_shift
   public :: addShift, totalShift, addOnsiteShift, addAtomicMultipoleShift
 
 
-  !> add shifts to a given Hamiltonian
+  !> Add shifts to a given Hamiltonian
   interface addShift
     module procedure addShift_atom
     module procedure addShift_lshell
@@ -213,7 +213,7 @@ contains
   end subroutine addShift_lshell
 
 
-  !> shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
+  !> Shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
   !> use a diagonal shift matrix
   subroutine addShift_block(env, ham, over, nNeighbour, iNeighbour, species, orb, iPair, nAtom,&
       & img2CentCell, shift, isInputZero)
@@ -352,7 +352,7 @@ contains
   !> Add a shift for shell resolved potetial to block resolved potential
   subroutine addShell_block(shiftblock, shell, orb, species)
 
-    !> block resolved shift
+    !> Block resolved shift
     real(dp), intent(inout) :: shiftblock(:,:,:,:)
 
     !> Shell shift to add in

@@ -63,13 +63,13 @@ module dftbp_dftb_determinants
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
 
-    !> which determinant holds the ground state (0 if none)
+    !> Which determinant holds the ground state (0 if none)
     integer :: iGround
 
-    !> which determinant holds the triplet state (0 if none)
+    !> Which determinant holds the triplet state (0 if none)
     integer :: iTriplet
 
-    !> which determinant holds the (spin contaminated) S1 state
+    !> Which determinant holds the (spin contaminated) S1 state
     integer :: iMixed
 
     !> Resulting final determinant
@@ -151,7 +151,7 @@ contains
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
 
-    !> energy components for whatever determinants are present
+    !> Energy components for whatever determinants are present
     type(TEnergies), intent(inout) :: energies(:)
 
     !> Charges
@@ -166,10 +166,10 @@ contains
     !> Charges from determinants
     real(dp), intent(in), allocatable :: qBlockDets(:,:,:,:,:)
 
-    !> dipole moment
+    !> Dipole moment
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
-    !> stress tensor
+    !> Stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
     !> Triplet stress
@@ -178,7 +178,7 @@ contains
     !> Spin contaminated stress
     real(dp), intent(inout), optional :: mixedStress(:,:)
 
-    !> derivatives for atom positions
+    !> Derivatives for atom positions
     real(dp), intent(inout), optional:: derivs(:,:)
 
     !> Triplet state derivatives

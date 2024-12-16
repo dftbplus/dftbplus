@@ -57,7 +57,7 @@ module dftbp_mixer_diismixer
     !> True if DIIS used from iteration 2 as well as mixing
     logical :: tFromStart
 
-    !> force modification for gDIIS?
+    !> Force modification for gDIIS?
     logical :: tAddIntrpGradient
 
     !> Alpha factor to add in new information

@@ -153,16 +153,16 @@ module dftbp_dftb_coordnumber
   type :: TCNCont
     private
 
-    !> number of atoms
+    !> Number of atoms
     integer :: nAtom = 0
 
-    !> lattice vectors if periodic
+    !> Lattice vectors if periodic
     real(dp) :: latVecs(3, 3) = 0.0_dp
 
-    !> is this periodic
+    !> Is this periodic
     logical :: tPeriodic
 
-    !> are the coordinates current?
+    !> Are the coordinates current?
     logical :: tCoordsUpdated = .false.
 
     !> Use covalency correction from EN
@@ -203,19 +203,19 @@ module dftbp_dftb_coordnumber
 
   contains
 
-    !> update internal copy of coordinates
+    !> Update internal copy of coordinates
     procedure :: updateCoords
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     procedure :: updateLatVecs
 
-    !> get real space cutoff
+    !> Get real space cutoff
     procedure :: getRCutoff
 
-    !> get force contributions
+    !> Get force contributions
     procedure :: addGradients
 
-    !> get stress tensor contributions
+    !> Get stress tensor contributions
     procedure :: addStress
 
   end type TCNCont
@@ -320,19 +320,19 @@ contains
   !> Update internal stored coordinates
   subroutine updateCoords(this, neighList, img2CentCell, coords, species0)
 
-    !> data structure
+    !> Data structure
     class(TCNCont), intent(inout) :: this
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
@@ -354,13 +354,13 @@ contains
   end subroutine updateCoords
 
 
-  !> update internal copy of lattice vectors
+  !> Update internal copy of lattice vectors
   subroutine updateLatVecs(this, latVecs)
 
-    !> data structure
+    !> Data structure
     class(TCNCont), intent(inout) :: this
 
-    !> lattice vectors
+    !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
     @:ASSERT(this%tPeriodic)
@@ -373,16 +373,16 @@ contains
   end subroutine updateLatVecs
 
 
-  !> get force contributions
+  !> Get force contributions
   subroutine addGradients(this, gradients, dEdcn)
 
-    !> data structure
+    !> Data structure
     class(TCNCont), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
     real(dp), intent(in) :: dEdcn(:)
 
-    !> gradient contributions for each atom
+    !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
     @:ASSERT(this%tCoordsUpdated)
@@ -392,10 +392,10 @@ contains
   end subroutine addGradients
 
 
-  !> get stress tensor contributions
+  !> Get stress tensor contributions
   subroutine addStress(this, stress, dEdcn)
 
-    !> data structure
+    !> Data structure
     class(TCNCont), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
@@ -415,10 +415,10 @@ contains
   !> Distance cut off for coordination number
   function getRCutoff(this) result(cutoff)
 
-    !> data structure
+    !> Data structure
     class(TCNCont), intent(inout) :: this
 
-    !> resulting cutoff
+    !> Resulting cutoff
     real(dp) :: cutoff
 
     cutoff = this%rCutoff
@@ -678,21 +678,21 @@ contains
   !> Cutoff function for large coordination numbers
   pure subroutine cutCoordinationNumber(nAtom, cn, dcndr, dcndL, maxCN)
 
-   !> number of atoms
+   !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> on input coordination number, on output modified CN
+    !> On input coordination number, on output modified CN
     real(dp), intent(inout) :: cn(:)
 
-    !> on input derivative of CN w.r.t. cartesian coordinates,
+    !> On input derivative of CN w.r.t. cartesian coordinates,
     !> on output derivative of modified CN
     real(dp), intent(inout), optional :: dcndr(:, :, :)
 
-    !> on input derivative of CN w.r.t. strain deformation,
+    !> On input derivative of CN w.r.t. strain deformation,
     !> on output derivative of modified CN
     real(dp), intent(inout), optional :: dcndL(:, :, :)
 
-    !> maximum CN (not strictly obeyed)
+    !> Maximum CN (not strictly obeyed)
     real(dp), intent(in), optional :: maxCN
 
     real(dp) :: cnmax
@@ -765,7 +765,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     radius = getCovalentRadius(symbolToNumber(symbol))
@@ -779,7 +779,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     if (number > 0 .and. number <= size(CovalentRadii, dim=1)) then
@@ -797,7 +797,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     radius = d3Scaling * getCovalentRadius(symbolToNumber(symbol))
@@ -811,7 +811,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic radius
+    !> Atomic radius
     real(dp) :: radius
 
     if (number > 0 .and. number <= size(covalentRadii, dim=1)) then
@@ -850,7 +850,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic EN
+    !> Atomic EN
     real(dp) :: en
 
     en = getElectronegativity(symbolToNumber(symbol))
@@ -864,7 +864,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic EN
+    !> Atomic EN
     real(dp) :: en
 
     if (number > 0 .and. number <= size(paulingEN, dim=1)) then

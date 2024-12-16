@@ -95,7 +95,7 @@ contains
 
 #:for TYPE, LABEL in FLAVOURS
 
-  !> convert matrix elements from image to central cell atoms
+  !> Convert matrix elements from image to central cell atoms
   pure subroutine foldInDiatomicBlock_${LABEL}$(this, sqrBlock, iAt1, iAt2, coords, species,&
       & img2CentCell, orb)
 
@@ -120,7 +120,7 @@ contains
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     integer :: iAt2f, iSp, iSh, nOrb1, nOrb2, lShellVals(orb%mShell)
@@ -155,7 +155,7 @@ contains
   end subroutine foldInDiatomicBlock_${LABEL}$
 
 
-  !> convert matrix elements from central cell to image atoms
+  !> Convert matrix elements from central cell to image atoms
   pure subroutine foldOutDiatomicBlock_${LABEL}$(this, sqrBlock, iAt1, iAt2, coords, species,&
       & img2CentCell, orb)
 
@@ -180,7 +180,7 @@ contains
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     integer :: iAt2f, iSp, iSh, nOrb1, nOrb2, lShellVals(orb%mShell)
@@ -223,7 +223,7 @@ contains
     !> Instance
     class(TBoundaryConditions), intent(in) :: this
 
-    !> vectors to transform
+    !> Vectors to transform
     real(dp), intent(inout) :: vectors(:,:)
 
     !> Coordinates in central/objective cell

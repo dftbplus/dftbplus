@@ -43,7 +43,7 @@ module dftbp_dftb_coulomb
   !> Input data for coulombic interaction container
   type :: TCoulombInput
 
-    !> if > 0 -> manual setting for alpha
+    !> If > 0 -> manual setting for alpha
     real(dp) :: ewaldAlpha = 0.0_dp
 
     !> Ewald tolerance
@@ -126,19 +126,19 @@ module dftbp_dftb_coulomb
 
   contains
 
-    !> update internal copy of coordinates
+    !> Update internal copy of coordinates
     procedure :: updateCoords
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     procedure :: updateLatVecs
 
-    !> get energy contributions
+    !> Get energy contributions
     procedure :: addEnergy
 
-    !> get force contributions
+    !> Get force contributions
     procedure :: addGradients
 
-    !> get stress tensor contributions
+    !> Get stress tensor contributions
     procedure :: addStress
 
     !> Updates with changed charges for the instance
@@ -624,7 +624,7 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
@@ -1201,19 +1201,19 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> coordinates of atoms
+    !> Coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
 
-    !> input charge fluctuations
+    !> Input charge fluctuations
     real(dp), intent(in) :: dQInAtom(:)
 
-    !> output charge fluctuations
+    !> Output charge fluctuations
     real(dp), intent(in) :: dQOutAtom(:)
 
-    !> energy derivative to add contribution to
+    !> Energy derivative to add contribution to
     real(dp), intent(inout) :: deriv(:,:)
 
     integer :: iAt1, iAt2
@@ -1285,7 +1285,7 @@ contains
     !> Compute the derivative of Hamiltonians? Otherwise, compute the force
     logical, intent(in) :: tHamDeriv
 
-    !> if gaussian distribution for the charge
+    !> If gaussian distribution for the charge
     real(dp), intent(in), optional :: blurWidths1(:)
 
     integer :: iAt0, iAt1
@@ -1501,10 +1501,10 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> coordinates of atoms
+    !> Coordinates of atoms
     real(dp), intent(in) :: coord(:,:)
 
     !> Dynamic neighbour list to be used in the real part of Ewald
@@ -1517,16 +1517,16 @@ contains
     !> Ewald parameter
     real(dp), intent(in) :: alpha
 
-    !> cell volume
+    !> Cell volume
     real(dp), intent(in) :: volume
 
-    !> input charge fluctuations
+    !> Input charge fluctuations
     real(dp), intent(in) :: dQInAtom(:)
 
-    !> output charge fluctuations
+    !> Output charge fluctuations
     real(dp), intent(in) :: dQOutAtom(:)
 
-    !> energy derivative to add contribution to
+    !> Energy derivative to add contribution to
     real(dp), intent(inout) :: deriv(:,:)
 
     type(TDynNeighList), pointer :: pNeighList
@@ -1875,7 +1875,7 @@ contains
     !> Tolerance value.
     real(dp), intent(in) :: minValue
 
-    !> magnitude of reciprocal vector
+    !> Magnitude of reciprocal vector
     real(dp) :: xx
 
     real(dp), parameter :: gInit = 1.0e-8_dp
@@ -2047,7 +2047,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
-    !> contribution to the sum
+    !> Contribution to the sum
     real(dp) :: recSum
 
     real(dp), allocatable :: recSumArray(:)
@@ -2089,7 +2089,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
-    !> contribution to the derivative value
+    !> Contribution to the derivative value
     real(dp) :: recSum(3)
 
     real(dp), allocatable :: recSumArray(:,:)
@@ -2134,10 +2134,10 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
-    !> contribution to the derivative value
+    !> Contribution to the derivative value
     real(dp), intent(out) :: recSum(3)
 
-    !> contribution to the derivative value
+    !> Contribution to the derivative value
     real(dp), intent(out) :: sigma(3, 3)
 
     real(dp), parameter :: unity(3, 3) = reshape(&
@@ -2182,7 +2182,7 @@ contains
     !> Short distance softening
     real(dp), intent(in), optional :: epsSoften
 
-    !> contribution to sum
+    !> Contribution to sum
     real(dp) :: realSum
 
     real(dp) :: absRR, epsSoften2
@@ -2237,7 +2237,7 @@ contains
     !> Gaussian blur width of the second charge
     real(dp), intent(in), optional :: blurWidth
 
-    !> contribution to derivative
+    !> Contribution to derivative
     real(dp) :: dewr(3)
 
     real(dp) :: rNew(3)
@@ -2297,7 +2297,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    !> difference between changes in the two terms
+    !> Difference between changes in the two terms
     real(dp) :: diff
 
     @:ASSERT(volume > 0.0_dp)
@@ -2322,7 +2322,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: vol
 
-    !> reciprocal term
+    !> Reciprocal term
     real(dp) :: gTerm
 
     gTerm = 4.0_dp*pi*(exp(-0.25_dp*gg**2/(alpha**2))/(vol*gg**2))
@@ -2340,7 +2340,7 @@ contains
     !> Parameter of the Ewald summation.
     real(dp), intent(in) :: alpha
 
-    !> real space term
+    !> Real space term
     real(dp) :: rTerm
 
     @:ASSERT(rr >= epsilon(1.0_dp))
@@ -2360,7 +2360,7 @@ contains
     !> Parameter of the Ewald summation.
     real(dp), intent(in) :: alpha
 
-    !> real space derivative term
+    !> Real space derivative term
     real(dp) :: derivRTerm(3)
 
     real(dp) :: rr, factor
@@ -2401,7 +2401,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    !> charges in the cell
+    !> Charges in the cell
     real(dp), intent(in) :: q(:)
 
     !> Stress tensor
@@ -2523,7 +2523,7 @@ contains
     !> List of atomic coordinates.
     real(dp), intent(in) :: coord(:,:)
 
-    !> derivative of inverse R matrix
+    !> Derivative of inverse R matrix
     real(dp), intent(inout) :: invRDeriv(:,:,:)
 
     real(dp) :: dist, vect(3)
@@ -2562,7 +2562,7 @@ contains
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coord(:,:)
 
-    !> derivative of inverse R matrix
+    !> Derivative of inverse R matrix
     real(dp), intent(inout) :: invRDeriv(:,:,:)
 
     type(TDynNeighList), pointer :: pNeighList
@@ -2637,16 +2637,16 @@ contains
     !> Instance
     class(TCoulomb), intent(in) :: this
 
-    !> real lattice points for Ewald-sum
+    !> Real lattice points for Ewald-sum
     real(dp), allocatable, intent(out) :: rVec(:,:)
 
-    !> lattice points for reciprocal Ewald
+    !> Lattice points for reciprocal Ewald
     real(dp), allocatable, intent(out) :: gVec(:,:)
 
-    !> parameter for Ewald
+    !> Parameter for Ewald
     real(dp), intent(out) :: alpha
 
-    !> parameter for cell volume
+    !> Parameter for cell volume
     real(dp), intent(out) :: vol
 
     gVec = this%gLatPoints_
@@ -2730,7 +2730,7 @@ contains
     !> Compute the derivative of Hamiltonians? Otherwise, compute the force
     logical, intent(in) :: tHamDeriv
 
-    !> if gaussian distribution for the charge
+    !> If gaussian distribution for the charge
     real(dp), intent(in), optional :: extChargeBlurWidths(:)
 
     if (this%boundaryCond_ == boundaryConditions%cluster) then

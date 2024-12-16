@@ -500,10 +500,10 @@ contains
   !> Ref: M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
   subroutine Aweights(A,n)
 
-    !> returned weighting values for the scheme
+    !> Returned weighting values for the scheme
     real(dp), intent(out) :: A(0:)
 
-    !> the required order to calculate A_n up to
+    !> The required order to calculate A_n up to
     integer, intent(in) :: n
 
     real(dp) :: nbang(0:n)

@@ -182,7 +182,7 @@ contains
     !> Occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigenvals(:)
 
     !> Error status
@@ -296,7 +296,7 @@ contains
     !> Occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigenvals(:)
 
     !> Error status
@@ -393,13 +393,13 @@ contains
   !> overwritten and then restored again
   subroutine fullDensityMatrix_real(dm, eigenvecs, filling)
 
-    !> the resulting nOrb*nOrb density matrix
+    !> The resulting nOrb*nOrb density matrix
     real(dp), intent(out) :: dm(:,:)
 
-    !> the eigenvectors of the system
+    !> The eigenvectors of the system
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> the occupation numbers of the orbitals
+    !> The occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
     integer :: ii, nLevels
@@ -460,13 +460,13 @@ contains
   !> overwritten and then restored again
   subroutine fullDensityMatrix_cmplx(dm, eigenvecs, filling)
 
-    !> the resulting nOrb*nOrb density matrix
+    !> The resulting nOrb*nOrb density matrix
     complex(dp), intent(out) :: dm(:,:)
 
-    !> the eigenvectors of the system
+    !> The eigenvectors of the system
     complex(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> the occupation numbers of the orbitals
+    !> The occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
     integer :: ii, nLevels
@@ -527,16 +527,16 @@ contains
   !> overwritten and then restored again
   subroutine fullEnergyDensityMatrix_real(dm, eigenvecs, filling, eigen)
 
-    !> the resulting nOrb*nOrb density matrix
+    !> The resulting nOrb*nOrb density matrix
     real(dp), intent(out) :: dm(:,:)
 
-    !> the eigenvectors of the system
+    !> The eigenvectors of the system
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> the occupation numbers of the orbitals
+    !> The occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
     integer :: ii, nLevels
@@ -602,16 +602,16 @@ contains
   !> overwritten and then restored again
   subroutine fullEnergyDensityMatrix_cmplx(dm, eigenvecs, filling, eigen)
 
-    !> the resulting nOrb*nOrb density matrix
+    !> The resulting nOrb*nOrb density matrix
     complex(dp), intent(out) :: dm(:,:)
 
-    !> the eigenvectors of the system
+    !> The eigenvectors of the system
     complex(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> the occupation numbers of the orbitals
+    !> The occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
     integer :: ii, nLevels
@@ -949,7 +949,7 @@ contains
     !> Occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigen(:)
 
     !> Error status
@@ -1245,7 +1245,7 @@ contains
     !> Occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    !> eigenvalues of the system
+    !> Eigenvalues of the system
     real(dp), intent(in) :: eigenvals(:)
 
     !> Error status

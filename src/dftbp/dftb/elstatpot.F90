@@ -44,7 +44,7 @@ module dftbp_dftb_elstatpot
     !> Axes of the grid if regular
     real(dp) :: axes(3,3)
 
-    !> short range softening of the potential
+    !> Short range softening of the potential
     real(dp) :: softenEsp = 1.0E-6_dp
 
   end type TElStatPotentialsInp
@@ -71,7 +71,7 @@ module dftbp_dftb_elstatpot
     !> File containing output potentials
     character(lc) :: espOutFile
 
-    !> should the file be appended or overwritten
+    !> Should the file be appended or overwritten
     logical :: tAppendEsp
 
     !> Internal electrostatic potential from DFTB model

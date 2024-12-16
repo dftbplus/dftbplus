@@ -286,7 +286,7 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
     !> Resulting potentials
@@ -295,7 +295,7 @@ contains
     !> Coulomb calculator
     type(TCoulomb), intent(inout) :: coulomb
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(all(shape(locations) == [3, size(V)]))

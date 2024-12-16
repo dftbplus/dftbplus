@@ -61,7 +61,7 @@ contains
     !> Array containing reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
 
-    !> exponent of the local potential to add
+    !> Exponent of the local potential to add
     integer, intent(in) :: kappa
 
     @:ASSERT(.not. this%tInit_)
@@ -80,7 +80,7 @@ contains
   end subroutine TChrgConstr_init
 
 
-  !> build the shift (potential)
+  !> Build the shift (potential)
   subroutine buildShift(this, chargesPerAtom)
 
     !> Instance of a constraint
