@@ -1546,6 +1546,7 @@ contains
         & orb, this%multipole, speciesAll, neighbourList, img2CentCell, spinW, solvation,&
         & thirdOrd, dispersion, potential, errStatus)
     @:PROPAGATE_ERROR(errStatus)
+    end if
 
     if (allocated(dftbU) .or. allocated(onSiteElements)) then
       ! convert to qm representation
@@ -4788,7 +4789,7 @@ contains
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%HSqrCplxCam, this%Ssqr, solvation,&
-        & hybridXc, this%dispersion,this%rho, cordAll, errStatus)
+        & hybridXc, this%dispersion,this%rho, coordAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tForces) then
