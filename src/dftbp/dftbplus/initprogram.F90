@@ -4011,7 +4011,7 @@ contains
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
           & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
-          & errStatus)
+          & errStatus, input%ctrl%tSCC)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
