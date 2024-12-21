@@ -29,12 +29,10 @@ module dftbp_dftb_sparse2dense
   implicit none
 
   private
-  public :: unpackHS, packHS, iPackHS, packErho, unpackDQ
-  public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
+  public :: unpackHS, packHS, iPackHS, packErho, unpackDQ, unpackSPauli, unpackHPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
   public :: getUnpackedOverlapPrime_real, getUnpackedOverlapPrime_kpts
-
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
   public :: packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs, packERhoPauliBlacs

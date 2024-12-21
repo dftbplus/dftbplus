@@ -27,8 +27,8 @@ module dftbp_derivs_linearresponse
   use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
       & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g
 #:else
-  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, packHSPauli, unpackHPauli, packHSPauliImag,&
-      & packHS, iPackHS, unpackHelicalHS, packHelicalHS
+  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, iPackHS, unpackHelicalHS, packHelicalHS,&
+      & unpackHPauli
   use dftbp_math_blasroutines, only : hemm, symm
 #:endif
 
