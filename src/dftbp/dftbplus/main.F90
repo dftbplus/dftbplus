@@ -52,8 +52,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_shift, only : addShift, addAtomicMultipoleShift
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, packHS, packHS, unpackHelicalHS,&
-      & packerho, packHSPauli, packHelicalHS, packHSPauliImag, iPackHS, unpackSPauli,&
-      & getSparseDescriptor
+      & packerho, packHelicalHS, iPackHS, unpackSPauli, getSparseDescriptor
   use dftbp_dftb_spin, only : ud2qm, qm2ud
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
@@ -4060,10 +4059,10 @@ contains
       end if
     #:else
       if (tRealHS) then
-        call packHSPauli(rhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+        call packHS(rhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         if (tImHam) then
-          call packHSPauliImag(iRhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+          call iPackHS(iRhoPrim, work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
       else
