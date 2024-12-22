@@ -2034,41 +2034,39 @@ contains
   !> Returns the reciprocal part of the Ewald sum.
   function ewaldReciprocal(rr, gVec, alpha, vol) result(recSum)
 
-    !> Vector where to calculate the Ewald sum.
+    !> Vector where to calculate the Ewald sum
     real(dp), intent(in) :: rr(:)
 
-    !> Reciprocal space vectors to sum over (Should not contain either origin nor inversion related
-    !> points).
+    !> Reciprocal space vectors to sum over
+    !! (Should not contain either origin nor inversion related points).
     real(dp), intent(in) :: gVec(:,:)
 
-    !> Parameter for the Ewald summation.
+    !> Parameter for the Ewald summation
     real(dp), intent(in) :: alpha
 
-    !> Volume of the real space unit cell.
+    !> Volume of the real space unit cell
     real(dp), intent(in) :: vol
 
     !> Contribution to the sum
     real(dp) :: recSum
-
-    real(dp), allocatable :: recSumArray(:)
 
     real(dp) :: g2Factor, g2, gr
     integer :: iG
 
     @:ASSERT(vol > 0.0_dp)
 
-    g2Factor = -1.0_dp / (4.0_dp*alpha**2)
+    recSum = 0.0_dp
 
-    allocate(recSumArray(size(gVec, dim=2)), source=0.0_dp)
+    g2Factor = -1.0_dp / (4.0_dp * alpha**2)
 
     ! note the explicit unrolling of loops to enforce vectorization of the outer loop
     do iG = 1, size(gVec, dim=2)
-      g2 = gVec(1,iG)**2 + gVec(2,iG)**2 + gVec(3,iG)**2
-      gr = gVec(1,iG) * rr(1) + gVec(2,iG) * rr(2) + gVec(3,iG) * rr(3)
-      recSumArray(iG) = exp(g2Factor * g2)/g2 * cos(gr)
+      g2 = gVec(1, iG)**2 + gVec(2, iG)**2 + gVec(3, iG)**2
+      gr = gVec(1, iG) * rr(1) + gVec(2, iG) * rr(2) + gVec(3, iG) * rr(3)
+      recSum = recSum + exp(g2Factor * g2) / g2 * cos(gr)
     end do
     ! note factor of 2 as only summing half of reciprocal space
-    recSum = 2.0_dp * sum(recSumArray) * 4.0_dp * pi / vol
+    recSum = 2.0_dp * recSum * 4.0_dp * pi / vol
 
   end function ewaldReciprocal
 
