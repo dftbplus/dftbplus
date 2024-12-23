@@ -1,5 +1,3 @@
-total_energy        :real:0:
- -0.158793406319056E+002
 fermi_level         :real:1:1
  -0.322573667823568E+000
 number_of_electrons :real:1:1
