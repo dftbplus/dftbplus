@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- MPI-parallelization of Waveplot
+
 - Generalization of mixers to also handle complex density matrices
 
 - General range-separated, long-range corrected CAM hybrid functionals for
