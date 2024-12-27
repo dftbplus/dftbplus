@@ -4101,12 +4101,20 @@ contains
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
-    ! Orbital equivalency for SCC and Spin
-    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    ! Orbital equivalency for orbital potentials
+    !> Orbital equivalency for SCC
+    integer, allocatable :: iEqOrbSCC(:,:,:)
+
+    !> Orbital equivalency for Spin
+    integer, allocatable :: iEqOrbSpin(:,:,:)
+
+    !> Orbital equivalency for orbital potentials
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
-    ! Equivalency for multipolar contributions
-    integer, allocatable :: iEqDip(:,:), iEqQuad(:,:)
+
+    !> Equivalency for dipole contributions
+    integer, allocatable :: iEqDip(:,:)
+
+    !> Equivalency for quadrupolar contributions
+    integer, allocatable :: iEqQuad(:,:)
 
     this%nIneqOrb = 0
     this%nIneqDip = 0
@@ -4502,7 +4510,7 @@ contains
   end subroutine initializeCharges
 
 
-  ! Assign reference charge arrays, q0 and qShell0
+  !> Assign reference charge arrays, q0 and qShell0
   subroutine initReferenceCharges(species0, orb, referenceN0, nSpin, q0, qShell0, customOccAtoms,&
       & customOccFillings)
 
@@ -4635,11 +4643,19 @@ contains
   end subroutine initElectronNumber
 
 
-  ! Set up reference population
+  !> Set up reference charge population
   subroutine initReferencePopulation_(input, orb, hamiltonianType, referenceN0)
+
+    !> Code input
     type(TInputData), intent(in) :: input
+
+    !> Atomic orbital type info
     type(TOrbitals), intent(in) :: orb
+
+    !> Model in use
     integer, intent(in) :: hamiltonianType
+
+    !> Reference atomic shell charges
     real(dp), allocatable, intent(out) :: referenceN0(:,:)
 
     integer :: nSpecies
@@ -4708,11 +4724,19 @@ contains
   end subroutine initElectronFilling_
 
 
-  ! Set up Hubbard U values
+  !> Set up atomic Hubbard U values
   subroutine initHubbardUs_(input, orb, hamiltonianType, hubbU)
+
+    !> Input data
     type(TInputData), intent(in) :: input
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Model number of the calculation
     integer, intent(in) :: hamiltonianType
+
+    !> Atomic hubbard U values
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 
     integer :: nSpecies
@@ -4830,7 +4854,6 @@ contains
 
 
   !> Creates all random generators needed in the code.
-  !!
   subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
 
     !> Environment settings
@@ -5337,7 +5360,7 @@ contains
 
 #:if WITH_TRANSPORT
 
-  ! initialize arrays for tranpsport
+  !> initialize arrays for tranpsport
   subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
       & blockUp)
 
@@ -5483,9 +5506,7 @@ contains
 
 
   !> Generate descriptions of large dense matrices in BLACS decomposition
-  !>
-  !> Note: It must be called after getDenseDescCommon() has been called.
-  !>
+  !! Note: It must be called after getDenseDescCommon() has been called.
   subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isSparseReorderRequired)
 
     !> Parallel environment
@@ -5520,8 +5541,7 @@ contains
 
 
   !> Generate description of the total large square matrices, on the basis of atomic orbital
-  !> orderings
-  !>
+  !! orderings
   subroutine getDenseDescCommon(this)
 
     !> Instance
@@ -6348,6 +6368,7 @@ contains
   end subroutine initPlumed
 
 
+  !> Check consistency of variables for REKS calculation
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
@@ -6495,6 +6516,7 @@ contains
   end subroutine densityMatrixSource
 
 
+  !> Initialise a REKS calculator
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
       & hamiltonianType, nSpin, nExtChrg, is3rd, isHybridXc, isDispersion, isQNetAllocated,&
       & tForces, tPeriodic, tStress, tDipole)
@@ -6587,6 +6609,7 @@ contains
   end subroutine TReksCalc_init
 
 
+  !> Print information about a REKS calculation
   subroutine printReksInitInfo(reks, orb, speciesName, nType)
 
     !> Data type for REKS
@@ -6710,19 +6733,58 @@ contains
   end subroutine printReksInitInfo
 
 
-  ! Initializes the variables directly related to the user specified geometry.
+  !> Initializes the variables directly related to the user specified geometry.
   subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
       & recCellVol, errStatus)
+
+    !> Geometry input
     type(TInputData), intent(in) :: input
-    integer, intent(out) :: nAtom, nType
-    logical, intent(out) :: tPeriodic, tHelical
+
+    !> Total number of atoms, including images
+    integer, intent(out) :: nAtom
+
+    !> Number of chemical types
+    integer, intent(out) :: nType
+
+    !> Is this a periodic geometry
+    logical, intent(out) :: tPeriodic
+
+    !> Is this a helical geometry
+    logical, intent(out) :: tHelical
+
+    !> Boundary conditions
     type(TBoundaryConditions), intent(out) :: boundaryCond
+
+    !> Central cell coordinates
     real(dp), allocatable, intent(out) :: coord0(:,:)
+
+    !> Central cell chemical species
     integer, allocatable, intent(out) :: species0(:)
-    logical, intent(out) :: tCoordsChanged, tLatticeChanged
-    real(dp), allocatable, intent(out) :: latVec(:,:), origin(:), recVec(:,:), invLatVec(:,:)
-    real(dp), intent(out) :: cellVol, recCellVol
+
+    !> Have the coordinates been updated without updating dependent variables
+    logical, intent(out) :: tCoordsChanged
+
+    !> Have the lattice vectors been updated without updating dependent variables
+    logical, intent(out) :: tLatticeChanged
+
+    !> Lattice vectors if periodic/helical
+    real(dp), allocatable, intent(out) :: latVec(:,:)
+
+    !> Coordinate origin if periodic/helical
+    real(dp), allocatable, intent(out) :: origin(:)
+
+    !> Reciprocal space lattice vectors (2pi * inverse of lattice vector matrix transpose)
+    real(dp), allocatable, intent(out) :: recVec(:,:)
+
+    !> Inverse of lattice vectors
+    real(dp), allocatable, intent(out) :: invLatVec(:,:)
+
+    !> Volume of the real space unit cell
+    real(dp), intent(out) :: cellVol
+
+    !> Volume of the reciprocal space unit cell
+    real(dp), intent(out) :: recCellVol
 
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
@@ -6732,7 +6794,6 @@ contains
 
     tPeriodic = input%geom%tPeriodic
     tHelical = input%geom%tHelical
-
 
     if (tPeriodic) then
       call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
@@ -6780,10 +6841,16 @@ contains
   end subroutine initGeometry_
 
 
-  ! Initializes short gamma damping
+  !> Initializes short gamma damping
   subroutine initShortGammaDamping_(ctrl, speciesMass, damping)
+
+    !> Data control structure
     type(TControl), intent(in) :: ctrl
+
+    !> Masses for each atomic species in use
     real(dp), intent(in) :: speciesMass(:)
+
+    !> Damping factor
     type(TShortGammaDamp), intent(out) :: damping
 
     integer :: nSpecies
@@ -6803,13 +6870,22 @@ contains
   end subroutine initShortGammaDamping_
 
 
-  ! Initializes short gamma calculator
-  subroutine initShortGammaInput_(ctrl, speciesMass, uniqHubbU, shortGammaDamp,&
-      & shortGammaInp)
+  !> Initializes short gamma calculator
+  subroutine initShortGammaInput_(ctrl, speciesMass, uniqHubbU, shortGammaDamp, shortGammaInp)
+
+    !> Code control input
     type(TControl), intent(in) :: ctrl
+
+    !> Masses (in a.u.) for each chemical species
     real(dp), intent(in) :: speciesMass(:)
+
+    !> Distinct Hubard U values for each chemical species
     type(TUniqueHubbard), intent(in) :: uniqHubbU
+
+    !> Damping factors for short range gamma expression
     type(TShortGammaDamp), intent(in) :: shortGammaDamp
+
+    !> Input for the short range gamma
     type(TShortGammaInput), allocatable, intent(out) :: shortGammaInp
 
     allocate(shortGammaInp)
@@ -6828,12 +6904,22 @@ contains
   end subroutine initShortGammaInput_
 
 
-  ! Initializes a Coulomb-calculator
+  !> Initializes a Coulomb-calculator
   subroutine initCoulombInput_(env, ewaldAlpha, tolEwald, boundaryCond, coulombInput)
+
+    !> Computational environment
     type(TEnvironment), intent(in) :: env
+
+    !> Ewald sum alpha splitting parameter
     real(dp), intent(in) :: ewaldAlpha
+
+    !> Numerical tolerance for Ewald sum
     real(dp), intent(in) :: tolEwald
+
+    !> Geometrical boundary information
     integer, intent(in) :: boundaryCond
+
+    !> Input to the Coulomb routines
     type(TCoulombInput), allocatable, intent(out) :: coulombInput
 
     allocate(coulombInput)
@@ -6846,18 +6932,41 @@ contains
 
 #:if WITH_POISSON
 
-  ! Initializes a Poisson solver
+  !> Initializes a Poisson solver
   subroutine initPoissonInput_(input, nAtom, nType, species0, coord0, tPeriodic, latVec, orb,&
       & hubbU, poissonInput, shiftPerLUp)
+
+    !> Input data
     type(TInputData), intent(in) :: input
-    integer, intent(in) :: nAtom, nType
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Number of chemical types
+    integer, intent(in) :: nType
+
+    !> Central cell species
     integer, target, intent(in) :: species0(:)
+
+    !> Central cell atomic coordinates
     real(dp), target, intent(in) :: coord0(:,:)
+
+    !> Is this periodic
     logical, intent(in) :: tPeriodic
+
+    !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Atomic Hubbard U values
     real(dp), intent(in) :: hubbU(:,:)
+
+    !> Processed control for the Poisson solver
     type(TPoissonInput), allocatable, intent(out) :: poissonInput
+
+    !> Uploaded potential shifts for l-shells of atoms
     real(dp), intent(in), optional :: shiftPerLUp(:,:)
 
     allocate(poissonInput)
@@ -6892,16 +7001,32 @@ contains
 #:endif
 
 
-  ! Initializes the scc calculator
+  !> Initializes the scc calculator
   subroutine initSccCalculator_(env, orb, ctrl, boundaryCond, coulombInput, shortGammaInput,&
       & poissonInput, sccCalc)
+
+    !> Computational environment
     type(TEnvironment), intent(inout) :: env
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Code control
     type(TControl), intent(in) :: ctrl
+
+    !> Boundary conditions on calculation
     integer, intent(in) :: boundaryCond
+
+    !> Input for Coulomb calculation
     type(TCoulombInput), allocatable, intent(inout) :: coulombInput
+
+    !> Short-range gamma input
     type(TShortGammaInput), allocatable, intent(inout) :: shortGammaInput
+
+    !> Poisson solver inout
     type(TPoissonInput), allocatable, intent(inout) :: poissonInput
+
+    !> Self-consistent calculator object
     type(TScc), allocatable, intent(out) :: sccCalc
 
     type(TSccInput) :: sccInput
@@ -6941,14 +7066,32 @@ contains
   end subroutine initSccCalculator_
 
 
+  !> Initialise repulsive part of a DFTB calculation
   subroutine initRepulsive_(nAtom, isPeriodic, isHelical, pairRepulsives, chimesInp, speciesNames,&
-        & species0, repulsive)
+      & species0, repulsive)
+
+    !> Number of atoms
     integer, intent(in) :: nAtom
-    logical, intent(in) :: isPeriodic, isHelical
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: isPeriodic
+
+    !> Is this a helical geometry
+    logical, intent(in) :: isHelical
+
+    !> Pair-wise repulsive interaction between atoms
     type(TPairRepulsiveItem), allocatable, intent(inout) :: pairRepulsives(:,:)
+
+    !> Input for CHiMES, if in use
     type(TChimesRepInp), allocatable, intent(in) :: chimesInp
+
+    !> Names of chemical species
     character(*), intent(in) :: speciesNames(:)
+
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
+
+    !> Repulsive interaction type
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
     type(TRepulsiveList), allocatable :: repulsiveList
@@ -6985,10 +7128,16 @@ contains
   end subroutine initRepulsive_
 
 
-  ! Decides how many Cholesky-decompositions should be buffered
+  !> Decides how many Cholesky-decompositions should be buffered
   subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
+
+    !> Is this a real valued (in real space) calculation
     logical, intent(in) :: tRealHS
+
+    !> Number of locally stored spin/k-points
     integer, intent(in) :: nLocalKS
+
+    !> Resulting number of Cholesky-factored overlap matrices to be stored
     integer, intent(out) :: nBufferedCholesky
 
     if (tRealHS) then
