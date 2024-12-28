@@ -24,7 +24,6 @@ module dftbp_dftb_shift
   !> Add shifts to a given Hamiltonian
   interface addShift
     module procedure addShift_atom
-    module procedure addShift_lshell
     module procedure addShift_block
   end interface addShift
 
@@ -120,97 +119,6 @@ contains
     call assembleChunks(env, ham)
 
   end subroutine addShift_atom
-
-
-  !> l-dependent shift (potential is dependent on number of atom and l-shell)
-  subroutine addShift_lshell(env, ham, over, nNeighbour, iNeighbour, species, orb, iPair, nAtom,&
-      & img2CentCell, shift, isInputZero)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> The resulting Hamiltonian contribution.
-    real(dp), intent(inout) :: ham(:,:)
-
-    !> The overlap matrix.
-    real(dp), intent(in) :: over(:)
-
-    !> Number of neighbours surrounding each atom.
-    integer, intent(in) :: nNeighbour(:)
-
-    !> List of neighbours for each atom.
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> List of the species of each atom.
-    integer, intent(in) :: species(:)
-
-    !> Contains Information about the atomic orbitals in the system
-    type(TOrbitals), intent(in) :: orb
-
-    !> Indexing array for the Hamiltonian.
-    integer, intent(in) :: iPair(0:,:)
-
-    !> Index mapping atoms onto the central cell atoms.
-    integer, intent(in) :: nAtom
-
-    !> Mapping from image atom to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Shift to add for each l-shell on all atom sites, (0:lmax,1:nAtom)
-    real(dp), intent(in) :: shift(:,:,:)
-
-    !> Whether array 'ham' is zero everywhere on input
-    logical, intent(in) :: isInputZero
-
-    integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
-    integer :: iSh1, iSh2, iIter, iNeigh, iSpin, nSpin
-    real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
-    integer, allocatable :: iterIndices(:)
-
-    @:ASSERT(size(ham,dim=1)==size(over))
-    @:ASSERT(size(nNeighbour)==nAtom)
-    @:ASSERT(size(iNeighbour,dim=2)==nAtom)
-    @:ASSERT(size(species)>=maxval(iNeighbour))
-    @:ASSERT(size(species)<=size(img2CentCell))
-    @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
-    @:ASSERT(size(iPair,dim=2)==nAtom)
-    @:ASSERT(size(shift,dim=1)==orb%mShell)
-    @:ASSERT(size(shift,dim=2)==nAtom)
-    @:ASSERT(isInputZero)
-
-    nSpin = size(ham,dim=2)
-
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
-
-    do iSpin = 1, nSpin
-      do iIter = 1, size(iterIndices)
-        iAt1 = iterIndices(iIter)
-        iSp1 = species(iAt1)
-        nOrb1 = orb%nOrbSpecies(iSp1)
-        do iNeigh = 0, nNeighbour(iAt1)
-          iAt2f = img2CentCell(iNeighbour(iNeigh, iAt1))
-          iSp2 = species(iAt2f)
-          nOrb2 = orb%nOrbSpecies(iSp2)
-          iOrig = iPair(iNeigh, iAt1)
-          do iSh1 = 1, orb%nShell(iSp1)
-            rTmp = shift(iSh1, iAt1, iSpin)
-            do iSh2 = 1, orb%nShell(iSp2)
-              tmpH(orb%posShell(iSh2,iSp2):orb%posShell(iSh2+1,iSp2)-1, &
-                  & orb%posShell(iSh1,iSp1):orb%posShell(iSh1+1,iSp1)-1) = &
-                  & rTmp + shift(iSh2, iAt2f,iSpin)
-            end do
-          end do
-          ham(iOrig+1:iOrig+nOrb2*nOrb1,iSpin) = &
-              & ham(iOrig+1:iOrig+nOrb2*nOrb1,ispin) + &
-              & 0.5_dp * over(iOrig+1:iOrig+nOrb2*nOrb1) &
-              & * reshape(tmpH(1:nOrb2, 1:nOrb1), (/nOrb2*nOrb1/))
-        end do
-      end do
-    end do
-
-    call assembleChunks(env, ham)
-
-  end subroutine addShift_lshell
 
 
   !> Shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
