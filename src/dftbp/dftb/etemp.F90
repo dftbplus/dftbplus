@@ -361,7 +361,7 @@ contains
   !>
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
-  !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
+  !> Ref: F. Wagner, Th. Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
   subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
 
     !> Band structure energy at T

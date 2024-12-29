@@ -158,7 +158,7 @@ Obtaining the source
 ====================
 
 The source code of the last stable release can be downloaded from the `DFTB+
-homepage <https://www.dftbplus.org/download/dftb-stable/>`_.
+homepage <https://www.dftbplus.org/download/stable.html>`_.
 
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
