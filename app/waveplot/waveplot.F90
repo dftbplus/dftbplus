@@ -159,6 +159,7 @@ program waveplot
     call getValue(wp%loc%molorb, wp%opt%gridOrigin, wp%loc%gridVec, orbitalOcc, atomicChrg,&
         & addDensities=.true.)
     sumAtomicChrg = sum(atomicChrg) * wp%loc%gridVol
+    buffer(:,:,:) = atomicChrg(:,:,:, 1)
 
     if (wp%opt%tVerbose) then
       write(stdout, "('Total charge of atomic densities:',F12.6,/)") sumAtomicChrg

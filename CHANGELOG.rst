@@ -38,6 +38,8 @@ Added
 Fixed
 -----
 
+- Incorrect superposition of atomic densities written by Waveplot
+
 - SK-file parser extra-/spline-tag sequence dependent
 
 - Incorrect excited gradients for spin-polarized long-range corrected
