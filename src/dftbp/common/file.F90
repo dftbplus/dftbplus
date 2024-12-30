@@ -99,10 +99,10 @@ module dftbp_common_file
 contains
 
 
-  !> Sets the file opening options according to a C-style mode string
+  !> Sets the file opening options according to a C-style mode string.
   subroutine TOpenOptions_setMode(this, mode, ioStat, ioMsg)
 
-    !> Instance.
+    !> Instance
     class(TOpenOptions), intent(inout) :: this
 
     !> C-like mode string ("r", "r+", "w", "w+", "a", "a+" followed by optional "t" or "b")
@@ -331,7 +331,7 @@ contains
   end subroutine TFileDescr_connectToFile
 
 
-  !> Connects the descriptor to an existing file unit
+  !> Connects the descriptor to an existing file unit.
   subroutine TFileDescr_connectToUnit(this, unit)
 
     !> File descriptor on exit
@@ -346,7 +346,7 @@ contains
   end subroutine TFileDescr_connectToUnit
 
 
-  !> Finalizes (closes) a file
+  !> Finalizes (closes) a file.
   elemental impure subroutine TFileDescr_disconnect(this)
 
     !> Instance
@@ -382,7 +382,7 @@ contains
   end function TFileDescr_isConnected
 
 
-  !> Assignment (should never be called as it stops the code)
+  !> Assignment (should never be called as it stops the code).
   elemental impure subroutine TFileDescr_assign(lhs, rhs)
 
     !> Right hand side of the assignment
@@ -396,8 +396,9 @@ contains
   end subroutine TFileDescr_assign
 
 
-  ! Finalizes the instance
+  ! Finalizes the instance.
   elemental impure subroutine TFileDescr_final_(this)
+
     type(TFileDescr), intent(inout) :: this
 
     call this%disconnect()
@@ -405,7 +406,7 @@ contains
   end subroutine TFileDescr_final_
 
 
-  !> Convenience wrapper connecting a file descriptor to a file
+  !> Convenience wrapper connecting a file descriptor to a file.
   subroutine openFile(fileDescr, file, options, mode, ioStat, ioMsg)
 
     !> File descriptor connected to the open file
@@ -424,7 +425,7 @@ contains
     !! * "w+": readwrite (file created or truncated if it already exists)
     !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
     !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! The values above can be followed by "t" for text/formatted mode (default) or "b" for
     !! binary/unformatted mode.
     !!
     !! When arguments options and mode are both specified, the resulting options are determined by
@@ -442,7 +443,7 @@ contains
   end subroutine openFile
 
 
-  !> Convenience wrapper for disconnecting a file descriptor (which closes the file)
+  !> Convenience wrapper for disconnecting a file descriptor (which closes the file).
   elemental impure subroutine closeFile(fileDescr)
 
     !> File descriptor, will be unconnected on exit
@@ -453,7 +454,7 @@ contains
   end subroutine closeFile
 
 
-  !> Sets the default access type for file opening operations
+  !> Sets the default access type for file opening operations.
   !!
   !! Note: this routine is not thread of multi-instance-safe!
   subroutine setDefaultBinaryAccess(readAccess, writeAccess, readwriteAccess)
@@ -482,7 +483,7 @@ contains
     !> File to check for existence
     character(*), intent(in) :: file
 
-    !> True, if the file exists.
+    !> True, if the file exists
     logical :: exists
 
     inquire(file=file, exist=exists)
@@ -490,16 +491,16 @@ contains
   end function fileExists
 
 
-  !> Creates empty file without content or truncates files to zero content if it already exists
+  !> Creates empty file without content or truncates files to zero content if it already exists.
   subroutine clearFile(file, ioStat, ioMsg)
 
     !> Name of the file to create
     character(*), intent(in) :: file
 
-    !> I/O stat error generated during open, zero on exit, if no error occured.
+    !> I/O stat error generated during open, zero on exit, if no error occured
     integer, optional, intent(out) :: ioStat
 
-    !> I/O stat message generated during open, unallocated on exit, if no error occured.
+    !> I/O stat message generated during open, unallocated on exit, if no error occured
     character(:), allocatable, optional, intent(out) :: ioMsg
 
     type(TFileDescr) :: fd
