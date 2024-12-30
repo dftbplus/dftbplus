@@ -81,7 +81,7 @@ contains
     if (present(rrOpt)) then
       rr = rrOpt
     else
-      rr = sqrt(sum(coord**2))
+      rr = norm2(coord)
     end if
 
     @:ASSERT(ll >= 0 .and. ll <= 3)
