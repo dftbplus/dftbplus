@@ -10,6 +10,7 @@
 !> Simple mixer for mixing charges
 module dftbp_mixer_simplemixer
   use dftbp_common_accuracy, only : dp
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx, TMixerInput
   implicit none
 
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
@@ -17,16 +18,17 @@ module dftbp_mixer_simplemixer
   private
 #:for NAME, TYPE, LABEL in FLAVOURS
   public :: TSimpleMixer${LABEL}$
-  public :: TSimpleMixer${LABEL}$_init, TSimpleMixer${LABEL}$_reset, TSimpleMixer${LABEL}$_mix
 
 
   !> Contains data for a simple mixer
-  type TSimpleMixer${LABEL}$
+  type, extends (TMixer${LABEL}$) :: TSimpleMixer${LABEL}$
     private
-
     !> Mixing parameter
     real(dp) :: mixParam
-
+    contains
+      procedure :: init => TSimpleMixer${LABEL}$_initFromStruct
+      procedure :: reset => TSimpleMixer${LABEL}$_reset
+      procedure :: mix1D => TSimpleMixer${LABEL}$_mix
   end type TSimpleMixer${LABEL}$
 #:endfor
 
@@ -34,11 +36,19 @@ module dftbp_mixer_simplemixer
 contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
+
+  subroutine TSimpleMixer${LABEL}$_initFromStruct(this, mixerInp)
+    class(TSimpleMixer${LABEL}$), intent(out) :: this
+    type(TMixerInput), intent(in) :: mixerInp
+    call TSimpleMixer${LABEL}$_init(this, mixerInp%mixParam)
+  end subroutine TSimpleMixer${LABEL}$_initFromStruct
+
+
   !> Creates a simple mixer.
   subroutine TSimpleMixer${LABEL}$_init(this, mixParam)
 
     !> Simple mixer instance on exit
-    type(TSimpleMixer${LABEL}$), intent(out) :: this
+    class(TSimpleMixer${LABEL}$), intent(out) :: this
 
     !> Mixing parameter
     real(dp), intent(in) :: mixParam
@@ -52,7 +62,7 @@ contains
   subroutine TSimpleMixer${LABEL}$_reset(this, nElem)
 
     !> Simple mixer instance
-    type(TSimpleMixer${LABEL}$), intent(inout) :: this
+    class(TSimpleMixer${LABEL}$), intent(inout) :: this
 
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
@@ -68,7 +78,7 @@ contains
   subroutine TSimpleMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> SimpleMixer instance
-    type(TSimpleMixer${LABEL}$), intent(inout) :: this
+    class(TSimpleMixer${LABEL}$), intent(inout) :: this
 
     !> Input charge on entry, mixed charge on exit
     ${TYPE}$(dp), intent(inout) :: qInpResult(:)
@@ -81,6 +91,7 @@ contains
     qInpResult(:) = qInpResult + this%mixParam * qDiff
 
   end subroutine TSimpleMixer${LABEL}$_mix
+
 #:endfor
 
 end module dftbp_mixer_simplemixer

@@ -10,8 +10,7 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_reset, TDiisMixerReal_init,&
-      & TDiisMixerReal_mix
+  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init
   implicit none
 
   private
@@ -97,7 +96,7 @@ contains
     !> Point to start from
     real(dp) :: x(:)
 
-    call TDiisMixerReal_reset(this%pDiis, this%nElem)
+    call this%pDiis%reset(this%nElem)
     this%x(:) = x
 
   end subroutine gDiis_reset
@@ -125,7 +124,7 @@ contains
     @:ASSERT(size(dx) == this%nElem)
 
     xNew(:) = this%x
-    call TDiisMixerReal_mix(this%pDiis, this%x, dx)
+    call this%pDiis%mix1d(this%x, dx)
     tConverged = maxval(abs(xNew - this%x)) < this%tolerance .or. (maxval(abs(dx)) < this%tolerance)
     xNew(:) = this%x
 

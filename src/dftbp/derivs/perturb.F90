@@ -286,7 +286,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -621,7 +621,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -885,7 +885,7 @@ contains
     type(TPotentials), intent(inout) :: dPotential
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: pChrgMixer
 
     !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
@@ -1138,7 +1138,7 @@ contains
     end if
 
     if (tSccCalc) then
-      call TMixerReal_reset(pChrgMixer, size(dqInpRed))
+      call pChrgMixer%reset(size(dqInpRed))
     end if
 
     if (abs(omega) > epsilon(0.0_dp)) then
