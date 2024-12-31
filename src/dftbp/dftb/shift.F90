@@ -82,7 +82,7 @@ contains
     integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
-    @:ASSERT(size(ham,dim=2)==size(shift,dim=2))
+    nSpin = size(ham,dim=2)
     @:ASSERT(size(nNeighbour)==nAtom)
     @:ASSERT(size(iNeighbour,dim=2)==nAtom)
     @:ASSERT(size(species)>=maxval(iNeighbour))
@@ -91,9 +91,8 @@ contains
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==nAtom)
     @:ASSERT(isInputZero)
-
-    nSpin = size(ham,dim=2)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
+    @:ASSERT(size(shift,dim=2)==nSpin)
 
     call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
 
@@ -156,7 +155,7 @@ contains
     !> Mapping from image atom to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom)
+    !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom,1:nSpin)
     real(dp), intent(in) :: shift(:,:,:,:)
 
     !> Whether array 'ham' is zero everywhere on input
@@ -168,6 +167,7 @@ contains
     integer, allocatable :: iterIndices(:)
 
     @:ASSERT(size(ham,dim=1)==size(over))
+    nSpin = size(ham,dim=2)
     @:ASSERT(size(nNeighbour)==nAtom)
     @:ASSERT(size(iNeighbour,dim=2)==nAtom)
     @:ASSERT(size(species)>=maxval(iNeighbour))
@@ -177,8 +177,7 @@ contains
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
-
-    nSpin = size(ham,dim=2)
+    @:ASSERT(size(shift,dim=4)>=nSpin)
 
     if (isInputZero) then
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
