@@ -937,7 +937,8 @@ contains
             & this%qInput, this%qInpRed, sccErrorQ, tConverged, this%dftbU, this%qBlockOut,&
             & this%iEqBlockDftbU, this%qBlockIn, this%qiBlockOut, this%iEqBlockDftbULS,&
             & this%species0, this%qiBlockIn, this%iEqBlockOnSite, this%iEqBlockOnSiteLS,&
-            & this%nIneqDip, this%nIneqQuad, this%multipoleOut, this%multipoleInp)
+            & this%nIneqDip, this%nIneqQuad, this%multipoleOut, this%multipoleInp,&
+            & this%isAContactCalc, this%nAtom)
       else
         if (this%tRealHS) then
           call getNextInputDensityReal(env, this%parallelKS, this%SSqrReal, this%ints,&
@@ -4323,7 +4324,7 @@ contains
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU, qBlockIn,&
       & qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS,&
-      & nIneqDip, nIneqQuad, multipoleOut, multipoleInp)
+      & nIneqDip, nIneqQuad, multipoleOut, multipoleInp, isAContactCalc, nAtom)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4424,8 +4425,14 @@ contains
     !> Multipole moments
     type(TMultipole), intent(inout) :: multipoleOut
 
+    !> Is this a contact calculation for transport
+    logical, intent(in) :: isAContactCalc
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin, nMix
+    integer :: nSpin, iAt, nMix
 
     nSpin = size(qOutput, dim=3)
 
@@ -4470,6 +4477,7 @@ contains
       #:endif
         call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn,&
             & iEqBlockDftbu, species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+
         if (nIneqDip > 0) then
           ! FIXME: Assumes we always mix all dipole moments
           nMix = nIneqOrb
@@ -4482,6 +4490,41 @@ contains
           multipoleInp%quadrupoleAtom(:,:, 1) = reshape(qInpRed(nMix+1:nMix+nIneqQuad),&
               & shape(multipoleInp%quadrupoleAtom(:,:, 1)))
         end if
+      end if
+    end if
+
+    if (isAContactCalc) then
+      @:ASSERT(mod(nAtom,2) == 0)
+      ! symmetrize charges between the principle layers of the contact
+      do iAt = 1, nAtom/2
+        qInput(:,iAt,:) = 0.5_dp*(qInput(:,iAt,:) + qInput(:,iAt+nAtom/2,:))
+        qInput(:,iAt+nAtom/2,:) = qInput(:,iAt,:)
+      end do
+      if (allocated(qBlockIn)) then
+        do iAt = 1, nAtom/2
+          qBlockIn(:,:,iAt,:) = 0.5_dp*(qBlockIn(:,:,iAt,:) + qBlockIn(:,:,iAt+nAtom/2,:))
+          qBlockIn(:,:,iAt+nAtom/2,:) = qBlockIn(:,:,iAt,:)
+        end do
+      end if
+      if (allocated(qiBlockIn)) then
+        do iAt = 1, nAtom/2
+          qiBlockIn(:,:,iAt,:) = 0.5_dp*(qiBlockIn(:,:,iAt,:) + qiBlockIn(:,:,iAt+nAtom/2,:))
+          qiBlockIn(:,:,iAt+nAtom/2,:) = qiBlockIn(:,:,iAt,:)
+        end do
+      end if
+      if (nIneqDip > 0) then
+        do iAt = 1, nAtom/2
+          multipoleInp%dipoleAtom(:,iAt,1) = 0.5_dp*(multipoleInp%dipoleAtom(:,iAt,1)&
+              & +multipoleInp%dipoleAtom(:,iAt+nAtom/2, 1))
+          multipoleInp%dipoleAtom(:,iAt+nAtom/2, 1) = multipoleInp%dipoleAtom(:,iAt,1)
+        end do
+      end if
+      if (nIneqQuad > 0) then
+        do iAt = 1, nAtom/2
+          multipoleInp%quadrupoleAtom(:,iAt, 1) = 0.5_dp*(multipoleInp%quadrupoleAtom(:,iAt,1)&
+              & +multipoleInp%quadrupoleAtom(:,iAt+nAtom/2, 1))
+          multipoleInp%quadrupoleAtom(:,iAt+nAtom/2, 1) = multipoleInp%quadrupoleAtom(:,iAt,1)
+        end do
       end if
     end if
 
