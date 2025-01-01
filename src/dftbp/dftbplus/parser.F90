@@ -5235,6 +5235,7 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
+      call renameChildren(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)
       if (associated(child) .or. associated(child2)) then
