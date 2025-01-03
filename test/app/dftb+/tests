@@ -18,11 +18,11 @@ deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
 deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
 
-timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and  MPI_PROCS <=2
+timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and MPI_PROCS <=2
 timeprop/benzene_kick_gfn1             #? OMP_THREADS <= 4 and MPI_PROCS <=2 and WITH_TBLITE
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_laser_gfn2            #? OMP_THREADS <= 4 and MPI_PROCS <=2 and WITH_TBLITE
@@ -47,7 +47,7 @@ timeprop/graphite_dispersion_pulse     #? OMP_THREADS <= 4 and not WITH_MPI and 
 timeprop/PDI_charged                   #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_circpol               #? OMP_THREADS <= 4 and MPI_PROCS <=2
 
-timeprop/benzene_rs                    #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_rs                    #? OMP_THREADS == 1 and MPI_PROCS <=2
 
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1

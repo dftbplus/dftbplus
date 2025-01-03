@@ -84,6 +84,7 @@ module dftbp_timedep_timeprop
   use dftbp_math_scalafxext, only : psymmatinv, phermatinv
   use dftbp_timedep_dynamicsrestart, only : writeRestartFileBlacs, readRestartFileBlacs
   use dftbp_math_matrixops, only : adjointLowerTriangle_BLACS
+  use dftbp_dftb_populations, only : denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
 #:endif
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbd
@@ -1613,8 +1614,18 @@ contains
     ! add hybrid xc-functional contribution
     if (this%isHybridXc) then
     #:if WITH_MPI
-      @:RAISE_ERROR(errStatus, -1, "Timeprop Module: MPI-parallelization not implemented for hybrid&
-          & xc-functionals.")
+      deltaRho = rho
+      if (this%nSpin > 2) then
+        @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
+      end if
+      call denseSubtractDensityOfAtomsCmplxNonperiodicBlacs(env, this%parallelKS, q0, this%denseDesc, deltaRho)
+
+      do iSpin = 1, this%nSpin
+        HSqrCplxCam(:,:) = (0.0_dp, 0.0_dp)
+        call hybridXc%addCamHamiltonianMatrix_cmplx_blacs(env, this%denseDesc, sSqr(:,:,iSpin),&
+            & deltaRho(:,:,iSpin), HSqrCplxCam)
+        H1(:,:,iSpin) = H1(:,:,iSpin) + HSqrCplxCam
+      end do
     #:else
       deltaRho = rho
       if (this%nSpin > 2) then
@@ -2580,7 +2591,7 @@ contains
     end if
 
     if (this%isHybridXc) then
-      allocate(HSqrCplxCam(this%nOrbs, this%nOrbs))
+      allocate(HSqrCplxCam(nLocalRows, nLocalCols))
     end if
 
     if (this%tBondE .or. this%tBondP) then
@@ -2665,7 +2676,12 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       if (this%tIons .or. (.not. this%tRealHS)) then
         H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
+      #:if WITH_SCALAPACK
+        call propagateRhoBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
+            & step)
+      #:else
         call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
+      #:endif
       else
         ! The following line is commented to make the fast propagate work since it needs a real H
         !H1(:,:,iKS) = imag * H1(:,:,iKS)
@@ -2787,6 +2803,48 @@ contains
     !$OMP END WORKSHARE
 
   end subroutine propagateRhoRealHBlacs
+
+  !> Propagate rho, notice that H = iH (coefficients are real)
+  subroutine propagateRhoBlacs(this, rhoOld, rho, H1, Sinv, step)
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Density matrix at previous step
+    complex(dp), intent(inout) :: rhoOld(:,:)
+
+    !> Density matrix
+    complex(dp), intent(in) :: rho(:,:)
+
+    !> Square imaginary hamiltonian plus non-adiabatic contribution
+    complex(dp), intent(in) :: H1(:,:)
+
+    !> Square overlap inverse
+    complex(dp), intent(in) :: Sinv(:,:)
+
+    !> Time step in atomic units
+    real(dp), intent(in) :: step
+
+    complex(dp), allocatable :: T1(:,:)
+
+    integer :: nLocalCols, nLocalRows
+
+    nLocalRows = size(rho, dim=1)
+    nLocalCols = size(rho, dim=2)
+    allocate(T1(nLocalRows,nLocalCols))
+
+    T1(:,:) = 0.0_dp
+    call pblasfx_pgemm(Sinv, this%denseDesc%blacsOrbSqr, H1, this%denseDesc%blacsOrbSqr,&
+      & T1, this%denseDesc%blacsOrbSqr)
+
+    call pblasfx_pgemm(T1, this%denseDesc%blacsOrbSqr, rho, this%denseDesc%blacsOrbSqr,&
+      & rhoOld, this%denseDesc%blacsOrbSqr, alpha=cmplx(-step, 0, dp), beta=cmplx(1, 0, dp))
+
+    call pblasfx_pgemm(rho, this%denseDesc%blacsOrbSqr, T1, this%denseDesc%blacsOrbSqr,&
+      & rhoOld, this%denseDesc%blacsOrbSqr, alpha=cmplx(-step, 0, dp), beta=cmplx(1, 0, dp),&
+      & transa='N', transb='C')
+
+end subroutine propagateRhoBlacs
 #:endif
 
   !> Propagate rho for real Hamiltonian (used for frozen nuclei dynamics and gamma point periodic)
@@ -4545,6 +4603,7 @@ contains
     allocate(this%Ssqr(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
     allocate(this%Sinv(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
     allocate(this%H1(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%RdotSprime(nLocalRows,nLocalCols))
 
     if (this%nDipole > 0) then
       allocate(this%Dsqr(this%nDipole,this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -4558,7 +4617,6 @@ contains
     allocate(this%chargePerShell(orb%mShell,this%nAtom,this%nSpin))
 
     allocate(this%occ(this%nOrbs))
-    allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
     allocate(this%totalForce(3, this%nAtom))
     this%RdotSprime(:,:) = 0.0_dp
     this%totalForce(:,:) = 0.0_dp
@@ -4891,7 +4949,7 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     real(dp), allocatable :: velInternal(:,:)
-    real(dp) :: new3Coord(3, this%nMovedAtom)
+    real(dp) :: new3Coord(3, this%nMovedAtom), propStep
     character(sc) :: dumpIdx
     logical :: tProbeFrameWrite
     integer :: iKS
@@ -4948,12 +5006,17 @@ contains
 
         if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
           call zcopy(this%nOrbs*this%nOrbs, this%rho(:,:,iKS), 1, this%rhoOld(:,:,iKS), 1)
-          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), this%dt)
+          propStep = this%dt
         else
-          call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
-              & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
+          propStep = 2.0_dp * this%dt
         end if
+      #:if WITH_SCALAPACK
+        call propagateRhoBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), propStep)
+      #:else
+        call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+            & this%H1(:,:,iKS), this%Sinv(:,:,iKS), propStep)
+      #:endif
       else
       #:if WITH_SCALAPACK
         call propagateRhoRealHBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
