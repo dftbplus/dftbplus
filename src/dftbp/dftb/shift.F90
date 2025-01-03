@@ -177,7 +177,7 @@ contains
     @:ASSERT(size(shift,dim=1)==orb%mOrb)
     @:ASSERT(size(shift,dim=2)==orb%mOrb)
     @:ASSERT(size(shift,dim=3)==nAtom)
-    @:ASSERT(size(shift,dim=4)==nSpin)
+    @:ASSERT(size(shift,dim=4)>=nSpin)
 
     if (isInputZero) then
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
