@@ -287,7 +287,7 @@ contains
     block
       use dftbp_extlibs_mpifx, only : mpifx_comm
       type(mpifx_comm) :: comm
-      character(100) :: msg
+      character(1000) :: msg
       call comm%init()
       if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
         write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
