@@ -13,10 +13,18 @@ module dftbp_dftb_determinants
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : Efilling
   use dftbp_io_message, only : error
+  use dftbp_dftb_periodic, only: TNeighbourList, TSymNeighbourList ! For TDMs
+  use dftbp_type_commontypes, only: TOrbitals ! For TDMs
+  use dftbp_type_densedescr, only: TDenseDescr ! For TDMs
+  use dftbp_common_environment, only : TEnvironment ! For TDMs
+  use dftbp_math_lapackroutines, only : gesvd    ! For TDMs
+  use dftbp_dftb_populations, only : mulliken    ! For TDMs
+  use dftbp_dftb_sparse2dense, only : packHS     ! For TDMs
   implicit none
 
   private
   public :: determinants, TDftbDeterminants_init, TDftbDeterminants
+  public :: tiTDM, tiTraDip
 
 
   !> Name space for determinants
@@ -53,6 +61,9 @@ module dftbp_dftb_determinants
 
     !> Should a ground state case be calculated as well
     logical :: isGroundGuess
+
+    !> Should the transition dipole moment with the ground state be computed?
+    logical :: isTDM
 
     !> Current determinant being solved
     integer :: iDeterminant
@@ -146,7 +157,8 @@ contains
 
   !> Spin Purifies Non-Aufbau excited state energy and forces
   subroutine postProcessDets(this, energies, qOutput, qDets, qBlockOut, qBlockDets, dipoleMoment,&
-      & stress, tripletStress, mixedStress, derivs, tripletderivs, mixedderivs)
+      & transitionDipoleMoment, gfilling, mfilling, stress, tripletStress, mixedStress, derivs,&
+      & tripletderivs, mixedderivs)
 
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
@@ -168,6 +180,15 @@ contains
 
     !> Dipole moment
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
+
+    !> Transition dipole moment
+    real(dp), intent(inout), allocatable :: transitionDipoleMoment(:)
+
+    !> Fillings for ground state (TI-DFTB transition dipoles)
+    real(dp), intent(inout), allocatable :: gfilling(:,:,:)
+
+    !> Fillings for mixed-spin state (TI-DFTB transition dipoles)
+    real(dp), intent(inout), allocatable :: mfilling(:,:,:)
 
     !> Stress tensor
     real(dp), intent(inout) :: stress(:,:)
@@ -275,7 +296,7 @@ contains
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, nEl, dftbEnergy)
+  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, isTDM, nEl, dftbEnergy)
 
     !> Instance
     type(TDftbDeterminants), intent(out) :: this
@@ -288,6 +309,9 @@ contains
 
     !> Should there be a ground state initial guess before Non-Aufbau calc?
     logical, intent(in) :: isGroundGuess
+
+    !> Should the transition dipole moment with the ground state be computed?
+    logical, intent(in) :: isTDM
 
     !> Number of electrons in each spin channel
     real(dp), intent(in) :: nEl(:)
@@ -303,6 +327,7 @@ contains
     this%isNonAufbau = isNonAufbau
     this%isGroundGuess = isGroundGuess
     this%isSpinPurify = isSpinPurify
+    this%isTDM = isTDM
 
     this%nEl = nEl
 
@@ -323,7 +348,7 @@ contains
         this%determinants = [determinants%ground]
       end if
       if (isSpinPurify) then
-        ! if required, then its after the ground state (if that is requested)
+        ! if required, then it is after the ground state (if that is requested)
         this%iTriplet = size(this%determinants) + 1
         this%determinants = [this%determinants, determinants%triplet]
       end if
@@ -471,5 +496,228 @@ contains
 
   end subroutine applyZieglerAlloc
 
+  subroutine tiTDM(g, e, pt, gfilling, mfilling)
+
+    !> DFTB ground state MO eigenvectors
+    real(dp), intent(inout) :: g(:,:)
+
+    !> TI-DFTB mixed-determinant MO eigenvectors
+    real(dp), intent(inout) :: e(:,:)
+
+    !> Transition density matrix in corresponding orbital basis
+    real(dp), intent(inout) :: pt(:,:)
+
+    !> DFTB ground state occupation numbers
+    real(dp), intent(in) :: gfilling(:)
+
+    !> TI-DFTB mixed-determinant occupation numbers
+    real(dp), intent(in) :: mfilling(:)
+
+    !> Left eigenvectors (corresponding orbitals) from SVD
+    real(dp), allocatable :: u(:,:)
+
+    !> Right eigenvectors (corresponding orbitals) from SVD
+    real(dp), allocatable :: vt(:,:)
+
+    !> Temporary storage for matrix products in this subroutine
+    real(dp), allocatable :: M(:,:)
+
+    !> Singular values from SVD
+    real(dp), allocatable :: sigma(:)
+
+    !> DFTB ground state MO eigenvectors in transformed (CO) basis
+    real(dp), allocatable :: Cg(:,:)
+
+    !> TI-DFTB excited state MO eigenvectors in transformed (CO) basis
+    real(dp), allocatable :: Ce(:,:)
+
+    character(len=9), parameter :: FMT1 = "(90f10.5)"
+    integer :: jj, nElec 
+
+    allocate(u(size(e,dim=1), size(e,dim=2)))
+    allocate(vt(size(e,dim=1), size(e,dim=2)))
+    allocate(M(size(e,dim=1), size(e,dim=2)))
+    allocate(sigma(size(e,dim=1)))
+    allocate(Ce(size(e,dim=1), size(e,dim=2))) 
+    allocate(Cg(size(e,dim=1), size(e,dim=2)))
+  
+    !> Determine how many orbitals with non-negligible occupations to track
+    do jj = size(gfilling), 1, -1 
+      nElec = jj
+      if (abs(gfilling(jj)) >= epsilon(1.0_dp)) then
+        exit
+      end if
+    end do
+
+    !> Compute singular value decomposition of non-orthogonal MO-MO overlap
+    M = matmul(transpose(g),e)
+    call gesvd(M,u,sigma,vt)
+
+    !> Rotate g into corresponding orbital basis and isolate the occupied MOs
+    M = matmul(g,u)
+    Cg(:,:) = 0.0_dp
+    do jj = 1, nElec
+      if (abs(gfilling(jj)) >= epsilon(1.0_dp)) then
+        Cg(:,jj) = gfilling(jj)*M(:,jj)
+      end if
+    end do
+
+    !> Rotate e into corresponding orbital basis and isolate the occupied MOs
+    M = matmul(e,transpose(vt))
+    Ce(:,:) = 0.0_dp
+    do jj = 1, nElec
+      Ce(:,jj) = 0.0_dp
+      if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
+        Ce(:,jj) = mfilling(jj)*M(:,jj)
+      end if
+    end do
+    if (mfilling(nElec)==0.0_dp) then
+      do jj = nElec, size(mFilling) ! Could just as well start from nElec+1 here (see condition)
+        if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
+          Ce(:,nElec) = mfilling(jj)*M(:,jj)
+        end if
+      end do
+    end if
+
+    pt = matmul(Cg,transpose(Ce))
+ 
+  end subroutine tiTDM
+
+  subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc, iSparseStart, &
+               & img2CentCell, rhoPrimSize, over, tiTraCharges, transitionDipoleMoment, q0, coord, iAtInCentralRegion, &
+               & gfilling, mfilling, env)
+
+    !> DFTB ground state MO eigenvectors
+    real(dp), intent(inout) :: tiMatG(:,:,:)
+
+    !> TI-DFTB mixed-determinant MO eigenvectors
+    real(dp), intent(inout) :: tiMatE(:,:,:)
+
+    !> Transition density matrix in corresponding orbital basis
+    real(dp), intent(inout) :: tiMatPT(:,:)
+
+    !> List of neighbouring atoms
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours of each real atom
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Image atoms to their equivalent in the central cell
+    integer, allocatable, intent(in) :: img2CentCell(:)
+
+    !> Sparse density matrix storage(used only for size)
+    real(dp), allocatable, intent(in) :: rhoPrimSize(:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Transition Charges
+    real(dp), intent(inout) :: tiTraCharges(:,:)
+
+    ! > Transition dipole moment
+    real(dp), intent(inout) :: transitionDipoleMoment(:)
+
+    !> reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> ground state filling for TDM
+    real(dp), intent(in) :: gfilling(:,:,:)
+
+    !> mixed-spin excited state filling for TDM
+    real(dp), intent(in) :: mfilling(:,:,:)
+
+    !> Sparse representation for transition density matrix
+    real(dp), allocatable :: rhoPrim(:,:)
+
+    !> Dense representation for transition density matrix
+    real(dp), allocatable :: tiTransitionDensity(:,:,:)
+
+    !> Center of atomic transition charges
+    real(dp), allocatable :: tiTrCenter(:)
+
+    !> Sum of transition charges
+    real(dp) :: sumOfTraCharges
+    
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+    
+    character(len=9), parameter :: FMT1 = "(90f10.5)"
+    integer :: nAtom, ii, iAtom, ia, na, i, j, m, iSpin
+
+    na = size(tiMatE, dim=1)
+    nAtom = size(orb%nOrbAtom)
+
+    allocate(rhoPrim(size(rhoPrimSize, dim=1), size(rhoPrimSize, dim=2)))
+    allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
+    allocate(tiTrCenter(size(coord, dim=1)))
+
+    !> Reset transition dipole moment
+    transitionDipoleMoment(:) = 0.0_dp
+
+    !> Reset transition charges (Mulliken pops for transition density matrix)
+    tiTraCharges(:,:) = 0.0_dp
+
+    !> Corresponding orbital transformation of stored ground and excited MOs
+    do iSpin = 1, size(gfilling, dim=3)
+      call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin), mfilling(:,1,iSpin))
+
+    !> Make transition density lower triangular
+    tiTransitionDensity(:,:, iSpin) = 0.0_dp
+    do i = 1, size(tiTransitionDensity, dim=1)
+      forall (j=1:i) tiTransitionDensity(i,j,iSpin) = tiMatPT(i,j)
+    end do
+
+    !> Pack TI-DFTB transition density matrix
+    rhoPrim(:,iSpin) = 0.0_dp
+    call packHS(rhoPrim(:,iSpin), tiTransitionDensity(:,:,iSpin), neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
+        & nNeighbourSK, img2CentCell, iSparseStart)
+
+    !> Write out the transition charges (for debugging)
+    !write(*,*) "QM Transition Charges for spin ", iSpin
+    !do ia = 1, size(tiTraCharges, dim=1)
+    !  write(*,FMT1) tiTraCharges(ia,:)
+    !end do
+
+    !> Shift center of transition charges to address gauge dependence
+    sumOfTraCharges = 0.0_dp
+    tiTrCenter(:) = 0.0_dp
+    do ii = 1, size(iAtInCentralRegion)
+      iAtom = iAtInCentralRegion(ii)
+      !sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
+      sumOfTraCharges = sumOfTraCharges + sum(tiTraCharges(:,iAtom))
+    end do
+    do ii = 1, size(iAtInCentralRegion)
+      iAtom = iAtInCentralRegion(ii)
+    !  tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
+      tiTrCenter(:) = tiTrCenter(:) + sum(tiTraCharges(:,iAtom))*coord(:,iAtom)&
+                                          &/sumOfTraCharges
+    end do
+
+    do ii = 1, size(iAtInCentralRegion)
+      iAtom = iAtInCentralRegion(ii)
+      transitionDipoleMoment(:) = transitionDipoleMoment(:)&
+             & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
+             & * (coord(:, iAtom)-tiTrCenter(:))
+    end do
+  end do
+
+  end subroutine tiTraDip
 
 end module dftbp_dftb_determinants

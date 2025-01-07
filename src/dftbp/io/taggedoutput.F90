@@ -233,6 +233,9 @@ module dftbp_io_taggedoutput
     !> Atomic dipole moments
     character(lenLabel) :: dipoleAtom = 'atomic_dipole_moment'
 
+    !> Transition dipole moment (TI-DFTB)
+    character(lenLabel) :: transitionDipoleMoment = 'transition_dipole_moment'
+
   end type TTagLabelsEnum
 
 

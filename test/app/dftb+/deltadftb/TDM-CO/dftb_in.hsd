@@ -1,0 +1,44 @@
+Geometry = GenFormat {
+2 C
+C O
+     1   1   0.0000000000E+00   0.0000000000E+00   0.0000000000E+00
+     2   2   1.2100000000E+00   0.0000000000E+00   0.0000000000E+00
+}
+
+Hamiltonian = DFTB{
+  Charge = 0
+  NonAufbau {
+    GroundGuess = Yes
+    TDM = Yes
+  }
+  MaxSCCIterations=1000
+  SCC = Yes
+  SpinConstants = {
+    C = {
+      -0.023
+    }
+    O = {
+      -0.028
+    }
+  }
+  MaxAngularMomentum = {
+    C = "p"
+    O = "p"
+  }
+
+  SlaterKosterFiles = {
+    C-C = "C-C.skf"
+    C-O = "C-O.skf"
+    O-C = "O-C.skf"
+    O-O = "O-O.skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}
+
