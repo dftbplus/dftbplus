@@ -516,7 +516,7 @@ contains
 
     character(len=9), parameter :: FMT1 = "(90f10.5)"
 
-    integer :: i, j, n, ia, na, jj, nElec  !! TDK - check which are needed
+    integer :: i, j, n, ia, jj, nElec  !! TDK - check which are needed
 
     !> Left eigenvectors (corresponding orbitals) from SVD
     real(dp), allocatable :: u(:,:)
@@ -571,7 +571,7 @@ contains
       end if
     end do
     if (mfilling(nElec)==0.0_dp) then
-      do jj = nElec, na ! TDK change nElec to nElec+1; nElec already handled above
+      do jj = nElec, size(mFilling) ! TDK change nElec to nElec+1; nElec already handled above
         if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
           Ce(:,nElec) = mfilling(jj)*M(:,jj)
         end if
@@ -658,14 +658,22 @@ contains
     character(len=9), parameter :: FMT1 = "(90f10.5)"
     integer :: nAtom, ii, iAtom, ia, na, i, j, m, iSpin
 
+    ! Introduce work array, as mulliken routine returns (:nOrbs, :nAtom), but need to store
+    ! (:nAtom, :nSpin) for tiTraCharges
+    real(dp), allocatable :: work(:,:)
+
     allocate(rhoPrim(size(rhoPrimSize, dim=1), size(rhoPrimSize, dim=2)))
     allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
     allocate(tiTrCenter(size(coord, dim=1)))
 
     na = size(tiMatE, dim=1)
     nAtom = size(orb%nOrbAtom)
-   
+
+    !> Compute transition charges (Mulliken pops for transition density matrix)
+    tiTraCharges(:,:) = 0.0_dp
+
     !> Corresponding orbital transformation of stored ground and excited MOs
+    allocate(work(orb%mOrb,nAtom))
     do iSpin = 1, size(gfilling, dim=3)
       call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin), mfilling(:,1,iSpin))
 
@@ -680,10 +688,9 @@ contains
     call packHS(rhoPrim(:,iSpin), tiTransitionDensity(:,:,iSpin), neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
-    !> Compute transition charges (Mulliken pops for transition density matrix)
-    tiTraCharges(:,:) = 0.0_dp
-    call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
-            & nNeighbourSK, img2CentCell, iSparseStart)
+    call mulliken(env, work, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
+        & nNeighbourSK, img2CentCell, iSparseStart)
+    tiTraCharges(:, iSpin) = sum(work,dim=1)
 
     !> Write out the transition charges
     write(*,*) "QM Transition Charges for spin ", iSpin
@@ -696,13 +703,13 @@ contains
     tiTrCenter(:) = 0.0_dp
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
-      sumOfTraCharges = sumOfTraCharges + sum(tiTraCharges(:,iAtom))
+      sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
     end do
     write(*,*) "Sum of transition charges for spin ", iSpin
     write(*,FMT1) sumOfTraCharges
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
-      tiTrCenter(:) = tiTrCenter(:) + sum(tiTraCharges(:,iAtom))*coord(:,iAtom)&
+      tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
                                           &/sumOfTraCharges
     end do
     write(*,*) "Center of Transition Charges for spin ", iSpin !! TDK - remove this?
@@ -710,7 +717,7 @@ contains
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
       transitionDipoleMoment(:) = transitionDipoleMoment(:)&
-              & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
+              & + sum(q0(:, iAtom, iSpin) - work(:, iAtom))&
               & * (coord(:, iAtom)-tiTrCenter(:))
     end do
   end do

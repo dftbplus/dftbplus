@@ -2751,6 +2751,14 @@ contains
 
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
+  #:if WITH_SCALAPACK
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
+  #:endif
+
     if (areNeighboursSymmetric) then
       allocate(this%symNeighbourList)
       allocate(this%symNeighbourList%neighbourList)
@@ -5321,12 +5329,11 @@ contains
     !> Initialize storage for TI-DFTB TDMs
     !> TDK: nLocalCols is far too large in tests, so using nLocalRows twice
     !>      as a stopgap. Why is nLocalCols 1704689728 when nLocalRows is 22074?
-    write(*,*) 'TDMWRITE: nLocalRows, nLocalCols', nLocalRows, nLocalCols
-    if (this%deltaDftb%isTDM) then 
+    if (this%deltaDftb%isTDM) then
       allocate(this%transitionDipoleMoment(3))
-      allocate(this%tiMatG(nLocalRows,nLocalRows,this%nSpin))
-      allocate(this%tiMatE(nLocalRows,nLocalRows,this%nSpin))
-      allocate(this%tiMatPT(nLocalRows,nLocalRows))
+      allocate(this%tiMatG(nLocalRows,nLocalCols,this%nSpin))
+      allocate(this%tiMatE(nLocalRows,nLocalCols,this%nSpin))
+      allocate(this%tiMatPT(nLocalRows,nLocalCols))
       allocate(this%tiSigma(nLocalRows))
       allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin))
       allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin))

@@ -3340,6 +3340,18 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
+      ! Store Hamiltonians for TDM calculation
+      write(*,*) 'TDMWRITE: Entering tiMat assignments'
+      if (deltaDftb%isTDM) then
+        if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
+          tiMatG(:,:,iKS) = HSqrReal
+        end if
+        if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%mixed) then
+          tiMatE(:,:,iKS) = HSqrReal
+        end if
+      end if
+      write(*,*) 'TDMWRITE: Exiting tiMat assignments'
+
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
@@ -3366,33 +3378,31 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
-      ! Warning: SSqrReal gets overwritten here
+      ! Store Hamiltonians for TDM calculation
+      write(*,*) 'TDMWRITE: Entering tiMat assignments'
+      if (deltaDftb%isTDM) then
+        if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
+          tiMatG(:,:,iKS) = HSqrReal
+        end if
+        if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%mixed) then
+          tiMatE(:,:,iKS) = HSqrReal
+        end if
+      end if
+      write(*,*) 'TDMWRITE: Exiting tiMat assignments'
+
+      ! Warning: SSqrReal and HSqrReal gets overwritten here
       call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:, iSpin),&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
+
     end do
 
   #:if WITH_SCALAPACK
     ! Distribute all eigenvalues to all nodes via global summation
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
-
- 
-    ! Store Hamiltonians for TDM calculation
-    write(*,*) 'TDMWRITE: Entering tiMat assignments'
-    if (deltaDftb%isTDM) then
-      if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
-        tiMatG(:,:,iKS) = 0.0_dp
-        tiMatG(:,:,iKS) = HSqrReal
-      end if
-      if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%mixed) then
-        tiMatE(:,:,iKS) = 0.0_dp
-        tiMatE(:,:,iKS) = HSqrReal
-      end if
-    end if
-    write(*,*) 'TDMWRITE: Exiting tiMat assignments'
 
   end subroutine buildAndDiagDenseRealHam
 
