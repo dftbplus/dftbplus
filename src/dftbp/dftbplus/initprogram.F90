@@ -1131,6 +1131,30 @@ module dftbp_dftbplus_initprogram
     !> Density matrices, if multiple determinants are being used
     real(dp), allocatable :: deltaRhoDets(:,:,:,:)
 
+    !> Transition Dipole Moment (Delta DFTB TDM)
+    real(dp), allocatable :: transitionDipoleMoment(:)
+
+    !> Dense representation of ground state MOs (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatG(:,:,:)
+
+    !> Dense representation of excited state MOs (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatE(:,:,:)
+
+    !> Dense representation of transition density matrix (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatPT(:,:)
+
+    !> Singular values from corresponding orbital transform (Delta DFTB TDM)
+    real(dp), allocatable :: tiSigma(:)
+
+    !> Ground state determinant filling (Delta DFTB TDM) 
+    real(dp), allocatable :: gfilling(:,:,:)
+
+    !> Mixed state determinant filling (Delta DFTB TDM) 
+    real(dp), allocatable :: mfilling(:,:,:)
+
+    !> Transition charges for Delta DFTB TDM
+    real(dp), allocatable :: tiTraCharges(:,:)
+
     !> Data type for REKS
     type(TReksCalc), allocatable :: reks
 
@@ -1912,7 +1936,7 @@ contains
 
     ! DFTB related variables if multiple determinants are used
     call TDftbDeterminants_init(this%deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
-        & input%ctrl%isGroundGuess, this%nEl, this%dftbEnergy)
+        & input%ctrl%isGroundGuess, input%ctrl%isTDM, this%nEl, this%dftbEnergy)
 
     if (this%tForces) then
       this%tCasidaForces = input%ctrl%tCasidaForces
@@ -5275,6 +5299,9 @@ contains
 
     !> Size descriptors for MPI parallel execution
     integer, intent(in) :: nLocalRows, nLocalCols
+    integer :: sqrHamSize
+
+    sqrHamSize = this%denseDesc%fullSize
 
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
@@ -5289,6 +5316,24 @@ contains
         allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets),&
             & source=0.0_dp)
       end if
+    end if
+
+    !> Initialize storage for TI-DFTB TDMs
+    !> TDK: nLocalCols is far too large in tests, so using nLocalRows twice
+    !>      as a stopgap. Why is nLocalCols 1704689728 when nLocalRows is 22074?
+    write(*,*) 'TDMWRITE: nLocalRows, nLocalCols', nLocalRows, nLocalCols
+    if (this%deltaDftb%isTDM) then 
+      allocate(this%transitionDipoleMoment(3))
+      allocate(this%tiMatG(nLocalRows,nLocalRows,this%nSpin))
+      allocate(this%tiMatE(nLocalRows,nLocalRows,this%nSpin))
+      allocate(this%tiMatPT(nLocalRows,nLocalRows))
+      allocate(this%tiSigma(nLocalRows))
+      allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin))
+      allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin))
+      allocate(this%tiTraCharges(this%nAtom, this%nSpin))
+      this%gfilling(:,:,:) = 0.0_dp
+      this%mfilling(:,:,:) = 0.0_dp
+    else
     end if
 
   end subroutine initDetArrays

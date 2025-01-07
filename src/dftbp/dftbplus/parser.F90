@@ -1502,6 +1502,7 @@ contains
         ctrl%isNonAufbau = .true.
         call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
         call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
+        call getChildValue(child, "TDM", ctrl%isTDM, .false.)
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp
@@ -1892,6 +1893,7 @@ contains
         ctrl%isNonAufbau = .true.
         call getChildValue(child, "SpinPurify", ctrl%isSpinPurify, .true.)
         call getChildValue(child, "GroundGuess", ctrl%isGroundGuess, .false.)
+        call getChildValue(child, "TDM", ctrl%isTDM, .false.)
         ctrl%tSpin = .true.
         ctrl%t2Component = .false.
         ctrl%nrSpinPol = 0.0_dp

@@ -568,6 +568,9 @@ module dftbp_dftbplus_inputdata
     !> GroundGuess
     logical :: isGroundGuess = .false.
 
+    !> Transition Dipole Moment (TI-DFTB)
+    logical :: isTDM = .false.
+
     !> REKS input
     type(TReksInp) :: reksInp
 
