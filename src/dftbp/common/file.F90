@@ -200,7 +200,7 @@ contains
 
 
   !> Opens a file and returns the descriptor.
-  subroutine TFileDescr_connectToFile(this, file, options, mode, ioStat, ioMsg)
+  subroutine TFileDescr_connectToFile(this, file, options, mode, parallelWriting, ioStat, ioMsg)
 
     !> File descriptor on exit (invalid if the file could not be opened and ioStat /= 0)
     class(TFileDescr), intent(out) :: this
@@ -218,12 +218,16 @@ contains
     !! * "w+": readwrite (file created or truncated if it already exists)
     !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
     !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! The values above can be followed by "t" for text/formatted mode (default) or "b" for
     !! binary/unformatted mode.
     !!
     !! When arguments options and mode are both specified, the resulting options are determined by
     !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
+
+    !> If false or absent, block writing to files by all processes other than the lead
+    !! (default: false).
+    logical, optional, intent(in) :: parallelWriting
 
     !> I/O stat error generated during open, zero on exit, if no error occured.
     integer, optional, intent(out) :: ioStat
@@ -234,6 +238,7 @@ contains
     type(TOpenOptions) :: opts
     integer :: ioStat_
     character(1024) :: ioMsg_
+    logical :: parallelWriting_
 
     if (present(options)) then
       opts = options
@@ -250,6 +255,9 @@ contains
         end if
       end if
     end if
+
+    parallelWriting_ = .false.
+    if (present(parallelWriting)) parallelWriting_ = parallelWriting
 
     if (opts%access == "default") then
       select case (opts%action)
@@ -288,11 +296,13 @@ contains
       use dftbp_extlibs_mpifx, only : mpifx_comm
       type(mpifx_comm) :: comm
       character(1000) :: msg
-      call comm%init()
-      if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
-        write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
-            & file, "' for writing (only leader can do this)"
-        error stop msg
+      if (.not. parallelWriting_) then
+        call comm%init()
+        if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
+          write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
+              & file, "' for writing (only leader can do this)"
+          error stop msg
+        end if
       end if
     end block
   #:endif
@@ -407,7 +417,7 @@ contains
 
 
   !> Convenience wrapper connecting a file descriptor to a file.
-  subroutine openFile(fileDescr, file, options, mode, ioStat, ioMsg)
+  subroutine openFile(fileDescr, file, options, mode, parallelWriting, ioStat, ioMsg)
 
     !> File descriptor connected to the open file
     type(TFileDescr), intent(out) :: fileDescr
@@ -432,13 +442,18 @@ contains
     !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
 
+    !> If false or absent, block writing to files by all processes other than the lead
+    !! (default: false).
+    logical, optional, intent(in) :: parallelWriting
+
     !> I/O stat error generated during open
     integer, optional, intent(out) :: ioStat
 
     !> I/O message if error occured during open, unallocated otherwise
     character(:), allocatable, optional, intent(out) :: ioMsg
 
-    call fileDescr%connectToFile(file, options=options, mode=mode, ioStat=ioStat, ioMsg=ioMsg)
+    call fileDescr%connectToFile(file, options=options, mode=mode, parallelWriting=parallelWriting,&
+        & ioStat=ioStat, ioMsg=ioMsg)
 
   end subroutine openFile
 
