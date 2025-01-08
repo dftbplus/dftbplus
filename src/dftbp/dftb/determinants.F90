@@ -557,6 +557,7 @@ contains
 
     !> Rotate g into corresponding orbital basis and isolate the occupied MOs
     M = matmul(g,u)
+    Cg(:,:) = 0.0_dp
     do jj = 1, nElec
       if (abs(gfilling(jj)) >= epsilon(1.0_dp)) then
         Cg(:,jj) = gfilling(jj)*M(:,jj)
@@ -565,7 +566,9 @@ contains
 
     !> Rotate e into corresponding orbital basis and isolate the occupied MOs
     M = matmul(e,transpose(vt))
+    Ce(:,:) = 0.0_dp
     do jj = 1, nElec
+      Ce(:,jj) = 0.0_dp
       if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
         Ce(:,jj) = mfilling(jj)*M(:,jj)
       end if
@@ -579,7 +582,7 @@ contains
     end if
 
     pt = matmul(Cg,transpose(Ce))
-
+ 
   end subroutine tiTDM
 
   subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc, iSparseStart, &
@@ -659,21 +662,25 @@ contains
     integer :: nAtom, ii, iAtom, ia, na, i, j, m, iSpin
 
     ! Introduce work array, as mulliken routine returns (:nOrbs, :nAtom), but need to store
-    ! (:nAtom, :nSpin) for tiTraCharges
-    real(dp), allocatable :: work(:,:)
-
-    allocate(rhoPrim(size(rhoPrimSize, dim=1), size(rhoPrimSize, dim=2)))
-    allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
-    allocate(tiTrCenter(size(coord, dim=1)))
+    ! (:nAtom, :nSpin) for tiTraCharges     ... TDK: pretty sure I actually want nOrbs, nAtom...
+    !real(dp), allocatable :: work(:,:)
 
     na = size(tiMatE, dim=1)
     nAtom = size(orb%nOrbAtom)
 
-    !> Compute transition charges (Mulliken pops for transition density matrix)
+    allocate(rhoPrim(size(rhoPrimSize, dim=1), size(rhoPrimSize, dim=2)))
+    allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
+    allocate(tiTrCenter(size(coord, dim=1)))
+    !allocate(tiTraCharges(size(tiMatE, dim=1), nAtom))
+
+    !> Reset transition dipole moment
+    transitionDipoleMoment(:) = 0.0_dp
+
+    !> Reset transition charges (Mulliken pops for transition density matrix)
     tiTraCharges(:,:) = 0.0_dp
 
     !> Corresponding orbital transformation of stored ground and excited MOs
-    allocate(work(orb%mOrb,nAtom))
+    !allocate(work(orb%mOrb,nAtom))
     do iSpin = 1, size(gfilling, dim=3)
       call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin), mfilling(:,1,iSpin))
 
@@ -687,38 +694,39 @@ contains
     rhoPrim(:,iSpin) = 0.0_dp
     call packHS(rhoPrim(:,iSpin), tiTransitionDensity(:,:,iSpin), neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-
-    call mulliken(env, work, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
+    call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
         & nNeighbourSK, img2CentCell, iSparseStart)
-    tiTraCharges(:, iSpin) = sum(work,dim=1)
+    !tiTraCharges(:, iSpin) = sum(work,dim=1)
 
-    !> Write out the transition charges
-    write(*,*) "QM Transition Charges for spin ", iSpin
-    do ia = 1, size(tiTraCharges, dim=1)
-      write(*,FMT1) tiTraCharges(ia,:)
-    end do
+    !> Write out the transition charges (for debugging)
+    !write(*,*) "QM Transition Charges for spin ", iSpin
+    !do ia = 1, size(tiTraCharges, dim=1)
+    !  write(*,FMT1) tiTraCharges(ia,:)
+    !end do
 
     !> Shift center of transition charges to address gauge dependence
     sumOfTraCharges = 0.0_dp
     tiTrCenter(:) = 0.0_dp
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
-      sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
+      !sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
+      sumOfTraCharges = sumOfTraCharges + sum(tiTraCharges(:,iAtom))
     end do
-    write(*,*) "Sum of transition charges for spin ", iSpin
-    write(*,FMT1) sumOfTraCharges
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
-      tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
+    !  tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
+      tiTrCenter(:) = tiTrCenter(:) + sum(tiTraCharges(:,iAtom))*coord(:,iAtom)&
                                           &/sumOfTraCharges
     end do
-    write(*,*) "Center of Transition Charges for spin ", iSpin !! TDK - remove this?
-    write(*,FMT1) tiTrCenter(:) !! TDK - remove this?
+
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
+      !transitionDipoleMoment(:) = transitionDipoleMoment(:)&
+      !        & + sum(q0(:, iAtom, iSpin) - work(:, iAtom))&
+      !        & * (coord(:, iAtom)-tiTrCenter(:))
       transitionDipoleMoment(:) = transitionDipoleMoment(:)&
-              & + sum(q0(:, iAtom, iSpin) - work(:, iAtom))&
-              & * (coord(:, iAtom)-tiTrCenter(:))
+             & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
+             & * (coord(:, iAtom)-tiTrCenter(:))
     end do
   end do
 

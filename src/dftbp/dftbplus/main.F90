@@ -373,8 +373,7 @@ contains
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
             & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
-            & this%eField, this%dipoleMoment, this%deltaDftb, this%transitionDipoleMoment,&
-            & this%eFieldScaling, this%dipoleMessage)
+            & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling, this%dipoleMessage)
       end if
 
       call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
@@ -1268,7 +1267,6 @@ contains
       end if
     end if
 
-    write(*,*) "TDMWRITE: Printing SCC Header"
     if (.not.this%tRestartNoSC) then
       call initSccLoop(this%tSccCalc, this%xlbomdIntegrator, this%minSccIter, this%maxSccIter,&
           & this%sccTol, tConverged, this%tNegf, this%reks)
@@ -1401,7 +1399,6 @@ contains
       ! Standard spin free or unrestricted DFTB
 
       lpSCC: do iSccIter = 1, this%maxSccIter
-        write(*,*) 'TDMWRITE: Entering lpSCC'
 
         if (allocated(this%elecConstraint)) then
           nConstrIter = this%elecConstraint%getMaxIter()
@@ -1607,11 +1604,14 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
-    if (this%deltaDftb%isTDM) then
+    if (this%deltaDftb%isTDM .and. (this%deltaDftb%whichDeterminant(this%deltaDftb%iDeterminant)&
+           & .eq. determinants%mixed)) then
       call tiTraDip(this%tiMatG, this%tiMatE, this%tiMatPT, this%neighbourlist, this%nNeighbourSK,&
               & this%orb, this%denseDesc, this%iSparseStart, this%img2CentCell, this%rhoPrim,&
               & this%ints%overlap, this%tiTraCharges, this%transitionDipoleMoment, this%q0,&
               & this%coord0, this%iAtInCentralRegion, this%gfilling, this%mfilling, env)
+      !> Write out the TDM, because TDM not avialable in time for writeDetailedOut7 dipole writeout
+      write(*,*) 'TI-DFTB Transition Dipole Moment:', this%transitionDipoleMoment
     end if
 
     if (allocated(this%scc)) then
@@ -3311,7 +3311,6 @@ contains
 
     integer :: iKS, iSpin
 
-    write(*,*) 'TDMWRITE: Entering BuildAndDiagDenseRealHam'
     eigen(:,:) = 0.0_dp
 
     do iKS = 1, parallelKS%nLocalKS
@@ -3340,8 +3339,10 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
-      ! Store Hamiltonians for TDM calculation
-      write(*,*) 'TDMWRITE: Entering tiMat assignments'
+      call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+          & eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
+
+      ! Store eigenvectors (in HSqrReal after diag) for TDM calculation
       if (deltaDftb%isTDM) then
         if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
           tiMatG(:,:,iKS) = HSqrReal
@@ -3350,10 +3351,7 @@ contains
           tiMatE(:,:,iKS) = HSqrReal
         end if
       end if
-      write(*,*) 'TDMWRITE: Exiting tiMat assignments'
 
-      call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
-          & eigen(:,iSpin), eigvecsReal(:,:,iKS), errStatus)
       @:PROPAGATE_ERROR(errStatus)
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -3378,8 +3376,13 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
+      ! Warning: SSqrReal and HSqrReal gets overwritten here
+      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:, iSpin),&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+      eigvecsReal(:,:,iKS) = HSqrReal
+
       ! Store Hamiltonians for TDM calculation
-      write(*,*) 'TDMWRITE: Entering tiMat assignments'
       if (deltaDftb%isTDM) then
         if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
           tiMatG(:,:,iKS) = HSqrReal
@@ -3388,13 +3391,7 @@ contains
           tiMatE(:,:,iKS) = HSqrReal
         end if
       end if
-      write(*,*) 'TDMWRITE: Exiting tiMat assignments'
 
-      ! Warning: SSqrReal and HSqrReal gets overwritten here
-      call diagDenseMtx(env, electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:, iSpin),&
-          & errStatus)
-      @:PROPAGATE_ERROR(errStatus)
-      eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
 
     end do

@@ -5337,7 +5337,7 @@ contains
       allocate(this%tiSigma(nLocalRows))
       allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin))
       allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin))
-      allocate(this%tiTraCharges(this%nAtom, this%nSpin))
+      allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom))
       this%gfilling(:,:,:) = 0.0_dp
       this%mfilling(:,:,:) = 0.0_dp
     else
