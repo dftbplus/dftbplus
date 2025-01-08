@@ -78,7 +78,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
       & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireHybridXcTag
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, parseHybridXcTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
@@ -1852,10 +1852,10 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    type(fnode), pointer :: value1, child, child2
-    type(string) :: buffer, modifier
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-    integer :: method, iSp1
+    integer :: method
     character(len=:), allocatable :: paramFile, paramTmp
     type(TOrbitals) :: orb
 
@@ -2814,9 +2814,6 @@ contains
 
     !> Error status
     type(TStatus), intent(inout) :: errStatus
-
-    integer :: ii
-    character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
     ctrl%poorKSampling = .false.
@@ -4032,7 +4029,6 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    type(string) :: strBuffer
     logical :: tWriteDetailedOutDef
 
   #:if WITH_SOCKETS
@@ -5133,11 +5129,10 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
-    type(TListReal) :: lr
     logical :: tPipekDense
     logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
@@ -7927,8 +7922,11 @@ contains
     !! True, if hybrid xc-functional extra tag found in SK-file(s)
     logical :: isHybridSk
 
-    !! Hybrid xc-functional extra tag in SK-files, if allocated
+    !! Hybrid xc-functional extra tag found in the SK-file
     integer :: hybridXcSkTag
+
+    !! Type of hybrid xc-functional found in the SK-file
+    integer :: hybridXcSkType
 
     !! Hybrid functional type of user input
     integer :: hybridXcInputTag
@@ -7942,7 +7940,6 @@ contains
 
     !! Temporary string buffer, that stores the gamma function type
     type(string) :: strBuffer
-    character(lc) :: strTmp
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0))
@@ -7952,7 +7949,7 @@ contains
     call get(skFiles(1, 1), fileName, 1)
 
     ! Check if SK-files contain extra tag for hybrid xc-functionals
-    call inquireHybridXcTag(fileName, hybridXcSkTag)
+    call parseHybridXcTag(fileName, hybridXcTag=hybridXcSkTag, hybridXcType=hybridXcSkType)
     isHybridSk = hybridXcSkTag /= hybridXcFunc%none
 
     call getChild(node, "Hybrid", child=hybridChild, requested=.false.)
@@ -7973,8 +7970,6 @@ contains
     if (isHybridInp) then
       ! Convert hybrid functional type of user input to enumerator
       select case(tolower(char(buffer)))
-      case ("global")
-        hybridXcInputTag = hybridXcFunc%hyb
       case ("lc")
         hybridXcInputTag = hybridXcFunc%lc
       case ("cam")
@@ -7985,13 +7980,13 @@ contains
       end select
 
       ! Check if hybrid functional type is in line with SK-files
-      if (.not. hybridXcInputTag == hybridXcSkTag) then
+      if (hybridXcInputTag == hybridXcFunc%lc .and. hybridXcSkType /= hybridXcFunc%lc) then
         call detailedError(hybridChild, "Requested hybrid functional type conflict with provided&
             & SK-file(s).")
       end if
 
       allocate(input)
-      input%hybridXcType = hybridXcInputTag
+      input%hybridXcType = hybridXcSkType
       call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
           & child=screeningChild)
 
@@ -8301,13 +8296,12 @@ contains
     type(TChimesRepInp), allocatable, intent(out) :: chimesRepInput
 
     type(fnode), pointer :: chimes
-    type(string) :: buffer
 
   #:if WITH_CHIMES
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-  #:endif
-
     character(len=:), allocatable :: chimesFile
+  #:endif
 
     call getChild(root, "Chimes", chimes, requested=.false.)
     if (.not. associated(chimes)) return
