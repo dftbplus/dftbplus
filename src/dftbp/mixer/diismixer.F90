@@ -18,18 +18,14 @@
 module dftbp_mixer_diismixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  use dftbp_mixer_mixer, only: TMixer${LABEL}$
-  #:endfor
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
   private
-    
-  public :: TDiisMixerInp
 
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TDiisMixer${LABEL}$, TDiisMixer${LABEL}$_init
-  #:endfor
+  public :: TDiisMixerInp
+  public :: TDiisMixerReal, TDiisMixerReal_init
+  public :: TDiisMixerCmplx, TDiisMixerCmplx_init
 
   type :: TDiisMixerInp
     !> Nr. of generations (including actual) to consider
@@ -85,6 +81,7 @@ module dftbp_mixer_diismixer
 
     !> Holds DIIS mixed gradients from older iterations for downhill direction
     ${TYPE}$(dp), allocatable :: deltaR(:)
+
     contains
       procedure :: reset => TDiisMixer${LABEL}$_reset
       procedure :: mix1D => TDiisMixer${LABEL}$_mix
@@ -96,17 +93,14 @@ contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
 
-  !> Creates a DIIS mixer instance.
+  !> Initializes a DIIS mixer instance.
   subroutine TDiisMixer${LABEL}$_init(this, mixerInp)
 
     !> Pointer to an initialized DIIS mixer on exit
-    type(TDiisMixer${LABEL}$), allocatable, intent(out) :: this
+    type(TDiisMixer${LABEL}$), intent(out) :: this
 
     !> TDiisMixer input structure
     type(TDiisMixerInp), intent(in) :: mixerInp
-
-    allocate(TDiisMixer${LABEL}$ :: this)
-
 
     @:ASSERT(mixerInp%iGenerations >= 2)
 

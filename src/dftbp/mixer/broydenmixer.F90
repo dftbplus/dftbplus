@@ -21,19 +21,15 @@ module dftbp_mixer_broydenmixer
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_blasroutines, only : ger
   use dftbp_math_lapackroutines, only : getrf, getrs, gesv, matinv, hermatinv
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  use dftbp_mixer_mixer, only: TMixer${LABEL}$
-  #:endfor
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
 
   private
 
   public :: TBroydenMixerInp
-
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TBroydenMixer${LABEL}$, TBroydenMixer${LABEL}$_init
-  #:endfor
+  public :: TBroydenMixerReal, TBroydenMixerReal_init
+  public :: TBroydenMixerCmplx, TBroydenMixerCmplx_init
 
   type :: TBroydenMixerInp
     !> Maximum nr. of iterations (max. nr. of vectors to store)
@@ -102,9 +98,10 @@ module dftbp_mixer_broydenmixer
 
     !> uu vectors
     ${TYPE}$(dp), allocatable :: uu(:,:)
-      contains
-        procedure :: reset => TBroydenMixer${LABEL}$_reset
-        procedure :: mix1D => TBroydenMixer${LABEL}$_mix
+
+    contains
+      procedure :: reset => TBroydenMixer${LABEL}$_reset
+      procedure :: mix1D => TBroydenMixer${LABEL}$_mix
   end type TBroydenMixer${LABEL}$
 #:endfor
 
@@ -113,23 +110,21 @@ contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
 
-   !> Creates a Broyden mixer instance.
+  !> Initializes a Broyden mixer instance.
   !! The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidean
   !! norm of the charge difference vector. If the calculated weigth is outside of the
   !! [minWeight, maxWeight] region it is replaced with the appropriate boundary value.
   subroutine TBroydenMixer${LABEL}$_init(this, mixerInp)
 
     !> An initialized Broyden mixer on exit
-    type(TBroydenMixer${LABEL}$), allocatable, intent(out) :: this
-    
+    type(TBroydenMixer${LABEL}$), intent(out) :: this
+
     !> Broyden mixer input data struct
     type(TBroydenMixerInp), intent(in) :: mixerInp
-    
+
     @:ASSERT(mixerInp%maxSccIter > 0)
     @:ASSERT(mixerInp%mixParam > 0.0_dp)
     @:ASSERT(mixerInp%omega0 > 0.0_dp)
-    
-    allocate(TBroydenMixer${LABEL}$ :: this)
 
     this%nElem = 0
     this%mIter = mixerInp%maxSccIter

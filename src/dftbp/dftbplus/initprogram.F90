@@ -3342,38 +3342,39 @@ contains
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
-    
-        if (allocated(input%ctrl%mixerInp%simpleMixerInp)) then
-          write (strTmp, "(A)") "Simple"
-        else if (allocated(input%ctrl%mixerInp%andersonMixerInp)) then
-          write (strTmp, "(A)") "Anderson"
-        else if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
-          write (strTmp, "(A)") "Broyden"
-        else if (allocated(input%ctrl%mixerInp%diisMixerInp)) then
-          write (strTmp, "(A)") "DIIS"
-        end if
+        associate(inp=>input%ctrl%mixerInp)
+          if (allocated(inp%simpleMixerInp)) then
+            write (strTmp, "(A)") "Simple"
+          else if (allocated(inp%andersonMixerInp)) then
+            write (strTmp, "(A)") "Anderson"
+          else if (allocated(inp%broydenMixerInp)) then
+            write (strTmp, "(A)") "Broyden"
+          else if (allocated(inp%diisMixerInp)) then
+            write (strTmp, "(A)") "DIIS"
+          end if
 
-        write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-        
-        if (allocated(input%ctrl%mixerInp%simpleMixerInp)) then
-          write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", input%ctrl%mixerInp%simpleMixerInp%mixParam
-        else if (allocated(input%ctrl%mixerInp%andersonMixerInp)) then
-          write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", input%ctrl%mixerInp%andersonMixerInp%mixParam
-        else if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
-          write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", input%ctrl%mixerInp%broydenMixerInp%mixParam
-        else if (allocated(input%ctrl%mixerInp%diisMixerInp)) then
-          write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", input%ctrl%mixerInp%diisMixerInp%initMixParam
-        end if
+          write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
 
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
+          if (allocated(inp%simpleMixerInp)) then
+            write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
+          else if (allocated(inp%andersonMixerInp)) then
+            write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+          else if (allocated(inp%broydenMixerInp)) then
+            write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+          else if (allocated(inp%diisMixerInp)) then
+            write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+          end if
 
-        if (allocated(input%ctrl%mixerInp%andersonMixerInp)) then
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", input%ctrl%mixerInp%andersonMixerInp%iGenerations
-        else if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
-        else if (allocated(input%ctrl%mixerInp%diisMixerInp)) then
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", input%ctrl%mixerInp%diisMixerInp%iGenerations
-        end if
+          write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
+
+          if (allocated(inp%andersonMixerInp)) then
+            write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%andersonMixerInp%iGenerations
+          else if (allocated(inp%broydenMixerInp)) then
+            write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
+          else if (allocated(inp%diisMixerInp)) then
+            write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%diisMixerInp%iGenerations
+          end if
+        end associate
 
       else
         write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter

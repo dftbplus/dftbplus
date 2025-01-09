@@ -11,17 +11,14 @@
 !> Simple mixer for mixing charges
 module dftbp_mixer_simplemixer
   use dftbp_common_accuracy, only : dp
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  use dftbp_mixer_mixer, only: TMixer${LABEL}$
-  #:endfor
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
 
   private
   public :: TSimpleMixerInp
-#:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TSimpleMixer${LABEL}$, TSimpleMixer${LABEL}$_init
-#:endfor
+  public :: TSimpleMixerReal, TSimpleMixerReal_init
+  public :: TSimpleMixerCmplx, TSimpleMixerCmplx_init
 
   type :: TSimpleMixerInp
     !> Mixing parameter
@@ -34,9 +31,10 @@ module dftbp_mixer_simplemixer
     private
     !> Mixing parameter
     real(dp) :: mixParam
-    contains
-      procedure :: reset => TSimpleMixer${LABEL}$_reset
-      procedure :: mix1D => TSimpleMixer${LABEL}$_mix
+
+  contains
+    procedure :: reset => TSimpleMixer${LABEL}$_reset
+    procedure :: mix1D => TSimpleMixer${LABEL}$_mix
   end type TSimpleMixer${LABEL}$
 #:endfor
 
@@ -45,16 +43,14 @@ contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
 
-  !> Creates a simple mixer.
+  !> Initializes a simple mixer.
   subroutine TSimpleMixer${LABEL}$_init(this, mixerInp)
 
     !> Simple mixer instance on exit
-    type(TSimpleMixer${LABEL}$), allocatable, intent(out) :: this
-    
+    type(TSimpleMixer${LABEL}$), intent(out) :: this
+
     !> TSimpleMixerInp input data struct
     type(TSimpleMixerInp), intent(in) :: mixerInp
-
-    allocate(TSimpleMixer${LABEL}$ :: this)
 
     this%mixParam = mixerInp%mixParam
 

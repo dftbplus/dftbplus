@@ -8,31 +8,31 @@
 #:include 'common.fypp'
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
-!> Provides a general mixer which contains the desired actual mixer.
+!> Defines an abstract mixer as a base class, specifying the common interface for the
+!> desired actual mixer and providing shared methods to flatten 6D and 3D data to 1D.
 module dftbp_mixer_mixer
   use dftbp_common_accuracy, only : dp
   implicit none
 
   private
-#:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TMixer${LABEL}$
-#:endfor
+  public :: TMixerReal, TMixerCmplx
 
 #:for NAME, TYPE, LABEL in FLAVOURS
   type, abstract :: TMixer${LABEL}$
     contains
-        procedure(IReset${LABEL}$), deferred :: reset
-        !> The mixing implementation
-        procedure(IMix1D${LABEL}$), deferred :: mix1D
+      procedure(IReset${LABEL}$), deferred :: reset
 
-        !> Flatten 6d and 3d mixing to 1d
-        procedure :: mix3D => TMixer${LABEL}$_mix3D
-        procedure :: mix6D => TMixer${LABEL}$_mix6D
+      !> The mixing implementation
+      procedure(IMix1D${LABEL}$), deferred :: mix1D
 
-        generic :: mix => mix1D, mix3D, mix6D
+      !> Flatten 6d and 3d mixing to 1d
+      procedure :: mix3D => TMixer${LABEL}$_mix3D
+      procedure :: mix6D => TMixer${LABEL}$_mix6D
+
+      generic :: mix => mix1D, mix3D, mix6D
   end type TMixer${LABEL}$
 
-  abstract interface 
+  abstract interface
 
     subroutine IReset${LABEL}$(this, nElem)
       import :: TMixer${LABEL}$
@@ -48,8 +48,8 @@ module dftbp_mixer_mixer
     end subroutine IMix1D${LABEL}$
 
   end interface
-
 #:endfor
+
 contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
@@ -103,7 +103,6 @@ contains
     call this%mix1D(qInpRes, qDiff)
 
   end subroutine TMixer${LABEL}$_mix6D
-
 #:endfor
 
 

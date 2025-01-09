@@ -24,7 +24,7 @@ module dftbp_geoopt_gdiis
     private
 
     !> DIIS object itself
-    type(TDiisMixerReal), allocatable :: pDiis
+    type(TDiisMixerReal) :: pDiis
 
     !> Vector of current coordinate
     real(dp), allocatable :: x(:)

@@ -5501,48 +5501,56 @@ contains
         select case(char(buffer))
 
         case ("broyden")
-          
+
           allocate(ctrl%mixerInp%broydenMixerInp)
-          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%broydenMixerInp%mixParam, 0.2_dp)
-          call getChildValue(value1, "InverseJacobiWeight", ctrl%mixerInp%broydenMixerInp%omega0, 0.01_dp)
-          call getChildValue(value1, "MinimalWeight", ctrl%mixerInp%broydenMixerInp%minWeight, 1.0_dp)
-          call getChildValue(value1, "MaximalWeight", ctrl%mixerInp%broydenMixerInp%maxWeight, 1.0e5_dp)
-          call getChildValue(value1, "WeightFactor", ctrl%mixerInp%broydenMixerInp%weightFac, 1.0e-2_dp)
+          associate (inp => ctrl%mixerInp%broydenMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.2_dp)
+            call getChildValue(value1, "InverseJacobiWeight", inp%omega0, 0.01_dp)
+            call getChildValue(value1, "MinimalWeight", inp%minWeight, 1.0_dp)
+            call getChildValue(value1, "MaximalWeight", inp%maxWeight, 1.0e5_dp)
+            call getChildValue(value1, "WeightFactor", inp%weightFac, 1.0e-2_dp)
+          end associate
 
         case ("anderson")
 
           allocate(ctrl%mixerInp%andersonMixerInp)
-          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%andersonMixerInp%mixParam, 0.05_dp)
-          call getChildValue(value1, "Generations", ctrl%mixerInp%andersonMixerInp%iGenerations, 4)
-          call getChildValue(value1, "InitMixingParameter", ctrl%mixerInp%andersonMixerInp%initMixParam, 0.01_dp)
-          call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
-          call getNodeName2(value2, buffer2)
-          if (char(buffer2) == "") then
-            ctrl%mixerInp%andersonMixerInp%nConvMixParam = 0
-          else
-            call init(lr1)
-            call getChildValue(child, "", 2, lr1, child=child2)
-            if (len(lr1) < 1) then
-              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+          associate (inp => ctrl%mixerInp%andersonMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 4)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.01_dp)
+            call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
+            call getNodeName2(value2, buffer2)
+            if (char(buffer2) == "") then
+              inp%nConvMixParam = 0
+            else
+              call init(lr1)
+              call getChildValue(child, "", 2, lr1, child=child2)
+              if (len(lr1) < 1) then
+                call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+              end if
+              inp%nConvMixParam = len(lr1)
+              allocate(inp%convMixParam(2, inp%nConvMixParam))
+              call asArray(lr1, inp%convMixParam)
+              call destruct(lr1)
             end if
-            ctrl%mixerInp%andersonMixerInp%nConvMixParam = len(lr1)
-            allocate(ctrl%mixerInp%andersonMixerInp%convMixParam(2, ctrl%mixerInp%andersonMixerInp%nConvMixParam))
-            call asArray(lr1, ctrl%mixerInp%andersonMixerInp%convMixParam)
-            call destruct(lr1)
-          end if
-          call getChildValue(value1, "DiagonalRescaling", ctrl%mixerInp%andersonMixerInp%omega0, 1.0e-2_dp)
+            call getChildValue(value1, "DiagonalRescaling", inp%omega0, 1.0e-2_dp)
+          end associate
 
         case ("simple")
-        
+
           allocate(ctrl%mixerInp%simpleMixerInp)
-          call getChildValue(value1, "MixingParameter", ctrl%mixerInp%simpleMixerInp%mixParam, 0.05_dp)
+          associate (inp => ctrl%mixerInp%simpleMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+          end associate
 
         case ("diis")
 
           allocate(ctrl%mixerInp%diisMixerInp)
-          call getChildValue(value1, "InitMixingParameter", ctrl%mixerInp%diisMixerInp%initMixParam, 0.2_dp)
-          call getChildValue(value1, "Generations", ctrl%mixerInp%diisMixerInp%iGenerations, 6)
-          call getChildValue(value1, "UseFromStart", ctrl%mixerInp%diisMixerInp%tFromStart, .true.)
+          associate (inp => ctrl%mixerInp%diisMixerInp)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.2_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 6)
+            call getChildValue(value1, "UseFromStart", inp%tFromStart, .true.)
+          end associate
 
         case default
 

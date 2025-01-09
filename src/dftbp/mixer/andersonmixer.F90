@@ -18,17 +18,13 @@
 module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  use dftbp_mixer_mixer, only: TMixer${LABEL}$
-  #:endfor
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
-
 
   private
   public :: TAndersonMixerInp
-  #:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TAndersonMixer${LABEL}$, TAndersonMixer${LABEL}$_init
-  #:endfor
+  public :: TAndersonMixerReal, TAndersonMixerReal_init
+  public :: TAndersonMixerCmplx, TAndersonMixerCmplx_init
 
   type :: TAndersonMixerInp
     !> Nr. of generations (including actual) to consider
@@ -103,9 +99,10 @@ module dftbp_mixer_andersonmixer
 
     !> Stored prev. charge differences
     ${TYPE}$(dp), allocatable :: prevQDiff(:,:)
-      contains
-        procedure :: reset => TAndersonMixer${LABEL}$_reset
-        procedure :: mix1D => TAndersonMixer${LABEL}$_mix
+
+    contains
+      procedure :: reset => TAndersonMixer${LABEL}$_reset
+      procedure :: mix1D => TAndersonMixer${LABEL}$_mix
   end type TAndersonMixer${LABEL}$
 
 #:endfor
@@ -114,16 +111,14 @@ contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
 
-  !> Creates an Anderson mixer instance.
+  !> Initializes an Anderson mixer instance.
   subroutine TAndersonMixer${LABEL}$_init(this, mixerInp)
 
     !> Initialized Anderson mixer on exit
-    type(TAndersonMixer${LABEL}$), allocatable, intent(out) :: this
+    type(TAndersonMixer${LABEL}$), intent(out) :: this
 
     !> TAndersonMixer Input struct
     type(TAndersonMixerInp), intent(in) :: mixerInp
-    
-    allocate(TAndersonMixer${LABEL}$::this)
 
     @:ASSERT(mixerInp%iGenerations >= 2)
 
