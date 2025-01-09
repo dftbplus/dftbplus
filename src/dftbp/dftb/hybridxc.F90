@@ -688,7 +688,6 @@ contains
     integer :: ii, jj
 
     coeffs => supercellFoldingMatrix(:, 1:3)
-    shifts => supercellFoldingMatrix(:, 4)
 
     if (abs(determinant33(coeffs)) - 1.0_dp < -1e-06_dp) then
       @:RAISE_ERROR(errStatus, -1, "Determinant of the supercell matrix must be greater than 1.")
@@ -714,10 +713,13 @@ contains
           & Monkhorst-Pack-like sampling, i.e., a uniform extension of the lattice.")
     end if
 
-    ! Check if shifts are zero
-    if (any(abs(shifts) > 1e-06_dp)) then
-      @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
-          & Monkhorst-Pack-like sampling with zero shift.")
+    if (size(supercellFoldingMatrix, dim=2) == 4) then
+      ! Check if shifts are zero
+      shifts => supercellFoldingMatrix(:, 4)
+      if (any(abs(shifts) > 1e-06_dp)) then
+        @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
+            & Monkhorst-Pack-like sampling with a zero shift.")
+      end if
     end if
 
   end subroutine checkSupercellFoldingMatrix
