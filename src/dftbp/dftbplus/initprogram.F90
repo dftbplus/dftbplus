@@ -3883,6 +3883,9 @@ contains
     if (this%deltaDftb%isNonAufbau .and. this%tLocalise) then
       call error("Delta DFTB incompatible with localisation")
     end if
+    if ((.not. this%deltaDftb%isGroundGuess) .and. this%deltaDftb%isTDM) then
+      call error("Delta DFTB transition dipole moment requires ground state guess")
+    end if
 
     if (this%tSpinOrbit .and. allocated(this%dftbU) .and. .not. this%tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
@@ -5327,8 +5330,6 @@ contains
     end if
 
     !> Initialize storage for TI-DFTB TDMs
-    !> TDK: nLocalCols is far too large in tests, so using nLocalRows twice
-    !>      as a stopgap. Why is nLocalCols 1704689728 when nLocalRows is 22074?
     if (this%deltaDftb%isTDM) then
       allocate(this%transitionDipoleMoment(3))
       allocate(this%tiMatG(nLocalRows,nLocalCols,this%nSpin))
@@ -5340,7 +5341,6 @@ contains
       allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom))
       this%gfilling(:,:,:) = 0.0_dp
       this%mfilling(:,:,:) = 0.0_dp
-    else
     end if
 
   end subroutine initDetArrays

@@ -563,7 +563,7 @@ contains
           & this%tStress, this%totalStress, pDynMatrix, this%dftbEnergy(this%deltaDftb%iFinal),&
           & this%extPressure, this%coord0, this%tLocalise, localisation, this%electrostatPot,&
           & this%taggedWriter, this%tunneling, this%ldos, this%lCurrArray, this%polarisability,&
-          & this%dEidE, this%dipoleMoment, this%eFieldScaling)
+          & this%dEidE, this%dipoleMoment, this%transitionDipoleMoment, this%eFieldScaling)
     end if
     if (this%tWriteResultsTag) then
       call writeResultsTag(resultsTag, this%dftbEnergy(this%deltaDftb%iFinal), this%derivs,&
@@ -1611,7 +1611,8 @@ contains
               & this%ints%overlap, this%tiTraCharges, this%transitionDipoleMoment, this%q0,&
               & this%coord0, this%iAtInCentralRegion, this%gfilling, this%mfilling, env)
       !> Write out the TDM, because TDM not avialable in time for writeDetailedOut7 dipole writeout
-      write(*,*) 'TI-DFTB Transition Dipole Moment:', this%transitionDipoleMoment
+      write(stdOut,*)
+      write(stdOut,'(A, 3F14.8, A)') 'TI-DFTB Transition Dipole Moment:', this%transitionDipoleMoment, ' a.u.'
     end if
 
     if (allocated(this%scc)) then

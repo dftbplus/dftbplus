@@ -159,7 +159,6 @@ contains
   subroutine postProcessDets(this, energies, qOutput, qDets, qBlockOut, qBlockDets, dipoleMoment,&
       & transitionDipoleMoment, gfilling, mfilling, stress, tripletStress, mixedStress, derivs,&
       & tripletderivs, mixedderivs)
-     !& gfilling, mfilling) -- TDK: remove if proven unnecessary
 
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
@@ -514,10 +513,6 @@ contains
     !> TI-DFTB mixed-determinant occupation numbers
     real(dp), intent(in) :: mfilling(:)
 
-    character(len=9), parameter :: FMT1 = "(90f10.5)"
-
-    integer :: i, j, n, ia, jj, nElec  !! TDK - check which are needed
-
     !> Left eigenvectors (corresponding orbitals) from SVD
     real(dp), allocatable :: u(:,:)
 
@@ -536,11 +531,14 @@ contains
     !> TI-DFTB excited state MO eigenvectors in transformed (CO) basis
     real(dp), allocatable :: Ce(:,:)
 
+    character(len=9), parameter :: FMT1 = "(90f10.5)"
+    integer :: jj, nElec 
+
     allocate(u(size(e,dim=1), size(e,dim=2)))
     allocate(vt(size(e,dim=1), size(e,dim=2)))
     allocate(M(size(e,dim=1), size(e,dim=2)))
     allocate(sigma(size(e,dim=1)))
-    allocate(Ce(size(e,dim=1), size(e,dim=2))) !! TDK - check if nElec needed instead
+    allocate(Ce(size(e,dim=1), size(e,dim=2))) 
     allocate(Cg(size(e,dim=1), size(e,dim=2)))
   
     !> Determine how many orbitals with non-negligible occupations to track
@@ -574,7 +572,7 @@ contains
       end if
     end do
     if (mfilling(nElec)==0.0_dp) then
-      do jj = nElec, size(mFilling) ! TDK change nElec to nElec+1; nElec already handled above
+      do jj = nElec, size(mFilling) ! Could just as well start from nElec+1 here (see condition)
         if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
           Ce(:,nElec) = mfilling(jj)*M(:,jj)
         end if
@@ -661,17 +659,12 @@ contains
     character(len=9), parameter :: FMT1 = "(90f10.5)"
     integer :: nAtom, ii, iAtom, ia, na, i, j, m, iSpin
 
-    ! Introduce work array, as mulliken routine returns (:nOrbs, :nAtom), but need to store
-    ! (:nAtom, :nSpin) for tiTraCharges     ... TDK: pretty sure I actually want nOrbs, nAtom...
-    !real(dp), allocatable :: work(:,:)
-
     na = size(tiMatE, dim=1)
     nAtom = size(orb%nOrbAtom)
 
     allocate(rhoPrim(size(rhoPrimSize, dim=1), size(rhoPrimSize, dim=2)))
     allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
     allocate(tiTrCenter(size(coord, dim=1)))
-    !allocate(tiTraCharges(size(tiMatE, dim=1), nAtom))
 
     !> Reset transition dipole moment
     transitionDipoleMoment(:) = 0.0_dp
@@ -680,7 +673,6 @@ contains
     tiTraCharges(:,:) = 0.0_dp
 
     !> Corresponding orbital transformation of stored ground and excited MOs
-    !allocate(work(orb%mOrb,nAtom))
     do iSpin = 1, size(gfilling, dim=3)
       call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin), mfilling(:,1,iSpin))
 
@@ -696,7 +688,6 @@ contains
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
         & nNeighbourSK, img2CentCell, iSparseStart)
-    !tiTraCharges(:, iSpin) = sum(work,dim=1)
 
     !> Write out the transition charges (for debugging)
     !write(*,*) "QM Transition Charges for spin ", iSpin
@@ -721,9 +712,6 @@ contains
 
     do ii = 1, size(iAtInCentralRegion)
       iAtom = iAtInCentralRegion(ii)
-      !transitionDipoleMoment(:) = transitionDipoleMoment(:)&
-      !        & + sum(q0(:, iAtom, iSpin) - work(:, iAtom))&
-      !        & * (coord(:, iAtom)-tiTrCenter(:))
       transitionDipoleMoment(:) = transitionDipoleMoment(:)&
              & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
              & * (coord(:, iAtom)-tiTrCenter(:))

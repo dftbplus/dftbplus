@@ -2713,6 +2713,7 @@ in the \iscb{nonAufbau} block:
 \begin{ptable}
   \kw{SpinPurify} & l & & Yes & \\
   \kw{GroundGuess} & l & & No & \\
+  \kw{TDM} & l & & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{SpinPurify}] Calculates both a triplet and mixed state for
@@ -2723,6 +2724,12 @@ in the \iscb{nonAufbau} block:
   calculation.  The SCC loop will run three times if \is{NonAubau},
   \is{SpinPurify}, and \is{GroundGuess} are set to \is{Yes}, but only twice if
   \is{SpinPurify = No}.
+\item{\is{TDM}} Calculates the transition dipole moment
+$\mu^{eg} = \left \langle \Psi_e | \hat \mu | \Psi_g \right \rangle$
+between the ground state and the mixed state from a $\Delta$DFTB calculation
+through a corresponding orbital transformation.\cite{kowalczyk-JCP-158-134104}
+\is{GroundGuess} must also be set to \is{Yes} for TDM calculations
+to ensure the availability of ground-state orbitals for the calculation.
 \end{description}
 
 The default settings, if \kwcb{NonAufbau} is included in the input, is
@@ -2732,6 +2739,7 @@ equivalent to:
   NonAufbau = {
     GroundGuess = No
     SpinPurify = Yes
+    TDM = No
   }
 \end{verbatim}
 This performs two self-consistent calculations at each geometry step, and then

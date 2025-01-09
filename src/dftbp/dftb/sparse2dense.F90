@@ -21,8 +21,6 @@ module dftbp_dftb_sparse2dense
   use dftbp_math_angmomentum, only : rotateZ
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-!  use dftbp_math_lapackroutines, only : gesvd    ! TDK For TDMs
-!  use dftbp_dftb_populations, only : mulliken    ! TDK For TDMs
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv
   use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
@@ -33,7 +31,6 @@ module dftbp_dftb_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho, unpackDQ, unpackSPauli, unpackHPauli
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
-!  public :: tiTDM, tiTraDip
   public :: getUnpackedOverlapPrime_real, getUnpackedOverlapPrime_kpts
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
