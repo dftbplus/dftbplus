@@ -88,6 +88,10 @@ jobs:
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
 
+    - name: Install LAPACK/BLAS
+      run: |
+        sudo apt-get install liblapack-dev libblas-dev
+
     - name: Install ARPACK
       if: contains(matrix.mpi, 'nompi')
       run: |
