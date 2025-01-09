@@ -21,7 +21,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
-  use dftbp_dftb_determinants, only : determinants, TDftbDeterminants, tiTDM, tiTraDip
+  use dftbp_dftb_determinants, only : determinants, TDftbDeterminants, tiTraDip
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
@@ -1612,7 +1612,8 @@ contains
               & this%coord0, this%iAtInCentralRegion, this%gfilling, this%mfilling, env)
       !> Write out the TDM, because TDM not avialable in time for writeDetailedOut7 dipole writeout
       write(stdOut,*)
-      write(stdOut,'(A, 3F14.8, A)') 'TI-DFTB Transition Dipole Moment:', this%transitionDipoleMoment, ' a.u.'
+      write(stdOut,'(A, 3F14.8, A)') 'TI-DFTB Transition Dipole Moment:',&
+          & this%transitionDipoleMoment, ' a.u.'
     end if
 
     if (allocated(this%scc)) then
@@ -3186,8 +3187,8 @@ contains
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0, deltaDftb,&
-        & gfilling, mfilling)
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, energy%Eband, energy%TS, energy%E0,&
+        & deltaDftb, gfilling, mfilling)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then

@@ -6,10 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Routines for (time independent excited) TI-DFTB
 module dftbp_dftb_determinants
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : Efilling
   use dftbp_io_message, only : error
@@ -296,7 +298,8 @@ contains
 
 
   !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant
-  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, isTDM, nEl, dftbEnergy)
+  subroutine TDftbDeterminants_init(this, isNonAufbau, isSpinPurify, isGroundGuess, isTDM, nEl,&
+      & dftbEnergy, errStatus)
 
     !> Instance
     type(TDftbDeterminants), intent(out) :: this
@@ -320,14 +323,23 @@ contains
     !> state)
     type(TEnergies), allocatable, intent(out) :: dftbEnergy(:)
 
+    type(TStatus), intent(out) :: errStatus
+
     if (.not.isNonAufbau .and. (isGroundGuess .or. isSpinPurify) ) then
-      call error("Delta DFTB internal error - setting request without non-Aufbau fillings")
+      @:RAISE_ERROR(errStatus, -1, "Delta DFTB internal error - setting request without non-Aufbau&
+          & fillings")
     end if
 
     this%isNonAufbau = isNonAufbau
     this%isGroundGuess = isGroundGuess
     this%isSpinPurify = isSpinPurify
     this%isTDM = isTDM
+  #:if WITH_MPI
+    if (this%isTDM) then
+      @:RAISE_ERROR(errStatus, -1, "Delta DFTB transition dipole not yet available for MPI enabled&
+          & builds")
+    end if
+  #:endif
 
     this%nEl = nEl
 
@@ -583,9 +595,9 @@ contains
  
   end subroutine tiTDM
 
-  subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc, iSparseStart, &
-               & img2CentCell, rhoPrimSize, over, tiTraCharges, transitionDipoleMoment, q0, coord, iAtInCentralRegion, &
-               & gfilling, mfilling, env)
+  subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc,&
+      & iSparseStart, img2CentCell, rhoPrimSize, over, tiTraCharges, transitionDipoleMoment, q0,&
+      & coord, iAtInCentralRegion, gfilling, mfilling, env)
 
     !> DFTB ground state MO eigenvectors
     real(dp), intent(inout) :: tiMatG(:,:,:)
@@ -657,7 +669,7 @@ contains
     type(TEnvironment), intent(in) :: env
     
     character(len=9), parameter :: FMT1 = "(90f10.5)"
-    integer :: nAtom, ii, iAtom, ia, na, i, j, m, iSpin
+    integer :: nAtom, ii, iAtom, ia, na, jj, m, iSpin
 
     na = size(tiMatE, dim=1)
     nAtom = size(orb%nOrbAtom)
@@ -666,57 +678,60 @@ contains
     allocate(tiTransitionDensity(size(tiMatE, dim=1), size(tiMatE, dim=2), size(tiMatE, dim=3)))
     allocate(tiTrCenter(size(coord, dim=1)))
 
-    !> Reset transition dipole moment
+    ! Reset transition dipole moment
     transitionDipoleMoment(:) = 0.0_dp
 
-    !> Reset transition charges (Mulliken pops for transition density matrix)
+    ! Reset transition charges (Mulliken pops for transition density matrix)
     tiTraCharges(:,:) = 0.0_dp
 
-    !> Corresponding orbital transformation of stored ground and excited MOs
+    ! Corresponding orbital transformation of stored ground and excited MOs
     do iSpin = 1, size(gfilling, dim=3)
-      call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin), mfilling(:,1,iSpin))
+      call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin),&
+          & mfilling(:,1,iSpin))
 
-    !> Make transition density lower triangular
-    tiTransitionDensity(:,:, iSpin) = 0.0_dp
-    do i = 1, size(tiTransitionDensity, dim=1)
-      forall (j=1:i) tiTransitionDensity(i,j,iSpin) = tiMatPT(i,j)
+      ! Make transition density lower triangular
+      tiTransitionDensity(:,:, iSpin) = 0.0_dp
+      do ii = 1, size(tiTransitionDensity, dim=1)
+        do jj = 1, ii
+          tiTransitionDensity(ii,jj,iSpin) = tiMatPT(ii,jj)
+        end do
+      end do
+
+      ! Pack TI-DFTB transition density matrix
+      rhoPrim(:,iSpin) = 0.0_dp
+      call packHS(rhoPrim(:,iSpin), tiTransitionDensity(:,:,iSpin), neighbourlist%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
+          & nNeighbourSK, img2CentCell, iSparseStart)
+
+      ! Write out the transition charges (for debugging)
+      !write(*,*) "QM Transition Charges for spin ", iSpin
+      !do ia = 1, size(tiTraCharges, dim=1)
+      !  write(*,FMT1) tiTraCharges(ia,:)
+      !end do
+
+      ! Shift center of transition charges to address gauge dependence
+      sumOfTraCharges = 0.0_dp
+      tiTrCenter(:) = 0.0_dp
+      do ii = 1, size(iAtInCentralRegion)
+        iAtom = iAtInCentralRegion(ii)
+        !sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
+        sumOfTraCharges = sumOfTraCharges + sum(tiTraCharges(:,iAtom))
+      end do
+      do ii = 1, size(iAtInCentralRegion)
+        iAtom = iAtInCentralRegion(ii)
+        !  tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
+        tiTrCenter(:) = tiTrCenter(:) + sum(tiTraCharges(:,iAtom))*coord(:,iAtom)&
+            &/sumOfTraCharges
+      end do
+
+      do ii = 1, size(iAtInCentralRegion)
+        iAtom = iAtInCentralRegion(ii)
+        transitionDipoleMoment(:) = transitionDipoleMoment(:)&
+            & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
+            & * (coord(:, iAtom)-tiTrCenter(:))
+      end do
     end do
-
-    !> Pack TI-DFTB transition density matrix
-    rhoPrim(:,iSpin) = 0.0_dp
-    call packHS(rhoPrim(:,iSpin), tiTransitionDensity(:,:,iSpin), neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    call mulliken(env, tiTraCharges, over, rhoPrim(:,iSpin), orb, neighbourlist%iNeighbour,&
-        & nNeighbourSK, img2CentCell, iSparseStart)
-
-    !> Write out the transition charges (for debugging)
-    !write(*,*) "QM Transition Charges for spin ", iSpin
-    !do ia = 1, size(tiTraCharges, dim=1)
-    !  write(*,FMT1) tiTraCharges(ia,:)
-    !end do
-
-    !> Shift center of transition charges to address gauge dependence
-    sumOfTraCharges = 0.0_dp
-    tiTrCenter(:) = 0.0_dp
-    do ii = 1, size(iAtInCentralRegion)
-      iAtom = iAtInCentralRegion(ii)
-      !sumOfTraCharges = sumOfTraCharges + sum(work(:,iAtom))
-      sumOfTraCharges = sumOfTraCharges + sum(tiTraCharges(:,iAtom))
-    end do
-    do ii = 1, size(iAtInCentralRegion)
-      iAtom = iAtInCentralRegion(ii)
-    !  tiTrCenter(:) = tiTrCenter(:) + sum(work(:,iAtom))*coord(:,iAtom)&
-      tiTrCenter(:) = tiTrCenter(:) + sum(tiTraCharges(:,iAtom))*coord(:,iAtom)&
-                                          &/sumOfTraCharges
-    end do
-
-    do ii = 1, size(iAtInCentralRegion)
-      iAtom = iAtInCentralRegion(ii)
-      transitionDipoleMoment(:) = transitionDipoleMoment(:)&
-             & + sum(q0(:, iAtom, iSpin) - tiTraCharges(:, iAtom))&
-             & * (coord(:, iAtom)-tiTrCenter(:))
-    end do
-  end do
 
   end subroutine tiTraDip
 

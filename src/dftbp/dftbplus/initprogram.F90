@@ -1936,7 +1936,8 @@ contains
 
     ! DFTB related variables if multiple determinants are used
     call TDftbDeterminants_init(this%deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
-        & input%ctrl%isGroundGuess, input%ctrl%isTDM, this%nEl, this%dftbEnergy)
+        & input%ctrl%isGroundGuess, input%ctrl%isTDM, this%nEl, this%dftbEnergy, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
     if (this%tForces) then
       this%tCasidaForces = input%ctrl%tCasidaForces

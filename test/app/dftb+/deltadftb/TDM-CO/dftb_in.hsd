@@ -27,6 +27,7 @@ Hamiltonian = DFTB{
   }
 
   SlaterKosterFiles = {
+    Prefix = "slakos/origin/mio-1-1/"
     C-C = "C-C.skf"
     C-O = "C-O.skf"
     O-C = "O-C.skf"
