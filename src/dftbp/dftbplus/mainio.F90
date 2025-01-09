@@ -3730,7 +3730,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, transitionDipoleMoment, eFieldScaling, dipoleMessage, quadrupoleMoment)
+      & deltaDftb, eFieldScaling, dipoleMessage, quadrupoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
