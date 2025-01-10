@@ -1746,6 +1746,139 @@ contains
     call readElectrostatics(node, ctrl, geo, poisson)
   #:endif
 
+    ! Multipole expansion
+    ctrl%isDftbMultiExpan = .false.
+    if (ctrl%tSCC) then
+      !call getChildValue(node, "Multipole", ctrl%isDftbMultiExpan, .false.)
+      call getChildValue(node, "Multipole", value1, "", child=child, allowEmptyValue=.true.,&
+          & dummyValue=.true.)
+      if (associated(value1)) then
+        call getNodeName(value1, buffer)
+        select case(char(buffer))
+        case("onecenterapproximation")
+          ctrl%isDftbMultiExpan = .true.
+          allocate(ctrl%atomicDIntgrlScaling(geo%nSpecies))
+          allocate(ctrl%atomicQIntgrlScaling(geo%nSpecies))
+          allocate(ctrl%atomicOnsiteScaling(geo%nSpecies))
+          allocate(ctrl%atomicSXPxIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPxXDxxyyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPxXDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPyYDxxyyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPzZDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicSXXSIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPxXXPxIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicPyXXPyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicSXXDxxyyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicSXXDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicSYYDxxyyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicSZZDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDxyXXDxyIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDyzXXDyzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDxxyyXXDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDzzXXDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDxxyyYYDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDzzZZDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDxzXZDzzIntgrl(geo%nSpecies))
+          allocate(ctrl%atomicDyzYZDxxyyIntgrl(geo%nSpecies))
+          ctrl%atomicDIntgrlScaling(:) = 1.0_dp
+          ctrl%atomicQIntgrlScaling(:) = 1.0_dp
+          ctrl%atomicOnsiteScaling(:) = 1.0_dp
+          ctrl%atomicSXPxIntgrl(:) = 0.0_dp
+          ctrl%atomicPxXDxxyyIntgrl(:) = 0.0_dp
+          ctrl%atomicPxXDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicPyYDxxyyIntgrl(:) = 0.0_dp
+          ctrl%atomicPzZDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicSXXSIntgrl(:) = 0.0_dp
+          ctrl%atomicPxXXPxIntgrl(:) = 0.0_dp
+          ctrl%atomicPyXXPyIntgrl(:) = 0.0_dp
+          ctrl%atomicSXXDxxyyIntgrl(:) = 0.0_dp
+          ctrl%atomicSXXDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicSYYDxxyyIntgrl(:) = 0.0_dp
+          ctrl%atomicSZZDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDxyXXDxyIntgrl(:) = 0.0_dp
+          ctrl%atomicDyzXXDyzIntgrl(:) = 0.0_dp
+          ctrl%atomicDxxyyXXDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDzzXXDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDxxyyYYDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDzzZZDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDxzXZDzzIntgrl(:) = 0.0_dp
+          ctrl%atomicDyzYZDxxyyIntgrl(:) = 0.0_dp
+
+          call getChild(value1, 'AtomDIntergralScalings', child2, requested=.false.)
+          if (associated(child2)) then
+            do iSp1 = 1, geo%nSpecies
+              call getChildValue(child2, trim(geo%speciesNames(iSp1)),&
+                  & ctrl%atomicDIntgrlScaling(iSp1), 1.0_dp)
+            end do
+          end if
+
+          call getChild(value1, 'AtomQIntergralScalings', child2, requested=.false.)
+          if (associated(child2)) then
+            do iSp1 = 1, geo%nSpecies
+              call getChildValue(child2, trim(geo%speciesNames(iSp1)),&
+                  & ctrl%atomicQIntgrlScaling(iSp1), 1.0_dp)
+            end do
+          end if
+
+          call getChild(value1, 'AtomOnsiteScalings', child2, requested=.false.)
+          if (associated(child2)) then
+            do iSp1 = 1, geo%nSpecies
+              call getChildValue(child2, trim(geo%speciesNames(iSp1)),&
+                  & ctrl%atomicOnsiteScaling(iSp1), 1.0_dp)
+            end do
+          end if
+
+          call getChild(value1, 'OneCenterAtomIntergrals', child2, requested=.true.)
+          do iSp1 = 1, geo%nSpecies
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_X_Px",&
+                & ctrl%atomicSXPxIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_X_Dxx-yy",&
+                & ctrl%atomicPxXDxxyyIntgrl (iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_X_Dzz",&
+                & ctrl%atomicPxXDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py_Y_Dxx-yy",&
+                & ctrl%atomicPyYDxxyyIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Pz_Z_Dzz",&
+                & ctrl%atomicPzZDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_S",&
+                & ctrl%atomicSXXSIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_XX_Px",&
+                & ctrl%atomicPxXXPxIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py_XX_Py",&
+                & ctrl%atomicPyXXPyIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_Dxx-yy",&
+                & ctrl%atomicSXXDxxyyIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_Dzz",&
+                & ctrl%atomicSXXDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_YY_Dxx-yy",&
+                & ctrl%atomicSYYDxxyyIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_ZZ_Dzz",&
+                & ctrl%atomicSZZDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxy_XX_Dxy",&
+                & ctrl%atomicDxyXXDxyIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz_XX_Dyz",&
+                & ctrl%atomicDyzXXDyzIntgrl(iSp1), 0.0_dp)
+            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy_XX_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_XX_Dxx-yy",&
+                & ctrl%atomicDxxyyXXDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_XX_Dzz",&
+                & ctrl%atomicDzzXXDzzIntgrl(iSp1), 0.0_dp)
+            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy_YY_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_YY_Dxx-yy",&
+                & ctrl%atomicDxxyyYYDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_ZZ_Dzz",&
+                & ctrl%atomicDzzZZDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxz_XZ_Dzz",&
+                & ctrl%atomicDxzXZDzzIntgrl(iSp1), 0.0_dp)
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz_YZ_Dxx-yy",&
+                & ctrl%atomicDyzYZDxxyyIntgrl(iSp1), 0.0_dp)
+          end do
+        case default
+          call detailedError(child,"Unknown functions :"// char(buffer))
+        end select
+      end if
+    end if
+
     ! Third order stuff
     ctrl%t3rd = .false.
     ctrl%t3rdFull = .false.
