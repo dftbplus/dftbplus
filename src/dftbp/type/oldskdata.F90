@@ -281,7 +281,7 @@ contains
 
 
   !> Reads hybrid xc-functional parameter(s) from an SK-file, by opening the file or accessing an
-  !! already open file using its identifier if provided.
+  !! already open file using its identifier (if provided).
   subroutine parseHybridXcTag(fname, fp, hybridXcTag, hybridXcType, hybridXcSK)
 
     !> File name
