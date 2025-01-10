@@ -1460,7 +1460,7 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
-    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
+    call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geo, skFiles)
 
     if (allocated(ctrl%hybridXcInp)) then
       ctrl%tSCC = .true.
@@ -7904,7 +7904,7 @@ contains
 
 
   !> Parses hybrid xc-functional input.
-  subroutine parseHybridBlock(node, input, geo, skFiles)
+  subroutine parseHybridBlock(node, input, ctrl, geo, skFiles)
 
     !> Node to parse
     type(fnode), intent(in), pointer :: node
@@ -7914,6 +7914,9 @@ contains
 
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
+
+    !> General control structure
+    type(TControl), intent(in) :: ctrl
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -8019,6 +8022,15 @@ contains
         call getNodeHSdName(screeningValue, buffer)
         call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'")
       end select
+
+      if (ctrl%tSpinOrbit) then
+        call detailedError(hybridChild, "Spin-orbit coupling not currently supported for hybrids")
+      end if
+      if (ctrl%t2Component) then
+        if (input%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+          call detailedError(screeningChild, "MatrixBased screening required for noncollinear spin")
+        end if
+      end if
 
       ! Additional settings for periodic sytems
       ifPeriodic: if (geo%tPeriodic) then
