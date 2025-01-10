@@ -142,13 +142,13 @@ module dftbp_dftb_hybridxc
   type :: THybridXcSKTag
 
     !> Range-separation parameter
-    real(dp) :: omega
+    real(dp) :: omega = 0.0_dp
 
     !> CAM alpha parameter
-    real(dp) :: camAlpha
+    real(dp) :: camAlpha = 0.0_dp
 
     !> CAM beta parameter
-    real(dp) :: camBeta
+    real(dp) :: camBeta = 0.0_dp
 
   end type THybridXcSKTag
 
