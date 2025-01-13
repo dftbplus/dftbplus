@@ -2346,7 +2346,7 @@ contains
                   & iSparseStart, img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1:1),&
                   & nEmpty(:,1:1), eigVecsReal, eCiReal, eigVals, filling, Ef, tempElec, orb,&
                   & drho(:,iS), dRhoOutSqr, hybridXc, over, nNeighbourLC, transform(iKS), species,&
-                  & dEiTmp, dPsiReal, coord, errStatus, omega, isHelical)
+                  & dEiTmp, dPsiReal, coord, errStatus, omega, isHelical, maxFill=maxFill)
               @:PROPAGATE_ERROR(errStatus)
               dEi(:, :, :, iCart, iAt) = dEiTmp
             end do
