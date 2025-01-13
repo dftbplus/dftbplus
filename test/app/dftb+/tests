@@ -17,6 +17,7 @@ deltadftb/C2H4_noground                #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/C2H4_unpurified              #? OMP_THREADS <= 2 and not WITH_MPI
 deltadftb/indigo                       #? OMP_THREADS <= 4 and MPI_PROCS <= 2
 deltadftb/H2O                          #? OMP_THREADS <= 2 and not WITH_MPI
+deltadftb/TDM-CO		       #? OMP_THREADS <= 2 and not WITH_MPI
 
 timeprop/C4H6_rs                       #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/C4H6_rs_Singlet               #? OMP_THREADS <= 4 and not WITH_MPI
