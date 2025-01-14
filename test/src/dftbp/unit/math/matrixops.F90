@@ -9,23 +9,20 @@
 
 module test_math_matrixops
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_matrixops, only : adjointLowerTriangle
-  use fortuno_serial, only : suite => serial_suite_item, test_list
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_math_matrixops, only : adjointLowerTriangle, orthonormalizeVectors
+  use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 
   private
   public :: tests
 
-
-  ! Matrix dimension
-  integer, parameter :: nn = 3
-
-
 contains
 
 
-  $:TEST("real")
+  $:TEST("adjointLowerTriangle_real")
+    integer, parameter :: nn = 3
     real(dp) :: matReal(nn, nn)
     integer :: ii, jj, kk
 
@@ -43,7 +40,8 @@ contains
   $:END_TEST()
 
 
-  $:TEST("complex")
+  $:TEST("adjointLowerTriangle_complex")
+    integer, parameter :: nn = 3
     complex(dp) :: matCplx(nn, nn)
     integer :: ii, jj, kk
 
@@ -65,6 +63,30 @@ contains
     call adjointLowerTriangle(matCplx)
     @:ASSERT(all(abs(matCplx) > epsilon(0.0_dp)))
     @:ASSERT(all(abs(matCplx - transpose(conjg(matCplx))) < epsilon(0.0_dp)))
+  $:END_TEST()
+
+
+  $:TEST("orthonormalizeVectors")
+    integer, parameter :: n = 50
+    real(dp), parameter :: atol = 1000.0_dp * epsilon(0.0_dp)
+    type(TEnvironment) :: env
+    integer :: ii, jj, kk
+    real(dp) :: matReal(n,n), eye(n,n)
+
+    matReal(:,:) = 0.0_dp
+    eye(:,:) = 0.0_dp
+    kk = 0
+    do ii = 1, n
+      eye(ii,ii) = 1.0_dp
+      do jj = ii, n
+        kk = kk + 1
+          matReal(jj, ii) = real(kk,dp)
+      end do
+    end do
+    call orthonormalizeVectors(env, 1, n, matReal)
+    matReal(:,:) = matmul(transpose(matReal), matReal)
+    @:ASSERT(all_close(matReal, eye, atol=atol))
+
   $:END_TEST()
 
 
