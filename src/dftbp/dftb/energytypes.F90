@@ -35,13 +35,23 @@ module dftbp_dftb_energytypes
     !> Range-separation energy
     real(dp) :: Efock = 0.0_dp
 
-    !> MultiPole energy
-    real(dp) :: EDftbMultiExpan = 0.0_dp
-    real(dp) :: EDftbMultiExpanMD = 0.0_dp
-    real(dp) :: EDftbMultiExpanDD = 0.0_dp
-    real(dp) :: EDftbMultiExpanMQ = 0.0_dp
-    real(dp) :: EDftbMultiExpanDQ = 0.0_dp
-    real(dp) :: EDftbMultiExpanQQ = 0.0_dp
+    !> Total energy due to all multipolar interactions except the monopole-monopole.
+    real(dp) :: EMdftb = 0.0_dp
+
+    !> Energy contribution from monopole-dipole interactions.
+    real(dp) :: EMdftbMD = 0.0_dp
+
+    !> Energy contribution from dipole-dipole interactions.
+    real(dp) :: EMdftbDD = 0.0_dp
+
+    !> Energy contribution from monopole-quadrupole interactions.
+    real(dp) :: EMdftbMQ = 0.0_dp
+
+    !> Energy contribution from dipole-quadrupole interactions.
+    real(dp) :: EMdftbDQ = 0.0_dp
+
+    !> Energy contribution from quadrupole-quadrupole interactions.
+    real(dp) :: EMdftbQQ = 0.0_dp
 
     !> Spin orbit energy
     real(dp) :: ELS = 0.0_dp
@@ -129,8 +139,8 @@ module dftbp_dftb_energytypes
     !> Atom resolved spin
     real(dp), allocatable :: atomSpin(:)
 
-    !> Atom resolved Multipole
-    real(dp), allocatable :: atomDftbMultiExpan(:)
+    !> Atom resolved total multipolar energy
+    real(dp), allocatable :: atomMdftb(:)
 
     !> Atom resolved spin orbit
     real(dp), allocatable :: atomLS(:)
@@ -191,48 +201,33 @@ contains
     this%E0(:) = 0.0_dp
     this%EBand(:) = 0.0_dp
 
-    allocate(this%atomRep(nAtom))
-    allocate(this%atomNonSCC(nAtom))
-    allocate(this%atomSCC(nAtom))
-    allocate(this%atomSpin(nAtom))
-    allocate(this%atomLS(nAtom))
-    allocate(this%atomDftbu(nAtom))
-    allocate(this%atomExt(nAtom))
-    allocate(this%atomElec(nAtom))
-    allocate(this%atomDisp(nAtom))
-    allocate(this%atomOnSite(nAtom))
-    allocate(this%atomHalogenX(nAtom))
-    allocate(this%atom3rd(nAtom))
-    allocate(this%atomDftbMultiExpan(nAtom))
-    allocate(this%atomSolv(nAtom))
-    allocate(this%atomTotal(nAtom))
-    this%atomRep(:) = 0.0_dp
-    this%atomNonSCC(:) = 0.0_dp
-    this%atomSCC(:) = 0.0_dp
-    this%atomSpin(:) = 0.0_dp
-    this%atomLS(:) = 0.0_dp
-    this%atomDftbu(:) = 0.0_dp
-    this%atomExt(:) = 0.0_dp
-    this%atomElec(:) = 0.0_dp
-    this%atomDisp(:) = 0.0_dp
-    this%atomOnSite(:) = 0.0_dp
-    this%atomHalogenX(:) = 0.0_dp
-    this%atom3rd(:) = 0.0_dp
-    this%atomDftbMultiExpan(:) = 0.0_dp
-    this%atomSolv(:) = 0.0_dp
-    this%atomTotal(:) = 0.0_dp
+    allocate(this%atomRep(nAtom), source=0.0_dp)
+    allocate(this%atomNonSCC(nAtom), source=0.0_dp)
+    allocate(this%atomSCC(nAtom), source=0.0_dp)
+    allocate(this%atomSpin(nAtom), source=0.0_dp)
+    allocate(this%atomLS(nAtom), source=0.0_dp)
+    allocate(this%atomDftbu(nAtom), source=0.0_dp)
+    allocate(this%atomExt(nAtom), source=0.0_dp)
+    allocate(this%atomElec(nAtom), source=0.0_dp)
+    allocate(this%atomDisp(nAtom), source=0.0_dp)
+    allocate(this%atomOnSite(nAtom), source=0.0_dp)
+    allocate(this%atomHalogenX(nAtom), source=0.0_dp)
+    allocate(this%atom3rd(nAtom), source=0.0_dp)
+    allocate(this%atomMdftb(nAtom), source=0.0_dp)
+    allocate(this%atomSolv(nAtom), source=0.0_dp)
+    allocate(this%atomTotal(nAtom), source=0.0_dp)
 
     this%Erep = 0.0_dp
     this%EnonSCC = 0.0_dp
     this%ESCC = 0.0_dp
     this%Espin = 0.0_dp
     this%Efock = 0.0_dp
-    this%EDftbMultiExpan = 0.0_dp
-    this%EDftbMultiExpanMD = 0.0_dp
-    this%EDftbMultiExpanDD = 0.0_dp
-    this%EDftbMultiExpanMQ = 0.0_dp
-    this%EDftbMultiExpanDQ = 0.0_dp
-    this%EDftbMultiExpanQQ = 0.0_dp
+    this%EMdftb = 0.0_dp
+    this%EMdftbMD = 0.0_dp
+    this%EMdftbDD = 0.0_dp
+    this%EMdftbMQ = 0.0_dp
+    this%EMdftbDQ = 0.0_dp
+    this%EMdftbQQ = 0.0_dp
     this%ELS = 0.0_dp
     this%Edftbu = 0.0_dp
     this%Eext = 0.0_dp

@@ -200,8 +200,8 @@ reks/Thymine_single                    #? not WITH_MPI
 reks/Thymine_T1                        #? not WITH_MPI
 reks/Thymine_T1_rangesep               #? not WITH_MPI
 
-mdftb/2H2O                             #? not WITH_MPI
-mdftb/32H2O                            #? not WITH_MPI
+mdftb/2H2O                             #? OMP_THREADS <= 2 and not WITH_MPI
+mdftb/32H2O                            #? MPI_PROCS <= 2
 mdftb/Glycine                          #? not WITH_MPI
 mdftb/Glycine_mDFTBoff1                #? not WITH_MPI
 mdftb/Glycine_mDFTBoff2                #? not WITH_MPI

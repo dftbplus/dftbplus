@@ -17,7 +17,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_extfields, only : TEField
-  use dftbp_dftb_multiexpan, only : TDftbMultiExpan
+  use dftbp_dftb_mdftb, only : TMdftb
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_scc, only : TScc
@@ -332,7 +332,7 @@ contains
 
   !> Returns the Hamiltonian for the given scc iteration
   subroutine getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, species, orb,&
-      & iSparseStart, img2CentCell, potential, dftbMultiExpan, isREKS, ham, iHam)
+      & iSparseStart, img2CentCell, potential, mdftb, isREKS, ham, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -365,7 +365,7 @@ contains
     type(TPotentials), intent(in) :: potential
 
     !> DFTB multipole expansion
-    type(TDftbMultiExpan), allocatable, intent(inout) :: dftbMultiExpan
+    type(TMdftb), allocatable, intent(inout) :: mdftb
 
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
@@ -417,8 +417,8 @@ contains
           & potential%quadrupoleAtom)
     end if
 
-    if (allocated(dftbMultiExpan)) then
-      call dftbMultiExpan%addMultiExpanHamiltonian(ham, ints%overlap, nNeighbourSK,&
+    if (allocated(mdftb)) then
+      call mdftb%addMultiExpanHamiltonian(ham, ints%overlap, nNeighbourSK,&
           & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell)
     end if
 

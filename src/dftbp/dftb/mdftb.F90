@@ -9,25 +9,51 @@
 #:include 'error.fypp'
 
 !> Routines implementing the (One-center approximation) multipole expansion for the 2nd order DFTB.
-module dftbp_dftb_multiexpan
+module dftbp_dftb_mdftb
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_shortgammafuncs, only : expGammaPrime, expGammaDoublePrime, expGammaTriplePrime,&
-      & expGammaQuadruplePrime, expGammaQuintuplePrime
-  use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
-  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
+  use dftbp_dftb_shortgammafuncs, only : expGammaPrime, expGammaDoublePrime, expGammaTriplePrime,&
+      & expGammaQuadruplePrime, expGammaQuintuplePrime
   implicit none
   private
 
-  public :: TDftbMultiExpanInp, TDftbMultiExpan, dftbMultiExpan_init
+  public :: TMdftbAtomicIntegrals, TMdftbInp, TMdftb, TMdftb_init
+
+  !> Store one-center atomic integrals required by mdftb
+  type TMdftbAtomicIntegrals
+    real(dp), allocatable :: DScaling(:)
+    real(dp), allocatable :: QScaling(:)
+    real(dp), allocatable :: SXPx(:)
+    real(dp), allocatable :: PxXDxxyy(:)
+    real(dp), allocatable :: PxXDzz(:)
+    real(dp), allocatable :: PyYDxxyy(:)
+    real(dp), allocatable :: PzZDzz(:)
+    real(dp), allocatable :: SXXS(:)
+    real(dp), allocatable :: PxXXPx(:)
+    real(dp), allocatable :: PyXXPy(:)
+    real(dp), allocatable :: SXXDxxyy(:)
+    real(dp), allocatable :: SXXDzz(:)
+    real(dp), allocatable :: SYYDxxyy(:)
+    real(dp), allocatable :: SZZDzz(:)
+    real(dp), allocatable :: DxyXXDxy(:)
+    real(dp), allocatable :: DyzXXDyz(:)
+    real(dp), allocatable :: DxxyyXXDzz(:)
+    real(dp), allocatable :: DzzXXDzz(:)
+    real(dp), allocatable :: DxxyyYYDzz(:)
+    real(dp), allocatable :: DzzZZDzz(:)
+    real(dp), allocatable :: DxzXZDzz(:)
+    real(dp), allocatable :: DyzYZDxxyy(:)
+  end type TMdftbAtomicIntegrals
 
   !> Input for the MultiExpan module
-  type TDftbMultiExpanInp
+  type TMdftbInp
 
     !> Orbital information
     integer :: nOrb, nSpin, nSpecies
@@ -39,10 +65,9 @@ module dftbp_dftb_multiexpan
     !> Species of atoms
     integer, allocatable :: species(:)
 
-    !> One-center atomic intergral data
+    !> One-center atomic integral data
     real(dp), allocatable :: atomicDIntgrlScaling(:)
     real(dp), allocatable :: atomicQIntgrlScaling(:)
-    real(dp), allocatable :: atomicOnsiteScaling(:)
     real(dp), allocatable :: atomicSXPxIntgrl(:)
     real(dp), allocatable :: atomicPxXDxxyyIntgrl(:)
     real(dp), allocatable :: atomicPxXDzzIntgrl(:)
@@ -64,12 +89,11 @@ module dftbp_dftb_multiexpan
     real(dp), allocatable :: atomicDxzXZDzzIntgrl(:)
     real(dp), allocatable :: atomicDyzYZDxxyyIntgrl(:)
 
-  end type TDftbMultiExpanInp
+  end type TMdftbInp
 
   !> Internal status of TMultiExpan.
-  type TDftbMultiExpan
+  type TMdftb
     integer :: nAtoms, nSpecies, mShells, mShellsReal, nOrb, nSpin
-    integer, allocatable :: nShells(:)
 
     !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
@@ -83,8 +107,6 @@ module dftbp_dftb_multiexpan
 
     real(dp), allocatable :: atomicDIntgrl(:,:,:,:)
     real(dp), allocatable :: atomicQIntgrl(:,:,:,:,:)
-
-    real(dp), allocatable :: atomicOnsiteScaling(:)
 
     !> Mulliken charge per atom
     real(dp), allocatable :: deltaMAtom(:)
@@ -131,7 +153,7 @@ module dftbp_dftb_multiexpan
     procedure :: addAtomicQuadrupoleMoment
     procedure :: getMultiExpanInfo
     procedure :: getOrbitalEquiv
-  end type TDftbMultiExpan
+  end type TMdftb
 
   !> Number of dipole components used in tblite library (x, y, z)
   integer, parameter :: dimDipole = 3
@@ -145,7 +167,7 @@ contains
   subroutine getMultiExpanInfo(this, nDipole, nQuadrupole)
 
     !> Data structure
-    class(TDftbMultiExpan), intent(in) :: this
+    class(TMdftb), intent(in) :: this
 
     !> Number of dipole moment components
     integer, intent(out) :: nDipole
@@ -158,6 +180,7 @@ contains
 
     nDipole = dimDipole
     nQuadrupole = dimQuadrupole
+
   end subroutine getMultiExpanInfo
 
 
@@ -165,7 +188,7 @@ contains
   subroutine getOrbitalEquiv(this, equivDip, equivQuad)
 
     !> Data structure
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> The equivalence vector for cumulative atomic dipole populations
     integer, intent(out) :: equivDip(:,:)
@@ -203,64 +226,51 @@ contains
 
 
   !> Initializes instance.
-  subroutine dftbMultiExpan_init(this, inp)
+  subroutine TMdftb_init(this, inp)
 
     !> Instance.
-    type(TDftbMultiExpan), intent(out) :: this
+    type(TMdftb), intent(out) :: this
 
     !> Input data.
-    type(TDftbMultiExpanInp), intent(in) :: inp
+    type(TMdftbInp), intent(in) :: inp
 
-    integer, parameter :: xyzLen = 3
     integer, parameter :: icx = 1, icy = 2, icz = 3
     integer, parameter :: ios = 1, iopy = 2, iopz = 3, iopx = 4
     integer, parameter :: iodxy = 5, iodyz = 6, iodzz = 7, iodxz = 8, iodxxyy = 9
-    real(dp), parameter :: tolZero = 1.0e-15_dp
-    integer :: nAtoms, maxNOrb, iAt1, iAt2, nOrb1, nOrb2, ii, jj, iSp1, iSp2
+    real(dp), parameter :: minIntgrl = 1.0e-15_dp
+    integer :: nAtoms, mOrb, iAt1, iAt2, nOrb1, nOrb2, ii, jj, iSp1, iSp2
     integer :: mu, nu, mm, nn
     real(dp) tmpIntgrl, tmpTrace
 
     this%nAtoms = size(inp%orb%nOrbAtom)
     this%nSpecies = inp%nSpecies
-    allocate(this%nOrbSpecies(this%nSpecies))
-    this%nOrbSpecies(:) = inp%orb%nOrbSpecies(:)
+    ! allocate(this%nOrbSpecies(this%nSpecies))
+    this%nOrbSpecies = inp%orb%nOrbSpecies(:)
     this%mShells = 1
     this%mShellsReal = inp%orb%mShell
     this%nOrb = inp%nOrb
-    maxNOrb = maxval(inp%orb%nOrbSpecies(:))
+    mOrb = inp%orb%mOrb
     this%nSpin = inp%nSpin
-    allocate(this%nShells(this%nSpecies))
-    this%nShells(:) = 1
 
-    allocate(this%hubbu(size(inp%hubbu)))
-    this%hubbu(:) = inp%hubbu
+    ! allocate(this%hubbu(size(inp%hubbu)))
+    this%hubbu = inp%hubbu
 
-    allocate(this%species(this%nAtoms))
-    this%species(:) = inp%species
+    ! allocate(this%species(this%nAtoms))
+    this%species = inp%species
 
-    allocate(this%onDQOCharges(3, this%nSpecies))
-    this%onDQOCharges(1,:) = 1
-    this%onDQOCharges(2,:) = 1
+    allocate(this%onDQOCharges(3, this%nSpecies), source=1)
     this%onDQOCharges(3,:) = 0
 
-    allocate(this%coords(xyzLen, this%nAtoms))
-    this%coords(:,:) = 0.0_dp
-
-    allocate(this%atomicDIntgrl(xyzLen, maxNOrb, maxNOrb, this%nSpecies))
-    allocate(this%atomicQIntgrl(xyzLen, xyzLen, maxNOrb, maxNOrb, this%nSpecies))
-    this%atomicDIntgrl(:,:,:,:) = 0.0_dp
-    this%atomicQIntgrl(:,:,:,:,:) = 0.0_dp
-
-    allocate(this%atomicOnsiteScaling(this%nSpecies))
-    this%atomicOnsiteScaling(:) = 1.0_dp
-
+    allocate(this%coords(3, this%nAtoms), source=0.0_dp)
+    allocate(this%atomicDIntgrl(3, mOrb, mOrb, this%nSpecies), source=0.0_dp)
+    allocate(this%atomicQIntgrl(3,3, mOrb, mOrb, this%nSpecies), source=0.0_dp)
 
     do iSp1 = 1, this%nSpecies
       nOrb1 = this%nOrbSpecies(iSp1)
 
-      !Dipole
+      ! Dipole
       if ( nOrb1 >= 4 ) then
-        !assign <S|X|Px>
+        ! Assign <S|X|Px>
         tmpIntgrl = inp%atomicSXPxIntgrl(iSp1)
         this%atomicDIntgrl(icx,ios,iopx,iSp1) = tmpIntgrl
         this%atomicDIntgrl(icy,ios,iopy,iSp1) = tmpIntgrl
@@ -268,7 +278,7 @@ contains
       end if
 
       if ( nOrb1 >= 9 ) then
-        !assign <Px|X|Dxx-yy>
+        ! Assign <Px|X|Dxx-yy>
         tmpIntgrl = inp%atomicPxXDxxyyIntgrl(iSp1)
         this%atomicDIntgrl(icx,iopx,iodxxyy,iSp1) = tmpIntgrl
         this%atomicDIntgrl(icx,iopy,iodxy,iSp1) = tmpIntgrl
@@ -278,23 +288,23 @@ contains
         this%atomicDIntgrl(icz,iopx,iodxz,iSp1) = tmpIntgrl
         this%atomicDIntgrl(icz,iopy,iodyz,iSp1) = tmpIntgrl
 
-        !assign <Px|X|Dzz>
+        ! Assign <Px|X|Dzz>
         tmpIntgrl = inp%atomicPxXDzzIntgrl(iSp1)
         this%atomicDIntgrl(icx,iopx,iodzz,iSp1) = tmpIntgrl
         this%atomicDIntgrl(icy,iopy,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Py|Y|Dxx-yy>
+        ! Assign <Py|Y|Dxx-yy>
         tmpIntgrl = inp%atomicPyYDxxyyIntgrl(iSp1)
         this%atomicDIntgrl(icy,iopy,iodxxyy,iSp1) = tmpIntgrl
 
-        !assign <Pz|Z|Dzz>
+        ! Assign <Pz|Z|Dzz>
         tmpIntgrl = inp%atomicPzZDzzIntgrl(iSp1)
         this%atomicDIntgrl(icz,iopz,iodzz,iSp1) = tmpIntgrl
       end if
 
-      !Quadrupole
+      ! Quadrupole
       if ( nOrb1 >= 1 ) then
-        !assign <S|XX|S>
+        ! Assign <S|XX|S>
         tmpIntgrl = inp%atomicSXXSIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,ios,ios,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icy,ios,ios,iSp1) = tmpIntgrl
@@ -302,13 +312,13 @@ contains
       end if
 
       if ( nOrb1 >= 4 ) then
-        !assign <Px|XX|Px>
+        ! Assign <Px|XX|Px>
         tmpIntgrl = inp%atomicPxXXPxIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iopx,iopx,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icy,iopy,iopy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icz,icz,iopz,iopz,iSp1) = tmpIntgrl
 
-        !assign <Py|XX|Py>
+        ! Assign <Py|XX|Py>
         tmpIntgrl = inp%atomicPyXXPyIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iopy,iopy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icx,icx,iopz,iopz,iSp1) = tmpIntgrl
@@ -322,27 +332,27 @@ contains
       end if
 
       if ( nOrb1 >= 9 ) then
-        !assign <S|XX|Dxx-yy>
+        ! Assign <S|XX|Dxx-yy>
         tmpIntgrl = inp%atomicSXXDxxyyIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,ios,iodxxyy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icx,icy,ios,iodxy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icx,icz,ios,iodxz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icz,ios,iodyz,iSp1) = tmpIntgrl
 
-        !assign <S|XX|Dzz>
+        ! Assign <S|XX|Dzz>
         tmpIntgrl = inp%atomicSXXDzzIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,ios,iodzz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icy,ios,iodzz,iSp1) = tmpIntgrl
 
-        !assign <S|YY|Dxx-yy>
+        ! Assign <S|YY|Dxx-yy>
         tmpIntgrl = inp%atomicSYYDxxyyIntgrl(iSp1)
         this%atomicQIntgrl(icy,icy,ios,iodxxyy,iSp1) = tmpIntgrl
 
-        !assign <S|ZZ|Dzz>
+        ! Assign <S|ZZ|Dzz>
         tmpIntgrl = inp%atomicSZZDzzIntgrl(iSp1)
         this%atomicQIntgrl(icz,icz,ios,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dxy|XX|Dxy>
+        ! Assign <Dxy|XX|Dxy>
         tmpIntgrl = inp%atomicDxyXXDxyIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iodxy,iodxy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icx,icx,iodxz,iodxz,iSp1) = tmpIntgrl
@@ -353,7 +363,7 @@ contains
         this%atomicQIntgrl(icz,icz,iodxz,iodxz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icz,icz,iodyz,iodyz,iSp1) = tmpIntgrl
 
-        !assign <Dyz|XX|Dyz>
+        ! Assign <Dyz|XX|Dyz>
         tmpIntgrl = inp%atomicDyzXXDyzIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iodyz,iodyz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icy,iodxz,iodxz,iSp1) = tmpIntgrl
@@ -364,30 +374,30 @@ contains
         this%atomicQIntgrl(icx,icz,iodxz,iodxxyy,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icz,iodxy,iodxz,iSp1) = tmpIntgrl
 
-        !assign <Dxx-yy|XX|Dzz>
+        ! Assign <Dxx-yy|XX|Dzz>
         tmpIntgrl = inp%atomicDxxyyXXDzzIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iodxxyy,iodzz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icx,icy,iodxy,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dzz|XX|Dzz>
+        ! Assign <Dzz|XX|Dzz>
         tmpIntgrl = inp%atomicDzzXXDzzIntgrl(iSp1)
         this%atomicQIntgrl(icx,icx,iodzz,iodzz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icy,iodzz,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dxx-yy|YY|Dzz>
+        ! Assign <Dxx-yy|YY|Dzz>
         tmpIntgrl = inp%atomicDxxyyYYDzzIntgrl(iSp1)
         this%atomicQIntgrl(icy,icy,iodxxyy,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dzz|ZZ|Dzz>
+        ! Assign <Dzz|ZZ|Dzz>
         tmpIntgrl = inp%atomicDzzZZDzzIntgrl(iSp1)
         this%atomicQIntgrl(icz,icz,iodzz,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dxz|XZ|Dzz>
+        ! Assign <Dxz|XZ|Dzz>
         tmpIntgrl = inp%atomicDxzXZDzzIntgrl(iSp1)
         this%atomicQIntgrl(icx,icz,iodxz,iodzz,iSp1) = tmpIntgrl
         this%atomicQIntgrl(icy,icz,iodyz,iodzz,iSp1) = tmpIntgrl
 
-        !assign <Dyz|YZ|Dxx-yy>
+        ! Assign <Dyz|YZ|Dxx-yy>
         tmpIntgrl = inp%atomicDyzYZDxxyyIntgrl(iSp1)
         this%atomicQIntgrl(icy,icz,iodyz,iodxxyy,iSp1) = tmpIntgrl
       end if
@@ -397,12 +407,12 @@ contains
       nOrb1 = this%nOrbSpecies(iSp1)
       do mm = 1, nOrb1
         do nn = 1, nOrb1
-          do ii = 1, xyzLen
-            if (abs(this%atomicDIntgrl(ii,mm,nn,iSp1)) > tolZero ) then
+          do ii = 1, 3
+            if (abs(this%atomicDIntgrl(ii,mm,nn,iSp1)) > minIntgrl ) then
               this%atomicDIntgrl(ii,nn,mm,iSp1) = this%atomicDIntgrl(ii,mm,nn,iSp1)
             end if
-            do jj = 1, xyzLen
-              if (abs(this%atomicQIntgrl(ii,jj,mm,nn,iSp1)) > tolZero ) then
+            do jj = 1, 3
+              if (abs(this%atomicQIntgrl(ii,jj,mm,nn,iSp1)) > minIntgrl ) then
                 this%atomicQIntgrl(ii,jj,nn,mm,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
                 this%atomicQIntgrl(jj,ii,mm,nn,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
                 this%atomicQIntgrl(jj,ii,nn,mm,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
@@ -413,7 +423,7 @@ contains
       end do
     end do
 
-   !> scaling atomic Intgrls
+   !> Scaling atomic Intgrls
     do iSp1 = 1, this%nSpecies
       this%atomicDIntgrl(:,:,:,iSp1) = inp%atomicDIntgrlScaling(iSp1)&
           & * this%atomicDIntgrl(:,:,:,iSp1)
@@ -428,7 +438,7 @@ contains
         do nn = 1, nOrb1
           tmpTrace = (this%atomicQIntgrl(1,1,mm,nn,iSp1) + this%atomicQIntgrl(2,2,mm,nn,iSp1)&
               & + this%atomicQIntgrl(3,3,mm,nn,iSp1)) / 3.0_dp
-          do ii = 1, xyzLen
+          do ii = 1, 3
             this%atomicQIntgrl(ii,ii,mm,nn,iSp1) = this%atomicQIntgrl(ii,ii,mm,nn,iSp1) - tmpTrace
           end do
         end do
@@ -436,97 +446,63 @@ contains
     end do
 
     do iSp1 = 1, this%nSpecies
-      if (maxval(abs(this%atomicDIntgrl(:,:,:,iSp1))) < tolZero ) then
+      if (maxval(abs(this%atomicDIntgrl(:,:,:,iSp1))) < minIntgrl ) then
         this%onDQOCharges(1,iSp1) = 0
       end if
-      if (maxval(abs(this%atomicQIntgrl(:,:,:,:,iSp1))) < tolZero ) then
+      if (maxval(abs(this%atomicQIntgrl(:,:,:,:,iSp1))) < minIntgrl ) then
         this%onDQOCharges(2,iSp1) = 0
       end if
     end do
 
-    this%atomicOnsiteScaling(:) = inp%atomicOnsiteScaling(:)
+    allocate(this%deltaMAtom(this%nAtoms), source=0.0_dp)
+    allocate(this%deltaDAtom(3, this%nAtoms), source=0.0_dp)
+    allocate(this%deltaQAtom(3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%f10AB(3, this%nAtoms, this%nAtoms), source=0.0_dp)
+    allocate(this%f20AB(3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
+    allocate(this%f30AB(3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
+    allocate(this%f40AB(3,3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
+    allocate(this%f50AB(3,3,3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
 
+    allocate(this%pot10x1Atom(this%nAtoms), source=0.0_dp)
+    allocate(this%pot20x2Atom(this%nAtoms), source=0.0_dp)
+    allocate(this%pot10x0Atom(3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot11x1Atom(3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot21x2Atom(3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot20x0Atom(3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot21x1Atom(3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot22x2Atom(3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot30x0Atom(3,3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot31x1Atom(3,3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot32x2Atom(3,3,3, this%nAtoms), source=0.0_dp)
 
-    allocate(this%deltaMAtom(this%nAtoms))
-    allocate(this%deltaDAtom(xyzLen, this%nAtoms))
-    allocate(this%deltaQAtom(xyzLen, xyzLen, this%nAtoms))
-    allocate(this%f10AB(xyzLen, this%nAtoms, this%nAtoms))
-    allocate(this%f20AB(xyzLen, xyzLen, this%nAtoms, this%nAtoms))
-    allocate(this%f30AB(xyzLen, xyzLen, xyzLen, this%nAtoms, this%nAtoms))
-    allocate(this%f40AB(xyzLen, xyzLen, xyzLen, xyzLen, this%nAtoms, this%nAtoms))
-    allocate(this%f50AB(xyzLen, xyzLen, xyzLen, xyzLen, xyzLen, this%nAtoms, this%nAtoms))
-
-    allocate(this%pot10x1Atom(this%nAtoms))
-    allocate(this%pot20x2Atom(this%nAtoms))
-    allocate(this%pot10x0Atom(xyzLen, this%nAtoms))
-    allocate(this%pot11x1Atom(xyzLen, this%nAtoms))
-    allocate(this%pot21x2Atom(xyzLen, this%nAtoms))
-    allocate(this%pot20x0Atom(xyzLen, xyzLen, this%nAtoms))
-    allocate(this%pot21x1Atom(xyzLen, xyzLen, this%nAtoms))
-    allocate(this%pot22x2Atom(xyzLen, xyzLen, this%nAtoms))
-    allocate(this%pot30x0Atom(xyzLen, xyzLen, xyzLen, this%nAtoms))
-    allocate(this%pot31x1Atom(xyzLen, xyzLen, xyzLen, this%nAtoms))
-    allocate(this%pot32x2Atom(xyzLen, xyzLen, xyzLen, this%nAtoms))
-
-    this%deltaMAtom(:) = 0.0_dp
-    this%deltaDAtom(:,:) = 0.0_dp
-    this%deltaQAtom(:,:,:) = 0.0_dp
-    this%f10AB(:,:,:) = 0.0_dp
-    this%f20AB(:,:,:,:) = 0.0_dp
-    this%f30AB(:,:,:,:,:) = 0.0_dp
-    this%f40AB(:,:,:,:,:,:) = 0.0_dp
-    this%f50AB(:,:,:,:,:,:,:) = 0.0_dp
-
-    this%pot10x1Atom(:) = 0.0_dp
-    this%pot20x2Atom(:) = 0.0_dp
-    this%pot10x0Atom(:,:) = 0.0_dp
-    this%pot11x1Atom(:,:) = 0.0_dp
-    this%pot21x2Atom(:,:) = 0.0_dp
-    this%pot20x0Atom(:,:,:) = 0.0_dp
-    this%pot21x1Atom(:,:,:) = 0.0_dp
-    this%pot22x2Atom(:,:,:) = 0.0_dp
-    this%pot30x0Atom(:,:,:,:) = 0.0_dp
-    this%pot31x1Atom(:,:,:,:) = 0.0_dp
-    this%pot32x2Atom(:,:,:,:) = 0.0_dp
-
-  end subroutine dftbMultiExpan_init
+  end subroutine TMdftb_init
 
 
   !> Updates data structures if there are changed coordinates for the instance.
   subroutine updateCoords(this, coords)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
-
-    integer, parameter :: xyzLen = 3
 
     integer :: nAtoms, iAt1, iAt2, iSp1, iSp2, nOrb1, nOrb2, ii, jj, ll, mm, nn, kk
     real(dp) :: rab, u1, u2, coeffTerm1, coeffTerm2, coeffTerm3
     real(dp) :: gammaPrime, gammaDoublePrime, gammaTriplePrime, gammaQuadruplePrime,&
         & gammaQuintuplePrime
 
-    real(dp) :: vRabx3(xyzLen), workVx3(xyzLen)
-    real(dp) :: mI3x3(xyzLen, xyzLen), mRRab3x3(xyzLen, xyzLen), workM3x3(xyzLen, xyzLen),&
-        & workM3x3x3(xyzLen, xyzLen, xyzLen)
-    real(dp) :: mRoIab3x3x3(xyzLen, xyzLen, xyzLen), mIotRab3x3x3(xyzLen, xyzLen, xyzLen),&
-        & mIoRab3x3x3(xyzLen, xyzLen, xyzLen)
-    real(dp) :: mRIotoRab3x3x3(xyzLen, xyzLen, xyzLen), mRRRab3x3x3(xyzLen, xyzLen, xyzLen)
+    real(dp) :: vRabx3(3), workVx3(3)
+    real(dp) :: mI3x3(3,3), mRRab3x3(3,3), workM3x3(3,3), workM3x3x3(3,3,3)
+    real(dp) :: mRoIab3x3x3(3,3,3), mIotRab3x3x3(3,3,3), mIoRab3x3x3(3,3,3)
+    real(dp) :: mRIotoRab3x3x3(3,3,3), mRRRab3x3x3(3,3,3)
 
-    real(dp) :: mI3x3otI3x3(xyzLen, xyzLen, xyzLen, xyzLen), mI3x3ohI3x3(xyzLen, xyzLen, xyzLen,&
-        & xyzLen)
-    real(dp) :: mI3x3oI3x3(xyzLen, xyzLen, xyzLen, xyzLen), mI3x3otohoI3x3(xyzLen, xyzLen, xyzLen,&
-        & xyzLen)
-    real(dp) :: workM3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen), f40Term1M3x3x3x3(xyzLen, xyzLen,&
-        & xyzLen, xyzLen)
-    real(dp) :: f40Term3M3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen), f40Term2M3x3x3x3(xyzLen, xyzLen,&
-        & xyzLen, xyzLen)
-    real(dp) :: workM3x3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen, xyzLen),&
-        & f50Term1M3x3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen, xyzLen)
-    real(dp) :: f50Term3M3x3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen, xyzLen),&
-        & f50Term2M3x3x3x3x3(xyzLen, xyzLen, xyzLen, xyzLen, xyzLen)
+    real(dp) :: mI3x3otI3x3(3,3,3,3), mI3x3ohI3x3(3,3,3,3)
+    real(dp) :: mI3x3oI3x3(3,3,3,3), mI3x3otohoI3x3(3,3,3,3)
+    real(dp) :: workM3x3x3x3(3,3,3,3), f40Term1M3x3x3x3(3,3,3,3)
+    real(dp) :: f40Term3M3x3x3x3(3,3,3,3), f40Term2M3x3x3x3(3,3,3,3)
+    real(dp) :: workM3x3x3x3x3(3,3,3,3,3), f50Term1M3x3x3x3x3(3,3,3,3,3)
+    real(dp) :: f50Term3M3x3x3x3x3(3,3,3,3,3), f50Term2M3x3x3x3x3(3,3,3,3,3)
 
     this%coords(:,:) = coords
     this%f10AB(:,:,:) = 0.0_dp
@@ -536,7 +512,7 @@ contains
     this%f50AB(:,:,:,:,:,:,:) = 0.0_dp
 
     mI3x3(:,:) = 0.0_dp
-    do ii = 1, xyzLen
+    do ii = 1, 3
       mI3x3(ii, ii) = 1.0_dp
     end do
     call makeA3x3oB3x3(mI3x3oI3x3, mI3x3, mI3x3)
@@ -593,9 +569,9 @@ contains
         coeffTerm1 = coeffTerm1 / 6.0_dp
         coeffTerm2 = coeffTerm2 / 6.0_dp
 
-        do ll = 1, xyzLen
-          do jj = 1, xyzLen
-            do ii = 1, xyzLen
+        do ll = 1, 3
+          do jj = 1, 3
+            do ii = 1, 3
               mRoIab3x3x3(ii,jj,ll) = vRabx3(ii) * mI3x3(jj,ll)
               mIotRab3x3x3(ii,jj,ll) = mI3x3(ii,ll) * vRabx3(jj)
               mIoRab3x3x3(ii,jj,ll) = mI3x3(ii,jj) * vRabx3(ll)
@@ -604,8 +580,7 @@ contains
           end do
         end do
         mRIotoRab3x3x3(:,:,:) = mRoIab3x3x3(:,:,:) + mIotRab3x3x3(:,:,:) + mIoRab3x3x3(:,:,:)
-        workM3x3x3(:,:,:) = coeffTerm1 * mRIotoRab3x3x3(:,:,:) &
-                         &+ coeffTerm2 * mRRRab3x3x3(:,:,:)
+        workM3x3x3(:,:,:) = coeffTerm1 * mRIotoRab3x3x3(:,:,:) + coeffTerm2 * mRRRab3x3x3(:,:,:)
         this%f30AB(:,:,:,iAt2,iAt1) = workM3x3x3(:,:,:)
         this%f30AB(:,:,:,iAt1,iAt2) = -workM3x3x3(:,:,:)
 
@@ -630,10 +605,10 @@ contains
         f40Term1M3x3x3x3(:,:,:,:) = mI3x3otohoI3x3(:,:,:,:)
         f40Term2M3x3x3x3(:,:,:,:) = 0.0_dp
         f40Term3M3x3x3x3(:,:,:,:) = 0.0_dp
-        do mm = 1, xyzLen
-          do ll = 1, xyzLen
-            do jj = 1, xyzLen
-              do ii = 1, xyzLen
+        do mm = 1, 3
+          do ll = 1, 3
+            do jj = 1, 3
+              do ii = 1, 3
                 f40Term2M3x3x3x3(ii,jj,ll,mm) = f40Term2M3x3x3x3(ii,jj,ll,mm) &
                     & + mRRab3x3(ii,jj) * mI3x3(ll,mm) &
                     & + mRRab3x3(ii,ll) * mI3x3(jj,mm) &
@@ -669,11 +644,11 @@ contains
         f50Term1M3x3x3x3x3(:,:,:,:,:) = 0.0_dp
         f50Term2M3x3x3x3x3(:,:,:,:,:) = 0.0_dp
         f50Term3M3x3x3x3x3(:,:,:,:,:) = 0.0_dp
-        do nn = 1, xyzLen
-          do mm = 1, xyzLen
-            do ll = 1, xyzLen
-              do jj = 1, xyzLen
-                do ii = 1, xyzLen
+        do nn = 1, 3
+          do mm = 1, 3
+            do ll = 1, 3
+              do jj = 1, 3
+                do ii = 1, 3
                   f50Term1M3x3x3x3x3(ii,jj,ll,mm,nn) = f50Term1M3x3x3x3x3(ii,jj,ll,mm,nn) &
                       & + mRoIab3x3x3(ii,jj,ll) * mI3x3(mm,nn) &
                       & + mRoIab3x3x3(ii,jj,mm) * mI3x3(ll,nn) &
@@ -708,10 +683,10 @@ contains
         this%f50AB(:,:,:,:,:,iAt1,iAt2) = -workM3x3x3x3x3(:,:,:,:,:)
       end do
 
-      coeffTerm1 = -this%atomicOnsiteScaling(iSp1) * (3.2_dp * u1)**3 / 96.0_dp
+      coeffTerm1 = -(3.2_dp * u1)**3 / 96.0_dp
       this%f20AB(:,:,iAt1,iAt1) = coeffTerm1 * mI3x3(:,:)
 
-      coeffTerm1 = this%atomicOnsiteScaling(iSp1) * (3.2_dp * u1)**5 / 5760.0_dp
+      coeffTerm1 = (3.2_dp * u1)**5 / 5760.0_dp
       this%f40AB(:,:,:,:,iAt1,iAt1) = coeffTerm1 * mI3x3otohoI3x3(:,:,:,:)
 
     end do
@@ -724,7 +699,7 @@ contains
       & q0)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> Overlap matrix in packed format
     real(dp), intent(in) :: over(:)
@@ -750,21 +725,21 @@ contains
     !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    real(dp), allocatable :: mqPerOrbital(:,:)
-    real(dp), allocatable :: dqPerOrbital(:,:,:)
-    real(dp), allocatable :: qqPerOrbital(:,:,:,:)
-    real(dp), allocatable :: mq(:)
-    real(dp), allocatable :: dq(:,:)
-    real(dp), allocatable :: qq(:,:,:)
+    ! real(dp), allocatable :: mqPerOrbital(:,:)
+    ! real(dp), allocatable :: mq(:)
+    ! real(dp), allocatable :: dqPerOrbital(:,:,:)
+    ! real(dp), allocatable :: dq(:,:)
+    ! real(dp), allocatable :: qqPerOrbital(:,:,:,:)
+    ! real(dp), allocatable :: qq(:,:,:)
 
     real(dp), allocatable :: tmpOvr(:,:), tmpDRho(:,:)
-    integer, parameter :: xyzLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
+    integer, parameter :: iStart = 1, iEnd = 2, iNOrb = 3
 
-    integer :: matrixSize, nAtoms, maxNOrb
+    integer :: nAtoms
     integer :: iAt1, iAt2, iSp1, iSp2
     integer :: ii, jj, mu, nu, mm, nn, kk, iStartOrb, iEndOrb
 
-    real(dp) :: tmpVx3(xyzLen), tmpM3x3(xyzLen, xyzLen)
+    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
     real(dp) :: dPSSdP, tmpTrace
 
     integer :: iOrig
@@ -781,14 +756,8 @@ contains
     nAtom = this%nAtoms
     @:ASSERT(size(over) == size(rho))
 
-    ! matrixSize = size(overlap, dim = 1)
-    ! maxNOrb = maxval(orb%nOrbSpecies(:))
-    ! maxNOrb = orb%mOrb
-
-    allocate(mqPerOrbital(orb%mOrb, nAtom))
-    allocate(mq(nAtom))
-    mqPerOrbital(:,:) = 0.0_dp
-    mq(:) = 0.0_dp
+    ! allocate(mqPerOrbital(orb%mOrb, nAtom), source=0.0_dp)
+    ! allocate(mq(nAtom), source=0.0_dp)
 
     this%deltaDAtom(:,:) = 0.0_dp
     this%deltaQAtom(:,:,:) = 0.0_dp
@@ -805,11 +774,11 @@ contains
         mulTmp(:) = 0.0_dp
         mulTmp(1:nOrb1*nOrb2) = over(iOrig:iOrig+nOrb1*nOrb2-1) * rho(iOrig:iOrig+nOrb1*nOrb2-1)
         sqrTmp(1:nOrb2,1:nOrb1) = reshape(mulTmp(1:nOrb1*nOrb2), (/nOrb2,nOrb1/))
-        mqPerOrbital(1:nOrb1,iAtom1) = mqPerOrbital(1:nOrb1,iAtom1) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=1)
-        ! Add contribution to the other triangle sum, using the symmetry, but only when off diagonal
-        if (iAtom1 /= iAtom2f) then
-          mqPerOrbital(1:nOrb2,iAtom2f) = mqPerOrbital(1:nOrb2,iAtom2f) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=2)
-        end if
+        ! mqPerOrbital(1:nOrb1,iAtom1) = mqPerOrbital(1:nOrb1,iAtom1) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=1)
+        ! ! Add contribution to the other triangle sum, using the symmetry, but only when off diagonal
+        ! if (iAtom1 /= iAtom2f) then
+        !   mqPerOrbital(1:nOrb2,iAtom2f) = mqPerOrbital(1:nOrb2,iAtom2f) + sum(sqrTmp(1:nOrb2,1:nOrb1), dim=2)
+        ! end if
       end do
 
       iSp1 = this%species(iAtom1)
@@ -856,7 +825,7 @@ contains
       end do
 
     end do
-    mq(:) = mq + sum(mqPerOrbital, dim=1)
+    ! mq(:) = mq + sum(mqPerOrbital, dim=1)
 
     ! do iAtom1 = 1, nAtom
     !   nOrb1 = orb%nOrbAtom(iAtom1)
@@ -876,40 +845,34 @@ contains
   subroutine pullDeltaDQAtom(this, multiExpanData)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> Multipole moments to pull
     type(TMultipole), intent(inout) :: multiExpanData
 
-    integer, parameter :: xyzLen = 3
     integer :: nAtoms
     integer :: iAt1, iSp1, iSpin
 
-    real(dp) :: tmpVx3(xyzLen), tmpM3x3(xyzLen, xyzLen)
+    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
 
     iSpin = 1
     nAtoms = this%nAtoms
     do iAt1 = 1, nAtoms
       iSp1 = this%species(iAt1)
-      if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
-        cycle
-      end if
+      ! if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
+      !   cycle
+      ! end if
 
       this%deltaDAtom(:,iAt1) = multiExpanData%dipoleAtom(:,iAt1,iSpin)
-      ! this%deltaDAtom(1,iAt1) = multiExpanData%dipoleAtom(1,iAt1,iSpin)
-      ! this%deltaDAtom(2,iAt1) = multiExpanData%dipoleAtom(2,iAt1,iSpin)
-      ! this%deltaDAtom(3,iAt1) = multiExpanData%dipoleAtom(3,iAt1,iSpin)
       tmpM3x3(:,:) = 0.0_dp
+      !> Quadrupole components used (xx, xy, yy, xz, yz, zz)
       tmpM3x3(1,1) = multiExpanData%quadrupoleAtom(1,iAt1,iSpin)
-      tmpM3x3(1,2) = multiExpanData%quadrupoleAtom(2,iAt1,iSpin)
-      ! tmpM3x3(2,1) = tmpM3x3(1,2)
+      tmpM3x3(2,1) = multiExpanData%quadrupoleAtom(2,iAt1,iSpin)
       tmpM3x3(2,2) = multiExpanData%quadrupoleAtom(3,iAt1,iSpin)
-      tmpM3x3(1,3) = multiExpanData%quadrupoleAtom(4,iAt1,iSpin)
-      ! tmpM3x3(3,1) = tmpM3x3(1,3)
-      tmpM3x3(2,3) = multiExpanData%quadrupoleAtom(5,iAt1,iSpin)
-      ! tmpM3x3(3,2) = tmpM3x3(2,3)
+      tmpM3x3(3,1) = multiExpanData%quadrupoleAtom(4,iAt1,iSpin)
+      tmpM3x3(3,2) = multiExpanData%quadrupoleAtom(5,iAt1,iSpin)
       tmpM3x3(3,3) = multiExpanData%quadrupoleAtom(6,iAt1,iSpin)
-      call symmetrizeSquareMatrix(tmpM3x3)
+      call adjointLowerTriangle(tmpM3x3)
       this%deltaQAtom(:,:,iAt1) = tmpM3x3(:,:)
     end do
 
@@ -918,35 +881,31 @@ contains
   subroutine pushDeltaDQAtom(this, multiExpanData)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> Multipole moments push
     type(TMultipole), intent(inout) :: multiExpanData
 
-    integer, parameter :: xyzLen = 3
     integer :: nAtoms
     integer :: iAt1, iSp1, iSpin
 
-    real(dp) :: tmpVx3(xyzLen), tmpM3x3(xyzLen, xyzLen)
+    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
 
     iSpin = 1
     nAtoms = this%nAtoms
     do iAt1 = 1, nAtoms
       iSp1 = this%species(iAt1)
-      if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
-        cycle
-      end if
+      ! if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
+      !   cycle
+      ! end if
 
       multiExpanData%dipoleAtom(:,iAt1,iSpin) = this%deltaDAtom(:,iAt1)
-      ! multiExpanData%dipoleAtom(1,iAt1,iSpin) = this%deltaDAtom(1,iAt1)
-      ! multiExpanData%dipoleAtom(2,iAt1,iSpin) = this%deltaDAtom(2,iAt1)
-      ! multiExpanData%dipoleAtom(3,iAt1,iSpin) = this%deltaDAtom(3,iAt1)
       tmpM3x3(:,:) = this%deltaQAtom(:,:,iAt1)
       multiExpanData%quadrupoleAtom(1,iAt1,iSpin) = tmpM3x3(1,1) 
-      multiExpanData%quadrupoleAtom(2,iAt1,iSpin) = tmpM3x3(1,2) 
+      multiExpanData%quadrupoleAtom(2,iAt1,iSpin) = tmpM3x3(2,1) 
       multiExpanData%quadrupoleAtom(3,iAt1,iSpin) = tmpM3x3(2,2) 
-      multiExpanData%quadrupoleAtom(4,iAt1,iSpin) = tmpM3x3(1,3) 
-      multiExpanData%quadrupoleAtom(5,iAt1,iSpin) = tmpM3x3(2,3) 
+      multiExpanData%quadrupoleAtom(4,iAt1,iSpin) = tmpM3x3(3,1) 
+      multiExpanData%quadrupoleAtom(5,iAt1,iSpin) = tmpM3x3(3,2) 
       multiExpanData%quadrupoleAtom(6,iAt1,iSpin) = tmpM3x3(3,3) 
     end do
 
@@ -955,14 +914,12 @@ contains
   subroutine updateDQPotentials(this, deltaMAtom)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> Delta charge per atom
     real(dp), intent(in) :: deltaMAtom(:)
 
-    integer, parameter :: xyzLen = 3
     integer :: nAtoms, iAt1, iAt2, ii, jj, iSp1, iSp2
-    real(dp) :: vRabx3(xyzLen), tmpVx3(xyzLen)
 
     this%deltaMAtom(:) = deltaMAtom
     nAtoms = this%nAtoms
@@ -1000,12 +957,12 @@ contains
             & + sum(this%f10AB(:,iAt2,iAt1) * this%deltaDAtom(:,iAt2))
         this%pot20x2Atom(iAt1) = this%pot20x2Atom(iAt1)&
             & + sum(this%f20AB(:,:,iAt2,iAt1) * this%deltaQAtom(:,:,iAt2))
-        do ii = 1, xyzLen
+        do ii = 1, 3
           this%pot11x1Atom(ii,iAt1) = this%pot11x1Atom(ii,iAt1)&
               & - 2.0_dp * sum(this%f20AB(:,ii,iAt2,iAt1) * this%deltaDAtom(:,iAt2))
           this%pot21x2Atom(ii,iAt1) = this%pot21x2Atom(ii,iAt1)&
               & - 3.0_dp * sum(this%f30AB(:,:,ii,iAt2,iAt1) * this%deltaQAtom(:,:,iAt2))
-          do jj = 1, xyzLen
+          do jj = 1, 3
             this%pot21x1Atom(jj,ii,iAt1) = this%pot21x1Atom(jj,ii,iAt1)&
                 & - 3.0_dp * sum(this%f30AB(:,jj,ii,iAt2,iAt1) * this%deltaDAtom(:,iAt2))
           end do
@@ -1014,7 +971,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    !> Calculate pot21x2
+    ! Calculate pot21x2
     this%pot22x2Atom(:,:,:) = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, iAt2, iSp2, ii, jj) DEFAULT(SHARED) SCHEDULE(RUNTIME)
@@ -1028,8 +985,8 @@ contains
         if ((this%onDQOCharges(1, iSp2) == 0) .and. (this%onDQOCharges(2, iSp2) == 0)) then
           cycle
         end if
-        do ii = 1, xyzLen
-          do jj = 1, xyzLen
+        do ii = 1, 3
+          do jj = 1, 3
             this%pot22x2Atom(jj,ii,iAt1) = this%pot22x2Atom(jj,ii,iAt1)&
                 & + 6.0_dp * sum(this%f40AB(:,:,jj,ii,iAt2,iAt1) * this%deltaQAtom(:,:,iAt2))
           end do
@@ -1045,7 +1002,7 @@ contains
       & nAtom, img2CentCell)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
@@ -1074,23 +1031,16 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
-    integer, parameter :: xyzLen = 3
-    integer :: iAt1, iAt2, img, ind, nBlk, iBlk, iSp1, iSp2, iOrb1, iOrb2, iNeigh
-    integer :: iOrig
-    integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2
     integer :: mu, nu, kappa, mm, nn, kk
-    real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
-    real(dp) :: sqrTmpRho(orb%mOrb,orb%mOrb)
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: iSp1, iSp2, iNeigh, iOrig
+    integer :: nOrb1, nOrb2
     real(dp) :: sqrTmpOver(orb%mOrb,orb%mOrb)
     real(dp) :: sqrTmpOverT(orb%mOrb,orb%mOrb)
     real(dp) :: sqrTmpHam(orb%mOrb,orb%mOrb)
-    real(dp) :: mulTmp(orb%mOrb**2)
-    real(dp) :: tmpVx3(xyzLen), tmpM3x3(xyzLen, xyzLen)
-    real(dp) :: tmpadS(xyzLen), tmpSad(xyzLen)
-    real(dp) :: tmpaQS(xyzLen, xyzLen), tmpSaQ(xyzLen, xyzLen)
-    real(dp) :: tmpCoAtMu1(xyzLen, xyzLen), tmpCoAtNu1(xyzLen, xyzLen)
-    real(dp) :: tmpCoAtMu2(xyzLen, xyzLen), tmpCoAtNu2(xyzLen, xyzLen)
+    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
+    real(dp) :: tmpadS(3), tmpSad(3)
+    real(dp) :: tmpaQS(3,3), tmpSaQ(3,3)
 
     @:ASSERT(size(nNeighbour)==nAtom)
     @:ASSERT(size(iNeighbour,dim=2)==nAtom)
@@ -1132,30 +1082,29 @@ contains
               tmpSaQ(:,:) = tmpSaQ(:,:) + this%atomicQIntgrl(:,:,kk,nu,iSp2) * sqrTmpOver(kk,mu)
             end do
 
-            ! add Monopole-Dipole contribution
+            ! Add Monopole-Dipole contribution
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) - (this%pot10x1Atom(iAtom1)&
                 & + this%pot10x1Atom(iAtom2f)) * sqrTmpOver(nu,mu)
-
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + sum(this%pot10x0Atom(:,iAtom1) * tmpadS(:)) &
                 & + sum(this%pot10x0Atom(:,iAtom2f) * tmpSad(:))
 
-            !>add Dipole-Dipole contribution
+            ! Add Dipole-Dipole contribution
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + sum(this%pot11x1Atom(:,iAtom1) * tmpadS(:)) &
                 & + sum(this%pot11x1Atom(:,iAtom2f) * tmpSad(:))
  
-            !>add Monopole-Quadrupole contribution
+            ! Add Monopole-Quadrupole contribution
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + (this%pot20x2Atom(iAtom1)&
                 & + this%pot20x2Atom(iAtom2f)) * sqrTmpOver(nu,mu)
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + sum(this%pot20x0Atom(:,:,iAtom1) * tmpaQS(:,:)) &
                 & + sum(this%pot20x0Atom(:,:,iAtom2f) * tmpSaQ(:,:))
 
-            !>add Dipole-Quadrupole contribution
+            ! Add Dipole-Quadrupole contribution
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) - sum(this%pot21x2Atom(:,iAtom1) * tmpadS(:)) &
                 & - sum(this%pot21x2Atom(:,iAtom2f) * tmpSad(:))
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + sum(this%pot21x1Atom(:,:,iAtom1) * tmpaQS(:,:)) &
                 & + sum(this%pot21x1Atom(:,:,iAtom2f) * tmpSaQ(:,:))
 
-            !>add Quadrupole-Quadrupole contribution
+            ! Add Quadrupole-Quadrupole contribution
             sqrTmpHam(nu,mu) = sqrTmpHam(nu,mu) + sum(this%pot22x2Atom(:,:,iAtom1) * tmpaQS(:,:)) &
                 & + sum(this%pot22x2Atom(:,:,iAtom2f) * tmpSaQ(:,:))
           end do
@@ -1173,7 +1122,7 @@ contains
       & energyQQ, energyTT)
 
     !> RangeSep class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     real(dp), intent(out) :: energyPerAtom(:)
 
@@ -1195,40 +1144,35 @@ contains
   !> Returns energy per atom.
   subroutine getEnergyPerAtom(this, energyPerAtom)
 
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     real(dp), intent(out) :: energyPerAtom(:)
 
     real(dp), allocatable :: EnergyMDAtom(:), EnergyDDAtom(:), EnergyMQAtom(:)
     real(dp), allocatable :: EnergyDQAtom(:), EnergyQQAtom(:)
-    integer, parameter :: xyzLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
 
     integer :: nAtoms
     integer :: iAt1
-    @:ASSERT(size(energyPerAtom) == this%nAtoms)
 
     nAtoms = this%nAtoms
-    allocate(EnergyMDAtom(nAtoms))
-    allocate(EnergyDDAtom(nAtoms))
-    allocate(EnergyMQAtom(nAtoms))
-    allocate(EnergyDQAtom(nAtoms))
-    allocate(EnergyQQAtom(nAtoms))
-    EnergyMDAtom(:) = 0.0_dp
-    EnergyDDAtom(:) = 0.0_dp
-    EnergyMQAtom(:) = 0.0_dp
-    EnergyDQAtom(:) = 0.0_dp
-    EnergyQQAtom(:) = 0.0_dp
+    @:ASSERT(size(energyPerAtom) == nAtoms)
+
+    allocate(EnergyMDAtom(nAtoms), source=0.0_dp)
+    allocate(EnergyDDAtom(nAtoms), source=0.0_dp)
+    allocate(EnergyMQAtom(nAtoms), source=0.0_dp)
+    allocate(EnergyDQAtom(nAtoms), source=0.0_dp)
+    allocate(EnergyQQAtom(nAtoms), source=0.0_dp)
 
     do iAt1 = 1, nAtoms
-      !>Monopole-Dipole contribution
+      ! Monopole-Dipole contribution
       EnergyMDAtom(iAt1) = sum(this%pot10x0Atom(:,iAt1) * this%deltaDAtom(:,iAt1))
-      !>Dipole-Dipole contribution
+      ! Dipole-Dipole contribution
       EnergyDDAtom(iAt1) = 0.5_dp * sum(this%pot11x1Atom(:,iAt1) * this%deltaDAtom(:,iAt1))
-      !>Monopole-Quadrupole contribution
+      ! Monopole-Quadrupole contribution
       EnergyMQAtom(iAt1) = sum(this%pot20x0Atom(:,:,iAt1) * this%deltaQAtom(:,:,iAt1))
-      !>Dipole-Quadrupole contribution
+      ! Dipole-Quadrupole contribution
       EnergyDQAtom(iAt1) = sum(this%pot21x1Atom(:,:,iAt1) * this%deltaQAtom(:,:,iAt1))
-      !>Quadrupole-Quadrupole contribution
+      ! Quadrupole-Quadrupole contribution
       EnergyQQAtom(iAt1) = 0.5_dp * sum(this%pot22x2Atom(:,:,iAt1) * this%deltaQAtom(:,:,iAt1))
     end do
 
@@ -1240,20 +1184,16 @@ contains
     this%energyQQ = sum(EnergyQQAtom)
     this%energyTT = this%energyMD + this%energyDD + this%energyMQ  + this%energyDQ  + this%energyQQ
 
-    deallocate(EnergyMDAtom)
-    deallocate(EnergyDDAtom)
-    deallocate(EnergyMQAtom)
-    deallocate(EnergyDQAtom)
-    deallocate(EnergyQQAtom)
-
+    deallocate(EnergyMDAtom, EnergyDDAtom, EnergyMQAtom, EnergyDQAtom, EnergyQQAtom)
 
   end subroutine getEnergyPerAtom
+
 
   subroutine addMultiExpanGradients(this, derivs, derivator, skOverCont, rho, species,&
       & iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, coords)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> Gradient on exit.
     real(dp), intent(inout) :: derivs(:,:)
@@ -1288,29 +1228,18 @@ contains
     !> Coordinate of each atom.
     real(dp), intent(in) :: coords(:,:)
 
-    integer, parameter :: xyzLen = 3
+    integer :: ii, jj, ll, mu, nu, kappa, mm, nn, kk
+    integer :: nOrb1, nOrb2
     integer :: iAt1, iAt2, iAt2f
     integer :: iOrig, iSpin, nSpin, nAtom, iNeigh, iSp1, iSp2
-    integer :: nOrb1, nOrb2
-    integer :: ii, jj, ll, mu, nu, kappa, mm, nn, kk
 
     real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrDMTmpT(orb%mOrb,orb%mOrb)
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
-    real(dp) :: rab, vRabx3(3), tmp, tmp3(3)
+    real(dp) :: tmpDerivMuNu
 
-    real(dp) :: sPrimeTmp12(orb%mOrb,orb%mOrb,3)
-    real(dp) :: tmpDerivMuNu, tmpDeriv(xyzLen), tmpVx3(xyzLen), tmpM3x3(xyzLen, xyzLen)
-
-
-    ! real(dp) :: sqrTmp(orb%mOrb,orb%mOrb)
-    ! real(dp) :: sqrTmpRho(orb%mOrb,orb%mOrb)
-    ! real(dp) :: sqrTmpOver(orb%mOrb,orb%mOrb)
-    ! real(dp) :: sqrTmpOverT(orb%mOrb,orb%mOrb)
-    ! real(dp) :: sqrTmpHam(orb%mOrb,orb%mOrb)
-    ! real(dp) :: mulTmp(orb%mOrb**2)
-    real(dp) :: tmpPad(xyzLen), tmpadP(xyzLen)
-    real(dp) :: tmpPaQ(xyzLen, xyzLen), tmpaQP(xyzLen, xyzLen)
+    real(dp) :: tmpPad(3), tmpadP(3)
+    real(dp) :: tmpPaQ(3,3), tmpaQP(3,3)
 
     !> Calculate pot30x0, pot31x1, and pot32x2
     this%pot30x0Atom(:,:,:,:) = 0.0_dp
@@ -1328,9 +1257,9 @@ contains
            & .or. (this%onDQOCharges(1, iSp2) == 0 .and. this%onDQOCharges(2, iSp2) == 0)) then
           cycle
         end if
-        do ii = 1, xyzLen
-          do jj = 1, xyzLen
-            do ll = 1, xyzLen
+        do ii = 1, 3
+          do jj = 1, 3
+            do ll = 1, 3
               this%pot31x1Atom(ll,jj,ii,iAt1) = this%pot31x1Atom(ll,jj,ii,iAt1)&
                   & - 4.0_dp * sum(this%f40AB(:,ll,jj,ii,iAt2,iAt1) * this%deltaDAtom(:,iAt2))
               this%pot32x2Atom(ll,jj,ii,iAt1) = this%pot32x2Atom(ll,jj,ii,iAt1)&
@@ -1343,27 +1272,27 @@ contains
     !$OMP END PARALLEL DO
 
     do iAt1 = 1, this%nAtoms
-      !> M-D contribution
+      ! M-D contribution
       derivs(:,iAt1) = derivs(:,iAt1) + this%pot11x1Atom(:,iAt1) * this%deltaMAtom(iAt1)
-      !> M-Q contribution
+      ! M-Q contribution
       derivs(:,iAt1) = derivs(:,iAt1) - this%pot21x2Atom(:,iAt1) * this%deltaMAtom(iAt1)
-      do ii = 1, xyzLen
-        !> M-D contribution
+      do ii = 1, 3
+        ! D-M contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 2.0_dp * sum(this%pot20x0Atom(:,ii,iAt1) * this%deltaDAtom(:,iAt1))
-        !> D-D contribution
+        ! D-D contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 2.0_dp * sum(this%pot21x1Atom(:,ii,iAt1) * this%deltaDAtom(:,iAt1))
-        !> D-Q contribution
+        ! D-Q contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 2.0_dp * sum(this%pot22x2Atom(:,ii,iAt1) * this%deltaDAtom(:,iAt1))
-        !> M-Q contribution
+        ! Q-M contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 3.0_dp * sum(this%pot30x0Atom(:,:,ii,iAt1) * this%deltaQAtom(:,:,iAt1))
-        !> D-Q contribution
+        ! Q-D contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 3.0_dp * sum(this%pot31x1Atom(:,:,ii,iAt1) * this%deltaQAtom(:,:,iAt1))
-        !> Q-Q contribution
+        ! Q-Q contribution
         derivs(ii,iAt1) = derivs(ii,iAt1)&
             & + 3.0_dp * sum(this%pot32x2Atom(:,:,ii,iAt1) * this%deltaQAtom(:,:,iAt1))
       end do
@@ -1383,26 +1312,6 @@ contains
         sqrDMTmpT(1:nOrb1,1:nOrb2) = transpose(sqrDMTmp(1:nOrb2,1:nOrb1)) 
         call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAt1, iAt2, orb)
 
-        tmpDeriv(:) = 0.0_dp
-        derivTmp(:) = 0.0_dp
-        ! note factor of 2 for implicit summation over lower triangle of density matrix:
-        ! do ii = 1, 3
-        !   derivTmp(ii) = 2.0_dp * (&
-        !       & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1)*sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
-        ! end do
-
-        ! iSpin = 1
-        ! do ii = 1, 3
-        !   shiftSprime(1:nOrb2,1:nOrb1) = 0.5_dp * (&
-        !       & matmul(sPrimeTmp(1:nOrb2,1:nOrb1,ii), shift(1:nOrb1,1:nOrb1,iAt1,iSpin) )&
-        !       & + matmul(shift(1:nOrb2,1:nOrb2,iAt2f,iSpin), sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
-        !   ! again factor of 2 from lower triangle, cf published force expressions for SCC:
-        !   derivTmp(ii) = derivTmp(ii) + 2.0_dp * ( sum(shiftSprime(1:nOrb2,1:nOrb1) *&
-        !       & reshape(rho(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1]) ) )
-        ! end do
-
-        ! vRabx3(:) = coords(:,iAt1) - coords(:,iAt2)
-        ! rab = norm2(vRabx3(:))
         derivTmp(:) = 0.0_dp
         do mu = 1, nOrb1
           do nu =  1, nOrb2
@@ -1412,50 +1321,49 @@ contains
             tmpPaQ(:,:) = 0.0_dp
             tmpaQP(:,:) = 0.0_dp
             do kk = 1, nOrb1
-              tmpPad(:) = tmpPad(:) + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
-              tmpPaQ(:,:) = tmpPaQ(:,:) + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
+              tmpPad(:) = tmpPad + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
+              tmpPaQ(:,:) = tmpPaQ + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
             end do
             do kk = 1, nOrb2
-              tmpadP(:) = tmpadP(:) + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
-              tmpaQP(:,:) = tmpaQP(:,:) + this%atomicQIntgrl(:,:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
+              tmpadP(:) = tmpadP + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
+              tmpaQP(:,:) = tmpaQP + this%atomicQIntgrl(:,:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
             end do
 
             tmpDerivMuNu = 0.0_dp
-            !> M-D contribution
+            ! M-D contribution
             tmpDerivMuNu = tmpDerivMuNu - (this%pot10x1Atom(iAt1) + this%pot10x1Atom(iAt2))&
                 & * sqrDMTmp(nu,mu)
-            !> M-Q contribution
+            ! M-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + (this%pot20x2Atom(iAt1) + this%pot20x2Atom(iAt2))&
                 & * sqrDMTmp(nu,mu)
 
-            !> M-D contribution
+            ! D-M contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot10x0Atom(:,iAt1) * tmpPad(:))
-            !> D-D contribution
+            ! D-D contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot11x1Atom(:,iAt1) * tmpPad(:))
-            !> D-Q contribution
+            ! D-Q contribution
             tmpDerivMuNu = tmpDerivMuNu - sum(this%pot21x2Atom(:,iAt1) * tmpPad(:))
-            !> M-Q contribution
+            ! M-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot20x0Atom(:,:,iAt1) * tmpPaQ(:,:))
-            !> D-Q contribution
+            ! D-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot21x1Atom(:,:,iAt1) * tmpPaQ(:,:))
-            !> Q-Q contribution
+            ! Q-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot22x2Atom(:,:,iAt1) * tmpPaQ(:,:))
             
-            !> M-D contribution
+            ! M-D contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot10x0Atom(:,iAt2) * tmpadP(:))
-            !> D-D contribution
+            ! D-D contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot11x1Atom(:,iAt2) * tmpadP(:))
-            !> D-Q contribution
+            ! D-Q contribution
             tmpDerivMuNu = tmpDerivMuNu - sum(this%pot21x2Atom(:,iAt2) * tmpadP(:))
-            !> M-Q contribution
+            ! M-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot20x0Atom(:,:,iAt2) * tmpaQP(:,:))
-            !> D-Q contribution
+            ! D-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot21x1Atom(:,:,iAt2) * tmpaQP(:,:))
-            !> Q-Q contribution
+            ! Q-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot22x2Atom(:,:,iAt2) * tmpaQP(:,:))
 
-            ! tmpDeriv(:) = tmpDeriv(:) + tmpDerivMuNu * sPrimeTmp12(nn,mm,:)
-            derivTmp(:) = derivTmp(:) + tmpDerivMuNu * sPrimeTmp(nu,mu,:)
+            derivTmp(:) = derivTmp + tmpDerivMuNu * sPrimeTmp(nu,mu,:)
 
           end do
         end do
@@ -1464,24 +1372,19 @@ contains
         derivs(:,iAt2f) = derivs(:,iAt2f) - derivTmp
       end do
     end do
+
   end subroutine addMultiExpanGradients
 
 
   subroutine addAtomicDipoleMoment(this, dipoleMoment)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> energy gradients
     real(dp), intent(inout) :: dipoleMoment(:)
 
-    integer :: nAtoms
-    integer :: iAt1
-
-    nAtoms = this%nAtoms
-    do iAt1 = 1, nAtoms
-      dipoleMoment(:) = dipoleMoment(:) - this%deltaDAtom(:,iAt1)
-    end do
+    dipoleMoment(:) = dipoleMoment - sum(this%deltaDAtom(:,:), dim=2)
 
   end subroutine addAtomicDipoleMoment
 
@@ -1489,18 +1392,12 @@ contains
   subroutine addAtomicQuadrupoleMoment(this, quadrupoleMoment)
 
     !> class instance
-    class(TDftbMultiExpan), intent(inout) :: this
+    class(TMdftb), intent(inout) :: this
 
     !> energy gradients
     real(dp), intent(inout) :: quadrupoleMoment(:,:)
 
-    integer :: nAtoms
-    integer :: iAt1
-
-    nAtoms = this%nAtoms
-    do iAt1 = 1, nAtoms
-      quadrupoleMoment(:,:) = quadrupoleMoment(:,:) - this%deltaQAtom(:,:,iAt1)
-    end do
+    quadrupoleMoment(:,:) = quadrupoleMoment - sum(this%deltaQAtom(:,:,:), dim=3)
 
   end subroutine addAtomicQuadrupoleMoment
 
@@ -1516,8 +1413,8 @@ contains
     @:ASSERT(size(B3) == dimSize)
     @:ASSERT(size(M3x3, dim=1) == dimSize)
     @:ASSERT(size(M3x3, dim=2) == dimSize)
-    do ii = 1, dimSize
-      do jj = 1, dimSize
+    do jj = 1, dimSize
+      do ii = 1, dimSize
         M3x3(ii, jj) = A3(ii) * B3(jj)
       end do
     end do
@@ -1538,9 +1435,9 @@ contains
     @:ASSERT(size(M3x3x3, dim=1) == dimSize)
     @:ASSERT(size(M3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3, dim=3) == dimSize)
-    do ii = 1, dimSize
+    do ll = 1, dimSize
       do jj = 1, dimSize
-        do ll = 1, dimSize
+        do ii = 1, dimSize
           M3x3x3(ii,jj,ll) = A3(ii) * B3(jj) * C3(ll)
         end do
       end do
@@ -1562,9 +1459,9 @@ contains
     @:ASSERT(size(M3x3x3, dim=1) == dimSize)
     @:ASSERT(size(M3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3, dim=3) == dimSize)
-    do ii = 1, dimSize
+    do ll = 1, dimSize
       do jj = 1, dimSize
-        do ll = 1, dimSize
+        do ii = 1, dimSize
           M3x3x3(ii,jj,ll) = A3(ii) * B3x3(jj,ll)
         end do
       end do
@@ -1586,9 +1483,9 @@ contains
     @:ASSERT(size(M3x3x3, dim=1) == dimSize)
     @:ASSERT(size(M3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3, dim=3) == dimSize)
-    do ii = 1, dimSize
+    do ll = 1, dimSize
       do jj = 1, dimSize
-        do ll = 1, dimSize
+        do ii = 1, dimSize
           M3x3x3(ii,jj,ll) = A3x3(ii,jj) * B3(ll)
         end do
       end do
@@ -1610,9 +1507,9 @@ contains
     @:ASSERT(size(M3x3x3, dim=1) == dimSize)
     @:ASSERT(size(M3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3, dim=3) == dimSize)
-    do ii = 1, dimSize
+    do ll = 1, dimSize
       do jj = 1, dimSize
-        do ll = 1, dimSize
+        do ii = 1, dimSize
           M3x3x3(ii,jj,ll) = A3x3(ii,ll) * B3(jj)
         end do
       end do
@@ -1636,10 +1533,10 @@ contains
     @:ASSERT(size(M3x3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=3) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=4) == dimSize)
-    do ii = 1, dimSize
-      do jj = 1, dimSize
-        do ll = 1, dimSize
-          do mm = 1, dimSize
+    do mm = 1, dimSize
+      do ll = 1, dimSize
+        do jj = 1, dimSize
+          do ii = 1, dimSize
             M3x3x3x3(ii,jj,ll,mm) = A3x3(ii,jj) * B3x3(ll,mm)
           end do
         end do
@@ -1664,10 +1561,10 @@ contains
     @:ASSERT(size(M3x3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=3) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=4) == dimSize)
-    do ii = 1, dimSize
-      do jj = 1, dimSize
-        do ll = 1, dimSize
-          do mm = 1, dimSize
+    do mm = 1, dimSize
+      do ll = 1, dimSize
+        do jj = 1, dimSize
+          do ii = 1, dimSize
             M3x3x3x3(ii,jj,ll,mm) = A3x3(ii,ll) * B3x3(jj,mm)
           end do
         end do
@@ -1692,10 +1589,10 @@ contains
     @:ASSERT(size(M3x3x3x3, dim=2) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=3) == dimSize)
     @:ASSERT(size(M3x3x3x3, dim=4) == dimSize)
-    do ii = 1, dimSize
-      do jj = 1, dimSize
-        do ll = 1, dimSize
-          do mm = 1, dimSize
+    do mm = 1, dimSize
+      do ll = 1, dimSize
+        do jj = 1, dimSize
+          do ii = 1, dimSize
             M3x3x3x3(ii,jj,ll,mm) = A3x3(ii,mm) * B3x3(jj,ll)
           end do
         end do
@@ -1704,39 +1601,4 @@ contains
 
   end subroutine makeA3x3otB3x3
 
-  !> copy lower triangle to upper for a square matrix
-  subroutine symmetrizeSquareMatrix(matrix)
-
-    !> matrix to symmetrize
-    real(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    @:ASSERT(size(matrix, dim=1) == size(matrix, dim=2))
-    matSize = size(matrix, dim = 1)
-
-   !!$OMP PARALLEL DO PRIVATE(ii) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do ii = 1, matSize - 1
-      matrix(ii,ii+1:matSize) = matrix(ii + 1 : matSize, ii)
-    end do
-   !!$OMP END PARALLEL DO
-
-  end subroutine symmetrizeSquareMatrix
-
-
-  !> location of relevant atomic block indices in a dense matrix
-  pure function getDescriptor(iAt, iSquare) result(desc)
-
-    !> relevant atom
-    integer, intent(in) :: iAt
-
-    !> indexing array for start of atom orbitals
-    integer, intent(in) :: iSquare(:)
-
-    !> resulting location ranges
-    integer :: desc(3)
-
-    desc(:) = [iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt)]
-
-  end function getDescriptor
-
-end module dftbp_dftb_multiexpan
+end module dftbp_dftb_mdftb

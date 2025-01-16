@@ -18,7 +18,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_dftb_multiexpan, only : TDftbMultiExpan
+  use dftbp_dftb_mdftb, only : TMdftb
   use dftbp_dftb_onsitecorrection, only : getEons
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
@@ -47,7 +47,7 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, dftbMultiExpan,&
+  subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, mdftb,&
       & species, isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
       & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
@@ -76,7 +76,7 @@ contains
     type(TMultipole), intent(in) :: multipole
 
     !> DFTB multipole moments
-    type(TDftbMultiExpan), intent(inout), allocatable :: dftbMultiExpan
+    type(TMdftb), intent(inout), allocatable :: mdftb
 
     !> chemical species
     !> Chemical species
@@ -285,10 +285,10 @@ contains
     end if
 
     ! Add contribution for DFTB multipole calculations
-    if (allocated(dftbMultiExpan)) then
-      call dftbMultiExpan%addMultiExpanEnergy(energy%atomDftbMultiExpan, energy%EDftbMultiExpanMD,&
-          & energy%EDftbMultiExpanDD, energy%EDftbMultiExpanMQ, energy%EDftbMultiExpanDQ,&
-          & energy%EDftbMultiExpanQQ, energy%EDftbMultiExpan)
+    if (allocated(mdftb)) then
+      call mdftb%addMultiExpanEnergy(energy%atomMdftb, energy%EMdftbMD,&
+          & energy%EMdftbDD, energy%EMdftbMQ, energy%EMdftbDQ,&
+          & energy%EMdftbQQ, energy%EMdftb)
     end if
 
     ! Add exchange contribution for range separated calculations
@@ -363,12 +363,11 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock&
-        & + energy%EDftbMultiExpan
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock + energy%EMdftb
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite&
-        & + energy%atomSolv + energy%atomDftbMultiExpan
+        & + energy%atomSolv + energy%atomMdftb
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(energy%TS)

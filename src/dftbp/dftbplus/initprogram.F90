@@ -41,7 +41,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
   use dftbp_dftb_hamiltonian, only : TRefExtPot
-  use dftbp_dftb_multiexpan, only : TDftbMultiExpan, TDftbMultiExpanInp, dftbMultiExpan_init
+  use dftbp_dftb_mdftb, only : TMdftb, TMdftbAtomicIntegrals, TMdftbInp, TMdftb_init
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
   use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
@@ -802,13 +802,13 @@ module dftbp_dftbplus_initprogram
     logical :: isHybLinResp
 
     !> Multipole DFTB
-    logical :: isDftbMultiExpan
+    logical :: isMdftb
 
     !> input data structure for multipole
-    type(TDftbMultiExpanInp) :: dftbMultiExpanInp
+    type(TMdftbInp) :: mdftbInp
 
     !> data structure for multipole
-    type(TDftbMultiExpan), allocatable :: dftbMultiExpan
+    type(TMdftb), allocatable :: mdftb
 
     !> If initial charges/dens mtx. from external file.
     logical :: tReadChrg
@@ -1398,7 +1398,7 @@ contains
       this%hybridXcAlg = hybridXcAlgo%none
     end if
     areNeighboursSymmetric = this%isHybridXc
-    this%isDftbMultiExpan = input%ctrl%isDftbMultiExpan
+    this%isMdftb = input%ctrl%isMdftb
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1767,68 +1767,18 @@ contains
       end if
 
       ! Initialize multipole module
-      if (this%isDftbMultiExpan) then
+      if (this%isMdftb) then
         @:ASSERT(this%tSccCalc)
-        this%dftbMultiExpanInp%orb => this%orb
-        this%dftbMultiExpanInp%nOrb = this%nOrb
-        this%dftbMultiExpanInp%nSpin = this%nSpin
-        this%dftbMultiExpanInp%nSpecies = this%nType
-
-        allocate(this%dftbMultiExpanInp%atomicDIntgrlScaling(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicQIntgrlScaling(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicOnsiteScaling(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSXPxIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPxXDxxyyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPxXDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPyYDxxyyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPzZDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSXXSIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPxXXPxIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicPyXXPyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSXXDxxyyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSXXDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSYYDxxyyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicSZZDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDxyXXDxyIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDyzXXDyzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDxxyyXXDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDzzXXDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDxxyyYYDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDzzZZDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDxzXZDzzIntgrl(this%nType))
-        allocate(this%dftbMultiExpanInp%atomicDyzYZDxxyyIntgrl(this%nType))
-
-        this%dftbMultiExpanInp%atomicDIntgrlScaling(:) = input%ctrl%atomicDIntgrlScaling
-        this%dftbMultiExpanInp%atomicQIntgrlScaling(:) = input%ctrl%atomicQIntgrlScaling
-        this%dftbMultiExpanInp%atomicOnsiteScaling(:) = input%ctrl%atomicOnsiteScaling
-        this%dftbMultiExpanInp%atomicSXPxIntgrl(:) = input%ctrl%atomicSXPxIntgrl
-        this%dftbMultiExpanInp%atomicPxXDxxyyIntgrl(:) = input%ctrl%atomicPxXDxxyyIntgrl
-        this%dftbMultiExpanInp%atomicPxXDzzIntgrl(:) = input%ctrl%atomicPxXDzzIntgrl
-        this%dftbMultiExpanInp%atomicPyYDxxyyIntgrl(:) = input%ctrl%atomicPyYDxxyyIntgrl
-        this%dftbMultiExpanInp%atomicPzZDzzIntgrl(:) = input%ctrl%atomicPzZDzzIntgrl
-        this%dftbMultiExpanInp%atomicSXXSIntgrl(:) = input%ctrl%atomicSXXSIntgrl
-        this%dftbMultiExpanInp%atomicPxXXPxIntgrl(:) = input%ctrl%atomicPxXXPxIntgrl
-        this%dftbMultiExpanInp%atomicPyXXPyIntgrl(:) = input%ctrl%atomicPyXXPyIntgrl
-        this%dftbMultiExpanInp%atomicSXXDxxyyIntgrl(:) = input%ctrl%atomicSXXDxxyyIntgrl
-        this%dftbMultiExpanInp%atomicSXXDzzIntgrl(:) = input%ctrl%atomicSXXDzzIntgrl
-        this%dftbMultiExpanInp%atomicSYYDxxyyIntgrl(:) = input%ctrl%atomicSYYDxxyyIntgrl
-        this%dftbMultiExpanInp%atomicSZZDzzIntgrl(:) = input%ctrl%atomicSZZDzzIntgrl
-        this%dftbMultiExpanInp%atomicDxyXXDxyIntgrl(:) = input%ctrl%atomicDxyXXDxyIntgrl
-        this%dftbMultiExpanInp%atomicDyzXXDyzIntgrl(:) = input%ctrl%atomicDyzXXDyzIntgrl
-        this%dftbMultiExpanInp%atomicDxxyyXXDzzIntgrl(:) = input%ctrl%atomicDxxyyXXDzzIntgrl
-        this%dftbMultiExpanInp%atomicDzzXXDzzIntgrl(:) = input%ctrl%atomicDzzXXDzzIntgrl
-        this%dftbMultiExpanInp%atomicDxxyyYYDzzIntgrl(:) = input%ctrl%atomicDxxyyYYDzzIntgrl
-        this%dftbMultiExpanInp%atomicDzzZZDzzIntgrl(:) = input%ctrl%atomicDzzZZDzzIntgrl
-        this%dftbMultiExpanInp%atomicDxzXZDzzIntgrl(:) = input%ctrl%atomicDxzXZDzzIntgrl
-        this%dftbMultiExpanInp%atomicDyzYZDxxyyIntgrl(:) = input%ctrl%atomicDyzYZDxxyyIntgrl
-
-        allocate(this%dftbMultiExpanInp%hubbU(size(hubbU, dim=2)))
-        this%dftbMultiExpanInp%hubbU = hubbU(1,:)
-        allocate(this%dftbMultiExpanInp%species(this%nAtom))
-        this%dftbMultiExpanInp%species(:) = input%geom%species
-        allocate(this%dftbMultiExpan)
-        allocate(this%quadrupoleMoment(3,3))
-        call dftbMultiExpan_init(this%dftbMultiExpan, this%dftbMultiExpanInp)
+        this%mdftbInp%orb => this%orb
+        this%mdftbInp%nOrb = this%nOrb
+        this%mdftbInp%nSpin = this%nSpin
+        this%mdftbInp%nSpecies = this%nType
+        this%mdftbInp%hubbU = hubbU(1,:)
+        this%mdftbInp%species = input%geom%species(:)
+        call initMdftbAtomicIntegrals(this%mdftbInp, input%ctrl)
+        allocate(this%mdftb)
+        allocate(this%quadrupoleMoment(3,3), source=0.0_dp)
+        call TMdftb_init(this%mdftb, this%mdftbInp)
       end if
 
     end if
@@ -1879,8 +1829,8 @@ contains
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
       call this%tblite%getMultipoleInfo(this%nDipole, this%nQuadrupole)
-    ! else if (allocated(this%dftbMultiExpan)) then
-    !   call this%dftbMultiExpan%getMultiExpanInfo(this%nDipole, this%nQuadrupole)
+    ! else if (allocated(this%mdftb)) then
+    !   call this%mdftb%getMultiExpanInfo(this%nDipole, this%nQuadrupole)
     end if
     call TMultipole_init(this%multipoleOut, this%nAtom, this%nDipole, this%nQuadrupole,&
         & this%nSpin)
@@ -2041,7 +1991,7 @@ contains
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
-        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isDftbMultiExpan .or.&
+        & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isMdftb .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
@@ -2496,7 +2446,7 @@ contains
         end if
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%cm5Cont%getRCutOff())
       end if
-      this%tQuadrupole = input%ctrl%isDftbMultiExpan
+      this%tQuadrupole = input%ctrl%isMdftb
     else
       this%tNetAtomCharges = .false.
       this%tQuadrupole = .false.
@@ -3419,8 +3369,8 @@ contains
       !if (this%tPeriodic) then
       !  write(stdout, "(A,':',T30,E14.6)") "Ewald alpha parameter", this%scc%getEwaldPar()
       !end if
-      if (this%isDftbMultiExpan) then
-        write(stdOut, "(A,':',T30,A)") "MultiPole expansion", "Yes"
+      if (this%isMdftb) then
+        write(stdOut, "(A,':',T30,A)") "Multipole expansion", "Yes"
       end if
       if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
@@ -4264,10 +4214,10 @@ contains
         deallocate(iEqQuad)
       end if
 
-      ! if (allocated(this%dftbMultiExpan)) then
+      ! if (allocated(this%mdftb)) then
       !   allocate(iEqDip(this%nDipole, this%nAtom), source=0)
       !   allocate(iEqQuad(this%nQuadrupole, this%nAtom), source=0)
-      !   call this%dftbMultiExpan%getOrbitalEquiv(iEqDip, iEqQuad)
+      !   call this%mdftb%getOrbitalEquiv(iEqDip, iEqQuad)
       !   this%iEqDipole(:,:) = iEqDip
       !   this%iEqQuadrupole(:,:) = iEqQuad
       !   this%nIneqOrb = maxval(this%iEqOrbitals)
@@ -7033,6 +6983,39 @@ contains
     coulombInput%boundaryCond = boundaryCond
 
   end subroutine initCoulombInput_
+
+  subroutine initMdftbAtomicIntegrals(mdftbInp, ctrl)
+
+    !> input data structure for multipole
+    type(TMdftbInp), intent(inout) :: mdftbInp
+
+    !> Data control structure
+    type(TControl), intent(in) :: ctrl
+
+    mdftbInp%atomicDIntgrlScaling = ctrl%mdftbAtomicIntegrals%DScaling(:)
+    mdftbInp%atomicQIntgrlScaling = ctrl%mdftbAtomicIntegrals%QScaling(:)
+    mdftbInp%atomicSXPxIntgrl = ctrl%mdftbAtomicIntegrals%SXPx(:)
+    mdftbInp%atomicPxXDxxyyIntgrl = ctrl%mdftbAtomicIntegrals%PxXDxxyy(:)
+    mdftbInp%atomicPxXDzzIntgrl = ctrl%mdftbAtomicIntegrals%PxXDzz(:)
+    mdftbInp%atomicPyYDxxyyIntgrl = ctrl%mdftbAtomicIntegrals%PyYDxxyy(:)
+    mdftbInp%atomicPzZDzzIntgrl = ctrl%mdftbAtomicIntegrals%PzZDzz(:)
+    mdftbInp%atomicSXXSIntgrl = ctrl%mdftbAtomicIntegrals%SXXS(:)
+    mdftbInp%atomicPxXXPxIntgrl = ctrl%mdftbAtomicIntegrals%PxXXPx(:)
+    mdftbInp%atomicPyXXPyIntgrl = ctrl%mdftbAtomicIntegrals%PyXXPy(:)
+    mdftbInp%atomicSXXDxxyyIntgrl = ctrl%mdftbAtomicIntegrals%SXXDxxyy(:)
+    mdftbInp%atomicSXXDzzIntgrl = ctrl%mdftbAtomicIntegrals%SXXDzz(:)
+    mdftbInp%atomicSYYDxxyyIntgrl = ctrl%mdftbAtomicIntegrals%SYYDxxyy(:)
+    mdftbInp%atomicSZZDzzIntgrl = ctrl%mdftbAtomicIntegrals%SZZDzz(:)
+    mdftbInp%atomicDxyXXDxyIntgrl = ctrl%mdftbAtomicIntegrals%DxyXXDxy(:)
+    mdftbInp%atomicDyzXXDyzIntgrl = ctrl%mdftbAtomicIntegrals%DyzXXDyz(:)
+    mdftbInp%atomicDxxyyXXDzzIntgrl = ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(:)
+    mdftbInp%atomicDzzXXDzzIntgrl = ctrl%mdftbAtomicIntegrals%DzzXXDzz(:)
+    mdftbInp%atomicDxxyyYYDzzIntgrl = ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(:)
+    mdftbInp%atomicDzzZZDzzIntgrl = ctrl%mdftbAtomicIntegrals%DzzZZDzz(:)
+    mdftbInp%atomicDxzXZDzzIntgrl = ctrl%mdftbAtomicIntegrals%DxzXZDzz(:)
+    mdftbInp%atomicDyzYZDxxyyIntgrl = ctrl%mdftbAtomicIntegrals%DyzYZDxxyy(:)
+
+  end subroutine initMdftbAtomicIntegrals
 
 
 #:if WITH_POISSON

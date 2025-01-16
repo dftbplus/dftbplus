@@ -38,19 +38,22 @@ Hamiltonian = DFTB {
   }
 
   Multipole = OneCenterApproximation {
-    AtomDIntergralScalings = {
+    # Disable all atomic dipole and quadrupole moments
+    # to ensure that mDFTB does not interfere with other parts of the code.
+    # The results should be identical to those of DFTB2.
+    AtomDIntegralScalings = {
       H = 0.0
       C = 0.0
       N = 0.0
       O = 0.0
     }
-    AtomQIntergralScalings = {
+    AtomQIntegralScalings = {
       H = 0.0
       C = 0.0
       N = 0.0
       O = 0.0
     }
-    OneCenterAtomIntergrals = {
+    OneCenterAtomIntegrals = {
       H:S_XX_S   = 0.0
       C:S_X_Px   = 0.0
       C:S_XX_S   = 0.0
@@ -75,12 +78,12 @@ Hamiltonian = DFTB {
 }
 
 ParserOptions = {
-  ParserVersion = 8
-  IgnoreUnprocessedNodes = Yes
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
 }
 
 Analysis = {
-  CalculateForces = Yes
+  PrintForces = Yes
 }
 
 Options = {

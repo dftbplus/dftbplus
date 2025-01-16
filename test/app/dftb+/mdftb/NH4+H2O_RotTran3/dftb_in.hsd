@@ -34,17 +34,17 @@ Hamiltonian = DFTB {
   }
 
   Multipole = OneCenterApproximation {
-    AtomDIntergralScalings = {
+    AtomDIntegralScalings = {
       H = 0.0
       N = 0.6
       O = 0.2
     }
-    AtomQIntergralScalings = {
+    AtomQIntegralScalings = {
       H = 0.0
       N = 3.4
       O = 3.0
     }
-    OneCenterAtomIntergrals = {
+    OneCenterAtomIntegrals = {
       H:S_XX_S   = 0.55976
       N:S_X_Px   = 0.68857
       N:S_XX_S   = 0.57638
@@ -65,12 +65,12 @@ Hamiltonian = DFTB {
 }
 
 ParserOptions = {
-  ParserVersion = 8
-  IgnoreUnprocessedNodes = Yes
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
 }
 
 Analysis = {
-  CalculateForces = Yes
+  PrintForces = Yes
 }
 
 Options = {
