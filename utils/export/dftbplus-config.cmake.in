@@ -28,12 +28,14 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/Modules)
 
 if(NOT TARGET DftbPlus::DftbPlus)
 
-  if(DftbPlus_WITH_OMP AND NOT TARGET OpenMP::OpenMP_Fortran)
-    find_dependency(OpenMP)
-  else()
+ if (NOT TARGET OpenMP::OpenMP_Fortran)
+   if (DftbPlus_WITH_OMP)
+     find_dependency(OpenMP)
+   else ()
     # DFTB+ uses dummy target for non-OMP compilation
     add_library(OpenMP::OpenMP_Fortran INTERFACE IMPORTED)
-  endif()
+   endif ()
+ endif ()
 
   if(NOT TARGET BLAS::BLAS)
     find_dependency(CustomBlas)

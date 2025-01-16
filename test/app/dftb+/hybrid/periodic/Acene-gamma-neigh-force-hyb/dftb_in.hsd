@@ -22,7 +22,7 @@ Hamiltonian = DFTB {
     Suffix = ".skf"
   }
 
-  Hybrid = Global {
+  Hybrid = CAM {
     CoulombMatrix = Truncated {
       CoulombCutoff = 2.885010
       GSummationCutoff = 50.985000
