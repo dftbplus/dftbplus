@@ -3513,9 +3513,10 @@ contains
       @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
           & implemented for rTD-DFTB.")
     #:else
-      call hybridXc%addCamGradients_real(real(deltaRho, dp), real(sSqr(:,:, 1), dp), skOverCont,&
-          & orb, iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator, this%tPeriodic,&
-          & derivs, symNeighbourList=symNeighbourList, nNeighbourCamSym=nNeighbourCamSym)
+      call hybridXc%addCamGradients_real(env, real(deltaRho, dp), real(sSqr(:,:, 1), dp),&
+          & skOverCont, orb, iSquare, neighbourList%iNeighbour, nNeighbourSK, this%derivator,&
+          & this%tPeriodic, derivs, symNeighbourList=symNeighbourList,&
+          & nNeighbourCamSym=nNeighbourCamSym)
       @:PROPAGATE_ERROR(errStatus)
     #:endif
     end if
@@ -4100,7 +4101,7 @@ contains
 
     if (allocated(hybridXc)) then
       if (.not. this%tPeriodic) then
-        call hybridXc%updateCoords_cluster(coord)
+        call hybridXc%updateCoords_cluster(env, coord)
       else
         @:RAISE_ERROR(errStatus, -1, "Timeprop Module: Hybrid rt-TD-DFTB not supported for periodic&
             & systems.")
@@ -4631,7 +4632,7 @@ contains
 
     if (allocated(hybridXc)) then
       if (.not. this%tPeriodic) then
-        call hybridXc%updateCoords_cluster(coord)
+        call hybridXc%updateCoords_cluster(env, coord)
       else
         @:RAISE_ERROR(errStatus, -1, "Timeprop Module: Hybrid rt-TD-DFTB not supported for periodic&
             & systems.")

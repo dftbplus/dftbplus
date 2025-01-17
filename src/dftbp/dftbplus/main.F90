@@ -2387,7 +2387,7 @@ contains
     end if
     if (allocated(hybridXc)) then
       if (.not. tPeriodic) then
-        call hybridXc%updateCoords_cluster(coord)
+        call hybridXc%updateCoords_cluster(env, coord)
       elseif (tPeriodic .and. tRealHS) then
         call hybridXc%updateCoords_gamma(env, symNeighbourList, nNeighbourCamSym, skOverCont, orb,&
             & latVec, invLatVec, denseDescr%iAtomStart)
@@ -6694,8 +6694,8 @@ contains
           call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call hybridXc%addCamGradients_real(densityMatrix%deltaRhoOut, SSqrReal, skOverCont, orb,&
-            & denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, nonSccDeriv,&
+        call hybridXc%addCamGradients_real(env, densityMatrix%deltaRhoOut, SSqrReal, skOverCont,&
+            & orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK, nonSccDeriv,&
             & tPeriodic, derivs, symNeighbourList=symNeighbourList,&
             & nNeighbourCamSym=nNeighbourCamSym)
       #:endif
