@@ -1398,7 +1398,6 @@ contains
       this%hybridXcAlg = hybridXcAlgo%none
     end if
     areNeighboursSymmetric = this%isHybridXc
-    this%isMdftb = input%ctrl%isMdftb
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1767,8 +1766,31 @@ contains
       end if
 
       ! Initialize multipole module
+      this%tQuadrupole = .false.
+      this%isMdftb = input%ctrl%isMdftb
       if (this%isMdftb) then
         @:ASSERT(this%tSccCalc)
+        this%tQuadrupole = .true.
+
+        if (this%tPeriodic) then
+          call error("Multipole expansion currently unsupported for periodic systems")
+        end if
+        if (this%tExtChrg) then
+          call error("Multipole expansion currently unsupported for external charges")
+        end if
+        if (input%ctrl%tSpin) then
+          call error("Multipole expansion currently unsupported for spin-polarised calculations")
+        end if
+        if (allocated(input%ctrl%lrespini)) then
+          call error("Multipole expansion currently unsupported for excited state calculations")
+        end if
+        if (allocated(input%ctrl%hybridXcInp)) then
+          call error("Multipole expansion currently incompatible with hybrid functionals")
+        end if
+        if (allocated(this%onSiteElements)) then
+          call error("Multipole expansion currently incompatible with onsite corrections")
+        end if
+
         this%mdftbInp%orb => this%orb
         this%mdftbInp%nOrb = this%nOrb
         this%mdftbInp%nSpin = this%nSpin
@@ -2446,10 +2468,8 @@ contains
         end if
         this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%cm5Cont%getRCutOff())
       end if
-      this%tQuadrupole = input%ctrl%isMdftb
     else
       this%tNetAtomCharges = .false.
-      this%tQuadrupole = .false.
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
@@ -5968,11 +5988,7 @@ contains
       call error("Global hybrid functionals not currently implemented for linear response.")
     end if
 
-    if (this%tQuadrupole) then
-      call error("DFTB quadrupoles currently unsupported for hybrid functionals.")
-    end if
-
-  end subroutine ensureHybridXcReqs
+ end subroutine ensureHybridXcReqs
 
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
