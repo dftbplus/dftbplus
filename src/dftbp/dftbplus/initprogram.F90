@@ -5332,16 +5332,14 @@ contains
 
     !> Initialize storage for TI-DFTB TDMs
     if (this%deltaDftb%isTDM) then
-      allocate(this%transitionDipoleMoment(3))
-      allocate(this%tiMatG(nLocalRows,nLocalCols,this%nSpin))
-      allocate(this%tiMatE(nLocalRows,nLocalCols,this%nSpin))
-      allocate(this%tiMatPT(nLocalRows,nLocalCols))
-      allocate(this%tiSigma(nLocalRows))
-      allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin))
-      allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin))
-      allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom))
-      this%gfilling(:,:,:) = 0.0_dp
-      this%mfilling(:,:,:) = 0.0_dp
+      allocate(this%transitionDipoleMoment(3), source=0.0_dp)
+      allocate(this%tiMatG(nLocalRows,nLocalCols,this%nSpin), source=0.0_dp)
+      allocate(this%tiMatE(nLocalRows,nLocalCols,this%nSpin), source=0.0_dp)
+      allocate(this%tiMatPT(nLocalRows,nLocalCols), source=0.0_dp)
+      allocate(this%tiSigma(nLocalRows), source=0.0_dp)
+      allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom), source=0.0_dp)
     end if
 
   end subroutine initDetArrays

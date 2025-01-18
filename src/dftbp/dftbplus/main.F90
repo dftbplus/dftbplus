@@ -1610,7 +1610,7 @@ contains
               & this%orb, this%denseDesc, this%iSparseStart, this%img2CentCell, this%rhoPrim,&
               & this%ints%overlap, this%tiTraCharges, this%transitionDipoleMoment, this%q0,&
               & this%coord0, this%iAtInCentralRegion, this%gfilling, this%mfilling, env)
-      !> Write out the TDM, because TDM not avialable in time for writeDetailedOut7 dipole writeout
+      !> Write out the TDM, because TDM not available in time for writeDetailedOut7 dipole writeout
       write(stdOut,*)
       write(stdOut,'(A, 3F14.8, A)') 'TI-DFTB Transition Dipole Moment:',&
           & this%transitionDipoleMoment, ' a.u.'
@@ -3384,7 +3384,7 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       eigvecsReal(:,:,iKS) = HSqrReal
 
-      ! Store Hamiltonians for TDM calculation
+      ! Store eigenvectors for TDM calculation
       if (deltaDftb%isTDM) then
         if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
           tiMatG(:,:,iKS) = HSqrReal
@@ -4363,10 +4363,10 @@ contains
     ! Store fillings for TDM calculation
     if (deltaDftb%isTDM) then
       if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%ground) then
-        gfilling = fillings
+        gfilling(:,:,:) = fillings
       end if
       if(deltaDftb%whichDeterminant(deltaDftb%iDeterminant) == determinants%mixed) then
-        mfilling = fillings
+        mfilling(:,:,:) = fillings
       end if
     end if
 

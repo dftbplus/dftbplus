@@ -64,7 +64,7 @@ module dftbp_dftb_determinants
     !> Should a ground state case be calculated as well
     logical :: isGroundGuess
 
-    !> Should the transition dipole moment with the ground state be computed?
+    !> Should the transition dipole moment between the ground and excited state be computed?
     logical :: isTDM
 
     !> Current determinant being solved
@@ -313,7 +313,7 @@ contains
     !> Should there be a ground state initial guess before Non-Aufbau calc?
     logical, intent(in) :: isGroundGuess
 
-    !> Should the transition dipole moment with the ground state be computed?
+    !> Should the transition dipole moment between the ground and excited state be computed?
     logical, intent(in) :: isTDM
 
     !> Number of electrons in each spin channel
@@ -508,6 +508,8 @@ contains
 
   end subroutine applyZieglerAlloc
 
+
+  !> Evaluate transition density matrix for time independent excitation
   subroutine tiTDM(g, e, pt, gfilling, mfilling)
 
     !> DFTB ground state MO eigenvectors
@@ -595,6 +597,8 @@ contains
  
   end subroutine tiTDM
 
+
+  !> Evaluate transition dipole for time independent excitation
   subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc,&
       & iSparseStart, img2CentCell, rhoPrimSize, over, tiTraCharges, transitionDipoleMoment, q0,&
       & coord, iAtInCentralRegion, gfilling, mfilling, env)
