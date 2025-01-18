@@ -1610,7 +1610,7 @@ contains
               & this%orb, this%denseDesc, this%iSparseStart, this%img2CentCell, this%rhoPrim,&
               & this%ints%overlap, this%tiTraCharges, this%transitionDipoleMoment, this%q0,&
               & this%coord0, this%iAtInCentralRegion, this%gfilling, this%mfilling, env)
-      !> Write out the TDM, because TDM not available in time for writeDetailedOut7 dipole writeout
+      !! Write out the TDM, because TDM not available in time for writeDetailedOut7 dipole writeout
       write(stdOut,*)
       write(stdOut,'(A, 3F14.8, A)') 'TI-DFTB Transition Dipole Moment:',&
           & this%transitionDipoleMoment, ' a.u.'

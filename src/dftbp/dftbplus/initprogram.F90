@@ -1934,6 +1934,11 @@ contains
       call error("Custom occupation not compatible with linear response")
     end if
 
+    if (input%ctrl%isTDM .and. this%boundaryCond%iBoundaryCondition/=boundaryConditions%cluster)&
+        & then
+      @:RAISE_ERROR(errStatus, -1, "Transition dipole moments only available for molecular&
+          & systems")
+    end if
     ! DFTB related variables if multiple determinants are used
     call TDftbDeterminants_init(this%deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
         & input%ctrl%isGroundGuess, input%ctrl%isTDM, this%nEl, this%dftbEnergy, errStatus)
