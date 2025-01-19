@@ -10,7 +10,8 @@
 #:block TEST_SUITE("matrixops")
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_matrixops, only : adjointLowerTriangle, orthonormalizeVectors
+  use dftbp_common_status, only : TStatus
+  use dftbp_math_matrixops, only : adjointLowerTriangle, orthonormalizeVectors, adjugate
   implicit none
 
 #:contains
@@ -89,6 +90,48 @@
       call orthonormalizeVectors(env, 1, n, matReal)
       matReal(:,:) = matmul(transpose(matReal),matReal)
       @:ASSERT(all(abs(matReal - eye) < 1000.0_dp * epsilon(0.0_dp)))
+    #:endblock
+
+  #:endblock TEST_FIXTURE
+
+
+  #:block TEST_FIXTURE("adjugateMatrix")
+
+     real(dp), allocatable :: matReal(:,:), CT(:,:)
+     type(TStatus) :: errStatus
+     integer :: ii, jj, n
+
+  #:contains
+
+    #:block TEST("real22")
+      matReal = reshape([1,2,3,4], [2,2])
+      CT = reshape([4,-2,-3,1], [2,2])
+      call adjugate(matReal)
+      @:ASSERT(all(abs(matReal - CT) < 128_dp * epsilon(0.0_dp)))
+    #:endblock
+
+    #:block TEST("real33")
+      matReal = reshape([-3,2,-5,-1,0,-2,3,-4,1], [3,3])
+      CT = reshape([-8,18,-4,-5,12,-1,4,-6,2], [3,3])
+      call adjugate(matReal)
+      @:ASSERT(all(abs(matReal - CT) < 1024_dp * epsilon(0.0_dp)))
+    #:endblock
+
+    #:block TEST("realLarger")
+      n = 10
+      allocate(matReal(n,n))
+      do ii = 1, n
+        do jj = 1, n
+          matReal(jj, ii) = sign(ii-jj, ii+jj)
+        end do
+        matReal(ii, ii) = 0.1_dp * ii
+      end do
+      CT = matReal
+      call adjugate(matReal)
+      ! use simple routine (requires matrix to be invertable)
+      call adjugate(CT, errStatus)
+      @:ASSERT(.not.errStatus%hasError())
+      @:ASSERT(all(abs(matReal - CT) < 1024_dp * epsilon(0.0_dp)))
     #:endblock
 
   #:endblock TEST_FIXTURE
