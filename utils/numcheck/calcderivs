@@ -40,6 +40,10 @@ LATTICE_DERIV_PATTERN = re.compile(
 DIPOLE_PATTERN = re.compile(r"dipole_moments\s*:[^:]*:[^:]*:\d+,\d+\s*"
     r"(?P<dipoleX>\S+)\s+(?P<dipoleY>\S+)\s+(?P<dipoleZ>\S+)")
 
+CHARGE_PATTERN = re.compile(r"gross_atomic_charges\s*:[^:]*:[^:]*:\d+\s*"
+    r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)",
+    re.MULTILINE)
+
 REFERENCE_RESULTS = 'results0.tag'
 CHARGES_FILE = "charges.bin"
 
@@ -57,6 +61,7 @@ def main():
     calcforces = not args.skipforces
     calclatderivs = (latvecs is not None) and not args.skiplattice
     calcborn = args.doborn
+    calccharges = args.docharges
     if args.calcref:
         reffile = REFERENCE_RESULTS
     elif args.ref is not None:
@@ -92,11 +97,19 @@ def main():
                               species, origin, latvecs,
                               charge_restart)
 
+    if calccharges:
+        charges = calculate_charges(binary, disp, coords, specienames,
+                              species, origin, latvecs,
+                              charge_restart)
+
     if calcforces:
         print_forces(forces, forces0, directions, atoms)
 
     if latvecs is not None and calclatderivs:
         print_latderivs(latderivs, latderivs0, directions)
+
+    if calccharges:
+        print_charges(charges)
 
     if calcborn:
         print_born(born)
@@ -134,7 +147,11 @@ def parse_arguments():
                         action="store_true", default=False, help=msg)
 
     msg = "Calculate the effective Born charges"
-    parser.add_argument("-B", "--born-charges", dest="doborn",
+    parser.add_argument("-b", "--born-charges", dest="doborn",
+                        action="store_true", default=False, help=msg)
+
+    msg = "Calculate derivatives of atomic charges"
+    parser.add_argument("-q", "--charges", dest="docharges",
                         action="store_true", default=False, help=msg)
 
     msg = "Directions of calculation (arguments like 'xyz' 'xy', etc.)"\
@@ -300,6 +317,39 @@ def calculate_born(binary, disp, coords, specienames, species, origin,
     return born
 
 
+def calculate_charges(binary, disp, coords, specienames, species, origin,
+                     latvecs, charge_restart):
+    """Calculates charges by finite differences"""
+
+    cart =('x','y','z')
+    delta =('-','+')
+    energy = np.empty((2,len(coords),), dtype=float)
+    charges = np.empty((len(coords), 3, len(coords)), dtype=float)
+    for iat in range(len(coords)):
+        for ii in range(3):
+            for jj in range(2):
+                newcoords = np.array(coords)
+                newcoords[iat][ii] += float(2 * jj - 1) * disp
+                writegen("geo.gen", (specienames, species, newcoords, origin,
+                                     latvecs))
+                if (charge_restart):
+                    shutil.copy2(charge_restart.name, CHARGES_FILE)
+                subprocess.call([binary])
+                fp = open("results.tag", "r")
+                txt = fp.read()
+                fp.close()
+                match = CHARGE_PATTERN.search(txt)
+                print("iat: %2d, dir: %s, delta: %s" % (iat + 1, cart[ii], delta[jj]))
+                if match:
+                    tmp = np.fromstring(match.group("values"), count=-1, dtype=float,
+                                sep=" ")
+                    energy[jj][:] = tmp
+                else:
+                    raise ValueError("No energy match found in results.tag!")
+            charges[iat][ii][:] = (energy[0] - energy[1]) / (2.0 * disp)
+    return charges
+
+
 def print_forces(forces, forces0, directions, atoms):
     """Prints calculates forces"""
 
@@ -358,6 +408,15 @@ def print_born(born):
             print(("%16.8F" * 3 % tuple(atborn[jj])))
         print("")
 
+def print_charges(charge):
+    """Prints charge derivatives wrt positions"""
+
+    print("Atomic charge derivatives by finite differences:")
+    for ii, atq in enumerate(charge):
+        qat = atq.T
+        for jj in range(5):
+            print(("%16.8F" * 3 % tuple(-1.88972613392125187641 * qat[jj])))
+        print("")
 
 def directions_from_args(coords):
     """Determines the directions of the calculation"""
