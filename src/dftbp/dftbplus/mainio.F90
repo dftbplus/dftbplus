@@ -1867,7 +1867,7 @@ contains
   subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
       & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
       & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray,&
-      & polarisability, dEidE, dipoleMoment, eFieldScaling)
+      & polarisability, dEidE, dipoleMoment, transitionDipoleMoment, eFieldScaling)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1944,6 +1944,9 @@ contains
 
     !> Overall dipole moment
     real(dp), intent(in), allocatable :: dipoleMoment(:,:)
+
+    !> Transition dipole moment (TI-DFTB)
+    real(dp), intent(in), allocatable :: transitionDipoleMoment(:)
 
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
@@ -2028,6 +2031,10 @@ contains
       call taggedWriter%write(fd%unit, tagLabels%dipoleMoment, dipoleMoment)
       call taggedWriter%write(fd%unit, tagLabels%scaledDipole,&
           & eFieldScaling%scaledSoluteDipole(dipoleMoment))
+    end if
+
+    if (allocated(transitionDipoleMoment)) then
+      call taggedWriter%write(fd%unit, tagLabels%transitionDipoleMoment, transitionDipoleMoment)
     end if
     call closeFile(fd)
 
@@ -3764,9 +3771,10 @@ contains
               & ' Debye'
           write(fd, *)
           if (deltaDftb%isSpinPurify .and. deltaDftb%iGround > 0) then
-            write(fd, "(A, 3F14.8, A)")'S0 -> S1 transition dipole:',&
+            write(fd, "(A, 3F14.8, A)")'S0 -> S1 difference dipole:',&
                 & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iFinal))&
                 & -eFieldScaling%scaledSoluteDipole(dipoleMoment(:,deltaDftb%iGround)), ' au'
+          write(fd, *)
           end if
         else
           write(fd, "(A, 3F14.8, A)")'Mixed state Dipole moment:',&
