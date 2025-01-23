@@ -16,13 +16,13 @@
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be gathered
 #:set CHUNK_TYPES_GATHER = [('real(dp)', 1, 'R1'), ('complex(dp)', 1, 'C1'),&
-    & ('integer', 1, 'I1')]    
+    & ('integer', 1, 'I1')]
 
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_common_schedule
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-#:if WITH_MPI 
+#:if WITH_MPI
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
 #:endif
   implicit none
@@ -41,8 +41,8 @@ module dftbp_common_schedule
 #:for _, _, NAME in CHUNK_TYPES_GATHER
   interface gatherChunks
     module procedure gather${NAME}$Chunks
-  end interface gatherChunks  
-#:endfor  
+  end interface gatherChunks
+#:endfor
 
 contains
 
@@ -223,7 +223,7 @@ contains
 
   end subroutine gather${NAME}$Chunks
 
-#:endfor  
+#:endfor
 
 
   !> Calculate the chunk ranges for a given MPI-communicator.

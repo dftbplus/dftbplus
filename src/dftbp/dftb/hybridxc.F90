@@ -761,10 +761,13 @@ contains
 
 
   !> Updates the range-separated module on coordinate change (non-periodic version).
-  subroutine updateCoords_cluster(this, rCoords)
+  subroutine updateCoords_cluster(this, env, rCoords)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Atomic coordinates in absolute units
     real(dp), intent(in) :: rCoords(:,:)
@@ -778,19 +781,29 @@ contains
     !! Distance between two interacting atoms
     real(dp) :: dist
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     this%rCoords(:,:) = rCoords
     nAtom0 = size(this%species0)
 
-    do iAtom1 = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAtom1 = iParallelStart, iParallelEnd
+      iSp1 = this%species0(iAtom1)
       do iAtom2 = 1, iAtom1
-        iSp1 = this%species0(iAtom1)
         iSp2 = this%species0(iAtom2)
         dist = norm2(this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2))
         this%camGammaEval0(iAtom1, iAtom2) = getCamAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
             & this%hubbu(iSp2), this%omega, this%camAlpha, this%camBeta, dist)
+        ! exploit the symmetry of the CAM gamma matrix
         this%camGammaEval0(iAtom2, iAtom1) = this%camGammaEval0(iAtom1, iAtom2)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camGammaEval0, MPI_SUM)
+  #:endif
 
     if (this%tScreeningInited) then
       this%hPrev(:,:) = 0.0_dp
@@ -838,6 +851,9 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     ! range-separated type is initialized with nAtom0 coordinates, therefore re-allocate for
     ! periodic systems, where images beyond the central cell are accounted for
     if (allocated(this%coords)) deallocate(this%coords)
@@ -877,16 +893,23 @@ contains
     end if
 
     ! \sum\gamma(\bm{g}) pre-tabulation
-    do iAtM = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    this%camGammaEval0(:,:) = 0.0_dp
+    do iAtM = iParallelStart, iParallelEnd
       iSpM = this%species0(iAtM)
-      do iAtN = 1, nAtom0
+      do iAtN = iAtM, nAtom0
         iSpN = this%species0(iAtN)
         this%camGammaEval0(iAtM, iAtN) = getCamGammaGSum(this, iAtM, iAtN, iSpM, iSpN,&
             & this%rCellVecsG)
-        this%camGammaEval0(iAtN, iAtM) = getCamGammaGSum(this, iAtN, iAtM, iSpN, iSpM,&
-            & this%rCellVecsG)
+        ! exploit the symmetry of the folded CAM gamma matrix
+        this%camGammaEval0(iAtN, iAtM) = this%camGammaEval0(iAtM, iAtN)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine updateCoords_gamma
 
@@ -4470,7 +4493,7 @@ contains
 
     ! analytical derivatives
     vect(:) = this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2)
-    dist = sqrt(sum(vect**2))
+    dist = norm2(vect)
     vect(:) = vect / dist
 
     if (this%hybridXcType == hybridXcFunc%lc .or. this%hybridXcType == hybridXcFunc%cam) then
@@ -4508,12 +4531,14 @@ contains
     !! Distance(-vector) of the two atoms
     real(dp) :: vect(3), dist
 
+    grad(:) = 0.0_dp
+
     iSp1 = this%species0(img2CentCell(iAtom1))
     iSp2 = this%species0(img2CentCell(iAtom2))
 
     ! analytical derivatives
     vect(:) = this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2)
-    dist = sqrt(sum(vect**2))
+    dist = norm2(vect)
     vect(:) = vect / dist
 
     if (this%hybridXcType == hybridXcFunc%lc .or. this%hybridXcType == hybridXcFunc%cam) then
@@ -4581,9 +4606,9 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     if (tPeriodic) then
-      call this%tabulateCamdGammaEval0_gamma()
+      call this%tabulateCamdGammaEval0_gamma(env)
     else
-      call this%tabulateCamdGammaEval0_cluster()
+      call this%tabulateCamdGammaEval0_cluster(env)
     end if
 
     select case(this%hybridXcAlg)
@@ -4602,12 +4627,15 @@ contains
 
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
-  subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
+  subroutine addCamGradients_real(this, env, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
       & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Square (unpacked) delta density matrix
     real(dp), intent(in) :: deltaRhoSqr(:,:,:)
@@ -4646,9 +4674,9 @@ contains
     integer, intent(in), optional :: nNeighbourCamSym(:)
 
     if (tPeriodic) then
-      call this%tabulateCamdGammaEval0_gamma()
+      call this%tabulateCamdGammaEval0_gamma(env)
     else
-      call this%tabulateCamdGammaEval0_cluster()
+      call this%tabulateCamdGammaEval0_cluster(env)
     end if
 
     select case(this%hybridXcAlg)
@@ -5132,12 +5160,15 @@ contains
 
 
   !> Pre-tabulates summed gamma function derivatives (non-periodic version).
-  subroutine tabulateCamdGammaEval0_cluster(this)
+  subroutine tabulateCamdGammaEval0_cluster(this, env)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
 
-    !! Holds long-range gamma derivatives of a single interaction
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !! Holds CAM gamma derivatives of a single interaction
     real(dp) :: tmp(3)
 
     !! Indices of interacting atoms in central cell
@@ -5146,29 +5177,41 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     nAtom0 = size(this%species0)
 
     if (allocated(this%camdGammaEval0)) deallocate(this%camdGammaEval0)
-    allocate(this%camdGammaEval0(3, nAtom0, nAtom0))
-    this%camdGammaEval0(:,:,:) = 0.0_dp
+    allocate(this%camdGammaEval0(3, nAtom0, nAtom0), source=0.0_dp)
 
-    do iAt1 = 1, nAtom0
-      do iAt2 = 1, nAtom0
-        if (iAt1 /= iAt2) then
-          call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
-          this%camdGammaEval0(:, iAt1, iAt2) = tmp
-        end if
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAt1 = iParallelStart, iParallelEnd
+      ! skip the iAt1 == iAt2 case, therefore start at iAt1 + 1
+      do iAt2 = iAt1 + 1, nAtom0
+        call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
+        this%camdGammaEval0(:, iAt1, iAt2) = tmp
+        ! exploit the Skew symmetry of the derivatives
+        this%camdGammaEval0(:, iAt2, iAt1) = -this%camdGammaEval0(:, iAt1, iAt2)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camdGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine tabulateCamdGammaEval0_cluster
 
 
   !> Pre-tabulates summed gamma function derivatives (Gamma-only version).
-  subroutine tabulateCamdGammaEval0_gamma(this)
+  subroutine tabulateCamdGammaEval0_gamma(this, env)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtM, iSpM, iAtN, iSpN
@@ -5176,23 +5219,31 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     nAtom0 = size(this%species0)
 
     if (allocated(this%camdGammaEval0)) deallocate(this%camdGammaEval0)
-    allocate(this%camdGammaEval0(3, nAtom0, nAtom0))
-    this%camdGammaEval0(:,:,:) = 0.0_dp
+    allocate(this%camdGammaEval0(3, nAtom0, nAtom0), source=0.0_dp)
 
-    do iAtM = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAtM = iParallelStart, iParallelEnd
       iSpM = this%species0(iAtM)
-      do iAtN = 1, nAtom0
-        if (iAtM == iAtN) cycle
+      ! skip the iAtM == iAtN case, therefore start at iAtM + 1
+      do iAtN = iAtM + 1, nAtom0
         iSpN = this%species0(iAtN)
         this%camdGammaEval0(:, iAtM, iAtN) = getCamGammaPrimeGSum(this, iAtM, iAtN, iSpM, iSpN,&
             & this%rCellVecsG)
-        this%camdGammaEval0(:, iAtN, iAtM) = getCamGammaPrimeGSum(this, iAtN, iAtM, iSpN, iSpM,&
-            & this%rCellVecsG)
+        ! exploit the Skew symmetry of the derivatives
+        this%camdGammaEval0(:, iAtN, iAtM) = -this%camdGammaEval0(:, iAtM, iAtN)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camdGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine tabulateCamdGammaEval0_gamma
 
