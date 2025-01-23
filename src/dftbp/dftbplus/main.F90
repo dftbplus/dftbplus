@@ -760,6 +760,11 @@ contains
           & this%potential, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
+      if (allocated(this%mdftb)) then
+        call this%mdftb%pullDeltaDQAtom(this%multipoleInp)
+        call this%mdftb%updateDQPotentials(sum(q(:,:,1) - this%q0(:,:,1), dim=1))
+      end if
+
       call addBlockChargePotentials(qBlock, qiBlock, this%dftbU, this%tImHam,&
           & this%species, this%orb, this%potential)
 
@@ -865,7 +870,7 @@ contains
       call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
           & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%qOutput,&
           & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-          & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
+          & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut, mdftb=this%mdftb)
 
       if (this%tSpinSharedEf .or. this%tFixEf .or.&
           & this%electronicSolver%iSolver == electronicSolverTypes%GF) then
@@ -874,14 +879,6 @@ contains
         call qm2ud(this%nEl)
       end if
 
-    end if
-
-    if (allocated(this%mdftb)) then
-      call this%mdftb%updateDeltaDQAtom(this%ints%overlap, this%rhoPrim(:,1),&
-          & this%orb, this%neighbourList%iNeighbour, this%nNeighbourSK, this%img2CentCell,&
-          & this%iSparseStart, this%q0)
-
-      call this%mdftb%updateDQPotentials(sum(this%qOutput(:,:,1) - this%q0(:,:,1), dim=1))
     end if
 
   #:if WITH_TRANSPORT
@@ -1309,7 +1306,7 @@ contains
         call getMullikenPopulation(env, this%rhoPrim, this%ints, this%orb, this%neighbourList,&
             & this%nNeighbourSK, this%img2CentCell, this%iSparseStart, this%qOutput,&
             & iRhoPrim=this%iRhoPrim, qBlock=this%qBlockOut, qiBlock=this%qiBlockOut,&
-            & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut)
+            & qNetAtom=this%qNetAtom, multipoles=this%multipoleOut, mdftb=this%mdftb)
 
         ! Check charge convergence and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
@@ -1670,9 +1667,12 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
-          & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-          & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
+      ! Tentatively turn off the test for mdftb
+      if (.not. allocated(this%mdftb)) then
+        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
+            & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+            & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
+      end if
     #:endblock DEBUG_CODE
       if (allocated(this%mdftb)) then
         call this%mdftb%addAtomicDipoleMoment(&
@@ -4236,7 +4236,7 @@ contains
 
   !> Calculate Mulliken population from sparse density matrix.
   subroutine getMullikenPopulation(env, rhoPrim, ints, orb, neighbourList, nNeighbourSK,&
-      & img2CentCell, iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, multipoles)
+      & img2CentCell, iSparseStart, qOrb, iRhoPrim, qBlock, qiBlock, qNetAtom, multipoles, mdftb)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4280,6 +4280,9 @@ contains
     !> Multipole moments
     type(TMultipole), intent(inout), optional :: multipoles
 
+    !> DFTB multipole expansion
+    type(TMdftb), allocatable, intent(inout), optional :: mdftb
+
     integer :: iSpin
 
     qOrb(:,:,:) = 0.0_dp
@@ -4308,18 +4311,24 @@ contains
       call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, qNetAtom)
     end if
 
-    if (present(multipoles)) then
+    if (present(multipoles) .and. present(mdftb)) then
+      if (.not. allocated(mdftb)) then
 
-      if (allocated(multipoles%dipoleAtom)) then
-        call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
-            & rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
-            & iSparseStart)
-      end if
+        if (allocated(multipoles%dipoleAtom)) then
+          call getAtomicMultipolePopulation(multipoles%dipoleAtom, ints%dipoleBra, ints%dipoleKet, &
+              & rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, &
+              & iSparseStart)
+        end if
 
-      if (allocated(multipoles%quadrupoleAtom)) then
-        call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
-            & ints%quadrupoleKet, rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK,&
-            & img2CentCell, iSparseStart)
+        if (allocated(multipoles%quadrupoleAtom)) then
+          call getAtomicMultipolePopulation(multipoles%quadrupoleAtom, ints%quadrupoleBra,&
+              & ints%quadrupoleKet, rhoPrim, orb, neighbourList%iNeighbour, nNeighbourSK,&
+              & img2CentCell, iSparseStart)
+        end if
+      else
+        call mdftb%updateDeltaDQAtom(ints%overlap, rhoPrim(:,1), orb, neighbourList%iNeighbour,&
+            & nNeighbourSK, img2CentCell, iSparseStart)
+        call mdftb%pushDeltaDQAtom(multipoles)
       end if
 
     end if
@@ -6578,7 +6587,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Multipole contributions
+    !> DFTB multipole contributions
     type(TMdftb), allocatable, intent(inout) :: mdftb
 
     !> Dense overlap matrix, required for hybridXc

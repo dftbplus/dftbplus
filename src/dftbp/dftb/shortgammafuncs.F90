@@ -349,12 +349,11 @@ contains
     real(dp) :: gammaSubfExprn
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99130 format ('Failure in gammaSubfExprn, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99130) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprn, both tau degenerate ',f12.6,f12.6)") tau1,&
+          & tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubfExprn')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprn')")
       call error(errorString)
     end if
 
@@ -379,8 +378,7 @@ contains
     real(dp) :: gammaSubgExprn
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprn')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprn')")
       call error(errorString)
     end if
 
@@ -409,12 +407,11 @@ contains
     real(dp) :: gammaSubfExprnPrime
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99150 format ('Failure in gammaSubfExprnPrime, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99150) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprnPrime, both tau degenerate ',f12.6,f12.6)")&
+          & tau1,tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99160 format ('Atoms on top of each other in gammaSubfExprnPrime')
-      write(errorString, 99160)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprnPrime')")
       call error(errorString)
     end if
 
@@ -439,8 +436,7 @@ contains
     real(dp) :: gammaSubgExprnPrime
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprnPrime')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprnPrime')")
       call error(errorString)
     end if
 
@@ -469,12 +465,11 @@ contains
     real(dp) :: gammaSubfExprnDoublePrime
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99150 format ('Failure in gammaSubfExprnDoublePrime, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99150) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprnDoublePrime, both tau degenerate ',&
+          & f12.6,f12.6)") tau1,tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99160 format ('Atoms on top of each other in gammaSubfExprnDoublePrime')
-      write(errorString, 99160)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprnDoublePrime')")
       call error(errorString)
     end if
 
@@ -497,8 +492,7 @@ contains
     real(dp) :: gammaSubgExprnDoublePrime
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprnDoublePrime')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprnDoublePrime')")
       call error(errorString)
     end if
 
@@ -525,12 +519,11 @@ contains
     real(dp) :: gammaSubfExprnTriplePrime
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99150 format ('Failure in gammaSubfExprnTriplePrime, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99150) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprnTriplePrime, both tau degenerate ',&
+          & f12.6,f12.6)") tau1,tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99160 format ('Atoms on top of each other in gammaSubfExprnTriplePrime')
-      write(errorString, 99160)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprnTriplePrime')")
       call error(errorString)
     end if
 
@@ -553,8 +546,7 @@ contains
     real(dp) :: gammaSubgExprnTriplePrime
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprnTriplePrime')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprnTriplePrime')")
       call error(errorString)
     end if
 
@@ -580,12 +572,11 @@ contains
     real(dp) :: gammaSubfExprnQuadruplePrime
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99150 format ('Failure in gammaSubfExprnQuadruplePrime, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99150) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprnQuadruplePrime, both tau degenerate ',&
+          & f12.6,f12.6)") tau1,tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99160 format ('Atoms on top of each other in gammaSubfExprnQuadruplePrime')
-      write(errorString, 99160)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprnQuadruplePrime')")
       call error(errorString)
     end if
 
@@ -608,8 +599,7 @@ contains
     real(dp) :: gammaSubgExprnQuadruplePrime
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprnQuadruplePrime')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprnQuadruplePrime')")
       call error(errorString)
     end if
 
@@ -635,12 +625,11 @@ contains
     real(dp) :: gammaSubfExprnQuintuplePrime
 
     if (abs(tau1 - tau2) < 3.2_dp*MinHubDiff) then
-99150 format ('Failure in gammaSubfExprnQuintuplePrime, both tau degenerate ',f12.6,f12.6)
-      write(errorString, 99150) tau1,tau2
+      write(errorString, "('Failure in gammaSubfExprnQuintuplePrime, both tau degenerate ',&
+          & f12.6,f12.6)") tau1,tau2
       call error(errorString)
     else if (rab < tolSameDist) then
-99160 format ('Atoms on top of each other in gammaSubfExprnQuintuplePrime')
-      write(errorString, 99160)
+      write(errorString, "('Atoms on top of each other in gammaSubfExprnQuintuplePrime')")
       call error(errorString)
     end if
 
@@ -663,8 +652,7 @@ contains
     real(dp) :: gammaSubgExprnQuintuplePrime
 
     if (rab < tolSameDist) then
-99140 format ('Atoms on top of each other in gammaSubgExprnQuintuplePrime')
-      write(errorString, 99140)
+      write(errorString, "('Atoms on top of each other in gammaSubgExprnQuintuplePrime')")
       call error(errorString)
     end if
 
@@ -692,16 +680,13 @@ contains
     real(dp) :: tauA, tauB, tauMean
 
     if (rab < 0.0_dp) then
-99060 format ('Failure in short-range gamma, r_ab negative :',f12.6)
-      write(errorString, 99060) rab
+      write(errorString, "('Failure in short-range gamma, r_ab negative :',f12.6)") rab
       call error(errorString)
     else if (Ua < MinHubTol) then
-99070 format ('Failure in short-range gamma, U too small :',f12.6)
-      write(errorString, 99070) Ua
+      write(errorString, "('Failure in short-range gamma, U too small :',f12.6)") Ua
       call error(errorString)
     else if (Ub < MinHubTol) then
-99080 format ('Failure in short-range gamma, U too small : ',f12.6)
-      write(errorString, 99080) Ub
+      write(errorString, "('Failure in short-range gamma, U too small : ',f12.6)") Ub
       call error(errorString)
     end if
 
@@ -759,16 +744,13 @@ contains
     real(dp) :: tauA, tauB, tauMean
 
     if (rab < 0.0_dp) then
-99060 format ('Failure in short-range gamma, r_ab negative :',f12.6)
-      write(errorString, 99060) rab
+      write(errorString, "('Failure in short-range gamma, r_ab negative :',f12.6)") rab
       call error(errorString)
     else if (Ua < MinHubTol) then
-99070 format ('Failure in short-range gamma, U too small :',f12.6)
-      write(errorString, 99070) Ua
+      write(errorString, "('Failure in short-range gamma, U too small :',f12.6)") Ua
       call error(errorString)
     else if (Ub < MinHubTol) then
-99080 format ('Failure in short-range gamma, U too small : ',f12.6)
-      write(errorString, 99080) Ub
+      write(errorString, "('Failure in short-range gamma, U too small : ',f12.6)") Ub
       call error(errorString)
     end if
 
@@ -822,16 +804,13 @@ contains
     real(dp) :: tauA, tauB, tauMean
 
     if (rab < 0.0_dp) then
-99060 format ('Failure in short-range gamma, r_ab negative :',f12.6)
-      write(errorString, 99060) rab
+      write(errorString, "('Failure in short-range gamma, r_ab negative :',f12.6)") rab
       call error(errorString)
     else if (Ua < MinHubTol) then
-99070 format ('Failure in short-range gamma, U too small :',f12.6)
-      write(errorString, 99070) Ua
+      write(errorString, "('Failure in short-range gamma, U too small :',f12.6)") Ua
       call error(errorString)
     else if (Ub < MinHubTol) then
-99080 format ('Failure in short-range gamma, U too small : ',f12.6)
-      write(errorString, 99080) Ub
+      write(errorString, "('Failure in short-range gamma, U too small : ',f12.6)") Ub
       call error(errorString)
     end if
 
@@ -895,16 +874,13 @@ contains
     real(dp) :: tauA, tauB, tauMean
 
     if (rab < 0.0_dp) then
-99060 format ('Failure in short-range gamma, r_ab negative :',f12.6)
-      write(errorString, 99060) rab
+      write(errorString, "('Failure in short-range gamma, r_ab negative :',f12.6)") rab
       call error(errorString)
     else if (Ua < MinHubTol) then
-99070 format ('Failure in short-range gamma, U too small :',f12.6)
-      write(errorString, 99070) Ua
+      write(errorString, "('Failure in short-range gamma, U too small :',f12.6)") Ua
       call error(errorString)
     else if (Ub < MinHubTol) then
-99080 format ('Failure in short-range gamma, U too small : ',f12.6)
-      write(errorString, 99080) Ub
+      write(errorString, "('Failure in short-range gamma, U too small : ',f12.6)") Ub
       call error(errorString)
     end if
 

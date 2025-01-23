@@ -10,6 +10,7 @@
 
 !> Routines implementing the (One-center approximation) multipole expansion for the 2nd order DFTB.
 module dftbp_dftb_mdftb
+  use dftbp_io_message, only : error
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
@@ -66,34 +67,13 @@ module dftbp_dftb_mdftb
     integer, allocatable :: species(:)
 
     !> One-center atomic integral data
-    real(dp), allocatable :: atomicDIntgrlScaling(:)
-    real(dp), allocatable :: atomicQIntgrlScaling(:)
-    real(dp), allocatable :: atomicSXPxIntgrl(:)
-    real(dp), allocatable :: atomicPxXDxxyyIntgrl(:)
-    real(dp), allocatable :: atomicPxXDzzIntgrl(:)
-    real(dp), allocatable :: atomicPyYDxxyyIntgrl(:)
-    real(dp), allocatable :: atomicPzZDzzIntgrl(:)
-    real(dp), allocatable :: atomicSXXSIntgrl(:)
-    real(dp), allocatable :: atomicPxXXPxIntgrl(:)
-    real(dp), allocatable :: atomicPyXXPyIntgrl(:)
-    real(dp), allocatable :: atomicSXXDxxyyIntgrl(:)
-    real(dp), allocatable :: atomicSXXDzzIntgrl(:)
-    real(dp), allocatable :: atomicSYYDxxyyIntgrl(:)
-    real(dp), allocatable :: atomicSZZDzzIntgrl(:)
-    real(dp), allocatable :: atomicDxyXXDxyIntgrl(:)
-    real(dp), allocatable :: atomicDyzXXDyzIntgrl(:)
-    real(dp), allocatable :: atomicDxxyyXXDzzIntgrl(:)
-    real(dp), allocatable :: atomicDzzXXDzzIntgrl(:)
-    real(dp), allocatable :: atomicDxxyyYYDzzIntgrl(:)
-    real(dp), allocatable :: atomicDzzZZDzzIntgrl(:)
-    real(dp), allocatable :: atomicDxzXZDzzIntgrl(:)
-    real(dp), allocatable :: atomicDyzYZDxxyyIntgrl(:)
+    type(TMdftbAtomicIntegrals), allocatable :: mdftbAtomicIntegrals
 
   end type TMdftbInp
 
   !> Internal status of TMultiExpan.
   type TMdftb
-    integer :: nAtoms, nSpecies, mShells, mShellsReal, nOrb, nSpin
+    integer :: nAtoms, nSpecies, mOrb, nOrb, nSpin
 
     !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
@@ -235,187 +215,197 @@ contains
     type(TMdftbInp), intent(in) :: inp
 
     integer, parameter :: icx = 1, icy = 2, icz = 3
-    integer, parameter :: ios = 1, iopy = 2, iopz = 3, iopx = 4
-    integer, parameter :: iodxy = 5, iodyz = 6, iodzz = 7, iodxz = 8, iodxxyy = 9
-    real(dp), parameter :: minIntgrl = 1.0e-15_dp
-    integer :: nAtoms, mOrb, iAt1, iAt2, nOrb1, nOrb2, ii, jj, iSp1, iSp2
+    integer, parameter :: ios = 0
+    integer, parameter :: iopy = 0, iopz = 1, iopx = 2
+    integer, parameter :: iodxy = 0, iodyz = 1, iodzz = 2, iodxz = 3, iodxxyy = 4
+    real(dp), parameter :: minIntgrl = 1.0e-9_dp
+    integer :: nAtoms, mOrb, nSpecies, iAt1, iAt2, nOrb1, nOrb2, ii, jj, iSp1, iSp2
     integer :: mu, nu, mm, nn
-    real(dp) tmpIntgrl, tmpTrace
+    integer :: ang1, ang2, iSh1, iSh2, iOrbAng1, iOrbAng2
+    real(dp) tmpIntgrl, tmpAvgTrace
 
     this%nAtoms = size(inp%orb%nOrbAtom)
     this%nSpecies = inp%nSpecies
-    ! allocate(this%nOrbSpecies(this%nSpecies))
-    this%nOrbSpecies = inp%orb%nOrbSpecies(:)
-    this%mShells = 1
-    this%mShellsReal = inp%orb%mShell
     this%nOrb = inp%nOrb
-    mOrb = inp%orb%mOrb
+    this%mOrb = inp%orb%mOrb
     this%nSpin = inp%nSpin
+    this%hubbu = inp%hubbu(:)
+    this%species = inp%species(:)
+    this%nOrbSpecies = inp%orb%nOrbSpecies(:)
 
-    ! allocate(this%hubbu(size(inp%hubbu)))
-    this%hubbu = inp%hubbu
+    nAtoms = this%nAtoms
+    mOrb = this%mOrb
+    nSpecies = this%nSpecies
 
-    ! allocate(this%species(this%nAtoms))
-    this%species = inp%species
-
-    allocate(this%onDQOCharges(3, this%nSpecies), source=1)
+    allocate(this%onDQOCharges(3, nSpecies), source=1)
     this%onDQOCharges(3,:) = 0
 
-    allocate(this%coords(3, this%nAtoms), source=0.0_dp)
-    allocate(this%atomicDIntgrl(3, mOrb, mOrb, this%nSpecies), source=0.0_dp)
-    allocate(this%atomicQIntgrl(3,3, mOrb, mOrb, this%nSpecies), source=0.0_dp)
+    allocate(this%coords(3, nAtoms), source=0.0_dp)
+    allocate(this%atomicDIntgrl(3, mOrb, mOrb, nSpecies), source=0.0_dp)
+    allocate(this%atomicQIntgrl(3,3, mOrb, mOrb, nSpecies), source=0.0_dp)
+    
+    if (maxval(inp%orb%angShell(:,:)) >= 3) then
+        call error("DFTB multipole expansion currently unsupported for chemical elements&
+            & having angular moments higher than 2")
+    end if
 
-    do iSp1 = 1, this%nSpecies
-      nOrb1 = this%nOrbSpecies(iSp1)
+    do iSp1 = 1, nSpecies
+      do iSh1 = 1, inp%orb%nShell(iSp1)
+        ang1 = inp%orb%angShell(iSh1, iSp1)
+        iOrbAng1 = inp%orb%posShell(iSh1, iSp1)
+        do iSh2 = 1, inp%orb%nShell(iSp1)
+          ang2 = inp%orb%angShell(iSh2, iSp1)
+          iOrbAng2 = inp%orb%posShell(iSh2, iSp1)
 
-      ! Dipole
-      if ( nOrb1 >= 4 ) then
-        ! Assign <S|X|Px>
-        tmpIntgrl = inp%atomicSXPxIntgrl(iSp1)
-        this%atomicDIntgrl(icx,ios,iopx,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icy,ios,iopy,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icz,ios,iopz,iSp1) = tmpIntgrl
-      end if
+          if (ang1 == 0 .and. ang2 == 0) then
+            ! Assign Quadrupole <S|XX|S>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SXXS(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+ios, iOrbAng2+ios, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+ios, iOrbAng2+ios, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+ios, iOrbAng2+ios, iSp1) = tmpIntgrl
 
-      if ( nOrb1 >= 9 ) then
-        ! Assign <Px|X|Dxx-yy>
-        tmpIntgrl = inp%atomicPxXDxxyyIntgrl(iSp1)
-        this%atomicDIntgrl(icx,iopx,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icx,iopy,iodxy,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icx,iopz,iodxz,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icy,iopx,iodxy,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icy,iopz,iodyz,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icz,iopx,iodxz,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icz,iopy,iodyz,iSp1) = tmpIntgrl
+          else if (ang1 == 0 .and. ang2 == 1) then
+            ! Assign Dipole <S|X|Px>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SXPx(iSp1)
+            this%atomicDIntgrl(icx, iOrbAng1+ios, iOrbAng2+iopx, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icy, iOrbAng1+ios, iOrbAng2+iopy, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icz, iOrbAng1+ios, iOrbAng2+iopz, iSp1) = tmpIntgrl
 
-        ! Assign <Px|X|Dzz>
-        tmpIntgrl = inp%atomicPxXDzzIntgrl(iSp1)
-        this%atomicDIntgrl(icx,iopx,iodzz,iSp1) = tmpIntgrl
-        this%atomicDIntgrl(icy,iopy,iodzz,iSp1) = tmpIntgrl
+          else if (ang1 == 0 .and. ang2 == 2) then
+            ! Assign Quadrupole <S|XX|Dxx-yy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SXXDxxyy(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+ios, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icy, iOrbAng1+ios, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icz, iOrbAng1+ios, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icz, iOrbAng1+ios, iOrbAng2+iodyz, iSp1) = tmpIntgrl
 
-        ! Assign <Py|Y|Dxx-yy>
-        tmpIntgrl = inp%atomicPyYDxxyyIntgrl(iSp1)
-        this%atomicDIntgrl(icy,iopy,iodxxyy,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <S|XX|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SXXDzz(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+ios, iOrbAng2+iodzz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+ios, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Pz|Z|Dzz>
-        tmpIntgrl = inp%atomicPzZDzzIntgrl(iSp1)
-        this%atomicDIntgrl(icz,iopz,iodzz,iSp1) = tmpIntgrl
-      end if
+            ! Assign Quadrupole <S|YY|Dxx-yy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SYYDxxyy(iSp1)
+            this%atomicQIntgrl(icy, icy, iOrbAng1+ios, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
 
-      ! Quadrupole
-      if ( nOrb1 >= 1 ) then
-        ! Assign <S|XX|S>
-        tmpIntgrl = inp%atomicSXXSIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,ios,ios,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,ios,ios,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,ios,ios,iSp1) = tmpIntgrl
-      end if
+            ! Assign Quadrupole <S|ZZ|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%SZZDzz(iSp1)
+            this%atomicQIntgrl(icz, icz, iOrbAng1+ios, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-      if ( nOrb1 >= 4 ) then
-        ! Assign <Px|XX|Px>
-        tmpIntgrl = inp%atomicPxXXPxIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iopx,iopx,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iopy,iopy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iopz,iopz,iSp1) = tmpIntgrl
+          else if (ang1 == 1 .and. ang2 == 1) then
+            ! Assign Quadrupole <Px|XX|Px>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PxXXPx(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iopx, iOrbAng2+iopx, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iopy, iOrbAng2+iopy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iopz, iOrbAng2+iopz, iSp1) = tmpIntgrl
 
-        ! Assign <Py|XX|Py>
-        tmpIntgrl = inp%atomicPyXXPyIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iopy,iopy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icx,iopz,iopz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iopx,iopx,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iopz,iopz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iopx,iopx,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iopy,iopy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icy,iopx,iopy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icz,iopx,iopz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icz,iopy,iopz,iSp1) = tmpIntgrl
-      end if
+            ! Assign Quadrupole <Py|XX|Py>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PyXXPy(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iopy, iOrbAng2+iopy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iopz, iOrbAng2+iopz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iopx, iOrbAng2+iopx, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iopz, iOrbAng2+iopz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iopx, iOrbAng2+iopx, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iopy, iOrbAng2+iopy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icy, iOrbAng1+iopx, iOrbAng2+iopy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icz, iOrbAng1+iopx, iOrbAng2+iopz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icz, iOrbAng1+iopy, iOrbAng2+iopz, iSp1) = tmpIntgrl
 
-      if ( nOrb1 >= 9 ) then
-        ! Assign <S|XX|Dxx-yy>
-        tmpIntgrl = inp%atomicSXXDxxyyIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,ios,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icy,ios,iodxy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icz,ios,iodxz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icz,ios,iodyz,iSp1) = tmpIntgrl
+          else if (ang1 == 1 .and. ang2 == 2) then
+            ! Assign Dipole <Px|X|Dxx-yy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PxXDxxyy(iSp1)
+            this%atomicDIntgrl(icx, iOrbAng1+iopx, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icx, iOrbAng1+iopy, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icx, iOrbAng1+iopz, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icy, iOrbAng1+iopx, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icy, iOrbAng1+iopz, iOrbAng2+iodyz, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icz, iOrbAng1+iopx, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icz, iOrbAng1+iopy, iOrbAng2+iodyz, iSp1) = tmpIntgrl
 
-        ! Assign <S|XX|Dzz>
-        tmpIntgrl = inp%atomicSXXDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,ios,iodzz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,ios,iodzz,iSp1) = tmpIntgrl
+            ! Assign Dipole <Px|X|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PxXDzz(iSp1)
+            this%atomicDIntgrl(icx, iOrbAng1+iopx, iOrbAng2+iodzz, iSp1) = tmpIntgrl
+            this%atomicDIntgrl(icy, iOrbAng1+iopy, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <S|YY|Dxx-yy>
-        tmpIntgrl = inp%atomicSYYDxxyyIntgrl(iSp1)
-        this%atomicQIntgrl(icy,icy,ios,iodxxyy,iSp1) = tmpIntgrl
+            ! Assign Dipole <Py|Y|Dxx-yy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PyYDxxyy(iSp1)
+            this%atomicDIntgrl(icy, iOrbAng1+iopy, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
 
-        ! Assign <S|ZZ|Dzz>
-        tmpIntgrl = inp%atomicSZZDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icz,icz,ios,iodzz,iSp1) = tmpIntgrl
+            ! Assign Dipole <Pz|Z|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%PzZDzz(iSp1)
+            this%atomicDIntgrl(icz, iOrbAng1+iopz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dxy|XX|Dxy>
-        tmpIntgrl = inp%atomicDxyXXDxyIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iodxy,iodxy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icx,iodxz,iodxz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icx,iodxxyy,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iodxy,iodxy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iodyz,iodyz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iodxxyy,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iodxz,iodxz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iodyz,iodyz,iSp1) = tmpIntgrl
+          else if (ang1 == 2 .and. ang2 == 2) then
+            ! Assign Quadrupole <Dxy|XX|Dxy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DxyXXDxy(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodxy, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodxz, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodxxyy, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodxy, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodyz, iOrbAng2+iodyz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodxxyy, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iodxz, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iodyz, iOrbAng2+iodyz, iSp1) = tmpIntgrl
 
-        ! Assign <Dyz|XX|Dyz>
-        tmpIntgrl = inp%atomicDyzXXDyzIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iodyz,iodyz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iodxz,iodxz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iodxy,iodxy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icz,icz,iodxxyy,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icy,iodxz,iodyz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icz,iodxy,iodyz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icz,iodxz,iodxxyy,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icz,iodxy,iodxz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dyz|XX|Dyz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DyzXXDyz(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodyz, iOrbAng2+iodyz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodxz, iOrbAng2+iodxz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iodxy, iOrbAng2+iodxy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iodxxyy, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icy, iOrbAng1+iodxz, iOrbAng2+iodyz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icz, iOrbAng1+iodxy, iOrbAng2+iodyz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icz, iOrbAng1+iodxz, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icz, iOrbAng1+iodxy, iOrbAng2+iodxz, iSp1) = tmpIntgrl
 
-        ! Assign <Dxx-yy|XX|Dzz>
-        tmpIntgrl = inp%atomicDxxyyXXDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iodxxyy,iodzz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icx,icy,iodxy,iodzz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dxx-yy|XX|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DxxyyXXDzz(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodxxyy, iOrbAng2+iodzz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icx, icy, iOrbAng1+iodxy, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dzz|XX|Dzz>
-        tmpIntgrl = inp%atomicDzzXXDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icx,iodzz,iodzz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icy,iodzz,iodzz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dzz|XX|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DzzXXDzz(iSp1)
+            this%atomicQIntgrl(icx, icx, iOrbAng1+iodzz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodzz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dxx-yy|YY|Dzz>
-        tmpIntgrl = inp%atomicDxxyyYYDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icy,icy,iodxxyy,iodzz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dxx-yy|YY|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DxxyyYYDzz(iSp1)
+            this%atomicQIntgrl(icy, icy, iOrbAng1+iodxxyy, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dzz|ZZ|Dzz>
-        tmpIntgrl = inp%atomicDzzZZDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icz,icz,iodzz,iodzz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dzz|ZZ|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DzzZZDzz(iSp1)
+            this%atomicQIntgrl(icz, icz, iOrbAng1+iodzz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dxz|XZ|Dzz>
-        tmpIntgrl = inp%atomicDxzXZDzzIntgrl(iSp1)
-        this%atomicQIntgrl(icx,icz,iodxz,iodzz,iSp1) = tmpIntgrl
-        this%atomicQIntgrl(icy,icz,iodyz,iodzz,iSp1) = tmpIntgrl
+            ! Assign Quadrupole <Dxz|XZ|Dzz>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DxzXZDzz(iSp1)
+            this%atomicQIntgrl(icx, icz, iOrbAng1+iodxz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
+            this%atomicQIntgrl(icy, icz, iOrbAng1+iodyz, iOrbAng2+iodzz, iSp1) = tmpIntgrl
 
-        ! Assign <Dyz|YZ|Dxx-yy>
-        tmpIntgrl = inp%atomicDyzYZDxxyyIntgrl(iSp1)
-        this%atomicQIntgrl(icy,icz,iodyz,iodxxyy,iSp1) = tmpIntgrl
-      end if
+            ! Assign Quadrupole <Dyz|YZ|Dxx-yy>
+            tmpIntgrl = inp%mdftbAtomicIntegrals%DyzYZDxxyy(iSp1)
+            this%atomicQIntgrl(icy, icz, iOrbAng1+iodyz, iOrbAng2+iodxxyy, iSp1) = tmpIntgrl
+          end if
+        end do
+      end do
     end do
 
-    do iSp1 = 1, this%nSpecies
+    do iSp1 = 1, nSpecies
       nOrb1 = this%nOrbSpecies(iSp1)
       do mm = 1, nOrb1
         do nn = 1, nOrb1
           do ii = 1, 3
-            if (abs(this%atomicDIntgrl(ii,mm,nn,iSp1)) > minIntgrl ) then
+            if (abs(this%atomicDIntgrl(ii,mm,nn,iSp1)) >= minIntgrl) then
               this%atomicDIntgrl(ii,nn,mm,iSp1) = this%atomicDIntgrl(ii,mm,nn,iSp1)
+            else
+              this%atomicDIntgrl(ii,mm,nn,iSp1) = 0.0_dp
             end if
             do jj = 1, 3
-              if (abs(this%atomicQIntgrl(ii,jj,mm,nn,iSp1)) > minIntgrl ) then
+              if (abs(this%atomicQIntgrl(ii,jj,mm,nn,iSp1)) >= minIntgrl) then
                 this%atomicQIntgrl(ii,jj,nn,mm,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
                 this%atomicQIntgrl(jj,ii,mm,nn,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
                 this%atomicQIntgrl(jj,ii,nn,mm,iSp1) = this%atomicQIntgrl(ii,jj,mm,nn,iSp1)
+              else
+                this%atomicQIntgrl(ii,jj,mm,nn,iSp1) = 0.0_dp
               end if
             end do
           end do
@@ -423,57 +413,58 @@ contains
       end do
     end do
 
-   !> Scaling atomic Intgrls
-    do iSp1 = 1, this%nSpecies
-      this%atomicDIntgrl(:,:,:,iSp1) = inp%atomicDIntgrlScaling(iSp1)&
+   !> Scale atomic integrals
+    do iSp1 = 1, nSpecies
+      this%atomicDIntgrl(:,:,:,iSp1) = inp%mdftbAtomicIntegrals%DScaling(iSp1)&
           & * this%atomicDIntgrl(:,:,:,iSp1)
-      this%atomicQIntgrl(:,:,:,:,iSp1) = inp%atomicQIntgrlScaling(iSp1)&
+      this%atomicQIntgrl(:,:,:,:,iSp1) = inp%mdftbAtomicIntegrals%QScaling(iSp1)&
           & * this%atomicQIntgrl(:,:,:,:,iSp1)
     end do
 
-   !> Remove Trace of atomicQIntgrl
-    do iSp1 = 1, this%nSpecies
+   !> Remove Trace of atomic quadrupole integrals
+    do iSp1 = 1, nSpecies
       nOrb1 = this%nOrbSpecies(iSp1)
       do mm = 1, nOrb1
         do nn = 1, nOrb1
-          tmpTrace = (this%atomicQIntgrl(1,1,mm,nn,iSp1) + this%atomicQIntgrl(2,2,mm,nn,iSp1)&
+          tmpAvgTrace = (this%atomicQIntgrl(1,1,mm,nn,iSp1) + this%atomicQIntgrl(2,2,mm,nn,iSp1)&
               & + this%atomicQIntgrl(3,3,mm,nn,iSp1)) / 3.0_dp
           do ii = 1, 3
-            this%atomicQIntgrl(ii,ii,mm,nn,iSp1) = this%atomicQIntgrl(ii,ii,mm,nn,iSp1) - tmpTrace
+            this%atomicQIntgrl(ii,ii,mm,nn,iSp1) = this%atomicQIntgrl(ii,ii,mm,nn,iSp1)&
+              & - tmpAvgTrace
           end do
         end do
       end do
     end do
 
-    do iSp1 = 1, this%nSpecies
-      if (maxval(abs(this%atomicDIntgrl(:,:,:,iSp1))) < minIntgrl ) then
+    do iSp1 = 1, nSpecies
+      if (maxval(abs(this%atomicDIntgrl(:,:,:,iSp1))) < minIntgrl) then
         this%onDQOCharges(1,iSp1) = 0
       end if
-      if (maxval(abs(this%atomicQIntgrl(:,:,:,:,iSp1))) < minIntgrl ) then
+      if (maxval(abs(this%atomicQIntgrl(:,:,:,:,iSp1))) < minIntgrl) then
         this%onDQOCharges(2,iSp1) = 0
       end if
     end do
 
-    allocate(this%deltaMAtom(this%nAtoms), source=0.0_dp)
-    allocate(this%deltaDAtom(3, this%nAtoms), source=0.0_dp)
-    allocate(this%deltaQAtom(3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%f10AB(3, this%nAtoms, this%nAtoms), source=0.0_dp)
-    allocate(this%f20AB(3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
-    allocate(this%f30AB(3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
-    allocate(this%f40AB(3,3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
-    allocate(this%f50AB(3,3,3,3,3, this%nAtoms, this%nAtoms), source=0.0_dp)
+    allocate(this%deltaMAtom(nAtoms), source=0.0_dp)
+    allocate(this%deltaDAtom(3, nAtoms), source=0.0_dp)
+    allocate(this%deltaQAtom(3,3, nAtoms), source=0.0_dp)
+    allocate(this%f10AB(3, nAtoms, nAtoms), source=0.0_dp)
+    allocate(this%f20AB(3,3, nAtoms, nAtoms), source=0.0_dp)
+    allocate(this%f30AB(3,3,3, nAtoms, nAtoms), source=0.0_dp)
+    allocate(this%f40AB(3,3,3,3, nAtoms, nAtoms), source=0.0_dp)
+    allocate(this%f50AB(3,3,3,3,3, nAtoms, nAtoms), source=0.0_dp)
 
-    allocate(this%pot10x1Atom(this%nAtoms), source=0.0_dp)
-    allocate(this%pot20x2Atom(this%nAtoms), source=0.0_dp)
-    allocate(this%pot10x0Atom(3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot11x1Atom(3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot21x2Atom(3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot20x0Atom(3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot21x1Atom(3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot22x2Atom(3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot30x0Atom(3,3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot31x1Atom(3,3,3, this%nAtoms), source=0.0_dp)
-    allocate(this%pot32x2Atom(3,3,3, this%nAtoms), source=0.0_dp)
+    allocate(this%pot10x1Atom(nAtoms), source=0.0_dp)
+    allocate(this%pot20x2Atom(nAtoms), source=0.0_dp)
+    allocate(this%pot10x0Atom(3, nAtoms), source=0.0_dp)
+    allocate(this%pot11x1Atom(3, nAtoms), source=0.0_dp)
+    allocate(this%pot21x2Atom(3, nAtoms), source=0.0_dp)
+    allocate(this%pot20x0Atom(3,3, nAtoms), source=0.0_dp)
+    allocate(this%pot21x1Atom(3,3, nAtoms), source=0.0_dp)
+    allocate(this%pot22x2Atom(3,3, nAtoms), source=0.0_dp)
+    allocate(this%pot30x0Atom(3,3,3, nAtoms), source=0.0_dp)
+    allocate(this%pot31x1Atom(3,3,3, nAtoms), source=0.0_dp)
+    allocate(this%pot32x2Atom(3,3,3, nAtoms), source=0.0_dp)
 
   end subroutine TMdftb_init
 
@@ -585,7 +576,7 @@ contains
         this%f30AB(:,:,:,iAt1,iAt2) = -workM3x3x3(:,:,:)
 
         !> for f40AB and f50AB
-        if ((this%onDQOCharges(1, iSp1) == 0 .and. this%onDQOCharges(2, iSp1) == 0 ) &
+        if ((this%onDQOCharges(1, iSp1) == 0 .and. this%onDQOCharges(2, iSp1) == 0) &
            & .or. (this%onDQOCharges(1, iSp2) == 0 .and. this%onDQOCharges(2, iSp2) == 0)) then
           cycle
         end if
@@ -695,8 +686,7 @@ contains
 
   end subroutine updateCoords
 
-  subroutine updateDeltaDQAtom(this, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair,&
-      & q0)
+  subroutine updateDeltaDQAtom(this, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
 
     !> class instance
     class(TMdftb), intent(inout) :: this
@@ -721,16 +711,6 @@ contains
 
     !> Indexing array for the Hamiltonian
     integer, intent(in) :: iPair(0:,:)
-
-    !> reference charges
-    real(dp), intent(in) :: q0(:,:,:)
-
-    ! real(dp), allocatable :: mqPerOrbital(:,:)
-    ! real(dp), allocatable :: mq(:)
-    ! real(dp), allocatable :: dqPerOrbital(:,:,:)
-    ! real(dp), allocatable :: dq(:,:)
-    ! real(dp), allocatable :: qqPerOrbital(:,:,:,:)
-    ! real(dp), allocatable :: qq(:,:,:)
 
     real(dp), allocatable :: tmpOvr(:,:), tmpDRho(:,:)
     integer, parameter :: iStart = 1, iEnd = 2, iNOrb = 3
@@ -848,7 +828,7 @@ contains
     class(TMdftb), intent(inout) :: this
 
     !> Multipole moments to pull
-    type(TMultipole), intent(inout) :: multiExpanData
+    type(TMultipole), intent(in) :: multiExpanData
 
     integer :: nAtoms
     integer :: iAt1, iSp1, iSpin
@@ -857,15 +837,10 @@ contains
 
     iSpin = 1
     nAtoms = this%nAtoms
+    this%deltaDAtom(:,:) = multiExpanData%dipoleAtom(:,:,iSpin)
     do iAt1 = 1, nAtoms
-      iSp1 = this%species(iAt1)
-      ! if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
-      !   cycle
-      ! end if
-
-      this%deltaDAtom(:,iAt1) = multiExpanData%dipoleAtom(:,iAt1,iSpin)
-      tmpM3x3(:,:) = 0.0_dp
       !> Quadrupole components used (xx, xy, yy, xz, yz, zz)
+      tmpM3x3(:,:) = 0.0_dp
       tmpM3x3(1,1) = multiExpanData%quadrupoleAtom(1,iAt1,iSpin)
       tmpM3x3(2,1) = multiExpanData%quadrupoleAtom(2,iAt1,iSpin)
       tmpM3x3(2,2) = multiExpanData%quadrupoleAtom(3,iAt1,iSpin)
@@ -873,7 +848,7 @@ contains
       tmpM3x3(3,2) = multiExpanData%quadrupoleAtom(5,iAt1,iSpin)
       tmpM3x3(3,3) = multiExpanData%quadrupoleAtom(6,iAt1,iSpin)
       call adjointLowerTriangle(tmpM3x3)
-      this%deltaQAtom(:,:,iAt1) = tmpM3x3(:,:)
+      this%deltaQAtom(:,:,iAt1) = tmpM3x3
     end do
 
   end subroutine pullDeltaDQAtom
@@ -893,13 +868,9 @@ contains
 
     iSpin = 1
     nAtoms = this%nAtoms
+    multiExpanData%dipoleAtom(:,:,iSpin) = this%deltaDAtom
     do iAt1 = 1, nAtoms
-      iSp1 = this%species(iAt1)
-      ! if ((this%onDQOCharges(1, iSp1) == 0) .and. (this%onDQOCharges(2, iSp1) == 0)) then
-      !   cycle
-      ! end if
-
-      multiExpanData%dipoleAtom(:,iAt1,iSpin) = this%deltaDAtom(:,iAt1)
+      !> Quadrupole components used (xx, xy, yy, xz, yz, zz)
       tmpM3x3(:,:) = this%deltaQAtom(:,:,iAt1)
       multiExpanData%quadrupoleAtom(1,iAt1,iSpin) = tmpM3x3(1,1) 
       multiExpanData%quadrupoleAtom(2,iAt1,iSpin) = tmpM3x3(2,1) 
@@ -1253,7 +1224,7 @@ contains
         iSp2 = species(iAt2)
         this%pot30x0Atom(:,:,:,iAt1) = this%pot30x0Atom(:,:,:,iAt1)&
             & + this%f30AB(:,:,:,iAt2,iAt1) * this%deltaMAtom(iAt2)
-        if ((this%onDQOCharges(1, iSp1) == 0 .and. this%onDQOCharges(2, iSp1) == 0 ) &
+        if ((this%onDQOCharges(1, iSp1) == 0 .and. this%onDQOCharges(2, iSp1) == 0) &
            & .or. (this%onDQOCharges(1, iSp2) == 0 .and. this%onDQOCharges(2, iSp2) == 0)) then
           cycle
         end if

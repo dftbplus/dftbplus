@@ -286,9 +286,8 @@ contains
 
     ! Add contribution for DFTB multipole calculations
     if (allocated(mdftb)) then
-      call mdftb%addMultiExpanEnergy(energy%atomMdftb, energy%EMdftbMD,&
-          & energy%EMdftbDD, energy%EMdftbMQ, energy%EMdftbDQ,&
-          & energy%EMdftbQQ, energy%EMdftb)
+      call mdftb%addMultiExpanEnergy(energy%atomMdftb, energy%EMdftbMD, energy%EMdftbDD,&
+          & energy%EMdftbMQ, energy%EMdftbDQ, energy%EMdftbQQ, energy%EMdftb)
     end if
 
     ! Add exchange contribution for range separated calculations
