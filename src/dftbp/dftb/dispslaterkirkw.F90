@@ -33,8 +33,7 @@ module dftbp_dftb_dispslaterkirkw
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_io_message, only : error
-  use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 
   private
@@ -196,7 +195,7 @@ contains
       this%vol = abs(determinant33(latVecs))
       invRecVecs(:,:) = latVecs / (2.0_dp * pi)
       recVecs(:,:) = transpose(invRecVecs)
-      call matinv(recVecs)
+      call invert33(recVecs)
 
       ! Scaling down optimal eta (as suggested in the literature) is purely empirical, it reduces
       ! the real space summation, and seems to yield shorter execution times. (It does not influence
@@ -292,7 +291,7 @@ contains
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
     recVecs(:,:) = transpose(invRecVecs)
-    call matinv(recVecs)
+    call invert33(recVecs)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
     c6sum = sum(abs(this%c6))
     this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, tolDispersion)

@@ -17,9 +17,9 @@ module dftbp_mixer_broydenmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
-  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_math_matrixops, only : adjointLowerTriangle, matinv
   use dftbp_math_blasroutines, only : ger
-  use dftbp_math_lapackroutines, only : getrf, getrs, gesv, matinv, hermatinv
+  use dftbp_math_lapackroutines, only : getrf, getrs, gesv
   implicit none
 
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]

@@ -22,7 +22,7 @@ module dftbp_dftb_encharges
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_math_blasroutines, only : hemv, gemv, gemm
   use dftbp_math_errorfunction, only : erfwrap
-  use dftbp_math_lapackroutines, only : symmatinv
+  use dftbp_math_matrixops, only : symmatinv
   use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 

@@ -10,7 +10,7 @@
 !> data type and associated routines for specifying atomic geometry and boundary conditions
 module dftbp_type_typegeometry
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_math_lapackroutines, only : matinv
+  use dftbp_math_simplealgebra, only : invert33
   implicit none
 
   private
@@ -179,7 +179,7 @@ contains
     this%origin = origin
     this%latVecs = latVecs
     this%recVecs2p = this%latVecs
-    call matinv(this%recVecs2p)
+    call invert33(this%recVecs2p)
     this%recVecs2p = reshape(this%recVecs2p, (/3, 3/), order=(/2, 1/))
 
   end subroutine setLattice_Geometry
