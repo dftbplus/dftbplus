@@ -14,7 +14,7 @@ module dftbp_derivs_rotatedegen
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_math_eigensolver, only : heev
-  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_math_matrixops, only : makeSimilarityTrans
   use dftbp_type_wrappedintr, only : TwrappedCmplx2, TwrappedReal2
 #:if WITH_SCALAPACK
   use dftbp_common_environment, only : TEnvironment

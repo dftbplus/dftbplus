@@ -12,7 +12,7 @@ module dftbp_math_angmomentum
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_math_matrixops, only : makeSimilarityTrans
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK

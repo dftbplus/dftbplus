@@ -65,7 +65,6 @@ module dftbp_dftbplus_parser
       & renameChildren
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp

@@ -15,6 +15,11 @@ module dftbp_math_simplealgebra
   private
   public :: cross3, determinant33, derivDeterminant33, invert33, diagonal
 
+  interface invert33
+    module procedure invertInOut
+    module procedure invertInPlace
+  end interface invert33
+
 contains
 
   !> Cross product
@@ -42,7 +47,7 @@ contains
     !> The matrix for which to calculate the determinant.
     real(dp), intent(in) :: matrix(:,:)
 
-    !> Resulting det(matrix)
+    !> Resulting det|matrix|
     real(dp) :: determinant33
 
     real(dp) :: tmp
@@ -86,7 +91,22 @@ contains
 
 
   !> Inverts a 3x3 matrix
-  subroutine invert33(inverted, orig, optDet)
+  subroutine invertInPlace(matrix)
+
+    !> Contains the inverted matrix on return.
+    real(dp), intent(inout) :: matrix(:, :)
+
+    real(dp) :: original(3,3)
+
+    original(:,:) = matrix
+
+    call invertInOut(matrix, original)
+
+  end subroutine invertInPlace
+
+
+  !> Inverts a 3x3 matrix
+  subroutine invertInOut(inverted, orig, optDet)
 
     !> Contains the inverted matrix on return.
     real(dp), intent(out) :: inverted(:, :)
@@ -121,7 +141,7 @@ contains
     inverted(3, 3) = -orig(1, 2) * orig(2, 1) + orig(1, 1) * orig(2, 2)
     inverted = inverted / det
 
-  end subroutine invert33
+  end subroutine invertInOut
 
 
   !> Extract diagonal of a 3x3 matrix
