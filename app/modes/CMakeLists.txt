@@ -1,9 +1,13 @@
 set(projectdir ${PROJECT_SOURCE_DIR})
 
 set(sources-fpp
+  hsdhelpers.F90
   initmodes.F90
+  inputdata.F90
+  main.F90
   modeprojection.F90
-  modes.F90)
+  modes.F90
+  parser.F90)
 
 set(fypp_flags ${FYPP_BUILD_FLAGS})
 list(APPEND fypp_flags -I${projectdir}/src/dftbp/include)
