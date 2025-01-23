@@ -284,7 +284,7 @@ module dftbp_reks_reksinterface
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive
@@ -653,10 +653,10 @@ module dftbp_reks_reksinterface
     type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive
@@ -837,7 +837,7 @@ module dftbp_reks_reksinterface
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive

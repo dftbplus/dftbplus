@@ -3197,7 +3197,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
@@ -3274,7 +3274,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
@@ -3348,7 +3348,7 @@ contains
     integer, intent(in) :: iAtomPrime
 
     !> Sparse overlap container
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb

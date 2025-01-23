@@ -15,6 +15,9 @@
 module dftbp_dftb_slakocont
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_slakoeqgrid, only : TSlakoEqGrid, getSKIntegrals, getNIntegrals, getCutoff
+#:if WITH_PLUGINS
+  use dftbp_plugins_plugin, only: TPlugin
+#:endif
   implicit none
 
   private
@@ -37,6 +40,10 @@ module dftbp_dftb_slakocont
     real(dp) :: cutoff
     logical :: tDataOK
     logical :: tInit = .false.
+    logical :: isH = .false.
+  #:if WITH_PLUGINS
+    type(TPlugin), pointer, public :: plugin => null()
+  #:endif
   end type TSlakoCont
 
 
@@ -73,13 +80,16 @@ contains
 
 
   !> Initialises SlakoCont
-  subroutine SlakoCont_init(this, nSpecies)
+  subroutine SlakoCont_init(this, nSpecies, isH)
 
     !> SlakoCont instance
     type(TSlakoCont), intent(out) :: this
 
     !> Nr. of species in the system.
     integer, intent(in) :: nSpecies
+
+    !> Specified the container for Hamitonian (==.true.) or Overlap (==.false.).
+    logical, intent(in) :: isH
 
     @:ASSERT(.not. this%tInit)
 
@@ -89,6 +99,7 @@ contains
     this%cutoff = 0.0_dp
     this%tDataOK = .false.
     this%tInit = .true.
+    this%isH = isH
 
   end subroutine SlakoCont_init
 
@@ -153,10 +164,10 @@ contains
 
 
   !> Returns the Slater-Koster integrals for a given distance for a given species pair.
-  subroutine SlakoCont_getSKIntegrals(this, sk, dist, sp1, sp2)
+  subroutine SlakoCont_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
 
     !> SlakoCont instance
-    type(TSlakoCont), intent(in) :: this
+    type(TSlakoCont), intent(inout) :: this
 
     !> Contains the integrals on exit
     real(dp), intent(out) :: sk(:)
@@ -164,11 +175,28 @@ contains
     !> Distance of the two atoms
     real(dp), intent(in) :: dist
 
+    !> Index of the first atom
+    integer, intent(in) :: atom1
+
+    !> Index of the second atom
+    integer, intent(in) :: atom2
+
     !> Index of the first interacting species.
     integer, intent(in) :: sp1
 
     !> Index of the second interacting species.
     integer, intent(in) :: sp2
+
+    logical :: updated
+
+  #:if WITH_PLUGINS
+    if (associated(this%plugin)) then
+      if (this%plugin%capabilities%provides_updateSKIntegrals) then
+        updated = this%plugin%updateSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid%skTab, dist,&
+            & atom1, atom2, sp1, sp2, this%isH, this%slakos(sp2, sp1)%pSlakoEqGrid%dist)
+      end if
+    end if
+  #:endif
 
     @:ASSERT(this%tInit .and. this%tDataOK)
     call getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
