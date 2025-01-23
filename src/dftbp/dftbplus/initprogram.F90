@@ -94,10 +94,9 @@ module dftbp_dftbplus_initprogram
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_duplicate, only : isRepeated
-  use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_math_simplealgebra, only : determinant33, diagonal
+  use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
@@ -6804,7 +6803,7 @@ contains
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
       invLatVec(:,:) = latVec
-      call matinv(invLatVec)
+      call invert33(invLatVec)
       invLatVec = reshape(invLatVec, [3, 3], order=[2, 1])
       recVec = 2.0_dp * pi * invLatVec
       cellVol = abs(determinant33(latVec))
