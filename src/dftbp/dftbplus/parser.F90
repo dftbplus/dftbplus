@@ -5017,7 +5017,7 @@ contains
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
-      call getChildValue(child, "Diagonaliser", child2)
+      call getChildValue(child, "Diagonaliser", child2, "", allowEmptyValue=.true.)
       call getNodeName(child2, buffer)
       select case(char(buffer))
       case ("arpack")
@@ -5031,6 +5031,8 @@ contains
       case ("stratmann")
         ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
         call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      case ("")
+        call detailedError(child2, "Missing diagonaliser method")
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
