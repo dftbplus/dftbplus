@@ -5039,8 +5039,10 @@ contains
           call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
               & modifier=modifier, default=0.0_dp)
           call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+        case ("")
+          call detailedError(child2, "Missing choice of CI optimiser.")
         case default
-          call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
+          call detailedError(child2, "Invalid CI optimiser method '" // char(buffer) // "'")
         end select
       else
         ctrl%lrespini%isCIopt = .false.
