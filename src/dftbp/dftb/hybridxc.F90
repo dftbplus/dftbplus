@@ -668,11 +668,14 @@ contains
 
 
   !> Checks if obtained supercell folding matrix meets current requirements.
+  !!
+  !! Note: The array passed to this routine can be of shapes [3, 3] (excluding shifts) or [3, 4]
+  !! (including shifts).
   subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus)
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
-    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
-    !! vectors (between 0.0 and 1.0)
+    !! (should be integer values) and possibly shift of the grid along the three small reciprocal
+    !! lattice vectors (between 0.0 and 1.0)
     real(dp), intent(in), target :: supercellFoldingMatrix(:,:)
 
     !> Error status
