@@ -88,9 +88,8 @@ module dftbp_dftbplus_main
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_blasroutines, only : hemm, symm
-  use dftbp_math_lapackroutines, only : hermatinv, matinv, symmatinv
-  use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33
+  use dftbp_math_matrixops, only : adjointLowerTriangle, hermatinv, symmatinv
+  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33, invert33
   use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
   use dftbp_md_tempprofile, only : TTempProfile
@@ -2140,7 +2139,7 @@ contains
 
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
-    call matinv(recVecs2p)
+    call invert33(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
     recCellVol = abs(determinant33(recVecs))
