@@ -567,13 +567,10 @@ contains
       @:RAISE_ERROR(errStatus, -1, "General CAM functionals not currently implemented for REKS.")
     end if
 
-    allocate(this%coords(3, nAtom0))
-    this%coords(:,:) = 0.0_dp
-    allocate(this%rCoords(3, nAtom0))
-    this%rCoords(:,:) = 0.0_dp
+    allocate(this%coords(3, nAtom0), source=0.0_dp)
+    allocate(this%rCoords(3, nAtom0), source=0.0_dp)
 
-    allocate(this%camGammaEval0(nAtom0, nAtom0))
-    this%camGammaEval0(:,:) = 0.0_dp
+    allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
     if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
@@ -1651,8 +1648,7 @@ contains
       tmpOvr(:,:) = overlap
       call adjointLowerTriangle(tmpOvr)
 
-      allocate(tmpDHam(matrixSize, matrixSize))
-      tmpDHam(:,:) = 0.0_dp
+      allocate(tmpDHam(matrixSize, matrixSize), source=0.0_dp)
 
       allocate(tmpDRho(matrixSize, matrixSize))
       tmpDRho(:,:) = deltaRho
@@ -1662,8 +1658,7 @@ contains
       allocate(tmpDDRho(matrixSize, matrixSize))
       tmpDDRho(:,:) = tmpDRho - this%dRhoPrev
       this%dRhoPrev(:,:) = tmpDRho
-      allocate(testOvr(nAtom0, nAtom0))
-      testOvr(:,:) = 0.0_dp
+      allocate(testOvr(nAtom0, nAtom0), source=0.0_dp)
       allocate(ovrInd(nAtom0, nAtom0))
 
       do iAtMu = 1, nAtom0
@@ -1761,9 +1756,8 @@ contains
       real(dp), intent(in), allocatable :: tmpDRho(:,:)
 
       if (.not. this%tScreeningInited) then
-        allocate(this%hprev(matrixSize, matrixSize))
+        allocate(this%hprev(matrixSize, matrixSize), source=0.0_dp)
         allocate(this%dRhoPrev(matrixSize, matrixSize))
-        this%hprev(:,:) = 0.0_dp
         this%dRhoPrev(:,:) = tmpDRho
         this%tScreeningInited = .true.
       end if
@@ -1851,8 +1845,7 @@ contains
       !> Hamiltonian matrix case
       real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpHH
 
-      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)))
-      tmpHH(:,:) = 0.0_dp
+      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)), source=0.0_dp)
       allocate(tmpDRho(size(deltaRhoSqr, dim=1), size(deltaRhoSqr, dim=1)))
       tmpDRho(:,:) = deltaRhoSqr
       call adjointLowerTriangle(tmpDRho)
@@ -2837,8 +2830,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -2852,8 +2844,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -3151,8 +3142,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -3166,8 +3156,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -4989,8 +4978,7 @@ contains
     call getTwoLoopCompositeIndex(nAtom0, nAtom0, iAtMN)
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     tmpDeltaRhoSqr = deltaRhoSqr
     do iSpin = 1, nSpin
@@ -6380,8 +6368,7 @@ contains
     end do
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     ! First terms of (48)
     loopK1: do iAtK = 1, nAtom0
