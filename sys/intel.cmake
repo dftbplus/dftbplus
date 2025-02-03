@@ -29,7 +29,8 @@ endif()
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
+# Note: uninit only works reliably if all linked libraries were compiled using this flag
+set(Fortran_FLAGS_DEBUG "-g -O0 -warn all -stand f08 -check all,nouninit -diag-error-limit 1 -traceback"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions
