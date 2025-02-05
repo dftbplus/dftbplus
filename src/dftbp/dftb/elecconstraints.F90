@@ -106,7 +106,7 @@ contains
 
 
   !> General entry point to read constraint on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, isSpinPol)
+  subroutine readElecConstraintInput(node, geo, input, isSpinPol, is2Component)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -119,6 +119,9 @@ contains
 
     !> True, if this is a spin polarized calculation
     logical, intent(in) :: isSpinPol
+
+    !> Is this a calculation with Pauli wavefunctions
+    logical, intent(in) :: is2Component
 
     type(fnode), pointer :: val, child1, child2, child3
     type(fnodeList), pointer :: children
@@ -151,7 +154,11 @@ contains
       call getChildValue(child2, "Population", input%atomNc(iConstr))
       ! Functionality currently restricted to charges
       if (isSpinPol) then
-        input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
+        if (is2Component) then
+          input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+        else
+          input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
+        end if
       else
         input%atomSpinDir(iConstr)%data = [1.0_dp]
       end if
