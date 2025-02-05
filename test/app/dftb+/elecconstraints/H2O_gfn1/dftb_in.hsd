@@ -14,13 +14,13 @@ Hamiltonian = xtb {
   }
   ElectronicConstraints {
     Regions {
-      Atoms {
-        Domain = H
-        Population = 1.5
+      Electrons {
+        Atoms = H
+        Total = 1.5
       }
-      Atoms {
-        Domain = 2
-        Population = 1.0
+      Electrons {
+        Atoms = 2
+        Total = 1.0
       }
     }
     ConstrTolerance = 1.0E-8
