@@ -1733,7 +1733,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -2012,7 +2012,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
