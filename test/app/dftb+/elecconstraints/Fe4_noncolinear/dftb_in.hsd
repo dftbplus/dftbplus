@@ -35,9 +35,9 @@ Hamiltonian = DFTB {
     }
     ElectronicConstraints {
         Regions {
-            Atoms {
-                Domain = 1
-                Population = 7.5
+	    Electrons {
+                Atoms = 1
+                Total = 7.5
             }
         }
         ConstrTolerance = 1.0E-08
