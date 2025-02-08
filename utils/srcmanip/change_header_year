@@ -7,7 +7,7 @@ import argparse
 
 DESCRIPTION = "Replaces the year in files with existing copyright header."
 
-YEAR = "2024"
+YEAR = "2025"
 
 PATTERN = re.compile(
     r"""(?P<part1>Copyright\s+\(C\)\s+(\d{4}\s*-\s*)*)\d{4}(?P<part2>\s+DFTB\+\s+developers\s+group)"""
