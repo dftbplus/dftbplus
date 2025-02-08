@@ -54,10 +54,11 @@ Hamiltonian = DFTB {
     MaxAngularMomentum {
         C = "p"
     }
-    Filling = MethfesselPaxton {
-        Temperature [eV] = 1.0
+    Filling = Gaussian {
+        Temperature [K] = 1E4
     }
     SlaterKosterFiles {
+        Prefix = "slakos/origin/pbc-0-3/"
         C-C = "./C-C.skf"
     }
     KPointsAndWeights = SupercellFolding {
@@ -78,7 +79,7 @@ Analysis {
 }
 
 ParserOptions {
-    ParserVersion = 13
+    ParserVersion = 14
 }
 
 Parallel {
