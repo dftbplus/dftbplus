@@ -29,7 +29,6 @@ Hamiltonian = DFTB {
     MaxSCCIterations = 2000
     Filling = MethfesselPaxton {
         Temperature [Kelvin] = 1.0e+3
-        Order = 2
         FixedFermiLevel [eV] = -4.71737 -4.71737
     }
     SlaterKosterFiles = {

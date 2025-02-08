@@ -37,6 +37,8 @@ Added
 
 - MAGMA GPU accelerated solver for the modes code
 
+- Explicit keyword for gaussian electron temperature smearing (MP order 0)
+
 Fixed
 -----
 
@@ -61,6 +63,15 @@ Fixed
   Radii = * [AA] = {}
   where * is Values, vanDerWaalsRadiiBondi vanDerWaalsRadiiCosmo or
   vanDerWaalsRadiiD3
+
+- Corrected the order of Methfestle-Paxton filling. It was producing
+  filling that was 1 order lower than the one requested in the input.
+  This is probably safe in most applications, the lowest order beyond
+  Gauss smearing (0th order) is default for several other codes and
+  already has linear and quadratic independence of the free energy wrt
+  temperature. Default for Methfestle-Paxton smearing is now set to 1
+  (matching the results from the old default value).
+
 
 24.1 (2024-02-12)
 =================
