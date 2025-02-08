@@ -267,8 +267,8 @@ contains
       ! on-site case
       tau = 0.5_dp * (tauA + tauB)
       tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4 + omega**6
-      tmp = tmp * 0.0625_dp / tau**5 - omega
-      tmp = tmp * tau**8 / (tau**2 - omega**2)**4
+      tmp = tmp * 0.0625_dp - omega * tau**5
+      tmp = tmp * tau**3 / (tau**2 - omega**2)**4
       gamma = tau * 0.3125_dp - tmp
     else
       ! off-site case, Ua == Ub
