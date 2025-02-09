@@ -1657,6 +1657,11 @@ contains
 
     this%nrChrg = input%ctrl%nrChrg
     this%nrSpinPol = input%ctrl%nrSpinPol
+    if (this%isAContactCalc) then
+      ! 1 PL in calculation, so half the spin and charge in 1PL
+      this%nrChrg = 0.5_dp * this%nrChrg
+      this%nrSpinPol = 0.5_dp * this%nrSpinPol
+    end if
     call initElectronNumber(this%q0, this%nrChrg, this%nrSpinPol, this%nSpin, this%orb,&
         & this%nEl0, this%nEl)
     call initElectronFilling_(input, this%nSpin, this%Ef, this%iDistribFn, this%tempElec,&
