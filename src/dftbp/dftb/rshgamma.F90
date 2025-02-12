@@ -206,8 +206,7 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    real(dp) :: tauA, tauB
-    real(dp) :: tmp, tau
+    real(dp) :: tmp, tau, tauA, tauB, distTauA, invDist
 
     tauA = 3.2_dp * hubbu1
     tauB = 3.2_dp * hubbu2
@@ -221,15 +220,17 @@ contains
       tau = 0.5_dp * (tauA + tauB)
       gamma = tau * 0.3125_dp
     else
+      invDist = 1.0_dp / dist
       ! off-site case, Ua == Ub
       if (abs(tauA - tauB) < MinHubDiff) then
         tauA = 0.5_dp * (tauA + tauB)
-        tmp = ((dist * tauA)**3 / 48.0_dp + 0.1875_dp * (dist * tauA)**2 +&
-            & 0.6875_dp * (dist * tauA) + 1.0_dp) * exp(-tauA * dist) / dist
-        gamma = 1.0_dp / dist - tmp
+        distTauA = dist * tauA
+        tmp = (distTauA**3 / 48.0_dp + 0.1875_dp * distTauA**2 + 0.6875_dp * distTauA + 1.0_dp)&
+            & * exp(-tauA * dist) * invDist
+        gamma = invDist - tmp
       ! off-site, Ua != Ub
       else
-        gamma = 1.0_dp / dist&
+        gamma = invDist&
             & - getYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
             & - getYGammaSubPart(tauB, tauA, dist, 0.0_dp)
       end if
@@ -253,8 +254,10 @@ contains
     !> Resulting gamma
     real(dp) :: gamma
 
-    real(dp) :: tauA, tauB
-    real(dp) :: prefac, tmp, tmp2, tau
+    real(dp) :: tauA, tauB, distTau, distTauA, invDist
+    real(dp) :: prefac, tmp, tmp2, tau, omega2
+
+    omega2 = omega**2
 
     tauA = 3.2_dp * hubbu1
     tauB = 3.2_dp * hubbu2
@@ -266,33 +269,35 @@ contains
     if (dist < tolSameDist) then
       ! on-site case
       tau = 0.5_dp * (tauA + tauB)
-      tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega**2 - 5.0_dp * tau**2 * omega**4 + omega**6
+      tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega2 - 5.0_dp * tau**2 * omega**4 + omega**6
       tmp = tmp * 0.0625_dp - omega * tau**5
-      tmp = tmp * tau**3 / (tau**2 - omega**2)**4
+      tmp = tmp * tau**3 / (tau**2 - omega2)**4
       gamma = tau * 0.3125_dp - tmp
     else
+      invDist = 1.0_dp / dist
       ! off-site case, Ua == Ub
-      if (abs(tauA - tauB) < MinHubDiff ) then
+      if (abs(tauA - tauB) < MinHubDiff) then
         tauA = 0.5_dp * (tauA + tauB)
-        tmp2 = ((dist * tauA)**3 / 48.0_dp + 0.1875_dp * (dist * tauA)**2 +&
-            & 0.6875_dp * (dist * tauA) + 1.0_dp) * exp(-tauA * dist) / dist
-        tmp = -tauA**8 / (tauA**2 - omega**2)**4 * (tmp2 + exp(-tauA*dist) * &
-            & (dist**2 * (3.0_dp * tauA**4 * omega**4 - 3.0_dp * tauA**6 * omega**2 - &
+        distTauA = dist * tauA
+        tmp2 = (distTauA**3 / 48.0_dp + 0.1875_dp * distTauA**2 +&
+            & 0.6875_dp * distTauA + 1.0_dp) * exp(-tauA * dist) * invDist
+        tmp = -tauA**8 / (tauA**2 - omega2)**4 * (tmp2 + exp(-tauA * dist) * &
+            & (dist**2 * (3.0_dp * tauA**4 * omega**4 - 3.0_dp * tauA**6 * omega2 - &
             & tauA**2 * omega**6) + dist * (15.0_dp * tauA**3 * omega**4 - &
-            & 21.0_dp * tauA**5 * omega**2 - 3.0_dp * tauA * omega**6) + &
-            & (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega**2 - &
+            & 21.0_dp * tauA**5 * omega2 - 3.0_dp * tauA * omega**6) + &
+            & (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega2 - &
             & 3.0_dp * omega**6)) / (48.0_dp * tauA**5))
-        gamma = 1.0_dp/dist - tmp2 - (tauA**8 / (tauA**2 - omega**2)**4 *&
-            & exp(-omega * dist) / dist + tmp)
+        gamma = 1.0_dp/dist - tmp2 - (tauA**8 / (tauA**2 - omega2)**4 *&
+            & exp(-omega * dist) * invDist + tmp)
       else
         ! off-site, Ua != Ub
-        prefac = tauA**4 / (tauA * tauA - omega * omega)**2
-        prefac = prefac * tauB**4 / (tauB * tauB - omega * omega)**2
-        prefac = prefac * exp(-omega * dist) / dist
+        prefac = tauA**4 / (tauA**2 - omega2)**2
+        prefac = prefac * tauB**4 / (tauB**2 - omega2)**2
+        prefac = prefac * exp(-omega * dist) * invDist
         tmp = prefac&
             & - getYGammaSubPart(tauA, tauB, dist, omega)&
             & - getYGammaSubPart(tauB, tauA, dist, omega)
-        tmp = 1.0_dp / dist - tmp
+        tmp = invDist - tmp
         tmp = tmp&
             & - getYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
             & - getYGammaSubPart(tauB, tauA, dist, 0.0_dp)
@@ -316,7 +321,7 @@ contains
     real(dp) :: dGamma
 
     real(dp) :: tauA, tauB
-    real(dp) :: dTmp
+    real(dp) :: dTmp, invDist2
 
     tauA = 3.2_dp * hubbu1
     tauB = 3.2_dp * hubbu2
@@ -329,20 +334,21 @@ contains
       ! on-site case
       dGamma = 0.0_dp
     else
+      invDist2 = 1.0_dp / dist**2
       ! off-site case, Ua == Ub
       if (abs(tauA - tauB) < MinHubDiff) then
         tauA = 0.5_dp * (tauA + tauB)
 
         dTmp = &
-            & (2.0_dp * dist * tauA**3 / 48.0_dp + 0.1875_dp * tauA**2 - 1.0_dp / dist**2)&
+            & (2.0_dp * dist * tauA**3 / 48.0_dp + 0.1875_dp * tauA**2 - invDist2)&
             & * exp(-tauA * dist) - (dist**2 * tauA**3 / 48.0_dp + 0.1875_dp * dist * tauA**2&
             & + 0.6875_dp * tauA + 1.0_dp / dist) * tauA * exp(-tauA * dist)
 
-        dGamma = -1.0_dp / dist**2 - dtmp
+        dGamma = -invDist2 - dtmp
 
       ! off-site, Ua != Ub
       else
-        dGamma = -1.0_dp / (dist**2)&
+        dGamma = -invDist2&
             & - getdYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
             & - getdYGammaSubPart(tauB, tauA, dist, 0.0_dp)
       end if
@@ -366,7 +372,7 @@ contains
     !> Resulting d gamma / d dist
     real(dp) :: dGamma
 
-    real(dp) :: tauA, tauB
+    real(dp) :: tauA, tauB, omega2, omegaDist, invDist
     real(dp) :: prefac, tmp, tmp2, dTmp, dTmp2
 
     tauA = 3.2_dp * hubbu1
@@ -380,37 +386,45 @@ contains
       ! on-site case
       dGamma = 0.0_dp
     else
+      omega2 = omega**2
+      omegaDist = omega * dist
+      invDist = 1.0_dp / dist
       ! off-site case, Ua == Ub
-      if (abs(tauA - tauB) < MinHubDiff ) then
+      if (abs(tauA - tauB) < MinHubDiff) then
         tauA = 0.5_dp * (tauA + tauB)
 
-        tmp = dist**2 * (3.0_dp*tauA**4*omega**4 - 3.0_dp * tauA**6 * omega**2 - tauA**2*omega**6)&
-            & + dist * (15.0_dp*tauA**3*omega**4 - 21.0_dp*tauA**5*omega**2 - 3.0_dp*tauA*omega**6)&
-            & + (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega**2 - 3.0_dp * omega**6)
+        tmp = dist**2 * (3.0_dp * tauA**4 * omega**4 &
+            &- 3.0_dp * tauA**6 * omega2 - tauA**2 * omega**6)&
+            & + dist * (15.0_dp * tauA**3 * omega**4 &
+            &- 21.0_dp * tauA**5 * omega2 - 3.0_dp * tauA * omega**6)&
+            & + (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega2 - 3.0_dp * omega**6)
 
-        dTmp = 2.0_dp*dist*(3.0_dp*tauA**4*omega**4 - 3.0_dp*tauA**6*omega**2 - tauA**2*omega**6)&
-            & + (15.0_dp*tauA**3*omega**4 - 21.0_dp*tauA**5*omega**2 - 3.0_dp*tauA*omega**6)
+        dTmp = 2.0_dp * dist * (3.0_dp * tauA**4 * omega**4&
+            & - 3.0_dp * tauA**6 * omega2 - tauA**2 * omega**6)&
+            & + (15.0_dp * tauA**3 * omega**4&
+            & - 21.0_dp * tauA**5 * omega2 - 3.0_dp * tauA * omega**6)
 
-        dtmp = (dtmp*exp(-tauA*dist) -tmp*tauA*exp(-tauA*dist))/ (48.0_dp * tauA**5)
+        dtmp = (dtmp * exp(-tauA * dist) - tmp * tauA * exp(-tauA * dist)) / (48.0_dp * tauA**5)
 
-        tmp2 = ( dist**2 * tauA**3 / 48.0_dp + 0.1875_dp * dist * tauA**2 + 0.6875_dp * tauA&
-            & + 1.0_dp / dist ) * exp(-tauA * dist)
+        tmp2 = (dist**2 * tauA**3 / 48.0_dp + 0.1875_dp * dist * tauA**2 + 0.6875_dp * tauA&
+            & + invDist) * exp(-tauA * dist)
 
         dTmp2 = &
-            & (2.0_dp*dist*tauA**3/48.0_dp + 0.1875_dp*tauA**2 -1.0_dp/dist**2) * exp(-tauA*dist)&
-            & -(dist**2*tauA**3/48.0_dp + 0.1875_dp*dist*tauA**2 + 0.6875_dp*tauA +1.0_dp/dist)&
-            & * tauA * exp(-tauA * dist)
+            & (2.0_dp * dist * tauA**3 / 48.0_dp + 0.1875_dp * tauA**2 - invDist**2)&
+            & * exp(-tauA * dist)&
+            & -(dist**2 * tauA**3 / 48.0_dp + 0.1875_dp * dist * tauA**2&
+            & + 0.6875_dp * tauA + invDist) * tauA * exp(-tauA * dist)
 
-        dGamma = -1.0_dp/dist**2 -dtmp2&
-            & + (tauA**8 / (tauA**2 - omega**2)**4) * (dtmp + dtmp2 + omega*exp(-omega * dist)/dist&
-            & +exp(-omega * dist) / dist**2)
+        dGamma = -invDist**2 - dtmp2&
+            & + (tauA**8 / (tauA**2 - omega2)**4)&
+            & * (dtmp + dtmp2 + omega * exp(-omegaDist) * invDist + exp(-omegaDist) * invDist**2)
 
       else
         ! off-site, Ua != Ub
-        prefac = tauA**4 / (tauA * tauA - omega * omega )**2
-        prefac = prefac * tauB**4 / (tauB * tauB - omega * omega )**2
-        prefac = prefac * (-omega * exp(-omega * dist) / dist - exp(-omega * dist) / dist**2)
-        dGamma = -1.0_dp / (dist**2) - prefac&
+        prefac = tauA**4 / (tauA**2 - omega2)**2
+        prefac = prefac * tauB**4 / (tauB**2 - omega2)**2
+        prefac = prefac * (-omega * exp(-omegaDist) * invDist - exp(-omegaDist) * invDist**2)
+        dGamma = -invDist**2 - prefac&
             & + getdYGammaSubPart(tauA, tauB, dist, omega)&
             & + getdYGammaSubPart(tauB, tauA, dist, omega)&
             & - getdYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
@@ -447,7 +461,7 @@ contains
 
 
   !> Returns the subexpression for the evaluation of the off-site Y-Gamma-integral.
-  pure function getYGammaSubPart(tauA, tauB, R, omega) result(yGamma)
+  pure function getYGammaSubPart(tauA, tauB, dist, omega) result(yGamma)
 
     !> Decay constant site A
     real(dp), intent(in) :: tauA
@@ -456,7 +470,7 @@ contains
     real(dp), intent(in) :: tauB
 
     !> Separation of the sites A and B
-    real(dp), intent(in) :: R
+    real(dp), intent(in) :: dist
 
     !> Range-separation parameter
     real(dp), intent(in) :: omega
@@ -464,23 +478,22 @@ contains
     !> Resulting off-site Y-Gamma-integral
     real(dp) :: yGamma
 
-    !!
     real(dp) :: prefac, tmp
 
     tmp = (tauA - omega)
     tmp = tmp * (tauA + omega)
-    prefac = tauA * tauA / tmp
-    tmp = (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4) / R
-    tmp = tmp * prefac * prefac / (tauA * tauA - tauB * tauB)**3
-    tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA)**2 - tmp
-    yGamma = tmp * exp(-tauA * R)
+    prefac = tauA**2 / tmp
+    tmp = (tauB**6 - 3.0_dp * tauA**2 * tauB**4 + 2.0_dp * omega**2 * tauB**4) / dist
+    tmp = tmp * prefac * prefac / (tauA**2 - tauB**2)**3
+    tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB**2 - tauA**2)**2 - tmp
+    yGamma = tmp * exp(-tauA * dist)
 
   end function getYGammaSubPart
 
 
   !> Returns the derivative of the subexpression for the evaluation of the off-site
   !! Y-Gamma-integral. Note that tauA /= tauB.
-  pure function getdYGammaSubPart(tauA, tauB, R, omega) result(dYGammaSubPart)
+  pure function getdYGammaSubPart(tauA, tauB, dist, omega) result(dYGammaSubPart)
 
     !> Decay constant site A
     real(dp), intent(in) :: tauA
@@ -489,7 +502,7 @@ contains
     real(dp), intent(in) :: tauB
 
     !> Separation of the sites A and B
-    real(dp), intent(in) :: R
+    real(dp), intent(in) :: dist
 
     !> Range-separation parameter
     real(dp), intent(in) :: omega
@@ -498,16 +511,17 @@ contains
     real(dp) :: dYGammaSubPart
 
     !! Auxiliary variables
-    real(dp) :: prefac, tmp, tmp2, dtmp
+    real(dp) :: prefac, tmp, tmp2, dtmp, invDist
 
+    invDist = 1.0_dp / dist
     tmp = tauA**2 - omega**2
-    prefac = tauA * tauA / tmp
-    tmp = prefac * prefac / (tauA * tauA - tauB * tauB)**3
-    dtmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4)/R**2
-    tmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4) / R
-    tmp2 = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA )**2 - tmp
+    prefac = tauA**2 / tmp
+    tmp = prefac * prefac / (tauA**2 - tauB**2)**3
+    dtmp = tmp * (tauB**6 - 3.0_dp * tauA**2 * tauB**4 + 2.0_dp * omega**2 * tauB**4) * invDist**2
+    tmp = tmp * (tauB**6 - 3.0_dp * tauA**2 * tauB**4 + 2.0_dp * omega**2 * tauB**4) * invDist
+    tmp2 = tauA * tauB**4 * 0.5_dp * prefac / (tauB**2 - tauA**2)**2 - tmp
 
-    dYGammaSubPart = (dtmp - tmp2 * tauA) * exp(-tauA * R)
+    dYGammaSubPart = (dtmp - tmp2 * tauA) * exp(-tauA * dist)
 
   end function getdYGammaSubPart
 
