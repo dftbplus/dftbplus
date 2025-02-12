@@ -7,7 +7,7 @@
 
 /**
  * Note, MAGMA header file (as of version 2.9.0) has no declaration for type bool, causing newer
- * (more pedantic) C compilers to stop with error. Including <stdbool.h> before MAGMA seems provides
+ * (more pedantic) C compilers to stop with error. Including <stdbool.h> before MAGMA provides
  * the missing declaration.
 */
 #include <stdbool.h>
