@@ -187,9 +187,15 @@ contains
     !> Resulting CAM gamma
     real(dp) :: gamma
 
-    gamma =&
-        & camAlpha * getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist)&
-        & + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
+    gamma = 0.0_dp
+
+    if (abs(camAlpha) > 100_dp * epsilon(0.0_dp)) then
+      gamma = gamma + camAlpha * getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist)
+    end if
+
+    if (abs(camBeta) > 100_dp * epsilon(0.0_dp)) then
+      gamma = gamma + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
+    end if
 
   end function getCamAnalyticalGammaValue_workhorse
 
