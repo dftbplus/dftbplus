@@ -8029,7 +8029,7 @@ contains
           input%gammaType = hybridXcGammaTypes%mic
         case ("truncated")
           input%gammaType = hybridXcGammaTypes%truncated
-        case ("truncated+damping")
+        case ("truncatedanddamped")
           input%gammaType = hybridXcGammaTypes%truncatedAndDamped
         case default
           call getNodeHSdName(cmValue, buffer)
