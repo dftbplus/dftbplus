@@ -232,7 +232,7 @@ subroutine ${NAME}$_final(this)
 
   type(${NAME}$), intent(inout) :: this
 
-  if(associated(this%items)) deallocate(this%items)
+  if (associated(this%items)) deallocate(this%items)
 
 end subroutine ${NAME}$_final
 
