@@ -895,6 +895,9 @@ contains
     end if
 
     call getDescendant(root, "Hamiltonian/DFTB/Filling/MethfesselPaxton", ch1)
+    if (.not.associated(ch1)) then
+      call getDescendant(root, "Hamiltonian/xTB/Filling/MethfesselPaxton", ch1)
+    end if
     if (associated(ch1)) then
       call getDescendant(ch1, "Order", ch2, parent=par)
       if (associated(ch2)) then
