@@ -26,6 +26,7 @@ Hamiltonian = xTB {
   Solver = QR {}
   Filling = MethfesselPaxton {
     Temperature [Kelvin] = 5.0e+2
+    Order = 2
   }
 }
 

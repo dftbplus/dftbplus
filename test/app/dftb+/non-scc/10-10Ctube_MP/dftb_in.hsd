@@ -78,7 +78,7 @@ Analysis {
 }
 
 ParserOptions {
-    ParserVersion = 14
+    ParserVersion = 13
 }
 
 Parallel {

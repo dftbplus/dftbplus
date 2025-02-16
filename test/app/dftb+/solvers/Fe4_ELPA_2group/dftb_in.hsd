@@ -33,6 +33,7 @@ Hamiltonian = DFTB {
   Eigensolver = ELPA {}
   Filling = MethfesselPaxton {
     Temperature [Kelvin] = 5.0e+2
+    Order = 2
   }
   SlaterKosterFiles = {
     Fe-Fe = "./Fe-Fe.skf"
