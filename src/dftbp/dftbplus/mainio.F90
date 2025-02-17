@@ -23,6 +23,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
+  use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_elecconstraints, only : TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
@@ -2759,10 +2760,11 @@ contains
       select case(iDistribFn)
       case(0)
         write(fd,*) 'Fermi distribution function'
-      case(1)
+      case(fillingTypes%Methfessel)
         write(fd,*) 'Gaussian distribution function'
       case default
-        write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
+        write(fd,*) 'Methfessel-Paxton distribution function order',&
+            & iDistribFn-fillingTypes%Methfessel
       end select
       write(fd,*)
     end if

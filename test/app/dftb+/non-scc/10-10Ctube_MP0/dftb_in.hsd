@@ -55,9 +55,11 @@ Hamiltonian = DFTB {
         C = "p"
     }
     Filling = MethfesselPaxton {
-        Temperature [eV] = 1.0
+        Temperature [K] = 1E4
+        Order = 0
     }
     SlaterKosterFiles {
+        Prefix = "slakos/origin/pbc-0-3/"
         C-C = "./C-C.skf"
     }
     KPointsAndWeights = SupercellFolding {
@@ -78,7 +80,7 @@ Analysis {
 }
 
 ParserOptions {
-    ParserVersion = 13
+    ParserVersion = 14
 }
 
 Parallel {
