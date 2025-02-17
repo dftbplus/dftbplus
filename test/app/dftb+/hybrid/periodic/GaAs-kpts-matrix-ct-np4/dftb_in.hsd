@@ -37,6 +37,8 @@ Hamiltonian = DFTB {
     0.0 0.0 0.0
   }
 
+  Solver = QR {}
+
 }
 
 Options {
