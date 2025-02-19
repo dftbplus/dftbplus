@@ -456,6 +456,9 @@ contains
     !> Lattice vectors of (periodic) geometry
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !! Delta distance for finite differences
+    real(dp), parameter :: delta = 1.0E-8_dp
+
     !! Species indices
     integer :: iSp1, iSp2
 
@@ -547,14 +550,14 @@ contains
               & this%omega, this%gammaDamping)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping, 1.0E-8_dp)
+              & this%omega, this%gammaDamping, delta)
           this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
               & this%hubbu(iSp2), this%gammaDamping)
           this%hfdGammaAtDamping(iSp1, iSp2)&
               & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%gammaDamping)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
-              & this%gammaDamping, 1.0E-8_dp)
+              & this%gammaDamping, delta)
         end do
       end do
     end if
@@ -3447,10 +3450,12 @@ contains
 #:endfor
 
 
-  !> Returns the value of a polynomial of 5th degree at x (or its derivative).
-  !! The polynomial is created with the following boundary conditions:
-  !! Its value, its 1st and 2nd derivatives are zero at x = rCut and agree with the provided values
-  !! at x = rDamp, i.e. x = rCut - delta.
+  !! Returns either f(x) or f'(x) for the unique 5th-degree polynomial that satisfies:
+  !!   f(rDamp) = y0
+  !!   f'(rDamp) = y0p
+  !!   f''(rDamp) = y0pp
+  !!   and f(rCut) = f'(rCut) = f''(rCut) = 0
+  !!
   !! WARNING: To avoid additional branches, there are no consistency checks, e.g. that rDamp < rCut
   pure function poly5zero(y0, y0p, y0pp, xx, rDamp, rCut, tDerivative) result(yy)
 
@@ -3475,65 +3480,74 @@ contains
     !> True, if the derivative at xx is desired, otherwise the function value it returned
     logical, intent(in), optional :: tDerivative
 
-    !! True, if the derivative at xx is desired, otherwise the function value it returned
-    !! Default: .false.
-    logical :: tPrime
-
-    !! Value of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
+    !! Value/derivative of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
     real(dp) :: yy
 
-    !! Polynomial coefficients
-    real(dp) :: aa, bb, cc, dd, ee, ff
+    !! True, if the derivative at xx is desired, otherwise the function value it returned
+    !! Default: .false.
+    logical :: tDerivative_
+
+    !! Dimensionless coordinate in [0, 1]
+    real(dp) :: tt
 
     !! rCut - rDamp
     real(dp) :: delta
 
+    !! Polynomial coefficients in tt
+    real(dp) :: aa, bb, cc, dd, ee, ff
+
+    !! Short-hands
+    real(dp) :: s0, s1, s2
+
+    !! P'(t) in terms of tt
+    real(dp) :: pd
+
     if (present(tDerivative)) then
-      tPrime = tDerivative
+      tDerivative_ = tDerivative
     else
-      tPrime = .false.
+      tDerivative_ = .false.
     end if
-
-    ! 5th order polynomial definition
-    ! f(x) = ax^5 + bx^4 + cx^3 + dx^2 + ex + f
-    ! f'(x) = 5ax^4 + 4bx^3 + 3cx^2 + 2dx + e
-    ! f''(x) = 20ax^3 + 12bx^2 + 6cx + 2d
-
-    ! boundary conditions:
-    ! f(rCut) = 0, f'(rCut) = 0, f''(rCut) = 0
-    ! f(rDamp) = y0, f'(rDamp) = y0p, f''(rDamp) = y0pp
 
     delta = rCut - rDamp
 
-    aa = -(delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0) / (2.0_dp * delta**5)
+    tt = (xx - rDamp) / delta
 
-    bb = (rCut * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0)&
-        & - 2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & / (2.0_dp * delta**5)
+    ! Fill known polynomial coefficients at tt=0
+    ff = y0
+    ee = y0p * delta
+    dd = 0.5_dp * y0pp * delta**2
 
-    cc = -(rCut * (-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta * y0)&
-        & + rCut**2 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0)&
-        & + delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & / (2.0_dp * delta**5)
+    ! Solve for aa, bb, cc from boundary conditions at tt=1
 
-    dd = (rCut * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2 * y0)&
-        & + rCut**2 * (-12.0_dp * delta**3 * y0pp - 84.0_dp * delta**2 * y0p - 180.0_dp * delta&
-        & * y0) + rCut**3 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Compute short-hands
+    s0 = -(dd + ee + ff)
+    s1 = -(2.0_dp * dd + ee)
+    s2 = -2.0_dp * dd
 
-    ee = -(rCut**2 * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2&
-        & * y0) + rCut**3*(-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta&
-        & * y0) + rCut**4 * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Solve step by step
+    aa = (s2 + 12.0_dp * s0 - 6.0_dp * s1) * 0.5_dp
+    bb = s1 - 3.0_dp * s0 - 2.0_dp * aa
+    cc = s0 - aa - bb
 
-    ff = (rCut**3 * (delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & + rCut**4 * (-2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & + rCut**5 * (delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0)) / (2.0_dp * delta**5)
-
-    if (tPrime) then
-      yy = 5.0_dp * aa * xx**4 + 4.0_dp * bb * xx**3 + 3.0_dp * cc * xx**2 + 2.0_dp * dd * xx + ee
+    ! Evaluate P(tt) or P'(tt) / delta using Horner's method
+    if (.not. tDerivative_) then
+      ! f(x) = P(tt)
+      yy = aa
+      yy = yy * tt + bb
+      yy = yy * tt + cc
+      yy = yy * tt + dd
+      yy = yy * tt + ee
+      yy = yy * tt + ff
     else
-      yy = aa * xx**5 + bb * xx**4 + cc * xx**3 + dd * xx**2 + ee * xx + ff
+      ! derivative w.r.t. xx:
+      ! P'(tt) / delta but first compute P'(tt) via Horner in tt
+      pd = 5.0_dp * aa
+      pd = pd * tt + 4.0_dp * bb
+      pd = pd * tt + 3.0_dp * cc
+      pd = pd * tt + 2.0_dp * dd
+      pd = pd * tt + ee
+
+      yy = pd / delta
     end if
 
   end function poly5zero
