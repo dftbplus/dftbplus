@@ -36,7 +36,7 @@ Hamiltonian = DFTB {
      0   0   3
     0.0 0.0 0.0
   }
-
+  # Using QR solver to avoid diagonalization problem with certain MKL-versions
   Solver = QR {}
 
 }
