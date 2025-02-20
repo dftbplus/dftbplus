@@ -6,10 +6,17 @@
 /*------------------------------------------------------------------------------------------------*/
 
 /**
+ * Note, MAGMA header file (as of version 2.9.0) has no declaration for type bool, causing newer
+ * (more pedantic) C compilers to stop with error. Including <stdbool.h> before MAGMA provides
+ * the missing declaration.
+*/
+#include <stdbool.h>
+
+/**
  *  Functions to count or request GPUs
  */
 
-#include <magma.h>
+#include <magma_v2.h>
 
 /**
  *  Large enough to fit all device IDs
