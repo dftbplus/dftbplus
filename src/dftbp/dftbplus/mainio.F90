@@ -2236,7 +2236,7 @@ contains
 
   !> Write XML format of derived results
   subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, tHelical, latVec,&
-      & origin, tRealHS, nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+      & origin, tRealHS, nKPoint, nSpin, nOrb, kPoint, kWeight, filling, eigen, Ef, occNatural)
 
     !> Identifier for the run
     integer, intent(in) :: runId
@@ -2271,9 +2271,6 @@ contains
     !> Number of spin channels present
     integer, intent(in) :: nSpin
 
-    !> Number of eigen states in the system / dimension of the Hamiltonian
-    integer, intent(in) :: nStates
-
     !> Number of atomic orbitals (may not match nStates if non-collinear)
     integer, intent(in) :: nOrb
 
@@ -2286,6 +2283,12 @@ contains
     !> Filling of the eigenstates
     real(dp), intent(in) :: filling(:,:,:)
 
+    !> Eigenvalues
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
     !> Occupation numbers for natural orbitals
     real(dp), allocatable, target, intent(in) :: occNatural(:)
 
@@ -2294,7 +2297,10 @@ contains
     integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
+    !> Number of eigen states in the system / dimension of the Hamiltonian
+    integer :: nStates
 
+    nStates = size(eigen, dim=1)
 
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
@@ -2334,6 +2340,20 @@ contains
       call xml_EndElement(xf, "spin" // i2c(ii))
     end do
     call xml_EndElement(xf, "occupations")
+    call xml_NewElement(xf, "band")
+    do ii = 1, nSpin
+      call xml_NewElement(xf, "spin" // i2c(ii))
+      do jj = 1, nKpoint
+        call writeChildValue(xf, "k" // i2c(jj), eigen(:, jj, mod(ii,3)))
+      end do
+      call xml_EndElement(xf, "spin" // i2c(ii))
+    end do
+    call xml_EndElement(xf, "band")
+    call xml_NewElement(xf, "efermi")
+    do ii = 1, nSpin
+      call writeChildValue(xf, "spin" // i2c(ii), Ef(ii))
+    end do
+    call xml_EndElement(xf, "efermi")
     if (allocated(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
@@ -3247,7 +3267,7 @@ contains
     !> Should Mulliken populations be printed
     logical, intent(in) :: tPrintMulliken
 
-    !> Fermi level
+    !> Fermi level(s) for
     real(dp), intent(in) :: Ef(:)
 
     !> External pressure
