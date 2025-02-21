@@ -1434,11 +1434,7 @@ contains
       call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
-      ! Workaround: ifort 2021.7
-      ! Assignment of derived type instances with allocatable components seems to be broken,
-      ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
-      !this%orb = input%slako%orb
-      call move_alloc(input%slako%orb, this%orb)
+      this%orb = input%slako%orb
     end select
     this%nOrb = this%orb%nOrb
 
@@ -2091,9 +2087,7 @@ contains
     this%nMovedCoord = 3 * this%nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      this%nGeoSteps = huge(1) - 1
-      ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
-      ! this%nGeoSteps = huge(1)
+      this%nGeoSteps = huge(1)
     else
       this%nGeoSteps = input%ctrl%maxRun
     end if
