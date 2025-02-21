@@ -6091,10 +6091,6 @@ contains
 
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
 
-    ! dummy cutoff values
-    cutOff%gammaCutoff = 1.0_dp
-    cutOff%gSummationCutoff = 1.0_dp
-
   end subroutine getHybridXcCutOff_cluster
 
 
