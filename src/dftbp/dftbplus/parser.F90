@@ -7982,7 +7982,7 @@ contains
 
       allocate(input)
       input%hybridXcType = hybridXcSkType
-      call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
+      call getChildValue(hybridValue, "Screening", screeningValue, "MatrixBased",&
           & child=screeningChild)
 
       call getNodeName(screeningValue, buffer)
