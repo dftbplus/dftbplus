@@ -904,7 +904,7 @@ contains
         call getChildValue(ch2, "", iOrder, child=ch3)
         if (iOrder > 1) then
           write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
-              & " is now equvalent to ", (iOrder -1), " from parser version 14."
+              & " is now equivalent to ", (iOrder -1), " from parser version 14."
           call detailedWarning(ch2, strTmp)
         elseif (iOrder == 1) then
           write(strtmp,"(A)")"Older Methfessel-Paxton requested order of 1 is now&
@@ -914,7 +914,7 @@ contains
           call detailedWarning(ch2, strTmp)
         else
           write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
-              & " is now equvalent to a negative order of ", (iOrder -1), " from parser version 14&
+              & " is now equivalent to a negative order of ", (iOrder -1), " from parser version 14&
               & and is incorrect."
           call detailedError(ch2, strTmp)
         end if
@@ -928,6 +928,17 @@ contains
             & "   This order is now the current default order from parser version 14.")
       end if
 
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Hybrid/LC", ch1)
+    if (associated(ch1)) then
+      call getDescendant(ch1, "Screening", ch2)
+      if (.not. associated(ch2)) then
+        call setChild(ch1, "Screening", ch2)
+        call setChild(ch2, "Thresholded", ch3)
+        call setUnprocessed(ch1)
+        call setUnprocessed(ch2)
+      end if
     end if
 
   end subroutine convert_13_14
