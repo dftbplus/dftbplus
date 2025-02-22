@@ -7,3 +7,4 @@ Automated Testing
 
    testing/introduction.rst
    testing/regression.rst
+   testing/unit.rst
