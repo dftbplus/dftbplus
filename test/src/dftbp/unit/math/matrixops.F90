@@ -10,7 +10,8 @@
 module test_math_matrixops
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_matrixops, only : adjointLowerTriangle, orthonormalizeVectors
+  use dftbp_common_status, only : TStatus
+  use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -89,6 +90,46 @@ contains
 
   $:END_TEST()
 
+
+  $:TEST("adjugatematrix")
+
+    real(dp), allocatable :: matReal(:,:), CT(:,:)
+    type(TStatus) :: errStatus
+    integer :: ii, jj, n
+
+    ! very small case
+    matReal = reshape([1,2,3,4], [2,2])
+    CT = reshape([4,-2,-3,1], [2,2])
+    call adjugate(matReal)
+    @:ASSERT(all(abs(matReal - CT) < 128_dp * epsilon(0.0_dp)))
+    deallocate(matReal)
+    deallocate(CT)
+
+    ! slightly larger
+    matReal = reshape([-3,2,-5,-1,0,-2,3,-4,1], [3,3])
+    CT = reshape([-8,18,-4,-5,12,-1,4,-6,2], [3,3])
+    call adjugate(matReal)
+    @:ASSERT(all(abs(matReal - CT) < 1024_dp * epsilon(0.0_dp)))
+    deallocate(matReal)
+    deallocate(CT)
+
+    ! Numerical test between implementations
+    n = 10
+    allocate(matReal(n,n))
+    do ii = 1, n
+      do jj = 1, n
+        matReal(jj, ii) = sign(ii-jj, ii+jj)
+      end do
+      matReal(ii, ii) = 0.1_dp * ii
+    end do
+    CT = matReal
+    call adjugate(matReal)
+    ! use simple routine (requires matrix to be invertable):
+    call adjugate(CT, errStatus)
+    @:ASSERT(.not.errStatus%hasError())
+    @:ASSERT(all(abs(matReal - CT) < 1024_dp * epsilon(0.0_dp)))
+
+  $:END_TEST()
 
   function tests()
     type(test_list) :: tests
