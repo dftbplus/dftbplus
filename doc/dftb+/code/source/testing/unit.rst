@@ -25,54 +25,57 @@ adapt them to the new structure.
 The `fypp <https://fypp.readthedocs.io/en/stable/fypp.html>`_ enhanced
 version of Fortuno is used, so test cases should include the macros
 and use `@ASSERT()` to test statements that are true about results. A
-minimal test case can look something like::
+minimal test case can look something like
 
-  #:include "fortuno_serial.fypp"
+.. code-block:: Fortran
+   :linenos:
 
-  module test_common_accuracy ! name corresponds to test_ then path to code being tested
-    use dftbp_common_accuracy, only : cp, dp ! import what is need for test(s)
-    use fortuno_serial, only : suite => serial_suite_item, test_list
-    $:FORTUNO_SERIAL_IMPORTS()
-    implicit none
+   #:include "fortuno_serial.fypp"
 
-    private
-    public :: tests
+   module test_common_accuracy ! name corresponds to test_ then path to code being tested
+     use dftbp_common_accuracy, only : cp, dp ! import what is need for test(s)
+     use fortuno_serial, only : suite => serial_suite_item, test_list
+     $:FORTUNO_SERIAL_IMPORTS()
+     implicit none
 
-  contains
+     private
+     public :: tests
 
-     $:TEST("trivial")
+   contains
 
-       integer, parameter :: ii = 0
+      $:TEST("trivial")
 
-       ! Actual test, this does something very trivial:
-       @:ASSERT(ii == 0)
+        integer, parameter :: ii = 0
 
-     $:END_TEST()
+        ! Actual test, this does something very trivial:
+        @:ASSERT(ii == 0)
 
-
-     $:TEST("types")
-
-       ! Actual test, this does something very trivial with imported variables:
-       @:ASSERT(cp == dp)
-
-     $:END_TEST()
+      $:END_TEST()
 
 
-     ! boiler-plate code to run the tests
+      $:TEST("types")
 
-     function tests()
-       type(test_list) :: tests
+        ! Actual test, this does something very trivial with imported variables:
+        @:ASSERT(cp == dp)
 
-         tests = test_list([&
-             suite("accuracy", test_list([&
-                 $:TEST_ITEMS()
-             ]))&
-         ])
-         $:STOP_ON_MISSING_TEST_ITEMS()
+      $:END_TEST()
 
-     end function tests
 
-  end module test_common_accuracy
+      ! boiler-plate code to run the tests
+
+      function tests()
+        type(test_list) :: tests
+
+          tests = test_list([&
+              suite("accuracy", test_list([&
+                  $:TEST_ITEMS()
+              ]))&
+          ])
+          $:STOP_ON_MISSING_TEST_ITEMS()
+
+      end function tests
+
+   end module test_common_accuracy
 
 
 See existing test examples in the repository for more realistic cases.
