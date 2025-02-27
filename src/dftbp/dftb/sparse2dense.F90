@@ -33,7 +33,9 @@ module dftbp_dftb_sparse2dense
   public :: unpackHelicalHS, packHelicalHS
   public :: getSparseDescriptor
   public :: getUnpackedOverlapPrime_real, getUnpackedOverlapPrime_kpts
+#:if not WITH_SCALAPACK
   public :: getUnpackedOverlapStress_real
+#:endif
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs

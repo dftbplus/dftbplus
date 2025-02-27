@@ -26,7 +26,10 @@ module dftbp_dftb_hybridxc
       & getddLrNumericalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHS, getUnpackedOverlapPrime_real,&
-      & getUnpackedOverlapStress_real, getUnpackedOverlapPrime_kpts
+      & getUnpackedOverlapPrime_kpts
+#:if not WITH_SCALAPACK
+  use dftbp_dftb_sparse2dense, only : getUnpackedOverlapStress_real
+#:endif
   use dftbp_math_blasroutines, only : gemm, symm, hemm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
@@ -5653,7 +5656,7 @@ contains
     integer :: nLocRow, nLocCol
 
     !! Auxiliary variables
-    integer :: ii, jj, iOrb1, iOrb2
+    integer :: ii, jj, iOrb1, iOrb2, iAt1, iAt2
 
     nLocCol = size(overlap, dim=1)
     nLocRow = size(overlap, dim=2)
@@ -6017,7 +6020,9 @@ contains
       end do
     end do loopForceAtom
 
-    tmpGradients(:,:) = 0.5_dp * nSpin * tmpGradients
+    if (.not.this%tREKS) then
+      tmpGradients(:,:) = 0.5_dp * nSpin * tmpGradients
+    end if
 
     st(:,:) = 0.0_dp
 

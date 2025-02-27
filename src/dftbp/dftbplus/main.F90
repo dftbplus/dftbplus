@@ -6382,9 +6382,9 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, parallelKS, boundaryConds, sccCalc, tblite, isExtField, isXlbomd,&
       & nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive,&
-      & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs, cellVol,&
-      & rCellVecs, recVecs2p, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-      & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation,&
+      & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs,&
+      & cellVol, rCellVecs, recVecs2p, species, img2CentCell, iSparseStart, orb, potential, coord,&
+      & derivs, groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation,&
       & areSolventNeighboursSym, qDepExtPot, chrgForces, dispersion, hybridXc, SSqrReal, ints,&
       & denseDesc, halogenXCorrection, tHelical, coord0, deltaDftb, tPeriodic, tRealHS, kPoint,&
       & kWeight, densityMatrix, errStatus)
@@ -6622,10 +6622,14 @@ contains
             end do
           end do
 
-          st(:,:) = st / cellVol
-
-          print *, 'Virial Block stress'
-          print *, st
+          print *, 'Virial tensor'
+          write(stdOut,"(3F20.12)")st
+          if (tPeriodic) then
+            st(:,:) = st / cellVol
+            write(stdout,*)
+            write(stdout,*)'Virial Block stress'
+            write(stdOut,"(3F20.12)")st
+          end if
         end if
       end if
 
@@ -6766,10 +6770,14 @@ contains
       end do
     end do
 
-    st(:,:) = st / cellVol
-
-    print *, 'Virial total stress'
-    print *, st
+    print *, 'Virial tensor'
+    write(stdOut,"(3F20.12)")st
+    if (tPeriodic) then
+      st(:,:) = st / cellVol
+      write(stdout,*)
+      write(stdout,*)'Virial Block stress'
+      write(stdOut,"(3F20.12)")st
+    end if
 
   end subroutine getGradients
 
@@ -7014,7 +7022,7 @@ contains
     if (allocated(hybridXc)) then
       if (tRealHS .and. tPeriodic) then
       #:if WITH_SCALAPACK
-        @:RAISE_ERROR(errStatus, -1, "Range-separated stress does not support MPI parallelism.")
+        write(stdOut, *)"Range-separated stress does not support MPI parallelism, skipping!"
       #:else
         ! call env%globalTimer%startTimer(globalTimers%sparseToDense)
         call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&

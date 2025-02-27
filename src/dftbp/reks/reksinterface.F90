@@ -940,11 +940,11 @@ module dftbp_reks_reksinterface
         @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
             & implemented for REKS.")
       #:else
-        ! call hybridXc%addCamGradients_real(env, this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
-        !     & skOverCont, orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
-        !     & nonSccDeriv, .false., lcDerivs(:,:,iL), symNeighbourList=symNeighbourList,&
-        !     & nNeighbourCamSym=nNeighbourCamSym)
-        ! @:PROPAGATE_ERROR(errStatus)
+        call hybridXc%addCamGradients_real(env, this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
+            & skOverCont, orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
+            & nonSccDeriv, 1.0_dp, .false., lcDerivs(:,:,iL), symNeighbourList=symNeighbourList,&
+            & nNeighbourCamSym=nNeighbourCamSym)
+        @:PROPAGATE_ERROR(errStatus)
       #:endif
       end if
 
