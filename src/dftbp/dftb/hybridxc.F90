@@ -11,7 +11,7 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, distFudge
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : getStartAndEndIndex
@@ -525,12 +525,12 @@ contains
     if (present(gammaCutoff)) then
       this%gammaCutoff = gammaCutoff
 
-      ! Start beginning of the damping region and 95% of the gamma cutoff.
-      this%gammaDamping = 0.95_dp * this%gammaCutoff
+      ! Start of the damping region of the truncated Coulomb kernel
+      this%gammaDamping = this%gammaCutoff - distFudge
 
       if (this%gammaDamping <= 0.0_dp) then
-        @:RAISE_ERROR(errStatus, -1, "Beginning of damped region of electrostatics must be&
-            & positive.")
+        @:RAISE_ERROR(errStatus, -1, "The beginning of the damping region of the truncated Coulomb&
+            & kernel must be at a positive radius.")
       end if
 
       ! Tabulate truncated Gamma properties for all (symmetric) combinations of species
