@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+import os
+import re
+import fnmatch
+import argparse
+
+
+DESCRIPTION = "Replaces the year in files with existing copyright header."
+
+YEAR = "2025"
+
+PATTERN = re.compile(
+    r"""(?P<part1>Copyright\s+\(C\)\s+(\d{4}\s*-\s*)*)\d{4}(?P<part2>\s+DFTB\+\s+developers\s+group)"""
+)
+
+FOLDERS = ["app/", "cmake/", "src/", "sys/", "test/", "tools/", "utils/"]
+
+FILES = ["LICENSE"]
+
+CHANGE_MANUALLY = ["src/dftbp/common/release.F90", "doc/dptools/api/conf.py"]
+
+IGNORED_FOLDERS = ["__pycache__"]
+
+IGNORED_FILES = [
+    "*~",
+    "*.pyc",
+    "*/make.deps",
+    "*/make.extdeps",
+    "*.mgf",
+    "*.egg",
+    "*.skf",
+]
+
+
+def main():
+    """Main function"""
+    args = parse_arguments()
+    rootdir = os.path.abspath(args.rootdir)
+    process_files(rootdir)
+    print_files_manually(rootdir)
+
+
+def parse_arguments():
+    """Parses the arguments"""
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    msg = "Root directory of the project (default: current directory)"
+    parser.add_argument("--rootdir", default=os.getcwd(), help=msg)
+    args = parser.parse_args()
+    return args
+
+
+def process_files(rootdir):
+    """Replaces the year in header"""
+    file_list = find_files(rootdir)
+    number_files = len(file_list)
+    indent = len(str(number_files)) + 1
+    for num, file in enumerate(file_list):
+        changed_date = False
+        with open(file, "r", encoding="utf-8") as fp:
+            txt = fp.readlines()
+        newcontent, nsub = PATTERN.subn(rf"\g<part1>{YEAR}\g<part2>", "".join(txt))
+        if nsub:
+            changed_date = True
+        with open(file, "w", encoding="utf-8") as fp:
+            fp.write(newcontent)
+        if changed_date:
+            print(f"{num + 1:>{indent}} of {number_files}: ", file, " CHANGED")
+        else:
+            print(f"{num + 1:>{indent}} of {number_files}: ", file, " UNCHANGED")
+
+
+def find_files(rootdir):
+    """Walks through 'FOLDERS' and 'FILES' in rootdir and adds them to
+    'file_list'"""
+    file_list = []
+    for file in FILES:
+        file_list.append(os.path.join(rootdir, file))
+    for folder in FOLDERS:
+        for root, dirs, files in os.walk(os.path.join(rootdir, folder)):
+            dirs[:] = [d for d in dirs if d not in IGNORED_FOLDERS]
+            for file in files:
+                for ignored in IGNORED_FILES:
+                    if fnmatch.fnmatch(file, ignored):
+                        break
+                else:
+                    file_list.append(os.path.join(root, file))
+    return file_list
+
+
+def print_files_manually(rootdir):
+    """Prints the files that needs to be changed manually"""
+    print("Please change the year in the following files manually:")
+    for file in CHANGE_MANUALLY:
+        print(os.path.join(rootdir, file))
+
+
+if __name__ == "__main__":
+    main()

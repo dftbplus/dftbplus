@@ -56,7 +56,6 @@ Hamiltonian = DFTB {
     }
     Filling = MethfesselPaxton {
         Temperature [eV] = 1.0
-        Order = 2
     }
     SlaterKosterFiles {
         C-C = "./C-C.skf"
@@ -79,7 +78,7 @@ Analysis {
 }
 
 ParserOptions {
-    ParserVersion = 14
+    ParserVersion = 13
 }
 
 Parallel {

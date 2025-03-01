@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,10 +10,10 @@
 !> Contains routines to convert HSD input for old parser to the current format.
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, lc
   use dftbp_extlibs_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength,&
       & getNodeName, destroyNode, getItem1, destroyNodeList
-  use dftbp_io_charmanip, only : i2c, tolower
+  use dftbp_io_charmanip, only : i2c, newline, tolower
   use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
       & detailedError, getChildren
   use dftbp_io_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
@@ -843,6 +843,8 @@ contains
     type(fnode), pointer :: ch1, ch2, ch3, par, dummy, hybridAlgorithm
     type(string) :: buffer
     logical :: isScc, isNoneAlgorithm
+    integer :: iOrder
+    character(lc) :: strTmp
 
     call getDescendant(root, "Analysis/CalculateForces", ch1)
     if (associated(ch1)) then
@@ -890,6 +892,53 @@ contains
       call setUnprocessed(ch2)
       call setUnprocessed(ch1)
 
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Filling/MethfesselPaxton", ch1)
+    if (.not.associated(ch1)) then
+      call getDescendant(root, "Hamiltonian/xTB/Filling/MethfesselPaxton", ch1)
+    end if
+    if (associated(ch1)) then
+      call getDescendant(ch1, "Order", ch2, parent=par)
+      if (associated(ch2)) then
+        call getChildValue(ch2, "", iOrder, child=ch3)
+        if (iOrder > 1) then
+          write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
+              & " is now equivalent to ", (iOrder -1), " from parser version 14."
+          call detailedWarning(ch2, strTmp)
+        elseif (iOrder == 1) then
+          write(strtmp,"(A)")"Older Methfessel-Paxton requested order of 1 is now&
+              & equivalent to Gaussian smearing (order 0) from parser version 14." // newline //&
+              & "   Please test your calculation carefully, due to a (corrected) error for array&
+              & bounds in this case. "
+          call detailedWarning(ch2, strTmp)
+        else
+          write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
+              & " is now equivalent to a negative order of ", (iOrder -1), " from parser version 14&
+              & and is incorrect."
+          call detailedError(ch2, strTmp)
+        end if
+        dummy => removeChild(par, ch2)
+        call destroyNode(ch2)
+        iOrder = iOrder - 1
+        call setChildValue(ch1, "Order", iOrder, child=ch2)
+      else
+        call detailedWarning(ch1, "The default (i.e. unspecified) Methfessel-Paxton order in old&
+            & code versions was equivalent to Order=1." // newline //&
+            & "   This order is now the current default order from parser version 14.")
+      end if
+
+    end if
+
+    call getDescendant(root, "Hamiltonian/DFTB/Hybrid/LC", ch1)
+    if (associated(ch1)) then
+      call getDescendant(ch1, "Screening", ch2)
+      if (.not. associated(ch2)) then
+        call setChild(ch1, "Screening", ch2)
+        call setChild(ch2, "Thresholded", ch3)
+        call setUnprocessed(ch1)
+        call setUnprocessed(ch2)
+      end if
     end if
 
   end subroutine convert_13_14

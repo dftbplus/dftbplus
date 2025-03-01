@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -2474,10 +2474,13 @@ contains
     call gemm(T4R,T2R,T1R)
 
     ! build the commutator combining the real and imaginary parts of the previous result
-    !$OMP WORKSHARE
+    ! Note: parallelizing this construct via OMP WORKSHARE
+    ! Workaround:ifx:2024.2
+    ! OMP WORKSHARE construct drives compiler into an infinite loop and compilation never finishes
+    !!$OMP WORKSHARE
     rhoOld(:,:) = rhoOld + cmplx(0, -step, dp) * (T3R + imag * T4R)&
         & + cmplx(0, step, dp) * transpose(T3R - imag * T4R)
-    !$OMP END WORKSHARE
+    !!$OMP END WORKSHARE
 
   end subroutine propagateRhoRealH
 
@@ -2883,35 +2886,31 @@ contains
     complex(dp), allocatable :: T2(:,:), T3(:,:)
     integer :: iOrb
 
-    allocate(T2(this%nOrbs, this%nOrbs), T3(this%nOrbs, this%nOrbs))
-
+    allocate(T2(this%nOrbs, this%nOrbs))
+    allocate(T3(this%nOrbs, this%nOrbs))
     if (this%tRealHS) then
-      T2 = cmplx(eigvecsReal, 0, dp)
+      T2(:,:) = cmplx(eigvecsReal, kind=dp)
     else
-      T2 = eigvecsCplx
+      T2(:,:) = eigvecsCplx
     end if
-
-    T3 = 0.0_dp
+    T3(:,:) = 0.0_dp
     do iOrb = 1, this%nOrbs
       T3(iOrb, iOrb) = 1.0_dp
     end do
-    call gesv(T2,T3)
+    call gesv(T2, T3)
     Eiginv(:,:) = T3
-
     if (this%tRealHS) then
-      T2 = cmplx(transpose(eigvecsReal), 0, dp)
+      T2(:,:) = cmplx(transpose(eigvecsReal), kind=dp)
     else
-      T2 = conjg(transpose(eigvecsCplx))
+      T2(:,:) = conjg(transpose(eigvecsCplx))
     end if
 
-    T3 = 0.0_dp
+    T3(:,:) = 0.0_dp
     do iOrb = 1, this%nOrbs
       T3(iOrb, iOrb) = 1.0_dp
     end do
-    call gesv(T2,T3)
+    call gesv(T2, T3)
     EiginvAdj(:,:) = T3
-
-    deallocate(T2, T3)
 
   end subroutine tdPopulInit
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, distFudge
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : getStartAndEndIndex
@@ -456,6 +456,9 @@ contains
     !> Lattice vectors of (periodic) geometry
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !! Delta distance for finite differences
+    real(dp), parameter :: delta = 1.0E-8_dp
+
     !! Species indices
     integer :: iSp1, iSp2
 
@@ -522,12 +525,12 @@ contains
     if (present(gammaCutoff)) then
       this%gammaCutoff = gammaCutoff
 
-      ! Start beginning of the damping region and 95% of the gamma cutoff.
-      this%gammaDamping = 0.95_dp * this%gammaCutoff
+      ! Start of the damping region of the truncated Coulomb kernel
+      this%gammaDamping = this%gammaCutoff - distFudge
 
       if (this%gammaDamping <= 0.0_dp) then
-        @:RAISE_ERROR(errStatus, -1, "Beginning of damped region of electrostatics must be&
-            & positive.")
+        @:RAISE_ERROR(errStatus, -1, "The beginning of the damping region of the truncated Coulomb&
+            & kernel must be at a positive radius.")
       end if
 
       ! Tabulate truncated Gamma properties for all (symmetric) combinations of species
@@ -547,14 +550,14 @@ contains
               & this%omega, this%gammaDamping)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping, 1.0E-8_dp)
+              & this%omega, this%gammaDamping, delta)
           this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
               & this%hubbu(iSp2), this%gammaDamping)
           this%hfdGammaAtDamping(iSp1, iSp2)&
               & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%gammaDamping)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
-              & this%gammaDamping, 1.0E-8_dp)
+              & this%gammaDamping, delta)
         end do
       end do
     end if
@@ -567,13 +570,10 @@ contains
       @:RAISE_ERROR(errStatus, -1, "General CAM functionals not currently implemented for REKS.")
     end if
 
-    allocate(this%coords(3, nAtom0))
-    this%coords(:,:) = 0.0_dp
-    allocate(this%rCoords(3, nAtom0))
-    this%rCoords(:,:) = 0.0_dp
+    allocate(this%coords(3, nAtom0), source=0.0_dp)
+    allocate(this%rCoords(3, nAtom0), source=0.0_dp)
 
-    allocate(this%camGammaEval0(nAtom0, nAtom0))
-    this%camGammaEval0(:,:) = 0.0_dp
+    allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
     if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
@@ -668,11 +668,14 @@ contains
 
 
   !> Checks if obtained supercell folding matrix meets current requirements.
+  !!
+  !! Note: The array passed to this routine can be of shapes [3, 3] (excluding shifts) or [3, 4]
+  !! (including shifts).
   subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus)
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
-    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
-    !! vectors (between 0.0 and 1.0)
+    !! (should be integer values) and possibly shift of the grid along the three small reciprocal
+    !! lattice vectors (between 0.0 and 1.0)
     real(dp), intent(in), target :: supercellFoldingMatrix(:,:)
 
     !> Error status
@@ -1648,8 +1651,7 @@ contains
       tmpOvr(:,:) = overlap
       call adjointLowerTriangle(tmpOvr)
 
-      allocate(tmpDHam(matrixSize, matrixSize))
-      tmpDHam(:,:) = 0.0_dp
+      allocate(tmpDHam(matrixSize, matrixSize), source=0.0_dp)
 
       allocate(tmpDRho(matrixSize, matrixSize))
       tmpDRho(:,:) = deltaRho
@@ -1659,8 +1661,7 @@ contains
       allocate(tmpDDRho(matrixSize, matrixSize))
       tmpDDRho(:,:) = tmpDRho - this%dRhoPrev
       this%dRhoPrev(:,:) = tmpDRho
-      allocate(testOvr(nAtom0, nAtom0))
-      testOvr(:,:) = 0.0_dp
+      allocate(testOvr(nAtom0, nAtom0), source=0.0_dp)
       allocate(ovrInd(nAtom0, nAtom0))
 
       do iAtMu = 1, nAtom0
@@ -1758,9 +1759,8 @@ contains
       real(dp), intent(in), allocatable :: tmpDRho(:,:)
 
       if (.not. this%tScreeningInited) then
-        allocate(this%hprev(matrixSize, matrixSize))
+        allocate(this%hprev(matrixSize, matrixSize), source=0.0_dp)
         allocate(this%dRhoPrev(matrixSize, matrixSize))
-        this%hprev(:,:) = 0.0_dp
         this%dRhoPrev(:,:) = tmpDRho
         this%tScreeningInited = .true.
       end if
@@ -1848,8 +1848,7 @@ contains
       !> Hamiltonian matrix case
       real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpHH
 
-      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)))
-      tmpHH(:,:) = 0.0_dp
+      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)), source=0.0_dp)
       allocate(tmpDRho(size(deltaRhoSqr, dim=1), size(deltaRhoSqr, dim=1)))
       tmpDRho(:,:) = deltaRhoSqr
       call adjointLowerTriangle(tmpDRho)
@@ -2834,8 +2833,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -2849,8 +2847,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -3148,8 +3145,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -3163,8 +3159,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -3455,10 +3450,12 @@ contains
 #:endfor
 
 
-  !> Returns the value of a polynomial of 5th degree at x (or its derivative).
-  !! The polynomial is created with the following boundary conditions:
-  !! Its value, its 1st and 2nd derivatives are zero at x = rCut and agree with the provided values
-  !! at x = rDamp, i.e. x = rCut - delta.
+  !! Returns either f(x) or f'(x) for the unique 5th-degree polynomial that satisfies:
+  !!   f(rDamp) = y0
+  !!   f'(rDamp) = y0p
+  !!   f''(rDamp) = y0pp
+  !!   and f(rCut) = f'(rCut) = f''(rCut) = 0
+  !!
   !! WARNING: To avoid additional branches, there are no consistency checks, e.g. that rDamp < rCut
   pure function poly5zero(y0, y0p, y0pp, xx, rDamp, rCut, tDerivative) result(yy)
 
@@ -3483,65 +3480,74 @@ contains
     !> True, if the derivative at xx is desired, otherwise the function value it returned
     logical, intent(in), optional :: tDerivative
 
-    !! True, if the derivative at xx is desired, otherwise the function value it returned
-    !! Default: .false.
-    logical :: tPrime
-
-    !! Value of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
+    !! Value/derivative of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
     real(dp) :: yy
 
-    !! Polynomial coefficients
-    real(dp) :: aa, bb, cc, dd, ee, ff
+    !! True, if the derivative at xx is desired, otherwise the function value it returned
+    !! Default: .false.
+    logical :: tDerivative_
+
+    !! Dimensionless coordinate in [0, 1]
+    real(dp) :: tt
 
     !! rCut - rDamp
     real(dp) :: delta
 
+    !! Polynomial coefficients in tt
+    real(dp) :: aa, bb, cc, dd, ee, ff
+
+    !! Short-hands
+    real(dp) :: s0, s1, s2
+
+    !! P'(t) in terms of tt
+    real(dp) :: pd
+
     if (present(tDerivative)) then
-      tPrime = tDerivative
+      tDerivative_ = tDerivative
     else
-      tPrime = .false.
+      tDerivative_ = .false.
     end if
-
-    ! 5th order polynomial definition
-    ! f(x) = ax^5 + bx^4 + cx^3 + dx^2 + ex + f
-    ! f'(x) = 5ax^4 + 4bx^3 + 3cx^2 + 2dx + e
-    ! f''(x) = 20ax^3 + 12bx^2 + 6cx + 2d
-
-    ! boundary conditions:
-    ! f(rCut) = 0, f'(rCut) = 0, f''(rCut) = 0
-    ! f(rDamp) = y0, f'(rDamp) = y0p, f''(rDamp) = y0pp
 
     delta = rCut - rDamp
 
-    aa = -(delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0) / (2.0_dp * delta**5)
+    tt = (xx - rDamp) / delta
 
-    bb = (rCut * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0)&
-        & - 2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & / (2.0_dp * delta**5)
+    ! Fill known polynomial coefficients at tt=0
+    ff = y0
+    ee = y0p * delta
+    dd = 0.5_dp * y0pp * delta**2
 
-    cc = -(rCut * (-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta * y0)&
-        & + rCut**2 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0)&
-        & + delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & / (2.0_dp * delta**5)
+    ! Solve for aa, bb, cc from boundary conditions at tt=1
 
-    dd = (rCut * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2 * y0)&
-        & + rCut**2 * (-12.0_dp * delta**3 * y0pp - 84.0_dp * delta**2 * y0p - 180.0_dp * delta&
-        & * y0) + rCut**3 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Compute short-hands
+    s0 = -(dd + ee + ff)
+    s1 = -(2.0_dp * dd + ee)
+    s2 = -2.0_dp * dd
 
-    ee = -(rCut**2 * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2&
-        & * y0) + rCut**3*(-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta&
-        & * y0) + rCut**4 * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Solve step by step
+    aa = (s2 + 12.0_dp * s0 - 6.0_dp * s1) * 0.5_dp
+    bb = s1 - 3.0_dp * s0 - 2.0_dp * aa
+    cc = s0 - aa - bb
 
-    ff = (rCut**3 * (delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & + rCut**4 * (-2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & + rCut**5 * (delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0)) / (2.0_dp * delta**5)
-
-    if (tPrime) then
-      yy = 5.0_dp * aa * xx**4 + 4.0_dp * bb * xx**3 + 3.0_dp * cc * xx**2 + 2.0_dp * dd * xx + ee
+    ! Evaluate P(tt) or P'(tt) / delta using Horner's method
+    if (.not. tDerivative_) then
+      ! f(x) = P(tt)
+      yy = aa
+      yy = yy * tt + bb
+      yy = yy * tt + cc
+      yy = yy * tt + dd
+      yy = yy * tt + ee
+      yy = yy * tt + ff
     else
-      yy = aa * xx**5 + bb * xx**4 + cc * xx**3 + dd * xx**2 + ee * xx + ff
+      ! derivative w.r.t. xx:
+      ! P'(tt) / delta but first compute P'(tt) via Horner in tt
+      pd = 5.0_dp * aa
+      pd = pd * tt + 4.0_dp * bb
+      pd = pd * tt + 3.0_dp * cc
+      pd = pd * tt + 2.0_dp * dd
+      pd = pd * tt + ee
+
+      yy = pd / delta
     end if
 
   end function poly5zero
@@ -4986,8 +4992,7 @@ contains
     call getTwoLoopCompositeIndex(nAtom0, nAtom0, iAtMN)
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     tmpDeltaRhoSqr = deltaRhoSqr
     do iSpin = 1, nSpin
@@ -6377,8 +6382,7 @@ contains
     end do
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     ! First terms of (48)
     loopK1: do iAtK = 1, nAtom0

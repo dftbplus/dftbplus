@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1016,7 +1016,6 @@ contains
     type(TXLBOMDInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: pXlbomd, pXlbomdFast, pRoot, pChild
-    integer :: nKappa
     logical :: tXlbomdFast
 
     call getChild(node, 'Xlbomd', pXlbomd, requested=.false.)
@@ -1037,10 +1036,7 @@ contains
     end if
     allocate(input)
     call getChildValue(pRoot, 'IntegrationSteps', input%nKappa, 5, child=pChild)
-    ! Workaround for nagfor 6.1 as the derived type in the array comparison
-    ! is not recognized as such
-    nKappa = input%nKappa
-    if (all([5, 6, 7] /= nKappa)) then
+    if (all([5, 6, 7] /= input%nKappa)) then
       call detailedError(pChild, 'Invalid number of integration steps (must be&
           & 5, 6 or 7)')
     end if
@@ -1733,7 +1729,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -2012,7 +2008,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
@@ -2561,16 +2557,25 @@ contains
     select case (char(buffer))
     case ("fermi")
       ctrl%iDistribFn = fillingTypes%Fermi ! Fermi function
+    case ("gaussian")
+      ctrl%iDistribFn = fillingTypes%Methfessel ! Gauss function broadening of levels (0th order MP)
     case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2nd order
-      call getChildValue(value1, "Order", ctrl%iDistribFn, 2)
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 1st order
+      call getChildValue(value1, "Order", ctrl%iDistribFn, 1)
       if (ctrl%iDistribFn < 1) then
         call getNodeHSDName(value1, buffer)
-        write(errorStr, "(A,A,A,I4)")"Unsuported filling mode for '", &
-            & char(buffer),"' :",ctrl%iDistribFn
-        call detailedError(child, errorStr)
+        select case(ctrl%iDistribFn)
+        case (0)
+          write(errorStr, "(A)")"Methfessel-Paxton filling order 0 is equivalent to gaussian&
+              & smearing"
+          call detailedWarning(child, errorStr)
+        case default
+          write(errorStr, "(A,A,A,I4)")"Filling order must be above zero '", char(buffer),"' :",&
+              &ctrl%iDistribFn
+          call detailedError(child, errorStr)
+        end select
       end if
-      ctrl%iDistribFn = fillingTypes%Methfessel + ctrl%iDistribFn
+      ctrl%iDistribFn = ctrl%iDistribFn + fillingTypes%Methfessel
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
@@ -5012,7 +5017,7 @@ contains
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
-      call getChildValue(child, "Diagonaliser", child2)
+      call getChildValue(child, "Diagonaliser", child2, "", allowEmptyValue=.true.)
       call getNodeName(child2, buffer)
       select case(char(buffer))
       case ("arpack")
@@ -5026,6 +5031,8 @@ contains
       case ("stratmann")
         ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
         call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      case ("")
+        call detailedError(child2, "Missing diagonaliser method")
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
@@ -6210,26 +6217,18 @@ contains
     if (geom%tPeriodic) then
       contUnitVec = contactVec / sqrt(sum(contactVec**2, dim=1))
       dots = abs(matmul(contUnitVec, geom%latVecs))
-      mask = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
+      mask(:) = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
       if (count(mask) /= 1) then
         call error("Too many lattice vectors parallel to the contact")
       end if
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      ind = findloc(mask, .true., 1)
       newLatVecs = geom%latVecs
       newLatVecs(:,ind) = 2.0_dp * contactVec
       newOrigin = geom%origin
     else
       newLatVecs(:,1) = 2.0_dp * contactVec
-      mask = abs(contactVec) > 1e-8_dp
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      mask(:) = abs(contactVec) > 1e-8_dp
+      ind = findloc(mask, .true., 1)
       ! Note: ind is one-based, subtract 1 before modulo and add 1 after.
       indNext = modulo(ind + 1 - 1, 3) + 1
       indPrev = modulo(ind - 1 - 1, 3) + 1
@@ -6806,16 +6805,12 @@ contains
     end if
 
     ! Determine to which axis the contact vector is parallel.
-    mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
+    mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
       call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
       contactDir = 0
     else
-      ! Workaround for bug in Intel compiler (can not use index function)
-      contactDir = 1
-      do while (.not. mask(contactDir))
-        contactDir = contactDir + 1
-      end do
+      contactDir = findloc(mask, .true., 1)
     end if
 
   end subroutine getContactVector
@@ -7989,7 +7984,7 @@ contains
 
       allocate(input)
       input%hybridXcType = hybridXcSkType
-      call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
+      call getChildValue(hybridValue, "Screening", screeningValue, "MatrixBased",&
           & child=screeningChild)
 
       call getNodeName(screeningValue, buffer)
@@ -8031,7 +8026,7 @@ contains
           input%gammaType = hybridXcGammaTypes%mic
         case ("truncated")
           input%gammaType = hybridXcGammaTypes%truncated
-        case ("truncated+damping")
+        case ("truncatedanddamped")
           input%gammaType = hybridXcGammaTypes%truncatedAndDamped
         case default
           call getNodeHSdName(cmValue, buffer)
