@@ -2,8 +2,8 @@ set(projectdir ${PROJECT_SOURCE_DIR})
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-# execute_process is verbatim, therefore ";" must be replaced with " "
-string(REGEX REPLACE ";" " " releasename "${RELEASE}")
+# execute_process is verbatim, therefore ";" must be removed
+string(REGEX REPLACE ";" "" releasename "${RELEASE}")
 
 add_subdirectory(testers)
 
