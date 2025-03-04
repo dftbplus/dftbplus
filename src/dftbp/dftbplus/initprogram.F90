@@ -7092,18 +7092,15 @@ contains
     @:CREATE_CLASS(repulsive, TTwoBodyRep, TTwoBodyRep_init, twoBodyInp)
     call repulsiveList%push(repulsive)
 
-    #:if WITH_CHIMES
-      if (allocated(chimesInp)) then
-        if (.not. isPeriodic) then
-          call error("ChIMES repulsives currently require periodic boundary conditions")
-        end if
-        if (isHelical) then
-          call error("ChIMES repulsive is not compatible with helical boundary conditions")
-        end if
-        @:CREATE_CLASS(repulsive, TChimesRep, TChimesRep_init, chimesInp, speciesNames, species0)
-        call repulsiveList%push(repulsive)
+  #:if WITH_CHIMES
+    if (allocated(chimesInp)) then
+      if (isHelical) then
+        call error("ChIMES repulsive is not compatible with helical boundary conditions.")
       end if
-    #:endif
+        @:CREATE_CLASS(repulsive, TChimesRep, TChimesRep_init, chimesInp, speciesNames, species0)
+      call repulsiveList%push(repulsive)
+    end if
+  #:endif
 
     ! If multiple repulsives, wrap via container, otherwise use the one directly
     if (repulsiveList%size() > 1) then

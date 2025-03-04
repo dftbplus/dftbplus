@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Implements a repulsive correction using the ChIMES force field
+!> Implements a repulsive correction using the ChIMES force field.
 module dftbp_dftb_repulsive_chimesrep
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree, Hartree__kcal_mol
@@ -22,20 +22,27 @@ module dftbp_dftb_repulsive_chimesrep
 
 #:if WITH_CHIMES
 
-  !> Input for the Chimes repulsive calcualtor
+  !> Input for the ChIMES repulsive calculator.
   type :: TChimesRepInp
 
-    !> Name of the Chimes input file
-    character(:), allocatable :: chimesFile
+    !> Name of the ChIMES input file
+    character(len=:), allocatable :: chimesFile
+
+    !> Real-space box to enable ChIMES calculations for non-periodic systems. In this case, a
+    !! user-specified padding is parsed, in order to evaluate the molecule in a large box.
+    !! The user is responsible for ensuring that this padding is greater than the largest occurring
+    !! ChIMES cutoff, so that nothing leaks out (in the future, it should be possible to at least
+    !! query the maximum cutoff via the ChIMES interface, so that this step can be automated).
+    real(dp), allocatable :: box(:)
 
   end type TChimesRepInp
 
 
-  !> Contains the necessary data to query the ChiIMES force field
+  !> Contains the necessary data to query the ChIMES force field
   type, extends(TRepulsive) :: TChimesRep
     private
 
-    !> Chimes calculator
+    !> ChIMES calculator
     type(TChimesCalc) :: chimesCalc
 
     !> Lattice vector buffer
@@ -77,22 +84,22 @@ contains
 
 #:if WITH_CHIMES
 
-  !> Initialises ChIMES repulsive
+  !> Initialises ChIMES repulsive.
   subroutine TChimesRep_init(this, input, speciesNames, species0)
 
     !> Instance on exit
     type(TChimesRep), intent(out) :: this
 
-    !> Name of the Chimes input file
+    !> Name of the ChIMES input file
     type(TChimesRepInp), intent(in) :: input
 
     !> Name of the species in the system. Shape: [nSpecies]
-    character(*), intent(in) :: speciesNames(:)
+    character(len=*), intent(in) :: speciesNames(:)
 
     !> Species index of each atom in the central cell. Shape: [nAtom]
     integer, intent(in) :: species0(:)
 
-    integer :: nAtom
+    integer :: nAtom, ii
 
     call TChimesCalc_init(this%chimesCalc, input%chimesFile, 1, 0)
     nAtom = size(species0)
@@ -100,13 +107,22 @@ contains
     allocate(this%gradients(3, nAtom), source=0.0_dp)
     call this%updateSpecies(speciesNames, species0)
 
+    ! Non-periodic workaround
+    if (allocated(input%box)) then
+      ! Lattice vectors/padding in Bohr, converted to Angström when handed over to ChIMES
+      this%latVecs(:,:) = 0.0_dp
+      do ii = 1, 3
+        this%latVecs(ii, ii) = input%box(ii)
+      end do
+    end if
+
   end subroutine TChimesRep_init
 
 
   !> Notifies the calculator, that order of the species has been changed.
   subroutine TChimesRep_updateSpecies(this, speciesNames, species)
 
-    !> Instance.
+    !> Instance
     class(TChimesRep), intent(inout) :: this
 
     !> Name of the species in the system. Shape: [nSpecies]
@@ -120,7 +136,7 @@ contains
   end subroutine TChimesRep_updateSpecies
 
 
-  !> Returns the real space cutoff (actually 0, as Chimes does not make use of the neighbour list)
+  !> Returns the real space cutoff (actually 0, as ChIMES does not make use of the neighbour list).
   function TChimesRep_getRCutOff(this) result(cutOff)
 
     !> Instance
@@ -163,7 +179,7 @@ contains
     !> Mapping of atoms into the central cell. Shape: [nAllAtom]
     integer, intent(in) :: img2CentCell(:)
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighbourList
 
     real(dp) :: energy
@@ -176,9 +192,9 @@ contains
     call this%chimesCalc%calculate(coords(:, 1:nAtom) * Bohr__AA, this%latVecs * Bohr__AA,&
         & energy, this%gradients, this%stress)
     energy = energy * kcal_mol__Hartree
-    ! Chimes only returns total energy, distribute it equally on each atom.
+    ! ChIMES only returns total energy, distribute it equally on each atom.
     this%energyPerAtom(:) = energy / real(size(this%energyPerAtom), dp)
-    ! Chimes returns forces, not gradients
+    ! ChIMES returns forces, not gradients
     this%gradients(:,:) = -this%gradients(:,:) *  (kcal_mol__Hartree / AA__Bohr)
     this%stress(:,:) = this%stress * (kcal_mol__Hartree / AA__Bohr**3)
 
@@ -189,7 +205,7 @@ contains
   subroutine TChimesRep_getEnergy(this, coords, species, img2CentCell, neighbourList, Eatom,&
       & Etotal, iAtInCentralRegion)
 
-    !> Instance.
+    !> Instance
     class(TChimesRep), intent(in) :: this
 
     !> All atomic coordinates
@@ -224,19 +240,19 @@ contains
   end subroutine TChimesRep_getEnergy
 
 
-  !> Returns the gradients of the repulsive interaction
+  !> Returns the gradients of the repulsive interaction.
   subroutine TChimesRep_getGradients(this, coords, species, img2CentCell, neighbourList, grads)
 
     !> Instance
     class(TChimesRep), intent(in) :: this
 
-    !> coordinates (x,y,z, all atoms including possible images)
+    !> Coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> Species of atoms in the central cell.
+    !> Species of atoms in the central cell
     integer, intent(in) :: species(:)
 
-    !> Index of each atom in the central cell which the atom is mapped on.
+    !> Index of each atom in the central cell which the atom is mapped on
     integer, intent(in) :: img2CentCell(:)
 
     !> Neighbour list
@@ -250,29 +266,29 @@ contains
   end subroutine TChimesRep_getGradients
 
 
-  !> Returns the stress tensor contribution from the repulsive term
+  !> Returns the stress tensor contribution from the repulsive term.
   subroutine TChimesRep_getStress(this, coords, species, img2CentCell, neighbourList, cellVol,&
       & stress)
 
     !> Instance
     class(TChimesRep), intent(in) :: this
 
-    !> coordinates (x,y,z, all atoms including possible images)
+    !> Coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> Species of atoms in the central cell.
+    !> Species of atoms in the central cell
     integer, intent(in) :: species(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighbourList
 
-    !> cell volume.
+    !> Cell volume
     real(dp), intent(in) :: cellVol
 
-    !> stress tensor
+    !> Stress tensor
     real(dp), intent(out) :: stress(:,:)
 
     stress(:,:) = this%stress
@@ -281,7 +297,7 @@ contains
 
 #:else
 
-  !> Dummy initializer in case code was compiled without ChIMES
+  !> Dummy initializer in case code was compiled without ChIMES.
   subroutine TChimesRep_init()
   end subroutine TChimesRep_init
 
