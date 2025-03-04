@@ -148,6 +148,15 @@ jobs:
         echo "TEST_UUID=$(uuidgen)" >> ${GITHUB_ENV}
         ctest -j ${TEST_OMP_THREADS} --output-on-failure --test-dir ${BUILD_DIR}
 
+    - name: Rerun on one processor
+      run: |
+      if [ ${NPROC} > 1 ]; then
+        cmake -DTEST_MPI_PROCS=1 ..
+        ctest --output-on-failure --test-dir ${BUILD_DIR}
+      else
+        echo "MPI tested on 1 processor already"
+      fi
+
     - name: Archive any failed test output
       if: failure()
       run: |
