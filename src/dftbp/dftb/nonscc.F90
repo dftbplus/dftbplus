@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,10 +37,10 @@ module dftbp_dftb_nonscc
     integer :: diffType
   contains
 
-    !> evaluate first derivative
+    !> Evaluate first derivative
     procedure :: getFirstDeriv
 
-    !> evaluate second derivative
+    !> Evaluate second derivative
     procedure :: getSecondDeriv
 
   end type TNonSccDiff

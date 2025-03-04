@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -940,7 +940,7 @@ module dftbp_reks_reksinterface
         @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
             & implemented for REKS.")
       #:else
-        call hybridXc%addCamGradients_real(this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
+        call hybridXc%addCamGradients_real(env, this%deltaRhoSqrL(:,:,:,iL), this%overSqr,&
             & skOverCont, orb, denseDesc%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
             & nonSccDeriv, .false., lcDerivs(:,:,iL), symNeighbourList=symNeighbourList,&
             & nNeighbourCamSym=nNeighbourCamSym)

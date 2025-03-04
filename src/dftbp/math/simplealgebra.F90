@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@ module dftbp_math_simplealgebra
   implicit none
 
   private
-  public :: cross3, determinant33, derivDeterminant33, invert33
+  public :: cross3, determinant33, derivDeterminant33, invert33, diagonal
 
 contains
 
@@ -61,7 +61,7 @@ contains
   end function determinant33
 
 
-  !> Derivative of determinant of a 3x3 matrix
+  !> Derivative of determinant of a 3x3 matrix with respect to the values of the matrix elements
   subroutine derivDeterminant33(deriv,matrix)
 
     !> derivative of the determinant
@@ -122,5 +122,23 @@ contains
     inverted = inverted / det
 
   end subroutine invert33
+
+
+  !> Extract diagonal of a 3x3 matrix
+  function diagonal(A)
+
+    !> Matrix
+    real(dp), intent(in) :: A(3,3)
+
+    !> Diagonal entries
+    real(dp) :: diagonal(3)
+
+    integer :: ii
+
+    do ii = 1, size(A,dim=1)
+      diagonal(ii) = A(ii,ii)
+    end do
+
+  end function diagonal
 
 end module dftbp_math_simplealgebra

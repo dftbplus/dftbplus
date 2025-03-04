@@ -18,7 +18,7 @@ Geometry = GenFormat {
    15     4   1.19246000   0.38213000   0.00001000
 }
 
-Hamiltonian = DFTB { 
+Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-6
   MaxSCCIterations = 1000
@@ -36,23 +36,10 @@ Hamiltonian = DFTB {
     N = "p"
     O = "p"
   }
-  SlaterKosterFiles = {
-    O-O = "O-O.skf"
-    O-N = "O-N.skf"
-    O-C = "O-C.skf"
-    O-H = "O-H.skf"
-    N-O = "N-O.skf"
-    N-N = "N-N.skf"
-    N-C = "N-C.skf"
-    N-H = "N-H.skf"
-    C-O = "C-O.skf"
-    C-N = "C-N.skf"
-    C-C = "C-C.skf"
-    C-H = "C-H.skf"
-    H-O = "H-O.skf"
-    H-N = "H-N.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/3ob-3-1/"
+    Separator = "-"
+    Suffix  = ".skf"
   }
 }
 

@@ -4,7 +4,6 @@ Geometry = VaspFormat {
 
 Hamiltonian = DFTB {
 
-  SCC = Yes
   MaxSccIterations = 50
   SccTolerance = 1e-08
 
@@ -24,7 +23,7 @@ Hamiltonian = DFTB {
   }
 
   Hybrid = LC {
-    CoulombMatrix = Truncated+Damping {
+    CoulombMatrix = TruncatedAndDamped {
       CoulombCutoff = 4.689760
       GSummationCutoff = 90.758500
     }

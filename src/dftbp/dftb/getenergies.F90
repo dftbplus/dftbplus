@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -66,19 +66,19 @@ contains
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> electrons in each atomi shell
+    !> Electrons in each atomi shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> Multipole moments
     type(TMultipole), intent(in) :: multipole
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> is an external field present
+    !> Is an external field present
     logical, intent(in) :: isExtField
 
     !> Is the extended Lagrangian being used for MD
@@ -90,40 +90,40 @@ contains
     !> Is dual spin orbit being used
     logical, intent(in) :: tDualSpinOrbit
 
-    !> density matrix in sparse storage
+    !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
 
-    !> non-self-consistent hamiltonian
+    !> Non-self-consistent hamiltonian
     real(dp), intent(in) :: H0(:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> neighbour list
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours within cut-off for each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> image to real atom mapping
+    !> Image to real atom mapping
     integer, intent(in) :: img2CentCell(:)
 
-    !> index for sparse large matrices
+    !> Index for sparse large matrices
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> unit cell volume
+    !> Unit cell volume
     real(dp), intent(in) :: cellVol
 
-    !> external pressure
+    !> External pressure
     real(dp), intent(in) :: extPressure
 
-    !> electron entropy contribution
+    !> Electron entropy contribution
     real(dp), intent(in) :: TS(:)
 
-    !> potentials acting
+    !> Potentials acting
     type(TPotentials), intent(in) :: potential
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(inout) :: energy
 
     !> 3rd order settings
@@ -138,13 +138,13 @@ contains
     !> Onsite correction data with range-separated functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
-    !> data type for REKS
+    !> Data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
 
-    !> block (dual) atomic populations
+    !> Block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
     !> Imaginary part of block atomic populations
@@ -330,16 +330,16 @@ contains
   !> Calculates dispersion energy for current geometry.
   subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
 
-    !> dispersion interactions
+    !> Dispersion interactions
     class(TDispersionIface), intent(inout) :: dispersion
 
-    !> energy per atom
+    !> Energy per atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> total energy
+    !> Total energy
     real(dp), intent(out) :: Etotal
 
-    !> atoms in the central cell (or device region if transport)
+    !> Atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
@@ -357,7 +357,7 @@ contains
   !> Sums together components of final energies
   subroutine sumEnergies(energy)
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(inout) :: energy
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&

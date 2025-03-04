@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -36,10 +36,10 @@ module dftbp_dftb_dispuff
   !> Input structure for the van der Waals initialization.
   type :: TDispUffInp
 
-    !> potential depths (sized as nSpecies)
+    !> Potential depths (sized as nSpecies)
     real(dp), allocatable :: energies(:)
 
-    !> van der Waals radii (sized as nSpecies)
+    !> Van der Waals radii (sized as nSpecies)
     real(dp), allocatable :: distances(:)
 
   end type TDispUffInp
@@ -85,13 +85,13 @@ module dftbp_dftb_dispuff
     !> Reciprocal lattice vectors
     real(dp), allocatable :: gLatPoints(:,:)
 
-    !> energies for atoms
+    !> Energies for atoms
     real(dp), allocatable :: energies(:)
 
-    !> gradient contribution
+    !> Gradient contribution
     real(dp), allocatable :: gradients(:,:)
 
-    !> stress tensor component
+    !> Stress tensor component
     real(dp) :: stress(3,3) = 0.0_dp
 
     !> If first coordinate update
@@ -126,7 +126,7 @@ contains
   !> Inits a DispUff instance.
   subroutine DispUff_init(this, inp, nAtom, species0, latVecs)
 
-    !> data structure to initialise
+    !> Data structure to initialise
     type(TDispUff), intent(out) :: this
 
     !> Specific input parameters for Slater-Kirkwood.
@@ -312,16 +312,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> The vector to increase by the gradients.
@@ -346,7 +346,7 @@ contains
     !> Instance of dispersion
     class(TDispUff), intent(inout) :: this
 
-    !> tensor from the dispersion
+    !> Tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(this%coordsUpdated)

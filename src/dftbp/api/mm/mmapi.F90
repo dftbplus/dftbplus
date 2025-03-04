@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,29 +9,29 @@
 
 !> Provides DFTB+ API for MM-type high level access
 module dftbp_mmapi
-  use iso_fortran_env, only : output_unit
+  use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
-  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
-      & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
-      & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
-      & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
-      & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
-      & setExternalCharges, setGeometry, setNeighbourList, getRefCharges, setRefCharges
-  use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
+  use dftbp_dftbplus_mainapi, only : checkSpeciesNames, doOneTdStep, finalizeTimeProp,&
+      & getAtomicMasses, getCM5Charges, getCutOff, getElStatPotential, getEnergy,&
+      & getExtChargeGradients, getGradients, getGrossCharges, getRefCharges, getStressTensor,&
+      & getTdForces, initializeTimeProp, nrOfAtoms, nrOfKPoints, setExternalCharges,&
+      & setExternalPotential, setGeometry, setNeighbourList, setQDepExtPotProxy, setRefCharges,&
+      & setTdCoordsAndVelos, setTdElectricField, updateDataDependentOnSpeciesOrdering
+  use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild,&
-      & destroyNode
+  use dftbp_extlibs_xmlf90, only : appendChild, createDocumentNode, createElement, destroyNode,&
+      & fnode
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
-  use dftbp_io_message, only: error
-  use dftbp_type_linkedlist, only : TListString, init, append, get, len, asArray
+  use dftbp_io_message, only : error
+  use dftbp_type_linkedlist, only : append, asArray, get, init, len, TListString
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
   private

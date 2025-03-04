@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -98,7 +98,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, diagonal
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
@@ -130,6 +130,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
+  use dftbp_type_eleccutoffs, only : TCutoffs
   use dftbp_type_integral, only : TIntegral, TIntegral_init
   use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
       & append
@@ -157,7 +158,7 @@ module dftbp_dftbplus_initprogram
   implicit none
 
   private
-  public :: TDftbPlusMain, TCutoffs, TNegfInt
+  public :: TDftbPlusMain, TNegfInt
   public :: initReferenceCharges, updateReferenceShellCharges, initElectronNumber
 #:if WITH_TRANSPORT
   public :: overrideContactCharges
@@ -165,30 +166,6 @@ module dftbp_dftbplus_initprogram
 #:if WITH_SCALAPACK
   public :: getDenseDescBlacs
 #:endif
-
-  !> Interaction cutoff distances
-  type :: TCutoffs
-
-    !> Cutoff for overlap and Hamiltonian according to SK-files
-    real(dp) :: skCutOff
-
-    !> Cutoff for overlap and Hamiltonian according to SK-files minus possible cutoff reduction
-    real(dp) :: camCutOff
-
-    !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
-    real(dp), allocatable :: gSummationCutoff
-
-    !> Number of unit cells along each supercell folding direction to substract from MIC
-    !! Wigner-Seitz cell construction
-    integer, allocatable :: wignerSeitzReduction
-
-    !> Cutoff for truncated long-range Gamma integral
-    real(dp), allocatable :: gammaCutoff
-
-    !> Max. of all cutoffs
-    real(dp) :: mCutOff
-
-  end type TCutoffs
 
 
 #:if not WITH_TRANSPORT
@@ -878,6 +855,9 @@ module dftbp_dftbplus_initprogram
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
+    !> Does the solvent require symmetric neighbours?
+    logical :: areSolventNeighboursSym
+
     !> Dielectric scaling of electric fields (if relevant)
     type(TScaleExtEField) :: eFieldScaling
 
@@ -1350,9 +1330,11 @@ contains
     type(TCoulombInput), allocatable :: coulombInput
     type(TPoissonInput), allocatable :: poissonInput
 
-    logical :: tGeoOptRequiresEgy, isOnsiteCorrected
+    logical :: tGeoOptRequiresEgy, isOnsiteCorrected, areNeighboursSymmetric
     type(TStatus) :: errStatus
     integer :: nLocalRows, nLocalCols
+
+    logical :: isIoProc
 
   #:if WITH_MPI
     !! Number of k'-points
@@ -1399,13 +1381,14 @@ contains
     this%isElecDyn = allocated(input%ctrl%elecDynInp)
     this%isLinResp = allocated(input%ctrl%lrespini)
     this%isHybridXc = allocated(input%ctrl%hybridXcInp)
+    if (this%isHybridXc .and. .not. this%tSccCalc) call error("Hybrid calculations must be SCC")
     if (this%isHybridXc) then
-      allocate(this%symNeighbourList)
       this%hybridXcAlg = input%ctrl%hybridXcInp%hybridXcAlg
       this%checkStopHybridCalc = input%ctrl%checkStopHybridCalc
     else
       this%hybridXcAlg = hybridXcAlgo%none
     end if
+    areNeighboursSymmetric = this%isHybridXc
 
     if (this%t2Component) then
       this%nSpin = 4
@@ -1420,9 +1403,7 @@ contains
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
         & errStatus)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    if (errStatus%hasError()) call error(errStatus%message)
 
     ! Get species names and output file
     this%geoOutFile = input%ctrl%outFile
@@ -1460,11 +1441,7 @@ contains
       call this%tblite%getOrbitalInfo(this%species0, input%slako%orb)
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
-      ! Workaround: ifort 2021.7
-      ! Assignment of derived type instances with allocatable components seems to be broken,
-      ! resulting in a strange run-time error message. Turning it into move_alloc seems to avoid it.
-      !this%orb = input%slako%orb
-      call move_alloc(input%slako%orb, this%orb)
+      this%orb = input%slako%orb
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1521,7 +1498,7 @@ contains
     if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
       call error("Multiple MPI groups not available for excited state calculations")
     end if
-    
+
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
@@ -1548,6 +1525,12 @@ contains
           & groups for (', env%mpi%globalComm%size, ') total MPI processes!'
       call error(trim(tmpStr))
     end if
+  #:endif
+
+  #:if WITH_MPI
+    isIoProc = env%mpi%tGlobalLead
+  #:else
+    isIoProc = .true.
   #:endif
 
   #:if WITH_SCALAPACK
@@ -1708,9 +1691,7 @@ contains
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
         & this%writeTunn, this%tWriteLDOS, this%regionLabelLDOS, errStatus)
-    if (errStatus%hasError()) then
-      call error(errStatus%message)
-    end if
+    if (errStatus%hasError()) call error(errStatus%message)
   #:else
     this%tTunn = .false.
     this%tLocalCurrents = .false.
@@ -1815,14 +1796,6 @@ contains
     allocate(this%species(this%nAllAtom))
     allocate(this%img2CentCell(this%nAllAtom))
     allocate(this%iCellVec(this%nAllAtom))
-
-    if (allocated(this%symNeighbourList)) then
-      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
-      allocate(this%symNeighbourList%species(this%nAllAtom))
-      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
-      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
-      allocate(this%symNeighbourList%iPair(0, this%nAtom))
-    end if
 
     ! Check if multipolar contributions are required
     if (allocated(this%tblite)) then
@@ -1965,7 +1938,7 @@ contains
     if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
-    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile
+    this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile .and. isIoProc
 
     if (allocated(input%ctrl%electricField) .or. allocated(input%ctrl%atomicExtPotential)) then
       allocate(this%eField)
@@ -2110,9 +2083,6 @@ contains
       if (this%isHybridXc) then
         call error("Range separated calculations do not yet work with transport calculations")
       end if
-      if (this%isElecConstr) then
-        call error("Constrained DFTB calculations do not yet support electron transport.")
-      end if
     end if
   #:endif
 
@@ -2125,9 +2095,7 @@ contains
     this%nMovedCoord = 3 * this%nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      this%nGeoSteps = huge(1) - 1
-      ! Workaround:PGI 17.10 -> do i = 0, huge(1) executes 0 times
-      ! this%nGeoSteps = huge(1)
+      this%nGeoSteps = huge(1)
     else
       this%nGeoSteps = input%ctrl%maxRun
     end if
@@ -2350,35 +2318,43 @@ contains
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
     end if
 
+    this%areSolventNeighboursSym = .false.
     if (allocated(input%ctrl%solvInp)) then
       if (allocated(input%ctrl%solvInp%GBInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .false.
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%SASAInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName, this%latVec)
+              & this%nAtom, this%species0, this%speciesName, errStatus, this%latVec)
         else
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
-              & this%nAtom, this%species0, this%speciesName)
+              & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
+        this%areSolventNeighboursSym = .false.
+      end if
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
       if (.not.allocated(this%solvation)) then
         call error("Could not initialize solvation model!")
       end if
+      areNeighboursSymmetric = areNeighboursSymmetric .or. this%areSolventNeighboursSym
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%solvation%getRCutOff())
 
       call init_TScaleExtEField(this%eFieldScaling, this%solvation,&
@@ -2390,7 +2366,6 @@ contains
               & this%eFieldScaling%scaledExtEField(this%eField%EFieldStrength)
         end if
       end if
-
     end if
 
     if (allocated(this%halogenXCorrection)) then
@@ -2455,9 +2430,7 @@ contains
       allocate(this%electrostatPot)
       call TElStatPotentials_init(this%electrostatPot, input%ctrl%elStatPotentialsInp,&
           & allocated(this%eField) .or. this%tExtChrg, this%hamiltonianType, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (allocated(input%ctrl%pipekMezeyInp)) then
@@ -2561,6 +2534,7 @@ contains
             & calculations using the Arpack solver.")
       end if
       isOnsiteCorrected = allocated(this%onSiteElements)
+
       call ensureLinRespConditions(this%tSccCalc, this%t3rd .or. this%t3rdFull, this%tRealHS,&
           & this%tPeriodic, this%tCasidaForces, this%solvation, this%isHybLinResp, this%nSpin,&
           & this%tHelical, this%tSpinOrbit, allocated(this%dftbU), this%tempElec,&
@@ -2607,7 +2581,7 @@ contains
       end if
 
       call LinResp_init(this%linearResponse, input%ctrl%lrespini, this%nAtom, this%nEl(1),&
-          & this%nSpin, this%onSiteElements)
+          & this%nSpin, this%onSiteElements, isIoProc)
 
     end if
 
@@ -2807,47 +2781,57 @@ contains
         call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
             & this%isSparseReorderRequired)
       end associate
+      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+          & nLocalCols)
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
   #:endif
 
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
-    if (allocated(this%symNeighbourList)) then
-      if ((.not. this%tReadChrg) .and. (this%tPeriodic) .and. this%tPeriodic) then
+    if (areNeighboursSymmetric) then
+      allocate(this%symNeighbourList)
+      allocate(this%symNeighbourList%neighbourList)
+      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
+      allocate(this%symNeighbourList%species(this%nAllAtom))
+      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
+      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
+      allocate(this%symNeighbourList%iPair(0, this%nAtom))
+      if ((.not. this%tReadChrg) .and. this%tPeriodic) then
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
+        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix(:,:3), errStatus)
+        if (errStatus%hasError()) call error(errStatus%message)
         this%supercellFoldingDiag = input%ctrl%supercellFoldingDiag
+        @:ASSERT(all(this%supercellFoldingDiag ==&
+            & nint(diagonal(this%supercellFoldingMatrix(:,:3)))))
       end if
       if (this%isHybridXc) then
         call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
-        if (.not. this%tReadChrg) then
-          if (this%tPeriodic .and. this%tRealHS) then
+        if (this%tPeriodic .and. .not. this%tReadChrg) then
+          if (this%tRealHS) then
             ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
             call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
-                & input%ctrl%hybridXcInp%cutoffRed,&
+                & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
                 & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
                 & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
-          elseif (.not. this%tRealHS) then
+          else
             ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
             call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
-                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+                & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag, errStatus,&
                 & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
                 & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
                 & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
           end if
+          if (errStatus%hasError()) call error(errStatus%message)
         end if
 
         ! Non-periodic system (cluster)
         if (.not. this%tPeriodic) then
           call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
         end if
-      end if
 
-    #:if WITH_SCALAPACK
-      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
-          & nLocalCols)
-    #:else
-      nLocalRows = this%denseDesc%fullSize
-      nLocalCols = this%denseDesc%fullSize
-    #:endif
+      end if
 
       if (this%isHybridXc) then
         ! allocation is necessary to hint "initializeCharges" what information to extract
@@ -2887,14 +2871,16 @@ contains
     ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb
     ! truncation cutoff, therefore calling getHybridXcCutoff(), needs this information.
     if (this%isHybridXc .and. this%tReadChrg) then
-      ! First, check if supercell folding matrix is identical to previous run, if specified in input
+
+      ! First, check if supercell folding matrix is identical to the previous run, if it is
+      ! specified in the input
       if (allocated(input%ctrl%supercellFoldingMatrix)) then
         if (any(abs(input%ctrl%supercellFoldingMatrix&
             & - this%supercellFoldingMatrix) > 1e-06_dp)) then
           write(tmpStr, "(A,3I5,A,3I5,A,3I5,A,3F10.6)")&
               & 'Error while processing k-point sampling for hybrid run.'&
               & // NEW_LINE('A')&
-              & // '   When restarting, only identical k-point samplings to previous run are'&
+              & // '   When restarting, only identical k-point samplings to the previous run are'&
               & // NEW_LINE('A') // '   supported. In this case this would correspond to the&
               & following supercell' // NEW_LINE('A') // '   folding matrix:'&
               & // NEW_LINE('A'),&
@@ -2905,19 +2891,24 @@ contains
           call error(trim(tmpStr))
         end if
       end if
+
       if (this%tPeriodic .and. this%tRealHS) then
         ! Periodic system (Gamma-point only), dense Hamiltonian and overlap are real-valued
         call getHybridXcCutOff_gamma(this%cutOff, input%geom%latVecs,&
-            & input%ctrl%hybridXcInp%cutoffRed,&
+            & input%ctrl%hybridXcInp%cutoffRed, errStatus,&
+            & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff,&
             & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff)
       elseif (.not. this%tRealHS) then
         ! Dense Hamiltonian and overlap are complex-valued (general k-point case)
         call getHybridXcCutOff_kpts(this%cutOff, input%geom%latVecs,&
-            & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag,&
+            & input%ctrl%hybridXcInp%cutoffRed, this%supercellFoldingDiag, errStatus,&
             & gammaCutoff=input%ctrl%hybridXcInp%gammaCutoff,&
             & wignerSeitzReduction=input%ctrl%hybridXcInp%wignerSeitzReduction,&
             & gSummationCutoff=input%ctrl%hybridXcInp%gSummationCutoff)
       end if
+
+      if (errStatus%hasError()) call error(errStatus%message)
+
     end if
 
     if (this%isHybridXc) then
@@ -2931,9 +2922,7 @@ contains
           & gSummationCutoff=this%cutOff%gSummationCutoff,&
           & wignerSeitzReduction=this%cutOff%wignerSeitzReduction,&
           & latVecs=input%geom%latVecs)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      if (errStatus%hasError()) call error(errStatus%message)
       ! now all information is present to properly allocate density matrices and associate pointers
       call reallocateHybridXc(this, input%ctrl%hybridXcInp%hybridXcAlg, nLocalRows, nLocalCols,&
           & size(this%parallelKS%localKS, dim=2))
@@ -2978,8 +2967,7 @@ contains
     allocate(this%neighbourList)
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
-    if (allocated(this%symNeighbourList)) then
-      allocate(this%symNeighbourList%neighbourList)
+    if (areNeighboursSymmetric) then
       call TNeighbourlist_init(this%symNeighbourList%neighbourList, this%nAtom, nInitNeighbour)
       if (this%isHybridXc) then
         allocate(this%nNeighbourCam(this%nAtom))
@@ -3432,7 +3420,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Electronic solver", this%electronicSolver%getSolverName()
     end if
 
-    if (this%electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    if (this%electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       #:if WITH_MAGMA
         call env%initGpu()
       #:else
@@ -4022,6 +4010,10 @@ contains
       end if
 
       if (this%isHybridXc) then
+        if (this%tPeriodic) then
+          call error("Electron dynamics with hybrid xc-functionals are currently only available for&
+              & non-periodic systems.")
+        end if
         if (input%ctrl%elecDynInp%spType == tdSpinTypes%triplet) then
           call error("Triplet perturbations currently disabled for electron dynamics with hybrid&
               & xc-functionals.")
@@ -4041,14 +4033,12 @@ contains
       allocate(this%electronDynamics)
 
       call TElecDynamics_init(this%electronDynamics, input%ctrl%elecDynInp, this%species0,&
-          & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%mass,&
-          & this%nAtom, this%cutOff%skCutoff, this%cutOff%mCutoff, this%atomEigVal,&
-          & this%dispersion, this%nonSccDeriv, this%tPeriodic, this%parallelKS, this%tRealHS,&
-          & this%kPoint, this%kWeight, this%isHybridXc, this%scc, this%tblite, this%eFieldScaling,&
-          & this%hamiltonianType, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+          & this%speciesName, this%tWriteAutotest, autotestTag, randomThermostat, this%cutOff,&
+          & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
+          & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
+          & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
+          & errStatus)
+      if (errStatus%hasError()) call error(errStatus%message)
 
     end if
 
@@ -4062,7 +4052,7 @@ contains
 
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
-  !> particularly for external driving via API)
+  !! particularly for external driving via API)
   subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, speciesName,&
        & tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 
@@ -4132,12 +4122,20 @@ contains
     !> Instance
     class(TDftbPlusMain), intent(inout) :: this
 
-    ! Orbital equivalency for SCC and Spin
-    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    ! Orbital equivalency for orbital potentials
+    !> Orbital equivalency for SCC
+    integer, allocatable :: iEqOrbSCC(:,:,:)
+
+    !> Orbital equivalency for Spin
+    integer, allocatable :: iEqOrbSpin(:,:,:)
+
+    !> Orbital equivalency for orbital potentials
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
-    ! Equivalency for multipolar contributions
-    integer, allocatable :: iEqDip(:,:), iEqQuad(:,:)
+
+    !> Equivalency for dipole contributions
+    integer, allocatable :: iEqDip(:,:)
+
+    !> Equivalency for quadrupolar contributions
+    integer, allocatable :: iEqQuad(:,:)
 
     this%nIneqOrb = 0
     this%nIneqDip = 0
@@ -4263,7 +4261,7 @@ contains
     class(TDftbPlusMain), intent(inout) :: this
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     !> Initial spins
     real(dp), optional, intent(in) :: initialSpins(:,:)
@@ -4352,6 +4350,7 @@ contains
 
     ! Charges read from file
     if (this%tReadChrg) then
+
       if (this%tFixEf .or. this%tSkipChrgChecksum) then
         ! do not check charge or magnetisation from file
         call initQFromFile(this%qInput, fCharges, this%tReadChrgAscii, this%orb, this%qBlockIn,&
@@ -4377,14 +4376,6 @@ contains
         end if
       end if
 
-      ! Check if obtained supercell folding matrix meets current requirements
-      if (this%isHybridXc .and. this%tPeriodic) then
-        allocate(this%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(this%supercellFoldingMatrix, errStatus,&
-            & supercellFoldingDiagOut=this%supercellFoldingDiag)
-        @:PROPAGATE_ERROR(errStatus)
-      end if
-
     #:if WITH_TRANSPORT
       if (this%tUpload) then
         call overrideContactCharges(this%qInput, this%chargeUp, this%transpar, this%qBlockIn,&
@@ -4392,7 +4383,12 @@ contains
       end if
     #:endif
 
+      if (this%isHybridXc .and. this%tPeriodic) then
+        this%supercellFoldingDiag = nint(diagonal(this%supercellFoldingMatrix(:,:3)))
+      end if
+
     endif
+
 
     if (.not. allocated(this%reks)) then
       !Input charges packed into unique equivalence elements
@@ -4535,7 +4531,7 @@ contains
   end subroutine initializeCharges
 
 
-  ! Assign reference charge arrays, q0 and qShell0
+  !> Assign reference charge arrays, q0 and qShell0
   subroutine initReferenceCharges(species0, orb, referenceN0, nSpin, q0, qShell0, customOccAtoms,&
       & customOccFillings)
 
@@ -4668,11 +4664,19 @@ contains
   end subroutine initElectronNumber
 
 
-  ! Set up reference population
+  !> Set up reference charge population
   subroutine initReferencePopulation_(input, orb, hamiltonianType, referenceN0)
+
+    !> Code input
     type(TInputData), intent(in) :: input
+
+    !> Atomic orbital type info
     type(TOrbitals), intent(in) :: orb
+
+    !> Model in use
     integer, intent(in) :: hamiltonianType
+
+    !> Reference atomic shell charges
     real(dp), allocatable, intent(out) :: referenceN0(:,:)
 
     integer :: nSpecies
@@ -4741,11 +4745,19 @@ contains
   end subroutine initElectronFilling_
 
 
-  ! Set up Hubbard U values
+  !> Set up atomic Hubbard U values
   subroutine initHubbardUs_(input, orb, hamiltonianType, hubbU)
+
+    !> Input data
     type(TInputData), intent(in) :: input
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Model number of the calculation
     integer, intent(in) :: hamiltonianType
+
+    !> Atomic hubbard U values
     real(dp), allocatable, intent(out) :: hubbU(:,:)
 
     integer :: nSpecies
@@ -4863,7 +4875,6 @@ contains
 
 
   !> Creates all random generators needed in the code.
-  !!
   subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
 
     !> Environment settings
@@ -5370,7 +5381,7 @@ contains
 
 #:if WITH_TRANSPORT
 
-  ! initialize arrays for tranpsport
+  !> initialize arrays for tranpsport
   subroutine initUploadArrays_(transpar, orb, nSpin, hasBlockCharges, shiftPerLUp, chargeUp,&
       & blockUp)
 
@@ -5516,9 +5527,7 @@ contains
 
 
   !> Generate descriptions of large dense matrices in BLACS decomposition
-  !>
-  !> Note: It must be called after getDenseDescCommon() has been called.
-  !>
+  !! Note: It must be called after getDenseDescCommon() has been called.
   subroutine getDenseDescBlacs(env, rowBlock, colBlock, denseDesc, isSparseReorderRequired)
 
     !> Parallel environment
@@ -5553,8 +5562,7 @@ contains
 
 
   !> Generate description of the total large square matrices, on the basis of atomic orbital
-  !> orderings
-  !>
+  !! orderings
   subroutine getDenseDescCommon(this)
 
     !> Instance
@@ -6045,6 +6053,21 @@ contains
       call error("Onsite corrections not implemented for Stratmann diagonaliser.")
     end if
 
+    if (input%ctrl%lrespini%tTransQ) then
+      if(input%ctrl%lrespini%nstat == 0) then
+        call error("WriteTransitionCharges incompatible with StateOfInterest = 0.")
+      end if
+      select case(input%ctrl%lrespini%sym)
+      case("S"," ")
+        ! Singlet or spin-polarized case, printing makes sense
+      case("T","B")
+        ! Triplet case
+        call error("Transition charges are not written for triplets.")
+      case default
+        call error("Unknown excitation type requested")
+      end select
+    end if
+
     if (isHybLinResp) then
       if (input%ctrl%lrespini%iLinRespSolver /= linRespSolverTypes%Stratmann) then
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
@@ -6092,15 +6115,11 @@ contains
 
     cutOff%mCutoff = max(cutOff%mCutOff, cutoff%camCutOff)
 
-    ! dummy cutoff values
-    cutOff%gammaCutoff = 1.0_dp
-    cutOff%gSummationCutoff = 1.0_dp
-
   end subroutine getHybridXcCutOff_cluster
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, gSummationCutoff,&
+  subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, errStatus, gSummationCutoff,&
       & gammaCutoff)
 
     !> Resulting cutoff
@@ -6112,14 +6131,14 @@ contains
     !> CAM-neighbour list cutoff reduction
     real(dp), intent(in) :: cutoffRed
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
-
-    !! Error status
-    type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
@@ -6139,7 +6158,6 @@ contains
       allocate(cutOff%gammaCutoff)
       call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus)
       @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
@@ -6153,7 +6171,7 @@ contains
 
 
   !> Determine range separated cut-off and also update maximal cutoff
-  subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag,&
+  subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag, errStatus,&
       & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
 
     !> Resulting cutoff
@@ -6168,6 +6186,9 @@ contains
     !> Supercell folding coefficients and shifts
     integer, intent(in) :: supercellFoldingDiag(:)
 
+    !> Operation status, if an error needs to be returned
+    type(TStatus), intent(inout) :: errStatus
+
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
@@ -6177,9 +6198,6 @@ contains
 
     !> Coulomb truncation cutoff for Gamma electrostatics
     real(dp), intent(in), optional :: gammaCutoff
-
-    !! Error status
-    type(TStatus) :: errStatus
 
     if (cutoffRed < 0.0_dp) then
       call error("Cutoff reduction for hybrid xc-functional neighbours should be zero or positive.")
@@ -6200,7 +6218,6 @@ contains
       call getCoulombTruncationCutoff(latVecs, cutOff%gammaCutoff, errStatus,&
           & nK=supercellFoldingDiag)
       @:PROPAGATE_ERROR(errStatus)
-      if (errStatus%hasError()) call error(errStatus%message)
     end if
 
     if (present(gSummationCutoff)) then
@@ -6467,6 +6484,7 @@ contains
   end subroutine initPlumed
 
 
+  !> Check consistency of variables for REKS calculation
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, isDftbU, isExtField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
       & tPoisson, isShellResolved)
@@ -6602,7 +6620,7 @@ contains
     if (electronicSolver%providesEigenvals) then
       iDm = densityMatrixTypes%fromEigenVecs
     end if
-    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    if (electronicSolver%iSolver == electronicSolverTypes%magmaGvd) then
       if (isGpuUsed) then
         iDm = densityMatrixTypes%magma_fromEigenVecs
       else
@@ -6614,6 +6632,7 @@ contains
   end subroutine densityMatrixSource
 
 
+  !> Initialise a REKS calculator
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl, extChrg, blurWidths,&
       & hamiltonianType, nSpin, nExtChrg, is3rd, isHybridXc, isDispersion, isQNetAllocated,&
       & tForces, tPeriodic, tStress, tDipole)
@@ -6692,7 +6711,7 @@ contains
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
             & blurWidths, is3rd, isHybridXc, isDispersion, isQNetAllocated, tForces,&
             & tPeriodic, tStress, tDipole)
-      case(electronicSolverTypes%magma_gvd)
+      case(electronicSolverTypes%magmaGvd)
         call error("REKS is not compatible with MAGMA GPU solver")
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
           & electronicSolverTypes%elpadm, electronicSolverTypes%elpa)
@@ -6706,6 +6725,7 @@ contains
   end subroutine TReksCalc_init
 
 
+  !> Print information about a REKS calculation
   subroutine printReksInitInfo(reks, orb, speciesName, nType)
 
     !> Data type for REKS
@@ -6829,19 +6849,58 @@ contains
   end subroutine printReksInitInfo
 
 
-  ! Initializes the variables directly related to the user specified geometry.
+  !> Initializes the variables directly related to the user specified geometry.
   subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
       & recCellVol, errStatus)
+
+    !> Geometry input
     type(TInputData), intent(in) :: input
-    integer, intent(out) :: nAtom, nType
-    logical, intent(out) :: tPeriodic, tHelical
+
+    !> Total number of atoms, including images
+    integer, intent(out) :: nAtom
+
+    !> Number of chemical types
+    integer, intent(out) :: nType
+
+    !> Is this a periodic geometry
+    logical, intent(out) :: tPeriodic
+
+    !> Is this a helical geometry
+    logical, intent(out) :: tHelical
+
+    !> Boundary conditions
     type(TBoundaryConditions), intent(out) :: boundaryCond
+
+    !> Central cell coordinates
     real(dp), allocatable, intent(out) :: coord0(:,:)
+
+    !> Central cell chemical species
     integer, allocatable, intent(out) :: species0(:)
-    logical, intent(out) :: tCoordsChanged, tLatticeChanged
-    real(dp), allocatable, intent(out) :: latVec(:,:), origin(:), recVec(:,:), invLatVec(:,:)
-    real(dp), intent(out) :: cellVol, recCellVol
+
+    !> Have the coordinates been updated without updating dependent variables
+    logical, intent(out) :: tCoordsChanged
+
+    !> Have the lattice vectors been updated without updating dependent variables
+    logical, intent(out) :: tLatticeChanged
+
+    !> Lattice vectors if periodic/helical
+    real(dp), allocatable, intent(out) :: latVec(:,:)
+
+    !> Coordinate origin if periodic/helical
+    real(dp), allocatable, intent(out) :: origin(:)
+
+    !> Reciprocal space lattice vectors (2pi * inverse of lattice vector matrix transpose)
+    real(dp), allocatable, intent(out) :: recVec(:,:)
+
+    !> Inverse of lattice vectors
+    real(dp), allocatable, intent(out) :: invLatVec(:,:)
+
+    !> Volume of the real space unit cell
+    real(dp), intent(out) :: cellVol
+
+    !> Volume of the reciprocal space unit cell
+    real(dp), intent(out) :: recCellVol
 
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
@@ -6851,7 +6910,6 @@ contains
 
     tPeriodic = input%geom%tPeriodic
     tHelical = input%geom%tHelical
-
 
     if (tPeriodic) then
       call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
@@ -6899,10 +6957,16 @@ contains
   end subroutine initGeometry_
 
 
-  ! Initializes short gamma damping
+  !> Initializes short gamma damping
   subroutine initShortGammaDamping_(ctrl, speciesMass, damping)
+
+    !> Data control structure
     type(TControl), intent(in) :: ctrl
+
+    !> Masses for each atomic species in use
     real(dp), intent(in) :: speciesMass(:)
+
+    !> Damping factor
     type(TShortGammaDamp), intent(out) :: damping
 
     integer :: nSpecies
@@ -6922,13 +6986,22 @@ contains
   end subroutine initShortGammaDamping_
 
 
-  ! Initializes short gamma calculator
-  subroutine initShortGammaInput_(ctrl, speciesMass, uniqHubbU, shortGammaDamp,&
-      & shortGammaInp)
+  !> Initializes short gamma calculator
+  subroutine initShortGammaInput_(ctrl, speciesMass, uniqHubbU, shortGammaDamp, shortGammaInp)
+
+    !> Code control input
     type(TControl), intent(in) :: ctrl
+
+    !> Masses (in a.u.) for each chemical species
     real(dp), intent(in) :: speciesMass(:)
+
+    !> Distinct Hubard U values for each chemical species
     type(TUniqueHubbard), intent(in) :: uniqHubbU
+
+    !> Damping factors for short range gamma expression
     type(TShortGammaDamp), intent(in) :: shortGammaDamp
+
+    !> Input for the short range gamma
     type(TShortGammaInput), allocatable, intent(out) :: shortGammaInp
 
     allocate(shortGammaInp)
@@ -6947,12 +7020,22 @@ contains
   end subroutine initShortGammaInput_
 
 
-  ! Initializes a Coulomb-calculator
+  !> Initializes a Coulomb-calculator
   subroutine initCoulombInput_(env, ewaldAlpha, tolEwald, boundaryCond, coulombInput)
+
+    !> Computational environment
     type(TEnvironment), intent(in) :: env
+
+    !> Ewald sum alpha splitting parameter
     real(dp), intent(in) :: ewaldAlpha
+
+    !> Numerical tolerance for Ewald sum
     real(dp), intent(in) :: tolEwald
+
+    !> Geometrical boundary information
     integer, intent(in) :: boundaryCond
+
+    !> Input to the Coulomb routines
     type(TCoulombInput), allocatable, intent(out) :: coulombInput
 
     allocate(coulombInput)
@@ -6965,18 +7048,41 @@ contains
 
 #:if WITH_POISSON
 
-  ! Initializes a Poisson solver
+  !> Initializes a Poisson solver
   subroutine initPoissonInput_(input, nAtom, nType, species0, coord0, tPeriodic, latVec, orb,&
       & hubbU, poissonInput, shiftPerLUp)
+
+    !> Input data
     type(TInputData), intent(in) :: input
-    integer, intent(in) :: nAtom, nType
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Number of chemical types
+    integer, intent(in) :: nType
+
+    !> Central cell species
     integer, target, intent(in) :: species0(:)
+
+    !> Central cell atomic coordinates
     real(dp), target, intent(in) :: coord0(:,:)
+
+    !> Is this periodic
     logical, intent(in) :: tPeriodic
+
+    !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Atomic Hubbard U values
     real(dp), intent(in) :: hubbU(:,:)
+
+    !> Processed control for the Poisson solver
     type(TPoissonInput), allocatable, intent(out) :: poissonInput
+
+    !> Uploaded potential shifts for l-shells of atoms
     real(dp), intent(in), optional :: shiftPerLUp(:,:)
 
     allocate(poissonInput)
@@ -7011,16 +7117,32 @@ contains
 #:endif
 
 
-  ! Initializes the scc calculator
+  !> Initializes the scc calculator
   subroutine initSccCalculator_(env, orb, ctrl, boundaryCond, coulombInput, shortGammaInput,&
       & poissonInput, sccCalc)
+
+    !> Computational environment
     type(TEnvironment), intent(inout) :: env
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Code control
     type(TControl), intent(in) :: ctrl
+
+    !> Boundary conditions on calculation
     integer, intent(in) :: boundaryCond
+
+    !> Input for Coulomb calculation
     type(TCoulombInput), allocatable, intent(inout) :: coulombInput
+
+    !> Short-range gamma input
     type(TShortGammaInput), allocatable, intent(inout) :: shortGammaInput
+
+    !> Poisson solver inout
     type(TPoissonInput), allocatable, intent(inout) :: poissonInput
+
+    !> Self-consistent calculator object
     type(TScc), allocatable, intent(out) :: sccCalc
 
     type(TSccInput) :: sccInput
@@ -7060,14 +7182,32 @@ contains
   end subroutine initSccCalculator_
 
 
+  !> Initialise repulsive part of a DFTB calculation
   subroutine initRepulsive_(nAtom, isPeriodic, isHelical, pairRepulsives, chimesInp, speciesNames,&
-        & species0, repulsive)
+      & species0, repulsive)
+
+    !> Number of atoms
     integer, intent(in) :: nAtom
-    logical, intent(in) :: isPeriodic, isHelical
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: isPeriodic
+
+    !> Is this a helical geometry
+    logical, intent(in) :: isHelical
+
+    !> Pair-wise repulsive interaction between atoms
     type(TPairRepulsiveItem), allocatable, intent(inout) :: pairRepulsives(:,:)
+
+    !> Input for CHiMES, if in use
     type(TChimesRepInp), allocatable, intent(in) :: chimesInp
+
+    !> Names of chemical species
     character(*), intent(in) :: speciesNames(:)
+
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
+
+    !> Repulsive interaction type
     class(TRepulsive), allocatable, intent(out) :: repulsive
 
     type(TRepulsiveList), allocatable :: repulsiveList
@@ -7104,10 +7244,16 @@ contains
   end subroutine initRepulsive_
 
 
-  ! Decides how many Cholesky-decompositions should be buffered
+  !> Decides how many Cholesky-decompositions should be buffered
   subroutine getBufferedCholesky_(tRealHS, nLocalKS, nBufferedCholesky)
+
+    !> Is this a real valued (in real space) calculation
     logical, intent(in) :: tRealHS
+
+    !> Number of locally stored spin/k-points
     integer, intent(in) :: nLocalKS
+
+    !> Resulting number of Cholesky-factored overlap matrices to be stored
     integer, intent(out) :: nBufferedCholesky
 
     if (tRealHS) then

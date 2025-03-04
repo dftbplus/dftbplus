@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,10 +21,10 @@ contains
   !> Adds block (dual) charges onto end of a 1D vector of reduced charges
   subroutine appendBlockReduced(input, equiv, orb, output, isSkew)
 
-    !> unpacked data
+    !> Unpacked data
     real(dp), intent(in) :: input(:,:,:,:)
 
-    !> equivalences
+    !> Equivalences
     integer, intent(in) :: equiv(:,:,:,:)
 
     !> Information about the orbitals and their angular momenta
@@ -33,7 +33,7 @@ contains
     !> 1D array with appended data
     real(dp), intent(inout) :: output(:)
 
-    !> is skew symmetry required
+    !> Is skew symmetry required
     logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,8 +13,12 @@
 module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
+#:if WITH_MPI
+  use dftbp_common_schedule, only : getStartAndEndIndex
+#:endif
   use dftbp_io_message, only : error
   use waveplot_molorb, only : TMolecularOrbital, getValue
   implicit none
@@ -108,14 +112,17 @@ contains
 
   !> Initialises a GridCache instance.
   !! Caveat: Level index is not allowed to contain duplicate entries!
-  subroutine TGridCache_init(sf, levelIndex, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
-      & nPoints, tVerbose, eigvecbin, gridVec, origin, kPointCoords, tReal, molorb)
+  subroutine TGridCache_init(sf, env, levelIndexAll, nOrb, nAllLevel, nAllKPoint, nAllSpin,&
+      & nCached, nPoints, tVerbose, eigvecBin, gridVec, origin, kPointCoords, tReal, molorb)
 
     !> Structure to initialise
     type(TgridCache), intent(inout) :: sf
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
     !> Contains indexes (spin, kpoint, state) of the levels which must be calculated
-    integer, intent(in) :: levelIndex(:,:)
+    integer, intent(in) :: levelIndexAll(:,:)
 
     !> Nr. of orbitals (elements) in an eigenvectors
     integer, intent(in) :: nOrb
@@ -139,7 +146,7 @@ contains
     logical, intent(in) :: tVerbose
 
     !> Name of the binary eigenvector file
-    character(len=*), intent(in) :: eigvecbin
+    character(len=*), intent(in) :: eigvecBin
 
     !> Grid vectors
     real(dp), intent(in) :: gridVec(:,:)
@@ -156,18 +163,34 @@ contains
     !> Molecular orbital calculator
     type(TMolecularOrbital), pointer, intent(in) :: molorb
 
+    !! Contains indexes (spin, kpoint, state) to be calculated by the current MPI process
+    integer, allocatable :: levelIndex(:,:)
+
+    !! Start and end level index for MPI parallelization, if applicable
+    integer :: iLvlStart, iLvlEnd
+
+    !! Auxiliary variables
     integer ::nAll
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat
     integer :: curVec(3)
     logical :: tFound
 
+  #:if WITH_MPI
+    call getStartAndEndIndex(env, size(levelIndexAll, dim=2), iLvlStart, iLvlEnd)
+  #:else
+    iLvlStart = 1
+    iLvlEnd = size(levelIndexAll, dim=2)
+  #:endif
+
+    levelIndex = levelIndexAll(:, iLvlStart:iLvlEnd)
+
     @:ASSERT(.not. sf%tInitialised)
     @:ASSERT(size(levelIndex, dim=1) == 3)
     @:ASSERT(size(levelIndex, dim=2) > 0)
     @:ASSERT(minval(levelIndex) > 0)
-    @:ASSERT(maxval(levelIndex(1,:)) <= nAllLevel)
-    @:ASSERT(maxval(levelIndex(2,:)) <= nAllKPoint)
-    @:ASSERT(maxval(levelIndex(3,:)) <= nAllSpin)
+    @:ASSERT(maxval(levelIndex(1, :)) <= nAllLevel)
+    @:ASSERT(maxval(levelIndex(2, :)) <= nAllKPoint)
+    @:ASSERT(maxval(levelIndex(3, :)) <= nAllSpin)
     @:ASSERT(associated(molorb))
     @:ASSERT(all(shape(gridVec) == [3, 3]))
     @:ASSERT(size(origin) == 3)
@@ -204,14 +227,12 @@ contains
           curVec = [iLevel, iKPoint, iSpin]
           tFound = .false.
           lpLevelIndex: do ii = 1, size(levelIndex, dim=2)
-            tFound = all(levelIndex(:,ii) == curVec)
-            if (tFound) then
-              exit lpLevelIndex
-            end if
+            tFound = all(levelIndex(:, ii) == curVec)
+            if (tFound) exit lpLevelIndex
           end do lpLevelIndex
           if (tFound) then
             sf%levelIndex(:, ind) = curVec
-            ind = ind +1
+            ind = ind + 1
           end if
         end do
       end do
@@ -222,7 +243,7 @@ contains
     sf%cachePos = 1
     sf%nReadEigVec = 0
     sf%tFinished = .false.
-    call openFile(sf%fdEigVec, eigvecbin, mode="rb", iostat=iostat)
+    call openFile(sf%fdEigVec, eigvecBin, mode="rb", iostat=iostat)
     if (iostat /= 0) then
       call error("Can't open file '" // trim(eigvecBin) // "'.")
     end if
@@ -249,7 +270,7 @@ contains
 
     complex(dp), pointer, save :: gridValCmpl(:,:,:) => null()
 
-    call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+    call localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine TGridCache_next_real
 
@@ -271,13 +292,13 @@ contains
 
     real(dp), pointer, save :: gridValReal(:,:,:) => null()
 
-    call local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+    call localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine TGridCache_next_cmpl
 
 
   !> Working subroutine for the TGridCache_next_* subroutines.
-  subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+  subroutine localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
     !> Gridcache instance
     type(TgridCache), intent(inout), target :: sf
@@ -362,6 +383,6 @@ contains
     end if
     tFinished = sf%tFinished
 
-  end subroutine local_next
+  end subroutine localNext
 
 end module waveplot_gridcache

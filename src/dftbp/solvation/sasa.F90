@@ -1,11 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Non-polar solvent accessible surface area (SASA) contributions
 module dftbp_solvation_sasa
@@ -13,9 +14,9 @@ module dftbp_solvation_sasa
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_extlibs_lebedev, only : getAngGrid, gridSize
-  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_solvation_solvation, only : TSolvation
@@ -156,7 +157,7 @@ contains
 
 
   !> Initialize solvent accessible surface area model from input data
-  subroutine TSASACont_init(this, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TSASACont_init(this, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Initialised instance at return
     type(TSASACont), intent(out) :: this
@@ -172,6 +173,9 @@ contains
 
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
@@ -195,7 +199,7 @@ contains
     allocate(this%angWeight(gridSize(input%gridSize)))
     call getAngGrid(input%gridSize, this%angGrid, this%angWeight, stat)
     if (stat /= 0) then
-      call error("Could not initialize angular grid for SASA model")
+      @:RAISE_ERROR(errStatus, stat, "Could not initialize angular grid for SASA model")
     end if
 
     allocate(this%probeRad(nSpecies))
@@ -355,7 +359,7 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients, errStatus)
 
     !> Data structure
     class(TSASACont), intent(inout) :: this
@@ -377,6 +381,9 @@ contains
 
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)
@@ -422,7 +429,7 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb, errStatus)
 
     !> Data structure
     class(TSASACont), intent(inout) :: this
@@ -447,6 +454,9 @@ contains
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     @:ASSERT(this%tCoordsUpdated)
 

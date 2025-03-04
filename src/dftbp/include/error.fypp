@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2023  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2025  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@
 #:def ERROR_HANDLING(errVar, errNumber, msg)
   block
     use dftbp_common_accuracy, only : lc
-    use dftbp_io_message
+    use dftbp_io_message, only : error, warning
     !> Error handling string
     character(lc) :: stringTmp
 
@@ -41,7 +41,7 @@
 #:def FORMATTED_ERROR_HANDLING(errVar, errNumber, formating, *variables)
   block
     use dftbp_common_accuracy, only : lc
-    use dftbp_io_message
+    use dftbp_io_message, only : error, warning
     !> Error handling string
     character(lc) :: stringTmp
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,11 +15,11 @@ module dftbp_derivs_rotatedegen
   use dftbp_common_status, only : TStatus
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_qm, only : makeSimilarityTrans
-  use dftbp_type_wrappedintr, only : TwrappedReal2, TwrappedCmplx2
+  use dftbp_type_wrappedintr, only : TwrappedCmplx2, TwrappedReal2
 #:if WITH_SCALAPACK
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_type_densedescr, only: TDenseDescr
-  use linecomm_module, only : linecomm
+  use dftbp_extlibs_scalapackfx, only : linecomm
+  use dftbp_type_densedescr, only : TDenseDescr
 #:endif
   implicit none
 

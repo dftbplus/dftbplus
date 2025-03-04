@@ -23,7 +23,7 @@ Hamiltonian = DFTB {
     Suffix = ".skf"
   }
 
-  RangeSeparated = Global {
+  RangeSeparated = CAM {
     Screening = MatrixBased {}
   }
 

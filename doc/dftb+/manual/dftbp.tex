@@ -84,9 +84,10 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.ElectronDynamics}.
 \item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
   See p.~\pref{sec:dftbp.REKS}.
-\item[\is{InputVersion}] Program version, which the input file was written for.
+\item[\is{InputVersion}] Program version, which the input file was
+  written for. See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{ParserOptions}] Various options affecting the parser only.
-  See p.~\pref{sec:dftbp.ParserOptions}.
+  See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
   p.~\pref{sec:dftbp.Parallel}.
 \end{description}
@@ -365,9 +366,9 @@ Driver = GeometryOptimisation {
 \label{sec:dftbp.Optimiser.RF}
 
 Provides a rational function based optimiser.
-The geometry displacement step is determining obtaining the lowest eigenvalue of the augmented Hessian matrix.
+The geometry displacement step is determined from the lowest eigenvalue of the augmented Hessian matrix as proposed by Pulay {\itshape et al.}~\cite{Eckert1997}.
 The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimisation cycle.
-The augmented Hessian is build from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme.
+The augmented Hessian is built from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme~\cite{Broyden1970}.
 A unit matrix is used as guess for the model hessian.
 
 The scaling behaviour of the computational cost and memory usage for this optimisation step is quadratic in the number of optimised variables.
@@ -1410,8 +1411,9 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
 
 \begin{description}
 \item[\is{SCC}] If set to \is{Yes}, a self consistent charge (SCC)
-  calculation is made.
-
+  calculation is made. {\bf Note:} this keyword is not read for hybrid
+  calculations (\pref{sec:dftbp.Hybrid}), as these are {\em always}
+  SCC.
 \item[\is{SCCTolerance}] Stopping criteria for the SCC.  Specifies the
   tolerance for the maximum difference in any charge between two SCC
   cycles.
@@ -1786,6 +1788,7 @@ library.
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
   \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - & \pref{sec:dftbp.KPointsAndWeights} \\
+  \kw{ElectronicConstraints} &p&  & \cb & \pref{sec:dftbp.ElectronicConstraints} \\
 \end{ptable}
 
 \begin{description}
@@ -1853,7 +1856,7 @@ Hamiltonian = xTB {
 
 \subsection{ElectronicConstraints}
 \label{sec:dftbp.ElectronicConstraints}
-Allows to impose constraints on the electronic ground state by finding
+Allows imposition of constraints on the electronic ground state by finding
 the ground state of the system in a (carefully chosen) external
 potential~\cite{Hourahine2010}.
 
@@ -1902,9 +1905,13 @@ potential~\cite{Hourahine2010}.
     \item[\iscb{LBFGS}] Propagate micro-iterations using the LBFGS
       algorithm. See p.~\pref{sec:dftbp.Optimiser.LBFGS}.
   \end{description}
-  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb} optimiser proved to be most
-  stable, when propagating the micro-iterations. However, your experience may vary and
-  manual testing based on your particular system is advised.
+  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb}
+  optimiser proved to be most stable, when propagating the
+  micro-iterations. However, your experience may vary and manual
+  testing based on your particular system is advised.\footnote{For
+  transport calculations, section~\ref{app:transp}, gradient-only
+  optimizers, i.e., \kw{SteepestDescent\cb} and \kw{FIRE\cb} are to be
+  preferred.}
 
 \item[\is{ConstrTolerance}] Stopping criteria for the micro-iterations.
   Specifies the tolerance for the maximum difference in any condition of
@@ -2545,7 +2552,7 @@ quality of the solutions).
 \subsection{Filling}
 \label{sec:dftbp.Filling}
 
-There are currently two types of filling supported (see below). Both have common
+There are currently three types of filling supported (see below). All have common
 options:
 
 \begin{ptable}
@@ -2600,11 +2607,15 @@ high electron temperatures (for example when calculating metallic systems). Ther
 is an additional option for this type of filling:
 
 \begin{ptable}
-  \kw{Order} &i &  & 2 & \\
+  \kw{Order} &i &  & 1 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Order}] Order of the Methessel-Paxton scheme, the order must be
-  greater than zero, and the 1st order scheme is equivalent to Gaussian filling.
+\item[\is{Order}] Order of the Methessel-Paxton scheme, the order must
+  be greater than zero, and the 0$^\mathrm{th}$ order scheme is
+  equivalent to Gaussian filling. There is often no advantage to
+  higher orders than 1 (the default). All orders higher than 0 have no
+  linear or quadratic dependence of the free energy with electronic
+  temperature.
 \end{description}
 
 \textbf{Note:} Due to the non-monotonic behaviour of the Methfessel-Paxton filling function, the
@@ -2613,12 +2624,32 @@ different fillings, band entropies, and Mermin free energies may result, dependi
 been found by the Fermi-level search algorithm. The differences, however, are usually not physically
 significant.
 
+\subsubsection{Gaussian\cb}
+\label{sec:dftbp.Gaussian}
+
+Fills the single particle levels acording to gaussian broadened
+levels. When using a finite temperature, the Mermin free energy (which
+the code prints) should be used instead of the total energy. This is
+given by $E - TS$, where the electron entropy $S$ is used.
+
+Example:
+\invparskip
+\begin{verbatim}
+  Filling = Gaussian {
+    Temperature [K] = 300
+  }
+\end{verbatim}
+
+\textbf{Note:} Gaussian smearing is equivalent to Methfessel-Paxton
+\is{Order} = 0 broadening, but unlike Methfessel-Paxton broadening,
+the entropy of the distribution is strongly affected by temperature.
+
 \subsection{Time-independent DFTB (TI-DFTB) excited states}
 
 \subsubsection{$\boldsymbol\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
-singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
+singlet species~\cite{irle-JCTC-12-313}. The KS spin orbitals are self-constently
 optimised under non-Aufbau orbital occupation constraints via promotion of an
 electron from the highest occupied molecular orbital (HOMO) of the ground state
 to lowest unoccupied molecular orbital (LUMO) at each SCC
@@ -3657,7 +3688,7 @@ For the electronegativity equilibration model the following parameters are avail
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
-up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
+up to 86 can be supplied automatically~\cite{caldeweyher-jcp-150-154122}.
 
 \begin{ptable}
   \kw{Chi} & m & & \is{Defaults} & \\
@@ -3736,7 +3767,7 @@ while \is{Cov\cb} is the default coordination number for DFTD4.
 \begin{description}
 
 \item[\is{Radii}] Covalent radii of all species in Bohr.
-  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+  Default values taken are the DFTD3 covalent radii~\cite{grimme-jcp-132-154104}.
 
 \item[\is{Electronegativities}] Electronegativities of all species.
   Default values taken are Pauling ENs.
@@ -3983,7 +4014,7 @@ systems.
   \item[\is{Kernel}]
     Interaction kernel for the screened Coulomb operator.
     Possible options are the canonical ``Still'' kernel\cite{still1990} and the
-    ``P16'' kernel.\cite{lange2012}
+    ``P16'' kernel~\cite{lange2012}.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3993,7 +4024,7 @@ systems.
   \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
     polynomial to correct Born radii calculation.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
-    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I~\cite{onufriev2004}.
 
   \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
     before evaluating the Born energy.
@@ -4027,7 +4058,7 @@ systems.
 
   \item[\is{Alpha}]
     Alpha parameter in the ALPB model, should be kept to 0.571412 which was
-    derived from first principles.\cite{sigalov2006}
+    derived from first principles~\cite{sigalov2006}.
 \end{description}
 
 Example for a GB model with \cf{CS2} as solvent:
@@ -4181,7 +4212,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
   \kw{State} & s & & gsolv & \\
   \kw{AngularGrid} & i & & & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
-  \kw{RadiiScaling} & r & & & \\
+  \kw{RadiiScaling} & r & & 1.0 & \\
   \kw{Solver} & m & & \kw{DomainDecomposition} & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
 \end{ptable}
@@ -4218,7 +4249,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of solving the
     COSMO equations, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -4227,19 +4258,19 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
     4334, 4802, 5294, 5810.
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
-    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+  \item[\is{Radii}] Atomic radii for each element, either defaults to
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overridden)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
     Alternatively, \is{VanDerWaalsRadiiCosmo\cb} and \is{VanDerWaalsRadiiBondi\cb}
     can be used to provide van-der-Waals radii. Note that Bondi radii\cite{mantina2009}
-    are only available for main group elements and Cosmo optimised radii default to
+    are only available for main group elements and COSMO optimised radii default to
     2.223~AA if no optimised values are available.
 
   \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.3 and 1.5 are recommended when using DFT-D3 van-der-Waals
     radii, while for Bondi radii usually values between 1.2 and 1.3 are used.
-    Cosmo optimised radius should be used with a scaling factor of unity.
+    COSMO optimised radii should be used with a scaling factor of unity.
 
   \item[\is{Solver}] for the COSMO equation. Currently only
     \is{DomainDecomposition\cb} is implemented (default). If specified
@@ -4296,7 +4327,7 @@ where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
 is the accessible surface area of each atom.
 To calculate the latter, the molecule is assumed as a convolution of spheres
 which is probed by a probe sphere rolled around the surface.
-Here a smooth numerical integration approach is employed.\cite{im2003}
+Here a smooth numerical integration approach is employed~\cite{im2003}.
 
 To use the non-polar surface area model in an calculation use the
 \is{SASA\cb} method in the input to \kw{Solvation}.
@@ -4330,7 +4361,7 @@ This model is currently only available for finite systems.
     for as SASA.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of evaluating the
     accessible surface area, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -4548,7 +4579,9 @@ Hamiltonian = DFTB {
 \subsection{Hybrid}
 \label{sec:dftbp.Hybrid}
 
-The \kw{Hybrid} keyword specifies the use of a (range-separated) hybrid functional.
+The \kw{Hybrid} keyword specifies the use of a (range-separated)
+hybrid functional.  This model automatically enforces self-consistent
+(SCC) calculations, so does not use the \kw{SCC} keyword in its input.
 For the non-periodic formalism we refer to
 Refs.~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}, whereas the formalism for
 periodic boundary conditions is developed in Ref.~\cite{vdH-PRM-7-063802}.
@@ -4667,7 +4700,7 @@ The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following optio
     Note: Recommended choice for most calculations, especially if analytic energy gradients
       are required, i.e.\ geometry relaxation or MD simulations.
 
-  \item[\is{Truncated+Damping \cb}] Identical to \is{Truncated} block, but with additional
+  \item[\is{TruncatedAndDamped \cb}] Identical to \is{Truncated} block, but with additional
     fifth-order polynomial damping to zero, instead of hard truncation.
 
     \begin{ptable}
@@ -5062,27 +5095,28 @@ This block collects some global options for the run.
   BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
-\item[\is{MDOutput}] Options controlling output of data during
-  molecular dynamics calculations.
-
-  \begin{ptable}
-    \kw{AppendBandOut} & l &  & No & \\
-    \kw{Derivatives} & l & & Yes & \\
-    \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
-  \end{ptable}
-  \begin{description}
-  \item[\is{AppendBandOut}] If enabled, add the band structure for the
-    current geometry to \verb|band.out| every \kw{MDRestartFrequency}
-    steps. If set to \is{No}, only the band structure for the most
-    recent geometry is stored in that file.
-  \item[\is{Derivatves}] If enabled, save forces (and stress if
-    periodic) data in \verb|md.out|.
-  \item[\is{Charges}] If enabled, save charges and charge related
-    quantities.
-  \end{description}
-
 \end{description}
 
+\subsection{MDOutput}
+\label{sec:dftbp.MDOutput}
+Options controlling output of data during molecular dynamics
+calculations.
+
+\begin{ptable}
+  \kw{AppendBandOut} & l &  & No & \\
+  \kw{Derivatives} & l & & Yes & \\
+  \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{AppendBandOut}] If enabled, add the band structure for the
+  current geometry to \verb|band.out| every \kw{MDRestartFrequency}
+  steps. If set to \is{No}, only the band structure for the most
+  recent geometry is stored in that file.
+\item[\is{Derivatves}] If enabled, save forces (and stress if
+  periodic) data in \verb|md.out|.
+\item[\is{Charges}] If enabled, save charges and charge related
+  quantities.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Analysis
@@ -5123,8 +5157,8 @@ calculation and/or calculate properties.
   charge associated only with the on-site part of the atomic orbitals, not the
   off-site hybridisation).
 
-\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is written as
-  a cosmo file to dftbp.cosmo. Only works if the solvation model is COSMO.
+\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is
+  written to dftbp.cosmo. Only works if the solvation model is COSMO.
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
@@ -5146,7 +5180,7 @@ calculation and/or calculate properties.
   configuration, prepended by the name of the state. The $s_1$ state
   will be spin contaminated, so if used for density of states will
   require processing according to the Ziegler sum
-  rule.\cite{baerends-TCA-43-261}
+  rule~\cite{baerends-TCA-43-261}.
 
 \item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
@@ -5495,8 +5529,7 @@ available for range separated calculations.
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
-    \kw{WriteTransitionCharges} & l & \parbox{0.3\textwidth}{\raggedright
-      \is{RangeSeparated} and \is{StateOfInterest} non-zero} & No & \\
+    \kw{WriteTransitionCharges} & l & \is{StateOfInterest} non-zero & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
     \kw{WriteMulliken}          & l & & No & \\
     \kw{WriteCoefficients}      & l & & No & \\
@@ -5555,15 +5588,18 @@ available for range separated calculations.
     created, which contains the spectrum at the uncoupled DFTB level (i.e.\ the
     single-particle excitations).
 
-  \item[\is{WriteTransitionCharges}] For range separated calculations
-    (p.~\pref{sec:dftbp.Hybrid}) setting this to \is{Yes} generates the file
-    ATQ.DAT containing the Mulliken charges for a specific transition (chosen by
-    \is{StateOfInterest}).
+  \item[\is{WriteTransitionCharges}] For singlet or spin-polarized
+    calculations setting this to \is{Yes} generates the file
+    ATQ.DAT containing the Mulliken charges for a specific excited state (chosen by
+    \is{StateOfInterest}) according to~\cite{plotz2014new}.
 
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT
     are created. The former contains atom-resolved Mulliken (gross) charges for
     the excited state of interest, the latter the excited-state dipole moment of
-    the state.
+    the state. Warning: These quantities are computed from the relaxed
+    transition density added to the ground state density and possibly do not
+    faithfully represent the charges for a given excited many-body
+    state.
 
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is
     created. This file contains the complex eigenvectors (molecular orbital

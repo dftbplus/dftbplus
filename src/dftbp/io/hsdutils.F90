@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -385,7 +385,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as real.
-  subroutine getChVal_real(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_real(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -405,11 +405,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -427,8 +431,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
-      if (present(modifier)) then
-        modifier = ""
+      if (present(modifier)) modifier = ""
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
       end if
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
@@ -725,7 +730,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as integer.
-  subroutine getChVal_int(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_int(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -745,11 +750,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -767,8 +776,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
-      if (present(modifier)) then
-        modifier = ""
+      if (present(modifier)) modifier = ""
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
       end if
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
@@ -3599,7 +3609,7 @@ contains
 
     type(string) :: str
 
-    str = msg
+    str = trim(msg)
     call appendPathAndLine(node, str)
     call warning(char(str) // newline)
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -114,13 +114,13 @@ contains
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
-        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi])
+        & electronicSolverTypes%magmaGvd, electronicSolverTypes%pexsi])
 
     !> TS term for electrons is available
     this%providesElectronEntropy = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
-        & electronicSolverTypes%elpadm, electronicSolverTypes%magma_gvd,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%magmaGvd,&
         & electronicSolverTypes%pexsi])
 
     !> Electron chemical potential is either available or provided externally. Note this can get
@@ -130,7 +130,7 @@ contains
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
-        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi, electronicSolverTypes%gf])
+        & electronicSolverTypes%magmaGvd, electronicSolverTypes%pexsi, electronicSolverTypes%gf])
 
     !> The electronic Helmholtz free energy of the system is available (U - TS + mu N_elec). Note
     !> that chemical potential logical can be re-defined elsewhere.
@@ -159,7 +159,7 @@ contains
     providesEigenvalues = any(iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
-        & electronicSolverTypes%magma_gvd])
+        & electronicSolverTypes%magmaGvd])
 
   end function providesEigenvalues
 
@@ -215,7 +215,7 @@ contains
     case(electronicSolverTypes%onlyTransport)
       write(buffer, "(A)") "Transport Only (no energies)"
 
-    case(electronicSolverTypes%magma_gvd)
+    case(electronicSolverTypes%magmaGvd)
       write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
 
     case default

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_dftb_energytypes
   !> in the old arrays - makes extending energy expression easier.
   type TEnergies
 
-    !> repulsive energy
+    !> Repulsive energy
     real(dp) :: Erep = 0.0_dp
 
     !> Non-SCC energy
@@ -29,22 +29,22 @@ module dftbp_dftb_energytypes
     !> SCC energy
     real(dp) :: ESCC = 0.0_dp
 
-    !> spin energy
+    !> Spin energy
     real(dp) :: Espin = 0.0_dp
 
-    !> range-separation energy
+    !> Range-separation energy
     real(dp) :: Efock = 0.0_dp
 
-    !> spin orbit energy
+    !> Spin orbit energy
     real(dp) :: ELS = 0.0_dp
 
     !> DFTB+U energy
     real(dp) :: Edftbu = 0.0_dp
 
-    !> energy in external field
+    !> Energy in external field
     real(dp) :: Eext = 0.0_dp
 
-    !> total electronic energy
+    !> Total electronic energy
     real(dp) :: Eelec = 0.0_dp
 
     !> Dispersion energy
@@ -59,10 +59,10 @@ module dftbp_dftb_energytypes
     !> Electronic entropy times temperature
     real(dp), allocatable :: TS(:)
 
-    !> band structure energy
+    !> Band structure energy
     real(dp), allocatable :: EBand(:)
 
-    !> zero temperature estimated band energy
+    !> Zero temperature estimated band energy
     real(dp), allocatable :: E0(:)
 
     !> Onsite correction energy
@@ -83,7 +83,7 @@ module dftbp_dftb_energytypes
     !> Excitation energy
     real(dp) :: Eexcited = 0.0_dp
 
-    !> total energy (Erep+Etotal)
+    !> Total energy (Erep+Etotal)
     real(dp) :: Etotal = 0.0_dp
 
     !> Total energy for averaged state in REKS
@@ -112,49 +112,49 @@ module dftbp_dftb_energytypes
     !> used for example in geometry optimisation or energetic comparisons.
     real(dp) :: EForceRelated = 0.0_dp
 
-    !> atom resolved repulsive
+    !> Atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
 
-    !> atom resolved non-SCC
+    !> Atom resolved non-SCC
     real(dp), allocatable :: atomNonSCC(:)
 
-    !> atom resolved SCC
+    !> Atom resolved SCC
     real(dp), allocatable :: atomSCC(:)
 
-    !> atom resolved spin
+    !> Atom resolved spin
     real(dp), allocatable :: atomSpin(:)
 
-    !> atom resolved spin orbit
+    !> Atom resolved spin orbit
     real(dp), allocatable :: atomLS(:)
 
-    !> atom resolved DFTB+U
+    !> Atom resolved DFTB+U
     real(dp), allocatable :: atomDftbu(:)
 
-    !> atom resolved external field
+    !> Atom resolved external field
     real(dp), allocatable :: atomExt(:)
 
-    !> atom resolved electronic total
+    !> Atom resolved electronic total
     real(dp), allocatable :: atomElec(:)
 
-    !> atom resolved dispersion
+    !> Atom resolved dispersion
     real(dp), allocatable :: atomDisp(:)
 
-    !> atom onsite correction energies
+    !> Atom onsite correction energies
     real(dp), allocatable :: atomOnSite(:)
 
-    !> atom halogen bond correction energies
+    !> Atom halogen bond correction energies
     real(dp), allocatable :: atomHalogenX(:)
 
-    !> atom resolved 3rd order
+    !> Atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
 
-    !> atom resolved solvation free energy
+    !> Atom resolved solvation free energy
     real(dp), allocatable :: atomSolv(:)
 
-    !> atom resolved total
+    !> Atom resolved total
     real(dp), allocatable :: atomTotal(:)
 
-    !> data structure initialised
+    !> Data structure initialised
     logical :: tInitialised = .false.
 
   end type TEnergies
@@ -166,10 +166,10 @@ contains
   !> Allocates storage for the energy components
   subroutine TEnergies_init(this, nAtom, nSpin)
 
-    !> data structure to allocate
+    !> Data structure to allocate
     type(TEnergies), intent(out) :: this
 
-    !> number of atoms needed for atom resolved arrays
+    !> Number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 
     !> Number of independent spins

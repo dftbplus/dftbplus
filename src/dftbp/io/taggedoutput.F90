@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -73,6 +73,9 @@ module dftbp_io_taggedoutput
 
     !> Transition dipole moments for excitations
     character(lenLabel) :: excDipole = 'exc_transdip'
+
+    !> Square of transition charges for target state
+    character(lenLabel) :: transQ = 'transq_sqr'
 
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
@@ -222,7 +225,7 @@ module dftbp_io_taggedoutput
     character(lenLabel) :: scaledDipole = 'scaled_dipole'
 
     !> Atomic dipole moments
-    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
+    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moment'
 
   end type TTagLabelsEnum
 

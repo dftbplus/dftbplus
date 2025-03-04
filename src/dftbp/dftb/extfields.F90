@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,19 +20,19 @@ module dftbp_dftb_extfields
 
     ! homogeneous electric field
 
-    !> field strength
+    !> Field strength
     real(dp), allocatable :: EFieldStrength
 
-    !> field direction
+    !> Field direction
     real(dp) :: EfieldVector(3)
 
     !> Field is time dependent
     logical :: isTDEfield
 
-    !> angular frequency
+    !> Angular frequency
     real(dp) :: EfieldOmega
 
-    !> phase of field at step 0
+    !> Phase of field at step 0
     integer :: EfieldPhase
 
     ! Derived properties from E field
@@ -51,7 +51,7 @@ module dftbp_dftb_extfields
     !> Potential at the atomic sites
     real(dp), allocatable :: atomicPotential(:)
 
-    !> is this an onsite (net charge related, so diagonal elements of hamiltonian) or not
+    !> Is this an onsite (net charge related, so diagonal elements of hamiltonian) or not
     !> (gross/Mulliken charge related, so incluing off diagonal coupling)
     logical, allocatable :: atomicOnSite(:)
 
@@ -61,19 +61,19 @@ module dftbp_dftb_extfields
   !> External homogeneous electric field
   type TElecFieldInput
 
-    !> time dependent field in MD
+    !> Time dependent field in MD
     logical :: isTDEfield = .false.
 
-    !> strength
+    !> Strength
     real(dp) :: EFieldStrength = 0.0_dp
 
-    !> direction
+    !> Direction
     real(dp) :: EfieldVector(3)
 
-    !> frequency of time dependent field
+    !> Frequency of time dependent field
     real(dp) :: EfieldOmega
 
-    !> relative phase of field
+    !> Relative phase of field
     integer :: EfieldPhase = 0
 
   end type TElecFieldInput
@@ -111,7 +111,7 @@ contains
     !> Atomic coordinates in central cell
     real(dp), allocatable, intent(in) :: coord0Fold(:,:)
 
-    !> all coordinates
+    !> All coordinates
     real(dp), intent(in) :: coord(:,:)
 
     !> Potential, including external potentials

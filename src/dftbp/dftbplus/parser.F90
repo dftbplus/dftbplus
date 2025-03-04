@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@ module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_filesystem, only : findFile, joinPaths, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
@@ -22,7 +22,7 @@ module dftbp_dftbplus_parser
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
   use dftbp_dftb_elecconstraints, only : readElecConstraintInput
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
+  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getD3Radius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
@@ -66,7 +66,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
   use dftbp_mixer_mixer, only : mixerTypes
@@ -78,7 +78,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
       & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireHybridXcTag
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, parseHybridXcTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
@@ -1016,7 +1016,6 @@ contains
     type(TXLBOMDInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: pXlbomd, pXlbomdFast, pRoot, pChild
-    integer :: nKappa
     logical :: tXlbomdFast
 
     call getChild(node, 'Xlbomd', pXlbomd, requested=.false.)
@@ -1037,10 +1036,7 @@ contains
     end if
     allocate(input)
     call getChildValue(pRoot, 'IntegrationSteps', input%nKappa, 5, child=pChild)
-    ! Workaround for nagfor 6.1 as the derived type in the array comparison
-    ! is not recognized as such
-    nKappa = input%nKappa
-    if (all([5, 6, 7] /= nKappa)) then
+    if (all([5, 6, 7] /= input%nKappa)) then
       call detailedError(pChild, 'Invalid number of integration steps (must be&
           & 5, 6 or 7)')
     end if
@@ -1338,14 +1334,14 @@ contains
     integer :: iSp1, iSp2, ii
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp, str2Tmp
     character(lc) :: errorStr
-    logical :: tLower, tExist
+    logical :: tLower
     integer, allocatable :: pTmpI1(:)
     real(dp) :: rTmp
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
     real(dp) :: rSKCutOff
     type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut
+    character(len=:), allocatable :: strOut, strJoin
 
     !> For hybrid functional calculations
     type(THybridXcSKTag) :: hybridXcSK
@@ -1365,7 +1361,8 @@ contains
     call setupOrbitals(slako%orb, geo, angShells)
 
     ! Slater-Koster files
-    call getParamSearchPath(searchPath)
+    call getParamSearchPaths(searchPath)
+    strJoin = joinPathsPrettyErr(searchPath)
     allocate(skFiles(geo%nSpecies, geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       do iSp2 = 1, geo%nSpecies
@@ -1395,16 +1392,14 @@ contains
           else
             elem2 = geo%speciesNames(iSp2)
           end if
-          strTmp = trim(prefix) // trim(elem1) // trim(separator) &
-              &// trim(elem2) // trim(suffix)
+          strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem2) // trim(suffix)
           call findFile(searchPath, strTmp, strOut)
-          if (allocated(strOut)) strTmp = strOut
-          call append(skFiles(iSp2, iSp1), strTmp)
-          inquire(file=strTmp, exist=tExist)
-          if (.not. tExist) then
-            call detailedError(value1, "SK file with generated name '" &
-                &// trim(strTmp) // "' does not exist.")
+          if (.not. allocated(strOut)) then
+            call detailedError(value1, "SK file with generated name '" // trim(strTmp)&
+                & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
           end if
+          strTmp = strOut
+          call append(skFiles(iSp2, iSp1), strTmp)
         end do
       end do
     case default
@@ -1418,7 +1413,7 @@ contains
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
-            write(errorStr, "(A,I0,A,I0)")"Incorrect number of Slater-Koster files for " //&
+            write(errorStr, "(A,I0,A,I0)") "Incorrect number of Slater-Koster files for " //&
                 & trim(strTmp) // ", expected ", len(angShells(iSp1)) * len(angShells(iSp2)),&
                 & " but received ", len(lStr)
             call detailedError(child2, errorStr)
@@ -1427,12 +1422,11 @@ contains
             call get(lStr, str2Tmp, ii)
             strTmp = trim(prefix) // str2Tmp
             call findFile(searchPath, strTmp, strOut)
-            if (allocated(strOut)) strTmp = strOut
-            inquire(file=strTmp, exist=tExist)
-            if (.not. tExist) then
-              call detailedError(child2, "SK file '" // trim(strTmp) &
-                  &// "' does not exist'")
+            if (.not. allocated(strOut)) then
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
+                  & // "   (search path(s): " // strJoin // ").")
             end if
+            strTmp = strOut
             call append(skFiles(iSp2, iSp1), strTmp)
           end do
           call destruct(lStr)
@@ -1467,8 +1461,14 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
-    ! SCC
-    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
+
+    if (allocated(ctrl%hybridXcInp)) then
+      ctrl%tSCC = .true.
+    else
+      ! SCC
+      call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    end if
 
     if (ctrl%tSCC) then
       call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
@@ -1482,8 +1482,6 @@ contains
     else
       skInterMeth = skEqGridNew
     end if
-
-    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
 
     if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
@@ -1766,7 +1764,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -1885,10 +1883,10 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    type(fnode), pointer :: value1, child, child2
-    type(string) :: buffer, modifier
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-    integer :: method, iSp1
+    integer :: method
     character(len=:), allocatable :: paramFile, paramTmp
     type(TOrbitals) :: orb
 
@@ -1919,7 +1917,7 @@ contains
       if (associated(value1)) then
         call getChildValue(child, "", buffer)
         paramFile = trim(unquote(char(buffer)))
-        call getParamSearchPath(searchPath)
+        call getParamSearchPaths(searchPath)
         call findFile(searchPath, paramFile, paramTmp)
         if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
         write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
@@ -2038,6 +2036,14 @@ contains
       call readForceOptions(node, ctrl)
     else
       ctrl%forceType = forceTypes%orig
+    end if
+
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
@@ -2586,16 +2592,25 @@ contains
     select case (char(buffer))
     case ("fermi")
       ctrl%iDistribFn = fillingTypes%Fermi ! Fermi function
+    case ("gaussian")
+      ctrl%iDistribFn = fillingTypes%Methfessel ! Gauss function broadening of levels (0th order MP)
     case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2nd order
-      call getChildValue(value1, "Order", ctrl%iDistribFn, 2)
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 1st order
+      call getChildValue(value1, "Order", ctrl%iDistribFn, 1)
       if (ctrl%iDistribFn < 1) then
         call getNodeHSDName(value1, buffer)
-        write(errorStr, "(A,A,A,I4)")"Unsuported filling mode for '", &
-            & char(buffer),"' :",ctrl%iDistribFn
-        call detailedError(child, errorStr)
+        select case(ctrl%iDistribFn)
+        case (0)
+          write(errorStr, "(A)")"Methfessel-Paxton filling order 0 is equivalent to gaussian&
+              & smearing"
+          call detailedWarning(child, errorStr)
+        case default
+          write(errorStr, "(A,A,A,I4)")"Filling order must be above zero '", char(buffer),"' :",&
+              &ctrl%iDistribFn
+          call detailedError(child, errorStr)
+        end select
       end if
-      ctrl%iDistribFn = fillingTypes%Methfessel + ctrl%iDistribFn
+      ctrl%iDistribFn = ctrl%iDistribFn + fillingTypes%Methfessel
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
@@ -2679,7 +2694,7 @@ contains
 
     case ("magma")
   #:if WITH_MAGMA
-      ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+      ctrl%solver%isolver = electronicSolverTypes%magmaGvd
       call getChildValue(value1, "DensityMatrixGPU", ctrl%isDmOnGpu, .true.)
   #:else
       call detailedError(node, "DFTB+ must be compiled with MAGMA support in order to enable&
@@ -2840,9 +2855,6 @@ contains
     !> Error status
     type(TStatus), intent(inout) :: errStatus
 
-    integer :: ii
-    character(lc) :: errorStr
-
     ! Assume SCC can has usual default number of steps if needed
     ctrl%poorKSampling = .false.
 
@@ -2995,9 +3007,8 @@ contains
         call detailedError(value1, "The components of the supercell matrix must be integers.")
       end if
       if (allocated(ctrl%hybridXcInp)) then
-        allocate(ctrl%supercellFoldingDiag(3))
-        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
-            & supercellFoldingDiagOut=ctrl%supercellFoldingDiag)
+        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus)
+        ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
         @:PROPAGATE_ERROR(errStatus)
         ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
@@ -3116,12 +3127,11 @@ contains
     if (allocated(ctrl%hybridXcInp) .and. tGammaOnly&
         & .and. (char(buffer) /= "supercellfolding")) then
       coeffsAndShifts(:,:) = 0.0_dp
-      allocate(ctrl%supercellFoldingDiag(3))
       do ii = 1, 3
         coeffsAndShifts(ii, ii) = 1.0_dp
-        ctrl%supercellFoldingDiag(ii) = coeffsAndShifts(ii, ii)
       end do
       ctrl%supercellFoldingMatrix = coeffsAndShifts
+      ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
     end if
 
   end subroutine getEuclideanKSampling
@@ -4059,7 +4069,6 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    type(string) :: strBuffer
     logical :: tWriteDetailedOutDef
 
   #:if WITH_SOCKETS
@@ -4436,7 +4445,7 @@ contains
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
       allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, izpDefault)
+      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
@@ -4564,7 +4573,7 @@ contains
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
       allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, izpDefault)
+      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
@@ -4631,7 +4640,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%chi, kChiDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%chi, default=kChiDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%chi)
     end select
@@ -4642,7 +4651,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%gam, kGamDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%gam, default=kGamDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%gam)
     end select
@@ -4653,7 +4662,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%kcn, kKcnDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%kcn, default=kKcnDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%kcn)
     end select
@@ -4664,7 +4673,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%rad, kRadDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%rad, default=kRadDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%rad)
     end select
@@ -4737,7 +4746,7 @@ contains
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
-        call readSpeciesList(value2, geo%speciesNames, input%en, kENDefault)
+        call readSpeciesList(value2, geo%speciesNames, input%en, default=kENDefault)
         deallocate(kENDefault)
       case("values")
         call readSpeciesList(value2, geo%speciesNames, input%en)
@@ -4758,8 +4767,8 @@ contains
       call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
     case("covalentradiid3")
       allocate(kRadDefault(geo%nSpecies))
-      kRadDefault(:) = getCovalentRadius(geo%speciesNames)
-      call readSpeciesList(value2, geo%speciesNames, input%covRad, kRadDefault)
+      kRadDefault(:) = getD3Radius(geo%speciesNames)
+      call readSpeciesList(value2, geo%speciesNames, input%covRad, default=kRadDefault)
       deallocate(kRadDefault)
     case("values")
       call readSpeciesList(value2, geo%speciesNames, input%covRad)
@@ -5039,13 +5048,11 @@ contains
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      if (allocated(ctrl%hybridXcInp)) then
-        call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
-      end if
+      call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
-      call getChildValue(child, "Diagonaliser", child2)
+      call getChildValue(child, "Diagonaliser", child2, "", allowEmptyValue=.true.)
       call getNodeName(child2, buffer)
       select case(char(buffer))
       case ("arpack")
@@ -5059,6 +5066,8 @@ contains
       case ("stratmann")
         ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
         call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      case ("")
+        call detailedError(child2, "Missing diagonaliser method")
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
@@ -5072,8 +5081,10 @@ contains
           call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
               & modifier=modifier, default=0.0_dp)
           call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+        case ("")
+          call detailedError(child2, "Missing choice of CI optimiser.")
         case default
-          call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
+          call detailedError(child2, "Invalid CI optimiser method '" // char(buffer) // "'")
         end select
       else
         ctrl%lrespini%isCIopt = .false.
@@ -5162,11 +5173,10 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
-    type(TListReal) :: lr
     logical :: tPipekDense
     logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
@@ -5264,6 +5274,7 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
+      call renameChildren(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)
       if (associated(child) .or. associated(child2)) then
@@ -5668,7 +5679,10 @@ contains
 
     type(fnode), pointer :: child
     logical :: tLRNeedsSpinConstants, tShellResolvedW
-    integer :: iSp1
+    integer :: iSp1, nConstants
+    type(TListReal) :: realBuffer
+    character(lc) :: strTmp
+    real(dp) :: rWork(maxval(orb%nShell)**2)
 
     tLRNeedsSpinConstants = .false.
 
@@ -5698,20 +5712,34 @@ contains
         end if
       end if
 
-      if (tShellResolvedW) then
-        ! potentially unique values for each shell
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),&
-              & ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1))
-        end do
-      else
-        ! only one value per atom
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),ctrl%spinW(1, 1, iSp1))
-          ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
-              & ctrl%spinW(1, 1, iSp1)
-        end do
-      end if
+      do iSp1 = 1, geo%nSpecies
+        call init(realBuffer)
+        call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+        nConstants = len(realBuffer)
+        if (tShellResolvedW) then
+          if (nConstants == orb%nShell(iSp1)**2) then
+            call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
+                & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+          else
+            write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
+                & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                & '", as ShellResolvedSpin enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        else
+          if (nConstants == 1) then
+            call asArray(realBuffer, rWork(:1))
+            ! only one value for all atom spin constants
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
+          else
+            write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
+                & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        end if
+        call destruct(realBuffer)
+      end do
     end if
 
   end subroutine readSpinConstants
@@ -6224,26 +6252,18 @@ contains
     if (geom%tPeriodic) then
       contUnitVec = contactVec / sqrt(sum(contactVec**2, dim=1))
       dots = abs(matmul(contUnitVec, geom%latVecs))
-      mask = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
+      mask(:) = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
       if (count(mask) /= 1) then
         call error("Too many lattice vectors parallel to the contact")
       end if
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      ind = findloc(mask, .true., 1)
       newLatVecs = geom%latVecs
       newLatVecs(:,ind) = 2.0_dp * contactVec
       newOrigin = geom%origin
     else
       newLatVecs(:,1) = 2.0_dp * contactVec
-      mask = abs(contactVec) > 1e-8_dp
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      mask(:) = abs(contactVec) > 1e-8_dp
+      ind = findloc(mask, .true., 1)
       ! Note: ind is one-based, subtract 1 before modulo and add 1 after.
       indNext = modulo(ind + 1 - 1, 3) + 1
       indPrev = modulo(ind - 1 - 1, 3) + 1
@@ -6820,16 +6840,12 @@ contains
     end if
 
     ! Determine to which axis the contact vector is parallel.
-    mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
+    mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
       call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
       contactDir = 0
     else
-      ! Workaround for bug in Intel compiler (can not use index function)
-      contactDir = 1
-      do while (.not. mask(contactDir))
-        contactDir = contactDir + 1
-      end do
+      contactDir = findloc(mask, .true., 1)
     end if
 
   end subroutine getContactVector
@@ -7938,8 +7954,11 @@ contains
     !! True, if hybrid xc-functional extra tag found in SK-file(s)
     logical :: isHybridSk
 
-    !! Hybrid xc-functional extra tag in SK-files, if allocated
+    !! Hybrid xc-functional extra tag found in the SK-file
     integer :: hybridXcSkTag
+
+    !! Type of hybrid xc-functional found in the SK-file
+    integer :: hybridXcSkType
 
     !! Hybrid functional type of user input
     integer :: hybridXcInputTag
@@ -7953,7 +7972,6 @@ contains
 
     !! Temporary string buffer, that stores the gamma function type
     type(string) :: strBuffer
-    character(lc) :: strTmp
 
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0))
@@ -7963,7 +7981,7 @@ contains
     call get(skFiles(1, 1), fileName, 1)
 
     ! Check if SK-files contain extra tag for hybrid xc-functionals
-    call inquireHybridXcTag(fileName, hybridXcSkTag)
+    call parseHybridXcTag(fileName, hybridXcTag=hybridXcSkTag, hybridXcType=hybridXcSkType)
     isHybridSk = hybridXcSkTag /= hybridXcFunc%none
 
     call getChild(node, "Hybrid", child=hybridChild, requested=.false.)
@@ -7974,16 +7992,16 @@ contains
 
     if (isHybridInp .and. .not. isHybridSk) then
       call error("Hybrid input block present, but SK-file '" // trim(fileName)&
-          & // "' appears to be (semi-)local.")
+          & // "'" // newline // "   appears to be (semi-)local.")
     elseif (isHybridSk .and. .not. isHybridInp) then
-      call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
+      call error("Hybrid SK-file '" // trim(fileName) // "' provided," // newline //&
+          & "   but the hybrid block is missing from the HSD input file.")
     end if
 
+    hybridXcInputTag = hybridXcFunc%none
     if (isHybridInp) then
       ! Convert hybrid functional type of user input to enumerator
       select case(tolower(char(buffer)))
-      case ("global")
-        hybridXcInputTag = hybridXcFunc%hyb
       case ("lc")
         hybridXcInputTag = hybridXcFunc%lc
       case ("cam")
@@ -7994,13 +8012,14 @@ contains
       end select
 
       ! Check if hybrid functional type is in line with SK-files
-      if (.not. hybridXcInputTag == hybridXcSkTag) then
-        call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
+      if (hybridXcInputTag == hybridXcFunc%lc .and. hybridXcSkType /= hybridXcFunc%lc) then
+        call detailedError(hybridChild, "Requested hybrid functional type conflict with provided&
+            & SK-file(s).")
       end if
 
       allocate(input)
-      input%hybridXcType = hybridXcInputTag
-      call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
+      input%hybridXcType = hybridXcSkType
+      call getChildValue(hybridValue, "Screening", screeningValue, "MatrixBased",&
           & child=screeningChild)
 
       call getNodeName(screeningValue, buffer)
@@ -8042,7 +8061,7 @@ contains
           input%gammaType = hybridXcGammaTypes%mic
         case ("truncated")
           input%gammaType = hybridXcGammaTypes%truncated
-        case ("truncated+damping")
+        case ("truncatedanddamped")
           input%gammaType = hybridXcGammaTypes%truncatedAndDamped
         case default
           call getNodeHSdName(cmValue, buffer)
@@ -8081,10 +8100,6 @@ contains
         allocate(input%wignerSeitzReduction)
         call getChildValue(cmValue, "WignerSeitzReduction", input%wignerSeitzReduction, default=0)
       end if
-
-    else
-
-      hybridXcInputTag = hybridXcFunc%none
 
     end if
 
@@ -8313,13 +8328,12 @@ contains
     type(TChimesRepInp), allocatable, intent(out) :: chimesRepInput
 
     type(fnode), pointer :: chimes
-    type(string) :: buffer
 
   #:if WITH_CHIMES
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-  #:endif
-
     character(len=:), allocatable :: chimesFile
+  #:endif
 
     call getChild(root, "Chimes", chimes, requested=.false.)
     if (.not. associated(chimes)) return
@@ -8327,7 +8341,7 @@ contains
       allocate(chimesRepInput)
       call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
       chimesFile = unquote(char(buffer))
-      call getParamSearchPath(searchPath)
+      call getParamSearchPaths(searchPath)
       call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
       if (.not. allocated(chimesRepInput%chimesFile)) then
         call error("Could not find ChIMES parameter file '" // chimesFile // "'")

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -57,7 +57,7 @@ module dftbp_mixer_diismixer
     !> True if DIIS used from iteration 2 as well as mixing
     logical :: tFromStart
 
-    !> force modification for gDIIS?
+    !> Force modification for gDIIS?
     logical :: tAddIntrpGradient
 
     !> Alpha factor to add in new information

@@ -21,7 +21,8 @@ Hamiltonian = DFTB {
     Temperature [Kelvin] = 1.000000000000000E-008
   }
   SlaterKosterFiles = {
-    Si-Si = "./Si-Si.skf"
+    Prefix = "slakos/origin/pbc-0-3/"
+    Si-Si = "Si-Si.skf"
   }
   KPointsAndWeights = {
  0.250000000000000 0.250000000000000 0.250000000000000 1.00000000000000

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,25 +26,26 @@
 #:include "common.fypp"
 
 module phonons_libnegfint
-  use dftbp_common_accuracy
-  use dftbp_common_environment
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
+  use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc
-  use dftbp_extlibs_negf, only : getel, lnParams, pass_DM, Tnegf, kb, units, convertHeatCurrent,&
-      & convertHeatConductance, z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF, DELTA_SQ, DELTA_W,&
-      & DELTA_MINGO, associate_lead_currents, associate_ldos, associate_transmission,&
-      & compute_phonon_current, thermal_conductance, create, create_scratch, destroy,&
-      & set_readoldDMsgf, destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos,&
-      & init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch, set_drop,&
-      & set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing, set_ldos_indexes,&
-      & set_tun_indexes, set_params, writememinfo, writepeakinfo, dns2csr, csr2dns, nzdrop, printcsr
-  use phonons_initphonons, only : TempMin, TempMax, TempStep, modeEnum
-  use dftbp_io_message
-  use dftbp_transport_matconv
-  use dftbp_transport_negfvars
+  use dftbp_extlibs_negf, only : associate_ldos, associate_lead_currents, associate_transmission,&
+      & COMP_SGF, COMPSAVE_SGF, compute_phonon_current, convertHeatConductance, convertHeatCurrent,&
+      & create, create_scratch, csr2dns, DELTA_MINGO, DELTA_SQ, DELTA_W, destroy, destroy_matrices,&
+      & destroy_negf, dns2csr, get_params, getel, init_contacts, init_ldos, init_negf,&
+      & init_structure, kb, lnParams, nzdrop, pass_DM, pass_hs, printcsr, READ_SGF,&
+      & set_bp_dephasing, set_drop, set_elph_block_dephasing, set_elph_dephasing,&
+      & set_elph_s_dephasing, set_ldos_indexes, set_params, set_readoldDMsgf, set_scratch,&
+      & set_tun_indexes, thermal_conductance, Tnegf, units, writememinfo, writepeakinfo, z_CSR,&
+      & z_DNS
+  use dftbp_io_message, only : error
+  use dftbp_transport_matconv, only : destruct
+  use dftbp_transport_negfvars, only : TNEGFTunDos, TTranspar
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_comm, mpifx_reduceip
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
   implicit none

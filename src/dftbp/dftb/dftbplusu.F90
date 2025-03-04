@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,16 +21,16 @@ module dftbp_dftb_dftbplusu
   !> Input for DFTB+U calculation
   type TDftbUInp
 
-    !> list of U-J values for each species
+    !> List of U-J values for each species
     real(dp), allocatable :: UJ(:,:)
 
-    !> number of blocks in each case
+    !> Number of blocks in each case
     integer, allocatable :: nUJ(:)
 
-    !> number of shells in each block
+    !> Number of shells in each block
     integer, allocatable :: niUJ(:,:)
 
-    !> shells in the block
+    !> Shells in the block
     integer, allocatable :: iUJ(:,:,:)
 
     integer :: iFunctional
@@ -41,19 +41,19 @@ module dftbp_dftb_dftbplusu
   !> Type for DFTB+U
   type TDftbU
 
-    !> list of U-J values for each species
+    !> List of U-J values for each species
     real(dp), allocatable :: UJ(:,:)
 
-    !> number of +U blocks to calculate for each species
+    !> Number of +U blocks to calculate for each species
     integer, allocatable :: nUJ(:)
 
-    !> number of l values contained in each block for each species
+    !> Number of l values contained in each block for each species
     integer, allocatable :: niUJ(:,:)
 
-    !> list of l values in each block for each species
+    !> List of l values in each block for each species
     integer, allocatable :: iUJ(:,:,:)
 
-    !> choice of functional, so far FLL, pSIC
+    !> Choice of functional, so far FLL, pSIC
     integer :: iFunctional
 
   contains
@@ -145,13 +145,13 @@ contains
     !> Instance of DFTB+U calculation
     class(TDftbU), intent(in) :: this
 
-    !> potential to augment
+    !> Potential to augment
     real(dp), intent(inout) :: shift(:,:,:,:)
 
-    !> block charges
+    !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)
 
-    !> list of the species for each atom
+    !> List of the species for each atom
     integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
@@ -229,16 +229,16 @@ contains
     !> Real part of shift
     real(dp), intent(inout) :: shiftRe(:,:,:,:)
 
-    !> imaginary part of shift
+    !> Imaginary part of shift
     real(dp), intent(inout) :: shiftIm(:,:,:,:)
 
-    !> real part of block charges
+    !> Real part of block charges
     real(dp), intent(in) :: qBlockR(:,:,:,:)
 
-    !> imaginary part of block charges
+    !> Imaginary part of block charges
     real(dp), intent(in) :: qBlockI(:,:,:,:)
 
-    !> list of the species for each atom
+    !> List of the species for each atom
     integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
@@ -313,19 +313,19 @@ contains
     !> Instance of DFTB+U calculation
     class(TDftbU), intent(in) :: this
 
-    !> energy contribution
+    !> Energy contribution
     real(dp), intent(out) :: egy(:)
 
-    !> charge block populations
+    !> Charge block populations
     real(dp), intent(in) :: qBlock(:,:,:,:)
 
-    !> list of the species for each atom
+    !> List of the species for each atom
     integer, intent(in) :: species(:)
 
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
 
-    !> optional skew population for L.S cases
+    !> Optional skew population for L.S cases
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
     integer :: nAtom, nSpin, iAt, iSp, iSpecies
@@ -552,23 +552,23 @@ contains
     !> 1D array of packed data
     real(dp), intent(in) :: input(:)
 
-    !> equivalences for blocks on atomic sites
+    !> Equivalences for blocks on atomic sites
     integer, intent(in) :: blockEquiv(:,:,:,:)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
-    !> unpacked data
+    !> Unpacked data
     real(dp), intent(out) :: output(:,:,:,:)
 
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> equivalences for atoms, if present, charges are over-written with relevant part of block
+    !> Equivalences for atoms, if present, charges are over-written with relevant part of block
     !> charges
     integer, intent(in),optional :: orbEquiv(:,:,:)
 
-    !> is skew symmetry required
+    !> Is skew symmetry required
     logical, optional, intent(in) :: isSkew
 
     integer :: nAtom, nSpin

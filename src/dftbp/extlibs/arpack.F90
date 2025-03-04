@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,137 +9,220 @@
 
 #:assert not (WITH_ARPACK and INSTANCE_SAFE_BUILD)
 
+#:set ARPACK_PROC_PREFIX = "" if WITH_ARPACK else "module"
+#:set PARPACK_PROC_PREFIX = "" if WITH_PARPACK else "module"
+#:set PREFIXES_AND_KINDS =  [("s", "rsp"), ("d", "rdp")]
+
+
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
 !> state calculations).
 module dftbp_extlibs_arpack
-  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_common_accuracy, only : rdp, rsp
 #:if not WITH_ARPACK
-  use dftbp_io_message
+  use dftbp_io_message, only : error
 #:endif
   implicit none
+
   private
-
   public :: withArpack, saupd, seupd
+  public :: withParpack, psaupd, pseupd
 
-#:if WITH_ARPACK
-
-  !> Whether code was built with ARPACK support
-  logical, parameter :: withArpack = .true.
-
-#:else
 
   !> Whether code was built with ARPACK support
-  logical, parameter :: withArpack = .false.
+  logical, parameter :: withArpack = ${FORTRAN_LOGICAL(WITH_ARPACK)}$
 
-  !> Dummy routines, as ARPACK library is not compiled in
+  !> Whether code was built with PARPACK support
+  logical, parameter :: withParpack = ${FORTRAN_LOGICAL(WITH_PARPACK)}$
+
+
+  ! Function overloading to be used within DFTB+
   interface saupd
-  #:for PREC in [("s"),("d")]
-    module procedure ${PREC}$saupd
-  #:endfor
-  end interface saupd
-
-  !> Dummy routines, as ARPACK library is not compiled in
-  interface seupd
-  #:for PREC in [("s"),("d")]
-    module procedure ${PREC}$seupd
+  #:for PREFIX, _ in PREFIXES_AND_KINDS
+    ${ARPACK_PROC_PREFIX}$ procedure ${PREFIX}$saupd
   #:endfor
   end interface
 
-contains
+  ! Function overloading to be used within DFTB+
+  interface seupd
+  #:for PREFIX, _ in PREFIXES_AND_KINDS
+    ${ARPACK_PROC_PREFIX}$ procedure ${PREFIX}$seupd
+  #:endfor
+  end interface
 
-  !> Generates error message, if a stub was called
-  subroutine stubError(routineName)
-    character(*), intent(in) :: routineName
+  ! Function overloading to be used within DFTB+
+  interface psaupd
+  #:for PREFIX, _ in PREFIXES_AND_KINDS
+    ${PARPACK_PROC_PREFIX}$ procedure p${PREFIX}$saupd
+  #:endfor
+  end interface
 
-    call error("Internal error: " // trim(routineName) // "() called in a build without ARPACK&
-        & support")
+  ! Function overloading to be used within DFTB+
+  interface pseupd
+  #:for PREFIX, _ in PREFIXES_AND_KINDS
+    ${PARPACK_PROC_PREFIX}$ procedure p${PREFIX}$seupd
+  #:endfor
+  end interface
 
-  end subroutine stubError
+  ! Interface definition of the routines
+  interface
+  #:for PREFIX, KIND in PREFIXES_AND_KINDS
 
-#:endif
-
-#:if WITH_ARPACK
-  !> Wrapper around ARPACK routines ssaupd/dsaupd.
-  interface saupd
-#:endif
-  #:for PREC, LABEL, VTYPE in [("s","single","rsp"),("d","double","rdp")]
-  #:if not WITH_ARPACK
-    !> Dummy ARPACK routine
-  #:endif
-    !> ${LABEL}$ precision Arnoldi solver call
-    subroutine ${PREC}$saupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv, iparam, ipntr,&
-        & workd, workl, lworkl, info)
+    !> Arnoldi solver call
+    ${ARPACK_PROC_PREFIX}$ subroutine ${PREFIX}$saupd(ido, bmat, n, which, nev, tol, resid, ncv,&
+        & v, ldv, iparam, ipntr, workd, workl, lworkl, info)
     #:if WITH_ARPACK
-      import :: ${VTYPE}$
+      import :: ${KIND}$
     #:endif
       integer, intent(inout) :: ido
       character, intent(in) :: bmat
       integer, intent(in) :: n
       character(2), intent(in) :: which
       integer, intent(in) :: nev
-      real(${VTYPE}$), intent(in) :: tol
-      real(${VTYPE}$), intent(inout) :: resid(n)
+      real(${KIND}$), intent(in) :: tol
+      real(${KIND}$), intent(inout) :: resid(n)
       integer, intent(in) :: ncv
       integer, intent(in) :: ldv
-      real(${VTYPE}$), intent(out) :: v(ldv, ncv)
+      real(${KIND}$), intent(out) :: v(ldv, ncv)
       integer, intent(inout) :: iparam(11)
       integer, intent(out) :: ipntr(11)
-      real(${VTYPE}$), intent(inout) :: workd(3 * n)
+      real(${KIND}$), intent(inout) :: workd(3 * n)
       integer, intent(in) :: lworkl
-      real(${VTYPE}$), intent(inout) :: workl(lworkl)
+      real(${KIND}$), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
-     #:if not WITH_ARPACK
-      call stubError("${PREC}$saupd")
-     #:endif
-    end subroutine ${PREC}$saupd
-  #:endfor
-#:if WITH_ARPACK
-  end interface saupd
-#:endif
+    end subroutine ${PREFIX}$saupd
 
-#:if WITH_ARPACK
-  !> Wrapper around ARPACK routines sseupd/dseupd.
-  interface seupd
-#:endif
-  #:for PREC, LABEL, VTYPE in [("s","single","rsp"),("d","double","rdp")]
-  #:if not WITH_ARPACK
-    !> Dummy ARPACK routine
-  #:endif
-    !> ${LABEL}$ precision return from the results of the solver
-    subroutine ${PREC}$seupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev, tol, resid,&
-        & ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
+    ${ARPACK_PROC_PREFIX}$ subroutine ${PREFIX}$seupd(rvec, howmny, sel, d, z, ldz, sigma, bmat,&
+        & n, which, nev, tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
     #:if WITH_ARPACK
-      import :: ${VTYPE}$
+      import :: ${KIND}$
     #:endif
       logical, intent(in) :: rvec
       character, intent(in) :: howmny
       integer, intent(in) :: ncv
       logical, intent(in) :: sel(ncv)
       integer, intent(in) :: nev
-      real(${VTYPE}$), intent(out) :: d(nev)
+      real(${KIND}$), intent(out) :: d(nev)
       integer, intent(in) :: ldz
-      real(${VTYPE}$), intent(out) :: z(ldz, nev)
-      real(${VTYPE}$), intent(in) :: sigma
+      real(${KIND}$), intent(out) :: z(ldz, nev)
+      real(${KIND}$), intent(in) :: sigma
       character, intent(in) :: bmat
       integer, intent(in) :: n
       character(2), intent(in) :: which
-      real(${VTYPE}$), intent(in) :: tol
-      real(${VTYPE}$), intent(in) :: resid(n)
+      real(${KIND}$), intent(in) :: tol
+      real(${KIND}$), intent(in) :: resid(n)
       integer, intent(in) :: ldv
-      real(${VTYPE}$), intent(inout) :: v(ldv, ncv)
+      real(${KIND}$), intent(inout) :: v(ldv, ncv)
       integer, intent(in) :: iparam(7)
       integer, intent(inout) :: ipntr(11)
-      real(${VTYPE}$), intent(inout) :: workd(2 * n)
+      real(${KIND}$), intent(inout) :: workd(2 * n)
       integer, intent(in) :: lworkl
-      real(${VTYPE}$), intent(inout) :: workl(lworkl)
+      real(${KIND}$), intent(inout) :: workl(lworkl)
       integer, intent(inout) :: info
-     #:if not WITH_ARPACK
-      call stubError("${PREC}$seupd")
-     #:endif
-    end subroutine ${PREC}$seupd
+    end subroutine ${PREFIX}$seupd
+
+    ${PARPACK_PROC_PREFIX}$ subroutine p${PREFIX}$saupd(comm, ido, bmat, n, which, nev, tol, resid,&
+        & ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
+    #:if WITH_PARPACK
+      import :: ${KIND}$
+    #:endif
+      integer, intent(in) :: comm
+      integer, intent(inout) :: ido
+      character, intent(in) :: bmat
+      integer, intent(in) :: n
+      character(2), intent(in) :: which
+      integer, intent(in) :: nev
+      real(${KIND}$), intent(in) :: tol
+      real(${KIND}$), intent(inout) :: resid(n)
+      integer, intent(in) :: ncv
+      integer, intent(in) :: ldv
+      real(${KIND}$), intent(out) :: v(ldv, ncv)
+      integer, intent(inout) :: iparam(11)
+      integer, intent(out) :: ipntr(11)
+      real(${KIND}$), intent(inout) :: workd(3 * n)
+      integer, intent(in) :: lworkl
+      real(${KIND}$), intent(inout) :: workl(lworkl)
+      integer, intent(inout) :: info
+    end subroutine p${PREFIX}$saupd
+
+    ${PARPACK_PROC_PREFIX}$ subroutine p${PREFIX}$seupd(comm, rvec, howmny, sel, d, z, ldz, sigma,&
+        & bmat, n, which, nev, tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
+    #:if WITH_PARPACK
+      import :: ${KIND}$
+    #:endif
+      integer, intent(in) :: comm
+      logical, intent(in) :: rvec
+      character, intent(in) :: howmny
+      integer, intent(in) :: ncv
+      logical, intent(inout) :: sel(ncv)
+      integer, intent(in) :: nev
+      real(${KIND}$), intent(out) :: d(nev)
+      integer, intent(in) :: ldz
+      real(${KIND}$), intent(out) :: z(ldz, nev)
+      real(${KIND}$), intent(in) :: sigma
+      character, intent(in) :: bmat
+      integer, intent(in) :: n
+      character(2), intent(in) :: which
+      real(${KIND}$), intent(in) :: tol
+      real(${KIND}$), intent(in) :: resid(n)
+      integer, intent(in) :: ldv
+      real(${KIND}$), intent(inout) :: v(ldv, ncv)
+      integer, intent(in) :: iparam(7)
+      integer, intent(inout) :: ipntr(11)
+      real(${KIND}$), intent(inout) :: workd(2 * n)
+      integer, intent(in) :: lworkl
+      real(${KIND}$), intent(inout) :: workl(lworkl)
+      integer, intent(inout) :: info
+    end subroutine p${PREFIX}$seupd
+
   #:endfor
-#:if WITH_ARPACK
-  end interface seupd
-#:endif
+  end interface
 
 end module dftbp_extlibs_arpack
+
+
+#:if (not WITH_ARPACK) or (not WITH_PARPACK)
+
+!> Defines stubs for ARPACK/PARPACK routines, in case the libraries are not present.
+submodule (dftbp_extlibs_arpack) dftbp_extlibs_arpack_stubs
+  use dftbp_io_message
+  implicit none
+
+contains
+
+#:for PREFIX, _ in PREFIXES_AND_KINDS
+
+#:if not WITH_ARPACK
+  module procedure ${PREFIX}$saupd
+    call stubError_("${PREFIX}$saupd", "ARPACK")
+  end procedure
+
+  module procedure ${PREFIX}$seupd
+    call stubError_("${PREFIX}$seupd", "ARPACK")
+  end procedure
+#:endif
+
+#:if not WITH_PARPACK
+  module procedure p${PREFIX}$saupd
+    call stubError_("p${PREFIX}$saupd", "PARPACK")
+  end procedure
+
+  module procedure p${PREFIX}$seupd
+    call stubError_("p${PREFIX}$seupd", "PARPACK")
+  end procedure
+#:endif
+
+#:endfor
+
+
+  !! Generates error message, if a stub was called
+  subroutine stubError_(routineName, libraryName)
+    character(*), intent(in) :: routineName, libraryName
+
+    call error("Internal error: " // routineName // "() called in a build without " // libraryName&
+        & // " suppport")
+
+  end subroutine stubError_
+
+end submodule dftbp_extlibs_arpack_stubs
+
+#:endif

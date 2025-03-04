@@ -1,24 +1,26 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Module for initializing SCC part of the calculation.
 module dftbp_dftb_sccinit
   use dftbp_common_accuracy, only : dp, elecTolMax
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_io_message, only : error
-  use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_multipole, only : TMultipole
-  use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo
   use dftbp_dftb_periodic, only : getSuperSampling
+  use dftbp_io_message, only : error
+  use dftbp_math_simplealgebra, only : diagonal
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_multipole, only : TMultipole
   implicit none
 
   private
@@ -211,7 +213,7 @@ contains
     logical, intent(in) :: tRealHS
 
     !> Error status
-    type(TStatus), intent(inout) :: errStatus
+    type(TStatus), intent(out) :: errStatus
 
     !> Magnetisation checksum for regular spin polarization total magnetic moment
     real(dp), intent(in), optional :: magnetisation
@@ -249,10 +251,10 @@ contains
     integer :: fileFormat
     real(dp) :: sumQ
 
-    !! Requested to be re-loaded
+    !! Quantities requested to be re-loaded from the file
     logical :: tBlock, tiBlock, tRho, tKpointInfo, isMultipolar
 
-    !! Present in the file itself
+    !! Are these present in the file itself
     logical :: tBlockPresent, tiBlockPresent, tRhoPresent, tKpointInfoPresent
 
     character(len=120) :: error_string
@@ -555,8 +557,9 @@ contains
           else
             read(file%unit, iostat=iErr) coeffsAndShifts
           end if
-          call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus,&
-              & supercellFoldingDiagOut=supercellFoldingDiag)
+          call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
+          supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
           if (hybridXcAlg == hybridXcAlgo%matrixBased) then
             call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
                 & densityMatrix%kPointPrime, densityMatrix%kWeightPrime, reduceByInversion=.true.)
@@ -628,10 +631,10 @@ contains
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> block Mulliken population for LDA+U etc.
+    !> Block Mulliken population for LDA+U etc.
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
-    !> block Mulliken imagninary population for LDA+U and L.S
+    !> Block Mulliken imagninary population for LDA+U and L.S
     real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> Holds real and complex delta density matrices

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -50,7 +50,7 @@ module dftbp_dftb_halogenx
   character(*), parameter :: halogenXSpecies2(3) = [character(2) ::&
       & 'Cl', 'Br', 'I']
 
-  !> energy in kcal/mol for pair truncation
+  !> Energy in kcal/mol for pair truncation
   real(dp), parameter :: minInteraction = 1.0E-14_dp
 
   !> Switching radii as multipliers of vdw radii
@@ -58,12 +58,12 @@ module dftbp_dftb_halogenx
   real(dp), parameter :: R1 = 0.8_dp
 
   !> Parameters from table 3 of doi: 10.1021/ct5009137 in AA
-  !> O-Cl, O-Br, O-I, N-Cl, N-Br, N-I
+  !! O-Cl, O-Br, O-I, N-Cl, N-Br, N-I
   real(dp), parameter :: dab(size(halogenXSpecies1) * size(halogenXSpecies2)) =&
       & [1.237_dp, 1.099_dp, 1.313_dp, 1.526_dp, 1.349_dp, 1.521_dp]
 
   !> c constants from table 3 of doi: 10.1021/ct5009137 in kcal/mol, some weird power of inverse
-  !> distance and dimensionless respectively
+  !! distance and dimensionless respectively
   real(dp), parameter :: c(3) = [7.761_dp, 0.050_dp, 4.518_dp]
 
 contains
@@ -142,7 +142,7 @@ contains
   !> Returns the distance over which the halogen correction decays
   function getRCutOff(this)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(THalogenX), intent(inout) :: this
 
     !> Returned distance
@@ -156,7 +156,7 @@ contains
   !> Get energy contributions from halogen-X correction
   subroutine getEnergies(this, atomE, coords, species, neigh, img2CentCell)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(THalogenX), intent(in) :: this
 
     !> Resulting  energy contributions
@@ -216,7 +216,7 @@ contains
   !> Gradient contribution from the halogen-X term
   subroutine addGradients(this, derivs, coords, species, neigh, img2CentCell)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(THalogenX), intent(in) :: this
 
     !> Derivatives to add contribution to to
@@ -274,7 +274,7 @@ contains
     !> Pair force component
     real(dp), intent(out) :: intermed(3)
 
-    !> vector between atoms
+    !> Vector between atoms
     real(dp), intent(in) :: vec(3)
 
     !> Van der Waals radii
@@ -300,13 +300,13 @@ contains
   !> The stress tensor contribution from the halogen-X term
   subroutine getStress(this, st, coords, neigh, species, img2CentCell, cellVol)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(THalogenX), intent(in) :: this
 
-    !> stress tensor
+    !> Stress tensor
     real(dp), intent(out) :: st(:,:)
 
-    !> coordinates (x,y,z, all atoms including possible images)
+    !> Coordinates (x,y,z, all atoms including possible images)
     real(dp), intent(in) :: coords(:,:)
 
     !> Neighbour list.
@@ -315,10 +315,10 @@ contains
     !> Species of atoms in the central cell.
     integer, intent(in) :: species(:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> cell volume.
+    !> Cell volume.
     real(dp), intent(in) :: cellVol
 
     integer :: iAt1, iNeigh, iAt2, iAt2f, ii, iSp1, iSp2
@@ -361,13 +361,13 @@ contains
   !> DFTB3-X term (Eqn. 5 of doi: 10.1021/ct5009137)
   pure function fx(R, dab)
 
-    !> result in kcal/mol
+    !> Result in kcal/mol
     real(dp) :: fx
 
-    !> distance in AA
+    !> Distance in AA
     real(dp), intent(in) :: R
 
-    !> distance cut-off in AA
+    !> Distance cut-off in AA
     real(dp), intent(in) :: dab
 
     fx = 0.5_dp * c(1) * exp(-c(2) * ((R - dab)**c(3)))
@@ -378,13 +378,13 @@ contains
   !> Derivative of DFTB3-X term wrt. R
   pure function dfx(R, dab)
 
-    !> result in kcal/mol AA
+    !> Result in kcal/mol AA
     real(dp) :: dfx
 
-    !> distance in AA
+    !> Distance in AA
     real(dp), intent(in) :: R
 
-    !> distance cut-off in AA
+    !> Distance cut-off in AA
     real(dp), intent(in) :: dab
 
     dfx = fx(R, dab)
@@ -402,7 +402,7 @@ contains
     !> Van der Waals radii sum in a.u.
     real(dp), intent(in) :: rvdw
 
-    !> result fraction
+    !> Result fraction
     real(dp) :: out
 
     real(dp) :: x
@@ -428,7 +428,7 @@ contains
     !> Van der Waals radii sum in a.u.
     real(dp), intent(in) :: rvdw
 
-    !> result
+    !> Result
     real(dp) :: out
 
     real(dp) :: x

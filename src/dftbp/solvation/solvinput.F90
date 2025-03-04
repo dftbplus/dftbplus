@@ -1,15 +1,17 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Helper routines to handle input to solvation models
 module dftbp_solvation_solvinput
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
   use dftbp_solvation_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, &
     writeGeneralizedBornInfo
@@ -85,7 +87,8 @@ contains
 
 
   !> Wrapper to create a generalized Born model
-  subroutine createGeneralizedBornModel(solvation, input, nAtom, species0, speciesNames, latVecs)
+  subroutine createGeneralizedBornModel(solvation, input, nAtom, species0, speciesNames, errStatus,&
+      & latVecs)
 
     !> Generic solvation model
     class(TSolvation), allocatable, intent(out) :: solvation
@@ -102,6 +105,9 @@ contains
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -109,7 +115,8 @@ contains
 
     allocate(model)
 
-    call TGeneralizedBorn_init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TGeneralizedBorn_init(model, input, nAtom, species0, speciesNames, errStatus, latVecs)
+    @:PROPAGATE_ERROR(errStatus)
 
     call move_alloc(model, solvation)
 
@@ -117,7 +124,7 @@ contains
 
 
   !> Wrapper to create a conductor like screening model
-  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, latVecs)
+  subroutine createCosmoModel(solvation, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Generic solvation model
     class(TSolvation), allocatable, intent(out) :: solvation
@@ -137,11 +144,15 @@ contains
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     type(TCosmo), allocatable :: model
 
     allocate(model)
 
-    call TCosmo_init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TCosmo_init(model, input, nAtom, species0, speciesNames, errStatus, latVecs)
+    @:PROPAGATE_ERROR(errStatus)
 
     call move_alloc(model, solvation)
 
@@ -149,7 +160,7 @@ contains
 
 
   !> Wrapper to create a generalized Born model
-  subroutine createSASAModel(solvation, input, nAtom, species0, speciesNames, latVecs)
+  subroutine createSASAModel(solvation, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Generic solvation model
     class(TSolvation), allocatable, intent(out) :: solvation
@@ -166,6 +177,9 @@ contains
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -173,7 +187,8 @@ contains
 
     allocate(model)
 
-    call TSASACont_init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TSASACont_init(model, input, nAtom, species0, speciesNames, errStatus, latVecs)
+    @:PROPAGATE_ERROR(errStatus)
 
     call move_alloc(model, solvation)
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,9 +13,10 @@
 !>
 program test_extpot2
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, getMaxAngFromSlakoFile,&
+      & setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use extchargepot, only : getPointChargeGradients, getPointChargePotential
   use dftbp_common_constants, only : AA__Bohr
-  use extchargepot
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none

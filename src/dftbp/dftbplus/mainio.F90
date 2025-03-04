@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,17 +14,18 @@
 
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
-  use dftbp_common_accuracy, only : dp, mc, sc, lc
-  use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
-      & Boltzmann, gfac, spinName, quaternionName
+  use dftbp_common_accuracy, only : dp, lc, mc, sc
+  use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+      & gfac, Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_densitymatrix, onLy : TDensityMatrix
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
+  use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_dftb_elecconstraints, only: TElecConstraint
+  use dftbp_dftb_elecconstraints, only : TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_extfields, only : TEField
@@ -32,16 +33,16 @@ module dftbp_dftbplus_mainio
   use dftbp_dftb_sccinit, only : writeQToFile
   use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
-      & xml_EndElement, xml_Close
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver
+  use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
+      & xml_NewElement, xml_OpenFile, xmlf_t
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
-      & format1U, format2U, format1Ue, format2Ue, format1U1e
-  use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
+  use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
+      & formatBorn, formatdBorn, formatGeoOut, formatHessian
+  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare, writeXYZFormat
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : hemv
   use dftbp_math_eigensolver, only : heev
   use dftbp_md_mdintegrator, only : TMdIntegrator, state
@@ -53,14 +54,14 @@ module dftbp_dftbplus_mainio
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_type_linkedlist, only : elemShape, get, intoArray, len, TListCharLc, TListIntR1
   use dftbp_type_multipole, only : TMultipole
-  use dftbp_type_orbitals, only : orbitalNames, getShellNames
+  use dftbp_type_orbitals, only : getShellNames, orbitalNames
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
+  use dftbp_extlibs_mpifx, only : mpifx_bcast, mpifx_recv, mpifx_send
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_dftb_sparse2dense, only :unpackSPauliBlacs, unpackHSCplxBlacs, unpackHSRealBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHSCplxBlacs, unpackHSRealBlacs, unpackSPauliBlacs
   use dftbp_extlibs_scalapackfx, only : linecomm, pblasfx_phemm, pblasfx_psymm
 #:endif
 #:if WITH_SOCKETS
@@ -2389,7 +2390,7 @@ contains
         write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
           ! meV accuracy for eigenvalues
-          write(fd%unit, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+          write(fd%unit, "(I6, F12.4, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
               & filling(iEgy, iK, iSpin)
         end do
         write(fd%unit, *)
@@ -2759,10 +2760,11 @@ contains
       select case(iDistribFn)
       case(0)
         write(fd,*) 'Fermi distribution function'
-      case(1)
+      case(fillingTypes%Methfessel)
         write(fd,*) 'Gaussian distribution function'
       case default
-        write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
+        write(fd,*) 'Methfessel-Paxton distribution function order',&
+            & iDistribFn-fillingTypes%Methfessel
       end select
       write(fd,*)
     end if

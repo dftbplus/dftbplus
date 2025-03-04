@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 
 !> Information on any GPUs on the system
 module dftbp_common_gpuenv
-  use iso_c_binding, only :  c_int
+  use, intrinsic :: iso_c_binding, only : c_int
   use dftbp_common_globalenv, only : stdOut
   use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested, gpusInit
   implicit none

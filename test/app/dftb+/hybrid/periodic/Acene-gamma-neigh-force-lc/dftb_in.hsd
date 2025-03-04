@@ -4,7 +4,6 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
 
-  SCC = Yes
   MaxSccIterations = 100
   SccTolerance = 1e-12
 
@@ -24,7 +23,7 @@ Hamiltonian = DFTB {
   }
 
   Hybrid = LC {
-    CoulombMatrix = Truncated+Damping {
+    CoulombMatrix = TruncatedAndDamped {
       CoulombCutoff = 2.885010
       GSummationCutoff = 50.985000
     }

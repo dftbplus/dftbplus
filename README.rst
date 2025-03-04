@@ -59,7 +59,7 @@ Downloading the binary
 
 A non-MPI (OpenMP-threaded) distribution of the latest stable release can be
 found on the `stable release page
-<http://www.dftbplus.org/download/dftb-stable/>`_.
+<http://www.dftbplus.org/download/stable.html>`_.
 
 
 Building from source
@@ -72,7 +72,7 @@ build process, consult the **detailed building instructions** in `INSTALL.rst
 <INSTALL.rst>`_.
 
 Download the source code from the `stable release page
-<http://www.dftbplus.org/download/dftb-stable/>`_.
+<http://www.dftbplus.org/download/stable.html>`_.
 
 You need CMake (>= 3.16) to build DFTB+. If your environment offers no CMake or
 only an older one, you can easily install the latest CMake via Python's ``pip``

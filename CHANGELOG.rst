@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- MPI-parallelization of Waveplot
+
 - Generalization of mixers to also handle complex density matrices
 
 - General range-separated, long-range corrected CAM hybrid functionals for
@@ -33,11 +35,17 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
-- Onsite corrected hamiltonian for range separated functional
+- Onsite corrected hamiltonian for range-separated functional
+
+- MAGMA GPU accelerated solver for the modes code
+
+- Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
 
 Fixed
 -----
+
+- Incorrect superposition of atomic densities written by Waveplot
 
 - SK-file parser extra-/spline-tag sequence dependent
 
@@ -48,6 +56,25 @@ Fixed
   is not formally derived in the general case.
 
 - DeltaDFTB purified forces used correctly.
+
+- COSMO solvent models had a bug leading to the energy showing a
+  dependence on the ordering of the atoms in the system.
+
+- Solvents where RadiiScaling was specified with a unit conversion
+  were scaled by the square of the conversion. Affects calculations
+  using constructs of the form:
+  Radii = * [AA] = {}
+  where * is Values, vanDerWaalsRadiiBondi vanDerWaalsRadiiCosmo or
+  vanDerWaalsRadiiD3
+
+- Corrected the order of Methfestle-Paxton filling. It was producing
+  filling that was 1 order lower than the one requested in the input.
+  This is probably safe in most applications, the lowest order beyond
+  Gauss smearing (0th order) is default for several other codes and
+  already has linear and quadratic independence of the free energy wrt
+  temperature. Default for Methfestle-Paxton smearing is now set to 1
+  (matching the results from the old default value).
+
 
 24.1 (2024-02-12)
 =================

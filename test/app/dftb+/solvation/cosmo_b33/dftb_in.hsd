@@ -29,7 +29,11 @@ Hamiltonian = DFTB {
       Density = 1.26  # mol density of the solvent
     }
     State = "reference"
-    RadiiScaling = 1.2
+    RadiiScaling {
+       C = 1.2
+       H = 1.2
+       O = 1.2
+    }
     AngularGrid = 330
     Solver = DomainDecomposition {
       MaxMoment = 6

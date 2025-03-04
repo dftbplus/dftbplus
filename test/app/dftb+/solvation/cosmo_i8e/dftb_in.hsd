@@ -56,7 +56,12 @@ Hamiltonian = DFTB {
       Density [kg/l] = 1.0
     }
     State = "reference"
-    RadiiScaling = 1.4
+    RadiiScaling {
+      C = 1.4
+      N = 1.4
+      O = 1.4
+      H = 1.4
+    }
     AngularGrid = 146
     Solver = DomainDecomposition {
       MaxMoment = 9

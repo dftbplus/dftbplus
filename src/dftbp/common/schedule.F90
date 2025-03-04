@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,14 @@
 #:include 'common.fypp'
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be assembled
-#:set CHUNK_TYPES = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
+#:set CHUNK_TYPES_ASSEM = [('real(dp)', 0, 'R0'), ('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
     & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), &
     & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), &
     & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4'), &
+    & ('integer', 1, 'I1')]
+
+#! (TYPE, RANK, NAME) tuple for all chunk types which need to be gathered
+#:set CHUNK_TYPES_GATHER = [('real(dp)', 1, 'R1'), ('complex(dp)', 1, 'C1'),&
     & ('integer', 1, 'I1')]
 
 !> Contains routines helpful for mpi-parallelisation.
@@ -19,19 +23,25 @@ module dftbp_common_schedule
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
 #:endif
   implicit none
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
-  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload
+  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload, gatherChunks
   public :: getStartAndEndIndex
 
-#:for _, _, NAME in CHUNK_TYPES
+#:for _, _, NAME in CHUNK_TYPES_ASSEM
   interface assembleChunks
     module procedure assemble${NAME}$Chunks
   end interface assembleChunks
+#:endfor
+
+#:for _, _, NAME in CHUNK_TYPES_GATHER
+  interface gatherChunks
+    module procedure gather${NAME}$Chunks
+  end interface gatherChunks
 #:endfor
 
 contains
@@ -154,7 +164,7 @@ contains
   end subroutine distributeRangeWithWorkload
 
 
-#:for DTYPE, RANK, NAME in CHUNK_TYPES
+#:for DTYPE, RANK, NAME in CHUNK_TYPES_ASSEM
 
   !> Assembles the chunks by summing up contributions within a process group.
   subroutine assemble${NAME}$Chunks(env,chunks)
@@ -170,6 +180,48 @@ contains
   #:endif
 
   end subroutine assemble${NAME}$Chunks
+
+#:endfor
+
+#:for DTYPE, RANK, NAME in CHUNK_TYPES_GATHER
+
+  !> Gathers chunks within a process group in a global array.
+  subroutine gather${NAME}$Chunks(env, globalFirst, globalLast, chunks, composite)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Array to gather
+    ${DTYPE}$, intent(in) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    !> Gathered array
+    ${DTYPE}$, intent(out) :: composite${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    integer, allocatable :: locSize(:), vOffset(:)
+    integer :: localFirst, localLast, iProc
+
+  #:if WITH_MPI
+    allocate(locSize(env%mpi%groupComm%size))
+    allocate(vOffSet(env%mpi%groupComm%size))
+
+    do iProc = 1, env%mpi%groupComm%size
+      call getChunkRanges(env%mpi%groupComm%size, iProc-1, globalFirst, globalLast, localFirst, &
+        & localLast)
+      locSize(iProc) = localLast - localFirst + 1
+      vOffSet(iProc) = localFirst - 1
+    enddo
+    call mpifx_allgatherv(env%mpi%globalComm, chunks, composite, locSize, vOffset)
+ #:else
+    composite = chunks
+  #:endif
+
+  end subroutine gather${NAME}$Chunks
 
 #:endfor
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, distFudge
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_schedule, only : getStartAndEndIndex
@@ -48,6 +48,10 @@ module dftbp_dftb_hybridxc
 #:endif
 
   implicit none
+
+#! Routine NAME label, main variable TYPE
+#:set FLAVOURS = [('real', 'real'), ('cmplx', 'complex')]
+
   private
 
   public :: THybridXcSKTag, THybridXcFunc, THybridXcFunc_init
@@ -138,13 +142,13 @@ module dftbp_dftb_hybridxc
   type :: THybridXcSKTag
 
     !> Range-separation parameter
-    real(dp) :: omega
+    real(dp) :: omega = 0.0_dp
 
     !> CAM alpha parameter
-    real(dp) :: camAlpha
+    real(dp) :: camAlpha = 0.0_dp
 
     !> CAM beta parameter
-    real(dp) :: camBeta
+    real(dp) :: camBeta = 0.0_dp
 
   end type THybridXcSKTag
 
@@ -272,7 +276,11 @@ module dftbp_dftb_hybridxc
     procedure :: addCamHamiltonian_real
     procedure :: getCamHamiltonian_kpts
 
-    procedure :: addCamHamiltonianMatrix_cluster_cmplx
+  #:if WITH_MPI
+    procedure :: addCamHamiltonianMatrix_cmplx_blacs
+  #:else
+    procedure :: addCamHamiltonianMatrix_cmplx
+  #:endif
 
     procedure :: getHybridEnergy_real
     procedure :: getHybridEnergy_kpts
@@ -448,6 +456,9 @@ contains
     !> Lattice vectors of (periodic) geometry
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !! Delta distance for finite differences
+    real(dp), parameter :: delta = 1.0E-8_dp
+
     !! Species indices
     integer :: iSp1, iSp2
 
@@ -514,12 +525,12 @@ contains
     if (present(gammaCutoff)) then
       this%gammaCutoff = gammaCutoff
 
-      ! Start beginning of the damping region and 95% of the gamma cutoff.
-      this%gammaDamping = 0.95_dp * this%gammaCutoff
+      ! Start of the damping region of the truncated Coulomb kernel
+      this%gammaDamping = this%gammaCutoff - distFudge
 
       if (this%gammaDamping <= 0.0_dp) then
-        @:RAISE_ERROR(errStatus, -1, "Beginning of damped region of electrostatics must be&
-            & positive.")
+        @:RAISE_ERROR(errStatus, -1, "The beginning of the damping region of the truncated Coulomb&
+            & kernel must be at a positive radius.")
       end if
 
       ! Tabulate truncated Gamma properties for all (symmetric) combinations of species
@@ -539,14 +550,14 @@ contains
               & this%omega, this%gammaDamping)
           this%lrddGammaAtDamping(iSp1, iSp2)&
               & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping, 1.0E-8_dp)
+              & this%omega, this%gammaDamping, delta)
           this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
               & this%hubbu(iSp2), this%gammaDamping)
           this%hfdGammaAtDamping(iSp1, iSp2)&
               & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%gammaDamping)
           this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
-              & this%gammaDamping, 1.0E-8_dp)
+              & this%gammaDamping, delta)
         end do
       end do
     end if
@@ -559,13 +570,10 @@ contains
       @:RAISE_ERROR(errStatus, -1, "General CAM functionals not currently implemented for REKS.")
     end if
 
-    allocate(this%coords(3, nAtom0))
-    this%coords(:,:) = 0.0_dp
-    allocate(this%rCoords(3, nAtom0))
-    this%rCoords(:,:) = 0.0_dp
+    allocate(this%coords(3, nAtom0), source=0.0_dp)
+    allocate(this%rCoords(3, nAtom0), source=0.0_dp)
 
-    allocate(this%camGammaEval0(nAtom0, nAtom0))
-    this%camGammaEval0(:,:) = 0.0_dp
+    allocate(this%camGammaEval0(nAtom0, nAtom0), source=0.0_dp)
 
     ! Check for current restrictions
     if (this%tSpin .and. this%hybridXcAlg == hybridXcAlgo%thresholdBased) then
@@ -660,18 +668,18 @@ contains
 
 
   !> Checks if obtained supercell folding matrix meets current requirements.
-  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus, supercellFoldingDiagOut)
+  !!
+  !! Note: The array passed to this routine can be of shapes [3, 3] (excluding shifts) or [3, 4]
+  !! (including shifts).
+  subroutine checkSupercellFoldingMatrix(supercellFoldingMatrix, errStatus)
 
     !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
-    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
-    !! vectors (between 0.0 and 1.0)
+    !! (should be integer values) and possibly shift of the grid along the three small reciprocal
+    !! lattice vectors (between 0.0 and 1.0)
     real(dp), intent(in), target :: supercellFoldingMatrix(:,:)
 
     !> Error status
     type(TStatus), intent(inout) :: errStatus
-
-    !> Diagonal elements of supercell folding matrix, if present
-    integer, intent(out), optional :: supercellFoldingDiagOut(:)
 
     !! Supercell folding coefficients and shifts
     real(dp), pointer :: coeffs(:,:), shifts(:)
@@ -682,12 +690,7 @@ contains
     !! Auxiliary variables
     integer :: ii, jj
 
-    if (present(supercellFoldingDiagOut)) then
-      @:ASSERT(size(supercellFoldingDiagOut) == 3)
-    end if
-
     coeffs => supercellFoldingMatrix(:, 1:3)
-    shifts => supercellFoldingMatrix(:, 4)
 
     if (abs(determinant33(coeffs)) - 1.0_dp < -1e-06_dp) then
       @:RAISE_ERROR(errStatus, -1, "Determinant of the supercell matrix must be greater than 1.")
@@ -709,23 +712,17 @@ contains
       end do
     end do lpOuter
     if (tNotMonkhorstPack) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
-          & Monkhorst-Pack-like sampling, i.e. a uniform extension of the lattice.")
+      @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
+          & Monkhorst-Pack-like sampling, i.e., a uniform extension of the lattice.")
     end if
 
-    ! Check if shifts are zero
-    if (any(abs(shifts) > 1e-06_dp)) then
-      @:RAISE_ERROR(errStatus, -1, "Range-separated calculations with k-points require a&
-          & Monkhorst-Pack-like sampling with zero shift.")
-    end if
-
-    ! All checks have passed, continue...
-
-    ! Get diagonal elements as integers, if requested
-    if (present(supercellFoldingDiagOut)) then
-      do ii = 1, 3
-        supercellFoldingDiagOut(ii) = nint(coeffs(ii, ii))
-      end do
+    if (size(supercellFoldingMatrix, dim=2) == 4) then
+      ! Check if shifts are zero
+      shifts => supercellFoldingMatrix(:, 4)
+      if (any(abs(shifts) > 1e-06_dp)) then
+        @:RAISE_ERROR(errStatus, -1, "Hybrid functionals using integration with k-points requires a&
+            & Monkhorst-Pack-like sampling with a zero shift.")
+      end if
     end if
 
   end subroutine checkSupercellFoldingMatrix
@@ -767,10 +764,13 @@ contains
 
 
   !> Updates the range-separated module on coordinate change (non-periodic version).
-  subroutine updateCoords_cluster(this, rCoords)
+  subroutine updateCoords_cluster(this, env, rCoords)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Atomic coordinates in absolute units
     real(dp), intent(in) :: rCoords(:,:)
@@ -784,19 +784,29 @@ contains
     !! Distance between two interacting atoms
     real(dp) :: dist
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     this%rCoords(:,:) = rCoords
     nAtom0 = size(this%species0)
 
-    do iAtom1 = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAtom1 = iParallelStart, iParallelEnd
+      iSp1 = this%species0(iAtom1)
       do iAtom2 = 1, iAtom1
-        iSp1 = this%species0(iAtom1)
         iSp2 = this%species0(iAtom2)
         dist = norm2(this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2))
         this%camGammaEval0(iAtom1, iAtom2) = getCamAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
             & this%hubbu(iSp2), this%omega, this%camAlpha, this%camBeta, dist)
+        ! exploit the symmetry of the CAM gamma matrix
         this%camGammaEval0(iAtom2, iAtom1) = this%camGammaEval0(iAtom1, iAtom2)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camGammaEval0, MPI_SUM)
+  #:endif
 
     if (this%tScreeningInited) then
       this%hPrev(:,:) = 0.0_dp
@@ -844,6 +854,9 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     ! range-separated type is initialized with nAtom0 coordinates, therefore re-allocate for
     ! periodic systems, where images beyond the central cell are accounted for
     if (allocated(this%coords)) deallocate(this%coords)
@@ -883,16 +896,23 @@ contains
     end if
 
     ! \sum\gamma(\bm{g}) pre-tabulation
-    do iAtM = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    this%camGammaEval0(:,:) = 0.0_dp
+    do iAtM = iParallelStart, iParallelEnd
       iSpM = this%species0(iAtM)
-      do iAtN = 1, nAtom0
+      do iAtN = iAtM, nAtom0
         iSpN = this%species0(iAtN)
         this%camGammaEval0(iAtM, iAtN) = getCamGammaGSum(this, iAtM, iAtN, iSpM, iSpN,&
             & this%rCellVecsG)
-        this%camGammaEval0(iAtN, iAtM) = getCamGammaGSum(this, iAtN, iAtM, iSpN, iSpM,&
-            & this%rCellVecsG)
+        ! exploit the symmetry of the folded CAM gamma matrix
+        this%camGammaEval0(iAtN, iAtM) = this%camGammaEval0(iAtM, iAtN)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine updateCoords_gamma
 
@@ -1089,6 +1109,8 @@ contains
 
 
   !> Tabulates (descending) overlap estimates for SPS-product screening.
+  !!
+  !! see Eq.(48) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine calculateOverlapEstimates(this, symNeighbourList, nNeighbourCamSym, iSquare)
 
     !> Class instance
@@ -1629,8 +1651,7 @@ contains
       tmpOvr(:,:) = overlap
       call adjointLowerTriangle(tmpOvr)
 
-      allocate(tmpDHam(matrixSize, matrixSize))
-      tmpDHam(:,:) = 0.0_dp
+      allocate(tmpDHam(matrixSize, matrixSize), source=0.0_dp)
 
       allocate(tmpDRho(matrixSize, matrixSize))
       tmpDRho(:,:) = deltaRho
@@ -1640,8 +1661,7 @@ contains
       allocate(tmpDDRho(matrixSize, matrixSize))
       tmpDDRho(:,:) = tmpDRho - this%dRhoPrev
       this%dRhoPrev(:,:) = tmpDRho
-      allocate(testOvr(nAtom0, nAtom0))
-      testOvr(:,:) = 0.0_dp
+      allocate(testOvr(nAtom0, nAtom0), source=0.0_dp)
       allocate(ovrInd(nAtom0, nAtom0))
 
       do iAtMu = 1, nAtom0
@@ -1739,9 +1759,8 @@ contains
       real(dp), intent(in), allocatable :: tmpDRho(:,:)
 
       if (.not. this%tScreeningInited) then
-        allocate(this%hprev(matrixSize, matrixSize))
+        allocate(this%hprev(matrixSize, matrixSize), source=0.0_dp)
         allocate(this%dRhoPrev(matrixSize, matrixSize))
-        this%hprev(:,:) = 0.0_dp
         this%dRhoPrev(:,:) = tmpDRho
         this%tScreeningInited = .true.
       end if
@@ -1829,8 +1848,7 @@ contains
       !> Hamiltonian matrix case
       real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpHH
 
-      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)))
-      tmpHH(:,:) = 0.0_dp
+      allocate(tmpHH(size(HSqrReal, dim=1), size(HSqrReal, dim=2)), source=0.0_dp)
       allocate(tmpDRho(size(deltaRhoSqr, dim=1), size(deltaRhoSqr, dim=1)))
       tmpDRho(:,:) = deltaRhoSqr
       call adjointLowerTriangle(tmpDRho)
@@ -1986,12 +2004,17 @@ contains
 
 #:if WITH_SCALAPACK
 
+#:for NAME, TYPE in FLAVOURS
+
+#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
+#:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
+
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (real non-periodic and real Gamma-only version)
+  !! (${LABEL}$ non-periodic and ${LABEL}$ Gamma-only version)
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  subroutine addCamHamiltonianMatrix_real_blacs(this, env, denseDesc, overlap, densSqr, HH)
+  subroutine addCamHamiltonianMatrix_${NAME}$_blacs(this, env, denseDesc, sSqr, rhoSqr, hamSqr)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
@@ -2002,45 +2025,45 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Square (unpacked) overlap matrix.
-    real(dp), intent(in) :: overlap(:,:)
+    !> Both triangles of the dense, square, unpacked overlap matrix
+    ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-    !> Square (unpacked) density matrix
-    real(dp), intent(in) :: densSqr(:,:)
+    !> Both triangles of the dense, square, unpacked density matrix
+    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-    !> Square (unpacked) Hamiltonian to be updated.
-    real(dp), intent(inout) :: HH(:,:)
+    !> Both triangles of the dense, square, unpacked Hamiltonian to add the HFX contributions to
+    ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Symmetrized, square (unpacked) Hamiltonian
-    real(dp), allocatable :: Hcam(:,:)
+    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+    ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
-    !! Actually the diatomic gamma elements are just spread to all orbitals
-    real(dp), allocatable :: camGammaAO(:,:)
+    !! Actually, the diatomic gamma elements are just spread to all orbitals
+    ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
 
     !! Number of local rows and columns
     integer :: nLocRow, nLocCol
 
-    nLocRow = size(overlap, dim=1)
-    nLocCol = size(overlap, dim=2)
+    nLocRow = size(sSqr, dim=1)
+    nLocCol = size(sSqr, dim=2)
 
     allocate(camGammaAO(nLocRow, nLocCol))
-    allocate(Hcam(nLocRow, nLocCol))
+    allocate(hamCamSqr(nLocRow, nLocCol))
 
     ! Compared to serial algorithm, no need to symmetrize Hamiltonian, overlap and density matrices
     ! as both triangles should be constructed if MPI parallel
 
     call initGamma(this, env, denseDesc, camGammaAO)
-    call evaluateHamiltonian(this, denseDesc%blacsOrbSqr, overlap, densSqr, camGammaAO, Hcam)
+    call evaluateHamiltonian(this, denseDesc%blacsOrbSqr, sSqr, rhoSqr, camGammaAO, hamCamSqr)
 
-    HH(:,:) = HH + Hcam
+    hamSqr(:,:) = hamSqr + hamCamSqr
 
-    ! Locally collect part of the energy, will sum over MPI rank later:
-    this%camEnergy = this%camEnergy + evaluateEnergy_real(Hcam, densSqr)
+    ! Locally collect part of the energy, will sum over MPI ranks later:
+    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqr)
 
   contains
 
-    !> Get orbital-by-orbital gamma matrix
+    !> Construct the orbital-by-orbital gamma matrix.
     subroutine initGamma(this, env, denseDesc, camGammaAO)
 
       !> Class instance
@@ -2052,13 +2075,14 @@ contains
       !> Dense matrix descriptor
       type(TDenseDescr), intent(in) :: denseDesc
 
-      !> Symmetrized long-range gamma matrix
-      real(dp), intent(out) :: camGammaAO(:,:)
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
+      ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
 
+      !! Auxiliary variables
       integer :: iAt1, iAt2, ii, jj, iOrb1, iOrb2
 
-      ! Get CAM gamma variable
-      camGammaAO(:,:) = 0.0_dp
+      ! Get orbital-resolved CAM gamma matrix
+      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
 
       do jj = 1, size(camGammaAO, dim=2)
         iOrb2 = scalafx_indxl2g(jj, denseDesc%blacsOrbSqr(NB_), env%blacs%orbitalGrid%mycol,&
@@ -2075,8 +2099,8 @@ contains
     end subroutine initGamma
 
 
-    !> Evaluates the Hamiltonian using PGEMM operations.
-    subroutine evaluateHamiltonian(this, desc, Smat, Dmat, camGammaAO, Hcam)
+    !> Evaluates the HFX Hamiltonian contributions, using PGEMM operations.
+    subroutine evaluateHamiltonian(this, desc, sSqr, rhoSqr, camGammaAO, hamCamSqr)
 
       !> Class instance
       class(THybridXcFunc), intent(inout) :: this
@@ -2084,143 +2108,150 @@ contains
       !> BLACS matrix descriptor
       integer, intent(in) :: desc(:)
 
-      !> Symmetrized square overlap matrix
-      real(dp), intent(in) :: Smat(:,:)
+      !> Both triangles of the dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-      !> Symmetrized square density matrix
-      real(dp), intent(in) :: Dmat(:,:)
+      !> Both triangles of the dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-      !> Symmetrized long-range gamma matrix
-      real(dp), intent(in) :: camGammaAO(:,:)
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
+      ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
 
-      !> Symmetrized long-range Hamiltonian matrix
-      real(dp), intent(inout) :: Hcam(:,:)
+      !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+      ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
-      !!
-      real(dp), allocatable :: Hmat(:,:)
-
-      !!
-      real(dp), allocatable :: tmpMat(:,:)
+      !! Temporary storage
+      ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
       !! Size of distributed matrices
       integer :: nRows, nCols
 
-      nRows = size(Smat, dim=1)
-      nCols = size(Smat, dim=2)
+      nRows = size(sSqr, dim=1)
+      nCols = size(sSqr, dim=2)
 
-      allocate(Hmat(nRows, nCols), source=0.0_dp)
-      allocate(tmpMat(nRows, nCols), source=0.0_dp)
+      allocate(Hmat(nRows, nCols), source=${CONV}$(0, kind=dp))
+      allocate(tmpMat(nRows, nCols), source=${CONV}$(0, kind=dp))
 
-      Hcam(:,:) = 0.0_dp
+      hamCamSqr(:,:) = ${CONV}$(0, kind=dp)
 
-      call pblasfx_pgemm(Smat, desc, Dmat, desc, tmpMat, desc)
-      call pblasfx_pgemm(tmpMat, desc, Smat, desc, Hcam, desc)
-      Hcam(:,:) = Hcam * camGammaAO
+      call pblasfx_pgemm(sSqr, desc, rhoSqr, desc, tmpMat, desc)
+      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc)
+      hamCamSqr(:,:) = hamCamSqr * camGammaAO
 
       tmpMat(:,:) = tmpMat * camGammaAO
-      call pblasfx_pgemm(tmpMat, desc, Smat, desc, Hcam, desc, alpha=1.0_dp, beta=1.0_dp)
+      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      Hmat(:,:) = Dmat * camGammaAO
-      call pblasfx_pgemm(Smat, desc, hMat, desc, tmpMat, desc)
-      call pblasfx_pgemm(tmpMat, desc, Smat, desc, Hcam, desc, alpha=1.0_dp, beta=1.0_dp)
+      Hmat(:,:) = rhoSqr * camGammaAO
+      call pblasfx_pgemm(sSqr, desc, hMat, desc, tmpMat, desc)
+      call pblasfx_pgemm(tmpMat, desc, sSqr, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      call pblasfx_pgemm(Dmat, desc, Smat, desc, tmpMat, desc)
+      call pblasfx_pgemm(rhoSqr, desc, sSqr, desc, tmpMat, desc)
       tmpMat(:,:) = tmpMat * camGammaAO
-      call pblasfx_pgemm(Smat, desc, tmpMat, desc, Hcam, desc, alpha=1.0_dp, beta=1.0_dp)
+      call pblasfx_pgemm(sSqr, desc, tmpMat, desc, hamCamSqr, desc, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       if (this%tSpin .or. this%tREKS) then
-        Hcam(:,:) = -0.25_dp * Hcam
+        hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
-        Hcam(:,:) = -0.125_dp * Hcam
+        hamCamSqr(:,:) = -0.125_dp * hamCamSqr
       end if
 
     end subroutine evaluateHamiltonian
 
-  end subroutine addCamHamiltonianMatrix_real_blacs
+  end subroutine addCamHamiltonianMatrix_${NAME}$_blacs
+#:endfor
 
 #:else
 
+#:for NAME, TYPE in FLAVOURS
+
+#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
+#:set CONV = 'cmplx' if TYPE == 'complex' else 'real'
+#:set MATOP = 'hemm' if TYPE == 'complex' else 'symm'
+
   !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
   !! based algorithm.
-  !! (real non-periodic and real Gamma-only version)
+  !! (${LABEL}$ non-periodic and ${LABEL}$ Gamma-only version)
   !!
   !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  subroutine addCamHamiltonianMatrix_real(this, iSquare, overlap, densSqr, HH)
+  subroutine addCamHamiltonianMatrix_${NAME}$(this, iSquare, sSqr, rhoSqr, hamSqr)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, dimension(:), intent(in) :: iSquare
+    integer, intent(in) :: iSquare(:)
 
-    !> Square (unpacked) overlap matrix
-    real(dp), intent(in) :: overlap(:,:)
+    !> Dense, square, unpacked overlap matrix
+    ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-    !> Square (unpacked) density matrix
-    real(dp), intent(in) :: densSqr(:,:)
+    !> Dense, square, unpacked density matrix
+    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-    !> Square (unpacked) Hamiltonian to be updated
-    real(dp), intent(inout) :: HH(:,:)
+    !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
+    ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-    !! Symmetrized, square (unpacked) overlap matrix
-    real(dp), allocatable :: Smat(:,:)
+    !! Both triangles of the dense, square, unpacked overlap matrix
+    ${TYPE}$(dp), allocatable :: sSqrTri(:,:)
 
-    !! Symmetrized, square (unpacked) density matrix
-    real(dp), allocatable :: Dmat(:,:)
+    !! Both triangles of the dense, square, unpacked density matrix
+    ${TYPE}$(dp), allocatable :: rhoSqrTri(:,:)
 
-    !! Symmetrized, square (unpacked) Hamiltonian
-    real(dp), allocatable :: Hcam(:,:)
+    !! Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+    ${TYPE}$(dp), allocatable :: hamCamSqr(:,:)
 
     !! Square matrix filled with orbital-resolved gamma values
-    !! Actually the diatomic gamma elements are just spread to all orbitals
-    real(dp), allocatable :: camGammaAO(:,:)
+    !! Actually, the diatomic gamma elements are just spread to all orbitals
+    ${TYPE}$(dp), allocatable :: camGammaAO(:,:)
 
     !! Number of orbitals in square matrices
     integer :: nOrb
 
-    nOrb = size(overlap, dim=1)
+    nOrb = size(sSqr, dim=1)
 
-    allocate(Smat(nOrb, nOrb))
-    allocate(Dmat(nOrb, nOrb))
+    allocate(sSqrTri(nOrb, nOrb))
+    allocate(rhoSqrTri(nOrb, nOrb))
     allocate(camGammaAO(nOrb, nOrb))
-    allocate(Hcam(nOrb, nOrb))
+    allocate(hamCamSqr(nOrb, nOrb))
 
-    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO)
-    call evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
+    call allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
+    call evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
-    HH(:,:) = HH + Hcam
-    this%camEnergy = this%camEnergy + evaluateEnergy_real(Hcam, Dmat)
+    hamSqr(:,:) = hamSqr + hamCamSqr
+    this%camEnergy = this%camEnergy + evaluateEnergy_${NAME}$(hamCamSqr, rhoSqrTri)
 
   contains
 
-    !> Set up storage and get orbital-by-orbital gamma matrix
-    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO)
+    !> Sets up matrices with both triangles filled and the orbital-by-orbital gamma matrix.
+    subroutine allocateAndInit(this, iSquare, sSqr, rhoSqr, hamSqr, sSqrTri, rhoSqrTri, camGammaAO)
 
       !> Class instance
-      class(THybridXcFunc), intent(inout) :: this
+      class(THybridXcFunc), intent(in) :: this
 
       !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
       integer, intent(in) :: iSquare(:)
 
-      !> Square (unpacked) overlap matrix
-      real(dp), intent(in) :: overlap(:,:)
+      !> Dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(in) :: sSqr(:,:)
 
-      !> Square (unpacked) density matrix
-      real(dp), intent(in) :: densSqr(:,:)
+      !> Dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
-      !> Square (unpacked) Hamiltonian to be updated
-      real(dp), intent(inout) :: HH(:,:)
+      !> Dense, square, unpacked Hamiltonian to add the HFX contributions to
+      ${TYPE}$(dp), intent(inout) :: hamSqr(:,:)
 
-      !> Symmetrized square overlap matrix
-      real(dp), intent(out) :: Smat(:,:)
+      !> Both triangles of the dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(out) :: sSqrTri(:,:)
 
-      !> Symmetrized square density matrix
-      real(dp), intent(out) :: Dmat(:,:)
+      !> Both triangles of the dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(out) :: rhoSqrTri(:,:)
 
-      !> Symmetrized CAM gamma matrix
-      real(dp), intent(out) :: camGammaAO(:,:)
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
+      ${TYPE}$(dp), intent(out) :: camGammaAO(:,:)
 
-      !! Number of atoms
+      !! Number of atoms in the central cell
       integer :: nAtom
 
       !! Indices iterating over atoms
@@ -2228,15 +2259,15 @@ contains
 
       nAtom = size(this%camGammaEval0, dim=1)
 
-      ! Symmetrize Hamiltonian, overlap, density matrices
-      call adjointLowerTriangle(HH)
-      Smat(:,:) = overlap
-      call adjointLowerTriangle(Smat)
-      Dmat(:,:) = densSqr
-      call adjointLowerTriangle(Dmat)
+      ! Construct both triangles of Hamiltonian, overlap, and density matrices
+      call adjointLowerTriangle(hamSqr)
+      sSqrTri(:,:) = sSqr
+      call adjointLowerTriangle(sSqrTri)
+      rhoSqrTri(:,:) = rhoSqr
+      call adjointLowerTriangle(rhoSqrTri)
 
-      ! Get CAM gamma variable
-      camGammaAO(:,:) = 0.0_dp
+      ! Get orbital-resolved CAM gamma matrix
+      camGammaAO(:,:) = ${CONV}$(0, kind=dp)
       do iAt = 1, nAtom
         do jAt = 1, nAtom
           camGammaAO(iSquare(jAt):iSquare(jAt+1)-1, iSquare(iAt):iSquare(iAt+1)-1)&
@@ -2247,233 +2278,74 @@ contains
     end subroutine allocateAndInit
 
 
-    !> Evaluates the Hamiltonian, using GEMM operations.
-    subroutine evaluateHamiltonian(this, Smat, Dmat, camGammaAO, Hcam)
+    !> Evaluates the HFX Hamiltonian contributions, using ${MATOP}$ operations.
+    subroutine evaluateHamiltonian(this, sSqrTri, rhoSqrTri, camGammaAO, hamCamSqr)
 
       !> Class instance
-      class(THybridXcFunc), intent(inout) :: this
+      class(THybridXcFunc), intent(in) :: this
 
-      !> Symmetrized square overlap matrix
-      real(dp), intent(in) :: Smat(:,:)
+      !> Both triangles of the dense, square, unpacked overlap matrix
+      ${TYPE}$(dp), intent(in) :: sSqrTri(:,:)
 
-      !> Symmetrized square density matrix
-      real(dp), intent(in) :: Dmat(:,:)
+      !> Both triangles of the dense, square, unpacked density matrix
+      ${TYPE}$(dp), intent(in) :: rhoSqrTri(:,:)
 
-      !> Symmetrized CAM gamma matrix
-      real(dp), intent(in) :: camGammaAO(:,:)
+      !> Both triangles of the orbital-by-orbital CAM gamma matrix
+      ${TYPE}$(dp), intent(in) :: camGammaAO(:,:)
 
-      !> Symmetrized CAM Hamiltonian matrix
-      real(dp), intent(out) :: Hcam(:,:)
+      !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+      ${TYPE}$(dp), intent(out) :: hamCamSqr(:,:)
 
-      real(dp), allocatable :: Hmat(:,:)
-      real(dp), allocatable :: tmpMat(:,:)
+      !! Temporary storage
+      ${TYPE}$(dp), allocatable :: Hmat(:,:), tmpMat(:,:)
 
       !! Number of orbitals in square matrices
       integer :: nOrb
 
-      nOrb = size(Smat, dim=1)
+      nOrb = size(sSqrTri, dim=1)
 
       allocate(Hmat(nOrb, nOrb))
       allocate(tmpMat(nOrb, nOrb))
 
-      call symm(tmpMat, 'l', Smat, Dmat)
-      call symm(Hcam, 'r', Smat, tmpMat)
-      Hcam(:,:) = Hcam * camGammaAO
+      call ${MATOP}$(tmpMat, 'l', sSqrTri, rhoSqrTri)
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat)
+      hamCamSqr(:,:) = hamCamSqr * camGammaAO
 
       tmpMat(:,:) = tmpMat * camGammaAO
-      call symm(Hcam, 'r', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      Hmat(:,:) = Dmat * camGammaAO
-      call symm(tmpMat, 'l', Smat, Hmat)
-      call symm(Hcam, 'r', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+      Hmat(:,:) = rhoSqrTri * camGammaAO
+      call ${MATOP}$(tmpMat, 'l', sSqrTri, Hmat)
+      call ${MATOP}$(hamCamSqr, 'r', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
-      call symm(tmpMat, 'l', Dmat, Smat)
+      call ${MATOP}$(tmpMat, 'l', rhoSqrTri, sSqrTri)
       tmpMat(:,:) = tmpMat * camGammaAO
-      call symm(Hcam, 'l', Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+      call ${MATOP}$(hamCamSqr, 'l', sSqrTri, tmpMat, alpha=${CONV}$(1, kind=dp),&
+          & beta=${CONV}$(1, kind=dp))
 
       if (this%tSpin .or. this%tREKS) then
-        Hcam(:,:) = -0.25_dp * Hcam
+        hamCamSqr(:,:) = -0.25_dp * hamCamSqr
       else
-        Hcam(:,:) = -0.125_dp * Hcam
+        hamCamSqr(:,:) = -0.125_dp * hamCamSqr
       end if
 
     end subroutine evaluateHamiltonian
 
-  end subroutine addCamHamiltonianMatrix_real
+  end subroutine addCamHamiltonianMatrix_${NAME}$
+
+#:endfor
 
 #:endif
 
-
-  !> Update Hamiltonian with CAM range-separated contributions, using a matrix-matrix multiplication
-  !! based algorithm.
-  !! (complex non-periodic and complex Gamma-only version)
-  !!
-  !! Eq.(B3) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
-  subroutine addCamHamiltonianMatrix_cluster_cmplx(this, iSquare, overlap, densSqr, HH)
-
-    !> Class instance
-    class(THybridXcFunc), intent(inout) :: this
-
-    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-    integer, intent(in) :: iSquare(:)
-
-    !> Square (unpacked) overlap matrix
-    complex(dp), intent(in) :: overlap(:,:)
-
-    !> Square (unpacked) density matrix
-    complex(dp), intent(in) :: densSqr(:,:)
-
-    !> Square (unpacked) Hamiltonian to be updated
-    complex(dp), intent(inout) :: HH(:,:)
-
-    !! Symmetrized, square (unpacked) overlap matrix
-    complex(dp), allocatable :: Smat(:,:)
-
-    !! Symmetrized, square (unpacked) density matrix
-    complex(dp), allocatable :: Dmat(:,:)
-
-    !! Symmetrized, square (unpacked) Hamiltonian
-    complex(dp), allocatable :: Hcam(:,:)
-
-    !! Square matrix filled with orbital-resolved gamma values
-    !! Actually the diatomic gamma elements are just spread to all orbitals
-    real(dp), allocatable :: camGammaAO(:,:)
-    complex(dp), allocatable :: gammaCmplx(:,:)
-
-    !! Number of orbitals in square matrices
-    integer :: nOrb
-
-    nOrb = size(overlap, dim=1)
-
-    allocate(Smat(nOrb, nOrb))
-    allocate(Dmat(nOrb, nOrb))
-    allocate(camGammaAO(nOrb, nOrb))
-    allocate(gammaCmplx(nOrb, nOrb))
-    allocate(Hcam(nOrb, nOrb))
-
-    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO, gammaCmplx)
-
-    call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hcam)
-
-    HH(:,:) = HH + Hcam
-    this%camEnergy = this%camEnergy + evaluateEnergy_cplx(Hcam, Dmat)
-
-  contains
-
-    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, camGammaAO,&
-        & gammaCmplx)
-
-      !> Instance
-      class(THybridXcFunc), intent(inout) :: this
-
-      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
-      integer, intent(in) :: iSquare(:)
-
-      !> Square (unpacked) overlap matrix
-      complex(dp), intent(in) :: overlap(:,:)
-
-      !> Square (unpacked) density matrix
-      complex(dp), intent(in) :: densSqr(:,:)
-
-      !> Square (unpacked) Hamiltonian to be updated
-      complex(dp), intent(inout) :: HH(:,:)
-
-      !> Symmetrized square overlap matrix
-      complex(dp), intent(out) :: Smat(:,:)
-
-      !> Symmetrized square density matrix
-      complex(dp), intent(out) :: Dmat(:,:)
-
-      !> Symmetrized CAM gamma matrix
-      real(dp), intent(out) :: camGammaAO(:,:)
-
-      !> Symmetrized CAM gamma matrix
-      complex(dp), intent(out) :: gammaCmplx(:,:)
-
-      !! Indices iterating over atoms
-      integer :: iAt, jAt
-
-      !! Number of atoms
-      integer :: nAtom
-
-      nAtom = size(this%camGammaEval0, dim=1)
-
-      !! Symmetrize Hamiltonian, overlap, density matrices
-      call adjointLowerTriangle(HH)
-      Smat(:,:) = overlap
-      call adjointLowerTriangle(Smat)
-      Dmat(:,:) = densSqr
-      call adjointLowerTriangle(Dmat)
-
-      ! Get CAM gamma variable
-      camGammaAO(:,:) = 0.0_dp
-      do iAt = 1, nAtom
-        do jAt = 1, nAtom
-          camGammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
-              & this%camGammaEval0(jAt, iAt)
-        end do
-      end do
-      gammaCmplx(:,:) = camGammaAO
-
-    end subroutine allocateAndInit
-
-
-    subroutine evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hcam)
-
-      !> Instance
-      class(THybridXcFunc), intent(inout) :: this
-
-      !> Symmetrized square overlap matrix
-      complex(dp), intent(in) :: Smat(:,:)
-
-      !> Symmetrized square density matrix
-      complex(dp), intent(in) :: Dmat(:,:)
-
-      !> Symmetrized CAM gamma matrix
-      complex(dp), intent(in) :: gammaCmplx(:,:)
-
-      !> Symmetrized CAM Hamiltonian matrix
-      complex(dp), intent(out) :: Hcam(:,:)
-
-      complex(dp), allocatable :: Hmat(:,:)
-      complex(dp), allocatable :: tmpMat(:,:)
-
-      !! Number of orbitals in square matrices
-      integer :: nOrb
-
-      nOrb = size(Smat, dim=1)
-
-      allocate(Hmat(nOrb, nOrb))
-      allocate(tmpMat(nOrb, nOrb))
-
-      call hemm(tmpMat, 'l', Smat, Dmat)
-      call hemm(Hcam, 'r', Smat, tmpMat)
-      Hcam(:,:) = Hcam * gammaCmplx
-
-      tmpMat(:,:) = tmpMat * gammaCmplx
-      call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
-
-      Hmat(:,:) = Dmat * gammaCmplx
-      call hemm(tmpMat, 'l', Smat, Hmat)
-      call hemm(Hcam, 'r', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
-
-      call hemm(tmpMat, 'l', Dmat, Smat)
-      tmpMat(:,:) = tmpMat * gammaCmplx
-      call hemm(Hcam, 'l', Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
-
-      if (this%tSpin) then
-        Hcam(:,:) = -0.25_dp * Hcam
-      else
-        Hcam(:,:) = -0.125_dp * Hcam
-      end if
-
-    end subroutine evaluateHamiltonian
-
-  end subroutine addCamHamiltonianMatrix_cluster_cmplx
-
-
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, Eq.(6.3.6)
   subroutine addCamHamiltonianMatrix_kpts(this, env, denseDesc, ints, densityMatrix, neighbourList,&
       & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, kPoints, kWeights, HSqrCplxCam)
 
@@ -2663,43 +2535,43 @@ contains
       call getCamGammaFourierAO(this, denseDesc%iAtomStart, this%cellVecsG, this%rCellVecsG,&
           & kPoints(:, iK), -kPointPrime(:, iKPrime), gammaAOCc)
 
-      ! Term 1
+      ! Term 1 of Eq.(6.3.6)
       call hemm(tmp, 'r', SSqrCplxPrime(:,:, iKPrime), Sp_dPp)
       tmp(:,:) = tmp * gammaAO
-      ! Term 1 (complex conjugated for inverse k-points)
+      ! Term 1 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       ! use conjg(S(k)) = transpose(S(k)) = S(-k)
       call hemm(tmp2, 'r', Sp_c, Sp_dPp_cc)
       tmp2(:,:) = tmp2 * gammaAOCc
       tmp(:,:) = tmp + tmp2
 
-      ! Term 2
+      ! Term 2 of Eq.(6.3.6)
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp * gammaAO, beta=(1.0_dp, 0.0_dp))
-      ! Term 2 (complex conjugated for inverse k-points)
+      ! Term 2 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), Sp_dPp_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
 
-      ! Term 3
+      ! Term 3 of Eq.(6.3.6)
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp * gammaAO, beta=(1.0_dp, 0.0_dp))
-      ! Term 3 (complex conjugated for inverse k-points)
+      ! Term 3 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), dPp_Sp_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
 
-      ! Add terms 1-3
+      ! Add terms 1-3 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
 
-      ! Term 4
+      ! Term 4 of Eq.(6.3.6)
       tmp(:,:) = densityMatrix%deltaRhoInCplx(:,:, iGlobalKPrimeS) * gammaAO
       tmp2(:,:) = tmp
       call hemm(tmp, 'r', SSqrCplx(:,:, iK), tmp2)
       tmp2(:,:) = tmp
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
-      ! Add term 4
+      ! Add term 4 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
 
-      ! Term 4 (complex conjugated for inverse k-points)
+      ! Term 4 of Eq.(6.3.6) (complex conjugated for inverse k-points)
       ! use conjg(dP(k)) = transpose(dP(k)) = dP(-k)
       tmp(:,:) = dPp_c * gammaAOCc
       tmp2(:,:) = tmp
@@ -2707,7 +2579,7 @@ contains
       tmp2(:,:) = tmp
       call hemm(tmp, 'l', SSqrCplx(:,:, iK), tmp2)
 
-      ! Add term 4
+      ! Add term 4 of Eq.(6.3.6)
       ! (the factor 0.5 accounts for the additional -k' points)
       HSqrCplxCam(:,:, iGlobalKS) = HSqrCplxCam(:,:, iGlobalKS)&
           & + 0.5_dp * kWeightPrime(iKPrime) * tmp
@@ -2738,6 +2610,8 @@ contains
 
 
   !> Calculates the dense, square, dual-space overlap matrices S(k) on all MPI processes.
+  !!
+  !! see Eq.(8) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
   subroutine getDenseSqrDualSpaceOverlap(env, denseDesc, ints, neighbourList, nNeighbourSK,&
       & iCellVec, cellVec, iSparseStart, img2CentCell, kPoint, SSqrCplx)
 
@@ -2809,6 +2683,11 @@ contains
   !! (k-point version)
   !!
   !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.2, Eq.(6.2.4)
   subroutine addCamHamiltonianNeighbour_kpts_mic(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, rCellVecs, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam,&
       & errStatus)
@@ -2954,8 +2833,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -2969,8 +2847,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -3137,6 +3014,11 @@ contains
   !! (k-point version)
   !!
   !! Eq.(43) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.2, Eq.(6.2.3)
   subroutine addCamHamiltonianNeighbour_kpts_ct(this, env, deltaRhoSqr, symNeighbourList,&
       & nNeighbourCamSym, cellVecs, iSquare, orb, kPoints, iKiSToiGlobalKS, HSqrCplxCam, errStatus)
 
@@ -3263,8 +3145,7 @@ contains
 
     ! check and initialize screening
     if (.not. this%tScreeningInited) then
-      allocate(this%hprevCplxHS(squareSize, squareSize, nKS))
-      this%hprevCplxHS(:,:,:) = (0.0_dp, 0.0_dp)
+      allocate(this%hprevCplxHS(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
       ! there is no previous delta density matrix, therefore just copy over
       deltaDeltaRhoSqr = deltaRhoSqr
       this%tScreeningInited = .true.
@@ -3278,8 +3159,7 @@ contains
     this%dRhoPrevCplxHS = deltaRhoSqr
 
     ! allocate delta Hamiltonian
-    allocate(HSqrCplxCam(squareSize, squareSize, nKS))
-    HSqrCplxCam(:,:,:) = (0.0_dp, 0.0_dp)
+    allocate(HSqrCplxCam(squareSize, squareSize, nKS), source=(0.0_dp, 0.0_dp))
 
     ! skip whole procedure if delta density matrix is close to zero, e.g. in the first SCC iteration
     if (pMax < 1e-16_dp) return
@@ -3477,6 +3357,11 @@ contains
 
 
   !> Returns the Fock-type exchange contribution to the total energy (complex version).
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 3.2, Eq.(3.2.5)
   subroutine getHybridEnergy_kpts(this, env, localKS, iKiSToiGlobalKS, kWeights, deltaRhoOutCplx,&
       & camEnergy)
 
@@ -3521,7 +3406,7 @@ contains
       end if
 
       camEnergy = camEnergy + kWeights(iK)&
-          & * evaluateEnergy_cplx(this%hprevCplxHS(:,:, iGlobalKS),&
+          & * evaluateEnergy_cmplx(this%hprevCplxHS(:,:, iGlobalKS),&
           & deltaRhoOutCplx(:,:, iDensMatKS))
     end do
 
@@ -3532,45 +3417,45 @@ contains
   end subroutine getHybridEnergy_kpts
 
 
-  !> Evaluates energy from Hamiltonian and density matrix (real version).
-  pure function evaluateEnergy_real(hamiltonian, densityMat) result(energy)
+#:for NAME, TYPE in FLAVOURS
 
-    !> Hamiltonian matrix
-    real(dp), intent(in) :: hamiltonian(:,:)
+#:set LABEL = 'complex' if NAME == 'cmplx' else 'real'
 
-    !> Density matrix
-    real(dp), intent(in) :: densityMat(:,:)
+  !> Evaluates energy from CAM Hamiltonian and density matrix.
+  !! (${LABEL}$ non-periodic and ${LABEL}$ Gamma-only version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 3.2, Eq.(3.2.5)
+  pure function evaluateEnergy_${NAME}$(hamCamSqr, rhoSqr) result(energy)
 
-    !> Resulting energy due to CAM contribution
-    real(dp) :: energy
+    !> Both triangles of the dense, square, unpacked HFX contributions to the total Hamiltonian
+    ${TYPE}$(dp), intent(in) :: hamCamSqr(:,:)
 
-    energy = 0.5_dp * sum(hamiltonian * densityMat)
-
-  end function evaluateEnergy_real
-
-
-  !> Evaluates energy from the Hamiltonian and density matrix (complex version).
-  pure function evaluateEnergy_cplx(hamiltonian, densityMat) result(energy)
-
-    !> Hamiltonian matrix
-    complex(dp), intent(in) :: hamiltonian(:,:)
-
-    !> Density matrix in k-space
-    complex(dp), intent(in) :: densityMat(:,:)
+    !> Both triangles of the dense, square, unpacked density matrix
+    ${TYPE}$(dp), intent(in) :: rhoSqr(:,:)
 
     !> Resulting energy due to CAM contribution
     real(dp) :: energy
 
+  #:if NAME == 'real'
+    energy = 0.5_dp * sum(hamCamSqr * rhoSqr)
+  #:else
     ! Conjugation as this is equivalent to Tr(matmul(H,rho)) = sum(H * rho^dag)
-    energy = 0.5_dp * real(sum(hamiltonian * conjg(densityMat)), dp)
+    energy = 0.5_dp * real(sum(hamCamSqr * conjg(rhoSqr)), dp)
+  #:endif
 
-  end function evaluateEnergy_cplx
+  end function evaluateEnergy_${NAME}$
+#:endfor
 
 
-  !> Returns the value of a polynomial of 5th degree at x (or its derivative).
-  !! The polynomial is created with the following boundary conditions:
-  !! Its value, its 1st and 2nd derivatives are zero at x = rCut and agree with the provided values
-  !! at x = rDamp, i.e. x = rCut - delta.
+  !! Returns either f(x) or f'(x) for the unique 5th-degree polynomial that satisfies:
+  !!   f(rDamp) = y0
+  !!   f'(rDamp) = y0p
+  !!   f''(rDamp) = y0pp
+  !!   and f(rCut) = f'(rCut) = f''(rCut) = 0
+  !!
   !! WARNING: To avoid additional branches, there are no consistency checks, e.g. that rDamp < rCut
   pure function poly5zero(y0, y0p, y0pp, xx, rDamp, rCut, tDerivative) result(yy)
 
@@ -3595,65 +3480,74 @@ contains
     !> True, if the derivative at xx is desired, otherwise the function value it returned
     logical, intent(in), optional :: tDerivative
 
-    !! True, if the derivative at xx is desired, otherwise the function value it returned
-    !! Default: .false.
-    logical :: tPrime
-
-    !! Value of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
+    !! Value/derivative of the polynomial at xx (in general should satisfy rDamp <= x <= rCut)
     real(dp) :: yy
 
-    !! Polynomial coefficients
-    real(dp) :: aa, bb, cc, dd, ee, ff
+    !! True, if the derivative at xx is desired, otherwise the function value it returned
+    !! Default: .false.
+    logical :: tDerivative_
+
+    !! Dimensionless coordinate in [0, 1]
+    real(dp) :: tt
 
     !! rCut - rDamp
     real(dp) :: delta
 
+    !! Polynomial coefficients in tt
+    real(dp) :: aa, bb, cc, dd, ee, ff
+
+    !! Short-hands
+    real(dp) :: s0, s1, s2
+
+    !! P'(t) in terms of tt
+    real(dp) :: pd
+
     if (present(tDerivative)) then
-      tPrime = tDerivative
+      tDerivative_ = tDerivative
     else
-      tPrime = .false.
+      tDerivative_ = .false.
     end if
-
-    ! 5th order polynomial definition
-    ! f(x) = ax^5 + bx^4 + cx^3 + dx^2 + ex + f
-    ! f'(x) = 5ax^4 + 4bx^3 + 3cx^2 + 2dx + e
-    ! f''(x) = 20ax^3 + 12bx^2 + 6cx + 2d
-
-    ! boundary conditions:
-    ! f(rCut) = 0, f'(rCut) = 0, f''(rCut) = 0
-    ! f(rDamp) = y0, f'(rDamp) = y0p, f''(rDamp) = y0pp
 
     delta = rCut - rDamp
 
-    aa = -(delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0) / (2.0_dp * delta**5)
+    tt = (xx - rDamp) / delta
 
-    bb = (rCut * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0)&
-        & - 2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & / (2.0_dp * delta**5)
+    ! Fill known polynomial coefficients at tt=0
+    ff = y0
+    ee = y0p * delta
+    dd = 0.5_dp * y0pp * delta**2
 
-    cc = -(rCut * (-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta * y0)&
-        & + rCut**2 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0)&
-        & + delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & / (2.0_dp * delta**5)
+    ! Solve for aa, bb, cc from boundary conditions at tt=1
 
-    dd = (rCut * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2 * y0)&
-        & + rCut**2 * (-12.0_dp * delta**3 * y0pp - 84.0_dp * delta**2 * y0p - 180.0_dp * delta&
-        & * y0) + rCut**3 * (10.0_dp * delta**2 * y0pp + 60.0_dp * delta * y0p + 120.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Compute short-hands
+    s0 = -(dd + ee + ff)
+    s1 = -(2.0_dp * dd + ee)
+    s2 = -2.0_dp * dd
 
-    ee = -(rCut**2 * (3.0_dp * delta**4 * y0pp + 24.0_dp * delta**3 * y0p + 60.0_dp * delta**2&
-        & * y0) + rCut**3*(-8.0_dp * delta**3 * y0pp - 56.0_dp * delta**2 * y0p - 120.0_dp * delta&
-        & * y0) + rCut**4 * (5.0_dp * delta**2 * y0pp + 30.0_dp * delta * y0p + 60.0_dp * y0))&
-        & / (2.0_dp * delta**5)
+    ! Solve step by step
+    aa = (s2 + 12.0_dp * s0 - 6.0_dp * s1) * 0.5_dp
+    bb = s1 - 3.0_dp * s0 - 2.0_dp * aa
+    cc = s0 - aa - bb
 
-    ff = (rCut**3 * (delta**4 * y0pp + 8.0_dp * delta**3 * y0p + 20.0_dp * delta**2 * y0)&
-        & + rCut**4 * (-2.0_dp * delta**3 * y0pp - 14.0_dp * delta**2 * y0p - 30.0_dp * delta * y0)&
-        & + rCut**5 * (delta**2 * y0pp + 6.0_dp * delta * y0p + 12.0_dp * y0)) / (2.0_dp * delta**5)
-
-    if (tPrime) then
-      yy = 5.0_dp * aa * xx**4 + 4.0_dp * bb * xx**3 + 3.0_dp * cc * xx**2 + 2.0_dp * dd * xx + ee
+    ! Evaluate P(tt) or P'(tt) / delta using Horner's method
+    if (.not. tDerivative_) then
+      ! f(x) = P(tt)
+      yy = aa
+      yy = yy * tt + bb
+      yy = yy * tt + cc
+      yy = yy * tt + dd
+      yy = yy * tt + ee
+      yy = yy * tt + ff
     else
-      yy = aa * xx**5 + bb * xx**4 + cc * xx**3 + dd * xx**2 + ee * xx + ff
+      ! derivative w.r.t. xx:
+      ! P'(tt) / delta but first compute P'(tt) via Horner in tt
+      pd = 5.0_dp * aa
+      pd = pd * tt + 4.0_dp * bb
+      pd = pd * tt + 3.0_dp * cc
+      pd = pd * tt + 2.0_dp * dd
+      pd = pd * tt + ee
+
+      yy = pd / delta
     end if
 
   end function poly5zero
@@ -3981,6 +3875,11 @@ contains
 
 
   !> Returns pseudo Fourier transform of long-range and full-range Hartree-Fock gammas.
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, Eq.(6.3.5)
   function getCamGammaFourier(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(gamma)
 
@@ -4108,6 +4007,11 @@ contains
 
 
   !> Calculates derivative w.r.t. given atom of the pseudo Fourier transformed square CAM y-matrix.
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3, derivative of Eq.(6.3.5)
   function getCamGammaFourierPrime(this, iAt1, iAt2, iSp1, iSp2, cellVecsG, rCellVecsG, kPoint,&
       & kPointPrime) result(dGamma)
 
@@ -4595,7 +4499,7 @@ contains
 
     ! analytical derivatives
     vect(:) = this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2)
-    dist = sqrt(sum(vect**2))
+    dist = norm2(vect)
     vect(:) = vect / dist
 
     if (this%hybridXcType == hybridXcFunc%lc .or. this%hybridXcType == hybridXcFunc%cam) then
@@ -4633,12 +4537,14 @@ contains
     !! Distance(-vector) of the two atoms
     real(dp) :: vect(3), dist
 
+    grad(:) = 0.0_dp
+
     iSp1 = this%species0(img2CentCell(iAtom1))
     iSp2 = this%species0(img2CentCell(iAtom2))
 
     ! analytical derivatives
     vect(:) = this%rCoords(:, iAtom1) - this%rCoords(:, iAtom2)
-    dist = sqrt(sum(vect**2))
+    dist = norm2(vect)
     vect(:) = vect / dist
 
     if (this%hybridXcType == hybridXcFunc%lc .or. this%hybridXcType == hybridXcFunc%cam) then
@@ -4706,9 +4612,9 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     if (tPeriodic) then
-      call this%tabulateCamdGammaEval0_gamma()
+      call this%tabulateCamdGammaEval0_gamma(env)
     else
-      call this%tabulateCamdGammaEval0_cluster()
+      call this%tabulateCamdGammaEval0_cluster(env)
     end if
 
     select case(this%hybridXcAlg)
@@ -4727,12 +4633,15 @@ contains
 
   !> Interface routine to add gradients due to CAM range-separated contributions.
   !! (non-periodic and Gamma-only version)
-  subroutine addCamGradients_real(this, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
+  subroutine addCamGradients_real(this, env, deltaRhoSqr, SSqrReal, skOverCont, orb, iSquare,&
       & iNeighbour, nNeighbourSK, derivator, tPeriodic, gradients, symNeighbourList,&
       & nNeighbourCamSym)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Square (unpacked) delta density matrix
     real(dp), intent(in) :: deltaRhoSqr(:,:,:)
@@ -4771,9 +4680,9 @@ contains
     integer, intent(in), optional :: nNeighbourCamSym(:)
 
     if (tPeriodic) then
-      call this%tabulateCamdGammaEval0_gamma()
+      call this%tabulateCamdGammaEval0_gamma(env)
     else
-      call this%tabulateCamdGammaEval0_cluster()
+      call this%tabulateCamdGammaEval0_cluster(env)
     end if
 
     select case(this%hybridXcAlg)
@@ -4859,8 +4768,9 @@ contains
         if (iAtK /= iAtC) then
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, this%rCoords, this%species0, iAtK,&
               & iAtC, orb)
-          call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, this%rCoords, this%species0, iAtC,&
-              & iAtK, orb)
+          do alpha = 1, 3
+            sPrimeTmp2(:,:, alpha) = -transpose(sPrimeTmp(:,:, alpha))
+          end do
         end if
         loopB: do iAtB = 1, nAtom0
           ! A > B
@@ -5082,8 +4992,7 @@ contains
     call getTwoLoopCompositeIndex(nAtom0, nAtom0, iAtMN)
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     tmpDeltaRhoSqr = deltaRhoSqr
     do iSpin = 1, nSpin
@@ -5256,12 +5165,15 @@ contains
 
 
   !> Pre-tabulates summed gamma function derivatives (non-periodic version).
-  subroutine tabulateCamdGammaEval0_cluster(this)
+  subroutine tabulateCamdGammaEval0_cluster(this, env)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
 
-    !! Holds long-range gamma derivatives of a single interaction
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !! Holds CAM gamma derivatives of a single interaction
     real(dp) :: tmp(3)
 
     !! Indices of interacting atoms in central cell
@@ -5270,29 +5182,41 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     nAtom0 = size(this%species0)
 
     if (allocated(this%camdGammaEval0)) deallocate(this%camdGammaEval0)
-    allocate(this%camdGammaEval0(3, nAtom0, nAtom0))
-    this%camdGammaEval0(:,:,:) = 0.0_dp
+    allocate(this%camdGammaEval0(3, nAtom0, nAtom0), source=0.0_dp)
 
-    do iAt1 = 1, nAtom0
-      do iAt2 = 1, nAtom0
-        if (iAt1 /= iAt2) then
-          call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
-          this%camdGammaEval0(:, iAt1, iAt2) = tmp
-        end if
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAt1 = iParallelStart, iParallelEnd
+      ! skip the iAt1 == iAt2 case, therefore start at iAt1 + 1
+      do iAt2 = iAt1 + 1, nAtom0
+        call getDirectionalCamGammaPrimeValue_cluster(this, tmp, iAt1, iAt2)
+        this%camdGammaEval0(:, iAt1, iAt2) = tmp
+        ! exploit the Skew symmetry of the derivatives
+        this%camdGammaEval0(:, iAt2, iAt1) = -this%camdGammaEval0(:, iAt1, iAt2)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camdGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine tabulateCamdGammaEval0_cluster
 
 
   !> Pre-tabulates summed gamma function derivatives (Gamma-only version).
-  subroutine tabulateCamdGammaEval0_gamma(this)
+  subroutine tabulateCamdGammaEval0_gamma(this, env)
 
     !> Class instance
     class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !! Indices of interacting atoms in central cell, as well as their global species index
     integer :: iAtM, iSpM, iAtN, iSpN
@@ -5300,23 +5224,31 @@ contains
     !! Number of atoms in central cell
     integer :: nAtom0
 
+    !! Start and end index for MPI parallelization, if applicable
+    integer :: iParallelStart, iParallelEnd
+
     nAtom0 = size(this%species0)
 
     if (allocated(this%camdGammaEval0)) deallocate(this%camdGammaEval0)
-    allocate(this%camdGammaEval0(3, nAtom0, nAtom0))
-    this%camdGammaEval0(:,:,:) = 0.0_dp
+    allocate(this%camdGammaEval0(3, nAtom0, nAtom0), source=0.0_dp)
 
-    do iAtM = 1, nAtom0
+    call getStartAndEndIndex(env, nAtom0, iParallelStart, iParallelEnd)
+
+    do iAtM = iParallelStart, iParallelEnd
       iSpM = this%species0(iAtM)
-      do iAtN = 1, nAtom0
-        if (iAtM == iAtN) cycle
+      ! skip the iAtM == iAtN case, therefore start at iAtM + 1
+      do iAtN = iAtM + 1, nAtom0
         iSpN = this%species0(iAtN)
         this%camdGammaEval0(:, iAtM, iAtN) = getCamGammaPrimeGSum(this, iAtM, iAtN, iSpM, iSpN,&
             & this%rCellVecsG)
-        this%camdGammaEval0(:, iAtN, iAtM) = getCamGammaPrimeGSum(this, iAtN, iAtM, iSpN, iSpM,&
-            & this%rCellVecsG)
+        ! exploit the Skew symmetry of the derivatives
+        this%camdGammaEval0(:, iAtN, iAtM) = -this%camdGammaEval0(:, iAtM, iAtN)
       end do
     end do
+
+  #:if WITH_MPI
+    call mpifx_allreduceip(env%mpi%globalComm, this%camdGammaEval0, MPI_SUM)
+  #:endif
 
   end subroutine tabulateCamdGammaEval0_gamma
 
@@ -5467,6 +5399,11 @@ contains
   !! (non-periodic and Gamma-only version)
   !!
   !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
   subroutine addCamGradientsMatrix_real_blacs(this, env, parallelKS, deltaRhoSqr,&
       & overlap, skOverCont, symNeighbourList, nNeighbourCamSym, orb, derivator, denseDesc,&
       & nSpin, gradients)
@@ -5696,6 +5633,11 @@ contains
   !! (non-periodic and Gamma-only version)
   !!
   !! Eq.(B5) of Phys. Rev. Materials 7, 063802 (DOI: 10.1103/PhysRevMaterials.7.063802)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.2, Eq.(6.3.16)
   subroutine addCamGradientsMatrix_real(this, deltaRhoSqr, overlap, skOverCont,&
       & symNeighbourList, nNeighbourCamSym, iSquare, orb, derivator, gradients)
 
@@ -5997,6 +5939,11 @@ contains
 
   !> Adds range-separated contributions to Hamiltonian, using matrix based algorithm.
   !! (k-point version)
+  !!
+  !! PhD thesis of Tammo van der Heide (2024)
+  !! "Hybrid Functionals for Periodic Systems in the Density Functional Tight-Binding Method"
+  !! DOI: https://doi.org/10.26092/elib/3509
+  !! Section 6.3.1, Eq.(6.3.11)
   subroutine addCamGradientsMatrix_kpts_ct(this, env, denseDesc, skOverCont, derivator, orb, ints,&
       & densityMatrix, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, iCellVec,&
       & cellVec, iSparseStart, img2CentCell, kPoints, kWeights, gradients)
@@ -6205,11 +6152,11 @@ contains
             & nNeighbourCamSym, denseDesc%iAtomStart, cellVec, this%rCoords, kPoints(:, iKPrime),&
             & overSqrPrime)
 
-        ! Term 1
+        ! Term 1 of Eq.(6.3.11)
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS) * gammaAO, dPp_Sp)
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS), dP_S * gammaAO,&
             & beta=(1.0_dp, 0.0_dp))
-        ! Term 1 (complex conjugated for inverse k-points, k -> -k)
+        ! Term 1 of Eq.(6.3.11) (complex conjugated for inverse k-points, k -> -k)
         call hemm(tmp, 'r', dPm * gammaAOCc, dPp_Sp, beta=(1.0_dp, 0.0_dp))
         call hemm(tmp, 'r', densityMatrix%deltaRhoOutCplx(:,:, iGlobalKPrimeS),&
             & dP_S_cc * gammaAOCc, beta=(1.0_dp, 0.0_dp))
@@ -6219,7 +6166,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 1
+        ! Add term 1 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
@@ -6227,7 +6174,7 @@ contains
               & - wk_wkp * sum(overSqrPrime(iCoord, :,:) * tmp)
         end do
 
-        ! Term 2
+        ! Term 2 of Eq.(6.3.11)
         tmp(:,:) = dP_S * dPp_Sp_T + Sp_dPp_Sp_T * densityMatrix%deltaRhoOutCplx(:,:, iGlobalKS)
         ! [...]^adj = 0.5 * [(...) + (...)^adj]
         ! we actually calculate ([...]^adj)^T here, so that the transpose in dS(k') * tmp^T can be
@@ -6235,7 +6182,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 2
+        ! Add term 2 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
@@ -6243,7 +6190,7 @@ contains
               & - 0.5_dp * wk_wkp * sum(dGammaAO(:,:, iCoord) * tmp)
         end do
 
-        ! Term 2 (complex conjugated for inverse k-points, k -> -k)
+        ! Term 2 of Eq.(6.3.11) (complex conjugated for inverse k-points, k -> -k)
         tmp(:,:) = dP_S_cc * dPp_Sp_T + Sp_dPp_Sp_T * dPm
         ! [...]^adj = 0.5 * [(...) + (...)^adj]
         ! we actually calculate ([...]^adj)^T here, so that the transpose in dS(k') * tmp^T can be
@@ -6251,7 +6198,7 @@ contains
         ! (extra factor of 0.5 accounts for the additional -k points)
         tmp(:,:) = 0.25_dp * (transpose(tmp) + conjg(tmp))
 
-        ! Add term 2
+        ! Add term 2 of Eq.(6.3.11)
         ! (sum should run over dS(k') * tmp^T, the transpose is already considered in the
         ! hermitianization above)
         do iCoord = 1, 3
@@ -6435,8 +6382,7 @@ contains
     end do
 
     ! allocate gradient contribution
-    allocate(tmpGradients(3, size(gradients, dim=2)))
-    tmpGradients(:,:) = 0.0_dp
+    allocate(tmpGradients(3, size(gradients, dim=2)), source=0.0_dp)
 
     ! First terms of (48)
     loopK1: do iAtK = 1, nAtom0

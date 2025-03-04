@@ -82,7 +82,6 @@ Hamiltonian = DFTB {
     }
     Filling = MethfesselPaxton {
         Temperature [Kelvin] = 10000
-        Order = 2
     }
     SlaterKosterFiles = Type2FileNames {
         Prefix = "slakos/origin/pbc-0-3/"

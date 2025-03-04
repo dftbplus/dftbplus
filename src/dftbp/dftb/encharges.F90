@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -76,7 +76,7 @@ module dftbp_dftb_encharges
   !> Container containing all calculation data for the EEQ model
   type :: TEeqCont
 
-    !> number of atoms
+    !> Number of atoms
     integer :: nAtom
 
     !> EEQ parametrisation
@@ -88,13 +88,13 @@ module dftbp_dftb_encharges
     !> Cutoff for real-space summation under PBCs
     real(dp) :: cutoff
 
-    !> lattice vectors if periodic
+    !> Lattice vectors if periodic
     real(dp) :: latVecs(3, 3)
 
     !> Volume of the unit cell
     real(dp) :: vol
 
-    !> evaluate Ewald parameter
+    !> Evaluate Ewald parameter
     logical :: tAutoEwald
 
     !> Ewald tolerance
@@ -103,7 +103,7 @@ module dftbp_dftb_encharges
     !> Parameter for Ewald summation.
     real(dp) :: parEwald
 
-    !> is this periodic
+    !> Is this periodic
     logical :: tPeriodic
 
     !> Contains the points included in the reciprocal sum.
@@ -113,66 +113,66 @@ module dftbp_dftb_encharges
     !> Coordination number container
     type(TCNCont) :: cnCont
 
-    !> are the coordinates current?
+    !> Are the coordinates current?
     logical :: tCoordsUpdated
 
-    !> electrostatic energy
+    !> Electrostatic energy
     real(dp), allocatable :: energies(:)
 
-    !> force contributions
+    !> Force contributions
     real(dp), allocatable :: gradients(:, :)
 
-    !> stress tensor
+    !> Stress tensor
     real(dp), allocatable :: stress(:, :)
 
-    !> partial charges
+    !> Partial charges
     real(dp), allocatable :: charges(:)
 
-    !> derivative of partial charges w.r.t. coordinates
+    !> Derivative of partial charges w.r.t. coordinates
     real(dp), allocatable :: dqdr(:, :, :)
 
-    !> derivative of partial charges w.r.t. strain deformations
+    !> Derivative of partial charges w.r.t. strain deformations
     real(dp), allocatable :: dqdL(:, :, :)
 
   contains
 
-    !> update internal store of coordinates
+    !> Update internal store of coordinates
     procedure :: updateCoords
 
-    !> update internal store of lattice vectors
+    !> Update internal store of lattice vectors
     procedure :: updateLatVecs
 
-    !> return energy contribution
+    !> Return energy contribution
     procedure :: getEnergies
 
-    !> return energy contribution
+    !> Return energy contribution
     procedure :: getCharges
 
-    !> return force contribution
+    !> Return force contribution
     generic :: addGradients => addGradientsEnergy, addGradientsCharges
 
-    !> return force contribution for electrostatic energy
+    !> Return force contribution for electrostatic energy
     procedure, private :: addGradientsEnergy
 
-    !> return force contribution for charge derivatives
+    !> Return force contribution for charge derivatives
     procedure, private :: addGradientsCharges
 
-    !> return stress tensor contribution
+    !> Return stress tensor contribution
     generic :: addStress => addStressEnergy, addStressCharges
 
-    !> return stress tensor contribution for electrostatic energy
+    !> Return stress tensor contribution for electrostatic energy
     procedure, private :: addStressEnergy
 
-    !> return stress tensor contribution for charge derivatives
+    !> Return stress tensor contribution for charge derivatives
     procedure, private :: addStressCharges
 
-    !> cutoff distance in real space for EEQ
+    !> Cutoff distance in real space for EEQ
     procedure :: getRCutoff
 
   end type TEeqCont
 
 
-  !> initialize container from input
+  !> Initialize container from input
   interface init
     module procedure :: initialize
   end interface init
@@ -407,7 +407,7 @@ contains
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
 
-    !> stress tensor from the EEQ
+    !> Stress tensor from the EEQ
     real(dp), intent(inout) :: stress(:,:)
 
     @:ASSERT(allocated(this%stress))
@@ -425,7 +425,7 @@ contains
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
 
-    !> stress tensor from the EEQ
+    !> Stress tensor from the EEQ
     real(dp), intent(inout) :: stress(:,:)
 
     !> Derivative of the energy expression w.r.t. the partial charges
@@ -467,7 +467,7 @@ contains
   !> Generates full interaction matrix for Gaussian charge distributions.
   subroutine getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
@@ -476,10 +476,10 @@ contains
     !> Species of every atom.
     integer, intent(in) :: species(:)
 
-    !> element-specific chemical hardnesses
+    !> Element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> Interaction Matrix for each atom pair.
@@ -523,7 +523,7 @@ contains
     !> Species of every atom.
     integer, intent(in) :: species(:)
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> List of charges on each atom.
@@ -603,10 +603,10 @@ contains
     !  The set should not include the origin or inversion related points.
     real(dp), intent(in) :: recPoint(:, :)
 
-    !> element-specific chemical hardnesses
+    !> Element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> Parameter for Ewald summation.
@@ -665,7 +665,7 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> List of charges on each atom
@@ -841,10 +841,10 @@ contains
     !> Parameter for Ewald summation.
     real(dp), intent(in) :: alpha
 
-    !> element-specific chemical hardnesses
+    !> Element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> Interaction Matrix for each atom pair.
@@ -908,7 +908,7 @@ contains
     !> Parameter for Ewald summation.
     real(dp), intent(in) :: alpha
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> List of charges on each atom.
@@ -980,7 +980,7 @@ contains
       & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, status,&
       & energies, gradients, stress, qAtom, dqdr, dqdL)
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
     !> List of atomic coordinates.
@@ -1014,16 +1014,16 @@ contains
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
 
-    !> element-specific electronegativity
+    !> Element-specific electronegativity
     real(dp), intent(in) :: chi(:)
 
-    !> element-specific chemical hardnesses
+    !> Element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
 
-    !> element-specific CN scaling constant
+    !> Element-specific CN scaling constant
     real(dp), intent(in) :: kcn(:)
 
-    !> element-specific charge widths / atomic radii
+    !> Element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
 
     !> Error function coordination number.

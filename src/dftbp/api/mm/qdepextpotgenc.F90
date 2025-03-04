@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Simplified C-interface with callbacks for population dependant external potential generators.
 module dftbp_dftbplus_qdepextpotgenc
-  use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_c_binding, only : c_double, c_ptr
   use dftbp_common_accuracy, only : dp
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   implicit none

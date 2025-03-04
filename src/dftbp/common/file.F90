@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -99,10 +99,10 @@ module dftbp_common_file
 contains
 
 
-  !> Sets the file opening options according to a C-style mode string
+  !> Sets the file opening options according to a C-style mode string.
   subroutine TOpenOptions_setMode(this, mode, ioStat, ioMsg)
 
-    !> Instance.
+    !> Instance
     class(TOpenOptions), intent(inout) :: this
 
     !> C-like mode string ("r", "r+", "w", "w+", "a", "a+" followed by optional "t" or "b")
@@ -200,7 +200,7 @@ contains
 
 
   !> Opens a file and returns the descriptor.
-  subroutine TFileDescr_connectToFile(this, file, options, mode, ioStat, ioMsg)
+  subroutine TFileDescr_connectToFile(this, file, options, mode, parallelWriting, ioStat, ioMsg)
 
     !> File descriptor on exit (invalid if the file could not be opened and ioStat /= 0)
     class(TFileDescr), intent(out) :: this
@@ -218,12 +218,16 @@ contains
     !! * "w+": readwrite (file created or truncated if it already exists)
     !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
     !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! The values above can be followed by "t" for text/formatted mode (default) or "b" for
     !! binary/unformatted mode.
     !!
     !! When arguments options and mode are both specified, the resulting options are determined by
     !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
+
+    !> If false or absent, block writing to files by all processes other than the lead
+    !! (default: false).
+    logical, optional, intent(in) :: parallelWriting
 
     !> I/O stat error generated during open, zero on exit, if no error occured.
     integer, optional, intent(out) :: ioStat
@@ -234,6 +238,7 @@ contains
     type(TOpenOptions) :: opts
     integer :: ioStat_
     character(1024) :: ioMsg_
+    logical :: parallelWriting_
 
     if (present(options)) then
       opts = options
@@ -250,6 +255,9 @@ contains
         end if
       end if
     end if
+
+    parallelWriting_ = .false.
+    if (present(parallelWriting)) parallelWriting_ = parallelWriting
 
     if (opts%access == "default") then
       select case (opts%action)
@@ -281,6 +289,24 @@ contains
         opts%status = "new"
       end if
     end if
+
+  #:block DEBUG_CODE
+  #:if WITH_MPI
+    block
+      use dftbp_extlibs_mpifx, only : mpifx_comm
+      type(mpifx_comm) :: comm
+      character(1000) :: msg
+      if (.not. parallelWriting_) then
+        call comm%init()
+        if (.not. comm%lead .and. (opts%action == "write" .or. opts%action == "readwrite")) then
+          write(msg, "(a, i0, 3a)") "Follower process (rank ", comm%rank, ") tried to open file '",&
+              & file, "' for writing (only leader can do this)"
+          error stop msg
+        end if
+      end if
+    end block
+  #:endif
+  #:endblock
 
     open(newunit=this%unit, file=file, access=opts%access, action=opts%action, form=opts%form,&
         & status=opts%status, position=opts%position, iostat=ioStat_, iomsg=ioMsg_)
@@ -315,7 +341,7 @@ contains
   end subroutine TFileDescr_connectToFile
 
 
-  !> Connects the descriptor to an existing file unit
+  !> Connects the descriptor to an existing file unit.
   subroutine TFileDescr_connectToUnit(this, unit)
 
     !> File descriptor on exit
@@ -330,7 +356,7 @@ contains
   end subroutine TFileDescr_connectToUnit
 
 
-  !> Finalizes (closes) a file
+  !> Finalizes (closes) a file.
   elemental impure subroutine TFileDescr_disconnect(this)
 
     !> Instance
@@ -366,7 +392,7 @@ contains
   end function TFileDescr_isConnected
 
 
-  !> Assignment (should never be called as it stops the code)
+  !> Assignment (should never be called as it stops the code).
   elemental impure subroutine TFileDescr_assign(lhs, rhs)
 
     !> Right hand side of the assignment
@@ -380,8 +406,9 @@ contains
   end subroutine TFileDescr_assign
 
 
-  ! Finalizes the instance
+  ! Finalizes the instance.
   elemental impure subroutine TFileDescr_final_(this)
+
     type(TFileDescr), intent(inout) :: this
 
     call this%disconnect()
@@ -389,8 +416,8 @@ contains
   end subroutine TFileDescr_final_
 
 
-  !> Convenience wrapper connecting a file descriptor to a file
-  subroutine openFile(fileDescr, file, options, mode, ioStat, ioMsg)
+  !> Convenience wrapper connecting a file descriptor to a file.
+  subroutine openFile(fileDescr, file, options, mode, parallelWriting, ioStat, ioMsg)
 
     !> File descriptor connected to the open file
     type(TFileDescr), intent(out) :: fileDescr
@@ -408,12 +435,16 @@ contains
     !! * "w+": readwrite (file created or truncated if it already exists)
     !! * "a": append-write (file opened if exists, otherwise created, positioned at the end)
     !! * "a+": append-read/write (file opened if exists, otherwise created, positioned at the end)
-    !! The values above can be followed by "t" for text/unformatted mode (default) or "b" for
+    !! The values above can be followed by "t" for text/formatted mode (default) or "b" for
     !! binary/unformatted mode.
     !!
     !! When arguments options and mode are both specified, the resulting options are determined by
     !! applying options first and then set the fields which mode manipulates.
     character(*), optional, intent(in) :: mode
+
+    !> If false or absent, block writing to files by all processes other than the lead
+    !! (default: false).
+    logical, optional, intent(in) :: parallelWriting
 
     !> I/O stat error generated during open
     integer, optional, intent(out) :: ioStat
@@ -421,12 +452,13 @@ contains
     !> I/O message if error occured during open, unallocated otherwise
     character(:), allocatable, optional, intent(out) :: ioMsg
 
-    call fileDescr%connectToFile(file, options=options, mode=mode, ioStat=ioStat, ioMsg=ioMsg)
+    call fileDescr%connectToFile(file, options=options, mode=mode, parallelWriting=parallelWriting,&
+        & ioStat=ioStat, ioMsg=ioMsg)
 
   end subroutine openFile
 
 
-  !> Convenience wrapper for disconnecting a file descriptor (which closes the file)
+  !> Convenience wrapper for disconnecting a file descriptor (which closes the file).
   elemental impure subroutine closeFile(fileDescr)
 
     !> File descriptor, will be unconnected on exit
@@ -437,7 +469,7 @@ contains
   end subroutine closeFile
 
 
-  !> Sets the default access type for file opening operations
+  !> Sets the default access type for file opening operations.
   !!
   !! Note: this routine is not thread of multi-instance-safe!
   subroutine setDefaultBinaryAccess(readAccess, writeAccess, readwriteAccess)
@@ -466,7 +498,7 @@ contains
     !> File to check for existence
     character(*), intent(in) :: file
 
-    !> True, if the file exists.
+    !> True, if the file exists
     logical :: exists
 
     inquire(file=file, exist=exists)
@@ -474,16 +506,16 @@ contains
   end function fileExists
 
 
-  !> Creates empty file without content or truncates files to zero content if it already exists
+  !> Creates empty file without content or truncates files to zero content if it already exists.
   subroutine clearFile(file, ioStat, ioMsg)
 
     !> Name of the file to create
     character(*), intent(in) :: file
 
-    !> I/O stat error generated during open, zero on exit, if no error occured.
+    !> I/O stat error generated during open, zero on exit, if no error occured
     integer, optional, intent(out) :: ioStat
 
-    !> I/O stat message generated during open, unallocated on exit, if no error occured.
+    !> I/O stat message generated during open, unallocated on exit, if no error occured
     character(:), allocatable, optional, intent(out) :: ioMsg
 
     type(TFileDescr) :: fd

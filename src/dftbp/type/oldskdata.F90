@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,7 +21,7 @@ module dftbp_type_oldskdata
   implicit none
 
   private
-  public :: TOldSKData, readFromFile, readSplineRep, inquireHybridXcTag
+  public :: TOldSKData, readFromFile, readSplineRep, parseHybridXcTag
 
 
   !> Represents the Slater-Koster data in an SK file.
@@ -107,6 +107,9 @@ contains
     !> Reads hybrid xc-functional parameter(s) from SK file
     type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
 
+    !! Type of hybrid xc-functional found in the SK-file
+    integer :: hybridXcType
+
     type(TFileDescr) :: file
     character(lc) :: chDummy
 
@@ -185,80 +188,18 @@ contains
 
     ! Read hybrid xc-functional parameter(s)
     if (present(hybridXcSK)) then
-      call readHybridXcParams(file%unit, fileName, hybridXcSK)
+      call parseHybridXcTag(fileName, fp=file%unit, hybridXcType=hybridXcType,&
+          & hybridXcSK=hybridXcSK)
+      if (hybridXcType == hybridXcFunc%none) then
+        write(chDummy, "(A,A,A)") "Hybrid xc-functional calculation requested, but SK-file '",&
+            & trim(fileName), "' is not a suitable parametrization."
+        call error(chDummy)
+      end if
     end if
 
     call closeFile(file)
 
   end subroutine TOldSKData_readFromFile
-
-
-  !> Reads hybrid xc-functional parameter(s) from an open file.
-  subroutine readHybridXcParams(fp, fname, hybridXcSK)
-
-    !> File identifier
-    integer, intent(in) :: fp
-
-    !> File name
-    character(len=*), intent(in) :: fname
-
-    !> Hybrid xc-functional parameter(s)
-    type(THybridXcSKTag), intent(inout) :: hybridXcSK
-
-    !! Error status
-    integer :: iErr
-
-    !! Temporary character storage
-    character(lc) :: strDummy
-
-    !! True, if hybrid xc-functional extra tag was found in SK-file
-    logical :: isHybridXcTag
-
-    !! Extra tag in SK-files, defining the type of hybrid xc-functional
-    integer :: hybridXcTag
-
-    call inquireHybridXcTag(fname, hybridXcTag, fp=fp)
-    rewind(fp)
-
-    ! Seek hybrid xc-functional section in SK file
-    do
-      read(fp, "(A)", iostat=iErr) strDummy
-      if (iErr /= 0) then
-        isHybridXcTag = .false.
-        exit
-      elseif (strDummy == "RangeSep" .or. strDummy == "GlobalHybrid") then
-        isHybridXcTag = .true.
-        exit
-      end if
-    end do
-
-    if (.not. isHybridXcTag) then
-      write(strDummy, "(A,A,A)") "Hybrid xc-functional calculation requested, but SK-file '",&
-          & trim(fname), "' is not a suitable parametrization."
-      call error(strDummy)
-    end if
-
-    if (hybridXcTag == hybridXcFunc%hyb) then
-      hybridXcSK%omega = 0.0_dp
-      hybridXcSK%camBeta = 0.0_dp
-      read(fp, *, iostat=iErr) strDummy, hybridXcSK%camAlpha
-      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
-    elseif (hybridXcTag == hybridXcFunc%lc) then
-      hybridXcSK%camAlpha = 0.0_dp
-      hybridXcSK%camBeta = 1.0_dp
-      read(fp, *, iostat=iErr) strDummy, hybridXcSK%omega
-      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
-    elseif (hybridXcTag == hybridXcFunc%cam) then
-      read(fp, *, iostat=iErr) strDummy, hybridXcSK%omega, hybridXcSK%camAlpha, hybridXcSK%camBeta
-      call checkioerror(iErr, fname, "Error in reading hybrid xc-functional parameter(s)")
-    end if
-
-    if (hybridXcTag /= hybridXcFunc%hyb .and. hybridXcSK%omega < 0.0_dp) then
-      write(strDummy, "(A)") "Range-separation parameter is negative."
-      call error(strDummy)
-    end if
-
-  end subroutine readHybridXcParams
 
 
   !> Reads the repulsive from an open file.
@@ -339,32 +280,48 @@ contains
   end subroutine TOldSKData_readsplinerep
 
 
-  !> Inquires hybrid xc-functional extra tag of SK-file.
-  subroutine inquireHybridXcTag(fname, hybridXcTag, fp)
+  !> Reads hybrid xc-functional parameter(s) from an SK-file, by opening the file or accessing an
+  !! already open file using its identifier (if provided).
+  subroutine parseHybridXcTag(fname, fp, hybridXcTag, hybridXcType, hybridXcSK)
 
     !> File name
     character(len=*), intent(in) :: fname
 
-    !> Hybrid xc-functional extra tag, if allocated
-    integer, intent(out) :: hybridXcTag
-
     !> File identifier, if file is already open
     integer, intent(in), optional :: fp
 
-    !! File descriptor
-    type(TFileDescr) :: file
+    !> Hybrid xc-functional extra tag found in the SK-file
+    integer, intent(out), optional :: hybridXcTag
+
+    !> Type of hybrid xc-functional found in the SK-file
+    integer, intent(out), optional :: hybridXcType
+
+    !> Hybrid xc-functional parameter(s)
+    type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
 
     !! Error status
     integer :: iErr
 
     !! Temporary character storage
-    character(lc) :: strDummy
-
-    !! File identifier
-    integer :: fd
+    character(lc) :: strDummy, tag
 
     !! True, if hybrid xc-functional extra tag was found in SK-file
     logical :: isHybridXcTag
+
+    !! Hybrid xc-functional parameter(s)
+    type(THybridXcSKTag) :: hybridXcSK_
+
+    !! Hybrid xc-functional extra tag found in the SK-file
+    integer :: hybridXcTag_
+
+    !! Type of hybrid xc-functional found in the SK-file
+    integer :: hybridXcType_
+
+    !! File descriptor
+    type(TFileDescr) :: file
+
+    !! File identifier
+    integer :: fd
 
     if (present(fp)) then
       fd = fp
@@ -376,41 +333,80 @@ contains
 
     rewind(fd)
 
-    ! Seek hybrid xc-functional extra tag in SK-file
+    ! Seek hybrid xc-functional section in SK-file
     do
       read(fd, "(A)", iostat=iErr) strDummy
       if (iErr /= 0) then
         isHybridXcTag = .false.
         exit
-      elseif (strDummy == "RangeSep" .or. strDummy == "GlobalHybrid") then
+      elseif (strDummy == "RangeSep") then
         isHybridXcTag = .true.
         exit
       end if
     end do
 
     if (isHybridXcTag) then
-      read(fd, *, iostat=iErr) strDummy
+      read(fd, "(A)", iostat=iErr) strDummy
+      call checkIoError(iErr, fname, "Error in reading hybrid xc-functional extra tag and method.")
+      read(strDummy, *, iostat=iErr) tag
       call checkIoError(iErr, fname, "Error in reading hybrid xc-functional extra tag and method.")
 
-      select case(tolower(trim(strDummy)))
-      case ("hf")
-        hybridXcTag = hybridXcFunc%hyb
+      select case(tolower(trim(tag)))
       case ("lc")
-        hybridXcTag = hybridXcFunc%lc
+        hybridXcTag_ = hybridXcFunc%lc
       case ("cam")
-        hybridXcTag = hybridXcFunc%cam
+        hybridXcTag_ = hybridXcFunc%cam
       case default
         write(strDummy, "(A,A,A)") "Unknown hybrid xc-functional method in SK-file '",&
             & trim(fname), "'"
         call error(strDummy)
       end select
     else
-      hybridXcTag = hybridXcFunc%none
+      hybridXcTag_ = hybridXcFunc%none
+    end if
+
+    select case(hybridXcTag_)
+    case (hybridXcFunc%lc)
+      hybridXcSK_%camAlpha = 0.0_dp
+      hybridXcSK_%camBeta = 1.0_dp
+      read(strDummy, *, iostat=iErr) tag, hybridXcSK_%omega
+      call checkIoError(iErr, fname, "Error in reading hybrid xc-functional parameters.")
+      hybridXcType_ = hybridXcFunc%lc
+    case (hybridXcFunc%cam)
+      read(strDummy, *, iostat=iErr) tag, hybridXcSK_%omega, hybridXcSK_%camAlpha,&
+          & hybridXcSK_%camBeta
+      call checkIoError(iErr, fname, "Error in reading hybrid xc-functional parameters.")
+      if (abs(hybridXcSK_%camAlpha) < epsilon(1.0_dp)&
+          & .and. abs(hybridXcSK_%camBeta) < epsilon(1.0_dp)) then
+        hybridXcType_ = hybridXcFunc%none
+      elseif (abs(hybridXcSK_%camAlpha) < epsilon(1.0_dp)&
+          & .and. abs(hybridXcSK_%camBeta - 1.0_dp) < epsilon(1.0_dp)) then
+        hybridXcType_ = hybridXcFunc%lc
+      elseif (abs(hybridXcSK_%camBeta) < epsilon(1.0_dp)) then
+        hybridXcType_ = hybridXcFunc%hyb
+      else
+        hybridXcType_ = hybridXcFunc%cam
+      end if
+    case default
+      hybridXcType_ = hybridXcFunc%none
+      hybridXcSK_%omega = 0.0_dp
+      hybridXcSK_%camAlpha = 0.0_dp
+      hybridXcSK_%camBeta = 0.0_dp
+    end select
+
+    if (hybridXcSK_%omega < 0.0_dp) then
+      write(strDummy, "(A)") "Range-separation parameter is negative."
+      call error(strDummy)
     end if
 
     if (.not. present(fp)) call closeFile(file)
 
-  end subroutine inquireHybridXcTag
+    ! hand over requested information
+    if (present(hybridXcTag)) hybridXcTag = hybridXcTag_
+    if (present(hybridXcType)) hybridXcType = hybridXcType_
+    if (present(hybridXcSK)) hybridXcSK = hybridXcSK_
+
+  end subroutine parseHybridXcTag
 
 
   !> Checks for IO errors and prints message.
