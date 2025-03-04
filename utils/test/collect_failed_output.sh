@@ -56,6 +56,6 @@ if [ ${#FAILED_TEST_DIRS[@]} -eq 0 ]; then
     exit 0
 fi
 
-tar -C ${BUILD_DIR} -c -f ${ARCHIVE_NAME} ${FAILED_TEST_DIRS}
+tar -C ${BUILD_DIR} -c -f ${ARCHIVE_NAME} ${FAILED_TEST_DIRS[*]}
 
 echo "Archive with failed test directories created at ${ARCHIVE_NAME}"
