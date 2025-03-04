@@ -5900,14 +5900,6 @@ contains
       call error("Hybrid calculations not currently implemented for 3rd-order DFTB.")
     end if
 
-    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
-      call error("General CAM functionals not currently implemented for linear response.")
-    end if
-
-    if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%hyb) then
-      call error("Global hybrid functionals not currently implemented for linear response.")
-    end if
-
   end subroutine ensureHybridXcReqs
 
 
