@@ -106,7 +106,7 @@ hybrid/cluster/C18H12-force-cam                    #? MPI_PROCS <= 4
 hybrid/cluster/C18H12-nbscreening                  #? not WITH_MPI
 hybrid/cluster/C18H12-matrix                       #? MPI_PROCS <= 4
 hybrid/cluster/CH3                                 #? not WITH_MPI
-hybrid/cluster/CH3-default-compat                  #? not WITH_MPI
+hybrid/cluster/CH3-default-compat                  #? MPI_PROCS <= 1
 hybrid/cluster/CH3-matrix                          #? MPI_PROCS <= 1
 hybrid/cluster/C60-nb                              #? not WITH_MPI
 hybrid/cluster/C60-nb-cutoff                       #? not WITH_MPI
