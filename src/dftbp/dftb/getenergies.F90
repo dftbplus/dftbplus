@@ -135,7 +135,7 @@ contains
     !> Data from hybrid xc-functional calculations
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Data type for REKS
@@ -297,7 +297,7 @@ contains
       end if
     end if
 
-    ! Add long-range onsite contribution from range separated calculations
+    ! Add long-range onsite contribution from hybrid-xc calculations
     if (allocated(rsOnsCorr)) then
       energy%EfockOnSite = 0.0_dp
       call rsOnsCorr%addLrOcEnergy(energy%EfockOnSite)

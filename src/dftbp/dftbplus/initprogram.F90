@@ -795,10 +795,10 @@ module dftbp_dftbplus_initprogram
     !> Holds real and complex delta density matrices and pointers
     type(TDensityMatrix) :: densityMatrix
 
-    !> Whether to run onsite correction with range-separated functional
+    !> Whether to run onsite correction with hybrid-xc functional
     logical :: isRS_OnsCorr
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable :: rsOnsCorr
 
     !> Linear response calculation with hybrid xc-functional
@@ -6326,7 +6326,7 @@ contains
   end subroutine reallocateHybridXc
 
 
-  !> Stop if any range separated incompatible setting is found
+  !> Stop if any incompatible setting for onsite correction with hybrid-xc functional is found
   subroutine ensureRangeSepOnsCorrReqs(tPeriodic, tHelical, tAtomicEnergy, nSpin, tSpinOrbit,&
       & isXlbomd, is3rd, isLinResp, doPerturbation, solvation, reks)
 
@@ -6364,61 +6364,61 @@ contains
     type(TReksCalc), allocatable, intent(in) :: reks
 
     if (withMpi) then
-      call error("Onsite correction with range separated funcitonal do not work with MPI yet")
+      call error("Onsite correction with hybrid-xc funcitonal do not work with MPI yet")
     end if
 
     if (tPeriodic) then
-      call error("Onsite correction with range separated functional only works with&
+      call error("Onsite correction with hybrid-xc functional only works with&
           & non-periodic structures at the moment")
     end if
 
     if (tHelical) then
-      call error("Onsite correction with range separated functional only works with&
+      call error("Onsite correction with hybrid-xc functional only works with&
           & non-helical structures at the moment")
     end if
 
     if (tAtomicEnergy) then
-      call error("Atomic resolved energies cannot be calculated with the range-separated&
-          & hybrid functional at the moment")
+      call error("Atomic resolved energies cannot be calculated with&
+          & hybrid-xc functional at the moment")
     end if
 
     if (nSpin > 2) then
-      call error("Onsite correction with range separated calculations not implemented&
+      call error("Onsite correction with hybrid-xc functional calculations not implemented&
           & for non-colinear calculations")
     end if
 
     if (tSpinOrbit) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for spin orbit")
     end if
 
     if (isXlbomd) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for XLBOMD")
     end if
 
     if (is3rd) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for 3rd order DFTB")
     end if
 
     if (isLinResp) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for linear response excitation")
     end if
 
     if (doPerturbation) then
-      call error("Perturbation calculations not currently implemented for linear response&
-          & excitation")
+      call error("Perturbation calculations not currently implemented for onsite correction&
+          & with hybrid-xc functional")
     end if
 
     if (allocated(solvation)) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for solvation")
     end if
 
     if (allocated(reks)) then
-      call error("Onsite correction with range separated calculations not currently&
+      call error("Onsite correction with hybrid-xc functional calculations not currently&
           & implemented for REKS")
     end if
 

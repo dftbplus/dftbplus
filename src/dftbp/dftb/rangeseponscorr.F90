@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains subroutines to add contribution of range-separated hybrid functional to onsite correction
+!> Contains subroutines to add contribution of onsite correction to hybrid-xc functional
 !> from doi: 10.1021/acs.jctc.2c00037
 module dftbp_dftb_rangeseponscorr
   use dftbp_common_accuracy, only : dp
@@ -25,7 +25,7 @@ module dftbp_dftb_rangeseponscorr
   public :: TRangeSepOnsCorrFunc, RangeSepOnsCorrFunc_init
 
 
-  !> Onsite correction with range-separated hybrid functional module
+  !> Onsite correction with hybrid-xc functional module
   type :: TRangeSepOnsCorrFunc
     private
 
@@ -35,7 +35,7 @@ module dftbp_dftb_rangeseponscorr
     !> Symmetrized square onsite constant matrix for RI loss correction
     real(dp), allocatable :: OmatRI(:,:)
 
-    !> total onsite correction energy from range-separated functional
+    !> total onsite correction energy from hybrid-xc functional
     real(dp) :: lrOcEnergy
 
     !> Is this spin restricted (F) or unrestricted (T)
@@ -62,7 +62,7 @@ module dftbp_dftb_rangeseponscorr
 contains
 
 
-  !> Intitialize the onsite correction with range-separated hybrid functional module
+  !> Intitialize the onsite correction with hybrid-xc functional module
   subroutine RangeSepOnsCorrFunc_init(this, orb, iSquare, species, onSiteElements, tSpin,&
       hybridXcAlg, hybridXcType, gammaType)
 
@@ -191,16 +191,16 @@ contains
 
       ! Check for current restrictions
       if (orb%mOrb > 4) then
-        call error("Onsite correction with range separated functional only works with&
+        call error("Onsite correction with hybrid-xc functional only works with&
             & the system consisting of up to p orbitals")
       end if
 
       if (.not. this%hybridXcType == hybridXcFunc%lc) then
-        call error("Long-range corrected functional only works with onsite corrections")
+        call error("Purely long-range corrected functional only works with onsite corrections")
       end if
 
       if (.not. this%hybridXcAlg == hybridXcAlgo%matrixBased) then
-        call error("Onsite correction with range separated functional only works with&
+        call error("Onsite correction with hybrid-xc functional only works with&
             & matrix based algorithm")
       end if
 
@@ -231,7 +231,7 @@ contains
     !> Square (unpacked) Hamiltonian to be updated.
     real(dp), intent(inout) :: HH(:,:)
 
-    call env%globalTimer%startTimer(globalTimers%rangeSepOnsCorrH)
+    call env%globalTimer%startTimer(globalTimers%onsCorrH)
     select case(this%hybridXcAlg)
     case (hybridXcAlgo%thresholdBased)
       ! not supported at the moment
@@ -240,7 +240,7 @@ contains
     case (hybridXcAlgo%matrixBased)
       call addLrOcHamiltonianMatrix(this, overlap, densSqr, HH)
     end select
-    call env%globalTimer%stopTimer(globalTimers%rangeSepOnsCorrH)
+    call env%globalTimer%stopTimer(globalTimers%onsCorrH)
 
   end subroutine addLrOcHamiltonian
 
@@ -408,7 +408,7 @@ contains
   end subroutine addLrOcHamiltonianMatrix
 
 
-  !> Add the onsite contribution originating from range-seprated functional to the total energy
+  !> Add the onsite contribution originating from hybrid-xc functional to the total energy
   subroutine addLrOcEnergy(this, energy)
 
     !> class instance
@@ -616,7 +616,7 @@ contains
 
     end do
 
-    ! Compute gradients originating from onsite contribution with range separated hybrid functional
+    ! Compute gradients originating from onsite contribution with hybrid-xc functional
 
     ! sum A
     loopA: do iAtA = 1, nAtom

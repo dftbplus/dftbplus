@@ -3295,7 +3295,7 @@ contains
     !> Is this a range separation calculation?
     logical, intent(in) :: tHybridXc
 
-    !> Whether to run onsite correction with range-separated functional
+    !> Whether to run onsite correction with hybrid-xc functional
     logical, intent(in) :: isRS_OnsCorr
 
     !> Is this a 3rd order scc calculation?

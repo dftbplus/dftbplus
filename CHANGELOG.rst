@@ -35,7 +35,7 @@ Added
 - More control over output of data and band structures during MD
   calculations
 
-- Onsite corrected hamiltonian for range-separated functional
+- Onsite corrected hamiltonian for a purely long-range corrected functional
 
 - MAGMA GPU accelerated solver for the modes code
 

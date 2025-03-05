@@ -2795,7 +2795,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Eigenvalues (level, kpoint, spin)
@@ -3019,7 +3019,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Eigenvalues (level, kpoint, spin)
@@ -3191,7 +3191,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Change in density matrix during last hybridXc SCC cycle
@@ -3274,7 +3274,7 @@ contains
         @:PROPAGATE_ERROR(errStatus)
       end if
 
-      ! Add onsite correction originating from range-separated hybrid functional
+      ! Add onsite correction originating from hybrid-xc functional
       if (allocated(rsOnsCorr)) then
         call rsOnsCorr%addLrOcHamiltonian(env, SSqrReal, deltaRhoIn(:,:,iSpin), HSqrReal)
       end if
@@ -6525,7 +6525,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Dense overlap matrix, required for hybridXc
@@ -8089,7 +8089,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    !> Onsite correction data with range-separated functional
+    !> Onsite correction data with hybrid-xc functional
     type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Nr. of neighbours for each atom in the CAM functional

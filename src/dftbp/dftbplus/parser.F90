@@ -1717,15 +1717,15 @@ contains
           isLrOc = .true.
           if (.not. allocated(ctrl%hybridXcInp)) then
             ! Error for frOC+lrOC-DFTB
-            call error("Long-range onsite corrections are used without range-separated&
-                & hybrid functional, this would give incorrect electronic structure!")
+            call error("Long-range onsite corrections are used without hybrid-xc&
+                & functional, this would give incorrect electronic structure!")
           end if
         else
           isLrOc = .false.
           if (allocated(ctrl%hybridXcInp)) then
             ! Warning for LC-frOC-DFTB
-            call warning("Only full-range onsite corrections are included although range-separated&
-                & hybrid functional is selected!")
+            call warning("Only full-range onsite corrections are included although&
+                & hybrid-xc functional is selected!")
           end if
         end if
       end do

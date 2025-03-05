@@ -4834,50 +4834,50 @@ should be specified for all combinations of atomic shells. {\bf note:} the
 matrix of constants is symmetric and the purely s-with-s entries are zero (the
 code ignores their value due to symmetry).
 
-The corrections are available for local and range separated functionals~\cite{Lee_JCTC_2022}.
-When \is{RangeSeparated} is simultaneously used with \is{OnSiteCorrection},
+The corrections are available for purely long-range corrected functional as well as local functional~\cite{Lee_JCTC_2022}.
+When \is{Hybrid} is simultaneously used with \is{OnSiteCorrection},
 the long-range constants can be optionally included for each chemical species.
-The different spin-same-spin and spin-different-spin constants should be used
-when the long-range constants are included with range separated functional.
+The different values for spin-same-spin and spin-different-spin constants should be used
+when the long-range constants are included with a purely long-range corrected functional.
 
-\textbf{Note:} The long-range onsite constants cannot be included without \is{RangeSeparated}.
+\textbf{Note:} The long-range onsite constants cannot be included without \is{Hybrid}.
 Currently, the long-range onsite correction is available only with \is{MatrixBased} screening
-for range separated functional calculation.
+for a purely long-range corrected functional.
 
 Example for local functional:
 \begin{verbatim}
 OnSiteCorrection= {
-    # same spin oxygen
-    Ouu = {0.00000  0.08672
-           0.08672 -0.00523}
-    # hetero-spin oxygen
-    Oud = {0.00000  0.14969
-           0.14969  0.03834}
-    # H all zero
-    Huu = {0}
-    Hud = {0}
+  # same spin oxygen
+  Ouu = {0.00000  0.08672
+         0.08672 -0.00523}
+  # hetero-spin oxygen
+  Oud = {0.00000  0.14969
+         0.14969  0.03834}
+  # H all zero
+  Huu = {0}
+  Hud = {0}
 }
 \end{verbatim}
 
-Example for range separated functional:
+Example for a purely long-range corrected functional:
 \begin{verbatim}
 OnSiteCorrection= {
-    # same spin oxygen
-    Ouu = {0.00000  0.07858
-           0.07858 -0.00665}
-    # hetero-spin oxygen
-    Oud = {0.00000  0.16395
-           0.16395  0.05179}
-    # long-range oxygen
-    Olc = {0.00000  0.15181
-           0.15181 -0.01071}
-    # H all zero
-    Huu = {0}
-    Hud = {0}
-    Hlc = {0}
+  # same spin oxygen
+  Ouu = {0.00000  0.07858
+         0.07858 -0.00665}
+  # hetero-spin oxygen
+  Oud = {0.00000  0.16395
+         0.16395  0.05179}
+  # long-range oxygen
+  Olc = {0.00000  0.15181
+         0.15181 -0.01071}
+  # H all zero
+  Huu = {0}
+  Hud = {0}
+  Hlc = {0}
 }
-RangeSeparated= LC{
-    Screening = MatrixBased{}
+Hybrid = LC {
+  Screening = MatrixBased {}
 }
 \end{verbatim}
 

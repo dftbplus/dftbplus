@@ -109,7 +109,7 @@ module dftbp_common_environment
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
       & TTimerItem("Hybrid Hamiltonian", 4),&
-      & TTimerItem("Range-sep onsite-corr Hamiltonian", 4),&
+      & TTimerItem("Onsite-corr Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
@@ -148,7 +148,7 @@ module dftbp_common_environment
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
     integer :: hybridXcH = 15
-    integer :: rangeSepOnsCorrH = 16
+    integer :: onsCorrH = 16
     integer :: densityMatrix = 17
     integer :: energyEval = 18
     integer :: postScc = 19
