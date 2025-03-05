@@ -39,6 +39,7 @@ module dftbp_timedep_timeprop
       & getNrOfNeighboursForAll
   use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtomsCmplxNonperiodic
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
@@ -1567,6 +1568,8 @@ contains
     #:endif
     end if
 
+    ! TODO : add LrOC correction in later
+
   end subroutine updateH
 
 
@@ -2009,6 +2012,7 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
+    type(TRangeSepOnsCorrFunc), allocatable :: rsOnsCorr ! never allocated
     type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
@@ -2031,10 +2035,11 @@ contains
     call ud2qm(rhoPrim)
 
     TS = 0.0_dp
+    ! TODO : add LrOC correction in later
     call calcEnergies(env, this%sccCalc, this%tblite, qq, q0, chargePerShell, this%multipole,&
         & this%speciesAll, this%tLaser, .false., dftbU, tDualSpinOrbit, rhoPrim, ham0, orb,&
         & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, 0.0_dp, 0.0_dp, TS,&
-        & potential, energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock,&
+        & potential, energy, thirdOrd, solvation, hybridXc, rsOnsCorr, reks, qDepExtPot, qBlock,&
         & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, .true., onSiteElements, errStatus)
     @:PROPAGATE_ERROR(errStatus)
     call sumEnergies(energy)
@@ -3519,6 +3524,8 @@ contains
       @:PROPAGATE_ERROR(errStatus)
     #:endif
     end if
+
+    ! TODO : add LrOC correction in later
 
     if (this%tLaser) then
       call setPresentField(this, iStep, errStatus)

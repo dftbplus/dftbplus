@@ -41,6 +41,7 @@ set(sources-fpp
   ${curdir}/pmlocalisation.F90
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
+  ${curdir}/rangeseponscorr.F90
   ${curdir}/rshgamma.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
