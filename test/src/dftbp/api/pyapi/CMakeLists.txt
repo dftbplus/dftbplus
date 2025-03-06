@@ -8,7 +8,7 @@ execute_process(
   OUTPUT_FILE ${builddir}/_pyapi_tests.fypp)
 
 set(fypp_flags ${FYPP_CONFIG_FLAGS})
-list(APPEND fypp_flags -I${projectdir}/src/dftbp/include -DRELEASE="'${releasename}'")
+list(APPEND fypp_flags -I${projectdir}/src/dftbp/include)
 
 execute_process(
   COMMAND ${FYPP} ${fypp_flags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
