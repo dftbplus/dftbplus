@@ -26,8 +26,7 @@ module dftbp_dftb_dispuff
       & addDispEGr_per_species
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 
   private
@@ -273,7 +272,7 @@ contains
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
     recVecs(:,:) = transpose(invRecVecs)
-    call matinv(recVecs)
+    call invert33(recVecs)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
     this%ewaldRCut = getMaxRDispersion(this%eta, this%c6sum, this%vol, tolDispersion)
     this%ewaldGCut = getMaxGDispersion(this%eta, this%c6sum, tolDispersion)
