@@ -13,7 +13,7 @@ module phonons_initphonons
   use dftbp_common_constants, only : amu__au
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : energyUnits, lengthUnits
   use dftbp_dftb_periodic, only : getCellTranslations, getNrOfNeighboursForAll, getSuperSampling,&

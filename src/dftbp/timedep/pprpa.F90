@@ -25,7 +25,6 @@ module dftbp_timedep_pprpa
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private
@@ -587,7 +586,7 @@ contains
     end if
 
     ! Diagonalize ppRPA matrix
-    call geev(output, PP, pp_eval, wi, vl, vr, info)
+    call geev(PP, pp_eval, wi, vl, vr, info)
 
     if (info /= 0) then
       @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0)", " Error with dgeev, info = ", info)

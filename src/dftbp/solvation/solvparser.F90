@@ -14,7 +14,7 @@ module dftbp_solvation_solvparser
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths
   use dftbp_common_unitconversion, only : lengthUnits, energyUnits, massUnits, &
       & massDensityUnits, inverseLengthUnits
   use dftbp_dftbplus_specieslist, only : readSpeciesList

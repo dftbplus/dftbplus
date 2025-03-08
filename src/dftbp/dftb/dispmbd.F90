@@ -10,10 +10,11 @@
 
 !> MBD/TS dispersion model.
 module dftbp_dftb_dispmbd
+  ! TODO: Customizable output for mbdPrinter
+  use iso_fortran_env, only : stdOut => output_unit
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_common_constants, only : symbolToNumber
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only : TNeighbourList

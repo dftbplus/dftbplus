@@ -1014,7 +1014,7 @@ contains
 
 
   !> Write data from inside the SCC loop
-  subroutine sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
+  subroutine sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ, output)
 
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
@@ -1034,11 +1034,14 @@ contains
     !> Self-consistency error
     real(dp), intent(in) :: sccErrorQ
 
+    !> Output for write processes
+    integer, intent(in) :: output
+
      if (this%tSccCalc) then
-      call printSccInfo(allocated(this%dftbU), iSccIter,&
+      call printSccInfo(output, allocated(this%dftbU), iSccIter,&
           & this%dftbEnergy(this%deltaDftb%iDeterminant)%Eelec, diffElec, sccErrorQ)
       if (this%tNegf) then
-        call printBlankLine()
+        call printBlankLine(output)
       end if
     end if
 
@@ -1528,7 +1531,7 @@ contains
         end if
         call sumEnergies(this%dftbEnergy(this%deltaDftb%iDeterminant))
 
-        call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ)
+        call sccLoopWriting(this, iGeoStep, iLatGeoStep, iSccIter, diffElec, sccErrorQ, env%stdOut)
 
         if (tConverged .or. tStopScc) exit lpSCC
 
@@ -4376,7 +4379,7 @@ contains
   !> Checks for the presence of a stop file on disc.
   function hasStopFile(output, fileName) result(tStop)
 
-    !> output for write processes
+    !> Output for write processes
     integer, intent(in) :: output
 
     !> Name of file to check for

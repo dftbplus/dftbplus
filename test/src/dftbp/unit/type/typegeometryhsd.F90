@@ -10,6 +10,8 @@
 module test_type_typegeometryhsd
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
   use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode, destroyNode
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
@@ -20,6 +22,11 @@ module test_type_typegeometryhsd
   private
   public :: tests
 
+  type :: test_env
+    type(TEnvironment) :: env
+  contains
+    final :: final_test_env
+  end type test_env
 
   ! Floating point parsing precision
   real(dp), parameter :: prec = 10.0_dp * epsilon(1.0_dp)
@@ -37,10 +44,35 @@ module test_type_typegeometryhsd
 contains
 
 
+  !> Intializes the test environment
+  subroutine init_test_env(this)
+    type(test_env), intent(out) :: this
+
+    call initGlobalEnv()
+    call TEnvironment_init(this%env)
+    ! temporary fix
+    this%env%stdOut = stdOut
+
+  end subroutine init_test_env
+
+
+  !> Finalizes the test environment
+  subroutine final_test_env(this)
+    type(test_env), intent(inout) :: this
+
+    call this%env%destruct()
+    call destructGlobalEnv()
+
+  end subroutine final_test_env
+
+
   $:TEST("minimalCaseWithDefaultValues")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "units real",&
         & "3 atoms" // nl //&
@@ -51,7 +83,7 @@ contains
         & "1 1" // nl //&
         & "2 1" // nl //&
         & "3 1")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%natom == 3)
     @:ASSERT(geo%nSpecies == 1)
     @:ASSERT(geo%speciesNames(1) == 'H')
@@ -67,7 +99,10 @@ contains
   $:TEST("explicitValuesForAll")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "boundary p p p" // nl //&
         & "atom_style atomic" // nl //&
@@ -84,7 +119,7 @@ contains
         & "1 1" // nl //&
         & "2 1" // nl //&
         & "3 1")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%natom == 3)
     @:ASSERT(geo%nSpecies == 1)
     @:ASSERT(geo%speciesNames(1) == 'H')
@@ -99,7 +134,10 @@ contains
   $:TEST("differentOrder")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "atom_style atomic" // nl //&
         & "units real" // nl //&
@@ -116,7 +154,7 @@ contains
         & "3 1" // nl //&
         & "Masses" // nl //&
         & "1 1.0")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%natom == 3)
     @:ASSERT(geo%nSpecies == 1)
     @:ASSERT(geo%speciesNames(1) == 'H')
@@ -132,7 +170,10 @@ contains
   $:TEST("atomsWithCoordinates")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii, jj
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "atom_style full" // nl //&
         & "units real",&
@@ -144,7 +185,7 @@ contains
         & "1 0 1 99 11.0 12.0 13.0" // nl //&
         & "2 0 1 99 21.0 22.0 23.0" // nl //&
         & "3 0 1 99 31.0 32.0 33.0")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%natom == 3)
     @:ASSERT(geo%nSpecies == 1)
     @:ASSERT(geo%speciesNames(1) == 'H')
@@ -161,7 +202,10 @@ contains
   $:TEST("speciesNames")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "units real",&
         & "6 atoms" // nl //&
@@ -180,7 +224,7 @@ contains
         & "4 4" // nl //&
         & "5 5" // nl //&
         & "6 6")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%nSpecies == 6)
     @:ASSERT(geo%speciesNames(1) == 'H')
     @:ASSERT(geo%speciesNames(2) == 'O')
@@ -197,7 +241,10 @@ contains
   $:TEST("strangeFormatting")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "# comment" // nl // nl //&
         & "  boundary     p p p #some comment" // nl // nl // nl //&
@@ -215,7 +262,7 @@ contains
         & " 1 1 4 4 4 #ignore everything here" // nl //&
         & "  2 1 #ignore me" // nl // nl //&
         & "3 1")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%natom == 3)
     @:ASSERT(geo%nSpecies == 1)
     @:ASSERT(geo%tPeriodic)
@@ -237,6 +284,9 @@ contains
   $:TEST("triclinicCell")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "units real",&
         & "1 atoms" // nl //&
@@ -249,7 +299,7 @@ contains
         & "1 1.0" // nl //&
         & "Atoms" // nl //&
         & "1 1")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     geo%latVecs = geo%latVecs / AA__Bohr
     @:ASSERT(abs(geo%latVecs(1,1) - 1.0_dp) < prec)
     @:ASSERT(abs(geo%latVecs(2,1)) < prec)
@@ -266,7 +316,10 @@ contains
   $:TEST("unitConversion")
     type(TLammpsGeoNode) :: nw
     type(TGeometry) :: geo
+    type(test_env) :: tenv
     integer :: ii
+
+    call init_test_env(tenv)
 
     call TLammpsGeoNode_init(nw, "units si",&
         & "1 atoms" // nl //&
@@ -278,7 +331,7 @@ contains
         & "1 1.99e-26" // nl //&
         & "Atoms" // nl //&
         & "1 1 1.0e-10 2.0e-10 3.0e-10")
-    call readTGeometryLammps(nw%node, geo)
+    call readTGeometryLammps(tenv%env, nw%node, geo)
     @:ASSERT(geo%speciesNames(1) == 'C')
     do ii = 1, 3
       @:ASSERT(abs(geo%latVecs(ii,ii) - 1.0e10_dp * AA__Bohr) < prec)

@@ -1441,7 +1441,7 @@ contains
       if (this%tHelical) then
         if (any(abs(this%kPoint(2,:) * nint(this%latVec(3,1)) - nint(this%kPoint(2,:) *&
             & nint(this%latVec(3,1)))) > input%ctrl%helicalSymTol)) then
-          call warning("Specified k-value(s) incommensurate with C_n symmetry operation.")
+          call warning(env%stdOut, "Specified k-value(s) incommensurate with C_n symmetry operation.")
         end if
       end if
     else
