@@ -11,7 +11,7 @@ program setupgeom
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use transporttools_inputdata, only : TInputData
   use transporttools_parser, only : parseHsdInput
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
   use dftbp_common_release, only : releaseYear
   use dftbp_io_formatout, only : printDftbHeader
 #:if WITH_MPI

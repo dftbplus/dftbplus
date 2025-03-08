@@ -4603,7 +4603,7 @@ contains
         & neighbourList, nAllAtom, coord0Fold, this%species0, this%cutoff%mCutoff, this%rCellVec,&
         & errStatus)
     @:PROPAGATE_ERROR(errStatus)
-    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%cutoff%skCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbourSK, neighbourList, this%cutoff%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, this%sparseSize)
 
@@ -4614,7 +4614,7 @@ contains
           & this%cutoff%camCutoff, this%rCellVec, errStatus, symmetric=.true.)
       @:PROPAGATE_ERROR(errStatus)
       if (allocated(nNeighbourCamSym)) then
-        call getNrOfNeighboursForAll(nNeighbourCamSym, symNeighbourList%neighbourList,&
+        call getNrOfNeighboursForAll(env%stdOut, nNeighbourCamSym, symNeighbourList%neighbourList,&
             & this%cutoff%camCutoff)
         call getSparseDescriptor(symNeighbourList%neighbourList%iNeighbour, nNeighbourCamSym,&
             & symNeighbourList%img2CentCell, orb, symNeighbourList%iPair,&

@@ -896,7 +896,7 @@ contains
 
     call getDescendant(root, "Hamiltonian/DFTB/Rangeseparated", ch1)
     if (associated(ch1)) then
-      call detailedWarning(ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
+      call detailedWarning(output, ch1, "'Hamiltonian/DFTB/Rangeseparated' block renamed to&
           & 'Hamiltonian/DFTB/Hybrid'.")
       call setNodeName(ch1, "Hybrid")
     end if
@@ -920,7 +920,7 @@ contains
       isNoneAlgorithm = tolower(char(buffer)) == "none"
 
       if (.not.isNoneAlgorithm) then
-        call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations&
+        call detailedWarning(output, ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations&
             & are always SCC.")
         dummy => removeChild(par, ch2)
       end if
@@ -947,13 +947,13 @@ contains
         if (iOrder > 1) then
           write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
               & " is now equivalent to ", (iOrder -1), " from parser version 14."
-          call detailedWarning(ch2, strTmp)
+          call detailedWarning(output, ch2, strTmp)
         elseif (iOrder == 1) then
           write(strtmp,"(A)")"Older Methfessel-Paxton requested order of 1 is now&
               & equivalent to Gaussian smearing (order 0) from parser version 14." // newline //&
               & "   Please test your calculation carefully, due to a (corrected) error for array&
               & bounds in this case. "
-          call detailedWarning(ch2, strTmp)
+          call detailedWarning(output, ch2, strTmp)
         else
           write(strtmp,"(A,I0,A,I0,A)")"Older Methfessel-Paxton requested order of ", iOrder,&
               & " is now equivalent to a negative order of ", (iOrder -1), " from parser version 14&
@@ -965,7 +965,7 @@ contains
         iOrder = iOrder - 1
         call setChildValue(ch1, "Order", iOrder, child=ch2)
       else
-        call detailedWarning(ch1, "The default (i.e. unspecified) Methfessel-Paxton order in old&
+        call detailedWarning(output, ch1, "The default (i.e. unspecified) Methfessel-Paxton order in old&
             & code versions was equivalent to Order=1." // newline //&
             & "   This order is now the current default order from parser version 14.")
       end if

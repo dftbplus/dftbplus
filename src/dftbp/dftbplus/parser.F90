@@ -272,7 +272,7 @@ contains
     call readExcited(child, input%geom, input%ctrl)
 
     ! Hamiltonian settings that need to know about settings from the blocks above
-    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
+    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom, env%stdOut)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -1587,7 +1587,7 @@ contains
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geo, tp, greendens, poisson, env%stdOut)
 
     if (tp%taskUpload) then
       ! Initialise variable, but unused
@@ -1597,7 +1597,7 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geo, poisson, env%stdOut)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
@@ -1971,7 +1971,7 @@ contains
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geo, tp, greendens, poisson, env%stdOut)
 
     if (tp%taskUpload) then
       ! Initialise, but unused
@@ -1981,7 +1981,7 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geo, poisson, env%stdOut)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
@@ -2036,7 +2036,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      call readElecConstraintInput(env, child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
@@ -2564,7 +2564,7 @@ contains
 
 
   !> Filling of electronic levels
-  subroutine readFilling(node, ctrl, geo, temperatureDefault)
+  subroutine readFilling(node, ctrl, geo, temperatureDefault, output)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2577,6 +2577,9 @@ contains
 
     !> Default temperature for filling
     real(dp), intent(in) :: temperatureDefault
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child, child2, child3, field
     type(string) :: buffer, modifier
@@ -2599,7 +2602,7 @@ contains
         case (0)
           write(errorStr, "(A)")"Methfessel-Paxton filling order 0 is equivalent to gaussian&
               & smearing"
-          call detailedWarning(child, errorStr)
+          call detailedWarning(output, child, errorStr)
         case default
           write(errorStr, "(A,A,A,I4)")"Filling order must be above zero '", char(buffer),"' :",&
               &ctrl%iDistribFn
@@ -2642,9 +2645,9 @@ contains
 
   !> Electronic Solver
 #:if WITH_TRANSPORT
-  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson, output)
 #:else
-  subroutine readSolver(node, ctrl, geo, poisson)
+  subroutine readSolver(node, ctrl, geo, poisson, output)
 #:endif
 
     !> Relevant node in input tree
@@ -2667,6 +2670,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -2777,7 +2783,7 @@ contains
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
       ! need electronic temperature to be read for this solver:
-      call readElectronicFilling(node, ctrl, geo)
+      call readElectronicFilling(node, ctrl, geo, output)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -2878,7 +2884,7 @@ contains
     ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
     if (ctrl%checkStopHybridCalc) then
       if (ctrl%maxSccIter == 1) then
-        call warning("Restarting a hybrid xc-functional run with what appears to be&
+        call warning(env%stdOut, "Restarting a hybrid xc-functional run with what appears to be&
             & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
             & original sampling (however fine for bandstructure calculations).")
       else
@@ -5563,7 +5569,7 @@ contains
 
 
   !> Read in hamiltonian settings that are influenced by those read from REKS{}, electronDynamics{}
-  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
+  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo, output)
 
     !> Hamiltonian node to parse
     type(fnode), pointer :: hamNode
@@ -5576,6 +5582,9 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, value2, child, child2
     type(string) :: buffer, buffer2
@@ -5663,7 +5672,7 @@ contains
       end if
 
       if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
-        call readElectronicFilling(hamNode, ctrl, geo)
+        call readElectronicFilling(hamNode, ctrl, geo, output)
       end if
 
     end if hamNeedsT
@@ -5673,7 +5682,7 @@ contains
 
   !> Parses for electronic filling temperature (should only read if not either REKS or electron
   !> dynamics from a supplied density matrix)
-  subroutine readElectronicFilling(hamNode, ctrl, geo)
+  subroutine readElectronicFilling(hamNode, ctrl, geo, output)
 
     !> Relevant node in input tree
     type(fnode), pointer :: hamNode
@@ -5684,11 +5693,14 @@ contains
     !> Geometry structure to test for periodicity
     type(TGeometry), intent(in) :: geo
 
+    !> Output for write processes
+    integer, intent(in) :: output
+
     select case(ctrl%hamiltonian)
     case(hamiltonianTypes%xtb)
-      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann, output)
     case(hamiltonianTypes%dftb)
-      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+      call readFilling(hamNode, ctrl, geo, 0.0_dp, output)
     end select
 
   end subroutine readElectronicFilling

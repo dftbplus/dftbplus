@@ -4583,7 +4583,7 @@ contains
 
   subroutine printBlankLine(output)
 
-    !> output for write processes
+    !> Output for write processes
     integer, intent(in) :: output
 
     write(output, *)
