@@ -20,7 +20,6 @@ module dftbp_dftb_densitymatrix
   use dftbp_math_blasroutines, only : herk
   use dftbp_math_sorting, only : unique, heap_sort
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
-  use dftbp_common_globalenv, only : stdOut
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptranc
 #:endif

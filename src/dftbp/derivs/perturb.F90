@@ -15,7 +15,6 @@ module dftbp_derivs_perturb
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
   use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
@@ -357,11 +356,11 @@ contains
     !> For transformation in the  case of degeneracies
     type(TRotateDegen), allocatable :: transform(:)
 
-    write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of electric polarisability'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Perturbation calculation of electric polarisability'
+    write(env%stdOut,*)
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
@@ -401,7 +400,7 @@ contains
     ! note: could MPI parallelise over this in principle
     lpCart: do iCart = 1, 3
 
-      write(stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
+      write(env%stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
 
       ! set outside loop, as in time dependent case if adjacent frequencies are similar this should
       ! converge a bit faster
@@ -449,10 +448,10 @@ contains
         end if
 
         if (any(tMetallic)) then
-          write(stdOut,*)
-          write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
+          write(env%stdOut,*)
+          write(env%stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(quaternionName(iCart+1))//':',&
               & dEfdE(:,iCart)
-          write(stdOut,*)
+          write(env%stdOut,*)
         end if
 
       end do
@@ -465,21 +464,21 @@ contains
     end if
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*)'Polarisability (a.u.)'
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Polarisability (a.u.)'
     do iOmega = 1, size(omega)
-      write(stdOut,*)
+      write(env%stdOut,*)
       if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-        write(stdOut, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
+        write(env%stdOut, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
             & omega(iOmega) * Hartree__eV, ' eV'
       else
-        write(stdOut, "(A)")"Static polarisability:"
+        write(env%stdOut, "(A)")"Static polarisability:"
       end if
       do iCart = 1, 3
-        write(stdOut,"(3E20.12)")polarisability(:, iCart, iOmega)
+        write(env%stdOut,"(3E20.12)")polarisability(:, iCart, iOmega)
       end do
     end do
-    write(stdOut,*)
+    write(env%stdOut,*)
 
   end subroutine wrtEField
 
@@ -703,15 +702,15 @@ contains
       isSccRequired = isSccConvRequired
     end if
 
-    call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+    call init_perturbation(env, parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
         & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
         & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut,&
         & dRhoIn, dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals,&
         & tempElec, Ef, kWeight)
 
-    write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of atomic polarisability kernel'
-    write(stdOut,*)
+    write(env%stdOut,*)
+    write(env%stdOut,*)'Perturbation calculation of atomic polarisability kernel'
+    write(env%stdOut,*)
 
     allocate(dqOut(orb%mOrb, nAtom, nSpin))
     allocate(dqNetAtom(nAtom))
@@ -751,7 +750,7 @@ contains
 
     lpAtom: do iAt = 1, nAtom
 
-      write(stdOut,*)'Derivative with respect to potential at atom ', iAt
+      write(env%stdOut,*)'Derivative with respect to potential at atom ', iAt
 
       dqOut(:,:,:) = 0.0_dp
       dqIn(:,:,:) = 0.0_dp
@@ -790,17 +789,17 @@ contains
           dEiTmp(:,:,:,iAt,iOmega) = dEi
         end if
 
-        write(stdOut,*)'Frontier orbital derivatives'
+        write(env%stdOut,*)'Frontier orbital derivatives'
         do iS = 1, nIndepHam
           do iK = 1, nKpts
-            write(stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
+            write(env%stdOut,*)dEi(nFilled(iS, iK), iK, iS), dEi(nEmpty(iS, iK), iK, iS)
           end do
         end do
 
         call getOnsitePopulation(dRho(:,1), orb, iSparseStart, dqNetAtom)
-        write(stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
+        write(env%stdOut,*)'Derivatives of Mulliken and on-site (net) populations'
         do jAt = 1, nAtom
-          write(stdOut,*)jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
+          write(env%stdOut,*)jAt, sum(dqOut(:,jAt,1)), dqNetAtom(jAt)
         end do
 
         if (isAutotestWritten.or.isTagResultsWritten) then
@@ -1142,15 +1141,15 @@ contains
     end if
 
     if (abs(omega) > epsilon(0.0_dp)) then
-      write(stdOut, "(1X,A)")"Frequency dependant response calculation"
-      write(stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
+      write(env%stdOut, "(1X,A)")"Frequency dependant response calculation"
+      write(env%stdOut, format2U)"  omega driving frequency", omega, ' H ', omega * Hartree__eV, ' eV'
     else
-      write(stdOut, "(1X,A)")"Static response calculation"
+      write(env%stdOut, "(1X,A)")"Static response calculation"
     end if
 
 
     if (tSccCalc .and. maxSccIter > 1) then
-      write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
+      write(env%stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
     end if
 
     lpSCC: do iSccIter = 1, maxSccIter
@@ -1407,7 +1406,7 @@ contains
         sccErrorQ = maxval(abs(dqDiffRed))
 
         if (maxSccIter > 1) then
-          write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
+          write(env%stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
         end if
         tConverged = (sccErrorQ < sccTol)
 
@@ -1509,7 +1508,7 @@ contains
         if (allocated(dRhoIn)) then
           dRhoInBackup(:) = dRhoIn
         end if
-        call warning("SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
+        call warning(env%stdOut, "SCC in perturbation is NOT converged, maximal SCC iterations exceeded")
       end if
     end if
 
@@ -1521,11 +1520,14 @@ contains
 
 
   !> Initialise variables for perturbation
-  subroutine init_perturbation(parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
+  subroutine init_perturbation(env, parallelKS, tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
       & filling, ham, nFilled, nEmpty, dHam, dRho, idHam, idRho, transform, hybridXc, sSqrReal,&
       & over, neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, dRhoOut, dRhoIn,&
       & dRhoInSqr, dRhoOutSqr, dPotential, orb, nAtom, tMetallic, neFermi, eigvals, tempElec, Ef,&
       & kWeight)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1726,7 +1728,7 @@ contains
     allocate(tMetallic(nIndepHam, nKpts))
     tMetallic(:,:) = .not.(nFilled == nEmpty -1)
     if (any(tMetallic)) then
-      write(stdOut,*)'Metallic system'
+      write(env%stdOut,*)'Metallic system'
       ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
       ! at q=0 in metals
       if (allocated(neFermi)) then
@@ -1742,9 +1744,9 @@ contains
         end do
       end do
       neFermi(:) = maxFill * neFermi
-      write(stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
+      write(env%stdOut,*)'Density of states at the Fermi energy Nf (a.u.):', neFermi
     else
-      write(stdOut,*)'Non-metallic system'
+      write(env%stdOut,*)'Non-metallic system'
     end if
 
   end subroutine init_perturbation

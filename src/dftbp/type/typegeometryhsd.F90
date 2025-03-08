@@ -7,10 +7,10 @@
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
 module dftbp_type_typegeometryhsd
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_common_atomicmass, only : getAtomicSymbol
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, pi, avogadConst
-  use dftbp_common_globalenv, only : stdout
   use dftbp_common_unitconversion, only : lengthUnits, angularUnits
   use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char,&
       & getNodeType, getNodeValue, TEXT_NODE
@@ -215,7 +215,10 @@ contains
 
 
   !> Reads the geometry from a node in a HSD tree in GEN format
-  subroutine readTGeometryGen(node, geo)
+  subroutine readTGeometryGen(env, node, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -226,13 +229,16 @@ contains
     type(string) :: text
 
     call getFirstTextChild(node, text)
-    call readTGeometryGen_help(node, geo, char(text))
+    call readTGeometryGen_help(env, node, geo, char(text))
 
   end subroutine readTGeometryGen
 
 
   !> Helping routine for reading geometry from a HSD tree in GEN format
-  subroutine readTGeometryGen_help(node, geo, text)
+  subroutine readTGeometryGen_help(env, node, geo, text)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -374,7 +380,7 @@ contains
 
     ! tests that are relevant to periodic geometries only
     if (geo%tPeriodic) then
-      call setupPeriodicGeometry(node, geo)
+      call setupPeriodicGeometry(env, node, geo)
     end if
 
     ! convert coords to correct internal units
@@ -510,7 +516,10 @@ contains
 
 
   !> Reads the geometry from a node in a HSD tree in VASP POSCAR/CONTCAR formats
-  subroutine readTGeometryVasp(node, geo)
+  subroutine readTGeometryVasp(env, node, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -521,13 +530,16 @@ contains
     type(string) :: text
 
     call getFirstTextChild(node, text)
-    call readTGeometryVasp_help(node, geo, char(text))
+    call readTGeometryVasp_help(env, node, geo, char(text))
 
   end subroutine readTGeometryVasp
 
 
   !> Helping routine for reading geometry from a HSD tree in VASP format
-  subroutine readTGeometryVasp_help(node, geo, text)
+  subroutine readTGeometryVasp_help(env, node, geo, text)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -687,7 +699,7 @@ contains
       iStart = iEnd + 1
     end do
 
-    call setupPeriodicGeometry(node, geo)
+    call setupPeriodicGeometry(env, node, geo)
 
     ! convert coords to correct internal units
     if (geo%tFracCoord) then
@@ -705,7 +717,10 @@ contains
 
 
   !> Reads the geometry in a HSD tree in LAMMPS data file format
-  subroutine readTGeometryLammps(node, geo)
+  subroutine readTGeometryLammps(env, node, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node containing the geometry in Gen format
     type(fnode), pointer :: node
@@ -728,13 +743,16 @@ contains
     end if
     call getNodeValue(child, text2)
 
-    call readTGeometryLammps_help(node, geo, char(text1), char(text2))
+    call readTGeometryLammps_help(env, node, geo, char(text1), char(text2))
 
   end subroutine readTGeometryLammps
 
 
   !> Helping routine for reading geometry from a HSD tree in LAMMPS format
-  subroutine readTGeometryLammps_help(node, geo, commandInput, dataInput)
+  subroutine readTGeometryLammps_help(env, node, geo, commandInput, dataInput)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -1014,10 +1032,10 @@ contains
     geo%tFracCoord = .false.
     geo%tHelical = .false.
 
-    call setupPeriodicGeometry(node, geo)
+    call setupPeriodicGeometry(env, node, geo)
     geo%coords = geo%coords * AA__Bohr
 
-    write(stdout, "(A,I8,A,I3,A)") "Read values from LAMMPS input file: ",&
+    write(env%stdout, "(A,I8,A,I3,A)") "Read values from LAMMPS input file: ",&
         & geo%nAtom, " atoms, ", geo%nSpecies, " species"
 
     call normalize(geo)
@@ -1026,7 +1044,10 @@ contains
 
 
   !> Common checks for periodic input and generation of associated information
-  subroutine setupPeriodicGeometry(node, geo)
+  subroutine setupPeriodicGeometry(env, node, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse (only needed to produce proper error messages)
     type(fnode), pointer :: node
@@ -1040,7 +1061,7 @@ contains
     geo%latVecs = geo%latVecs * AA__Bohr
     if (geo%tFracCoord) then
       if (any(abs(geo%coords) > 1.0_dp)) then
-        call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
+        call detailedWarning(env%stdOut, node, "Fractional coordinates with absolute value greater than one.")
       end if
     end if
     allocate(geo%recVecs2p(3, 3))

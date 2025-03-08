@@ -7,7 +7,6 @@
 
 !> Time stages in the code
 module dftbp_common_timer
-  use dftbp_common_globalenv, only : stdOut
   implicit none
 
   private
@@ -102,7 +101,7 @@ contains
 
 
   !> Writes the current measured times.
-  subroutine writeTimes(this, msg, node, fp)
+  subroutine writeTimes(this, msg, unit, node)
 
     !> Instance.
     class(TTimer), intent(in) :: this
@@ -110,25 +109,17 @@ contains
     !> Message to print along the timings
     character(*), intent(in) :: msg
 
+    !> File in which to write the times
+    integer, intent(in) :: unit
+
     !> Node information (default: no node information is printed)
     integer, intent(in), optional :: node
 
-    !> File in which to write the times (default: actual standard out)
-    integer, intent(in), optional :: fp
-
-    integer :: fp0
-
-    if (present(fp)) then
-      fp0 = fp
-    else
-      fp0 = stdOut
-    end if
-
     if (present(node)) then
-      write(fp0, "(A,1X,I5.5,A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'NODE', node, '|TIME',&
+      write(unit, "(A,1X,I5.5,A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'NODE', node, '|TIME',&
           & trim(msg), 'CPU:', this%getCpuTime(), 'WALL:', this%getWallClockTime()
     else
-      write(fp0, "(A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'TIME', trim(msg), 'CPU:',&
+      write(unit, "(A,1X,A,T48,A,1X,F8.2,5X,A,1X,F8.2)") 'TIME', trim(msg), 'CPU:',&
           & this%getCpuTime(), 'WALL:', this%getWallClockTime()
     end if
 
