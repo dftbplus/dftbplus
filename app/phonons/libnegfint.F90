@@ -26,7 +26,6 @@
 #:include "common.fypp"
 
 module phonons_libnegfint
-  use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
@@ -48,6 +47,7 @@ module phonons_libnegfint
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_comm, mpifx_reduceip
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
+  use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
   implicit none
   private
 
@@ -85,11 +85,9 @@ module phonons_libnegfint
   !type(Z_CSR), pointer :: pCsrOver => null()
 
 
-  contains
+contains
 
-!------------------------------------------------------------------------------
-! Init gDFTB environment and variables
-!------------------------------------------------------------------------------
+  !> Init gDFTB environment and variables
   subroutine negf_init(env, transpar, tundos, initinfo)
 
     !> Environment settings, suplying the global comm world
@@ -126,7 +124,6 @@ module phonons_libnegfint
       ncont = 0
     endif
 
-    ! ------------------------------------------------------------------------------
     !! Set defaults and fill up the parameter structure with them
     call init_negf(negf)
     call init_contacts(negf, ncont)
@@ -214,6 +211,7 @@ module phonons_libnegfint
 
   end subroutine negf_init
 
+
   subroutine init_tun_proj(selTypeModes, nAtoms)
     integer, intent(in) :: selTypeModes
     integer, intent(in) :: nAtoms
@@ -275,6 +273,7 @@ module phonons_libnegfint
 
   end subroutine init_tun_proj
 
+
   !------------------------------------------------------------------------------
   subroutine negf_destroy()
 
@@ -287,6 +286,7 @@ module phonons_libnegfint
     call writeMemInfo(stdOut)
 
   end subroutine negf_destroy
+
 
   !------------------------------------------------------------------------------
   subroutine negf_init_str(nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
@@ -509,23 +509,23 @@ module phonons_libnegfint
        endif
        currLead(:) = currLead + currPVec
 
-#:if WITH_MPI
+     #:if WITH_MPI
        call add_partial_results(env%mpi%groupComm, tunnPMat, tunnMat, tunnSKRes, iK, nK)
        call add_partial_results(env%mpi%groupComm, ldosPMat, ldosMat, ldosSKRes, iK, nK)
-#:else
+     #:else
        call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iK, nK)
        call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iK, nK)
-#:endif
+     #:endif
 
     end do
 
        ! MPI Reduce K dependent stuff
-#:if WITH_MPI
+  #:if WITH_MPI
     call mpifx_reduceip(env%mpi%groupComm, currLead, MPI_SUM)
     call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
     call add_k_results(env%mpi%interGroupComm, tunnMat, tunnSKRes )
     call add_k_results(env%mpi%interGroupComm, ldosMat, ldosSKRes )
-#:endif
+  #:endif
 
     ! converts from internal atomic units into W
     currLead = currLead * convertHeatCurrent(HessianUnits, HeatCurrUnits)
@@ -670,7 +670,7 @@ module phonons_libnegfint
 
   end subroutine printH
 
-  !----------------------------------------------------------------------------
+
   !> utility to allocate and sum partial results from different channels
 #:if WITH_MPI
   subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
@@ -738,16 +738,16 @@ module phonons_libnegfint
 
           matSKRes(:,:,:) = 0.0_dp
         endif
-#:if WITH_MPI
+      #:if WITH_MPI
         matSKRes(:,:,iK) = tmpMat
-#:else
+      #:else
         matSKRes(:,:,iK) = pMat
-#:endif
+      #:endif
       end if
 
-#:if WITH_MPI
+    #:if WITH_MPI
       deallocate(tmpMat)
-#:endif
+    #:endif
 
     end if
 
@@ -755,9 +755,8 @@ module phonons_libnegfint
 
 
 
-  !----------------------------------------------------------------------------
-
 #:if WITH_MPI
+
   !> utility to sum up partial results over K communicator
   subroutine add_k_results(kcomm, mat, matSKRes)
 
@@ -779,7 +778,9 @@ module phonons_libnegfint
     endif
 
   end subroutine add_k_results
+
 #:endif
+
 
   !----------------------------------------------------------------------------
   ! init_csr: is needed only if H and S are stored in dftb+ format
