@@ -26,7 +26,6 @@
 #:include "common.fypp"
 
 module phonons_libnegfint
-  use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
@@ -48,6 +47,7 @@ module phonons_libnegfint
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_comm, mpifx_reduceip
   use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
+  use phonons_initphonons, only : modeEnum, TempMax, TempMin, TempStep
   implicit none
   private
 
@@ -58,7 +58,7 @@ module phonons_libnegfint
 
   public :: negf_init, negf_destroy
 
-  !> initialize tunneling projection on specific modes
+  !> Initialize tunneling projection on specific modes
   public :: init_tun_proj
 
   ! This initializes the partitioned structure
@@ -73,23 +73,16 @@ module phonons_libnegfint
   ! direct calls to compute phonon current
   public :: negf_phonon_current
 
-  ! interface csr matrices. The pattern structure of csrHam
-  ! is defined by negf_init_csr.
-  ! Not needed since dnamical matrix is stored dense
-  !public :: negf_init_csr
+  ! interface csr matrices. The pattern structure of csrHam is defined by negf_init_csr.
 
   type(z_CSR), target :: csrHam
   type(Z_CSR), pointer :: pCsrHam => null()
 
-  !type(z_CSR),target :: csrOver ! need to be removed
-  !type(Z_CSR), pointer :: pCsrOver => null()
+
+contains
 
 
-  contains
-
-!------------------------------------------------------------------------------
-! Init gDFTB environment and variables
-!------------------------------------------------------------------------------
+  !> Init gDFTB environment and variables
   subroutine negf_init(env, transpar, tundos, initinfo)
 
     !> Environment settings, suplying the global comm world
@@ -98,10 +91,10 @@ module phonons_libnegfint
     !> Parameters for the transport calculation
     Type(TTranspar), intent(in) :: transpar
 
-    !> parameters for tuneling and density of states evaluation
+    !> Parameters for tuneling and density of states evaluation
     Type(TNEGFTunDos), intent(in) :: tundos
 
-    !> initialization flag
+    !> Initialization flag
     logical, intent(out) :: initinfo
 
 
@@ -116,9 +109,9 @@ module phonons_libnegfint
 
     pNegf=>negf
 
-#:if WITH_MPI
+  #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm, tIOproc)
-#:endif
+  #:endif
 
     if (transpar%defined) then
       ncont = transpar%ncont
@@ -126,18 +119,16 @@ module phonons_libnegfint
       ncont = 0
     endif
 
-    ! ------------------------------------------------------------------------------
-    !! Set defaults and fill up the parameter structure with them
+    ! Set defaults and fill up the parameter structure with them
     call init_negf(negf)
     call init_contacts(negf, ncont)
     call get_params(negf, parms)
     call set_scratch(negf, ".")
 
-    ! ------------------------------------------------------------------------------
     !                        SETTING CONTACT TEMPERATURES
-    ! ------------------------------------------------------------------------------
     ! If no contacts => no transport,
     if (transpar%defined) then
+
       do i = 1, ncont
         if (transpar%contacts(i)%kbT .ge. 0.0_dp) then
           parms%kbT_t(i) = transpar%contacts(i)%kbT
@@ -149,20 +140,16 @@ module phonons_libnegfint
       do i=1, ncont
          parms%FictCont(i) = transpar%contacts(i)%wideBand
          parms%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
-      enddo
+       enddo
+
     end if
 
-    ! ------------------------------------------------------------------------------
     ! This parameter is used to set the averall drop threshold in libnegf
     ! It affects especially transmission that is not accurate more than
     ! this value.
     call set_drop(1.d-20)
 
-
-    ! ------------------------------------------------------------------------------
     !                    SETTING TRANSMISSION PARAMETERS
-    ! ------------------------------------------------------------------------------
-
     if (tundos%defined) then
       parms%verbose = tundos%verbose
       select case (tundos%deltaModel)
@@ -213,6 +200,7 @@ module phonons_libnegfint
     end if
 
   end subroutine negf_init
+
 
   subroutine init_tun_proj(selTypeModes, nAtoms)
     integer, intent(in) :: selTypeModes
@@ -275,35 +263,34 @@ module phonons_libnegfint
 
   end subroutine init_tun_proj
 
-  !------------------------------------------------------------------------------
+
   subroutine negf_destroy()
 
     write(stdOut, *)
     write(stdOut, *) 'Release NEGF memory:'
     call destruct(csrHam)
-    !call destruct(csrOver)
     call destroy_negf(negf)
     call writePeakInfo(stdOut)
     call writeMemInfo(stdOut)
 
   end subroutine negf_destroy
 
-  !------------------------------------------------------------------------------
+
   subroutine negf_init_str(nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
 
-    !> number of atoms
+    !> Number of atoms
     integer, intent(in) :: nAtoms
 
-    !> transport calculation parameters
+    !> Transport calculation parameters
     Type(TTranspar), intent(in) :: transpar
 
-    !> neighbours of each atom
+    !> Neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
 
-    !> number of neighbours for each atom
+    !> Number of neighbours for each atom
     Integer, intent(in) :: nNeigh(:)
 
-    !> mapping from image atoms to central cell
+    !> Mapping from image atoms to central cell
     Integer, intent(in) :: img2CentCell(:)
 
     Integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:), ind(:)
@@ -427,9 +414,8 @@ module phonons_libnegfint
   !
   !end subroutine negf_init_phph
 
-  !------------------------------------------------------------------------------
-  ! INTERFACE subroutine to call phonon current computation
-  !------------------------------------------------------------------------------
+
+  !> INTERFACE subroutine to call phonon current computation
   subroutine calc_phonon_current(env, DynMat, tunnMat, ldosMat, &
                         & currLead, conductance, twriteTunn, twriteLDOS)
 
@@ -439,22 +425,22 @@ module phonons_libnegfint
     !> The dynamical matrix of the system
     real(dp), intent(in) :: DynMat(:,:)
 
-    !> matrix of tunnelling amplitudes at each energy from contacts
+    !> Matrix of tunnelling amplitudes at each energy from contacts
     real(dp), allocatable, intent(inout) :: tunnMat(:,:)
 
-    !> density of states for each energy and region of projection
+    !> Density of states for each energy and region of projection
     real(dp), allocatable, intent(inout) :: ldosMat(:,:)
 
-    !> current into/out of contacts
+    !> Current into/out of contacts
     real(dp), allocatable, intent(inout) :: currLead(:)
 
-    !> thermal conductance
+    !> Thermal conductance
     real(dp), allocatable, intent(inout) :: conductance(:, :)
 
-    !> should tunneling data be written
+    !> Should tunneling data be written
     logical, intent(in) :: tWriteTunn
 
-    !> should DOS data be written
+    !> Should DOS data be written
     logical, intent(in) :: tWriteLDOS
 
     ! locals
@@ -509,23 +495,23 @@ module phonons_libnegfint
        endif
        currLead(:) = currLead + currPVec
 
-#:if WITH_MPI
+     #:if WITH_MPI
        call add_partial_results(env%mpi%groupComm, tunnPMat, tunnMat, tunnSKRes, iK, nK)
        call add_partial_results(env%mpi%groupComm, ldosPMat, ldosMat, ldosSKRes, iK, nK)
-#:else
+     #:else
        call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iK, nK)
        call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iK, nK)
-#:endif
+     #:endif
 
     end do
 
-       ! MPI Reduce K dependent stuff
-#:if WITH_MPI
+    ! MPI Reduce k-dependent stuff
+  #:if WITH_MPI
     call mpifx_reduceip(env%mpi%groupComm, currLead, MPI_SUM)
     call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
     call add_k_results(env%mpi%interGroupComm, tunnMat, tunnSKRes )
     call add_k_results(env%mpi%interGroupComm, ldosMat, ldosSKRes )
-#:endif
+  #:endif
 
     ! converts from internal atomic units into W
     currLead = currLead * convertHeatCurrent(HessianUnits, HeatCurrUnits)
@@ -606,19 +592,19 @@ module phonons_libnegfint
     !> Hessian
     type(z_CSR), pointer, intent(in) :: HH
 
-    !> phonon kpoint
-    integer, intent(in) :: qpoint        ! kp index
+    !> Phonon kpoint (kp index)
+    integer, intent(in) :: qpoint
 
-    !> phonon k-weight
-    real(dp), intent(in) :: wght      ! kp weight
+    !> Phonon k-weight (kp weight)
+    real(dp), intent(in) :: wght
 
     !> Tunneling
     real(dp), dimension(:,:), pointer :: tunn
 
-    !> local or projected dos
+    !> Local or projected dos
     real(dp), dimension(:,:), pointer :: ledos
 
-    !> heat currents
+    !> Heat currents
     real(dp), dimension(:), pointer :: currents
 
     type(lnParams) :: params
@@ -670,8 +656,8 @@ module phonons_libnegfint
 
   end subroutine printH
 
-  !----------------------------------------------------------------------------
-  !> utility to allocate and sum partial results from different channels
+
+  !> Utility to allocate and sum partial results from different channels
 #:if WITH_MPI
   subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
 
@@ -681,19 +667,19 @@ module phonons_libnegfint
   subroutine add_partial_results(pMat, matTot, matSKRes, iK, nK)
 #:endif
 
-    !> pointer to matrix of data
+    !> Pointer to matrix of data
     real(dp), intent(in), pointer :: pMat(:,:)
 
-    !> sum total
+    !> Sum total
     real(dp), allocatable, intent(inout) :: matTot(:,:)
 
-    !> k-resolved sum
+    !> Sum resolved by k
     real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
 
-    !> particular k-point
+    !> Particular k-point
     integer, intent(in) :: iK
 
-    !> number of k-points
+    !> Number of k-points
     integer, intent(in) :: nK
 
     #:if WITH_MPI
@@ -738,16 +724,16 @@ module phonons_libnegfint
 
           matSKRes(:,:,:) = 0.0_dp
         endif
-#:if WITH_MPI
+      #:if WITH_MPI
         matSKRes(:,:,iK) = tmpMat
-#:else
+      #:else
         matSKRes(:,:,iK) = pMat
-#:endif
+      #:endif
       end if
 
-#:if WITH_MPI
+    #:if WITH_MPI
       deallocate(tmpMat)
-#:endif
+    #:endif
 
     end if
 
@@ -755,19 +741,18 @@ module phonons_libnegfint
 
 
 
-  !----------------------------------------------------------------------------
-
 #:if WITH_MPI
-  !> utility to sum up partial results over K communicator
+
+  !> Utility to sum up partial results over K communicator
   subroutine add_k_results(kcomm, mat, matSKRes)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: kcomm
 
-    !> sum total
+    !> Sum total
     real(dp), allocatable, intent(inout) :: mat(:,:)
 
-    !> k-resolved sum
+    !> Sum resolved by k
     real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
 
     if (allocated(mat)) then
@@ -779,7 +764,9 @@ module phonons_libnegfint
     endif
 
   end subroutine add_k_results
+
 #:endif
+
 
   !----------------------------------------------------------------------------
   ! init_csr: is needed only if H and S are stored in dftb+ format
@@ -827,7 +814,7 @@ module phonons_libnegfint
     !> The k-point resolved data, if allocated
     real(dp), allocatable, intent(in) :: pKRes(:,:,:)
 
-    !> file to print out to
+    !> File to print out to
     character(*), intent(in) :: filename
 
     !> The k-points for the system
@@ -879,9 +866,8 @@ module phonons_libnegfint
 
   end subroutine write_file
 
-  !----------------------------------------------------------------------------
-  ! DEBUG routine dumping H and S on file in Matlab format
-  !----------------------------------------------------------------------------
+
+  !> DEBUG routine dumping H and S on file in Matlab format
   subroutine negf_dumpHS(HH,SS)
     type(z_CSR), intent(in) :: HH, SS
 
