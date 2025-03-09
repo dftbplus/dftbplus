@@ -39,7 +39,7 @@ module dftbp_derivs_perturb
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerReal_mix, TMixerReal_reset
+  use dftbp_mixer_mixer, only : TMixerReal
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
@@ -176,7 +176,7 @@ contains
       & over, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
-      & iEqBlockOnSite, hybridXc, nNeighbourCam, pChrgMixer, kPoint, kWeight, iCellVec, cellVec,&
+      & iEqBlockOnSite, hybridXc, nNeighbourCam, chrgMixer, kPoint, kWeight, iCellVec, cellVec,&
       & polarisability, dEi, dqOut, neFermi, dEfdE, errStatus, omega)
 
     !> Instance
@@ -286,7 +286,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: chrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -431,7 +431,7 @@ contains
         dEiTmp(:,:,:) = 0.0_dp
         call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
             & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
-            & sccTol, isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements,&
+            & sccTol, isSccConvRequired, maxSccIter, chrgMixer, nMixElements, nIneqMixElements,&
             & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
             & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
             & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, transform, dEiTmp, dEfdETmp, Ef,&
@@ -491,7 +491,7 @@ contains
       & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, isRespKernelRPA, sccCalc, maxSccIter,&
       & sccTol, isSccConvRequired, nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, hybridXc, nNeighbourCam,&
-      & pChrgMixer, kPoint, kWeight, iCellVec, cellVec, nEFermi, errStatus, omega, isHelical, coord)
+      & chrgMixer, kPoint, kWeight, iCellVec, cellVec, nEFermi, errStatus, omega, isHelical, coord)
 
     !> Instance
     class(TResponse), intent(in) :: this
@@ -621,7 +621,7 @@ contains
     integer, intent(in), allocatable :: nNeighbourCam(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: chrgMixer
 
     !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -772,7 +772,7 @@ contains
         dEi(:,:,:) = 0.0_dp
         call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
             & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
-            & sccTol, isSccRequired, nIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn,&
+            & sccTol, isSccRequired, nIter, chrgMixer, nMixElements, nIneqMixElements, dqIn,&
             & dqOut, hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut,&
             & nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite,&
             & dqBlockIn, dqBlockOut, eigVals, transform, dEi, dEf, Ef, this%isEfFixed, dHam, idHam,&
@@ -868,7 +868,7 @@ contains
   !> Evaluates response, given the external perturbation
   subroutine response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc, sccTol,&
-      & isSccConvRequired, maxSccIter, pChrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
+      & isSccConvRequired, maxSccIter, chrgMixer, nMixElements, nIneqMixElements, dqIn, dqOut,&
       & hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill,&
       & spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut,&
       & eigVals, transform, dEi, dEf, Ef, isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic,&
@@ -885,7 +885,7 @@ contains
     type(TPotentials), intent(inout) :: dPotential
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout), allocatable :: pChrgMixer
+    class(TMixerReal), intent(inout), allocatable :: chrgMixer
 
     !> Nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
     !> blocks (if a DFTB+U or onsite correction calculation)
@@ -1138,7 +1138,7 @@ contains
     end if
 
     if (tSccCalc) then
-      call TMixerReal_reset(pChrgMixer, size(dqInpRed))
+      call chrgMixer%reset(size(dqInpRed))
     end if
 
     if (abs(omega) > epsilon(0.0_dp)) then
@@ -1431,14 +1431,14 @@ contains
           else
 
             if (allocated(hybridXc)) then
-              call TMixerReal_mix(pChrgMixer, dRhoIn, dqDiffRed)
+              call chrgMixer%mix(dRhoIn, dqDiffRed)
             #:if WITH_SCALAPACK
               call denseMullikenRealBlacs(env, parallelKS, denseDesc, dRhoInSqr, SSqrReal, dqIn)
             #:else
               call denseMullikenReal(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
             #:endif
             else
-              call TMixerReal_mix(pChrgMixer, dqInpRed, dqDiffRed)
+              call chrgMixer%mix(dqInpRed, dqDiffRed)
             #:if WITH_SCALAPACK
               ! Synchronise charges in order to avoid mixers that store a history drifting apart
               call mpifx_bcast(env%mpi%globalComm, dqInpRed)

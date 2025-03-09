@@ -41,6 +41,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_type_linkedlist, only : TListIntR1, destruct
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
+  use dftbp_mixer_factory, only: TMixerInput
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
@@ -306,23 +307,13 @@ module dftbp_dftbplus_inputdata
     !> If using the GPU as
     logical :: isDmOnGpu = .false.
 
-    !> Choice of SCC mixer
-    integer :: iMixSwitch = 0
 
-    !> Maximum number of self-consitent iterations
+    !> Maximum number of self-consistent iterations
     integer :: maxSccIter = 0
+    
+    !> Mixer Input data
+    type(TMixerInput) :: mixerInp
 
-    real(dp) :: almix = 0.0_dp
-    integer :: iGenerations = 0
-    logical :: tFromStart = .true.
-    real(dp) :: broydenOmega0 = 0.01_dp
-    real(dp) :: broydenMinWeight = 1.0_dp
-    real(dp) :: broydenMaxWeight = 1.0e5_dp
-    real(dp) :: broydenWeightFac = 1.0e-2_dp
-    real(dp) :: andersonInitMixing = 0.01_dp
-    integer :: andersonNrDynMix = 0
-    real(dp), allocatable :: andersonDynMixParams(:,:)
-    real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved = 0
     integer, allocatable :: indMovedAtom(:)
     integer, allocatable :: indDerivAtom(:)
