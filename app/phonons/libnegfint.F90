@@ -30,7 +30,7 @@ module phonons_libnegfint
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_globalenv, only : tIoProc
   use dftbp_extlibs_negf, only : associate_ldos, associate_lead_currents, associate_transmission,&
       & COMP_SGF, COMPSAVE_SGF, compute_phonon_current, convertHeatConductance, convertHeatCurrent,&
       & create, create_scratch, csr2dns, DELTA_MINGO, DELTA_SQ, DELTA_W, destroy, destroy_matrices,&
@@ -276,20 +276,26 @@ module phonons_libnegfint
   end subroutine init_tun_proj
 
   !------------------------------------------------------------------------------
-  subroutine negf_destroy()
+  subroutine negf_destroy(output)
 
-    write(stdOut, *)
-    write(stdOut, *) 'Release NEGF memory:'
+    !> output for write processes
+    integer, intent(in) :: output
+
+    write(output, *)
+    write(output, *) 'Release NEGF memory:'
     call destruct(csrHam)
     !call destruct(csrOver)
     call destroy_negf(negf)
-    call writePeakInfo(stdOut)
-    call writeMemInfo(stdOut)
+    call writePeakInfo(output)
+    call writeMemInfo(output)
 
   end subroutine negf_destroy
 
   !------------------------------------------------------------------------------
-  subroutine negf_init_str(nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+  subroutine negf_init_str(output, nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> number of atoms
     integer, intent(in) :: nAtoms
@@ -380,8 +386,8 @@ module phonons_libnegfint
 
        do j1 = 1, ncont
           if (count(minv(:,j1).eq.j1).gt.1) then
-             write(stdOut,*) 'Contact',j1,'interacts with more than one PL:'
-             write(stdOut,*) 'PLs:',minv(:,j1)
+             write(output,*) 'Contact',j1,'interacts with more than one PL:'
+             write(output,*) 'PLs:',minv(:,j1)
              call error('check cutoff value or PL size')
           end if
           do m = 1, transpar%nPLs
@@ -390,11 +396,11 @@ module phonons_libnegfint
        end do
 
 
-       write(stdOut,*)
-       write(stdOut,*) ' Structure info:'
-       write(stdOut,*) ' Number of PLs:',nbl
-       write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
-       write(stdOut,*)
+       write(output,*)
+       write(output,*) ' Structure info:'
+       write(output,*) ' Number of PLs:',nbl
+       write(output,*) ' PLs coupled to contacts:',cblk(1:ncont)
+       write(output,*)
 
     end if
 
@@ -882,12 +888,16 @@ module phonons_libnegfint
   !----------------------------------------------------------------------------
   ! DEBUG routine dumping H and S on file in Matlab format
   !----------------------------------------------------------------------------
-  subroutine negf_dumpHS(HH,SS)
+  subroutine negf_dumpHS(output, HH,SS)
+
+    !> output for write processes
+    integer, intent(in) :: output
+
     type(z_CSR), intent(in) :: HH, SS
 
     type(TFileDescr) :: fd
 
-    write(stdOut,*) 'Dumping H and S on files...'
+    write(output,*) 'Dumping H and S on files...'
     call openFile(fd, 'HH.dat', mode="w")
     write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
     write(fd%unit, *) '% Nonzeros =',HH%nnz

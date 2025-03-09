@@ -255,7 +255,7 @@ contains
 
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
-      call initShortGamma_(input%shortGammaInput, orb, this%shortGamma)
+      call initShortGamma_(env, input%shortGammaInput, orb, this%shortGamma)
       call initCoulomb_(input%coulombInput, env, this%nAtom, this%coulomb)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -347,7 +347,7 @@ contains
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
       call this%coulomb%updateCoords(env, neighList, coord, species)
-      call this%shortGamma%updateCoords(coord, species, neighList)
+      call this%shortGamma%updateCoords(env, coord, species, neighList)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         ! Poisson solver needs currently the unfolded central cell coordinates (coord0), because the
@@ -1119,13 +1119,17 @@ contains
 
 
   ! Initializes the short gamma calculator
-  subroutine initShortGamma_(shortGammaInput, orb, shortGamma)
+  subroutine initShortGamma_(env, shortGammaInput, orb, shortGamma)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(TShortGammaInput), intent(inout) :: shortGammaInput
     type(TOrbitals), intent(in) :: orb
     type(TShortGamma), allocatable, intent(out) :: shortGamma
 
     allocate(shortGamma)
-    call TShortGamma_init(shortGamma, shortGammaInput, orb)
+    call TShortGamma_init(shortGamma, env, shortGammaInput, orb)
 
   end subroutine initShortGamma_
 

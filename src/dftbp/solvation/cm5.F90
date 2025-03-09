@@ -9,6 +9,7 @@
 
 !> Implementation of the charge model 5 (CM5)
 module dftbp_solvation_cm5
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_atomicrad, only : getAtomicRad
   use dftbp_common_constants, only : AA__Bohr, symbolToNumber
@@ -189,10 +190,13 @@ contains
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(this, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neighList, img2CentCell, coords, species0)
 
     !> data structure
     class(TChargeModel5), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> list of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
@@ -210,7 +214,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(this%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeigh, neighList, this%rCutoff)
     if (allocated(this%dcm5dr) .and. allocated(this%dcm5dL)) then
       call getCorrectionDerivs(this, nNeigh, neighList%iNeighbour, img2CentCell, &
           & neighList%neighDist2, species0, coords)

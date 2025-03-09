@@ -9,7 +9,7 @@
 
 program dftbplus
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, stdOut
   use dftbp_common_release, only : releaseName, releaseYear
   use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
@@ -23,10 +23,12 @@ program dftbplus
   type(TDftbPlusMain), allocatable, target :: main
 
   call initGlobalEnv()
-  call printDftbHeader(releaseName, releaseYear)
   allocate(input)
-  call parseHsdInput(input)
   call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
+  call printDftbHeader(env%stdOut, releaseName, releaseYear)
+  call parseHsdInput(env, input)
   allocate(main)
   call main%initProgramVariables(input, env)
   deallocate(input)

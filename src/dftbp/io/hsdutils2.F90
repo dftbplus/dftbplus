@@ -118,7 +118,10 @@ contains
 
 
   !> Prints a warning message about unprocessed nodes
-  subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
+  subroutine warnUnprocessedNodes(output, node, tIgnoreUnprocessed, nodeList)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Root element of the tree to investigate
     type(fnode), pointer :: node
@@ -146,7 +149,7 @@ contains
         call appendPathAndLine(child, msg)
         call append_to_string(msg, newline)
       end do
-      call warning(char(msg))
+      call warning(output, char(msg))
     end if
     if (present(nodeList)) then
       nodeList => list

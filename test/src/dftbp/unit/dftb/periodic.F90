@@ -26,7 +26,7 @@ contains
     integer :: startAtom, endAtom
     logical :: error
 
-    call distributeAtoms(0, 1, 42, startAtom, endAtom, error)
+    call distributeAtoms(stdOut, 0, 1, 42, startAtom, endAtom, error)
     @:ASSERT(startAtom == 1)
     @:ASSERT(endAtom == 42)
     @:ASSERT(.not. error)
@@ -37,11 +37,11 @@ contains
     integer :: startAtom, endAtom
     logical :: error
 
-    call distributeAtoms(0, 2, 13, startAtom, endAtom, error)
+    call distributeAtoms(stdOut, 0, 2, 13, startAtom, endAtom, error)
     @:ASSERT(startAtom == 1)
     @:ASSERT(endAtom == 7)
     @:ASSERT(.not. error)
-    call distributeAtoms(1, 2, 13, startAtom, endAtom, error)
+    call distributeAtoms(stdOut, 1, 2, 13, startAtom, endAtom, error)
     @:ASSERT(startAtom == 8)
     @:ASSERT(endAtom == 13)
     @:ASSERT(.not. error)
@@ -53,7 +53,7 @@ contains
     logical :: error
 
     do ii = 1, 4
-      call distributeAtoms(ii, 4, 2, startAtom, endAtom, error)
+      call distributeAtoms(stdOut, ii, 4, 2, startAtom, endAtom, error)
       @:ASSERT(error)
     end do
   $:END_TEST()

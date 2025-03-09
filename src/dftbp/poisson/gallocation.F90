@@ -34,7 +34,6 @@ module dftbp_poisson_gallocation
   use, intrinsic :: iso_fortran_env, only : int64
   use, intrinsic :: iso_c_binding, only : c_sizeof
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   implicit none
 
   public log_gallocate, log_gdeallocate, writePoissMemInfo, writePoissPeakInfo
@@ -61,7 +60,10 @@ contains
 #:for LABEL, TYPE, ARRAY, ARGS in ALLOC_CASES
 
   !---------------------------------------------------------------
-  subroutine allocate_${LABEL}$(array, ${ARGS}$, err)
+  subroutine allocate_${LABEL}$(output, array, ${ARGS}$, err)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
@@ -79,13 +81,13 @@ contains
 
     !Allocation control: if array is already allocated STOP and write error statement
     if (allocated(array)) then
-      @:ERROR_HANDLING(err,-1,"ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already allocated")
+      @:ERROR_HANDLING(output, err,-1,"ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already allocated")
     endif
 
     if(.not. allocated(array)) then
       allocate(array(${ARGS}$), stat=iErr)
       if (ierr /= 0) then
-        @:FORMATTED_ERROR_HANDLING(err, iErr, "(A,I0)", "Poisson allocation error: ", iErr)
+        @:FORMATTED_ERROR_HANDLING(output, err, iErr, "(A,I0)", "Poisson allocation error: ", iErr)
       else
         if (size(array) > 0) then
           pArrayFlat(1 : size(array)) => array
@@ -95,7 +97,7 @@ contains
           endif
         end if
       #:if defined('MEMLOG')
-        call writePoissMemInfo()
+        call writePoissMemInfo(output)
       #:endif
       endif
     endif
@@ -108,7 +110,10 @@ contains
 #:for LABEL, TYPE, ARRAY, _ in ALLOC_CASES
 
   !---------------------------------------------------------------
-  subroutine deallocate_${LABEL}$(array, err)
+  subroutine deallocate_${LABEL}$(output, array, err)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
@@ -128,10 +133,10 @@ contains
       end if
       deallocate(array)
      #:if defined('MEMLOG')
-      call writePoissMemInfo()
+      call writePoissMemInfo(output)
      #:endif
     else
-      @:ERROR_HANDLING(err, -1, 'ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not allocated')
+      @:ERROR_HANDLING(output, err, -1, 'ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not allocated')
     endif
 
   end subroutine deallocate_${LABEL}$
@@ -142,38 +147,29 @@ contains
   ! ------------------------------------------------------------
   subroutine writePoissMemInfo(fileId)
 
-    integer, intent(in), optional :: fileId
+    integer, intent(in) :: fileId
 
     character(3) :: str
     real(dp) :: dec
 
     call memstr(alloc_mem,dec,str)
-    if (present(fileId)) then
-      write(fileId,'(A35,F8.2,A3)') 'current Poisson memory allocated: ', real(alloc_mem,dp)*dec,&
+    write(fileId,'(A35,F8.2,A3)') 'current Poisson memory allocated: ', real(alloc_mem,dp)*dec,&
           & str
-    else
-      write(stdOut,'(A35,F8.2,A3)') 'current Poisson memory allocated: ', real(alloc_mem,dp)*dec,&
-          & str
-    end if
 
   end subroutine writePoissMemInfo
 
   ! ------------------------------------------------------------
   subroutine writePoissPeakInfo(fileId)
 
-    integer, intent(in), optional :: fileId
+    integer, intent(in) :: fileId
 
     character(3) :: str
     real(dp) :: dec
 
     call memstr(peak_mem,dec,str)
-    if (present(fileId)) then
-      write(fileId,'(A32,T36,F8.2,A3)') 'peak Poisson memory allocated: ', real(peak_mem,dp)*dec,&
+    write(fileId,'(A32,T36,F8.2,A3)') 'peak Poisson memory allocated: ', real(peak_mem,dp)*dec,&
           & str
-    else
-      write(stdOut,'(A32,T36,F8.2,A3)') 'peak Poisson memory allocated: ', real(peak_mem,dp)*dec,&
-          & str
-    end if
+
 
   end subroutine writePoissPeakInfo
 

@@ -389,16 +389,19 @@ contains
 
 
   !> Raises error if it was previously caught
-  subroutine checkError(this, err)
+  subroutine checkError(this, env, err)
 
     !> Data structure
     class(TDispMbd), intent(in) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
 
     if (this%errCode /= 0) then
-      @:ERROR_HANDLING(err, this%errCode, this%errMessage)
+      @:ERROR_HANDLING(env%stdOut, err, this%errCode, this%errMessage)
     end if
   end subroutine checkError
 

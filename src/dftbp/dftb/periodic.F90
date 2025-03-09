@@ -499,7 +499,7 @@ contains
     isParallel = .false.
   #:if WITH_MPI
     if (present(env)) then
-      call distributeAtoms(env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, startAtom, endAtom,&
+      call distributeAtoms(env%stdOut, env%mpi%nodeComm%rank, env%mpi%nodeComm%size, nAtom, startAtom, endAtom,&
           & isParallelSetupError)
       isParallel = .not. isParallelSetupError
     end if
@@ -957,7 +957,10 @@ contains
 
 
   !> Returns the nr. of neighbours for a given cutoff for all atoms.
-  subroutine getNrOfNeighboursForAll(nNeighbourSK, neigh, cutoff)
+  subroutine getNrOfNeighboursForAll(output, nNeighbourSK, neigh, cutoff)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Contains the nr. of neighbours for each atom on exit.
     integer, intent(out) :: nNeighbourSK(:)
@@ -980,14 +983,17 @@ contains
 
     ! Get last interacting neighbour for given cutoff
     do iAtom = 1, nAtom
-      nNeighbourSK(iAtom) = getNrOfNeighbours(neigh, cutoff, iAtom)
+      nNeighbourSK(iAtom) = getNrOfNeighbours(output, neigh, cutoff, iAtom)
     end do
 
   end subroutine getNrOfNeighboursForAll
 
 
   !> Returns the nr. of neighbours for a given atom.
-  function getNrOfNeighbours(neigh, cutoff, iAtom) result(nNeighbour)
+  function getNrOfNeighbours(output, neigh, cutoff, iAtom) result(nNeighbour)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Intialised neihgborlist.
     type(TNeighbourList), intent(in) :: neigh
@@ -1011,7 +1017,7 @@ contains
 99010 format ('Cutoff (', E16.6, ') greater than last cutoff ', '(', E13.6,&
           & ') passed to updateNeighbourList!')
       write (strError, 99010) cutoff, neigh%cutoff
-      call warning(strError)
+      call warning(output, strError)
     end if
 
     ! Get last interacting neighbour for given cutoff
@@ -1278,7 +1284,10 @@ contains
 
 
   !> Computes a domain decomposition of n atoms
-  subroutine distributeAtoms(mpiRank, mpiSize, nAtom, startAtom, endAtom, error)
+  subroutine distributeAtoms(output, mpiRank, mpiSize, nAtom, startAtom, endAtom, error)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Current MPI rank
     integer, intent(in) :: mpiRank
@@ -1296,7 +1305,7 @@ contains
     logical, intent(out) :: error
 
     if (nAtom < mpiSize) then
-      call warning("Cannot parallelize atomic distance computation: &
+      call warning(output, "Cannot parallelize atomic distance computation: &
           &The number of MPI ranks must not be greater than the number of atoms.")
       error = .true.
       return

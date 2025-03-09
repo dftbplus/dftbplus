@@ -351,6 +351,8 @@ contains
     allocate(this%env)
     allocate(this%main)
     call TEnvironment_init(this%env)
+    ! Temporary fix
+    this%env%stdOut = stdOut
     this%env%tAPICalculation = .true.
     this%isInitialised = .true.
 
@@ -443,8 +445,8 @@ contains
 
     call this%checkInit()
 
-    call parseHsdTree(input%hsdTree, inpData, parserFlags)
-    call doPostParseJobs(input%hsdTree, parserFlags)
+    call parseHsdTree(this%env, input%hsdTree, inpData, parserFlags)
+    call doPostParseJobs(this%env%stdOut, input%hsdTree, parserFlags)
     call this%main%initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator

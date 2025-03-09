@@ -16,7 +16,6 @@
 module dftbp_reks_rekscpeqn
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only: TNeighbourList
   use dftbp_io_message, only: error
   use dftbp_math_blasroutines, only : gemm, gemv
@@ -200,7 +199,7 @@ module dftbp_reks_rekscpeqn
     allocate(z0(superN),z1(superN))
     allocate(p0(superN),p1(superN))
 
-    write(stdOut,"(A)") repeat("-", 82)
+    write(env%stdOut,"(A)") repeat("-", 82)
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
@@ -208,7 +207,7 @@ module dftbp_reks_rekscpeqn
       ZT(:) = 0.0_dp
       call gemv(ZT, A1ePre, XT)
     else
-      call shiftAY1ePre_(XT, Fc, Fa, omega, SAweight, FONs, G1, &
+      call shiftAY1ePre_(env, XT, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, ZT)
     end if
 
@@ -238,13 +237,13 @@ module dftbp_reks_rekscpeqn
       z0(:) = 0.0_dp
       call gemv(z0, A1ePre, r0)
     else
-      call shiftAY1ePre_(r0, Fc, Fa, omega, SAweight, FONs, G1, &
+      call shiftAY1ePre_(env, r0, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, z0)
     end if
     p0(:) = z0
 
     iter = 0; eps = 0.0_dp
-    write(stdOut,'(2x,a)') 'CG solver: Constructing Y initial guess'
+    write(env%stdOut,'(2x,a)') 'CG solver: Constructing Y initial guess'
 
     CGsolver: do iter = 1, maxIter
 
@@ -283,7 +282,7 @@ module dftbp_reks_rekscpeqn
         z1(:) = 0.0_dp
         call gemv(z1, A1ePre, r1)
       else
-        call shiftAY1ePre_(r1, Fc, Fa, omega, SAweight, FONs, G1, &
+        call shiftAY1ePre_(env, r1, Fc, Fa, omega, SAweight, FONs, G1, &
             & Nc, Na, Glevel, reksAlg, z1)
       end if
       ! compute a gradient correction factor
@@ -299,7 +298,7 @@ module dftbp_reks_rekscpeqn
       eps = sum( r1(:)*r1(:) )
 
       ! show current iteration
-      write(stdOut,'(2x,a,1x,i4,4x,a,F18.12)') &
+      write(env%stdOut,'(2x,a,1x,i4,4x,a,F18.12)') &
           & 'CG solver: Iteration', iter, 'eps =', eps
 
       ! convergence check
@@ -309,13 +308,13 @@ module dftbp_reks_rekscpeqn
         z0(:) = z1
         p0(:) = p1
         if (iter == maxIter) then
-          write(stdOut,'(2x,a,i4,a)') &
+          write(env%stdOut,'(2x,a,i4,a)') &
               & 'Warning! Maximum number of iterations (', maxIter, &
               & ') is exceeded in CG solver'
           call error("Increase the maximum number of iterations")
         end if
       else
-        write(stdOut,'(2x,a,1x,i4,1x,a)') &
+        write(env%stdOut,'(2x,a,1x,i4,1x,a)') &
             & 'Convergence reached in CG solver after', iter, 'iterations'
         exit CGsolver
       end if
@@ -330,8 +329,8 @@ module dftbp_reks_rekscpeqn
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
         & Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
-    write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
-    write(stdOut,"(A)") repeat("-", 82)
+    write(env%stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
+    write(env%stdOut,"(A)") repeat("-", 82)
 
   end subroutine CGgrad
 
@@ -481,8 +480,11 @@ module dftbp_reks_rekscpeqn
 
 
   !> Calculate A1ePre * Y shift vectors without saving super A1ePre matrix
-  subroutine shiftAY1ePre_(Y, Fc, Fa, omega, SAweight, FONs, G1, &
+  subroutine shiftAY1ePre_(env, Y, Fc, Fa, omega, SAweight, FONs, G1, &
       & Nc, Na, Glevel, reksAlg, shift1ePre)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> trial vector for soulution
     real(dp), intent(in) :: Y(:)
@@ -561,7 +563,7 @@ module dftbp_reks_rekscpeqn
 
       ! check singularity for preconditioner
       if (abs(tmpApre(ij)) <= epsilon(1.0_dp)) then
-        write(stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
+        write(env%stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
         call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 

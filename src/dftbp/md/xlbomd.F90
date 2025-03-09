@@ -11,9 +11,9 @@
 !> Aradi et al. Extended lagrangian density functional tight-binding molecular dynamics for
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_md_xlbomd
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
   implicit none
@@ -88,10 +88,13 @@ contains
 
 
   !> Initializes the Xlbomd instance.
-  subroutine Xlbomd_init(this, input, nElems)
+  subroutine Xlbomd_init(this, env, input, nElems)
 
     !> Instance.
     type(TXLBOMD), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Basic input parameters.
     type(TXLBOMDInp), intent(in) :: input
@@ -128,7 +131,7 @@ contains
     if (this%useInverseJacobian) then
       allocate(this%invJacobian(nElems, nElems))
       if (this%readInverseJacobian) then
-        call this%readJacobianKernel()
+        call this%readJacobianKernel(env%stdOut)
       else
         this%invJacobian(:,:) = 0.0_dp
       end if
@@ -270,17 +273,21 @@ contains
 
 
   !> Read inverse Jacobian from disc
-  subroutine readJacobianKernel(this)
+  subroutine readJacobianKernel(this, output)
 
     !> Instance.
     class(TXLBOMD), intent(inout) :: this
+
+    !> output for write processes
+    integer, intent(in) :: output
+
     type(TFileDescr) :: fp
 
     call openFile(fp, JacobianKernelFile, mode="r")
     read(fp%unit, *) this%invJacobian
     call closeFile(fp)
     this%invJacobian = transpose(this%invJacobian)
-    write(stdout, "(A,A,A)") "Negative inverse Jacobian read from '", &
+    write(output, "(A,A,A)") "Negative inverse Jacobian read from '", &
         & JacobianKernelFile, "'"
 
   end subroutine readJacobianKernel

@@ -73,6 +73,8 @@ module dftbp_common_environment
     !> Is this calculation called by the API?
     logical, public :: tAPICalculation = .false.
 
+    integer, public :: stdOut = -1
+
   contains
     procedure :: destruct => TEnvironment_destruct
     procedure :: shutdown => TEnvironment_shutdown
@@ -245,8 +247,7 @@ contains
     integer, intent(in) :: unit
 
     allocate(this%globalTimer)
-    call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
-        & unit=unit)
+    call TTimerArray_init(this%globalTimer, globalTimerItems, unit, maxLevel=timingLevel, header=header)
 
   end subroutine TEnvironment_initGlobalTimer
 
@@ -310,12 +311,15 @@ contains
 #:if WITH_MAGMA
 
   !> Initialize GPU environment
-  subroutine TEnvironment_initGpu(this)
+  subroutine TEnvironment_initGpu(this, output)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call TGpuEnv_init(this%gpu)
+    !> output for write processes
+    integer, intent(in) :: output
+
+    call TGpuEnv_init(this%gpu, output)
 
   end subroutine TEnvironment_initGpu
 
