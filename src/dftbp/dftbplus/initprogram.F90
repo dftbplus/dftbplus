@@ -6299,7 +6299,7 @@ contains
         & deallocate(this%densityMatrix%deltaRhoOutCplxHS)
 
     if (this%tRealHS) then
-      ! Prevent for deleting charges that are read in from file
+      ! Prevent for deleting charges read in from file
       if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
         allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
       end if
@@ -6996,6 +6996,9 @@ contains
     if (this%tExtChrg) then
       call error("DFTB multipole expansion currently unsupported for external charges")
     end if
+    if (allocated(this%eField)) then
+      call error("DFTB multipole expansion currently unsupported for external electric field")
+    end if
     if (input%ctrl%tSpin) then
       call error("DFTB multipole expansion currently unsupported for spin-polarised&
           & calculations")
@@ -7012,6 +7015,17 @@ contains
     end if
     if (input%ctrl%tShellResolved) then
       call error("DFTB multipole expansion currently incompatible with shell-resolved SCC")
+    end if
+    if (allocated(input%ctrl%elecDynInp)) then
+      call error("DFTB multipole expansion currently unsupported for electron dynamics&
+          & calculations")
+    end if
+    if (allocated(input%ctrl%perturbInp)) then
+      call error("DFTB multipole expansion currently incompatible with perturbation&
+          & calculations")
+    end if
+    if (allocated(this%reks)) then
+      call error("DFTB multipole expansion currently incompatible with REKS calculations")
     end if
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation

@@ -37,7 +37,7 @@ Hamiltonian = DFTB {
     O = -0.1575
   }
 
-  Multipole = OneCenterApproximation {
+  Mdftb = OneCenterApproximation {
     # Disable all atomic dipole and quadrupole moments
     # to ensure that mDFTB does not interfere with other parts of the code.
     # The results should be identical to those of DFTB2.
@@ -54,19 +54,19 @@ Hamiltonian = DFTB {
       O = 3.0
     }
     OneCenterAtomIntegrals = {
-      H:S_XX_S   = 0.0
-      C:S_X_Px   = 0.0
-      C:S_XX_S   = 0.0
-      C:Px_XX_Px = 0.0
-      C:Py_XX_Py = 0.0
-      N:S_X_Px   = 0.0
-      N:S_XX_S   = 0.0
-      N:Px_XX_Px = 0.0
-      N:Py_XX_Py = 0.0
-      O:S_X_Px   = 0.0
-      O:S_XX_S   = 0.0
-      O:Px_XX_Px = 0.0
-      O:Py_XX_Py = 0.0
+      H:S|XX|S   = 0.0
+      C:S|X|Px   = 0.0
+      C:S|XX|S   = 0.0
+      C:Px|XX|Px = 0.0
+      C:Py|XX|Py = 0.0
+      N:S|X|Px   = 0.0
+      N:S|XX|S   = 0.0
+      N:Px|XX|Px = 0.0
+      N:Py|XX|Py = 0.0
+      O:S|X|Px   = 0.0
+      O:S|XX|S   = 0.0
+      O:Px|XX|Px = 0.0
+      O:Py|XX|Py = 0.0
     }
   }
 

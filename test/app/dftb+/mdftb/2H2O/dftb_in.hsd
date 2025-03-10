@@ -29,7 +29,7 @@ Hamiltonian = DFTB {
     O = -0.1575
   }
 
-  Multipole = OneCenterApproximation {
+  Mdftb = OneCenterApproximation {
     AtomDIntegralScalings = {
       H = 0.0
       O = 0.2
@@ -39,11 +39,11 @@ Hamiltonian = DFTB {
       O = 3.0
     }
     OneCenterAtomIntegrals = {
-      H:S_XX_S   = 0.55976
-      O:S_X_Px   = 0.60894
-      O:S_XX_S   = 0.45215
-      O:Px_XX_Px = 0.83893
-      O:Py_XX_Py = 0.27964
+      H:S|XX|S   = 0.55976
+      O:S|X|Px   = 0.60894
+      O:S|XX|S   = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
     }
   }
 

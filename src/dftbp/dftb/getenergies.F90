@@ -76,9 +76,8 @@ contains
     type(TMultipole), intent(in) :: multipole
 
     !> DFTB multipole moments
-    type(TMdftb), intent(inout), allocatable :: mdftb
+    type(TMdftb), intent(in), allocatable :: mdftb
 
-    !> chemical species
     !> Chemical species
     integer, intent(in) :: species(:)
 

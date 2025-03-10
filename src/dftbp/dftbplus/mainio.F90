@@ -3370,18 +3370,7 @@ contains
       end if
 
       if (isMdftb) then
-        write(fd, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
-            & energy%EMdftbMD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
-            & energy%EMdftbDD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
-            & energy%EMdftbMQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
-            & energy%EMdftbDQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
-            & energy%EMdftbQQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
-            & energy%EMdftb * Hartree__eV, 'eV'
+        call writeMdftbEnergies(energy, fd)
       end if
 
       if (tDFTBU) then
@@ -3755,7 +3744,7 @@ contains
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
 
-    !> quadrupole moment, if available
+    !> Quadrupole moment, if available
     real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
 
     if (allocated(dipoleMoment)) then
@@ -4061,7 +4050,7 @@ contains
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
 
-    !> quadrupole moment, if available
+    !> Quadrupole moment, if available
     real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
 
     !> Electronic solver information
@@ -5842,18 +5831,7 @@ contains
       end if
 
       if (isMdftb) then
-        write(fd, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
-            & energy%EMdftbMD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
-            & energy%EMdftbDD * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
-            & energy%EMdftbMQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
-            & energy%EMdftbDQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
-            & energy%EMdftbQQ * Hartree__eV, 'eV'
-        write(fd, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
-            & energy%EMdftb * Hartree__eV, 'eV'
+        call writeMdftbEnergies(energy, fd)
       end if
 
     end if
@@ -5951,6 +5929,8 @@ contains
 
   end subroutine writeCosmoFile
 
+
+  !> Prints out the total quadrupole moment of the system
   subroutine printQuadrupoleMoment(quadrupoleMoment, outUnit)
 
     !> quadrupole moment
@@ -5985,5 +5965,37 @@ contains
     write(iUnit, *)
 
   end subroutine printQuadrupoleMoment
+
+
+  !> Writes the mdftb energy components.
+  subroutine writeMdftbEnergies(energy, iUnit)
+
+    !> Energy terms in the system
+    type(TEnergies), intent(in) :: energy
+
+    !> File unit to write out the mdftb energy components
+    integer, intent(in) :: iUnit
+
+
+    write(iUnit, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
+        & energy%EMdftbMD * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
+        & energy%EMdftbDD * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
+        & energy%EMdftbMQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
+        & energy%EMdftbDQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
+        & energy%EMdftbQQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
+        & energy%EMdftb * Hartree__eV, 'eV'
+
+  end subroutine writeMdftbEnergies
+
 
 end module dftbp_dftbplus_mainio

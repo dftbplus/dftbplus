@@ -1471,7 +1471,7 @@ contains
     real(dp), allocatable :: T2(:,:)
     integer :: iAtom, iEatom, iSpin, iKS, iK
     logical :: tImHam
-    !! Multipole expansion
+    ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
 
     allocate(T2(this%nOrbs,this%nOrbs))
@@ -2014,7 +2014,7 @@ contains
     real(dp) :: TS(this%nSpin)
     type(TReksCalc), allocatable :: reks ! never allocated
 
-    !! Multipole expansion
+    ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
 
     ! if Forces are calculated, rhoPrim has already been calculated

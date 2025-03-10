@@ -333,7 +333,7 @@ contains
 
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubfExprn(rab,tau1,tau2)
 
     !> separation of sites a and b
@@ -365,7 +365,7 @@ contains
 
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprn(rab,tauMean)
 
     !> separation of sites a and b
@@ -391,7 +391,7 @@ contains
 
 
   !> Determines the derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0
   function gammaSubfExprnPrime(rab, tau1, tau2)
 
     !> separation of sites a and b
@@ -423,7 +423,7 @@ contains
 
 
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprnPrime(rab, tauMean)
 
     !> separation of sites a and b
@@ -447,9 +447,8 @@ contains
   end function gammaSubgExprnPrime
 
 
-
   !> Determines the seconde derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0
   function gammaSubfExprnDoublePrime(rab, tau1, tau2)
 
     !> separation of sites a and b
@@ -478,8 +477,9 @@ contains
         & / (rab**3 * (tau1**2 - tau2**2)**3)
   end function gammaSubfExprnDoublePrime
 
+
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprnDoublePrime(rab, tauMean)
 
     !> separation of sites a and b
@@ -503,7 +503,7 @@ contains
 
 
   !> Determines the seconde derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0
   function gammaSubfExprnTriplePrime(rab, tau1, tau2)
 
     !> separation of sites a and b
@@ -532,8 +532,9 @@ contains
         & / (rab**4 * (tau1**2 - tau2**2)**3)
   end function gammaSubfExprnTriplePrime
 
+
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprnTriplePrime(rab, tauMean)
 
     !> separation of sites a and b
@@ -556,7 +557,7 @@ contains
 
 
   !> Determines the seconde derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0
   function gammaSubfExprnQuadruplePrime(rab, tau1, tau2)
 
     !> separation of sites a and b
@@ -585,8 +586,9 @@ contains
         & / (rab**5 * (tau1**2 - tau2**2)**3)
   end function gammaSubfExprnQuadruplePrime
 
+
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprnQuadruplePrime(rab, tauMean)
 
     !> separation of sites a and b
@@ -609,7 +611,7 @@ contains
 
 
   !> Determines the seconde derivative of the value of a part of the short range contribution to the
-  !> exponential gamma, when Ua /= Ub and R > 0
+  !! exponential gamma, when Ua /= Ub and R > 0
   function gammaSubfExprnQuintuplePrime(rab, tau1, tau2)
 
     !> separation of sites a and b
@@ -638,8 +640,9 @@ contains
         & / (rab**6 * (tau1**2 - tau2**2)**3)
   end function gammaSubfExprnQuintuplePrime
 
+
   !> Determines the value of a part of the short range contribution to the exponential gamma, when
-  !> Ua /= Ub and R > 0
+  !! Ua /= Ub and R > 0
   function gammaSubgExprnQuintuplePrime(rab, tauMean)
 
     !> separation of sites a and b
@@ -662,7 +665,7 @@ contains
 
 
   !> Determines the value of the second derivative of the short range contribution to gamma with the
-  !> exponential form
+  !! exponential form
   function expGammaDoublePrime(rab, Ua, Ub)
 
     !> separation of sites a and b
@@ -712,8 +715,6 @@ contains
       ! 16/5 * U, see review papers
       tauA = 3.2_dp*Ua
       tauB = 3.2_dp*Ub
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
       expGammaDoublePrime = &
           & exp(-tauA * rab) * gammaSubfExprnDoublePrime(rab, tauA, tauB) &
           & - 2.0_dp * tauA * exp(-tauA * rab) * gammaSubfExprnPrime(rab, tauA, tauB) &
@@ -726,7 +727,7 @@ contains
 
 
   !> Determines the value of the third derivative of the short range contribution to gamma with the
-  !> exponential form
+  !! exponential form
   function expGammaTriplePrime(rab, Ua, Ub)
 
     !> separation of sites a and b
@@ -759,7 +760,7 @@ contains
       expGammaTriplePrime = 0.0_dp
     else if (abs(Ua - Ub) < MinHubDiff) then
       ! R > 0 and same Hubbard U values
-      ! 16/5 * U, see review papers
+      ! 16/5 * U
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaTriplePrime = &
           & exp(-tauMean * rab) * gammaSubgExprnTriplePrime(rab, tauMean) &
@@ -767,11 +768,9 @@ contains
           & + 3.0_dp * tauMean**2 * exp(-tauMean * rab) * gammaSubgExprnPrime(rab, tauMean) &
           & - tauMean**3 * exp(-tauMean * rab) * gammaSubgExprn(rab, tauMean)
     else
-      ! 16/5 * U, see review papers
+      ! 16/5 * U
       tauA = 3.2_dp*Ua
       tauB = 3.2_dp*Ub
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
       expGammaTriplePrime = &
           & exp(-tauA * rab) * gammaSubfExprnTriplePrime(rab, tauA, tauB) &
           & - 3.0_dp * tauA * exp(-tauA * rab) * gammaSubfExprnDoublePrime(rab, tauA, tauB) &
@@ -786,7 +785,7 @@ contains
 
 
   !> Determines the value of the fourth derivative of the short range contribution to gamma with the
-  !> exponential form
+  !! exponential form
   function expGammaQuadruplePrime(rab, Ua, Ub)
 
     !> separation of sites a and b
@@ -817,7 +816,6 @@ contains
     ! on-site case with R~0
     if (rab < tolSameDist) then
       if (abs(Ua - Ub) < MinHubDiff) then
-        ! same Hubbard U values, onsite , NOTE SIGN CHANGE!
         tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
         expGammaQuadruplePrime = tauMean**5 / 80.0_dp
       else
@@ -826,7 +824,7 @@ contains
       end if
     else if (abs(Ua - Ub) < MinHubDiff) then
       ! R > 0 and same Hubbard U values
-      ! 16/5 * U, see review papers
+      ! 16/5 * U
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaQuadruplePrime = &
           & exp(-tauMean * rab) * gammaSubgExprnQuadruplePrime(rab, tauMean) &
@@ -835,11 +833,9 @@ contains
           & - 4.0_dp * tauMean**3 * exp(-tauMean * rab) * gammaSubgExprnPrime(rab, tauMean) &
           & + tauMean**4 * exp(-tauMean * rab) * gammaSubgExprn(rab, tauMean)
     else
-      ! 16/5 * U, see review papers
+      ! 16/5 * U
       tauA = 3.2_dp*Ua
       tauB = 3.2_dp*Ub
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
       expGammaQuadruplePrime = &
           & exp(-tauA * rab) * gammaSubfExprnQuadruplePrime(rab, tauA, tauB) &
           & - 4.0_dp * tauA * exp(-tauA * rab) * gammaSubfExprnTriplePrime(rab, tauA, tauB) &
@@ -852,11 +848,12 @@ contains
           & - 4.0_dp * tauB**3 * exp(-tauB * rab) * gammaSubfExprnPrime(rab, tauB, tauA) &
           & + tauB**4 * exp(-tauB * rab) * gammaSubfExprn(rab, tauB, tauA)
     end if
+
   end function expGammaQuadruplePrime
 
 
   !> Determines the value of the fifth derivative of the short range contribution to gamma with the
-  !> exponential form
+  !! exponential form
   function expGammaQuintuplePrime(rab, Ua, Ub)
 
     !> separation of sites a and b
@@ -889,7 +886,7 @@ contains
       expGammaQuintuplePrime = 0.0_dp
     else if (abs(Ua - Ub) < MinHubDiff) then
       ! R > 0 and same Hubbard U values
-      ! 16/5 * U, see review papers
+      ! 16/5 * U
       tauMean = 3.2_dp * 0.5_dp * (Ua + Ub)
       expGammaQuintuplePrime = &
           & exp(-tauMean * rab) * gammaSubgExprnQuintuplePrime(rab, tauMean) &
@@ -899,11 +896,9 @@ contains
           & + 5.0_dp * tauMean**4 * exp(-tauMean * rab) * gammaSubgExprnPrime(rab, tauMean) &
           & - tauMean**5 * exp(-tauMean * rab) * gammaSubgExprn(rab, tauMean)
     else
-      ! 16/5 * U, see review papers
-      tauA = 3.2_dp*Ua
-      tauB = 3.2_dp*Ub
-      ! using the sign convention in the review articles, not Joachim Elstner's thesis -- there's a
-      ! typo there
+      ! 16/5 * U
+      tauA = 3.2_dp * Ua
+      tauB = 3.2_dp * Ub
       expGammaQuintuplePrime = &
           & exp(-tauA * rab) * gammaSubfExprnQuintuplePrime(rab, tauA, tauB) &
           & - 5.0_dp * tauA * exp(-tauA * rab) * gammaSubfExprnQuadruplePrime(rab, tauA, tauB) &
@@ -918,6 +913,7 @@ contains
           & + 5.0_dp * tauB**4 * exp(-tauB * rab) * gammaSubfExprnPrime(rab, tauB, tauA) &
           & - tauB**5 * exp(-tauB * rab) * gammaSubfExprn(rab, tauB, tauA)
     end if
+
   end function expGammaQuintuplePrime
 
 end module dftbp_dftb_shortgammafuncs

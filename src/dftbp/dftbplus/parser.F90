@@ -2280,13 +2280,15 @@ contains
 
   end subroutine readElectrostatics
 
+
+  !> Read in the mdftb parameters
   subroutine readMdftb(node, ctrl, geo)
 
     !> Node to get the information from
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-   type(TControl), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2297,7 +2299,7 @@ contains
 
     ctrl%isMdftb = .false.
     if (ctrl%tSCC) then
-      call getChildValue(node, "Multipole", value1, "", child=child, allowEmptyValue=.true.,&
+      call getChildValue(node, "Mdftb", value1, "None", child=child, allowEmptyValue=.true.,&
           & dummyValue=.false.)
       if (associated(value1)) then
         call getNodeName(value1, buffer)
@@ -2346,49 +2348,51 @@ contains
 
           call getChild(value1, 'OneCenterAtomIntegrals', child2, requested=.true.)
           do iSp1 = 1, geo%nSpecies
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_X_Px",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|X|Px",&
                 & ctrl%mdftbAtomicIntegrals%SXPx(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_X_Dxx-yy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|X|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%PxXDxxyy (iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_X_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|X|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%PxXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py_Y_Dxx-yy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py|Y|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%PyYDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Pz_Z_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Pz|Z|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%PzZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_S",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|S",&
                 & ctrl%mdftbAtomicIntegrals%SXXS(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px_XX_Px",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|XX|Px",&
                 & ctrl%mdftbAtomicIntegrals%PxXXPx(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py_XX_Py",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py|XX|Py",&
                 & ctrl%mdftbAtomicIntegrals%PyXXPy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_Dxx-yy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%SXXDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_XX_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%SXXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_YY_Dxx-yy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%SYYDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S_ZZ_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|ZZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%SZZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxy_XX_Dxy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxy|XX|Dxy",&
                 & ctrl%mdftbAtomicIntegrals%DxyXXDxy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz_XX_Dyz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|XX|Dyz",&
                 & ctrl%mdftbAtomicIntegrals%DyzXXDyz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy_XX_Dzz",&
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_XX_Dxx-yy",&
+            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|XX|Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_XX_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzXXDzz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy_YY_Dzz",&
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_YY_Dxx-yy",&
+            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|YY|Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz_ZZ_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|ZZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzZZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxz_XZ_Dzz",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxz|XZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DxzXZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz_YZ_Dxx-yy",&
+            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|YZ|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DyzYZDxxyy(iSp1), 0.0_dp)
           end do
+        case("none")
+          ctrl%isMdftb = .false.
         case default
           call detailedError(child,"Unknown functions :"// char(buffer))
         end select
@@ -2396,6 +2400,7 @@ contains
     end if
 
   end subroutine readMdftb
+
 
   !> Spin calculation
 #:if WITH_TRANSPORT
