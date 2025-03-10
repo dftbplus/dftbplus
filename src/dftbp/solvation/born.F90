@@ -1112,7 +1112,7 @@ contains
 
     !> self-energy part
     do iAt1 = iAtFirst, iAtLast
-      bornMat(iAt1, iAt1) = keps/bornRad(iAt1)
+      bornMat(iAt1, iAt1) = bornMat(iAt1, iAt1) + keps/bornRad(iAt1)
     end do
 
     call assembleChunks(env, bornMat)
