@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
 #
 # Collect the output of failed tests into a tarball
 #
@@ -49,6 +56,6 @@ if [ ${#FAILED_TEST_DIRS[@]} -eq 0 ]; then
     exit 0
 fi
 
-tar -C ${BUILD_DIR} -c -f ${ARCHIVE_NAME} ${FAILED_TEST_DIRS}
+tar -C ${BUILD_DIR} -c -f ${ARCHIVE_NAME} ${FAILED_TEST_DIRS[*]}
 
 echo "Archive with failed test directories created at ${ARCHIVE_NAME}"

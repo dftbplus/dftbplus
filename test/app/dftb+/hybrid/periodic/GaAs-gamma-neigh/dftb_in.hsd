@@ -23,7 +23,7 @@ Hamiltonian = DFTB {
   }
 
   Hybrid = LC {
-    CoulombMatrix = Truncated+Damping {
+    CoulombMatrix = TruncatedAndDamped {
       CoulombCutoff = 4.68976
       GSummationCutoff = 9.37952
     }

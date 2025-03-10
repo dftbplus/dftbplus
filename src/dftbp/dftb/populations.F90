@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -473,7 +473,7 @@ contains
     !> Mulliken charges on output (mOrb, nAtom, nSpin)
     real(dp), intent(out) :: qq(:,:,:)
 
-    integer :: iKS, iS, iK, iAt, iGlob, iLocCol
+    integer :: iKS, iS, iAt, iGlob, iLocCol
     integer :: nLocalCols, nLocalKS
 
     ! need distributed matrix descriptors
@@ -489,7 +489,6 @@ contains
     nLocalKS = size(rhoSqr, dim=3)
 
     do iKS = 1, nLocalKS
-      iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
       do iLocCol = 1, nLocalCols
         iGlob = scalafx_indxl2g(iLocCol, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
@@ -700,7 +699,7 @@ contains
     !! Temporarily stores square overlap matrix of current k-point
     complex(dp), allocatable :: SSqrCplx(:,:)
 
-    integer :: nAtom, iAtom, iStart, iEnd, iOrb, iSpin, nSpin, iK, iKS
+    integer :: nAtom, iAtom, iStart, iEnd, iOrb, nSpin, iK, iKS
     real(dp) :: scale
 
     nAtom = size(denseDesc%iAtomStart) - 1
@@ -712,7 +711,6 @@ contains
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-      iSpin = parallelKS%localKS(2, iKS)
       ! Get full complex, square, k-space overlap and store for later q0 substraction
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
@@ -901,7 +899,7 @@ contains
     !> Spin polarized (lower triangular) matrix
     real(dp), intent(inout) :: rho(:,:,:)
 
-    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
     real(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
     real(dp) :: scale
 
@@ -910,7 +908,6 @@ contains
     scale = populationScalingFactor(size(q0, dim=3))
 
     do iKS = 1, parallelKS%nLocalKS
-      iS = parallelKS%localKS(2, iKS)
       do iAt = 1, nAtom
         iOrbStart = denseDesc%iAtomStart(iAt)
         nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
@@ -952,7 +949,7 @@ contains
     !> Spin polarized (lower triangular) matrix
     real(dp), intent(inout) :: rho(:,:,:)
 
-    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
     real(dp) :: tmp(size(q0, dim=1), size(q0, dim=1)), tmpSqr(size(q0, dim=1), size(q0, dim=1))
     real(dp) :: scale
 
@@ -961,7 +958,6 @@ contains
     scale = populationScalingFactor(size(q0, dim=3))
 
     do iKS = 1, parallelKS%nLocalKS
-      iS = parallelKS%localKS(2, iKS)
       do iAt = 1, nAtom
         iOrbStart = denseDesc%iAtomStart(iAt)
         nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -249,7 +249,7 @@ contains
     w = 1.0_dp/kT
     electronCount=0.0_dp
     if (distrib /= fillingTypes%Fermi) then
-      MPorder = distrib - fillingTypes%Methfessel - 1
+      MPorder = distrib - fillingTypes%Methfessel
       allocate(A(0:MPorder))
       allocate(hermites(0:2*MPorder))
       call Aweights(A,MPorder)
@@ -415,7 +415,7 @@ contains
 
     ! The Gaussian and Methfessel-Paxton broadening functions first
     if (distrib /= fillingTypes%Fermi) then
-      MPorder = distrib - fillingTypes%Methfessel -1
+      MPorder = distrib - fillingTypes%Methfessel
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
       call Aweights(A, MPorder)

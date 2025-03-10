@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 ! NAG 7.1 can not use user-defined derived type I/O, when derived type is part of an array.
 ! Workaround: Make a local copy and use that in the I/O statement.
 module unitconversion
