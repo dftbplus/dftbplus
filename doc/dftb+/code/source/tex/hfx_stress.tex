@@ -1,0 +1,49 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{lmodern}
+\usepackage[margin=2.0cm]{geometry}
+
+
+\begin{document}
+
+\section*{Virial (dimer in a box)}
+\begin{align}
+v_{\alpha\beta} &= -\frac{1}{2} \sum_{M=1}^2 \sum_{N\neq M}^2 (R_M^\alpha - R_{N}^\alpha) F_{M}^\beta
+\end{align}
+
+\section*{Virial Stress}
+\begin{align}
+\tau_{\alpha\beta} &= -\frac{1}{2\Omega} \sum_{M} \sum_{\bar{L}\in\mathcal{N}(M)} (R_M^\alpha - R_{\bar{L}}^\alpha) F_{M\leftarrow \bar{L}}^\beta
+\end{align}
+
+\section*{HFX}
+\begin{align}
+F^\beta_M &= -\frac{\partial E^{x,\mathrm{TCI}}_\Gamma}{\partial R^\beta_M}
+\\
+&= \frac{1}{2} \sum_{\mu[M]} \sum_{N \neq M} \sum_{\nu[N]} \Big[ \partial_{R^\beta_M} \mathbf{S}(\Gamma) \Big]_{\mu\nu} \underbrace{ \Big[ \Delta \mathbf{P} \mathbf{S} \left( \Delta \mathbf{P} \odot \tilde{\gamma}^\mathrm{TCI} \right) + \left( \left( \Delta \mathbf{P} \mathbf{S} \right) \odot \tilde{\gamma}^\mathrm{TCI} \right) \Delta\mathbf{P} \Big]^\text{sym}_{\nu\mu}}_{[\mathbf{V}^{(1)}]_{\nu\mu} \equiv V^{(1)}_{\nu\mu}} \notag
+\\
+&+ \frac{1}{4} \sum_{\mu[M]} \sum_{N \neq M} \sum_{\nu[N]} \Big[ \partial_{R^\beta_M} \tilde{\gamma}^\mathrm{TCI} \Big]_{\mu\nu} \underbrace{ \Big[ \left( \Delta \mathbf{P} \mathbf{S} \right) \odot \left( \Delta \mathbf{P} \mathbf{S} \right)^\top + \left( \mathbf{S} \Delta \mathbf{P} \mathbf{S} \right) \odot \Delta \mathbf{P} \Big]_{\nu\mu}}_{[\mathbf{V}^2]_{\nu\mu} \equiv V^{(2)}_{\nu\mu}},
+\\
+%&= \frac{1}{2} \sum_{\mu[M]} \sum_{N \neq M} \sum_{\nu[N]} \Big[ \sum_{\bar{L}\in\mathcal{N}(M)} \partial_{R^\beta_M} S_{\bar{\lambda}\mu} \Big]_{\mu\nu} V^{(1)}_{\nu\mu} + \frac{1}{4} \sum_{\mu[M]} \sum_{N \neq M} \sum_{\nu[N]} \Big[ \sum_K \sum_{\mathbf{g}} \partial_{R^\beta_M} \gamma^\mathrm{TCI}(\mathbf{g}) \Big]_{\mu\nu} V^{(2)}_{\nu\mu},
+%\\
+&= \frac{1}{2} \sum_{\mu\nu}^\mathrm{u.c.} \Big[ \sum_{\bar{N}\in\mathcal{N}(M)} \partial_{R^\beta_M} S_{\bar{\nu}\mu} \Big]_{\nu\mu} V^{(1)}_{\nu\mu} + \frac{1}{4} \sum_{\mu\nu}^\mathrm{u.c.} \Big[ \sum_K \sum_{\mathbf{g}} \partial_{R^\beta_M} \gamma^\mathrm{TCI}_{K[\mathbf{g}]M} \Big]_{\nu\mu} V^{(2)}_{\nu\mu}
+\end{align}
+
+\begin{align}
+\tau_{\alpha\beta} &= -\frac{1}{4\Omega} \bigg\{ \sum_{\mu[M]} \sum_M \sum_{\nu[N]} \sum_{N} \Big[ \sum_{\bar{L}\in\mathcal{N}(M)} (R_M^\alpha - R_{\bar{L}}^\alpha) \partial_{R^\beta_M} S \Big]_{\mu\nu} V^{(1)}_{\nu\mu} \notag
+\\
+&+ \frac{1}{2} \sum_{\mu[M]} \sum_M \sum_{\nu[N]} \sum_{N} \Big[ \sum_K \sum_{\mathbf{g}} (R_M^\alpha - R_{K[\mathbf{g}]}^\alpha) \partial_{R^\beta_M} \gamma^\mathrm{TCI}(\mathbf{g}) \Big]_{\mu\nu} V^{(2)}_{\nu\mu} \bigg\},
+\\
+&= -\frac{1}{4\Omega} \bigg\{ \sum_M \sum_{\mu\nu}^\mathrm{u.c.} \Big[ \sum_{\bar{N}\in\mathcal{N}(M)} (R_M^\alpha - R_{\bar{N}}^\alpha) \partial_{R^\beta_M} S_{\bar{\nu}\mu} \Big]_{\nu\mu} V^{(1)}_{\nu\mu} + \frac{1}{2} \sum_M \sum_{\mu\nu}^\mathrm{u.c.} \Big[ \sum_K \sum_{\mathbf{g}} (R_M^\alpha - R_{K[\mathbf{g}]}^\alpha) \partial_{R^\beta_M} \gamma^\mathrm{TCI}_{K[\mathbf{g}]M} \Big]_{\nu\mu} V^{(2)}_{\nu\mu} \bigg\}
+\end{align}
+
+\section*{DFTB1}
+\begin{align}
+\tau_{\alpha\beta} = -\frac{1}{2\Omega} \sum_{M} \sum_{\bar{L}\in\mathcal{N}(M)} \sum_{\mu[M]} \sum_{\bar{\lambda}[\bar{L}]} \big[ R_M^\alpha - R_{\bar{L}}^\alpha \big] \Big[ P_{\bar{\lambda}\mu} \partial_{R^\beta_M} H^{(0)}_{\bar{\lambda}\mu} - P^\mathrm{e}_{\bar{\lambda}\mu} \partial_{R^\beta_M} S_{\bar{\lambda}\mu} \Big]
+\end{align}
+
+
+\end{document}
