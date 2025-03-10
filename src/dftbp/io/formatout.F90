@@ -16,8 +16,8 @@ module dftbp_io_formatout
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error
-  use dftbp_math_lapackroutines, only: matinv
   use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_math_simplealgebra, only : invert33
   implicit none
 
   private
@@ -190,7 +190,7 @@ contains
     write(formatCoordinates, '("(I5,2X,I",I0,",3E20.10)")') floor(log10(real(nSpecies)))+1
     if (tFractional) then
       invLatVec(:,:) = latVec
-      call matinv(invLatVec)
+      call invert33(invLatVec)
       do ii = 1, nAtom
         write(fd, formatCoordinates) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
       end do
