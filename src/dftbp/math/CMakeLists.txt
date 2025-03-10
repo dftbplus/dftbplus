@@ -24,6 +24,7 @@ set(sources-fpp
   ${curdir}/simplealgebra.F90
   ${curdir}/sorting.F90
   ${curdir}/sparseblas.F90
+  ${curdir}/symmetrise.F90
   ${curdir}/wignerseitz.F90)
 
 
