@@ -32,7 +32,7 @@ module dftbp_dftb_energytypes
     !> Spin energy
     real(dp) :: Espin = 0.0_dp
 
-    !> Range-separation energy
+    !> Hybrid xc-functional energy
     real(dp) :: Efock = 0.0_dp
 
     !> Spin orbit energy
@@ -67,6 +67,9 @@ module dftbp_dftb_energytypes
 
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
+
+    !> Onsite correction energy from hybrid xc-functional
+    real(dp) :: EfockOnSite = 0.0_dp
 
     !> Halogen-X correction energy
     real(dp) :: eHalogenX = 0.0_dp
@@ -220,6 +223,7 @@ contains
     this%Eelec = 0.0_dp
     this%EDisp = 0.0_dp
     this%EOnSite = 0.0_dp
+    this%EfockOnSite = 0.0_dp
     this%EHalogenX = 0.0_dp
     this%E3rd = 0.0_dp
     this%ESolv = 0.0_dp
