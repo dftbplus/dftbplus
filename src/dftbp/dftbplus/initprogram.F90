@@ -97,6 +97,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_math_symmetrize, only : initTEquivalentAtoms, TEquivalentAtoms
   use dftbp_math_simplealgebra, only : determinant33, diagonal
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
@@ -1054,11 +1055,14 @@ module dftbp_dftbplus_initprogram
     type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
-    !> Synonym for G.F. calculation of density
+    !! Synonym for G.F. calculation of density
     logical :: tUpload
 
     !> Whether a contact Hamiltonian is being computed and stored
     logical :: isAContactCalc
+
+    !> Equivalent atoms in the structure
+    type(TEquivalentAtoms), allocatable :: equivalentAtoms
 
     !> Whether Poisson solver is invoked
     logical :: tPoisson
@@ -1691,6 +1695,11 @@ contains
     this%tUpload = .false.
     this%isAContactCalc = .false.
   #:endif
+
+    if (this%isAContactCalc) then
+      allocate(this%equivalentAtoms)
+      call initTEquivalentAtoms(this%equivalentAtoms, this%nAtom)
+    end if
 
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
