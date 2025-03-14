@@ -902,7 +902,7 @@ contains
     !> Spin polarized (lower triangular) matrix
     real(dp), intent(inout) :: rho(:,:,:)
 
-    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
     real(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
     real(dp) :: scale
 
@@ -911,7 +911,6 @@ contains
     scale = populationScalingFactor(size(q0, dim=3))
 
     do iKS = 1, parallelKS%nLocalKS
-      iS = parallelKS%localKS(2, iKS)
       do iAt = 1, nAtom
         iOrbStart = denseDesc%iAtomStart(iAt)
         nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
@@ -948,22 +947,18 @@ contains
     !> Spin polarized (lower triangular) matrix
     complex(dp), intent(inout) :: rho(:,:,:)
 
-    integer :: nAtom, iKS, iS, iAt, iOrbStart, nOrb, iOrb
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
     complex(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
-    real(dp) :: scale
 
     nAtom = size(q0, dim=2)
 
-    scale = populationScalingFactor(size(q0, dim=3))
-
     do iKS = 1, parallelKS%nLocalKS
-      iS = parallelKS%localKS(2, iKS)
       do iAt = 1, nAtom
         iOrbStart = denseDesc%iAtomStart(iAt)
         nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
-        tmp(:,:) = 0.0_dp
+        tmp(:,:) = (0.0_dp, 0.0_dp)
         do iOrb = 1, nOrb
-          tmp(iOrb, iOrb) = -scale * q0(iOrb, iAt, 1)
+          tmp(iOrb, iOrb) = -q0(iOrb, iAt, 1)
         end do
         call scalafx_addl2g(env%blacs%orbitalGrid, tmp(1:nOrb, 1:nOrb), denseDesc%blacsOrbSqr,&
             & iOrbStart, iOrbStart, rho(:,:,iKS))

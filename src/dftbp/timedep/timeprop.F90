@@ -1607,7 +1607,8 @@ contains
       if (this%nSpin > 2) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
       end if
-      call denseSubtractDensityOfAtomsCmplxNonperiodicBlacs(env, this%parallelKS, q0, this%denseDesc, deltaRho)
+      call denseSubtractDensityOfAtomsCmplxNonperiodicBlacs(env, this%parallelKS, q0,&
+          & this%denseDesc, deltaRho)
 
       do iSpin = 1, this%nSpin
         HSqrCplxCam(:,:) = (0.0_dp, 0.0_dp)
@@ -2429,10 +2430,10 @@ contains
           ! symmetrization needed for calculation of populations
           nn = this%denseDesc%fullSize
           call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
-          & env%blacs%columnBlockSize, desc)
-          call adjointLowerTriangle_BLACS(desc, env%blacs%orbitalGrid%myCol, &
-          & env%blacs%orbitalGrid%myRow, env%blacs%orbitalGrid%nCol, &
-          & env%blacs%orbitalGrid%nRow, Sinv(:,:,iKS))
+              & env%blacs%columnBlockSize, desc)
+          call adjointLowerTriangle_BLACS(desc, env%blacs%orbitalGrid%myCol,&
+              & env%blacs%orbitalGrid%myRow, env%blacs%orbitalGrid%nCol,&
+              & env%blacs%orbitalGrid%nRow, Sinv(:,:,iKS))
 
         ! TODO: add here the complex case
         end if
@@ -2450,7 +2451,6 @@ contains
           end do
           call gesv(T2, T3)
           Sinv(:,:,iKS) = cmplx(T3, 0, dp)
-
         else
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
@@ -2459,7 +2459,7 @@ contains
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call adjointLowerTriangle(T4)
           Ssqr(:,:,iKS) = T4
-          Sinv(:,:,iKS) = cmplx(0,0,dp)
+          Sinv(:,:,iKS) = cmplx(0, 0, dp)
           do iOrb = 1, this%nOrbs
             Sinv(iOrb, iOrb, iKS) = 1.0_dp
           end do
@@ -2499,8 +2499,8 @@ contains
       end do
     #:endif
 
-      call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
-          & iSparseStart, Dsqr, Qsqr)
+      call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare, iSparseStart,&
+          & Dsqr, Qsqr)
 
     end if
 
