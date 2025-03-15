@@ -1454,7 +1454,7 @@ contains
       end if
     end select
 
-    call parseChimes(node, ctrl%chimesRepInput)
+    call parseChimes(node, geo, ctrl%chimesRepInput)
 
     call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
 
@@ -8287,34 +8287,50 @@ contains
   end subroutine readSpinTuning
 
 
-  !> Parses Chimes related options.
-  subroutine parseChimes(root, chimesRepInput)
-    type(fnode), pointer, intent(in) :: root
-    type(TChimesRepInp), allocatable, intent(out) :: chimesRepInput
+  !> Parses ChIMES related options.
+  subroutine parseChimes(node, geo, chimesRepInput)
+
+    !> Node to get the information from
+    type(fnode), intent(in), pointer :: node
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
+
+    !> Input structure for the ChIMES repulsive calculator
+    type(TChimesRepInp), intent(out), allocatable :: chimesRepInput
 
     type(fnode), pointer :: chimes
 
   #:if WITH_CHIMES
-    type(string) :: buffer
+    type(string) :: buffer, modifier
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: chimesFile
+    type(fnode), pointer :: child
+    real(dp) :: padding
   #:endif
 
-    call getChild(root, "Chimes", chimes, requested=.false.)
+    call getChild(node, "Chimes", chimes, requested=.false.)
     if (.not. associated(chimes)) return
-    #:if WITH_CHIMES
-      allocate(chimesRepInput)
-      call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
-      chimesFile = unquote(char(buffer))
-      call getParamSearchPaths(searchPath)
-      call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
-      if (.not. allocated(chimesRepInput%chimesFile)) then
-        call error("Could not find ChIMES parameter file '" // chimesFile // "'")
-      end if
-    #:else
-      call detailedError(chimes, "ChIMES repuslive correction requested, but code was compiled&
-          & without ChIMES support")
-    #:endif
+
+  #:if WITH_CHIMES
+    allocate(chimesRepInput)
+    call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
+    chimesFile = unquote(char(buffer))
+    call getParamSearchPaths(searchPath)
+    call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
+    if (.not. allocated(chimesRepInput%chimesFile)) then
+      call error("Could not find ChIMES parameter file '" // chimesFile // "'.")
+    end if
+    if (.not. geo%tPeriodic) then
+      call getChildValue(chimes, "Padding", padding, modifier=modifier, child=child)
+      call convertUnitHsd(char(modifier), lengthUnits, child, padding)
+      allocate(chimesRepInput%box(3))
+      chimesRepInput%box(:) = maxval(geo%coords, dim=2) - minval(geo%coords, dim=2) + padding
+    end if
+  #:else
+    call detailedError(chimes, "ChIMES repulsive correction requested, but code was compiled&
+        & without ChIMES support.")
+  #:endif
 
   end subroutine parseChimes
 
