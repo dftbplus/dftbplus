@@ -2,17 +2,13 @@ set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 set(projectdir ${PROJECT_SOURCE_DIR})
 
-# execute_process is verbatim, therefore ";" must be replaced with " "
-string(REGEX REPLACE ";" " " releasename "${RELEASE}")
-
-
 execute_process(
   COMMAND ${projectdir}/utils/test/testlist_to_fypp
   INPUT_FILE ${srcdir}/tests
   OUTPUT_FILE ${builddir}/_dftbplus_tests.fypp)
 
 set(fypp_flags ${FYPP_CONFIG_FLAGS})
-list(APPEND fypp_flags -I${projectdir}/src/dftbp/include -DRELEASE="'${releasename}'")
+list(APPEND fypp_flags -I${projectdir}/src/dftbp/include)
 
 execute_process(
   COMMAND ${FYPP} ${fypp_flags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
