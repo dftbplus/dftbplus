@@ -1582,10 +1582,15 @@ contains
 
     if (allocated(this%elecConstraint)) then
       if (.not. constrConverged) then
-        call warning("Constraints did NOT converge, maximal micro-iterations exceeded")
-        if (this%elecConstraint%isConstrConvRequired) then
-          call env%shutdown()
-        end if
+        block
+          character(len=*), parameter :: msg = "Electronic constraints did NOT converge, maximal&
+              & micro-iterations exceeded"
+          if (this%elecConstraint%isConstrConvRequired) then
+            call error(msg)
+          else
+            call warning(msg)
+          end if
+        end block
       end if
     end if
 

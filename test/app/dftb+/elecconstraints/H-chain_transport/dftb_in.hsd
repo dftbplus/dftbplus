@@ -51,13 +51,13 @@ Hamiltonian = Dftb {
 
     ElectronicConstraints {
         Regions {
-            Atoms {
-                Domain = 6
-                Population = 0.5
+            Electrons {
+                Atoms = 6
+                Total = 0.5
             }
-            Atoms {
-                Domain = 1:11
-                Population = 11
+            Electrons {
+                Atoms = 1:11
+                Total = 11
             }
         }
         MaxConstrIterations = 10

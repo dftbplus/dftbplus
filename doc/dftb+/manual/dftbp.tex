@@ -1871,21 +1871,22 @@ potential~\cite{Hourahine2010}.
 \item[\is{Regions}]
   Specifies region (e.g.\ of atoms) targeted by electronic constraints.
   \begin{ptable}
-    \kw{Atoms} & p &  & \cb & \\
+    \kw{Electrons} & p &  & \cb & \\
   \end{ptable}
     \begin{description}
-      \item[\is{Atoms}] Defines a region of atoms (the specification of several blocks is possible).
+      \item[\is{Electrons}] Defines the number of \emph{valence}
+        electrons in a region in units of $-e$ (specifying several
+        \kwcb{Electrons} blocks is possible).
     \begin{ptable}
-      \kw{Domain} & (i|s)+ &  &  & \\
-      \kw{Population} & r &  &  & \\
+      \kw{Atoms} & (i|s)+ &  &  & \\
+      \kw{Total} & r &  &  & \\
     \end{ptable}
       \begin{description}
-        \item[\is{Domain}] Indices of the atoms building a constrained region. The
+        \item[\is{Atoms}] Indices of the atoms building a constrained region. The
           atoms can be specified via index selection expressions, as described
           in appendix \ref{sec:index_selection}.
-
-        \item[\is{Population}] Sets constraint on the Mulliken population of all
-          atoms included in the region.
+        \item[\is{Total}] Sets constraint on the Mulliken
+          population of all atoms included in the region.
       \end{description}
     \end{description}
 
@@ -1918,7 +1919,8 @@ potential~\cite{Hourahine2010}.
 
 \item[\is{MaxConstrIterations}] Maximal number of micro-iterations to reach
   convergence. If convergence is not reached after the specified
-  number of steps, the program stops.
+  number of steps, the program stops. Setting this value as -1 runs a
+  huge() number of iterations.
 
 \item[\is{ConvergentConstrOnly}] If true, requires that the micro-iterations
   converge before proceeding to subsequent stages of the calculation (next SCC
@@ -1929,9 +1931,9 @@ Example:
 \begin{verbatim}
   ElectronicConstraints {
     Regions {
-      Atoms {
-        Domain = 1
-        Population = 1.5
+      Electrons {
+        Atoms = 1
+        Total = 1.5
       }
     }
     Optimiser = FIRE {}
