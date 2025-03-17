@@ -11,6 +11,7 @@ Calculates forces and lattice derivatives with finite differences.
 """
 
 import argparse
+import numpy.linalg as la
 from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
 import re
@@ -68,8 +69,9 @@ def main():
                             origin, latvecs, charge_restart)
 
     if reffile is not None:
-        forces0, latderivs0 = read_reference_results(reffile, calcforces,
-                                                     calclatderivs, latvecs)
+        forces0, latderivs0, stress0 \
+            = read_reference_results(
+                reffile, calcforces, calclatderivs, latvecs)
     else:
         forces0 = latderivs0 = None
 
@@ -82,12 +84,14 @@ def main():
         latderivs = calculate_latderivs(binary, disp, coords, latvecs,
                                         specienames, species, origin,
                                         charge_restart, directions)
+        stress = -1.0 / la.det(latvecs) * latderivs @ latvecs
 
     if calcforces:
         print_forces(forces, forces0, directions, atoms)
 
     if latvecs is not None and calclatderivs:
         print_latderivs(latderivs, latderivs0, directions)
+        print_stress(stress, stress0, directions)
 
     if (charge_restart):
         shutil.copy2(charge_restart.name, CHARGES_FILE)
@@ -147,6 +151,7 @@ def read_reference_results(autotest0, calcforces, calclatderivs, latvecs):
 
     forces0 = None
     latderivs0 = None
+    stress0 = None
     fp = open(autotest0, "r")
     txt = fp.read()
     fp.close()
@@ -167,7 +172,7 @@ def read_reference_results(autotest0, calcforces, calclatderivs, latvecs):
             latderivs0 = stress2latderivs(stress0, latvecs)
         else:
             raise ValueError("No lattice derivatives found in reference file!")
-    return forces0, latderivs0
+    return forces0, latderivs0, stress0
 
 
 def calculate_reference(binary, reffile, coords, specienames, species, origin,
@@ -202,8 +207,8 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
                 fp.close()
-                match = ENERGY_PATTERN.search(txt)
                 print("iat: %2d, dir: %s, delta: %s" % (iat + 1, cart[coord], delta[jj]))
+                match = ENERGY_PATTERN.search(txt)
                 if match:
                     energy[jj] = float(match.group("value"))
                     print("energy:", energy[jj])
@@ -237,11 +242,11 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 fp = open("autotest.tag", "r")
                 txt = fp.read()
                 fp.close()
-                match = ENERGY_PATTERN.search(txt)
                 print("dir: %s, ilatvec: %2d, delta: %s" % (cart[coord], jj + 1, delta[kk]))
-                print("energy:", energy[kk])
+                match = ENERGY_PATTERN.search(txt)
                 if match:
                     energy[kk] = float(match.group("value"))
+                    print("energy:", energy[kk])
                 else:
                     raise ValueError("No energy match found in autotest.tag!")
             latderivs[jj][ii] = (energy[1] - energy[0]) / (2.0 * disp)
@@ -294,6 +299,30 @@ def print_latderivs(latderivs, latderivs0, directions):
         for ii in range(3):
             print(("%25.12E" * num) % tuple(diff[ii]))
         print("Max diff in any lattice derivatives component:")
+        print("%25.12E" % (abs(diff).max(), ))
+
+
+def print_stress(stress, stress0, directions):
+    """Prints calculated stress."""
+
+    cart = ('x', 'y', 'z')
+    dir_str = ("%s" * len(directions)) % tuple(cart[x] for x in directions)
+    num = len(directions)
+    print("Stress by finite differences ("+dir_str+"):")
+    for ii in range(3):
+        print(("%25.12E" * num) % tuple(stress[ii]))
+    if stress0 is not None:
+        stress1 = np.empty((stress.shape))
+        for ii, coord in enumerate(directions):
+            stress1[:, ii] = stress0[:, coord]
+        print("Reference stress:")
+        for ii in range(3):
+            print(("%25.12E" * num) % tuple(stress1[ii]))
+        print("Difference between obtained and reference stress:")
+        diff = stress - stress1
+        for ii in range(3):
+            print(("%25.12E" * num) % tuple(diff[ii]))
+        print("Max diff in any stress component:")
         print("%25.12E" % (abs(diff).max(), ))
 
 
