@@ -39,6 +39,9 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+- Liner response derivatives for atom positions (DFTB1/DFTB2 only)
+
+
 Fixed
 -----
 
