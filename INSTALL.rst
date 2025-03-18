@@ -435,7 +435,7 @@ are listed below.
 |                         |         |possible) for libdftbplus.               |
 +-------------------------+---------+-----------------------------------------+
 |-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe  |
-|                         |         |library (the build stops, if an          |
+|                         |         |library (the build stops, if any         |
 |                         |         |non-instance-safe components have been   |
 |                         |         |selected)                                |
 +-------------------------+---------+-----------------------------------------+
