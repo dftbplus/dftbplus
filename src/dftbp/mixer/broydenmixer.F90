@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
 !> Contains a modified Broyden mixer.
 !! The modified Broyden mixer implemented here is practically the same as the one in the old DFTB
@@ -20,21 +21,40 @@ module dftbp_mixer_broydenmixer
   use dftbp_math_matrixops, only : adjointLowerTriangle, matinv
   use dftbp_math_blasroutines, only : ger
   use dftbp_math_lapackroutines, only : getrf, getrs, gesv
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
-#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
   private
-#:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TBroydenMixer${LABEL}$, TBroydenMixer${LABEL}$_init, TBroydenMixer${LABEL}$_reset
-  public :: TBroydenMixer${LABEL}$_mix
-#:endfor
-  public :: TBroydenMixerReal_getInverseJacobian
 
+  public :: TBroydenMixerInp
+  public :: TBroydenMixerReal, TBroydenMixerReal_init
+  public :: TBroydenMixerCmplx, TBroydenMixerCmplx_init
+
+  type :: TBroydenMixerInp
+    !> Maximum nr. of iterations (max. nr. of vectors to store)
+    ! This is calculated in Initprogram and needs to be updated before constructing the mixer
+    integer :: maxSccIter = -1
+
+    !> Mixing parameter
+    real(dp) :: mixParam = 0.0_dp
+
+    !> Weight for the Jacobi matrix differences
+    real(dp) :: omega0 = 0.01_dp
+
+    !> Minimum allowed weight
+    real(dp) :: minWeight = 1.0_dp
+
+    !> Maximum allowed weight
+    real(dp) :: maxWeight = 1.0e5_dp
+
+    !> Numerator of the weight
+    real(dp) :: weightFac = 1.0e-2_dp
+  end type TBroydenMixerInp
 
 #:for NAME, TYPE, LABEL in FLAVOURS
   !> Contains the necessary data for a Broyden mixer.
-  type TBroydenMixer${LABEL}$
+  type, extends (TMixer${LABEL}$) :: TBroydenMixer${LABEL}$
     private
 
     !> Actual iteration
@@ -79,6 +99,9 @@ module dftbp_mixer_broydenmixer
     !> uu vectors
     ${TYPE}$(dp), allocatable :: uu(:,:)
 
+    contains
+      procedure :: reset => TBroydenMixer${LABEL}$_reset
+      procedure :: mix1D => TBroydenMixer${LABEL}$_mix
   end type TBroydenMixer${LABEL}$
 #:endfor
 
@@ -86,51 +109,36 @@ module dftbp_mixer_broydenmixer
 contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
-  !> Creates a Broyden mixer instance.
+
+  !> Initializes a Broyden mixer instance.
   !! The weight associated with an iteration is calculated as weigthFac/ww where ww is the Euclidean
   !! norm of the charge difference vector. If the calculated weigth is outside of the
   !! [minWeight, maxWeight] region it is replaced with the appropriate boundary value.
-  subroutine TBroydenMixer${LABEL}$_init(this, mIter, mixParam, omega0, minWeight, maxWeight,&
-      & weightFac)
+  subroutine TBroydenMixer${LABEL}$_init(this, mixerInp)
 
     !> An initialized Broyden mixer on exit
     type(TBroydenMixer${LABEL}$), intent(out) :: this
 
-    !> Maximum nr. of iterations (max. nr. of vectors to store)
-    integer, intent(in) :: mIter
+    !> Broyden mixer input data struct
+    type(TBroydenMixerInp), intent(in) :: mixerInp
 
-    !> Mixing parameter
-    real(dp), intent(in) :: mixParam
-
-    !> Weight for the Jacobi matrix differences
-    real(dp), intent(in) :: omega0
-
-    !> Minimal weight allowed
-    real(dp), intent(in) :: minWeight
-
-    !> Maximal weight allowed
-    real(dp), intent(in) :: maxWeight
-
-    !> Numerator of the weight
-    real(dp), intent(in) :: weightFac
-
-    @:ASSERT(mIter > 0)
-    @:ASSERT(mixParam > 0.0_dp)
-    @:ASSERT(omega0 > 0.0_dp)
+    @:ASSERT(mixerInp%maxSccIter > 0)
+    @:ASSERT(mixerInp%mixParam > 0.0_dp)
+    @:ASSERT(mixerInp%omega0 > 0.0_dp)
 
     this%nElem = 0
-    this%mIter = mIter
-    this%alpha = mixParam
-    this%omega0 = omega0
-    this%minWeight = minWeight
-    this%maxWeight = maxWeight
-    this%weightFac = weightFac
-    allocate(this%ww(mIter-1))
+    this%mIter = mixerInp%maxSccIter
+    this%alpha = mixerInp%mixParam
+    this%omega0 = mixerInp%omega0
+    this%minWeight = mixerInp%minWeight
+    this%maxWeight = mixerInp%maxWeight
+    this%weightFac = mixerInp%weightFac
+    allocate(this%ww(mixerInp%maxSccIter-1))
     allocate(this%qInpLast(this%nElem))
     allocate(this%qDiffLast(this%nElem))
-    allocate(this%aa(mIter-1, mIter-1))
-    allocate(this%dF(this%nElem, mIter - 1))
-    allocate(this%uu(this%nElem, mIter - 1))
+    allocate(this%aa(mixerInp%maxSccIter-1, mixerInp%maxSccIter-1))
+    allocate(this%dF(this%nElem, mixerInp%maxSccIter - 1))
+    allocate(this%uu(this%nElem, mixerInp%maxSccIter - 1))
 
   end subroutine TBroydenMixer${LABEL}$_init
 
@@ -139,7 +147,7 @@ contains
   subroutine TBroydenMixer${LABEL}$_reset(this, nElem)
 
     !> Broyden mixer instance
-    type(TBroydenMixer${LABEL}$), intent(inout) :: this
+    class(TBroydenMixer${LABEL}$), intent(inout) :: this
 
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
@@ -175,7 +183,7 @@ contains
   subroutine TBroydenMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> The Broyden mixer
-    type(TBroydenMixer${LABEL}$), intent(inout) :: this
+    class(TBroydenMixer${LABEL}$), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit
     ${TYPE}$(dp), intent(inout) :: qInpResult(:)
@@ -336,61 +344,5 @@ contains
 
   end subroutine modifiedBroydenMixing${LABEL}$
 #:endfor
-
-
-  !> Return inverse of the Jacobian for the mixing process.
-  subroutine TBroydenMixerReal_getInverseJacobian(this, invJac)
-
-    !> Broyden mixer
-    type(TBroydenMixerReal), intent(inout) :: this
-
-    !> Inverse of the Jacobian
-    real(dp), intent(out) :: invJac(:,:)
-
-    integer :: ii, jj, kk, mm, nn
-    real(dp), allocatable :: beta(:,:), zeta(:)
-
-    @:ASSERT(all(shape(invJac) == [this%nElem, this%nElem]))
-
-    mm = this%iIter - 1
-    allocate(beta(mm, mm))
-    allocate(zeta(this%nElem))
-
-    ! Calculating G according to Eq.(14) in Johnsons paper.
-    ! NOTE: The equation in the paper is incorrect, as instead of beta_ij one has to use
-    ! (beta_ij * omega(i) * omega(j)) to be consistent with the mixing as given in Eq.(15) and used
-    ! in this mixer.
-    do ii = 1, mm
-      beta(:mm, ii) = this%ww(:mm) * this%ww(ii) * this%aa(:mm, ii)
-      beta(ii, ii) = beta(ii, ii) + this%omega0**2
-    end do
-    call matinv(beta)
-    do ii = 1, mm
-      do jj = 1, mm
-        beta(ii, jj) = beta(ii, jj) * this%ww(ii) * this%ww(jj)
-      end do
-    end do
-
-    ! J^{-1}(m) = -G(m) = -G1 ...
-    invJac(:,:) = 0.0_dp
-    do ii = 1, this%nElem
-      invJac(ii, ii) = -this%alpha
-    end do
-
-    ! ... + sum_{k=1}^m |Z_k> <dF^(k)| with |Z_k> = sum_{n}^m beta_{kn} |u(n)>
-    do kk = 1, mm
-      zeta(:) = 0.0_dp
-      do nn = 1, mm
-        zeta(:) = zeta + beta(kk, nn) * this%uu(:, nn)
-      end do
-      call ger(invJac, 1.0_dp, zeta, this%dF(:,kk))
-    end do
-
-    ! Normalize inverse Jacobian
-    do ii = 1, this%nElem
-      invJac(:,ii) = (invJac(:,ii) / sum(invJac(:,ii))) * (-this%alpha)
-    end do
-
-  end subroutine TBroydenMixerReal_getInverseJacobian
 
 end module dftbp_mixer_broydenmixer
