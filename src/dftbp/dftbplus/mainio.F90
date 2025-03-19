@@ -3223,7 +3223,7 @@ contains
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
       & tSpinOrbit, tScc, tOnSite, iAtInCentralRegion, electronicSolver, tHalogenX,&
-      & tHybridXc, t3rd, tSolv)
+      & tHybridXc, isRS_OnsCorr, t3rd, tSolv)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3293,6 +3293,9 @@ contains
 
     !> Is this a range separation calculation?
     logical, intent(in) :: tHybridXc
+
+    !> Whether to run onsite correction with hybrid-xc functional
+    logical, intent(in) :: isRS_OnsCorr
 
     !> Is this a 3rd order scc calculation?
     logical, intent(in) :: t3rd
@@ -3370,6 +3373,9 @@ contains
       end if
       if (tOnSite) then
         write(fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
+      end if
+      if (isRS_OnsCorr) then
+        write (fd,format2U) 'Energy Fock onsite', energy%EfockOnSite, 'H', energy%EfockOnSite*Hartree__eV, 'eV'
       end if
     end if
 

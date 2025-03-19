@@ -115,6 +115,7 @@ hybrid/cluster/cyclopropene_nb_restart             #? not WITH_MPI
 hybrid/cluster/Thymine-spin-matrix-force-restart   #? not WITH_MPI
 hybrid/cluster/C240_tn                             #? not WITH_MPI and LONG_TEST
 hybrid/cluster/Thymine-T1_onsite                   #? not WITH_MPI
+hybrid/cluster/Thymine-T1_onsite_lr                #? not WITH_MPI
 hybrid/cluster/Thymine-spin-matrix-force-mpi-grp1  #? MPI_PROCS <= 2
 hybrid/cluster/Thymine-spin-matrix-force-mpi-grp2  #? MPI_PROCS == 2
 hybrid/cluster/C4H6-Casida-S1-Force                #? not WITH_MPI
@@ -284,6 +285,7 @@ analysis/C2H4_localise                 #? not WITH_MPI
 analysis/graphene_localise             #? not WITH_MPI
 
 onsite/H2O                             #? MPI_PROCS <= 1
+onsite/H2O_lr                          #? MPI_PROCS <= 1
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1

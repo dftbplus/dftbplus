@@ -48,6 +48,7 @@ module dftbp_dftbplus_main
       & denseBlockMulliken, skewMulliken, getOnsitePopulation, getAtomicMultipolePopulation,&
       & denseMullikenPauli
   use dftbp_dftb_potentials, only : TPotentials
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, addAtomicMultipoleShift
@@ -1061,7 +1062,7 @@ contains
           & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
           & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
           & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-          & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
+          & this%isHybridXc, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
     end if
 
   end subroutine sccLoopWriting
@@ -1303,11 +1304,11 @@ contains
             & this%species, this%neighbourList, this%symNeighbourList, this%nNeighbourSK,&
             & this%iSparseStart, this%img2CentCell, this%H0, this%ints, this%spinW, this%cellVol,&
             & this%extPressure, this%dftbEnergy(1), this%q0, this%iAtInCentralRegion,&
-            & this%solvation, this%thirdOrd, this%potential, this%hybridXc, this%nNeighbourCam,&
-            & this%nNeighbourCamSym, this%tDualSpinOrbit, this%xi, this%isExtField, this%isXlbomd,&
-            & this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-            & this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%dispersion, tConverged,&
-            & this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks,&
+            & this%solvation, this%thirdOrd, this%potential, this%hybridXc, this%rsOnsCorr,&
+            & this%nNeighbourCam, this%nNeighbourCamSym, this%tDualSpinOrbit, this%xi, this%isExtField,&
+            & this%isXlbomd, this%dftbU, this%dftbEnergy(1)%TS, this%qDepExtPot, this%qBlockOut,&
+            & this%qiBlockOut, this%tFixEf, this%Ef, this%rhoPrim, this%onSiteElements, this%dispersion,&
+            & tConverged, this%species0, this%referenceN0, this%qNetAtom, this%multipoleOut, this%reks,&
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
         call optimizeFONsAndWeights(this%eigvecsReal, this%filling, this%dftbEnergy(1), this%reks)
@@ -1442,9 +1443,9 @@ contains
               & this%tSpinSharedEf, this%tSpinOrbit, this%tDualSpinOrbit, this%tFillKSep,&
               & this%tFixEf, this%tMulliken, this%iDistribFn, this%tempElec, this%nEl,&
               & this%parallelKS, this%Ef, this%mu, this%dftbEnergy(this%deltaDftb%iDeterminant),&
-              & this%hybridXc, this%eigen, this%filling, this%rhoPrim, this%xi, this%orbitalL,&
-              & this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim, this%HSqrCplx,&
-              & this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%densityMatrix,&
+              & this%hybridXc, this%rsOnsCorr, this%eigen, this%filling, this%rhoPrim, this%xi,&
+              & this%orbitalL, this%HSqrReal, this%SSqrReal, this%eigvecsReal, this%iRhoPrim,&
+              & this%HSqrCplx, this%SSqrCplx, this%eigvecsCplx, this%rhoSqrReal, this%densityMatrix,&
               & this%nNeighbourCam, this%nNeighbourCamSym, this%deltaDftb, errStatus)
           if (errStatus%hasError()) call error(errStatus%message)
 
@@ -1488,9 +1489,9 @@ contains
               & this%nNeighbourSk, this%img2CentCell, this%iSparseStart, this%cellVol,&
               & this%extPressure, this%dftbEnergy(this%deltaDftb%iDeterminant)%TS, this%potential,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant), this%thirdOrd, this%solvation,&
-              & this%hybridXc, this%reks, this%qDepExtPot, this%qBlockOut, this%qiBlockOut,&
-              & this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef, this%tRealHS,&
-              & this%onSiteElements, errStatus, qNetAtom=this%qNetAtom,&
+              & this%hybridXc, this%rsOnsCorr, this%reks, this%qDepExtPot, this%qBlockOut,&
+              & this%qiBlockOut, this%xi, this%iAtInCentralRegion, this%tFixEf, this%Ef,&
+              & this%tRealHS, this%onSiteElements, errStatus, qNetAtom=this%qNetAtom,&
               & vOnSiteAtomInt=this%potential%intOnSiteAtom,&
               & vOnSiteAtomExt=this%potential%extOnSiteAtom,&
               & densityMatrix=this%densityMatrix, kWeights=this%kWeight,&
@@ -1596,7 +1597,7 @@ contains
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
             & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
-            & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
+            & this%isHybridXc, this%isRS_OnsCorr, allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
 
@@ -1748,10 +1749,10 @@ contains
             & this%img2CentCell, this%iSparseStart, this%orb, this%potential, this%coord,&
             & this%derivs, this%groundDerivs, this%tripletderivs, this%mixedderivs, this%iRhoPrim,&
             & this%thirdOrd, this%solvation, this%areSolventNeighboursSym, this%qDepExtPot,&
-            & this%chrgForces, this%dispersion, this%hybridXc, this%SSqrReal, this%ints,&
-            & this%denseDesc, this%halogenXCorrection, this%tHelical, this%coord0, this%deltaDftb,&
-            & this%tPeriodic, this%tRealHS, this%kPoint, this%kWeight, this%densityMatrix,&
-            & errStatus)
+            & this%chrgForces, this%dispersion, this%hybridXc, this%rsOnsCorr, this%SSqrReal,&
+            & this%ints, this%denseDesc, this%halogenXCorrection, this%tHelical, this%coord0,&
+            & this%deltaDftb, this%tPeriodic, this%tRealHS, this%kPoint, this%kWeight,&
+            & this%densityMatrix, errStatus)
         @:PROPAGATE_ERROR(errStatus)
         if (this%isCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
@@ -2712,9 +2713,9 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
       & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
-      & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, eigen, filling, rhoPrim,&
-      & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
+      & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, hybridXc, rsOnsCorr, eigen, filling,&
+      & rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
     use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
 
     !> Environment settings
@@ -2831,6 +2832,9 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
+
     !> Eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
 
@@ -2901,8 +2905,8 @@ contains
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
           & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
           & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
-          & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim,&
-          & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+          & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, rsOnsCorr, eigen, filling,&
+          & rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
           & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb,&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
@@ -2943,9 +2947,9 @@ contains
       & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
       & tHelical, coord, species, electronicSolver, rCellVecs, latVecs, recVecs2p, tPeriodic,&
       & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
-      & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, eigen, filling, rhoPrim, xi,&
-      & orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
+      & iDistribFn, tempElec, nEl, parallelKS, Ef, energy, hybridXc, rsOnsCorr, eigen, filling,&
+      & rhoPrim, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
+      & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3052,6 +3056,9 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
+
     !> Eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
 
@@ -3114,7 +3121,7 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
             & symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, orb, tPeriodic, tHelical,&
-            & coord, electronicSolver, parallelKS, hybridXc, densityMatrix%deltaRhoIn,&
+            & coord, electronicSolver, parallelKS, hybridXc, rsOnsCorr, densityMatrix%deltaRhoIn,&
             & nNeighbourCam, nNeighbourCamSym, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
             & errStatus)
         @:PROPAGATE_ERROR(errStatus)
@@ -3171,7 +3178,7 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ints, species, neighbourList,&
       & symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, orb, tPeriodic, tHelical,&
-      & coord, electronicSolver, parallelKS, hybridXc, deltaRhoIn, nNeighbourCam,&
+      & coord, electronicSolver, parallelKS, hybridXc, rsOnsCorr, deltaRhoIn, nNeighbourCam,&
       & nNeighbourCamSym, HSqrReal, SSqrReal, eigvecsReal, eigen, errStatus)
 
     !> Environment settings
@@ -3221,6 +3228,9 @@ contains
 
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
+
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Change in density matrix during last hybridXc SCC cycle
     real(dp), intent(in), allocatable :: deltaRhoIn(:,:,:)
@@ -3300,6 +3310,11 @@ contains
             & neighbourList%iNeighbour, nNeighbourCam, denseDesc%iAtomStart, iSparseStart, orb,&
             & img2CentCell, tPeriodic, HSqrReal, errStatus)
         @:PROPAGATE_ERROR(errStatus)
+      end if
+
+      ! Add onsite correction originating from hybrid-xc functional
+      if (allocated(rsOnsCorr)) then
+        call rsOnsCorr%addLrOcHamiltonian(env, SSqrReal, deltaRhoIn(:,:,iSpin), HSqrReal)
       end if
 
       ! Warning: SSqrReal gets overwritten here
@@ -6605,8 +6620,8 @@ contains
       & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs,&
       & rCellVecs, recVecs2p, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
       & groundDerivs, tripletderivs, mixedderivs, iRhoPrim, thirdOrd, solvation,&
-      & areSolventNeighboursSym, qDepExtPot, chrgForces, dispersion, hybridXc, SSqrReal, ints,&
-      & denseDesc, halogenXCorrection, tHelical, coord0, deltaDftb, tPeriodic, tRealHS, kPoint,&
+      & areSolventNeighboursSym, qDepExtPot, chrgForces, dispersion, hybridXc, rsOnsCorr, SSqrReal,&
+      & ints, denseDesc, halogenXCorrection, tHelical, coord0, deltaDftb, tPeriodic, tRealHS, kPoint,&
       & kWeight, densityMatrix, errStatus)
 
     !> Environment settings
@@ -6731,6 +6746,9 @@ contains
 
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
+
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Dense overlap matrix, required for hybridXc
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
@@ -6948,6 +6966,12 @@ contains
             & densityMatrix, neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym,&
             & cellVecs, iCellVec, iSparseStart, img2CentCell, kPoint, kWeight, derivs, errStatus)
       end if
+    end if
+
+    if (allocated(rsOnsCorr)) then
+      call rsOnsCorr%addLrOcGradients(derivs, nonSccDeriv, skOverCont, coord, nNeighbourSK,&
+          & neighbourList%iNeighbour, denseDesc%iAtomStart, species, orb, densityMatrix%deltaRhoOut,&
+          & SSqrReal)
     end if
 
     if (allocated(repulsive)) then
@@ -8235,9 +8259,9 @@ contains
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, tblite, orb, species,&
       & neighbourList, symNeighbourList, nNeighbourSK, iSparseStart, img2CentCell, H0, ints, spinW,&
       & cellVol, extPressure, energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential,&
-      & hybridXc, nNeighbourCam, nNeighbourCamSym, tDualSpinOrbit, xi, isExtField, isXlbomd, dftbU,&
-      & TS, qDepExtPot, qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements, dispersion,&
-      & tConverged, species0, referenceN0, qNetAtom, multipole, reks, errStatus)
+      & hybridXc, rsOnsCorr, nNeighbourCam, nNeighbourCamSym, tDualSpinOrbit, xi, isExtField,&
+      & isXlbomd, dftbU, TS, qDepExtPot, qBlock, qiBlock, tFixEf, Ef, rhoPrim, onSiteElements,&
+      & dispersion, tConverged, species0, referenceN0, qNetAtom, multipole, reks, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -8307,6 +8331,9 @@ contains
 
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
+
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Nr. of neighbours for each atom in the CAM functional
     integer, intent(in), allocatable :: nNeighbourCam(:)
@@ -8523,8 +8550,8 @@ contains
           & reks%chargePerShellL(:,:,:,iL), multipole, species, isExtField, isXlbomd, dftbU,&
           & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
           & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
-          & hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion, tFixEf, Ef,&
-          & .true., onSiteElements, errStatus)
+          & hybridXc, rsOnsCorr, reks, qDepExtPot, qBlock, qiBlock, xi, iAtInCentralRegion,&
+          & tFixEf, Ef, .true., onSiteElements, errStatus)
       @:PROPAGATE_ERROR(errStatus)
 
       if (allocated(dispersion)) then

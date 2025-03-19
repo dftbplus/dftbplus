@@ -18,11 +18,12 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : getEons
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
+  use dftbp_dftb_rangeseponscorr, only : TRangeSepOnsCorrFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
@@ -49,9 +50,9 @@ contains
   subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, species,&
       & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
       & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
-      & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus, qNetAtom,&
-      & vOnSiteAtomInt, vOnSiteAtomExt, densityMatrix, kWeights, localKS)
+      & energy, thirdOrd, solvation, hybridXc, rsOnsCorr, reks, qDepExtPot, qBlock,&
+      & qiBlock, xi, iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus,&
+      & qNetAtom, vOnSiteAtomInt, vOnSiteAtomExt, densityMatrix, kWeights, localKS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -133,6 +134,9 @@ contains
 
     !> Data from hybrid xc-functional calculations
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc
+
+    !> Onsite correction data with hybrid-xc functional
+    type(TRangeSepOnsCorrFunc), allocatable, intent(inout) :: rsOnsCorr
 
     !> Data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
@@ -293,6 +297,12 @@ contains
       end if
     end if
 
+    ! Add long-range onsite contribution from hybrid-xc calculations
+    if (allocated(rsOnsCorr)) then
+      energy%EfockOnSite = 0.0_dp
+      call rsOnsCorr%addLrOcEnergy(energy%EfockOnSite)
+    end if
+
     ! Free energy contribution if attached to an electron reservoir
     if (tFixEf) then
       if (nSpin == 2) then
@@ -351,7 +361,8 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv + energy%Efock&
+        & + energy%EfockOnSite
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &

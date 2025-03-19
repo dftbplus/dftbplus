@@ -93,7 +93,7 @@ module dftbp_common_environment
   end type TEnvironment
 
   !> Timers and their required verbosity levels. Order must match the helper index type
-  type(TTimerItem), parameter :: globalTimerItems(33) = [&
+  type(TTimerItem), parameter :: globalTimerItems(34) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -109,6 +109,7 @@ module dftbp_common_environment
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
       & TTimerItem("Hybrid Hamiltonian", 4),&
+      & TTimerItem("Onsite-corr Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
       & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
@@ -147,24 +148,25 @@ module dftbp_common_environment
     integer :: sparseToDense = 13
     integer :: denseToSparse = 14
     integer :: hybridXcH = 15
-    integer :: densityMatrix = 16
-    integer :: energyEval = 17
-    integer :: postScc = 18
-    integer :: eigvecWriting = 19
-    integer :: energyDensityMatrix = 20
-    integer :: forceCalc = 21
-    integer :: stressCalc = 22
-    integer :: postGeoOpt = 23
-    integer :: elecDynInit = 24
-    integer :: elecDynLoop = 25
-    integer :: lrExcitation = 26
-    integer :: lrSetup = 27
-    integer :: lrCoulomb = 28
-    integer :: lrTransCharges = 29
-    integer :: lrSolver = 30
-    integer :: lrZVector = 31
-    integer :: lrGradients = 32
-    integer :: lrNAC = 33
+    integer :: onsCorrH = 16
+    integer :: densityMatrix = 17
+    integer :: energyEval = 18
+    integer :: postScc = 19
+    integer :: eigvecWriting = 20
+    integer :: energyDensityMatrix = 21
+    integer :: forceCalc = 22
+    integer :: stressCalc = 23
+    integer :: postGeoOpt = 24
+    integer :: elecDynInit = 25
+    integer :: elecDynLoop = 26
+    integer :: lrExcitation = 27
+    integer :: lrSetup = 28
+    integer :: lrCoulomb = 29
+    integer :: lrTransCharges = 30
+    integer :: lrSolver = 31
+    integer :: lrZVector = 32
+    integer :: lrGradients = 33
+    integer :: lrNAC = 34
   end type TGlobalTimersHelper
 
 
