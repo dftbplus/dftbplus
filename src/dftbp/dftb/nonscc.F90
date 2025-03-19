@@ -67,7 +67,7 @@ contains
     real(dp), intent(out) :: ham(:)
 
     !> Container for the SlaKo Hamiltonian integrals
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> On-site energies for each species
     real(dp), intent(in) :: selfegy(:,:)
@@ -127,7 +127,7 @@ contains
     real(dp), intent(out) :: over(:)
 
     !> Container for the SlaKo overlap integrals
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
@@ -207,7 +207,7 @@ contains
     real(dp), intent(out) :: deriv(:,:,:)
 
     !> Container for the SK integrals
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
@@ -244,7 +244,7 @@ contains
     real(dp), intent(out) :: deriv(:,:,:,:)
 
     !> Container for SK Hamiltonian integrals
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
 
     !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
@@ -279,7 +279,7 @@ contains
       & species, iPair, orb, out)
     integer, intent(in) :: firstAtom
     integer, intent(in) :: lastAtom
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: nNeighbourSK(:)
     integer, intent(in) :: iNeighbours(0:,:)
@@ -295,8 +295,6 @@ contains
     integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbourSK
-    !$OMP PARALLEL DO PRIVATE(iAt1,iSp1,nOrb1,iNeigh1,iAt2,iSp2,nOrb2,ind,vect,dist,tmp,interSK) &
-    !$OMP& DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = firstAtom, lastAtom
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
@@ -308,12 +306,11 @@ contains
         vect(:) = coords(:,iAt2) - coords(:,iAt1)
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSK, dist, iSp1, iSp2)
+        call getSKIntegrals(skCont, interSK, dist, iAt1, iAt2, iSp1, iSp2)
         call rotateH0(tmp, interSK, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
         out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
     end do
-    !$OMP END PARALLEL DO
 
   end subroutine buildDiatomicBlocks
 
@@ -321,7 +318,7 @@ contains
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:)
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
@@ -349,7 +346,7 @@ contains
         vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp(:,:,ii,jj), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
     end do
@@ -363,7 +360,7 @@ contains
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
     real(dp), intent(out) :: deriv(:,:,:)
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
@@ -400,7 +397,7 @@ contains
         vect(iCart) = vect(iCart) - real(2 * kk - 3, dp) * hh
         dist = sqrt(sum(vect(:)**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
 
@@ -426,7 +423,7 @@ contains
           vect(iCart) = vect(iCart) - real(2*kk-3,dp) * hh
           dist = sqrt(sum(vect**2))
           vect(:) = vect / dist
-          call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+          call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
           call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
         end do
         where (.not.tConverged)
@@ -464,7 +461,7 @@ contains
   !> Hamiltonian and overlap.
   subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:,:)
-    type(TSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
@@ -506,7 +503,7 @@ contains
             dist = sqrt(sum(vect**2))
             vect(:) = vect / dist
 
-            call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+            call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
             call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
             deriv(:,:,jj,ii) = deriv(:,:,jj,ii) + real(kk * ll, dp) * tmp
           end do
@@ -521,7 +518,7 @@ contains
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
 
-        call getSKIntegrals(skCont, interSk, dist, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
         call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
         deriv(:,:,ii,ii) = deriv(:,:,ii,ii) + stencil(jj) * tmp
 

@@ -1039,7 +1039,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    type(TSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(TSlakoCont), intent(inout) :: skHamCont, skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -1223,10 +1223,10 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Raw H^0 hamiltonian data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -2348,7 +2348,7 @@ contains
     real(dp), intent(in) :: coordAll(:,:)
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3150,10 +3150,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Raw H^0 hamiltonian data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> ADT for neighbour parameters
     type(TNeighbourList), intent(in) :: neighbourList
@@ -3385,7 +3385,7 @@ contains
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
@@ -3553,7 +3553,7 @@ contains
     type(TElecDynamics), intent(in), target :: this
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Non-adiabatic coupling matrix elements
     complex(dp), intent(out) :: RdotSprime(:,:)
@@ -3911,10 +3911,10 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Raw H^0 hamiltonian data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -4277,10 +4277,10 @@ contains
     integer, allocatable, intent(inout) :: img2CentCell(:)
 
     !> Raw H^0 hamiltonian data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Integral container
     type(TIntegral), intent(inout) :: ints

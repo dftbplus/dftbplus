@@ -122,6 +122,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
 
+  if(WITH_PLUGINS)
+    list(APPEND _fyppflags -DWITH_PLUGINS)
+  endif()
+
   if(BUILD_SHARED_LIBS)
     list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
   endif()

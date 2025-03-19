@@ -1159,6 +1159,18 @@ contains
         @:PROPAGATE_ERROR(errStatus)
     end if
 
+  #:if WITH_PLUGINS
+    if (this%plugin%initialized) then
+      if (this%plugin%capabilities%provides_readAtomSelfEnergy) then
+        call this%plugin%readAtomSelfEnergy(this%atomEigVal)
+      end if
+      if (this%plugin%capabilities%provides_readHubbardU) then
+        call this%plugin%readHubbardU(this%uniqHubbU%nHubbU, this%uniqHubbU%uniqHubbU,&
+          & this%uniqHubbU%iHubbU)
+      end if
+    end if
+  #:endif
+
   #:if WITH_TRANSPORT
     if (this%tNegf .and. isFirstDet) then
       call setupNegfStuff(this%negfInt, this%denseDesc, this%transpar, this%ginfo,&
@@ -2345,7 +2357,7 @@ contains
     type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
     !> Sparse overlap part
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
@@ -5424,10 +5436,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> File name for regression data
     character(*), intent(in) :: autotestTag
@@ -6646,10 +6658,10 @@ contains
     real(dp), allocatable, intent(in) :: q0(:,:,:)
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive
@@ -7061,10 +7073,10 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Non-SCC hamiltonian information
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap information
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Repulsive information
     class(TRepulsive), allocatable, intent(in) :: repulsive

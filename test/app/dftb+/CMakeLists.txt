@@ -35,4 +35,7 @@ foreach(test IN LISTS tests)
     app/dftb+/${test}
     PROPERTIES
     ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
+  if(${test} MATCHES "^plugins")
+    add_subdirectory(plugins)
+  endif()
 endforeach()

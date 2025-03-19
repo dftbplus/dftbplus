@@ -26,6 +26,9 @@ module dftbp_dftb_periodic
   use dftbp_math_quaternions, only : rotate3
   use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_math_sorting, only : index_heap_sort
+#:if WITH_PLUGINS
+  use dftbp_plugins_plugin, only: TPlugin
+#:endif
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
@@ -89,6 +92,10 @@ module dftbp_dftb_periodic
     !> MPI shared memory window handler for neightDist2
     type(mpifx_win), private :: neighDist2Win_
 
+  #:endif
+
+  #:if WITH_PLUGINS
+    type(TPlugin), pointer, public :: plugin => null()
   #:endif
 
   contains
@@ -396,6 +403,14 @@ contains
       allocate(species(nAllAtom))
     end if
     species(1:nAllAtom) = species0(img2CentCell(1:nAllAtom))
+
+  #:if WITH_PLUGINS
+    if (associated(neigh%plugin)) then
+      if (neigh%plugin%capabilities%provides_readNeighbourList) then
+        call neigh%plugin%readNeighbourList(coord, img2CentCell, neigh%iNeighbour, neigh%neighDist2)
+      end if
+    end if
+  #:endif
 
   end subroutine updateNeighbourListAndSpecies
 

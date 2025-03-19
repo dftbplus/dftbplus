@@ -156,10 +156,10 @@ contains
     real(dp), intent(in), optional :: shift(:)
 
     !> Non-SCC hamiltonian data
-    type(TSlakoCont), intent(in), optional :: skHamCont
+    type(TSlakoCont), intent(inout), optional :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in), optional :: skOverCont
+    type(TSlakoCont), intent(inout), optional :: skOverCont
 
     !> Excitation energy gradients with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:,:)
@@ -2372,10 +2372,10 @@ contains
     real(dp), intent(in) :: wvv(:,:)
 
     !> H0 data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator
@@ -3583,7 +3583,7 @@ contains
     integer,intent(in) :: species0(:)
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3599,8 +3599,8 @@ contains
     do iAt1 = 1, nAtom
       do iAt2 = 1, iAt1-1
 
-        call getSOffsite(coord(:,iAt1), coord(:,iAt2), species0(iAt1), species0(iAt2), orb,&
-            & skOverCont, SBlock)
+        call getSOffsite(coord(:,iAt1), coord(:,iAt2), iAt1, iAt2, species0(iAt1), species0(iAt2),&
+            & orb, skOverCont, SBlock)
 
         do mu = iAtomStart(iAt1), iAtomStart(iAt1+1) - 1
           m = mu - iAtomStart(iAt1) + 1
@@ -3660,13 +3660,19 @@ contains
 
 
   !> Helper routine to construct diatomic overlap.
-  subroutine getSOffsite(coords1, coords2, iSp1, iSp2, orb, skOverCont, Sblock)
+  subroutine getSOffsite(coords1, coords2, iAt1, iAt2, iSp1, iSp2, orb, skOverCont, Sblock)
 
     !> First atom coordinates
     real(dp), intent(in) :: coords1(:)
 
     !> Second atom coordinates
     real(dp), intent(in) :: coords2(:)
+
+    !> First atom index
+    integer, intent(in) :: iAt1
+
+    !> Second atom index
+    integer, intent(in) :: iAt2
 
     !> First atom species
     integer, intent(in) :: iSp1
@@ -3678,7 +3684,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Diatomic block
     real(dp), intent(out) :: Sblock(:,:)
@@ -3693,7 +3699,7 @@ contains
     vect(:) = coords2 - coords1
     dist = sqrt(sum(vect**2))
     vect(:) = vect / dist
-    call getSKIntegrals(skOverCont, interSKOver, dist, iSp1, iSp2)
+    call getSKIntegrals(skOverCont, interSKOver, dist, iAt1, iAt2, iSp1, iSp2)
     call rotateH0(Sblock, interSKOver, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
 
   end subroutine getSOffsite
@@ -4325,10 +4331,10 @@ contains
     real(dp), intent(in) :: wvv(:,:)
 
     !> H0 data
-    type(TSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(inout) :: skHamCont
 
     !> Overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(inout) :: skOverCont
 
     !> Differentiator for the non-scc matrices
     class(TNonSccDiff), intent(in) :: derivator

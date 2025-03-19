@@ -1,0 +1,23 @@
+Geometry = GenFormat {
+    2  C
+ Fe
+    1 1      0.00020789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+}
+Hamiltonian = DFTB {
+  SCC = Yes
+  MaxAngularMomentum {
+    Fe = "s"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 10.0
+  }
+  SlaterKosterFiles = {
+    Fe-Fe = "./Fe-Fe.skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+  Plugin = "./libplugin_Fe2.so"
+}
