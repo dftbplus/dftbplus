@@ -108,16 +108,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_thermostat, only : TThermostat, init
   use dftbp_md_velocityverlet, only : TVelocityVerlet, init
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_mixer_andersonmixer, only : TAndersonMixerReal, TAndersonMixerReal_init,&
-      & TAndersonMixerCmplx, TAndersonMixerCmplx_init
-  use dftbp_mixer_broydenmixer, only : TBroydenMixerReal, TBroydenMixerReal_init,&
-      & TBroydenMixerCmplx, TBroydenMixerCmplx_init
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerCmplx,&
-      & TDiisMixerCmplx_init
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, mixerTypes, TMixerReal_init,&
-      & TMixerCmplx_init
-  use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
-      & TSimpleMixerCmplx_init
+  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx
+  use dftbp_mixer_factory, only: TMixerFactoryReal, TMixerFactoryCmplx
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
@@ -614,10 +606,10 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer for real matrices
-    type(TMixerReal), allocatable :: pChrgMixerReal
+    class(TMixerReal), allocatable :: chrgMixerReal
 
     !> Charge mixer for complex matrices
-    type(TMixerCmplx), allocatable :: pChrgMixerCmplx
+    class(TMixerCmplx), allocatable :: chrgMixerCmplx
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -1198,29 +1190,6 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    ! Mixer related local variables
-    integer :: nGeneration
-    real(dp) :: mixParam
-
-    !> Mixer number
-    integer :: iMixer
-
-    !> Simple mixer (if used)
-    type(TSimpleMixerReal), allocatable :: pSimpleMixerReal
-    type(TSimpleMixerCmplx), allocatable :: pSimpleMixerCmplx
-
-    !> Anderson mixer (if used)
-    type(TAndersonMixerReal), allocatable :: pAndersonMixerReal
-    type(TAndersonMixerCmplx), allocatable :: pAndersonMixerCmplx
-
-    !> Broyden mixer (if used)
-    type(TBroydenMixerReal), allocatable :: pBroydenMixerReal
-    type(TBroydenMixerCmplx), allocatable :: pBroydenMixerCmplx
-
-    !> DIIS mixer (if used)
-    type(TDiisMixerReal), allocatable :: pDiisMixerReal
-    type(TDiisMixerCmplx), allocatable :: pDiisMixerCmplx
-
     ! Geometry optimiser related local variables
 
     !> Conjugate gradient driver
@@ -1291,8 +1260,10 @@ contains
     !> Flag if some files do exist or not
     logical :: tExist
 
+    !> Whether any mixer is required
+    logical :: requiresMixer
     !> Whether a complex-valued mixer is required
-    logical :: tCmplxMixer
+    logical :: requiresCmplxMixer
 
     ! Damped interactions
     type(TShortGammaDamp) :: shortGammaDamp
@@ -1576,6 +1547,11 @@ contains
       end if
     end if
 
+    if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
+      ! Duplicate maxScc Iterations as Input to broyden Mixer
+      input%ctrl%mixerInp%broydenMixerInp%maxSccIter = input%ctrl%maxSccIter
+    end if
+
     this%tWriteHS = input%ctrl%tWriteHS
     this%tWriteRealHS = input%ctrl%tWriteRealHS
 
@@ -1830,74 +1806,14 @@ contains
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
-    if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      iMixer = input%ctrl%iMixSwitch
-      nGeneration = input%ctrl%iGenerations
-      mixParam = input%ctrl%almix
-      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
-          & .or. (this%t2Component .and. this%isHybridXc)
-      if (tCmplxMixer) then
-        allocate(this%pChrgMixerCmplx)
-        select case (iMixer)
-        case (mixerTypes%simple)
-          allocate(pSimplemixerCmplx)
-          call TSimpleMixerCmplx_init(pSimpleMixerCmplx, mixParam)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pSimpleMixerCmplx)
-        case(mixerTypes%anderson)
-          allocate(pAndersonMixerCmplx)
-          if (input%ctrl%andersonNrDynMix > 0) then
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-                & input%ctrl%andersonOmega0)
-          else
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-          end if
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pAndersonMixerCmplx)
-        case (mixerTypes%broyden)
-          allocate(pBroydenMixerCmplx)
-          call TBroydenMixerCmplx_init(pBroydenMixerCmplx, this%maxSccIter, mixParam,&
-              & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-              & input%ctrl%broydenWeightFac)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pBroydenMixerCmplx)
-        case(mixerTypes%diis)
-          allocate(pDiisMixerCmplx)
-          call TDiisMixerCmplx_init(pDiisMixerCmplx, nGeneration, mixParam, input%ctrl%tFromStart)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pDiisMixerCmplx)
-        case default
-          call error("Unknown charge/density mixer type.")
-        end select
-      end if
-      allocate(this%pChrgMixerReal)
-      select case (iMixer)
-      case(mixerTypes%simple)
-        allocate(pSimplemixerReal)
-        call TSimpleMixerReal_init(pSimpleMixerReal, mixParam)
-        call TMixerReal_init(this%pChrgMixerReal, pSimpleMixerReal)
-      case(mixerTypes%anderson)
-        allocate(pAndersonMixerReal)
-        if (input%ctrl%andersonNrDynMix > 0) then
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-              & input%ctrl%andersonOmega0)
-        else
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-        end if
-        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixerReal)
-      case(mixerTypes%broyden)
-        allocate(pBroydenMixerReal)
-        call TBroydenMixerReal_init(pBroydenMixerReal, this%maxSccIter, mixParam,&
-            & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-            & input%ctrl%broydenWeightFac)
-        call TMixerReal_init(this%pChrgMixerReal, pBroydenMixerReal)
-      case(mixerTypes%diis)
-        allocate(pDiisMixerReal)
-        call TDiisMixerReal_init(pDiisMixerReal, nGeneration, mixParam, input%ctrl%tFromStart)
-        call TMixerReal_init(this%pChrgMixerReal, pDiisMixerReal)
-      case default
-        call error("Unknown charge/density mixer type.")
-      end select
+    requiresMixer = this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC
+    requiresCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
+        & .or. (this%t2Component .and. this%isHybridXc)
+
+    if (requiresMixer .and. requiresCmplxMixer) then
+        call TMixerFactoryCmplx(this%chrgMixerCmplx, input%ctrl%mixerInp)
+    else if (requiresMixer) then
+        call TMixerFactoryReal(this%chrgMixerReal, input%ctrl%mixerInp)
     end if
 
     ! initialise in cases where atoms move
@@ -3439,30 +3355,26 @@ contains
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
-        select case (iMixer)
-        case(mixerTypes%simple)
-          write (strTmp, "(A)") "Simple"
-        case(mixerTypes%anderson)
-          write (strTmp, "(A)") "Anderson"
-        case(mixerTypes%broyden)
-          write (strTmp, "(A)") "Broyden"
-        case(mixerTypes%diis)
-          write (strTmp, "(A)") "DIIS"
-        end select
-        write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-        write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
-        select case (iMixer)
-        case(mixerTypes%anderson)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        case(mixerTypes%broyden)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
-        case(mixerTypes%diis)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        end select
-      else
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
+        associate (inp => input%ctrl%mixerInp)
+          if (allocated(inp%simpleMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Simple", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
+            else if (allocated(inp%andersonMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%andersonMixerInp%iGenerations
+            else if (allocated(inp%broydenMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
+            else if (allocated(inp%diisMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%diisMixerInp%iGenerations
+          end if
+        end associate
       end if
+      write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
     if (this%tCoordOpt) then

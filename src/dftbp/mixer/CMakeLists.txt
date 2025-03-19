@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/broydenmixer.F90
   ${curdir}/diismixer.F90
   ${curdir}/mixer.F90
+  ${curdir}/factory.F90
   ${curdir}/simplemixer.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
