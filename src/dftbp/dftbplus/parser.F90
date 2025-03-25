@@ -90,9 +90,10 @@ module dftbp_dftbplus_parser
   use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
+  use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
       & ContactInfo
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
   implicit none
 
   private
@@ -181,6 +182,7 @@ contains
       call getChild(root, "Geometry", tmp)
       call readGeometry(tmp, input)
     end if
+    input%geom%areContactsPresent = .false.
 
     ! Hamiltonian settings that need to know settings from the REKS block
     call getChildValue(root, "Reks", dummy, "None", child=child)
@@ -271,7 +273,7 @@ contains
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readOptions(child, input%ctrl)
+    call readOptions(child, input%ctrl, input%geom)
 
     ! W values if needed by Hamiltonian or excited state calculation
     if (allocated(input%ctrl%tbliteInp)) then
@@ -4024,13 +4026,16 @@ contains
 
 
   !> Reads the option block
-  subroutine readOptions(node, ctrl)
+  subroutine readOptions(node, ctrl, geom)
 
     !> Node to parse
     type(fnode), pointer :: node
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: child
     logical :: tWriteDetailedOutDef
@@ -4099,6 +4104,10 @@ contains
     ctrl%tSkipChrgChecksum = .false.
     if (.not. ctrl%tFixEf .and. ctrl%tReadChrg) then
       call getChildValue(node, "SkipChargeTest", ctrl%tSkipChrgChecksum, .false.)
+    end if
+
+    if (geom%tPeriodic .or. geom%tHelical .or. geom%areContactsPresent) then
+      call getChildValue(node, "WriteAllAtomGeometry", ctrl%areAllAtomsPrinted, .false.)
     end if
 
     call readBinaryAccessTypes(node, ctrl%binaryAccessTypes)
@@ -5137,7 +5146,7 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer
+    type(string) :: buffer, modifier
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
@@ -5264,12 +5273,13 @@ contains
       end if
 
       if (allocated(ctrl%perturbInp)) then
-        call getChildValue(node, "PertubDegenTol", ctrl%perturbInp%tolDegenDFTBPT, 128.0_dp,&
-            & child=child)
-        if (ctrl%perturbInp%tolDegenDFTBPT < 1.0_dp) then
-          call detailedError(child, "Perturbation degeneracy tolerance must be above 1x")
+        call getChildValue(node, "PerturbDegenTol", ctrl%perturbInp%tolDegenDFTBPT, 1.0E-9_dp,&
+            & modifier=modifier, child=child)
+        call convertUnitHsd(char(modifier), energyUnits, child, ctrl%perturbInp%tolDegenDFTBPT)
+        if (ctrl%perturbInp%tolDegenDFTBPT < epsilon(0.0_dp)) then
+          call detailedError(child, "Perturbation degeneracy tolerance must be above machine&
+              & epsilon")
         end if
-        ctrl%perturbInp%tolDegenDFTBPT = ctrl%perturbInp%tolDegenDFTBPT * epsilon(0.0_dp)
         isEtaNeeded = .false.
         if (allocated(ctrl%perturbInp%dynEFreq)) then
           if (any(ctrl%perturbInp%dynEFreq /= 0.0_dp)) then
@@ -5506,7 +5516,7 @@ contains
     !> Geometry driver node to parse
     type(fnode), pointer :: driverNode
 
-    !> Geometry structure to be filled
+    !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
     type(fnode), pointer :: value1, value2, child, child2
@@ -6189,6 +6199,8 @@ contains
    end select
 
    call destroyNodeList(pNodeList)
+
+   geom%areContactsPresent = transpar%nCont > 0 .and. transpar%taskUpload
 
   end subroutine readTransportGeometry
 
