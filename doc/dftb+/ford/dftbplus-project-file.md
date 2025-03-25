@@ -22,8 +22,7 @@ include: ../../../src/dftbp/include
 predocmark: >
 display: public
          protected
-proc_internals:
-        false
+proc_internals: false
 source: true
 graph: true
 search: false
