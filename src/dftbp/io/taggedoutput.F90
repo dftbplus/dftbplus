@@ -140,6 +140,9 @@ module dftbp_io_taggedoutput
     !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
     character(lenLabel) :: tdprojocc = 'final_td_proj_occ'
 
+    !> final total current in the cartesian directions by real-time time propagation
+    character(lenLabel) :: tdcurrents = 'final_td_current'
+
     !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 

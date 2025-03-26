@@ -46,6 +46,7 @@ timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI and 
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI and LONG_TEST
 timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_vecpot_currents       #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/h-BN_VecPot                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/h-BN_VecPot_spinpol           #? OMP_THREADS == 1 and not WITH_MPI
 
