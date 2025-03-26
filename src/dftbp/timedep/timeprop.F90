@@ -643,15 +643,11 @@ module dftbp_timedep_timeprop
     !> Pairwise atomic currents file ID
     type(TFileDescr) :: currentDat
 
-    !> Most recently calculated bond population (retained for final write out)
+    !> Sum of all bond currents projected on the cartesian directions
     real(dp), allocatable :: totalCurrent(:)
 
     !> Number of all atoms
     integer :: nAllAtom
-    
-    !TODO: implement correct energy for Peierls Hamiltonian (substract diag elements)
-    complex(dp), allocatable :: Ssqr0(:,:,:)     !overlap matrix of the GS
-    real(dp), allocatable :: H0sqr(:,:)     !hamiltonian square matrix of the GS
 
   end type TElecDynamics
 
@@ -876,8 +872,9 @@ contains
 
     if (this%tLaser) then
       if (tPeriodic) then
-        call warning('Polarization components of the laser in a periodic direction do not work. &
-            & Make sure you are polarizing the field in non-periodic directions.')
+        call warning('If the external field has components in a periodic direction,&
+            & please make sure to use the velocity gauge coupling (check the UseVectorPotential&
+            & variable).')
         if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
           call warning('Using circular or elliptical polarization with periodic structures might&
               & not work.')
@@ -893,6 +890,9 @@ contains
     end if
 
     if (this%tKick) then
+      if (this%tUseVectorPotential) then
+        @:RAISE_ERROR(errStatus, -1, "The kick perturbation is not implemented with vector potentials yet.")
+      end if
       if (inp%polDir == 4) then
         this%polDirs = [1, 2, 3]
       else
@@ -1397,7 +1397,7 @@ contains
 
     if (tWriteAutotest) then
       call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
-          & this%occ, this%lastBondPopul, taggedWriter)
+          & this%occ, this%lastBondPopul, this%totalCurrent, taggedWriter)
     end if
 
     call finalizeDynamics(this)
@@ -1586,7 +1586,7 @@ contains
       call qm2ud(q0)
       call qm2ud(qq)
     end if
-  
+
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
@@ -1633,69 +1633,6 @@ contains
 
   end subroutine updateH
 
-  !updates overlap matrix in case of vector potential adding Peirls phase
-  subroutine updateS(this, neighbourList, nNeighbourSK, img2CentCell, coord, iSquare, iStep)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(inout) :: this
-
-    !> list of neighbours for each atom
-    type(TNeighbourList), intent(inout) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(inout) :: nNeighbourSK(:)
-
-    !> image atoms to their equivalent in the central cell
-    integer, allocatable, intent(inout) :: img2CentCell(:)
-
-    !> atomic coordinates
-    real(dp), allocatable, intent(inout) :: coord(:,:)
-
-    !> Index array for start of atomic block in dense matrices
-    integer, intent(in) :: iSquare(:)
-
-    !> current step of the propagation
-    integer, intent(in) :: iStep
-
-    integer :: iSpin, iAtom1, iNeigh, iAtom2, iAtom2f, iEnd1, iEnd2
-    integer :: ii, jj, nOrb1, nOrb2, iOrig, iStart1, iStart2, iOrb, iKS
-    complex(dp), allocatable :: T4(:,:)
-
-    if (this%tUseVectorPotential) then
-      allocate(T4(this%nOrbs,this%nOrbs))
-      do iAtom1 = 1, this%nAtom
-        iStart1 = iSquare(iAtom1)
-        iEnd1 = iSquare(iAtom1+1)-1
-        do iNeigh = 1, nNeighbourSK(iAtom1)
-          iAtom2 = neighbourList%iNeighbour(iNeigh, iAtom1)
-          iAtom2f = img2CentCell(iAtom2)
-          iStart2 = iSquare(iAtom2f)
-          iEnd2 = iSquare(iAtom2f+1)-1
-          do iKS = 1, this%parallelKS%nLocalKS
-            ! filling one side of the block, using Ssqr0 (from the GS), valid only for electron dynamics
-            ! Replacing i/c by i since using SI units
-            this%Ssqr(iStart1:iEnd1,iStart2:iEnd2,iKS) = this%Ssqr0(iStart1:iEnd1,iStart2:iEnd2,iKS) &
-              & * exp(-imag *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom1)-coord(:,iAtom2f))))
-            ! filling transpose block, using Ssqr0 (from the GS), valid only for electron dynamics
-            this%Ssqr(iStart2:iEnd2,iStart1:iEnd1,iKS) = this%Ssqr0(iStart2:iEnd2,iStart1:iEnd1,iKS) &
-              & * exp(-imag *dot_product(this%tdVecPot(:,iStep),(coord(:,iAtom2f)-coord(:,iAtom1))))
-          end do
-        end do
-      end do
-      !invert overlap
-      do iKS = 1, this%parallelKS%nLocalKS
-        this%Sinv(:,:,iKS) = cmplx(0,0,dp)
-        T4 = this%Ssqr(:,:,iKS)
-        do iOrb = 1, this%nOrbs
-          this%Sinv(iOrb, iOrb, iKS) = 1.0_dp
-        end do
-        !passing T4 instead of Ssqr
-        call gesv(T4(:,:), this%Sinv(:,:,iKS))
-      end do
-      deallocate(T4)
-    end if
-
-  end subroutine updateS
 
   !> Kick the density matrix for spectrum calculations
   subroutine kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
@@ -2386,11 +2323,6 @@ contains
       call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare,&
           & iSparseStart, Dsqr, Qsqr)
     end if
-
-    allocate(this%H0sqr(this%nOrbs, this%nOrbs))
-    call unpackHS(this%H0sqr, ham0, iNeighbour, nNeighbourSK, iSquare,&
-        & iSparseStart, img2CentCell)
-    call adjointLowerTriangle(this%H0sqr)
 
     if (this%tPopulations) then
       allocate(Eiginv(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
@@ -3192,7 +3124,7 @@ contains
 
   !> Write time-dependent tagged information to autotestTag file
   subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, lastBondPopul,&
-      & taggedWriter)
+      & totalCurrent, taggedWriter)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -3217,6 +3149,9 @@ contains
 
     !> Last bond population in the run
     real(dp), intent(in) :: lastBondPopul
+
+    !> Bond currents
+    real(dp), intent(in) :: totalCurrent(:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -3248,6 +3183,9 @@ contains
     end if
     if (this%tBondP) then
       call taggedWriter%write(fdAutotest%unit, tagLabels%sumBondPopul, lastBondPopul)
+    end if
+    if (this%tCurrents) then
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdcurrents, totalCurrent)
     end if
     if (this%tWriteAtomEnergies) then
       call taggedWriter%write(fdAutotest%unit, tagLabels%atomenergies, energy%atomTotal)
@@ -4045,7 +3983,7 @@ contains
 
     this%orbCurrents = 0.0_dp
     this%atomCurrents = 0.0_dp
-    
+
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
 
@@ -4056,7 +3994,7 @@ contains
       ! I = -4*e/hbar (H Im(\rho) - S*Im(E)), the minus sign is already included
       ! and e = hbar = 1
       this%orbCurrents(:,:) = this%orbCurrents(:,:) +  this%kWeight(iK) * 4.0_dp * &
-          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:))) 
+          & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:)))
     end do
 
     ! T3 is the orbital currents projected along the bonds in real space
@@ -4091,7 +4029,7 @@ contains
     end do
 
     deallocate(T1, T2, T3)
-    
+
   end subroutine getTdCurrents
 
 
@@ -4290,10 +4228,10 @@ contains
     if (this%tCurrents) then
       allocate(this%orbCurrents(this%nOrbs, this%nOrbs))
       allocate(this%atomCurrents(this%nAtom, this%nAtom))
-      allocate(this%totalCurrent(3))
-      this%totalCurrent = 0.0_dp
     end if
-    
+    allocate(this%totalCurrent(3))
+    this%totalCurrent = 0.0_dp
+
     allocate(this%occ(this%nOrbs))
     allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
     allocate(this%totalForce(3, this%nAtom))
@@ -4400,16 +4338,16 @@ contains
       call this%dispersion%updateOnsiteCharges(this%qNetAtom, orb, referenceN0,&
           & this%speciesAll(:this%nAtom), .true.)
     end if
-        
+
     call updateH(this, this%H1, ints, this%ham0, this%speciesAll, this%qq, q0, coord, orb,&
         & this%potential, neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & this%chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, this%qBlock, dftbU,&
         & onSiteElements, refExtPot, this%deltaRho, this%HSqrCplxCam, this%Ssqr, solvation,&
         & hybridXc, this%dispersion, this%trho, coordAll, errStatus)
     @:PROPAGATE_ERROR(errStatus)
-    
+
     if (this%tForces) then
-      this%totalForce(:,:) = 0.0_dp 
+      this%totalForce(:,:) = 0.0_dp
       call getForces(this, this%movedAccel, this%totalForce, this%trho, this%H1, this%Sinv,&
           & neighbourList, nNeighbourSK, symNeighbourList, nNeighbourCamSym, img2CentCell,&
           & iSparseStart, iSquare, this%potential, orb, skHamCont, skOverCont, this%qq, q0,&
@@ -4431,7 +4369,7 @@ contains
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
       if (.not. this%tUseVectorPotential) then
-        call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)       
+        call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
       else
 !        this%tdVecPot(this%currPolDir,:) = -c * this%field
       end if
@@ -4940,7 +4878,6 @@ contains
     deallocate(this%Ssqr)
     deallocate(this%Sinv)
     deallocate(this%H1)
-    deallocate(this%H0sqr)
     deallocate(this%RdotSprime)
     deallocate(this%qq)
     deallocate(this%deltaQ)
@@ -4953,8 +4890,8 @@ contains
     if (this%tCurrents) then
       deallocate(this%orbCurrents)
       deallocate(this%atomCurrents)
-      deallocate(this%totalCurrent)
     end if
+    deallocate(this%totalCurrent)
     if (allocated(this%Dsqr)) then
       deallocate(this%Dsqr)
     end if
