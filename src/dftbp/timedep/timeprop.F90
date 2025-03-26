@@ -196,6 +196,9 @@ module dftbp_timedep_timeprop
     !> If this is a probe trajectory (for a pump-probe simulation)
     logical :: tProbe
 
+    !> Whether dynamics outputs are printed or not for Ehrenfest or electron dynamics.
+    logical :: tVerboseDyn = .true.
+
     !> Atomic (initial) kinetic temperature
     real(dp) :: tempAtom
 
@@ -421,6 +424,9 @@ module dftbp_timedep_timeprop
 
     !> Write atom resolved energies
     logical :: tWriteAtomEnergies = .false.
+
+    !> Whether dynamics outputs are printed or not for Ehrenfest or electron dynamics.
+    logical :: tVerboseDyn = .true.
 
     !> Thermostat
     type(TThermostat), allocatable :: pThermostat
@@ -797,6 +803,7 @@ contains
     this%kPoint = kPoint
     this%kWeight = kWeight
     this%hamiltonianType = hamiltonianType
+    this%tVerboseDyn = inp%tVerboseDyn
     allocate(this%parallelKS, source=parallelKS)
     allocate(this%populDat(this%parallelKS%nLocalKS))
     if (.not.any([allocated(sccCalc), allocated(tblite)])) then
@@ -1677,10 +1684,10 @@ contains
     if (this%tEnvFromFile) then
       call openFile(laserDat, "laser.dat", mode="r")
     else
-      call openOutputFile(this, laserDat, 'laser.dat')
+      if (this%tVerboseDyn) call openOutputFile(this, laserDat, 'laser.dat')
     end if
 
-    if (.not. this%tEnvFromFile) then
+    if (.not. this%tEnvFromFile .and. this%tVerboseDyn) then
       write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
     end if
 
@@ -1703,8 +1710,10 @@ contains
       else
         this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
             & * this%fieldDir)
-        write(laserDat%unit, "(5F15.8)") time * au__fs,&
-            & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
+        if (this%tVerboseDyn) then
+          write(laserDat%unit, "(5F15.8)") time * au__fs,&
+              & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
+        end if
       end if
 
     end do
@@ -2524,6 +2533,8 @@ contains
     character(3) :: strK
     integer :: iSpin, iKS, iK, iErr
 
+    if (.not. this%tVerboseDyn) return
+
     if (this%tKick) then
       if (this%currPolDir == 1) then
         dipoleFileName = 'mux.dat'
@@ -2639,45 +2650,22 @@ contains
 
 
   !> Close output files
-  subroutine closeTDOutputs(dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
-      & fdBondPopul, fdBondEnergy, atomEnergyDat)
+  subroutine closeTDOutputs(this)
 
-    !> Dipole output file ID
-    type(TFileDescr), intent(inout) :: dipoleDat
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
 
-    !> Charge output file ID
-    type(TFileDescr), intent(inout) :: qDat
+    if (.not. this%tVerboseDyn) return
 
-    !> Energy output file ID
-    type(TFileDescr), intent(inout) :: energyDat
-
-    !> Populations output file ID
-    type(TFileDescr), intent(inout) :: populDat(:)
-
-    !> Forces output file ID
-    type(TFileDescr), intent(inout) :: forceDat
-
-    !> Coords output file ID
-    type(TFileDescr), intent(inout) :: coorDat
-
-    !> Pairwise bond population output file ID
-    type(TFileDescr), intent(inout) :: fdBondPopul
-
-    !> Pairwise bond energy output file ID
-    type(TFileDescr), intent(inout) :: fdBondEnergy
-
-    !> Atom-resolved energy output file ID
-    type(TFileDescr), intent(inout) :: atomEnergyDat
-
-    call closeFile(dipoleDat)
-    call closeFile(qDat)
-    call closeFile(energyDat)
-    call closeFile(forceDat)
-    call closeFile(coorDat)
-    call closeFile(populDat)
-    call closeFile(fdBondPopul)
-    call closeFile(fdBondEnergy)
-    call closeFile(atomEnergyDat)
+    call closeFile(this%dipoleDat)
+    call closeFile(this%qDat)
+    call closeFile(this%energyDat)
+    call closeFile(this%forceDat)
+    call closeFile(this%coorDat)
+    call closeFile(this%populDat)
+    call closeFile(this%fdBondPopul)
+    call closeFile(this%fdBondEnergy)
+    call closeFile(this%atomEnergyDat)
 
   end subroutine closeTDOutputs
 
@@ -2706,6 +2694,8 @@ contains
     integer :: iCount
 
     logical :: isBinary_
+
+    if (.not. this%tVerboseDyn) return
 
     if (present(isBinary)) then
       isBinary_ = isBinary
@@ -2794,6 +2784,8 @@ contains
 
     real(dp) :: auxVeloc(3, this%nAtom)
     integer :: iAtom, iSpin, iDir
+
+     if (.not. this%tVerboseDyn) return
 
     write(dipoleDat%unit, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
@@ -3011,6 +3003,8 @@ contains
     complex(dp) :: T1(this%nOrbs,this%nOrbs)
 
     integer :: ii
+
+     if (.not. this%tVerboseDyn) return
 
     call gemm(T1, rho(:,:,iKS), EiginvAdj(:,:,iKS))
     T1 = transpose(Eiginv(:,:,iKS)) * T1
@@ -4662,8 +4656,7 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
-    call closeTDOutputs(this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
-        & this%forceDat, this%coorDat, this%fdBondPopul, this%fdBondEnergy, this%atomEnergyDat)
+    call closeTDOutputs(this)
 
     deallocate(this%Ssqr)
     deallocate(this%Sinv)

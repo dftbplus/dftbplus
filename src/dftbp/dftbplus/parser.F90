@@ -5975,6 +5975,9 @@ contains
     end if
 
     call getChildValue(node, "EulerFrequency", input%eulerFreq, 0)
+
+    call getChildValue(node, "VerboseDynamics", input%tVerboseDyn, .true.)
+
     if ((input%eulerFreq < 50) .and. (input%eulerFreq > 0)) then
       call detailedError(child, "Wrong number of Euler steps, should be above 50")
     end if

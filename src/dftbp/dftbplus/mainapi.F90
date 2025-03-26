@@ -30,6 +30,7 @@ module dftbp_dftbplus_mainapi
 
   private
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
+  public :: setExternalEfield
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
   public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
@@ -422,6 +423,23 @@ contains
 
   end subroutine setExternalPotential
 
+  !> Sets up an external electric field.
+
+  subroutine setExternalEfield(main, EfieldStr, EfieldVec)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Electric field amplitude
+    real(dp), intent(in) :: EfieldStr
+
+    !> Unitary electric field vector. Shape: (3)
+    real(dp), intent(in) :: EfieldVec(:)
+
+    main%eField%EFieldStrength  = EfieldStr
+    main%eField%EfieldVector(:) = EfieldVec(:)
+
+  end subroutine setExternalEfield
 
   !> Sets up a generator for external population dependant potentials
   subroutine setQDepExtPotProxy(main, extPotProxy)
@@ -743,7 +761,7 @@ contains
         dipole(:,:) = main%electronDynamics%dipole
       end if
       if (present(energy)) then
-        energy = main%electronDynamics%energy%eSCC
+        energy = main%electronDynamics%energy%etotal
       end if
       if (present(atomNetCharges)) then
         atomNetCharges(:,:) = main%electronDynamics%deltaQ
