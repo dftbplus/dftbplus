@@ -120,7 +120,7 @@ contains
       call dftbp%doOneTdStep(istep, dipole=dipole, energy=energy, atomNetCharges=atomNetCharges)
     end do
 
-    print "(A,F15.10)", 'Final SCC Energy:', energy
+    print "(A,F15.10)", 'Final total Energy:', energy
     print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
     print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
 

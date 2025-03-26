@@ -146,7 +146,7 @@ contains
           & coord=coords, force=force)
     end do
 
-    print "(A,F15.10)", 'Final SCC Energy:', energy
+    print "(A,F15.10)", 'Final total Energy:', energy
     print "(A,3F15.10)", 'Final dipole:', (dipole(ii,1), ii=1,3)
     print "(A,100F15.10)", 'Final net atomic charges:', (atomNetCharges(ii,1), ii=1,nAtom)
     print "(A,100F15.10)", 'Final coordinates:', (coords(:,ii), ii=1,nAtom)
