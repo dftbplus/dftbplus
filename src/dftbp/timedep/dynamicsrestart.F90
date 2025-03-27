@@ -270,7 +270,6 @@ contains
 
   end subroutine readRestartFile
 
-
 #:if WITH_SCALAPACK
   !> Write to a restart file the DM in distributed format
   subroutine writeRestartFileBlacs(rho, rhoOld, coord, veloc, time, dt, fileName, env, &

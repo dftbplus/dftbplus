@@ -1145,11 +1145,11 @@ contains
     tWriteAutotest = this%tWriteAutotest
     this%iCall = 1
 
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     if (env%mpi%nGroup /= 1) then
       @:RAISE_ERROR(errStatus, -1, "Real-time dynamics parallelized only using 1 MPI group.")
     end if
-    #:endif
+#:endif
 
     if (allocated(this%polDirs)) then
       if (size(this%polDirs) > 1) then
@@ -1340,7 +1340,7 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     type(TTimer) :: loopTime
-    integer :: iStep, i, j
+    integer :: iStep
     real(dp) :: timeElec
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
@@ -1582,18 +1582,18 @@ contains
       call qm2ud(qq)
     end if
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
       if (this%tRealHS) then
         call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour,&
             & nNeighbourSK, iSparseStart, img2CentCell, this%denseDesc, T2)
-        H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
+        H1(:,:,iSpin) = cmplx(T2, kind=dp)
         ! TODO: add here the unpacking of H1 for kpoints
       end if
     end do
-  #:else
+#:else
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
@@ -1601,7 +1601,7 @@ contains
         call unpackHS(T2, ints%hamiltonian(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & iSquare, iSparseStart, img2CentCell)
         call adjointLowerTriangle(T2)
-        H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
+        H1(:,:,iSpin) = cmplx(T2, kind=dp)
       else
         call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
             & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
@@ -1609,11 +1609,11 @@ contains
         call adjointLowerTriangle(H1(:,:,iKS))
       end if
     end do
-  #:endif
+#:endif
 
     ! add hybrid xc-functional contribution
     if (this%isHybridXc) then
-    #:if WITH_MPI
+#:if WITH_MPI
       deltaRho = rho
       if (this%nSpin > 2) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
@@ -1627,7 +1627,7 @@ contains
             & deltaRho(:,:,iSpin), HSqrCplxCam)
         H1(:,:,iSpin) = H1(:,:,iSpin) + HSqrCplxCam
       end do
-    #:else
+#:else
       deltaRho = rho
       if (this%nSpin > 2) then
         @:RAISE_ERROR(errStatus, -1, "HybridXc: Not implemented for non-colinear spin.")
@@ -1640,7 +1640,7 @@ contains
             & deltaRho(:,:, iSpin), HSqrCplxCam)
         H1(:,:,iSpin) = H1(:,:,iSpin) + HSqrCplxCam
       end do
-    #:endif
+#:endif
     end if
 
   end subroutine updateH
@@ -1811,8 +1811,9 @@ contains
       E0 = 0.0_dp !this is to make sure we never sum the current field with that read from file
     end if
 
-  #:if WITH_MPI
-    if (env%mpi%tGlobalLead) then
+#:if WITH_MPI
+      if (env%mpi%tGlobalLead) then
+#:endif
       if (this%tEnvFromFile) then
         call openFile(laserDat, "laser.dat", mode="r")
       else
@@ -1821,17 +1822,9 @@ contains
       if (.not. this%tEnvFromFile .and. this%tVerboseDyn) then
         write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
       end if
+#:if WITH_MPI
     end if
-  #:else
-      if (this%tEnvFromFile) then
-        call openFile(laserDat, "laser.dat", mode="r")
-      else
-        call openOutputFile(this, env, laserDat, 'laser.dat')
-      end if
-    if (.not. this%tEnvFromFile) then
-      write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
-    end if
-  #:endif
+#:endif
 
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
@@ -1846,31 +1839,18 @@ contains
         envelope = 0.0_dp
       end if
 
-      if (this%tEnvFromFile) then
-      #:if WITH_MPI
-        if (env%mpi%tGlobalLead) then
-          read(laserDat%unit, *)time, tdfun(1), tdfun(2), tdfun(3)
-        end if
-      #:else
-        read(laserDat%unit, *)time, tdfun(1), tdfun(2), tdfun(3)
-      #:endif
-        this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
-      else
         this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
-            & * this%fieldDir)      #:if WITH_MPI
+            & * this%fieldDir)
+#:if WITH_MPI
         if (env%mpi%tGlobalLead) then
-          if (this%tVerboseDyn) write(laserDat%unit, "(5F15.8)") time * au__fs,&
-              & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
-        end if
-      #:else
+#:endif
         if (this%tVerboseDyn) write(laserDat%unit, "(5F15.8)") time * au__fs,&
-            & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
-      #:endif
-      end if
+              & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
+#:if WITH_MPI
+        end if
+#:endif
 
     end do
-
-    call closeFile(laserDat)
 
   end subroutine getTDFunction
 
@@ -1956,7 +1936,7 @@ contains
 
     if (this%tRealHS) then
 
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       this%rhoPrim(:,:) = 0.0_dp
       allocate(tmp (size(rho,dim=1),size(rho,dim=2)))
       do iSpin = 1, this%nSpin
@@ -1971,7 +1951,7 @@ contains
        call mulliken(env, qq(:,:,iSpin), ints%overlap, this%rhoPrim(:,iSpin), orb, iNeighbour,&
         & nNeighbourSK, img2CentCell, iSparseStart)
       end do
-    #:else
+#:else
       do iSpin = 1, this%nSpin
         do iAt = 1, this%nAtom
           iOrb1 = iSquare(iAt)
@@ -1981,7 +1961,7 @@ contains
               & rho(:,iOrb1:iOrb2,iSpin)*Ssqr(:,iOrb1:iOrb2,iSpin), dim=1), dp)
         end do
       end do
-    #:endif
+#:endif
 
     else
 
@@ -2224,7 +2204,7 @@ contains
     if (.not. this%tForces) then
       rhoPrim(:,:) = 0.0_dp
 
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       do iKS = 1, this%parallelKS%nLocalKS
         iSpin = this%parallelKS%localKS(2, iKS)
         if (this%tRealHS) then
@@ -2237,8 +2217,7 @@ contains
         end if
       end do
       call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-
-    #:else
+#:else
       do iKS = 1, this%parallelKS%nLocalKS
         iSpin = this%parallelKS%localKS(2, iKS)
         if (this%tRealHS) then
@@ -2251,7 +2230,7 @@ contains
               & iSquare, iSparseStart, img2CentCell)
         end if
       end do
-    #:endif
+#:endif
 
     end if
     call ud2qm(rhoPrim)
@@ -2402,9 +2381,9 @@ contains
     complex(dp), allocatable :: T4(:,:)
     integer :: iSpin, iOrb, iOrb2, iKS, iK, nLocalRows, nLocalCols
     type(TFileDescr) :: fillingsIn
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     integer :: desc(DLEN_), nn
-  #:endif
+#:endif
 
     allocate(rhoPrim(size(ints%hamiltonian, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ints%hamiltonian, dim=1)))
@@ -2412,13 +2391,13 @@ contains
     allocate(ham0(size(H0)))
     ham0(:) = H0
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-  #:else
+#:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
-  #:endif
+#:endif
 
     if (this%tRealHS) then
       allocate(T2(nLocalRows,nLocalCols))
@@ -2431,7 +2410,7 @@ contains
       Ssqr(:,:,:) = 0.0_dp
       Sinv(:,:,:) = 0.0_dp
 
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
           call unpackHSRealBlacs(env%blacs, ints%overlap, iNeighbour, nNeighbourSK, iSparseStart,&
@@ -2451,7 +2430,7 @@ contains
         ! TODO: add here the complex case
         end if
       end do
-    #:else
+#:else
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
           call unpackHS(T2, ints%overlap, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
@@ -2479,12 +2458,12 @@ contains
           call gesv(T4, Sinv(:,:,iKS))
         end if
       end do
-    #:endif
+#:endif
 
       write(stdOut,"(A)")'S inverted'
 
 
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -2495,7 +2474,7 @@ contains
           ! TODO: add here the complex case
         end if
       end do
-    #:else
+#:else
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -2510,7 +2489,7 @@ contains
           call adjointLowerTriangle(H1(:,:,iKS))
         end if
       end do
-    #:endif
+#:endif
 
       call updateDQ(this, ints, iNeighbour, nNeighbourSK, img2CentCell, iSquare, iSparseStart,&
           & Dsqr, Qsqr)
@@ -2544,7 +2523,7 @@ contains
 
     if (.not.this%tReadRestart) then
       rho(:,:,:) = 0.0_dp
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -2555,7 +2534,7 @@ contains
           ! TODO: add here the complex case
         end if
       end do
-    #:else
+#:else
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -2576,7 +2555,7 @@ contains
           end do
         end do
       end do
-    #:endif
+#:endif
     end if
 
     call TPotentials_init(potential, orb, this%nAtom, this%nSpin, this%nDipole, this%nQuadrupole)
@@ -2676,22 +2655,22 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       if (this%tIons .or. (.not. this%tRealHS)) then
         H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
-      #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
         call propagateRhoBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
             & step)
-      #:else
+#:else
         call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
-      #:endif
+#:endif
       else
         ! The following line is commented to make the fast propagate work since it needs a real H
         !H1(:,:,iKS) = imag * H1(:,:,iKS)
-      #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
         call propagateRhoRealHBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS),&
             & Sinv(:,:,iKS), step)
-      #:else
+#:else
         call propagateRhoRealH(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
             & step)
-      #:endif
+#:endif
       end if
     end do
 
@@ -2941,9 +2920,9 @@ end subroutine propagateRhoBlacs
 
     if (.not. this%tVerboseDyn) return
 
-    #:if WITH_MPI
+#:if WITH_MPI
     if (.not. env%mpi%tGlobalLead) return
-  #:endif
+#:endif
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -3067,9 +3046,9 @@ end subroutine propagateRhoBlacs
 
     if (.not. this%tVerboseDyn) return
 
-  #:if WITH_MPI
+#:if WITH_MPI
     if (.not. env%mpi%tGlobalLead) return
-  #:endif
+#:endif
 
     call closeFile(this%dipoleDat)
     call closeFile(this%qDat)
@@ -3113,9 +3092,9 @@ end subroutine propagateRhoBlacs
     logical :: isBinary_
 
     if (.not. this%tVerboseDyn) return
-  #:if WITH_MPI
+#:if WITH_MPI
     if (.not. env%mpi%tGlobalLead) return
-  #:endif
+#:endif
 
     if (present(isBinary)) then
       isBinary_ = isBinary
@@ -3209,9 +3188,9 @@ end subroutine propagateRhoBlacs
     integer :: iAtom, iSpin, iDir
 
      if (.not. this%tVerboseDyn) return
-  #:if WITH_MPI
+#:if WITH_MPI
     if (.not. env%mpi%tGlobalLead) return
-  #:endif
+#:endif
 
     write(dipoleDat%unit, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
@@ -3317,19 +3296,19 @@ end subroutine propagateRhoBlacs
     integer :: iOrb
     integer :: nLocalCols, nLocalRows, i, j, unit_num
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-  #:else
+#:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
-  #:endif
+#:endif
 
     allocate(T1(nLocalRows,nLocalCols))
     allocate(T2(nLocalRows,nLocalCols))
     allocate(T3(nLocalRows,nLocalCols))
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     if (this%tRealHS) then
       T2(:,:) = cmplx(eigvecsReal, 0, dp)
     end if
@@ -3353,7 +3332,7 @@ end subroutine propagateRhoBlacs
     call scalafx_pgetrf(T2, this%denseDesc%blacsOrbSqr, ipiv)
     call scalafx_pgetri(T2, this%denseDesc%blacsOrbSqr, ipiv)
     EiginvAdj(:,:) = T2
-  #:else
+#:else
     if (this%tRealHS) then
       T2 = cmplx(eigvecsReal, kind=dp)
     else
@@ -3377,7 +3356,7 @@ end subroutine propagateRhoBlacs
     end do
     call gesv(T2, T3)
     EiginvAdj(:,:) = T3
-  #:endif
+#:endif
 
   end subroutine tdPopulInit
 
@@ -3496,17 +3475,17 @@ end subroutine propagateRhoBlacs
 
     if (.not. this%tVerboseDyn) return
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     nLocalRows = size(Eiginv, dim=1)
     nLocalCols = size(Eiginv, dim=2)
-  #:else
+#:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
-  #:endif
+#:endif
     allocate(T1(nLocalRows, nLocalCols))
     allocate(T3(nLocalRows, nLocalCols))
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     if (this%tRealHS) then
       ! T3 = rho*EiginvAdj
       call pblasfx_pgemm(rho(:,:,iKS), this%denseDesc%blacsOrbSqr, EiginvAdj(:,:,iKS),&
@@ -3527,7 +3506,7 @@ end subroutine propagateRhoBlacs
       end do
       write(populDat(iKS)%unit,*)
     end if
-  #:else
+#:else
   call gemm(T1, rho(:,:,iKS), EiginvAdj(:,:,iKS))
     T1 = transpose(Eiginv(:,:,iKS)) * T1
 
@@ -3537,7 +3516,7 @@ end subroutine propagateRhoBlacs
       write(populDat(iKS)%unit,'(*(2x,F25.15))', advance='no')occ(ii)
     end do
     write(populDat(iKS)%unit, *)
-  #:endif
+#:endif
 
   end subroutine getTDPopulations
 
@@ -4080,7 +4059,7 @@ end subroutine propagateRhoBlacs
     end if
 
     if (this%isHybridXc) then
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       @:RAISE_ERROR(errStatus, -1, "MPI-parallel hybrid-DFTB matrix-based force evaluation not&
           & implemented for rTD-DFTB.")
     #:else
@@ -4089,7 +4068,7 @@ end subroutine propagateRhoBlacs
           & this%tPeriodic, derivs, symNeighbourList=symNeighbourList,&
           & nNeighbourCamSym=nNeighbourCamSym)
       @:PROPAGATE_ERROR(errStatus)
-    #:endif
+#:endif
     end if
 
     if (this%tLaser) then
@@ -4377,13 +4356,13 @@ end subroutine propagateRhoBlacs
         call addPairWiseBondInfo(bondWork, rhoPrim(:,1), ints%overlap, iSquare,&
             & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
-      #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       if (env%mpi%tGlobalLead) then
       write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
       end if
-      #:else
+#:else
       write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
-      #:endif
+#:endif
       if (this%tWriteAutotest) then
         lastBondPopul = sum(bondWork)
       end if
@@ -4590,13 +4569,13 @@ end subroutine propagateRhoBlacs
     end if
     call TMultipole_init(this%multipole, this%nAtom, this%nDipole, this%nQuadrupole, this%nSpin)
 
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-  #:else
+#:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
-  #:endif
+#:endif
 
     allocate(this%trho(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
     allocate(this%trhoOld(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
@@ -4623,13 +4602,13 @@ end subroutine propagateRhoBlacs
     this%occ(:) = 0.0_dp
 
     if (this%tReadRestart) then
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       call readRestartFileBlacs(this%trho, this%trhoOld, coord, this%movedVelo, this%time, this%dt,&
       & restartFileName, env, this%denseDesc, this%parallelKS,  errStatus)
-  #:else
+#:else
       call readRestartFile(this%trho, this%trhoOld, coord, this%movedVelo, this%startTime, this%dt,&
       & restartFileName, this%tRestartAscii, errStatus)
-  #:endif
+#:endif
       @:PROPAGATE_ERROR(errStatus)
       call handleCoordinateChange(this, env, boundaryCond, hybridXc, ints, orb, neighbourList,&
           & nNeighbourSK, symNeighbourList, nNeighbourCamSym, coord, coordAll, this%ham0,&
@@ -5010,21 +4989,21 @@ end subroutine propagateRhoBlacs
         else
           propStep = 2.0_dp * this%dt
         end if
-      #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
         call propagateRhoBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
             & this%H1(:,:,iKS), this%Sinv(:,:,iKS), propStep)
-      #:else
+#:else
         call propagateRho(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
             & this%H1(:,:,iKS), this%Sinv(:,:,iKS), propStep)
-      #:endif
+#:endif
       else
-      #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
         call propagateRhoRealHBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
             & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-      #:else
+#:else
         call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
             & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
-      #:endif
+#:endif
       end if
     end do
 
@@ -5061,13 +5040,13 @@ end subroutine propagateRhoBlacs
       else
         velInternal(:,:) = 0.0_dp
       end if
-    #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
       call writeRestartFileBlacs(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt,&
           & restartFileName, env, this%denseDesc, this%parallelKS, errStatus)
-    #:else
+#:else
       call writeRestartFile(this%rho, this%rhoOld, coord, velInternal, this%time, this%dt, &
           &restartFileName, this%tWriteRestartAscii, errStatus)
-    #:endif
+#:endif
       @:PROPAGATE_ERROR(errStatus)
       deallocate(velInternal)
     end if
