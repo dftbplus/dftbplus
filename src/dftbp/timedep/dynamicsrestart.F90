@@ -14,11 +14,11 @@ module dftbp_timedep_dynamicsrestart
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_common_status, only : TStatus
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : linecomm, DLEN_, M_, N_, scalafx_getdescriptor
   use dftbp_type_densedescr, only: TDenseDescr
   use dftbp_type_commontypes, only : TParallelKS
-  #:endif
+#:endif
   implicit none
 
   !> Version number for restart format, please increment if you change the file format (and consider
@@ -27,9 +27,9 @@ module dftbp_timedep_dynamicsrestart
 
   private
   public :: writeRestartFile, readRestartFile
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
   public :: writeRestartFileBlacs, readRestartFileBlacs
-  #:endif
+#:endif
   
 contains
 
@@ -270,8 +270,7 @@ contains
 
   end subroutine readRestartFile
 
-
-  #:if WITH_SCALAPACK
+#:if WITH_SCALAPACK
   !> Write to a restart file the DM in distributed format
   subroutine writeRestartFileBlacs(rho, rhoOld, coord, veloc, time, dt, fileName, env, &
       & denseDesc, parallelKS, errStatus)
@@ -442,6 +441,6 @@ contains
     end if
 
   end subroutine readRestartFileBlacs
-  #:endif
+#:endif
 
 end module dftbp_timedep_dynamicsrestart
