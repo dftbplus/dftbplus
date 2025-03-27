@@ -4821,7 +4821,7 @@ contains
 
 #:endif
 
-  !> reads in value of temperature for MD with sanity checking of the input
+  !> reads in value of temperature for MD with correctness checking of the input
   subroutine readTemperature(node, ctrl)
 
     !> data to parse
@@ -4849,7 +4849,7 @@ contains
   end subroutine readTemperature
 
 
-  !> reads a temperature profile for MD with sanity checking of the input
+  !> reads a temperature profile for MD with correctness checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
 
     !> parser node containing the relevant part of the user input
@@ -6726,7 +6726,7 @@ contains
 
 
 #:if WITH_TRANSPORT
-  !> Sanity checking of atom ranges and returning contact vector and direction.
+  !> Correctness checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
 
@@ -6758,7 +6758,7 @@ contains
     logical :: mask(3)
     character(lc) :: errorStr
 
-    !! Sanity check for the atom ranges
+    !! Correctness check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
@@ -6806,7 +6806,7 @@ contains
     ! Determine to which axis the contact vector is parallel.
     mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
+      call warning("Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
       contactDir = 0
     else
       contactDir = findloc(mask, .true., 1)
@@ -7563,7 +7563,7 @@ contains
           if (input%transpar%contacts(ii)%dir.lt.1 .or. &
             &input%transpar%contacts(ii)%dir.gt.3 ) then
             call error("Contact " // i2c(ii) // " not parallel to any &
-              & coordinate axis is not compatible with Poisson solver")
+              & coordinate axis and is not compatible with Poisson solver")
           end if
         end do
       end if

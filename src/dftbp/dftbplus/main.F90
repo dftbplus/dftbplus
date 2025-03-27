@@ -2458,17 +2458,17 @@ contains
     !> libNEGF data
     type(TNEGFInfo), intent(in) :: ginfo
 
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Image atoms to their equivalent in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
     !> List of neighbouring atoms
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours of each real atom
     integer, intent(in) :: nNeighbourSK(:)
+
+    !> Image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     ! known issue about the PLs: We need an automatic partitioning
     call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&

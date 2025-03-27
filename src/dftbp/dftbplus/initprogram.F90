@@ -2072,10 +2072,6 @@ contains
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
     if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
-      if (allocated(this%dispersion)) then
-        call error ("Dispersion interactions are not currently available for transport&
-            & calculations")
-      end if
       if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
@@ -2088,7 +2084,7 @@ contains
         call error ("Third order DFTB is not currently available for transport calculations")
       end if
       if (this%isHybridXc) then
-        call error("Range separated calculations do not yet work with transport calculations")
+        call error("Hybrid functional calculations do not yet work with transport calculations")
       end if
     end if
   #:endif
@@ -2236,6 +2232,7 @@ contains
       if (this%tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
+
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
         if (this%tPeriodic) then
@@ -2293,6 +2290,7 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName)
         end if
         call move_alloc(dftd4, this%dispersion)
+
     #:if WITH_MBD
       else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
@@ -2322,7 +2320,16 @@ contains
         end if
     #:endif
       end if
+
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
+    #:if WITH_TRANSPORT
+      if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
+        if (allocated(this%dispersion)) then
+          call error ("Dispersion interactions are not currently available for transport&
+              & calculations")
+        end if
+      end if
+    #:endif
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -5837,7 +5844,7 @@ contains
     !> True, if this is a shell resolved calculation
     logical, intent(in) :: tShellResolved
 
-    !> Parameters for the range separated calculation
+    !> Parameters for the hybrid functional calculation
     type(THybridXcInp), intent(in) :: hybridXcInp
 
     if (withMpi .and. (.not. this%tPeriodic) .and. (hybridXcInp%hybridXcAlg&
@@ -5880,7 +5887,7 @@ contains
     end if
 
     if (this%tReadChrg .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-      call error("Restart on thresholded range separation not working correctly.")
+      call error("Restart on thresholded hybrids not working correctly.")
     end if
 
     if (tShellResolved) then
@@ -5962,7 +5969,7 @@ contains
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
-    !> Is this an excited state calculation with range separation
+    !> Is this an excited state calculation with a hybrid functional
     logical, intent(in) :: isHybLinResp
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
@@ -6071,17 +6078,17 @@ contains
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then
-        call error("Range separated excited states for periodic geometries are currently&
+        call error("hybrid functional excited states for periodic geometries are currently&
             & unavailable")
       end if
       if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
-        call error("Range separated excited states not available for window options.")
+        call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning("Range separated excited states not well tested for triplet excited states!")
+        call warning("hybrid functional excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning("Range separated excited states not well tested for spin-polarized systems!")
+        call warning("hybrid functional excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -6092,7 +6099,7 @@ contains
   end subroutine ensureLinRespConditions
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_cluster(cutOff, cutoffRed)
 
     !> Resulting cutoff
@@ -6116,7 +6123,7 @@ contains
   end subroutine getHybridXcCutOff_cluster
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, errStatus, gSummationCutoff,&
       & gammaCutoff)
 
@@ -6168,7 +6175,7 @@ contains
   end subroutine getHybridXcCutOff_gamma
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag, errStatus,&
       & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
 
@@ -6581,7 +6588,7 @@ contains
     !> Third order DFTB
     logical, intent(in) :: is3rd
 
-    !> Whether to run a range separated calculation
+    !> Whether to run a hybrid functional calculation
     logical, intent(in) :: isHybridXc
 
     !> Whether to run a dispersion calculation
