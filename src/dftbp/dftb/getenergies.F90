@@ -230,8 +230,11 @@ contains
     end if
 
     if (allocated(tblite)) then
-      call tblite%getEnergies(energy%atomSCC)
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
+      call tblite%getEnergies(energy)
+      energy%EScc = sum(energy%atomSCC(iAtInCentralRegion))
+      energy%Erep = sum(energy%atomRep(iAtInCentralRegion))
+      energy%EDisp = sum(energy%atomDisp(iAtInCentralRegion))
+      energy%EHalogenX = sum(energy%atomHalogenX(iAtInCentralRegion))
     end if
 
     if (present(qNetAtom)) then

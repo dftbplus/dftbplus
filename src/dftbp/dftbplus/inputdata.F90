@@ -510,7 +510,6 @@ module dftbp_dftbplus_inputdata
     !> Input for tblite library
     type(TTBLiteInput), allocatable :: tbliteInp
 
-
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)
     real(dp), allocatable :: thirdOrderOn(:,:)
