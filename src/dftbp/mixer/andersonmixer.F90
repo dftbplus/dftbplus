@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
 !> Contains an Anderson mixer.
 !!
@@ -17,15 +18,40 @@
 module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
-#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
-
   private
-#:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TAndersonMixer${LABEL}$, TAndersonMixer${LABEL}$_init, TAndersonMixer${LABEL}$_reset
-  public :: TAndersonMixer${LABEL}$_mix
-#:endfor
+  public :: TAndersonMixerInp
+  public :: TAndersonMixerReal, TAndersonMixerReal_init
+  public :: TAndersonMixerCmplx, TAndersonMixerCmplx_init
+
+  type :: TAndersonMixerInp
+    !> Nr. of generations (including actual) to consider
+    integer :: iGenerations = 0
+
+    !> Mixing parameter for the general case
+    real(dp) :: mixParam = 0.0_dp
+
+    !> Mixing parameter for the first iGenerations-1 cycles
+    real(dp) :: initMixParam = 0.01_dp
+
+    !> Convergence dependent mixing parameters.
+    !! Given as 2 by n array of tolerance and mixing factors pairs.
+    !! The tolerances (Euclidean norm of the charge diff. vector) must follow each
+    !! Other in decreasing order. (optional, set nConvMixParam to negative or 0 to disable)
+    !! Mixing parameters given here eventually override mixParam or initMixParam.
+    real(dp), allocatable :: convMixParam(:,:)
+
+    !> Nr. of convergence dependent mixing parameters
+    integer :: nConvMixParam = -1
+
+    !> Symmetry breaking parameter.
+    !! Diagonal elements of the system of linear equations are multiplied by (1.0+omega0**2).
+    !! [optional, negative or 0 to disable.]
+    real(dp) :: omega0 = 1.0e-2_dp
+
+  end type TAndersonMixerInp
 
 
 #:for NAME, TYPE, LABEL in FLAVOURS
@@ -35,7 +61,7 @@ module dftbp_mixer_andersonmixer
   !! which stores a given number of recent vector pairs. The storage should be accessed as an array
   !! with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
   !! pairs. (LIFO)
-  type TAndersonMixer${LABEL}$
+  type, extends (TMixer${LABEL}$) :: TAndersonMixer${LABEL}$
     private
 
     !> General mixing parameter
@@ -73,61 +99,50 @@ module dftbp_mixer_andersonmixer
 
     !> Stored prev. charge differences
     ${TYPE}$(dp), allocatable :: prevQDiff(:,:)
-  end type TAndersonMixer${LABEL}$
-#:endfor
 
+    contains
+      procedure :: reset => TAndersonMixer${LABEL}$_reset
+      procedure :: mix1D => TAndersonMixer${LABEL}$_mix
+  end type TAndersonMixer${LABEL}$
+
+#:endfor
 
 contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
-  !> Creates an Andersom mixer instance.
-  subroutine TAndersonMixer${LABEL}$_init(this, nGeneration, mixParam, initMixParam, convMixParam,&
-      & omega0)
+
+  !> Initializes an Anderson mixer instance.
+  subroutine TAndersonMixer${LABEL}$_init(this, mixerInp)
 
     !> Initialized Anderson mixer on exit
     type(TAndersonMixer${LABEL}$), intent(out) :: this
 
-    !> Nr. of generations (including actual) to consider
-    integer, intent(in) :: nGeneration
+    !> TAndersonMixer Input struct
+    type(TAndersonMixerInp), intent(in) :: mixerInp
 
-    !> Mixing parameter for the general case
-    real(dp), intent(in) :: mixParam
-
-    !> Mixing parameter for the first nGeneration-1 cycles
-    real(dp), intent(in) :: initMixParam
-
-    !! Convergence dependent mixing parameters. Given as 2 by n array of tolerance and mixing
-    !! factors pairs. The tolerances (Euclidean norm of the charge diff. vector) must follow each
-
-    !> Other in decreasing order.
-    !! Mixing parameters given here eventually override mixParam or initMixParam.
-    real(dp), intent(in), optional :: convMixParam(:,:)
-
-    !> Symmetry breaking parameter. Diagonal elements of the system of linear equations are
-    !! multiplied by (1.0+omega0**2).
-    real(dp), intent(in), optional :: omega0
-
-    @:ASSERT(nGeneration >= 2)
+    @:ASSERT(mixerInp%iGenerations >= 2)
 
     this%nElem = 0
-    this%mPrevVector = nGeneration - 1
+    this%mPrevVector = mixerInp%iGenerations - 1
 
     allocate(this%prevQInput(this%nElem, this%mPrevVector))
     allocate(this%prevQDiff(this%nElem, this%mPrevVector))
     allocate(this%indx(this%mPrevVector))
 
-    this%mixParam = mixParam
-    this%initMixParam = initMixParam
-    if (present(convMixParam)) then
-      @:ASSERT(size(convMixParam, dim=1) == 2)
-      this%nConvMixParam = size(convMixParam, dim=2)
+    this%mixParam = mixerInp%mixParam
+    this%initMixParam = mixerInp%initMixParam
+
+    if (mixerInp%nConvMixParam > 0) then
+      @:ASSERT(size(mixerInp%convMixParam, dim=1) == 2)
+      this%nConvMixParam = size(mixerInp%convMixParam, dim=2)
       allocate(this%convMixParam(2, this%nConvMixParam))
-      this%convMixParam(:,:) = convMixParam
+      this%convMixParam(:,:) = mixerInp%convMixParam
     else
       this%nConvMixParam = 0
     end if
-    if (present(omega0)) then
-      this%omega02 = omega0**2
+
+    if (mixerInp%omega0 > 0) then
+      this%omega02 = mixerInp%omega0**2
       this%tBreakSym = .true.
     else
       this%omega02 = 0.0_dp
@@ -141,7 +156,7 @@ contains
   subroutine TAndersonMixer${LABEL}$_reset(this, nElem)
 
     !> Anderson mixer instance
-    type(TAndersonMixer${LABEL}$), intent(inout) :: this
+    class(TAndersonMixer${LABEL}$), intent(inout) :: this
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -177,7 +192,7 @@ contains
   subroutine TAndersonMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> Anderson mixer
-    type(TAndersonMixer${LABEL}$), intent(inout) :: this
+    class(TAndersonMixer${LABEL}$), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
     ${TYPE}$(dp), intent(inout) :: qInpResult(:)
@@ -367,6 +382,7 @@ contains
     prevQDiff(:, indx(1)) = qDiff
 
   end subroutine storeVectors_${NAME}$
+
 #:endfor
 
 end module dftbp_mixer_andersonmixer
