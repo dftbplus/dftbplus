@@ -240,11 +240,8 @@ module dftbp_timedep_timeprop
     !> Phase applied of the laser field
     real(dp) :: phase
 
-    !> Cartesian components of time dependent electric field at each time step
+    !> Cartesian components of time dependent electric field or vector potential
     real(dp), allocatable :: tdFunction(:, :)
-
-    !> Cartesian components of time dependent vector potential
-    real(dp), allocatable :: tdVecPot(:, :)
 
     !> Complex electric field direction
     complex(dp) :: fieldDir(3)
@@ -1592,7 +1589,7 @@ contains
       iSpin = this%parallelKS%localKS(2, iKS)
       if (this%tUseVectorPotential) then
         call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
-            & this%tdVecPot(:,iStep), coordAll, neighbourList%iNeighbour, nNeighbourSK, &
+            & this%tdFunction(:,iStep), coordAll, neighbourList%iNeighbour, nNeighbourSK, &
             & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
         call adjointLowerTriangle(H1(:,:,iKS))
       else
@@ -1723,9 +1720,6 @@ contains
 
     allocate(this%tdFunction(3, 0:this%nSteps))
     this%tdFunction(:,:) = 0.0_dp
-    if (this%tUseVectorPotential) then
-      allocate(this%tdVecPot(3, 0:this%nSteps))
-    end if
 
     midPulse = (this%time0 + this%time1)/2.0_dp
     deltaT = this%time1 - this%time0
@@ -1745,7 +1739,11 @@ contains
     end if
 
     if (.not. this%tEnvFromFile .and. this%tVerboseDyn) then
-      write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+      if (this%tUseVectorPotential) then
+        write(laserDat%unit, "(A)") "#     time (fs)  |  A_x (eV/ang)  | A_y (eV/ang) | A_z (eV/ang)"
+      else
+        write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+      end if  
     end if
 
     do iStep = 0,this%nSteps
@@ -1765,18 +1763,19 @@ contains
         read(laserDat%unit, *)time, tdfun(1), tdfun(2), tdfun(3)
         this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
       else
-        this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
-            & * this%fieldDir)
+        if (this%tUseVectorPotential) then
+          this%tdFunction(:, iStep) = E0/angFreq * envelope * aimag(exp(imag*(time*angFreq&
+              & + this%phase)) * this%fieldDir)
+        else
+          this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
+              & * this%fieldDir)
+        end if
         if (this%tVerboseDyn) then
           write(laserDat%unit, "(5F15.8)") time * au__fs,&
               & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
         end if
       end if
 
-      if (this%tUseVectorPotential) then
-        this%tdVecPot(:, iStep) = E0/angFreq * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
-          & * this%fieldDir)
-      end if
     end do
 
     call closeFile(laserDat)
@@ -4272,12 +4271,12 @@ contains
       call getTDFunction(this, this%startTime)
     end if
     if (this%tKick .and. this%tUseVectorPotential) then
-      ! initialize tdVecPot array, needed when calling updateH for the Peierls phase
+      ! initialize tdFunction array, needed when calling updateH for the Peierls phase
       if (this%iCall == 1) then
-        allocate(this%tdVecPot(3, 0:this%nSteps))
+        allocate(this%tdFunction(3, 0:this%nSteps))
       end if
-      this%tdVecPot = 0.0_dp                       !so H1 = H_gs
-      this%tdVecPot(this%currPolDir,:) = -c * this%field
+      this%tdFunction = 0.0_dp                       !so H1 = H_gs
+      this%tdFunction(this%currPolDir,:) = -c * this%field
     end if
 
     call initializeTDVariables(this, densityMatrix, this%trho, this%H1, this%Ssqr, this%Sinv, H0,&
@@ -4370,8 +4369,6 @@ contains
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
       if (.not. this%tUseVectorPotential) then
         call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
-      else
-!        this%tdVecPot(this%currPolDir,:) = -c * this%field
       end if
     end if
 
