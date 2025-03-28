@@ -50,6 +50,8 @@ timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_vecpot_currents       #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/h-BN_VecPot                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/h-BN_VecPot_spinpol           #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/C4H6_rs_laser                 #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/C4H6_rs_laser_VecPot          #? OMP_THREADS == 1 and not WITH_MPI
 
 timeprop/benzene_rs                    #? OMP_THREADS <= 1 and not WITH_MPI
 
