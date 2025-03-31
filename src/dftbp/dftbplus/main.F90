@@ -4816,10 +4816,10 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    class(TMixerReal), intent(inout) :: chrgMixerReal
+    class(TMixerReal), allocatable, intent(inout) :: chrgMixerReal
 
     !> Complex charge mixing object
-    class(TMixerCmplx), intent(inout), allocatable :: chrgMixerCmplx
+    class(TMixerCmplx), allocatable, intent(inout) :: chrgMixerCmplx
 
     !> Output electrons
     real(dp), intent(in) :: qOutput(:,:,:)
