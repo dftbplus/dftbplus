@@ -89,9 +89,9 @@ contains
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !! based on Time Dependent DFRT
   subroutine LinRespGrad_old(env, this, denseDesc, grndEigVecs, grndEigVal, sccCalc, dq, coord0,&
-      & SSqr, filling, species0, iNeighbour, img2CentCell, orb, fdTagged, taggedWriter, hybridXc,&
-      & omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad, nacv, derivator, rhoSqr,&
-      & occNatural, naturalOrbs)
+      & SSqr, filling, species0, iNeighbour, img2CentCell, orb, fdAutoTest, fdResults,&
+      & taggedWriter, hybridXc, omega, allOmega, deltaRho, shift, skHamCont, skOverCont, excgrad,&
+      & nacv, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -135,7 +135,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> File descriptor for the tagged data output
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutoTest
+
+    !> File id for tagged results information
+    type(TFileDescr), intent(in) :: fdResults
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -628,7 +631,7 @@ contains
       ! Transition charges for state nstat
       if (this%writeTransQ) then
         call getAndWriteTransitionCharges(env, this, rpa, transChrg, sym, denseDesc, ovrXev,&
-            & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+            & grndEigVecs, xpy, fdTransQ, fdAutoTest, taggedWriter)
       end if
 
       if (this%tSpin) then
@@ -636,12 +639,12 @@ contains
         call getExcSpin(env, orb, rpa, denseDesc, Ssq, xpy, filling, ovrXev, grndEigVecs)
 
         call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-            & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+            & transitionDipoles, fdAutoTest, taggedWriter, fdExc, Ssq)
 
       else
 
         call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-            & transitionDipoles, fdTagged, taggedWriter, fdExc)
+            & transitionDipoles, fdAutoTest, taggedWriter, fdExc)
 
       end if
 
@@ -873,7 +876,7 @@ contains
         call fixNACVPhase(nacv)
 
         if (this%writeNacv) then
-          call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdTagged, taggedWriter,&
+          call writeNACV(this%indNACouplings(1), this%indNACouplings(2), fdAutoTest, taggedWriter,&
               & nacv)
         end if
 
@@ -2922,7 +2925,7 @@ contains
   !> Write out transitions from ground to excited state along with single particle transitions and
   !! dipole strengths.
   subroutine writeExcitations(lr, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-      & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+      & transitionDipoles, fdAutoTest, taggedWriter, fdExc, Ssq)
 
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
@@ -2955,7 +2958,7 @@ contains
     type(TFileDescr), intent(in) :: fdTrans
 
     !> File unit for tagged output (> -1 for write out)
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutoTest
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -3110,34 +3113,34 @@ contains
     deallocate(wvec)
     deallocate(wvin)
 
-    if (fdTagged%isConnected()) then
+    if (fdAutoTest%isConnected()) then
 
       call degeneracyFind%init(elecTolMax)
       call degeneracyFind%degeneracyTest(eval, tDegenerate)
       if (.not.tDegenerate) then
-        call taggedWriter%write(fdTagged%unit, tagLabels%excEgy, eval)
-        call taggedWriter%write(fdTagged%unit, tagLabels%excOsc, osz)
+        call taggedWriter%write(fdAutoTest%unit, tagLabels%excEgy, eval)
+        call taggedWriter%write(fdAutoTest%unit, tagLabels%excOsc, osz)
         ! Since the transition dipole file exists, transition dipoles had been calculated
         if (fdTransDip%isConnected()) then
-          call taggedWriter%write(fdTagged%unit, tagLabels%excDipole,&
+          call taggedWriter%write(fdAutoTest%unit, tagLabels%excDipole,&
               & sqrt(sum(transitionDipoles**2,dim=2)))
         end if
       else
         degenerate = DegeneracyFind%degenerateRanges()
-        call taggedWriter%write(fdTagged%unit, tagLabels%excEgy, eval(degenerate(1,:)))
+        call taggedWriter%write(fdAutoTest%unit, tagLabels%excEgy, eval(degenerate(1,:)))
         ! sum oscillator strength over any degenerate levels
         allocate(oDeg(DegeneracyFind%degenerateGroups()))
         do ii = 1, size(oDeg)
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
-        call taggedWriter%write(fdTagged%unit, tagLabels%excOsc, oDeg)
+        call taggedWriter%write(fdAutoTest%unit, tagLabels%excOsc, oDeg)
         ! Since the transition dipole file exists, transition dipoles had been calculated
         if (fdTransDip%isConnected()) then
           oDeg(:) = 0.0_dp
           do ii = 1, size(oDeg)
             oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
           end do
-          call taggedWriter%write(fdTagged%unit, tagLabels%excDipole, oDeg)
+          call taggedWriter%write(fdAutoTest%unit, tagLabels%excDipole, oDeg)
         end if
       end if
     end if
@@ -4207,7 +4210,7 @@ contains
 
 
   !> Write out non-adiabatic coupling vectors.
-  subroutine writeNACV(iLev, jLev, fdTagged, taggedWriter, nacv)
+  subroutine writeNACV(iLev, jLev, fdAutoTest, taggedWriter, nacv)
 
     !> Start level for coupling
     integer, intent(in) :: iLev
@@ -4216,7 +4219,7 @@ contains
     integer, intent(in) :: jLev
 
     !> File descriptor for the tagged data output
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutoTest
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -4242,7 +4245,7 @@ contains
 
     call closeFile(fdNaCoupl)
 
-    if (fdTagged%isConnected()) call taggedWriter%write(fdTagged%unit, tagLabels%nacv, nacv)
+    if (fdAutoTest%isConnected()) call taggedWriter%write(fdAutoTest%unit, tagLabels%nacv, nacv)
 
   end subroutine writeNACV
 
@@ -5292,7 +5295,7 @@ contains
   !! Initialization prevents entering this routine for triplets for which the charges
   !! would simply be zero.
   subroutine getAndWriteTransitionCharges(env, lr, rpa, transChrg, sym, denseDesc, ovrXev, &
-      & grndEigVecs, xpy, fdTransQ, fdTagged, taggedWriter)
+      & grndEigVecs, xpy, fdTransQ, fdAutoTest, taggedWriter)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5325,7 +5328,7 @@ contains
     type(TFileDescr) :: fdTransQ
 
     !> File unit for tagged output (> -1 for write out)
-    type(TFileDescr), intent(in) :: fdTagged
+    type(TFileDescr), intent(in) :: fdAutoTest
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -5364,8 +5367,8 @@ contains
 
     call closeFile(fdTransQ)
 
-    if (fdTagged%isConnected()) then
-      call taggedWriter%write(fdTagged%unit, tagLabels%transQ, atomicTransQ**2)
+    if (fdAutoTest%isConnected()) then
+      call taggedWriter%write(fdAutoTest%unit, tagLabels%transQ, atomicTransQ**2)
     end if
 
   end subroutine getAndWriteTransitionCharges
