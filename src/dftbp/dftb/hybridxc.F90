@@ -23,7 +23,7 @@ module dftbp_dftb_hybridxc
   use dftbp_dftb_rshgamma, only : getCamAnalyticalGammaValue_workhorse,&
       & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
-      & getddLrNumericalGammaValue_workhorse
+      & getddLrNumericalGammaValue_workhorse, getddHfAnalyticalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : unpackHS, getUnpackedOverlapPrime_real,&
       & getUnpackedOverlapPrime_kpts
@@ -572,8 +572,8 @@ contains
           this%hfdGammaAtDamping(iSp1, iSp2)&
               & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%gammaDamping)
-          this%hfddGammaAtDamping(iSp1, iSp2) = getddHfNumericalGammaDeriv(this, iSp1, iSp2,&
-              & this%gammaDamping, delta)
+          this%hfddGammaAtDamping(iSp1, iSp2) = getddHfAnalyticalGammaValue_workhorse(&
+              & this%hubbu(iSp1), this%hubbu(iSp2), this%gammaDamping)
         end do
       end do
     end if
@@ -3645,36 +3645,6 @@ contains
         & dist, delta)
 
   end function getddLrNumericalGammaValue
-
-
-  !> Returns the numerical second derivative of full-range Hartree-Fock gamma, by means of a central
-  !! finite difference.
-  function getddHfNumericalGammaDeriv(this, iSp1, iSp2, dist, delta) result(ddGamma)
-
-    !> Class instance
-    class(THybridXcFunc), intent(in) :: this
-
-    !> First species
-    integer, intent(in) :: iSp1
-
-    !> Second species
-    integer, intent(in) :: iSp2
-
-    !> Distance between atoms
-    real(dp), intent(in) :: dist
-
-    !> Delta for finite differences
-    real(dp), intent(in) :: delta
-
-    !> Numerical gamma derivative
-    real(dp) :: ddGamma
-
-    ddGamma = (&
-        & getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist + delta)&
-        & - getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist - delta))&
-        & / (2.0_dp * delta)
-
-  end function getddHfNumericalGammaDeriv
 
 
   !> Calculates analytical, truncated Coulomb, long-range gamma.

@@ -138,6 +138,8 @@ contains
     call setNeighbourListOrig(main%neighbourList, env, nNeighbour, iNeighbour, neighDist, cutOff,&
         & main%coord0, main%species0, coordNeighbours, neighbour2CentCell, main%rCellVec,&
         & main%nAllAtom, main%img2CentCell, main%iCellVec, main%coord, main%species)
+    main%areNeighSetExternal = .true.
+    main%tCoordsChanged = .true.
 
   end subroutine setNeighbourList
 
