@@ -97,3 +97,7 @@ ElectronDynamics = {
     }
     FieldStrength [v/a] = 0.001
 }
+
+Parallel = {
+UseOmpThreads = Yes
+}
