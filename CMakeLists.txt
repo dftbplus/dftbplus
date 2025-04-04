@@ -233,7 +233,7 @@ endif()
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "87a46cdf5281ad75909083c4f72354d54abdf95d")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "6d02b6e18af35078ee0d2c7169f925914382d243")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
@@ -280,7 +280,7 @@ if(WITH_TBLITE)
   endif()
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "fa115545f7a6ba8e3f0e62df5cdace8781f4d309")  # do not change manually!
+  set(TBLITE_GIT_TAG "28b8d2927ebcba0cf72f225dc78c053f7a781fa8")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
