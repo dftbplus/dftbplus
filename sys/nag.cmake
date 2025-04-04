@@ -27,7 +27,7 @@ set(Fortran_FLAGS_RELEASE "-O2"
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -f2008 -nan -C=all"
+set(Fortran_FLAGS_DEBUG "-g -f2018 -nan -C=all"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions

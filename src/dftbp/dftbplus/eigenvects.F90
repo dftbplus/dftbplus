@@ -18,7 +18,7 @@ module dftbp_dftbplus_eigenvects
   use dftbp_extlibs_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&
       & elsi_ev_real, elsi_write_mat_real
   use dftbp_io_message, only : cleanShutdown
-  use dftbp_math_eigensolver, only : hegv, hegvd, gvr
+  use dftbp_math_eigensolver, only : hegv, hegvd, hegvr
 #:if WITH_MAGMA
   use dftbp_math_eigensolver, only : magmaHegvd
 #:endif
@@ -88,7 +88,7 @@ contains
     case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
-      call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
+      call hegvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%magmaGvd)
   #:if WITH_MAGMA
       call magmaHegvd(env%gpu%nGpu, HSqrReal, SSqrReal, eigen, 'L', jobz)
@@ -146,7 +146,7 @@ contains
     case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
-      call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+      call hegvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%magmaGvd)
   #:if WITH_MAGMA
       call magmaHegvd(env%gpu%nGpu, HSqrCplx, SSqrCplx, eigen, 'L', jobz)
