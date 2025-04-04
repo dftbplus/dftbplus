@@ -32,5 +32,9 @@ if(WITH_MAGMA)
     ${curdir}/magmac.c)
 endif()
 
+if(WITH_MBD)
+  list(APPEND sources-fpp ${curdir}/mbd.F90)
+endif()
+
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
 set(ALL-SOURCES-C ${ALL-SOURCES-C} ${sources-c} PARENT_SCOPE)

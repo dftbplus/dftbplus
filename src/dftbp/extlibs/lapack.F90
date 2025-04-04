@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,31 +20,31 @@ module dftbp_extlibs_lapack
     subroutine ssyev(jobz, uplo, nn, aa, lda, ww, work, lwork, info)
       import rsp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssyev
   end interface ssyev
@@ -57,31 +57,31 @@ module dftbp_extlibs_lapack
     subroutine dsyev(jobz, uplo, nn, aa, lda, ww, work, lwork, info)
       import rdp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsyev
   end interface dsyev
@@ -94,34 +94,34 @@ module dftbp_extlibs_lapack
     subroutine cheev(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
       import rsp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rsp), intent(inout) :: rwork(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine cheev
   end interface cheev
@@ -134,37 +134,221 @@ module dftbp_extlibs_lapack
     subroutine zheev(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
       import rdp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rdp), intent(inout) :: rwork(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zheev
   end interface zheev
+
+
+  !> Real symmetric eigensolver (divide and conquer)
+  interface ssyevd
+
+    !> Real symmetric eigensolver, divide and conquer
+    subroutine ssyevd(jobz, uplo, nn, aa, lda, ww, work, lwork, iwork, liwork, info)
+      import rsp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      real(rsp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rsp), intent(out) :: ww(*)
+
+      !> Workspace
+      real(rsp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine ssyevd
+  end interface ssyevd
+
+
+  !> Double precision symmetric eigensolver (divide and conquer)
+  interface dsyevd
+
+    !> Real symmetric eigensolver, divide and conquer
+    subroutine dsyevd(jobz, uplo, nn, aa, lda, ww, work, lwork, iwork, liwork, info)
+      import rdp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      real(rdp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rdp), intent(out) :: ww(*)
+
+      !> Workspace
+      real(rdp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine dsyevd
+  end interface dsyevd
+
+
+  !> Complex hermitian eigensolver (divide and conquer)
+  interface cheevd
+
+    !> Complex hermitian eigensolver
+    subroutine cheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
+      import rsp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      complex(rsp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rsp), intent(out) :: ww(*)
+
+      !> Workspace
+      complex(rsp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Real workspace
+      real(rsp), intent(inout) :: rwork(*)
+
+      !> Size of rwork
+      integer, intent(in) :: lrwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine cheevd
+  end interface cheevd
+
+
+  !> Double complex hermitian eigensolver (divide and conquer)
+  interface zheevd
+
+    !> Double complex hermitian eigensolver
+    subroutine zheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
+      import rdp
+
+      !> Job type
+      character, intent(in) :: jobz
+
+      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: uplo
+
+      !> Matrix dimension
+      integer, intent(in) :: nn
+
+      !> Leading dimension of A
+      integer, intent(in) :: lda
+
+      !> Matrix A
+      complex(rdp), intent(inout) :: aa(lda, *)
+
+      !> Eigenvalues
+      real(rdp), intent(out) :: ww(*)
+
+      !> Workspace
+      complex(rdp), intent(inout) :: work(*)
+
+      !> Workspace sizing
+      integer, intent(in) :: lwork
+
+      !> Real workspace
+      real(rdp), intent(inout) :: rwork(*)
+
+      !> Size of rwork
+      integer, intent(in) :: lrwork
+
+      !> Integer workspace
+      integer, intent(inout) :: iwork(*)
+
+      !> Integer workspace sizing
+      integer, intent(in) :: liwork
+
+      !> State of routine on return
+      integer, intent(out) :: info
+    end subroutine zheevd
+  end interface zheevd
 
 
   !> Real symmetric generalised eigensolver
@@ -178,37 +362,37 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rsp), intent(inout) :: bb(ldb, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssygv
   end interface ssygv
@@ -225,37 +409,37 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rdp), intent(inout) :: bb(ldb, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsygv
   end interface dsygv
@@ -272,40 +456,40 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rsp), intent(inout) :: bb(ldb, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rsp), intent(inout) :: rwork(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine chegv
   end interface chegv
@@ -322,40 +506,40 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rdp), intent(inout) :: bb(ldb, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rdp), intent(inout) :: rwork(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zhegv
   end interface zhegv
@@ -372,43 +556,43 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rsp), intent(inout) :: bb(ldb, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssygvd
   end interface ssygvd
@@ -425,43 +609,43 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rdp), intent(inout) :: bb(ldb, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsygvd
   end interface dsygvd
@@ -478,49 +662,49 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rsp), intent(inout) :: bb(ldb, *)
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rsp), intent(inout) :: rwork(*)
 
-      !> size of rwork
+      !> Size of rwork
       integer, intent(in) :: lrwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine chegvd
   end interface chegvd
@@ -537,49 +721,49 @@ module dftbp_extlibs_lapack
       !> Specifies the problem type to be solved
       integer, intent(in) :: itype
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rdp), intent(inout) :: bb(ldb, *)
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> workspace
+      !> Workspace
       complex(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rdp), intent(inout) :: rwork(*)
 
-      !> workspace size for rwork
+      !> Workspace size for rwork
       integer, intent(in) :: lrwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zhegvd
   end interface zhegvd
@@ -593,68 +777,68 @@ module dftbp_extlibs_lapack
         & mm, ww, zz, ldz, isuppz, work, lwork, iwork, liwork, info)
       import rsp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
-      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
       !> eigenvalues
       character, intent(in) :: range
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
       !> Lower range if in mode range =  V
       real(rsp), intent(in) :: vl
 
-      !> upper range
+      !> Upper range
       real(rsp), intent(in) :: vu
 
-      !> lower number if in mode range =  I
+      !> Lower number if in mode range =  I
       integer, intent(in) :: il
 
-      !> upper number if in mode range =  I
+      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
 
-      !> absolute error tolerance for the eigenvalues
+      !> Absolute error tolerance for the eigenvalues
       real(rsp), intent(in) :: abstol
 
-      !> total number of eigenvalues found
+      !> Total number of eigenvalues found
       integer, intent(out) :: mm
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> leading dimension of Z
+      !> Leading dimension of Z
       integer, intent(in) :: ldz
 
-      !> matrix Z
+      !> Matrix Z
       real(rsp), intent(out) :: zz(ldz, *)
 
-      !> support of the eigenvectors in Z
+      !> Support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssyevr
   end interface ssyevr
@@ -668,68 +852,68 @@ module dftbp_extlibs_lapack
         & mm, ww, zz, ldz, isuppz, work, lwork, iwork, liwork, info)
       import rdp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
-      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
       !> eigenvalues
       character, intent(in) :: range
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
       !> Lower range if in mode range =  V
       real(rdp), intent(in) :: vl
 
-      !> upper range
+      !> Upper range
       real(rdp), intent(in) :: vu
 
-      !> lower number if in mode range =  I
+      !> Lower number if in mode range =  I
       integer, intent(in) :: il
 
-      !> upper number if in mode range =  I
+      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
 
-      !> absolute error tolerance for the eigenvalues
+      !> Absolute error tolerance for the eigenvalues
       real(rdp), intent(in) :: abstol
 
-      !> total number of eigenvalues found
+      !> Total number of eigenvalues found
       integer, intent(out) :: mm
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> leading dimension of Z
+      !> Leading dimension of Z
       integer, intent(in) :: ldz
 
-      !> matrix Z
+      !> Matrix Z
       real(rdp), intent(out) :: zz(ldz, *)
 
-      !> support of the eigenvectors in Z
+      !> Support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsyevr
   end interface dsyevr
@@ -744,74 +928,74 @@ module dftbp_extlibs_lapack
         & info)
       import rsp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
-      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
       !> eigenvalues
       character, intent(in) :: range
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
       !> Lower range if in mode range =  V
       real(rsp), intent(in) :: vl
 
-      !> upper range
+      !> Upper range
       real(rsp), intent(in) :: vu
 
-      !> lower number if in mode range =  I
+      !> Lower number if in mode range =  I
       integer, intent(in) :: il
 
-      !> upper number if in mode range =  I
+      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
 
-      !> absolute error tolerance for the eigenvalues
+      !> Absolute error tolerance for the eigenvalues
       real(rsp), intent(in) :: abstol
 
-      !> total number of eigenvalues found
+      !> Total number of eigenvalues found
       integer, intent(out) :: mm
 
       !> Eigenvalues
       real(rsp), intent(out) :: ww(*)
 
-      !> leading dimension of Z
+      !> Leading dimension of Z
       integer, intent(in) :: ldz
 
-      !> matrix Z
+      !> Matrix Z
       complex(rsp), intent(out) :: zz(ldz, *)
 
-      !> support of the eigenvectors in Z
+      !> Support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
 
-      !> workspace
+      !> Workspace
       complex(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rsp), intent(inout) :: rwork(*)
 
-      !> size of rwork
+      !> Size of rwork
       integer, intent(in) :: lrwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine cheevr
   end interface cheevr
@@ -826,74 +1010,74 @@ module dftbp_extlibs_lapack
         & info)
       import rdp
 
-      !> job type
+      !> Job type
       character, intent(in) :: jobz
 
-      !> choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
+      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
       !> eigenvalues
       character, intent(in) :: range
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
       !> Lower range if in mode range =  V
       real(rdp), intent(in) :: vl
 
-      !> upper range
+      !> Upper range
       real(rdp), intent(in) :: vu
 
-      !> lower number if in mode range =  I
+      !> Lower number if in mode range =  I
       integer, intent(in) :: il
 
-      !> upper number if in mode range =  I
+      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
 
-      !> absolute error tolerance for the eigenvalues
+      !> Absolute error tolerance for the eigenvalues
       real(rdp), intent(in) :: abstol
 
-      !> total number of eigenvalues found
+      !> Total number of eigenvalues found
       integer, intent(out) :: mm
 
-      !> eigenvalues
+      !> Eigenvalues
       real(rdp), intent(out) :: ww(*)
 
-      !> leading dimension of Z
+      !> Leading dimension of Z
       integer, intent(in) :: ldz
 
-      !> matrix Z
+      !> Matrix Z
       complex(rdp), intent(out) :: zz(ldz, *)
 
-      !> support of the eigenvectors in Z
+      !> Support of the eigenvectors in Z
       integer, intent(out) :: isuppz(*)
 
-      !> workspace
+      !> Workspace
       complex(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> real workspace
+      !> Real workspace
       real(rdp), intent(inout) :: rwork(*)
 
-      !> size of rwork
+      !> Size of rwork
       integer, intent(in) :: lrwork
 
-      !> integer workspace
+      !> Integer workspace
       integer, intent(inout) :: iwork(*)
 
-      !> size of integer workspace
+      !> Size of integer workspace
       integer, intent(in) :: liwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zheevr
   end interface zheevr
@@ -909,16 +1093,16 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine spotrf
   end interface spotrf
@@ -934,16 +1118,16 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dpotrf
   end interface dpotrf
@@ -959,16 +1143,16 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine cpotrf
   end interface cpotrf
@@ -984,16 +1168,16 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zpotrf
   end interface zpotrf
@@ -1012,22 +1196,22 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rsp), intent(in) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssygst
   end interface ssygst
@@ -1046,22 +1230,22 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rdp), intent(in) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsygst
   end interface dsygst
@@ -1080,22 +1264,22 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rsp), intent(in) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine chegst
   end interface chegst
@@ -1114,243 +1298,25 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       complex(rdp), intent(in) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zhegst
   end interface zhegst
-
-
-  !> Real banded symmetric generalised eigensolver
-  interface ssbgv
-
-    !> Real banded symmetric generalised eigensolver
-    subroutine ssbgv(jobz, uplo, nn, ka, kb, ab, ldab, bb, ldbb, ww, zz, ldz,&
-        & work, info)
-      import rsp
-
-      !> job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of superdiagonals/subdiagonals for U / L
-      integer, intent(in) :: ka
-
-      !> number of subdiagonals/superdiagonals for U / L
-      integer, intent(in) :: kb
-
-      !> leading dimension of ab
-      integer, intent(in) :: ldab
-
-      !> matrix ab
-      real(rsp), intent(inout) :: ab(ldab, *)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldbb
-
-      !> matrix B
-      real(rsp), intent(inout) :: bb(ldbb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> matrix Z
-      real(rsp), intent(out) :: zz(ldz, *)
-
-      !> workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine ssbgv
-  end interface ssbgv
-
-
-  !> Double precision banded symmetric generalised eigensolver
-  interface dsbgv
-
-    !> Double precision banded symmetric generalised eigensolver
-    subroutine dsbgv(jobz, uplo, nn, ka, kb, ab, ldab, bb, ldbb, ww, zz, ldz,&
-        & work, info)
-      import rdp
-
-      !> job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of superdiagonals/subdiagonals for U / L
-      integer, intent(in) :: ka
-
-      !> number of subdiagonals/superdiagonals for U / L
-      integer, intent(in) :: kb
-
-      !> leading dimension for ab
-      integer, intent(in) :: ldab
-
-      !> matrix ab
-      real(rdp), intent(inout) :: ab(ldab, *)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldbb
-
-      !> matrix B
-      real(rdp), intent(inout) :: bb(ldbb, *)
-
-      !> eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> matrix Z
-      real(rdp), intent(out) :: zz(ldz, *)
-
-      !> workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine dsbgv
-  end interface dsbgv
-
-
-  !> Complex banded hermitian generalised eigensolver
-  interface chbgv
-
-    !> Complex banded hermitian generalised eigensolver
-    subroutine chbgv(jobz, uplo, nn, ka, kb, ab, ldab, bb, ldbb, ww, zz, ldz,&
-        & work, rwork, info)
-      import rsp
-
-      !> job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of superdiagonals/subdiagonals for U / L
-      integer, intent(in) :: ka
-
-      !> number of subdiagonals/superdiagonals for U / L
-      integer, intent(in) :: kb
-
-      !> leading dimension of ab
-      integer, intent(in) :: ldab
-
-      !> matrix ab
-      complex(rsp), intent(inout) :: ab(ldab, *)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldbb
-
-      !> matrix B
-      complex(rsp), intent(inout) :: bb(ldbb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> matrix Z
-      complex(rsp), intent(out) :: zz(ldz, *)
-
-      !> workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine chbgv
-  end interface chbgv
-
-
-  !> Double complex banded hermitian generalised eigensolver
-  interface zhbgv
-
-    !> Double complex banded hermitian generalised eigensolver
-    subroutine zhbgv(jobz, uplo, nn, ka, kb, ab, ldab, bb, ldbb, ww, zz, ldz,&
-        & work, rwork, info)
-      import rdp
-
-      !> job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> matrix dimension
-      integer, intent(in) :: nn
-
-      !> number of superdiagonals/subdiagonals for U / L
-      integer, intent(in) :: ka
-
-      !> number of subdiagonals/superdiagonals for U / L
-      integer, intent(in) :: kb
-
-      !> leading dimension of ab
-      integer, intent(in) :: ldab
-
-      !> matrix ab
-      complex(rdp), intent(inout) :: ab(ldab, *)
-
-      !> leading dimension of B
-      integer, intent(in) :: ldbb
-
-      !> matrix B
-      complex(rdp), intent(inout) :: bb(ldbb, *)
-
-      !> eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> matrix Z
-      complex(rdp), intent(out) :: zz(ldz, *)
-
-      !> workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> real workspace
-      real(rdp), intent(inout) :: rwork(*)
-
-      !> state of routine on return
-      integer, intent(out) :: info
-    end subroutine zhbgv
-  end interface zhbgv
 
 
   !> Solve overdetermined or underdetermined real linear systems
@@ -1360,28 +1326,28 @@ module dftbp_extlibs_lapack
     subroutine sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
       import rsp
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
-      !> number of right hand side equations
+      !> Number of right hand side equations
       integer, intent(in) :: nrhs
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rsp), intent(inout) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine sgesv
   end interface sgesv
@@ -1394,28 +1360,28 @@ module dftbp_extlibs_lapack
     subroutine dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
       import rdp
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
-      !> number of right hand side equations
+      !> Number of right hand side equations
       integer, intent(in) :: nrhs
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> leading dimension of B
+      !> Leading dimension of B
       integer, intent(in) :: ldb
 
-      !> matrix B
+      !> Matrix B
       real(rdp), intent(inout) :: bb(ldb, *)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dgesv
   end interface dgesv
@@ -1428,22 +1394,22 @@ module dftbp_extlibs_lapack
     subroutine sgetrf(mm, nn, aa, lda, ipiv, info)
       import rsp
 
-      !> number of rows of the matrix
+      !> Number of rows of the matrix
       integer, intent(in) :: mm
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine sgetrf
   end interface sgetrf
@@ -1456,22 +1422,22 @@ module dftbp_extlibs_lapack
     subroutine dgetrf(mm, nn, aa, lda, ipiv, info)
       import rdp
 
-      !> number of rows of the matrix
+      !> Number of rows of the matrix
       integer, intent(in) :: mm
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dgetrf
   end interface dgetrf
@@ -1484,22 +1450,22 @@ module dftbp_extlibs_lapack
     subroutine cgetrf(mm, nn, aa, lda, ipiv, info)
       import rsp
 
-      !> number of rows of the matrix
+      !> Number of rows of the matrix
       integer, intent(in) :: mm
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rsp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine cgetrf
   end interface cgetrf
@@ -1512,22 +1478,22 @@ module dftbp_extlibs_lapack
     subroutine zgetrf(mm, nn, aa, lda, ipiv, info)
       import rdp
 
-      !> number of rows of the matrix
+      !> Number of rows of the matrix
       integer, intent(in) :: mm
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       complex(rdp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine zgetrf
   end interface zgetrf
@@ -1540,25 +1506,25 @@ module dftbp_extlibs_lapack
     subroutine sgetri(nn, aa, lda, ipiv, work, lwork, info)
       import rsp
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(in) :: ipiv(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine sgetri
   end interface sgetri
@@ -1571,25 +1537,25 @@ module dftbp_extlibs_lapack
     subroutine dgetri(nn, aa, lda, ipiv, work, lwork, info)
       import rdp
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(in) :: ipiv(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dgetri
   end interface dgetri
@@ -1605,25 +1571,25 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rsp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> workspace
+      !> Workspace
       real(rsp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine ssytrf
   end interface ssytrf
@@ -1639,25 +1605,25 @@ module dftbp_extlibs_lapack
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
 
-      !> matrix dimension
+      !> Matrix dimension
       integer, intent(in) :: nn
 
       !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> matrix A
+      !> Matrix A
       real(rdp), intent(inout) :: aa(lda, *)
 
-      !> pivot array
+      !> Pivot array
       integer, intent(out) :: ipiv(*)
 
-      !> workspace
+      !> Workspace
       real(rdp), intent(inout) :: work(*)
 
-      !> workspace sizing
+      !> Workspace sizing
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(out) :: info
     end subroutine dsytrf
   end interface dsytrf
@@ -1670,13 +1636,13 @@ module dftbp_extlibs_lapack
     subroutine slarnv(idist, iseed, nn, xx)
       import rsp
 
-      !> distribution choice
+      !> Distribution choice
       integer, intent(in) :: idist
 
-      !> generator seed
+      !> Generator seed
       integer, intent(inout) :: iseed(4)
 
-      !> vector dimension
+      !> Vector dimension
       integer, intent(in) :: nn
 
       !> Random values on exit
@@ -1692,13 +1658,13 @@ module dftbp_extlibs_lapack
     subroutine dlarnv(idist, iseed, nn, xx)
       import rdp
 
-      !> distribution choice
+      !> Distribution choice
       integer, intent(in) :: idist
 
-      !> generator seed
+      !> Generator seed
       integer, intent(inout) :: iseed(4)
 
-      !> vector dimension
+      !> Vector dimension
       integer, intent(in) :: nn
 
       !> Random values on exit
@@ -1714,13 +1680,13 @@ module dftbp_extlibs_lapack
     subroutine clarnv(idist, iseed, nn, xx)
       import rsp
 
-      !> distribution choice
+      !> Distribution choice
       integer, intent(in) :: idist
 
-      !> generator seed
+      !> Generator seed
       integer, intent(inout) :: iseed(4)
 
-      !> vector dimension
+      !> Vector dimension
       integer, intent(in) :: nn
 
       !> Random values on exit
@@ -1736,13 +1702,13 @@ module dftbp_extlibs_lapack
     subroutine zlarnv(idist, iseed, nn, xx)
       import rdp
 
-      !> distribution choice
+      !> Distribution choice
       integer, intent(in) :: idist
 
-      !> generator seed
+      !> Generator seed
       integer, intent(inout) :: iseed(4)
 
-      !> vector dimension
+      !> Vector dimension
       integer, intent(in) :: nn
 
       !> Random values on exit
@@ -1760,7 +1726,7 @@ module dftbp_extlibs_lapack
       !> Specifies the parameter to be returned
       integer, intent(in) :: ispec
 
-      !> name of alling subroutine
+      !> Name of alling subroutine
       character, intent(in) :: name
 
       !> The character options to the subroutine NAME, concatenated together
@@ -1778,7 +1744,7 @@ module dftbp_extlibs_lapack
       !> Problem dimensions for the subroutine NAME
       integer, intent(in) :: n4
 
-      !> returned parameter
+      !> Returned parameter
       integer :: ilaenv
     end function ilaenv
   end interface ilaenv
@@ -1791,10 +1757,10 @@ module dftbp_extlibs_lapack
     function slamch(cmach)
       import rsp
 
-      !> name of parameter to return
+      !> Name of parameter to return
       character, intent(in) :: cmach
 
-      !> parameter value
+      !> Parameter value
       real(rsp) :: slamch
     end function slamch
   end interface slamch
@@ -1807,10 +1773,10 @@ module dftbp_extlibs_lapack
     function dlamch(cmach)
       import rdp
 
-      !> name of parameter to return
+      !> Name of parameter to return
       character, intent(in) :: cmach
 
-      !> parameter value
+      !> Parameter value
       real(rdp) :: dlamch
     end function dlamch
   end interface dlamch
@@ -1822,10 +1788,10 @@ module dftbp_extlibs_lapack
     !> Error handler for the LAPACK routines
     subroutine xerbla(srname, info)
 
-      !> calling subroutine name
+      !> Calling subroutine name
       character(6), intent(in) :: srname
 
-      !> info state of the routine
+      !> Info state of the routine
       integer, intent(in) :: info
     end subroutine xerbla
   end interface xerbla
@@ -1837,10 +1803,10 @@ module dftbp_extlibs_lapack
     subroutine rgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
       import rsp
 
-      !> job type for vt
+      !> Job type for vt
       character, intent(in) :: jobvt
 
-      !> job type for u
+      !> Job type for u
       character, intent(in) :: jobu
 
       !> First matrix dimension for A
@@ -1849,19 +1815,19 @@ module dftbp_extlibs_lapack
       !> Second matrix dimension for A
       integer, intent(in) :: n
 
-      !> leading dimension of A
+      !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> leading dimension of U
+      !> Leading dimension of U
       integer, intent(in) :: ldu
 
-      !> leading dimension of Vt
+      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
 
-      !> matrix to decompose
+      !> Matrix to decompose
       real(rsp), intent(inout) :: a(lda,*)
 
-      !> singular values on return min(m,n)
+      !> Singular values on return min(m,n)
       real(rsp), intent(out) :: s(*)
 
       !> Left singular vectors
@@ -1870,13 +1836,13 @@ module dftbp_extlibs_lapack
       !> Right singular vectors
       real(rsp), intent(out) :: vt(ldvt,*)
 
-      !> work space
+      !> Work space
       real(rsp), intent(out) :: work(*)
 
-      !> size of real work space
+      !> Size of real work space
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(in) :: info
 
     end subroutine rgesvd
@@ -1890,10 +1856,10 @@ module dftbp_extlibs_lapack
     subroutine dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
       import rdp
 
-      !> job type for vt
+      !> Job type for vt
       character, intent(in) :: jobvt
 
-      !> job type for u
+      !> Job type for u
       character, intent(in) :: jobu
 
       !> First matrix dimension for A
@@ -1902,19 +1868,19 @@ module dftbp_extlibs_lapack
       !> Second matrix dimension for A
       integer, intent(in) :: n
 
-      !> leading dimension of A
+      !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> leading dimension of U
+      !> Leading dimension of U
       integer, intent(in) :: ldu
 
-      !> leading dimension of Vt
+      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
 
-      !> matrix to decompose
+      !> Matrix to decompose
       real(rdp), intent(inout) :: a(lda,*)
 
-      !> singular values on return min(m,n)
+      !> Singular values on return min(m,n)
       real(rdp), intent(out) :: s(*)
 
       !> Left singular vectors
@@ -1923,13 +1889,13 @@ module dftbp_extlibs_lapack
       !> Right singular vectors
       real(rdp), intent(out) :: vt(ldvt,*)
 
-      !> work space
+      !> Work space
       real(rdp), intent(out) :: work(*)
 
-      !> size of work space
+      !> Size of work space
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(in) :: info
 
     end subroutine dgesvd
@@ -1943,10 +1909,10 @@ module dftbp_extlibs_lapack
     subroutine cgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
       import rsp
 
-      !> job type for vt
+      !> Job type for vt
       character, intent(in) :: jobvt
 
-      !> job type for u
+      !> Job type for u
       character, intent(in) :: jobu
 
       !> First matrix dimension for A
@@ -1955,22 +1921,22 @@ module dftbp_extlibs_lapack
       !> Second matrix dimension for A
       integer, intent(in) :: n
 
-      !> leading dimension of A
+      !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> leading dimension of U
+      !> Leading dimension of U
       integer, intent(in) :: ldu
 
-      !> leading dimension of Vt
+      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
 
-      !> matrix to decompose
+      !> Matrix to decompose
       complex(rsp), intent(inout) :: a(lda,*)
 
-      !> singular values on return min(m,n)
+      !> Singular values on return min(m,n)
       real(rsp), intent(out) :: s(*)
 
-      !> real workspace
+      !> Real workspace
       real(rsp), intent(out) :: rwork(*)
 
       !> Left singular vectors
@@ -1979,13 +1945,13 @@ module dftbp_extlibs_lapack
       !> Right singular vectors
       complex(rsp), intent(out) :: vt(ldvt,*)
 
-      !> complex work space
+      !> Complex work space
       complex(rsp), intent(out) :: work(*)
 
-      !> size of complex work space
+      !> Size of complex work space
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(in) :: info
 
     end subroutine cgesvd
@@ -1999,10 +1965,10 @@ module dftbp_extlibs_lapack
     subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
       import rdp
 
-      !> job type for vt
+      !> Job type for vt
       character, intent(in) :: jobvt
 
-      !> job type for u
+      !> Job type for u
       character, intent(in) :: jobu
 
       !> First matrix dimension for A
@@ -2011,22 +1977,22 @@ module dftbp_extlibs_lapack
       !> Second matrix dimension for A
       integer, intent(in) :: n
 
-      !> leading dimension of A
+      !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> leading dimension of U
+      !> Leading dimension of U
       integer, intent(in) :: ldu
 
-      !> leading dimension of Vt
+      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
 
-      !> matrix to decompose
+      !> Matrix to decompose
       complex(rdp), intent(inout) :: a(lda,*)
 
-      !> singular values on return min(m,n)
+      !> Singular values on return min(m,n)
       real(rdp), intent(out) :: s(*)
 
-      !> real workspace
+      !> Real workspace
       real(rdp), intent(out) :: rwork(*)
 
       !> Left singular vectors
@@ -2035,13 +2001,13 @@ module dftbp_extlibs_lapack
       !> Right singular vectors
       complex(rdp), intent(out) :: vt(ldvt,*)
 
-      !> complex work space
+      !> Complex work space
       complex(rdp), intent(out) :: work(*)
 
-      !> size of complex work space
+      !> Size of complex work space
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(in) :: info
 
     end subroutine zgesvd
@@ -2053,51 +2019,51 @@ module dftbp_extlibs_lapack
 
   interface ${VPREC}$geev
 
-    !> general matrix eigensolver
+    !> General matrix eigensolver
     subroutine ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, lwork, info)
 
       import r${VPREC}$p
 
-      !> job type for left vector
+      !> Job type for left vector
       character, intent(in) :: jobvl
 
-      !> job type for right vector
+      !> Job type for right vector
       character, intent(in) :: jobvr
 
       !> Second matrix dimension for A
       integer, intent(in) :: n
 
-      !> matrix to decompose
+      !> Matrix to decompose
       real(r${VPREC}$p), intent(inout) :: a(lda,*)
 
-      !> leading dimension of A
+      !> Leading dimension of A
       integer, intent(in) :: lda
 
-      !> real part of eigenvalues
+      !> Real part of eigenvalues
       real(r${VPREC}$p), intent(out) :: wr(*)
 
-      !> imaginary part of eigenvalues
+      !> Imaginary part of eigenvalues
       real(r${VPREC}$p), intent(out) :: wi(*)
 
-      !> left eigenvectors
+      !> Left eigenvectors
       real(r${VPREC}$p), intent(out) :: vl(ldvl, *)
 
-      !> leading dimension of vl
+      !> Leading dimension of vl
       integer, intent(in) :: ldvl
 
-      !> right eigenvectors
+      !> Right eigenvectors
       real(r${VPREC}$p), intent(out) :: vr(ldvr, *)
 
-      !> leading dimension of vr
+      !> Leading dimension of vr
       integer, intent(in) :: ldvr
 
-      !> work array
+      !> Work array
       real(r${VPREC}$p), intent(out) :: work(*)
 
-      !> work array size
+      !> Work array size
       integer, intent(in) :: lwork
 
-      !> state of routine on return
+      !> State of routine on return
       integer, intent(in) :: info
 
     end subroutine ${VPREC}$geev

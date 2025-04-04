@@ -1,14 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 program test_ehrenfest
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbp_common_constants, only : AA__Bohr, V_m__au, eV__Hartree, fs__au, pi, imag
-  use dftbplus
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, setChild, setChildValue,&
+      & TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use dftbp_common_constants, only : AA__Bohr, eV__Hartree, fs__au, imag, pi, V_m__au
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -48,7 +49,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -92,7 +94,7 @@ contains
 
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
     call setChild(pSlakos, "Type2FileNames", pType2Files)
-    call setChildValue(pType2Files, "Prefix", "./")
+    call setChildValue(pType2Files, "Prefix", "slakos/origin/mio-1-1/")
     call setChildValue(pType2Files, "Separator", "-")
     call setChildValue(pType2Files, "Suffix", ".skf")
 

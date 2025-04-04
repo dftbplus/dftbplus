@@ -1,31 +1,52 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
 !> Contains an DIIS mixer
-!> The DIIS mixing is done by building a weighted combination over the previous input charges to
-!> minimise the residue of the error.  Only a specified number of previous charge vectors are
-!> considered.
-!> The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928-936 1999) and Patrick
-!> Briddon to add a contribution from the gradient vector as well is also used
-!> In order to use the mixer you have to create and reset it.
+!! The DIIS mixing is done by building a weighted combination over the previous input charges to
+!! minimise the residue of the error.
+!! Only a specified number of previous charge vectors are considered.
+!! The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928-936 1999) and Patrick
+!! Briddon to add a contribution from the gradient vector as well is also used.
+!! In order to use the mixer you have to create and reset it.
 module dftbp_mixer_diismixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
   private
-  public :: Tdiismixer
-  public :: init, reset, mix
+
+  public :: TDiisMixerInp
+  public :: TDiisMixerReal, TDiisMixerReal_init
+  public :: TDiisMixerCmplx, TDiisMixerCmplx_init
+
+  type :: TDiisMixerInp
+    !> Nr. of generations (including actual) to consider
+    integer :: iGenerations = 0
+
+    !> Mixing parameter for the first iGenerations cycles
+    real(dp) :: initMixParam = 0.0_dp
+
+    !> True if using DIIS from iteration 2 as well as mixing
+    logical :: tFromStart = .true.
+
+    !> If > 0, fraction of extrapolated downhill direction to include in DIIS space
+    real(dp) :: alpha = 0.0_dp
+
+  end type TDiisMixerInp
 
 
-  !> Contains the necessary data for an DIIS mixer
-  type Tdiismixer
+#:for NAME, TYPE, LABEL in FLAVOURS
+
+  !> Contains the necessary data for an DIIS mixer.
+  type, extends (TMixer${LABEL}$) :: TDiisMixer${LABEL}$
     private
 
     !> Initial mixing parameter
@@ -44,82 +65,58 @@ module dftbp_mixer_diismixer
     integer :: indx
 
     !> Stored previous input charges
-    real(dp), allocatable :: prevQInput(:,:)
+    ${TYPE}$(dp), allocatable :: prevQInput(:,:)
 
     !> Stored prev. charge differences
-    real(dp), allocatable :: prevQDiff(:,:)
+    ${TYPE}$(dp), allocatable :: prevQDiff(:,:)
 
     !> True if DIIS used from iteration 2 as well as mixing
     logical :: tFromStart
 
-    !> force modification for gDIIS?
+    !> Force modification for gDIIS?
     logical :: tAddIntrpGradient
 
     !> Alpha factor to add in new information
     real(dp) :: alpha
 
     !> Holds DIIS mixed gradients from older iterations for downhill direction
-    real(dp), allocatable :: deltaR(:)
-  end type Tdiismixer
+    ${TYPE}$(dp), allocatable :: deltaR(:)
 
+    contains
+      procedure :: reset => TDiisMixer${LABEL}$_reset
+      procedure :: mix1D => TDiisMixer${LABEL}$_mix
+  end type TDiisMixer${LABEL}$
+#:endfor
 
-  !> Creates an DIISMixer instance
-  interface init
-    module procedure DIISMixer_init
-  end interface init
-
-
-  !> Resets the mixer
-  interface reset
-    module procedure DIISMixer_reset
-  end interface reset
-
-
-  !> Does the mixing
-  interface mix
-    module procedure DIISMixer_mix
-  end interface mix
 
 contains
 
+#:for NAME, TYPE, LABEL in FLAVOURS
 
-  !> Creates an DIIS mixer instance.
-  subroutine DIISMixer_init(this, nGeneration, initMixParam,tFromStart,alpha)
+  !> Initializes a DIIS mixer instance.
+  subroutine TDiisMixer${LABEL}$_init(this, mixerInp)
 
     !> Pointer to an initialized DIIS mixer on exit
-    type(Tdiismixer), intent(out) :: this
+    type(TDiisMixer${LABEL}$), intent(out) :: this
 
-    !> Nr. of generations (including actual) to consider
-    integer, intent(in) :: nGeneration
+    !> TDiisMixer input structure
+    type(TDiisMixerInp), intent(in) :: mixerInp
 
-    !> Mixing parameter for the first nGeneration cycles
-    real(dp), intent(in) :: initMixParam
-
-    !> True if using DIIS from iteration 2 as well as mixing
-    logical, intent(in), optional :: tFromStart
-
-    !> if present, fraction of extrapolated downhill direction to include in DIIS space
-    real(dp), intent(in), optional :: alpha
-
-    @:ASSERT(nGeneration >= 2)
+    @:ASSERT(mixerInp%iGenerations >= 2)
 
     this%nElem = 0
-    this%mPrevVector = nGeneration
+    this%mPrevVector = mixerInp%iGenerations
 
     allocate(this%prevQInput(this%nElem, this%mPrevVector))
     allocate(this%prevQDiff(this%nElem, this%mPrevVector))
 
-    this%initMixParam = initMixParam
+    this%initMixParam = mixerInp%initMixParam
+    this%tFromStart = mixerInp%tFromStart
 
-    if (present(tFromStart)) then
-      this%tFromStart = tFromStart
-    else
-      this%tFromStart = .false.
-    end if
 
-    if (present(alpha)) then
+    if (mixerInp%alpha > 0.0_dp) then
       this%tAddIntrpGradient = .true.
-      this%alpha = alpha
+      this%alpha = mixerInp%alpha
       allocate(this%deltaR(this%nElem))
     else
       this%tAddIntrpGradient = .false.
@@ -127,16 +124,16 @@ contains
       allocate(this%deltaR(0))
     end if
 
-    this%deltaR = 0.0_dp
+    this%deltaR(:) = 0.0_dp
 
-  end subroutine DIISMixer_init
+  end subroutine TDiisMixer${LABEL}$_init
 
 
-  !> Makes the mixer ready for a new SCC cycle
-  subroutine DIISMixer_reset(this, nElem)
+  !> Makes the mixer ready for a new SCC cycle.
+  subroutine TDiisMixer${LABEL}$_reset(this, nElem)
 
     !> DIIS mixer instance
-    type(Tdiismixer), intent(inout) :: this
+    class(TDiisMixer${LABEL}$), intent(inout) :: this
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -152,26 +149,33 @@ contains
       if (this%tAddIntrpGradient) then
         deallocate(this%deltaR)
         allocate(this%deltaR(this%nElem))
-        this%deltaR = 0.0_dp
+        this%deltaR(:) = 0.0_dp
       end if
     end if
     this%iPrevVector = 0
     this%indx = 0
 
-  end subroutine DIISMixer_reset
+  end subroutine TDiisMixer${LABEL}$_reset
 
 
-  !> Mixes charges according to the DIIS method
-  subroutine DIISMixer_mix(this, qInpResult, qDiff)
+  !> Mixes charges according to the DIIS method.
+  !!
+  !! Warning: The complex-valued DIIS mixer requires flattened hermitian matrices as input.
+  !!   You are free to permute the individual elements of the flattened arrays as long as the same
+  !!   permutation is applied to qInpResult and qDiff.
+  !!   The restriction arises from the assumption that the dot-products of density matrices are
+  !!   real-valued (imaginary parts add up to zero due to the hermitian property) and the linear
+  !!   system of equations remains real-valued.
+  subroutine TDiisMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> Pointer to the diis mixer
-    type(Tdiismixer), intent(inout) :: this
+    class(TDiisMixer${LABEL}$), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
-    real(dp), intent(inout) :: qInpResult(:)
+    ${TYPE}$(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference vector between output and input charges
-    real(dp), intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in) :: qDiff(:)
 
     real(dp), allocatable :: aa(:,:), bb(:,:)
     integer :: ii, jj
@@ -183,95 +187,92 @@ contains
       this%iPrevVector = this%iPrevVector + 1
     end if
 
-    call storeVectors(this%prevQInput, this%prevQDiff, this%indx, &
-        &qInpResult, qDiff, this%mPrevVector)
+    call storeVectors_${NAME}$(this%prevQInput, this%prevQDiff, this%indx, qInpResult, qDiff,&
+        & this%mPrevVector)
 
     if (this%tFromStart .or. this%iPrevVector == this%mPrevVector) then
 
-      if (this%tAddIntrpGradient) then
-        ! old DIIS estimate for downhill direction points towards current downhill direction as well
-        ! as the actual vector, based on P. Briddon comments
-        if (dot_product(this%deltaR(:),qDiff) > 0.0_dp) then
-          ! mix in larger amounts of the gradient in future
-          this%alpha = 1.5_dp*this%alpha
-        else
-          ! points the other way, mix in less
-          this%alpha = 0.5*this%alpha
-        end if
-      end if
-
-      allocate(aa(this%iPrevVector+1, this%iPrevVector+1))
-      allocate(bb(this%iPrevVector+1, 1))
+      allocate(aa(this%iPrevVector + 1, this%iPrevVector + 1))
+      allocate(bb(this%iPrevVector + 1, 1))
 
       aa(:,:) = 0.0_dp
       bb(:,:) = 0.0_dp
 
+      ! (due to the hermitian property of our density matrices, the dot-product below is real)
       do ii = 1, this%iPrevVector
         do jj = 1, this%iPrevVector
-          aa(ii, jj) = dot_product( this%prevQDiff(:, ii), &
-              & this%prevQDiff(:, jj) )
+          aa(ii, jj) = dot_product(this%prevQDiff(:, ii), this%prevQDiff(:, jj))
         end do
       end do
-      aa(this%iPrevVector+1, 1:this%iPrevVector) = -1.0_dp
-      aa(1:this%iPrevVector, this%iPrevVector+1) = -1.0_dp
+      aa(this%iPrevVector + 1, 1:this%iPrevVector) = -1.0_dp
+      aa(1:this%iPrevVector, this%iPrevVector + 1) = -1.0_dp
 
-      bb(this%iPrevVector+1,1) = -1.0_dp
+      bb(this%iPrevVector + 1, 1) = -1.0_dp
 
       ! Solve DIIS system of linear equations
       call gesv(aa, bb)
 
       qInpResult(:) = 0.0_dp
       do ii = 1, this%iPrevVector
-        qInpResult(:) = qInpResult(:) + bb(ii,1) * ( &
-            & this%prevQInput(:,ii) + this%prevQDiff(:,ii) )
+        qInpResult(:) = qInpResult + bb(ii, 1) * (this%prevQInput(:, ii) + this%prevQDiff(:, ii))
       end do
 
       if (this%tAddIntrpGradient) then
+        ! old DIIS estimate for downhill direction points towards current downhill direction as well
+        ! as the actual vector, based on P. Briddon comments
+        if (abs(dot_product(this%deltaR, qDiff)) > 0.0_dp) then
+          ! mix in larger amounts of the gradient in future
+          this%alpha = 1.5_dp * this%alpha
+        else
+          ! points the other way, mix in less
+          this%alpha = 0.5 * this%alpha
+        end if
+
         ! add a fraction down the DIIS estimated gradient onto the new solution
-        this%deltaR = 0.0_dp
+        this%deltaR(:) = 0.0_dp
         do ii = 1, this%iPrevVector
-          this%deltaR(:) = this%deltaR(:) + bb(ii,1) * this%prevQDiff(:,ii)
+          this%deltaR(:) = this%deltaR + bb(ii, 1) * this%prevQDiff(:, ii)
         end do
-        qInpResult(:) = qInpResult(:) - this%alpha * this%deltaR(:)
+        qInpResult(:) = qInpResult - this%alpha * this%deltaR
       end if
 
     end if
 
     if (this%iPrevVector < this%mPrevVector) then
       ! First few iterations return simple mixed vector
-      qInpResult(:) = qInpResult(:) + this%initMixParam * qDiff(:)
+      qInpResult(:) = qInpResult + this%initMixParam * qDiff
     end if
 
-  end subroutine DIISMixer_mix
+  end subroutine TDiisMixer${LABEL}$_mix
 
 
-  !> Stores a vector pair in a limited storage. If the stack is full, oldest vector pair is
-  !> overwritten.
-  subroutine storeVectors(prevQInp, prevQDiff, indx, qInput, qDiff, &
-      &mPrevVector)
+  !> Stores a vector pair in a limited storage.
+  !! If the stack is full, oldest vector pair is overwritten.
+  subroutine storeVectors_${NAME}$(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
 
     !> Contains previous vectors of the first type
-    real(dp), intent(inout) :: prevQInp(:,:)
+    ${TYPE}$(dp), intent(inout) :: prevQInp(:,:)
 
     !> Contains previous vectors of the second type
-    real(dp), intent(inout) :: prevQDiff(:,:)
+    ${TYPE}$(dp), intent(inout) :: prevQDiff(:,:)
 
     !> Indexing of data
     integer, intent(inout) :: indx
 
     !> New first vector
-    real(dp), intent(in) :: qInput(:)
+    ${TYPE}$(dp), intent(in) :: qInput(:)
 
     !> New second vector
-    real(dp), intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in) :: qDiff(:)
 
     !> Size of the stacks.
     integer, intent(in) :: mPrevVector
 
     indx = mod(indx, mPrevVector) + 1
-    prevQInp(:,indx) = qInput(:)
-    prevQDiff(:,indx) = qDiff(:)
+    prevQInp(:, indx) = qInput
+    prevQDiff(:, indx) = qDiff
 
-  end subroutine storeVectors
+  end subroutine storeVectors_${NAME}$
+#:endfor
 
 end module dftbp_mixer_diismixer

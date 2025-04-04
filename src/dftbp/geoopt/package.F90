@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,7 +37,7 @@ module dftbp_geoopt_package
     real(dp) :: gradNorm = huge(1.0_dp)
 
     !> Convergence threshold for gradient norm
-    real(dp) :: gradElem = huge(1.0_dp)
+    real(dp) :: gradElem = 1.0e-4_dp
 
     !> Convergence threshold for displacement norm
     real(dp) :: dispNorm = huge(1.0_dp)

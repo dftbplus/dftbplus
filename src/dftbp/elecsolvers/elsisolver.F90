@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -27,11 +27,10 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_type_commontypes, only : TParallelKS, TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs,&
-      & unpackHSHelicalRealBlacs, unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs,&
-      & unpackSPauliBlacs, packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
-      & unpackHSHelicalCplxBlacs, unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs,&
-      & packERhoPauliBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, unpackHSHelicalRealBlacs,&
+      & unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs, unpackSPauliBlacs,&
+      & packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, unpackHSHelicalCplxBlacs,&
+      & unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, packERhoPauliBlacs
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc_init
   use dftbp_extlibs_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
       & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&
@@ -333,7 +332,7 @@ contains
     !> total number of k-points
     integer, intent(in) :: nKPoint
 
-    !> K-point processed by current process.
+    !> The k-point processed by current process.
     integer, intent(in) :: iKPoint
 
     !> Weight of current k-point
@@ -855,7 +854,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -888,7 +887,7 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Fermi level(s)
@@ -1051,7 +1050,7 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1090,7 +1089,7 @@ contains
     !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix
@@ -1305,7 +1304,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> sparse density matrix
@@ -1409,7 +1408,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1427,7 +1426,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> sparse density matrix
@@ -1542,7 +1541,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1563,7 +1562,7 @@ contains
     !> Should Mulliken populations be generated/output
     logical, intent(in) :: tMulliken
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy contributions and total
@@ -1990,7 +1989,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2026,7 +2025,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix
@@ -2085,7 +2084,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -2112,7 +2111,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Energy weighted sparse matrix

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -29,11 +29,15 @@ module dftbp_math_sparseblas
 #:if WITH_SCALAPACK
   public :: redist_sqr2rows, redist_rows2sqr
 
+  !> Re-distributes data for square matrices between BLACS block cyclic data and whole global rows
+  !! on each processor
   interface redist_sqr2rows
     module procedure sqr2rows_real
     module procedure sqr2rows_complex
   end interface redist_sqr2rows
 
+  !> Re-distributes data for square matrices between BLACS whole global rows on each processor and
+  !! block cyclic data
   interface redist_rows2sqr
     module procedure rows2sqr_real
     module procedure rows2sqr_complex
@@ -56,7 +60,7 @@ module dftbp_math_sparseblas
   ! Rank 3 routines
 
   !> Routine for multiplication between a symmetric sparse matrix and a general
-  !> dense matrix
+  !! dense matrix
   interface symm
   #:for _, suffix in ROUTINE_KINDS
     module procedure symm_${suffix}$_gamma
@@ -71,7 +75,7 @@ contains
 #:for typename, suffix in ROUTINE_KINDS
 
   !> Sparse Gamma point matrix with a ${typename}$ vector as a symv operation,
-  !> y = alpha A x + beta * y
+  !! y = alpha A x + beta * y
   subroutine symv_${suffix}$_gamma(y, A, x, iNeighbour, nNeighbour, img2CentCell, iSparseStart,&
       & iAtomStart, orb, alpha, beta)
 
@@ -99,7 +103,7 @@ contains
     !> Dense indexing
     integer, intent(in) :: iAtomStart(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * x
@@ -163,7 +167,7 @@ contains
 
 
   !> Sparse Gamma point matrix with a ${typename}$ vector as a symv operation, using specified
-  !> boundary conditions, y = alpha A x + beta * y
+  !! boundary conditions, y = alpha A x + beta * y
   subroutine symv_bc_${suffix}$_gamma(y, A, x, bcs, iNeighbour, nNeighbour, img2CentCell,&
       & iSparseStart, iAtomStart, coords, species, orb, alpha, beta)
 
@@ -200,7 +204,7 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * x
@@ -303,7 +307,7 @@ contains
     !> Dense indexing
     integer, intent(in) :: iAtomStart(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * x
@@ -371,7 +375,7 @@ contains
 
 
   !> Sparse matrix at specified k-point with a vector as a symv operation, using specified boundary
-  !> conditions, y = alpha A x + beta * y
+  !! conditions, y = alpha A x + beta * y
   subroutine symv_bc_kpt(y, A, x, bcs, iNeighbour, nNeighbour, kPoint, iCellVec, cellVec,&
       & img2CentCell, iSparseStart, iAtomStart, coords, species, orb, alpha, beta)
 
@@ -417,7 +421,7 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * x
@@ -489,7 +493,7 @@ contains
 #:for typename, suffix in ROUTINE_KINDS
 
   !> Sparse Gamma point matrix with dense ${typename}$ matrix as a symm operation,
-  !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse and B is general.
+  !! symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse and B is general.
   subroutine symm_${suffix}$_gamma(C, side, A, B, iNeighbour, nNeighbour, img2CentCell,&
       & iSparseStart, iAtomStart, orb, alpha, beta)
 
@@ -521,7 +525,7 @@ contains
     !> Dense indexing
     integer, intent(in) :: iAtomStart(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * B
@@ -625,8 +629,8 @@ contains
 
 
   !> Sparse Gamma point matrix with dense ${typename}$ matrix as a symm operation, using specified
-  !> boundary conditions. Symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse
-  !> and B is general.
+  !! boundary conditions. Symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse
+  !! and B is general.
   subroutine symm_bc_${suffix}$_gamma(C, side, A, B, bcs, iNeighbour, nNeighbour, img2CentCell,&
       & iSparseStart, iAtomStart, coords, species, orb, alpha, beta)
 
@@ -667,7 +671,7 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * B
@@ -775,7 +779,7 @@ contains
 
 
   !> Sparse matrix at specified k-point with dense ${typename}$ matrix as a symm operation,
-  !> symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse and B is general.
+  !! symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and sparse and B is general.
   subroutine symm_kpt(C, side, A, B, iNeighbour, nNeighbour, kPoint, iCellVec, cellVec,&
       & img2CentCell, iSparseStart, iAtomStart, orb, alpha, beta)
 
@@ -816,7 +820,7 @@ contains
     !> Dense indexing
     integer, intent(in) :: iAtomStart(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * B
@@ -929,8 +933,8 @@ contains
 
 
   !> Sparse matrix at specified k-point with dense ${typename}$ matrix as a symm operation, using
-  !> specified boundary conditions. symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and
-  !> sparse and B is general.
+  !! specified boundary conditions. symmetric matrix on 'l'eft or 'r'ight , where A is symmetric and
+  !! sparse and B is general.
   subroutine symm_bc_kpt(C, side, A, B, bcs, iNeighbour, nNeighbour, kPoint, iCellVec, cellVec,&
       & img2CentCell, iSparseStart, iAtomStart, coords, species, orb, alpha, beta)
 
@@ -980,7 +984,7 @@ contains
     !> Species of each atom
     integer, intent(in) :: species(:)
 
-    !> data type for atomic orbital information
+    !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Scaling factor for A * B
@@ -1100,7 +1104,7 @@ contains
 #:for VAR in [('real'),('complex')]
 
   !> Re-distributes data for square matrices between BLACS block cyclic data and whole global rows
-  !> on each processor
+  !! on each processor
   subroutine sqr2rows_${VAR}$(square, row, denseDesc, blacsEnv)
 
     !> Real matrix in block cyclic, last index over spin/kpts
@@ -1139,7 +1143,7 @@ contains
 
 
   !> Re-distributes data for square matrices between BLACS whole global rows on each processor and
-  !> block cyclic data
+  !! block cyclic data
   subroutine rows2sqr_${VAR}$(row, square, denseDesc, blacsEnv)
 
     !> Real matrix with individual rows on each processor, last index over spin/kpts

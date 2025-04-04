@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,8 @@ module dftbp_dftb_periodic
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR
+  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR,&
+      & MPIFX_SIZE_T
 #:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
@@ -28,13 +29,14 @@ module dftbp_dftb_periodic
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
-  implicit none
 
+  implicit none
   private
+
   public :: getCellTranslations, getLatticePoints
   public :: getSuperSampling
   public :: frac2cart, cart2frac
-  public :: TNeighbourList, TNeighbourList_init
+  public :: TNeighbourList, TNeighbourList_init, TSymNeighbourList
   public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
 
@@ -47,22 +49,22 @@ module dftbp_dftb_periodic
   !> Contains essential data for the neighbourlist
   type TNeighbourList
 
-    !> number of neighbours
+    !> Number of neighbours
     integer, allocatable :: nNeighbour(:)
 
-    !> index of neighbour atoms
+    !> Index of neighbour atoms
     integer, pointer :: iNeighbour(:,:) => null()
 
-    !> neighbour distances
+    !> Neighbour distances
     real(dp), pointer :: neighDist2(:,:) => null()
 
-    !> cutoff it was generated for
+    !> Cutoff it was generated for
     real(dp) :: cutoff
 
-    !> initialised data
+    !> Initialised data
     logical :: initialized = .false.
 
-    !> whether the neighbour list has been set by an API call
+    !> Whether the neighbour list has been set by an API call
     logical :: setExternally = .false.
 
     !> Whether memory should be allocated via MPI-windows (or directly via allocate() otherwise)
@@ -73,10 +75,10 @@ module dftbp_dftb_periodic
     !! the shared window in that case.
     logical, private :: useMpiWindows_ = .false.
 
-    !> memory allocated for the iNeighbour array
+    !> Memory allocated for the iNeighbour array
     integer, pointer, private :: iNeighbourMem_(:) => null()
 
-    !> memory allocated for the neighDist2 array
+    !> Memory allocated for the neighDist2 array
     real(dp), pointer, private :: neighDist2Mem_(:) => null()
 
   #:if WITH_MPI
@@ -94,6 +96,40 @@ module dftbp_dftb_periodic
     final :: TNeighbourList_final
 
   end type TNeighbourList
+
+
+  !> Contains neighbour list instance and symmetry specific entries
+  type TSymNeighbourList
+
+    !> Neighbour list instance
+    type(TNeighbourList), allocatable :: neighbourList
+
+    !> Number of all interacting atoms, including periodic images
+    integer :: nAllAtom
+
+    !> Coordinates of all interacting atoms, including periodic images
+    real(dp), allocatable :: coord(:,:)
+
+    !> Species of all interacting atoms, including periodic images
+    integer, allocatable :: species(:)
+
+    !> Mapping of all atoms onto atoms in the central cell
+    integer, allocatable :: img2CentCell(:)
+
+    !> Shift vector index for every interacting atom, including periodic images
+    integer, allocatable :: iCellVec(:)
+
+    !> Sparse array indexing for the start of atomic blocks in data structures
+    integer, allocatable :: iPair(:,:)
+
+    !> Total number of elements in a sparse structure (ignoring extra indices like spin)
+    integer :: sparseSize
+
+  contains
+
+    final :: TSymNeighbourList_final
+
+  end type TSymNeighbourList
 
 contains
 
@@ -142,6 +178,21 @@ contains
   end subroutine TNeighbourList_final
 
 
+  !> Finalizes the symmetric neighbour-list instance.
+  !!
+  !! Workaround: Intel oneAPI 2021/22
+  !! Without explicit deallocation, the oneAPI versions listed above do not correctly finalize the
+  !! MPI windows.
+  subroutine TSymNeighbourList_final(this)
+
+    !> TSymNeighbourList instance
+    type(TSymNeighbourList), intent(inout) :: this
+
+    if (allocated(this%neighbourList)) deallocate(this%neighbourList)
+
+  end subroutine TSymNeighbourList_final
+
+
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
   !> the atoms in the central cell.
   !> This subroutine uses a simple guess to get the necessary translation vectors. This results in a
@@ -150,7 +201,7 @@ contains
   subroutine getCellTranslations(cellVec, rCellVec, latVec, recVec2p, cutoff)
 
     !> Returns cell translation vectors in relative coordinates.
-    real(dp), allocatable, intent(out) :: cellVec(:, :)
+    real(dp), allocatable, intent(out) :: cellVec(:,:)
 
     !> Returns cell translation vectors in absolute units.
     real(dp), allocatable, intent(out) :: rCellVec(:,:)
@@ -212,10 +263,10 @@ contains
     !> Return only those lattice points which are really not outside the given distance.
     logical,  intent(in), optional :: onlyInside
 
-    !> whether to include time reversal symmetry when generating k-points
+    !> Whether to include time reversal symmetry when generating k-points
     logical,  intent(in), optional :: reduceByInversion
 
-    !> whether to exclude the (0,0,0) point
+    !> Whether to exclude the (0,0,0) point
     logical,  intent(in), optional :: withoutOrigin
 
     type(TLatPointIter) :: latPointGen
@@ -466,7 +517,7 @@ contains
     allocate(neighDist2(1:maxNeighbour, startAtom:endAtom))
 
     ! Clean arrays.
-    !  (Every atom is the 0th neighbour of itself with zero distance square.)
+    ! (Every atom is the 0th neighbour of itself with zero distance square.)
     neigh%nNeighbour(:) = 0
     iNeighbour(:,:) = 0
     neighDist2(:,:) = 0.0_dp
@@ -499,30 +550,30 @@ contains
           ! helical geometry
           if (size(helicalBoundConds,dim=1)==3) then
             ! an additional C rotation operation
-            call rotate3(rr,2.0_dp*pi*rCellVec(2, ii)/helicalBoundConds(3,1), zAxis)
+            call rotate3(rr, 2.0_dp * pi * rCellVec(2, ii) / helicalBoundConds(3, 1), zAxis)
           end if
           ! helical operation, note nint() not floor() as roundoff can cause problems for floor
           ! here.
-          call rotate3(rr,helicalBoundConds(2,1)*nint(rCellVec(1, ii)/helicalBoundConds(1,1)),&
+          call rotate3(rr, helicalBoundConds(2,1) * nint(rCellVec(1, ii) / helicalBoundConds(1,1)),&
               & zAxis)
         end if
         lpIAtom2: do iAtom2 = 1, iAtom2End
           !  If distance greater than cutoff -> skip
-          dist2 = sum((coord0(:, iAtom2) - rr(:))**2)
+          dist2 = sum((coord0(:, iAtom2) - rr)**2)
           if (dist2 > cutoff2) then
             cycle lpIAtom2
           end if
           ! New interacting atom -> append
           ! We need that before checking for interaction with dummy atom or
           ! with itself to make sure that atoms in the central cell are
-          ! appended  exactly in the same order as found in the coord0 array.
+          ! appended exactly in the same order as found in the coord0 array.
           if (iAtom1 /= oldIAtom1) then
             nAllAtom = nAllAtom + 1
             if (nAllAtom > mAtom) then
               mAtom = incrmntOfArray(mAtom)
               call reallocateArrays1(img2CentCell, iCellVec, coord, mAtom)
             end if
-            coord(:, nAllAtom) = rr(:)
+            coord(:, nAllAtom) = rr
             img2CentCell(nAllAtom) = iAtom1
             iCellVec(nAllAtom) = ii
             oldIAtom1 = iAtom1
@@ -613,51 +664,51 @@ contains
       & species0, coordNeighs, neigh2CentCell, rCellVec, nAllAtom, img2CentCell, iCellVec, coord,&
       & species)
 
-    !> neighbourlist instance
+    !> Neighbourlist instance
     type(TNeighbourList), intent(inout) :: neigh
 
-    !> environment
+    !> Environment
     type(TEnvironment), intent(inout) :: env
 
-    !> number of neighbours of an atom in the central cell
+    !> Number of neighbours of an atom in the central cell
     integer, intent(in) :: nNeighbour(:)
 
-    !> references to the neighbour atoms for an atom in the central cell
+    !> References to the neighbour atoms for an atom in the central cell
     integer, intent(in) :: iNeighbour(:,:)
 
-    !> distances to the neighbour atoms for an atom in the central cell
+    !> Distances to the neighbour atoms for an atom in the central cell
     real(dp), intent(in) :: neighDist(:,:)
 
-    !> cutoff distance used for this neighbour list
+    !> Cutoff distance used for this neighbour list
     real(dp), intent(in) :: cutOff
 
-    !> coordinates of the central cell
+    !> Coordinates of the central cell
     real(dp), intent(in) :: coord0(:,:)
 
-    !> species of the atoms in the central cell
+    !> Species of the atoms in the central cell
     integer, intent(in) :: species0(:)
 
-    !> coordinates of all neighbours
+    !> Coordinates of all neighbours
     real(dp), intent(in) :: coordNeighs(:,:)
 
-    !> mapping between neighbour reference and atom index in the central cell
+    !> Mapping between neighbour reference and atom index in the central cell
     integer, intent(in) :: neigh2CentCell(:)
 
     real(dp), contiguous, target, intent(in) :: rCellVec(:,:)
 
-    !> nr. of all atoms in the system
+    !> Nr. of all atoms in the system
     integer, intent(out) :: nAllAtom
 
-    !> mapping of the atoms into the central cell
+    !> Mapping of the atoms into the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
 
-    !> index of unit cell containing atom
+    !> Index of unit cell containing atom
     integer, allocatable, intent(inout) :: iCellVec(:)
 
-    !> coordinates of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
+    !> Coordinates of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
-    !> species of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
+    !> Species of all atoms (may contain duplicates, access it only via neigh%iNeighbour)
     integer, allocatable, intent(inout) :: species(:)
 
     type(TAlignedArray) :: dist2Mem
@@ -734,8 +785,8 @@ contains
     copyData = .true.
   #:if WITH_MPI
     if (neigh%useMpiWindows_) then
-      call neigh%iNeighbourWin_%lock()
-      call neigh%neighDist2Win_%lock()
+      call neigh%iNeighbourWin_%lock_all()
+      call neigh%neighDist2Win_%lock_all()
       copyData = env%mpi%nodeComm%lead
     end if
   #:endif
@@ -782,8 +833,8 @@ contains
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
-      call neigh%iNeighbourWin_%unlock()
-      call neigh%neighDist2Win_%unlock()
+      call neigh%iNeighbourWin_%unlock_all()
+      call neigh%neighDist2Win_%unlock_all()
     end if
   #:endif
 
@@ -806,15 +857,21 @@ contains
     type(TEnvironment), intent(in), optional :: env
 
     integer :: dataLength
+    #:if WITH_MPI
+      integer(MPIFX_SIZE_T) :: longDataLength
+    #:endif
 
     dataLength = (maxNeighbour + 1) * nAtom
 
     if (neigh%useMpiWindows_) then
     #:if WITH_MPI
+      longDataLength = int(dataLength, kind=MPIFX_SIZE_T)
       if (associated(neigh%iNeighbourMem_)) call neigh%iNeighbourWin_%free()
-      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%iNeighbourMem_)
+      call neigh%iNeighbourWin_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%iNeighbourMem_)
       if (associated(neigh%neighDist2Mem_)) call neigh%neighDist2Win_%free()
-      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, dataLength, neigh%neighDist2Mem_)
+      call neigh%neighDist2Win_%allocate_shared(env%mpi%nodeComm, longDataLength,&
+          & neigh%neighDist2Mem_)
     #:endif
     else
       if (associated(neigh%iNeighbourMem_)) deallocate(neigh%iNeighbourMem_)
@@ -861,8 +918,8 @@ contains
     #:if WITH_MPI
       maxNeighbourLocal = min(ubound(iNeighbour, dim=1), maxNeighbour)
 
-      call neigh%iNeighbourWin_%lock()
-      call neigh%neighDist2Win_%lock()
+      call neigh%iNeighbourWin_%lock_all()
+      call neigh%neighDist2Win_%lock_all()
 
       neigh%iNeighbour(1:maxNeighbourLocal, startAtom:endAtom) =&
           & iNeighbour(1:maxNeighbourLocal, startAtom:endAtom)
@@ -882,8 +939,8 @@ contains
       call neigh%iNeighbourWin_%sync()
       call neigh%neighDist2Win_%sync()
 
-      call neigh%iNeighbourWin_%unlock()
-      call neigh%neighDist2Win_%unlock()
+      call neigh%iNeighbourWin_%unlock_all()
+      call neigh%neighDist2Win_%unlock_all()
     #:endif
     else
       neigh%iNeighbour(1:,:) = iNeighbour(1:maxNeighbour,:)
@@ -909,7 +966,7 @@ contains
     type(TNeighbourList), intent(in) :: neigh
 
     !> Maximal neighbour distance to consider.
-    real(dp),            intent(in) :: cutoff
+    real(dp), intent(in) :: cutoff
 
     integer :: nAtom, iAtom
 
@@ -949,7 +1006,7 @@ contains
     @:ASSERT(cutoff >= 0.0_dp)
     @:ASSERT(iAtom <= size(neigh%nNeighbour))
 
-    ! Issue warning, if cutoff is bigger as used for the neighbourlist.
+    ! Issue warning, if cutoff is bigger than used for the neighbourlist.
     if (cutoff > neigh%cutoff) then
 99010 format ('Cutoff (', E16.6, ') greater than last cutoff ', '(', E13.6,&
           & ') passed to updateNeighbourList!')
@@ -967,21 +1024,21 @@ contains
   !> Reallocate arrays which depends on the maximal nr. of all atoms.
   subroutine reallocateArrays1(img2CentCell, iCellVec, coord, mNewAtom)
 
-    !> array mapping images of atoms to originals in the central cell
+    !> Array mapping images of atoms to originals in the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
 
     !> Index of unit cell containing atom
     integer, allocatable, intent(inout) :: iCellVec(:)
 
-    !> coordinates of all atoms (actual and image)
-    real(dp), allocatable, intent(inout) :: coord(:, :)
+    !> Coordinates of all atoms (actual and image)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
 
-    !> maximum number of new atoms
+    !> Maximum number of new atoms
     integer, intent(in) :: mNewAtom
 
     integer :: mAtom
     integer, allocatable :: tmpIntR1(:)
-    real(dp), allocatable :: tmpRealR2(:, :)
+    real(dp), allocatable :: tmpRealR2(:,:)
 
     mAtom = size(img2CentCell)
 
@@ -1010,13 +1067,13 @@ contains
   !> Reallocate array which depends on the maximal nr. of neighbours.
   subroutine reallocateArrays2(iNeighbour, neighDist2, mNewNeighbour)
 
-    !> list of neighbours
+    !> List of neighbours
     integer, allocatable, intent(inout) :: iNeighbour(:, :)
 
-    !> square of distances between atoms
+    !> Square of distances between atoms
     real(dp), allocatable, intent(inout) :: neighDist2(:,:)
 
-    !> maximum number of new atoms
+    !> Maximum number of new atoms
     integer, intent(in) :: mNewNeighbour
 
     integer :: mNeighbour, startAtom, endAtom
@@ -1185,13 +1242,13 @@ contains
   end subroutine getSuperSampling
 
 
-  !> convert fractional coordinates to cartesian
+  !> Convert fractional coordinates to cartesian
   subroutine frac2cart(cartCoords,latvecs)
 
-    !> fractional coordinates in unit cell on entry, cartesian on exit
+    !> Fractional coordinates in unit cell on entry, cartesian on exit
     real(dp), intent(inout) :: cartCoords(:,:)
 
-    !> periodic lattice vectors
+    !> Periodic lattice vectors
     real(dp), intent(in) :: latvecs(3,3)
 
     @:ASSERT(size(cartCoords,dim=1) == 3)
@@ -1204,10 +1261,10 @@ contains
   !> Cartesian to fractional coordinates in periodic geometry
   subroutine cart2frac(cartCoords,latvecs)
 
-    !> cartesian coordinates on entry, fractional on exit
+    !> Cartesian coordinates on entry, fractional on exit
     real(dp), intent(inout) :: cartCoords(:,:)
 
-    !> periodic lattice vectors
+    !> Periodic lattice vectors
     real(dp), intent(in) :: latvecs(3,3)
 
     real(dp) :: invLatVecs(3,3)

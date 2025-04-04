@@ -67,12 +67,16 @@ Additionally there are optional requirements for some DFTB+ features:
   support of 2.5.0). If ELSI was compiled with PEXSI included, you
   will also need a C++ compiler.
 
-* The ARPACK-ng library if using the excited state DFTB functionality.
+* The ARPACK-ng library if using the excited state DFTB functionality. For
+  MPI-parallel builds, the parallel version of ARPACK-ng (containing also
+  PARPACK) is needed.
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU
   accelerated computation (note that within ELSI, the ELPA library
   also supports distributed multiple GPUs if compiled with the correct
-  options).
+  options). The number of the available GPUs used by the MAGMA library
+  is controlled at runtime by the `MAGMA_NUM_GPUS` shell variable
+  (the usual default is 1).
 
 * The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for
   metadynamics simulations. If you build DFTB+ with MPI, the linked
@@ -154,7 +158,7 @@ Obtaining the source
 ====================
 
 The source code of the last stable release can be downloaded from the `DFTB+
-homepage <https://www.dftbplus.org/download/dftb-stable/>`_.
+homepage <https://www.dftbplus.org/download/stable.html>`_.
 
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
@@ -431,8 +435,8 @@ are listed below.
 |                         |         |possible) for libdftbplus.               |
 +-------------------------+---------+-----------------------------------------+
 |-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe  |
-|                         |         |library (the build stops, if a           |
-|                         |         |non-instance-safe component had been     |
+|                         |         |library (the build stops, if any         |
+|                         |         |non-instance-safe components have been   |
 |                         |         |selected)                                |
 +-------------------------+---------+-----------------------------------------+
 |-DWITH_API               |N        |Build the API bindings to use libdftbplus|
@@ -467,10 +471,12 @@ create standalone applications with DFTB+ (e.g. ``LAPACK::LAPACK``,
 ``Magma::Magma``, etc.). You can either use the CMake find-modules shipped with
 the DFTB+ source to find those libraries (and to define the corresponding
 targets) or create your own, provided they define the appropriate CMake
-targets. The ELSI library offers a CMake export file providing the
-``elsi::elsi`` target. Make sure, that CMake can find this export file if the
-DFTB+ library was compiled with ELSI support (e.g., by setting up the environment
+targets. The  arpack-ng and ELSI libraries offer CMake export files providing the
+``ARPACK::ARPACK`` and ``elsi::elsi`` targets, respectively. Make sure, that CMake can find the relevant export file if the
+DFTB+ library was compiled with ELSI or ARPACK required (e.g., by setting up the environment
 variable ``CMAKE_PREFIX_PATH`` correctly).
+Note: you may need to install ELSI (not just point the prefix path to its build system) to generate
+this file correctly.
 
 
 Linking the library in non-CMake based builds
@@ -492,12 +498,14 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that
-pkg-config can also find the respective pkconfig files for these packages, as
-those libraries are declared as dependencies in the DFTB+ pkg-config file. For
-external dependencies without pkg-config files (e.g. mbd, negf) the options for
-linking those libraries can not be queried via pkg-config and must be added
-manually.
+If you compile DFTB+ with ELSI, PLUMED or MAGMA-support, make sure that pkg-config can also find the
+respective pkconfig files for these packages. If you enable support for these components, their
+libraries are declared as dependencies in the DFTB+ pkg-config file. Note, if you compile these
+libraries themselves, you may have to follow their install processes to generate suitable
+pkg-config files in their specified install location(s).
+
+For external dependencies without pkg-config files (e.g. mbd, negf), the options for linking those
+libraries can not be queried via pkg-config, and they must be added manually.
 
 
 Generating developer documentation

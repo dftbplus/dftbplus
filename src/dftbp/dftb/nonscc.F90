@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -37,10 +37,10 @@ module dftbp_dftb_nonscc
     integer :: diffType
   contains
 
-    !> evaluate first derivative
+    !> Evaluate first derivative
     procedure :: getFirstDeriv
 
-    !> evaluate second derivative
+    !> Evaluate second derivative
     procedure :: getSecondDeriv
 
   end type TNonSccDiff
@@ -158,13 +158,13 @@ contains
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, ind, iOrb1) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
-      ind = iPair(0,iAt1) + 1
+      ind = iPair(0, iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
         over(ind) = 1.0_dp
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     call buildDiatomicBlocks(iAtFirst, iAtLast, skOverCont, coords, nNeighbourSK, iNeighbours,&
         & species, iPair, orb, over)
@@ -313,7 +313,7 @@ contains
         out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do
     end do
-    !$OMP  END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine buildDiatomicBlocks
 

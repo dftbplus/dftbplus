@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,11 +17,11 @@ module dftbp_common_release
   character(len=*), parameter :: releaseName = '${RELEASE}$'
 
   !> Year of release
-  integer, parameter :: releaseYear = 2024
+  integer, parameter :: releaseYear = 2025
 
   !> Mapping between input version and parser version
   type :: TVersionMap
-    !> named version of parser input
+    !> Named version of parser input
     character(10) :: inputVersion
     !> Corresponding numerical version of parser input
     integer :: parserVersion

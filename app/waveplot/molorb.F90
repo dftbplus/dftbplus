@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,6 +11,7 @@
 !! an equidistant grid.
 module waveplot_molorb
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_constants, only : imag
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
@@ -169,17 +170,17 @@ contains
     ! Get cells to look for when adding STOs from periodic images
     this%tPeriodic = geometry%tPeriodic
     if (this%tPeriodic) then
-      allocate(this%latVecs(3,3))
-      allocate(this%recVecs2p(3,3))
+      allocate(this%latVecs(3, 3))
+      allocate(this%recVecs2p(3, 3))
       this%latVecs(:,:) = geometry%latVecs
       call invert33(this%recVecs2p, this%latVecs)
-      this%recVecs2p = reshape(this%recVecs2p, [3, 3], order=[2, 1])
+      this%recVecs2p(:,:) = reshape(this%recVecs2p, [3, 3], order=[2, 1])
       mCutoff = maxval(this%cutoffs)
       call getCellTranslations(this%cellVec, rCellVec, this%latVecs, this%recVecs2p, mCutoff)
       this%nCell = size(this%cellVec,dim=2)
     else
-      allocate(this%latVecs(3,0))
-      allocate(this%recVecs2p(3,0))
+      allocate(this%latVecs(3, 0))
+      allocate(this%recVecs2p(3, 0))
       allocate(this%cellVec(3, 1))
       this%cellVec(:,:) = 0.0_dp
       allocate(rCellVec(3, 1))
@@ -226,10 +227,10 @@ contains
     !> Add densities instead of wave functions
     logical, intent(in), optional :: addDensities
 
-    real(dp), save :: kPoints(3,0)
+    real(dp), save :: kPoints(3, 0)
     integer, save :: kIndexes(0)
-    complex(dp), save :: valueCmpl(0,0,0,0)
-    complex(dp), save :: eigVecsCmpl(0,0)
+    complex(dp), save :: valueCmpl(0, 0, 0, 0)
+    complex(dp), save :: eigVecsCmpl(0, 0)
     logical :: tAddDensities
 
     @:ASSERT(this%tInitialised)
@@ -245,7 +246,7 @@ contains
       tAddDensities = .false.
     end if
 
-    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
+    call localGetValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
         & this%coords, this%species, this%cutoffs, this%iStos, this%angMoms, this%stos,&
         & this%tPeriodic, .true., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
         & this%cellVec, tAddDensities, valueOnGrid, valueCmpl)
@@ -294,7 +295,7 @@ contains
     @:ASSERT(maxval(kIndexes) <= size(kPoints, dim=2))
     @:ASSERT(minval(kIndexes) > 0)
 
-    call local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
+    call localGetValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, this%nAtom, this%nOrb,&
         & this%coords, this%species, this%cutoffs, this%iStos, this%angMoms, this%stos,&
         & this%tPeriodic, .false., this%latVecs, this%recVecs2p, kPoints, kIndexes, this%nCell,&
         & this%cellVec, tAddDensities, valueReal, valueOnGrid)
@@ -305,7 +306,7 @@ contains
   !> Returns the values of several molecular orbitals on grids.
   !! Caveat: The flag tPeriodic decides if the complex or the real version is read/written for the
   !! various parameters.
-  subroutine local_getValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, nAtom, nOrb, coords,&
+  subroutine localGetValue(origin, gridVecs, eigVecsReal, eigVecsCmpl, nAtom, nOrb, coords,&
       & species, cutoffs, iStos, angMoms, stos, tPeriodic, tReal, latVecs, recVecs2p, kPoints,&
       & kIndexes, nCell, cellVec, tAddDensities, valueReal, valueCmpl)
 
@@ -404,16 +405,16 @@ contains
     ! below. This is fine as, in contrast to what was published, DFTB+ uses implicitly exp(-ikr) as
     ! a phase factor, as the unpack routines assemble the lower triangular matrix with exp(ikr) as
     ! factor.
-    phases(:,:) = exp((0.0_dp, 1.0_dp) * matmul(transpose(cellVec), kPoints))
+    phases(:,:) = exp(imag * matmul(transpose(cellVec), kPoints))
 
     ! Loop over all grid points
     lpI3: do i3 = 1, nPoints(3)
-      curCoords(:, 3) = real(i3 - 1, dp) * gridVecs(:,3)
+      curCoords(:, 3) = real(i3 - 1, dp) * gridVecs(:, 3)
       lpI2: do i2 = 1, nPoints(2)
-        curCoords(:, 2) =  real(i2 - 1, dp) * gridVecs(:,2)
+        curCoords(:, 2) =  real(i2 - 1, dp) * gridVecs(:, 2)
         lpI1: do i1 = 1, nPoints(1)
-          curCoords(:, 1) = real(i1 - 1, dp) * gridVecs(:,1)
-          xyz(:) = sum(curCoords, dim=2) + origin(:)
+          curCoords(:, 1) = real(i1 - 1, dp) * gridVecs(:, 1)
+          xyz(:) = sum(curCoords, dim=2) + origin
           if (tPeriodic) then
             frac(:) = matmul(xyz, recVecs2p)
             xyz(:) = matmul(latVecs, frac - real(floor(frac), dp))
@@ -424,9 +425,9 @@ contains
             ind = 1
             lpAtom: do iAtom = 1, nAtom
               iSpecies = species(iAtom)
-              diff(:) = xyz - coords(:,iAtom, iCell)
-              xx = sqrt(sum(diff**2))
-              lpOrb: do iOrb = iStos(iSpecies), iStos(iSpecies+1)-1
+              diff(:) = xyz - coords(:, iAtom, iCell)
+              xx = norm2(diff)
+              lpOrb: do iOrb = iStos(iSpecies), iStos(iSpecies + 1) - 1
                 iL = angMoms(iOrb)
                 ! Calculate wave function only if atom is inside the cutoff
                 if (xx <= cutoffs(iOrb)) then
@@ -468,7 +469,7 @@ contains
           ! the eigenvector)
           if (tReal) then
             if (tAddDensities) then
-              atomAllOrbVal = atomAllOrbVal**2
+              atomAllOrbVal(:,:) = atomAllOrbVal**2
             end if
             atomOrbValReal(:) = sum(atomAllOrbVal, dim=2)
             do iEig = 1, nPoints(4)
@@ -494,6 +495,6 @@ contains
       end do lpI2
     end do lpI3
 
-  end subroutine local_getValue
+  end subroutine localGetValue
 
 end module waveplot_molorb

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,8 @@ module dftbp_dftb_elecconstraints
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getLength, getItem1, fnodeList
   use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
   use dftbp_geoopt_package, only : TOptimizer, TOptimizerInput, createOptimizer
-  use dftbp_io_hsdutils, only : getChildValue, getChildren, getSelectedAtomIndices
+  use dftbp_io_hsdutils, only : getChildren, getChildValue, getSelectedAtomIndices
+  use dftbp_io_hsdutils2, only : renameChildren
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
   use dftbp_extlibs_xmlf90, only : destroyNodeList
   implicit none
@@ -93,10 +94,19 @@ module dftbp_dftb_elecconstraints
 
   contains
 
+    !> Returns constraining potential (Vc)
     procedure :: getConstraintShift
+
+    !> Update constraints for current state of the system
     procedure :: propagateConstraints
+
+    !> Maximum number of iterations for driver
     procedure :: getMaxIter
+
+    !> Free energy (W) for system in constraining potential(s)
     procedure :: getFreeEnergy
+
+    !> Maximum component of free energyt derivative wrt. constraint potential(s)
     procedure :: getMaxEnergyDerivWrtVc
 
   end type TElecConstraint
@@ -105,8 +115,8 @@ module dftbp_dftb_elecconstraints
 contains
 
 
-  !> General entry point to read constraint on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, isSpinPol)
+  !> General entry point to read the constraint(s) on the electronic ground state.
+  subroutine readElecConstraintInput(node, geo, input, isSpinPol, is2Component)
 
     !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
@@ -120,11 +130,15 @@ contains
     !> True, if this is a spin polarized calculation
     logical, intent(in) :: isSpinPol
 
+    !> Is this a calculation with Pauli wavefunctions
+    logical, intent(in) :: is2Component
+
     type(fnode), pointer :: val, child1, child2, child3
     type(fnodeList), pointer :: children
     type(string) :: buffer
     integer :: iConstr, nConstr
 
+    call renameChildren(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child1, "FIRE")
     call readOptimizerInput(child1, input%optimiser)
 
@@ -149,9 +163,14 @@ contains
       call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species,&
           & input%atomGrp(iConstr)%data)
       call getChildValue(child2, "Population", input%atomNc(iConstr))
-      ! Functionality currently restricted to charges
+      ! Functionality currently restricted to charges only
       if (isSpinPol) then
-        input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
+        ! [q,m] representation
+        if (is2Component) then
+          input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+        else
+          input%atomSpinDir(iConstr)%data = [1.0_dp, 0.0_dp]
+        end if
       else
         input%atomSpinDir(iConstr)%data = [1.0_dp]
       end if
@@ -186,7 +205,11 @@ contains
 
     call createOptimizer(input%optimiser, nConstr, this%potOpt)
 
-    this%nConstrIter = input%nConstrIter
+    if (input%nConstrIter == -1) then
+      input%nConstrIter = huge(1)
+    else
+      this%nConstrIter = input%nConstrIter
+    end if
     this%isConstrConvRequired = input%isConstrConvRequired
     this%constrTol = input%constrTol
     this%Nc = input%AtomNc
@@ -314,7 +337,7 @@ contains
   end subroutine propagateConstraints
 
 
-  !> Calculate artificial potential to realize constraint on atomic charge.
+  !> Calculate artificial potential to realize constraint(s) on atomic charge.
   subroutine getConstraintEnergyAndPotQ(Vc, Nc, wAt, wOrb, wSp, qq, deltaW, dWdV)
 
     !> Potential / Lagrange multiplier

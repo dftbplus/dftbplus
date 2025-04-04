@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,6 +26,7 @@
 !> in the standard sorting, *i.e.* [-l, ..., 0, ..., l].
 module dftbp_extlibs_tblite
   use dftbp_common_accuracy, only : dp
+  use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_dftb_charges, only : getSummedCharges
@@ -45,7 +46,7 @@ module dftbp_extlibs_tblite
   use tblite_cutoff, only : get_lattice_points
   use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
   use tblite_param, only : param_record
-  use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved, &
+  use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved,&
       & not_used
   use tblite_scf_potential, only : potential_type, new_potential
   use tblite_version, only : get_tblite_version
@@ -53,7 +54,7 @@ module dftbp_extlibs_tblite
   use tblite_xtb_calculator, only : xtb_calculator, new_xtb_calculator
   use tblite_xtb_gfn1, only : new_gfn1_calculator
   use tblite_xtb_gfn2, only : new_gfn2_calculator
-  use tblite_xtb_h0, only : get_selfenergy, get_hamiltonian, get_occupation, &
+  use tblite_xtb_h0, only : get_selfenergy, get_hamiltonian, get_occupation,&
       & get_hamiltonian_gradient, tb_hamiltonian
   use tblite_xtb_ipea1, only : new_ipea1_calculator
   use tblite_xtb_singlepoint, only : xtb_singlepoint
@@ -282,6 +283,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine setupGeometry
 
 
@@ -299,6 +301,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine setupCalculatorFromEnum
 
 
@@ -327,6 +330,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine setupCalculatorFromFile
 
 
@@ -347,6 +351,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine setupOrbitals
 
 
@@ -392,7 +397,8 @@ contains
       call error("Library interface does not support shell-resolved dipole moment communication")
     end if
     if (info%quadrupole > atom_resolved) then
-      call error("Library interface does not support shell-resolved quadrupole moment communication")
+      call error("Library interface does not support shell-resolved quadrupole moment&
+          & communication")
     end if
 
     call new_wavefunction(this%wfn, this%mol%nat, this%calc%bas%nsh, this%calc%bas%nao, &
@@ -416,6 +422,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine TTBLite_init
 
 
@@ -475,6 +482,7 @@ contains
       sp2id(iSp) = iId
       done(iSp) = .true.
     end do
+
   end subroutine getSpeciesIdentifierMap
 
 
@@ -518,6 +526,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine writeTBLiteInfo
 
 
@@ -584,6 +593,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine updateCoords
 
 
@@ -601,23 +611,28 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine updateLatVecs
 
 
   !> Get energy contributions
-  subroutine getEnergies(this, energies)
+  subroutine getEnergies(this, energy)
 
     !> Data structure
     class(TTBLite), intent(inout) :: this
 
-    !> Energy contributions for each atom
-    real(dp), intent(out) :: energies(:)
+    !> Energy contributions
+    type(TEnergies), intent(inout) :: energy
 
   #:if WITH_TBLITE
-    energies(:) = this%ehal + this%erep + this%edisp + this%escd + this%ees
+    energy%atomSCC(:) = this%ees
+    energy%atomRep(:) = this%erep
+    energy%atomDisp(:) = this%edisp + this%escd
+    energy%atomHalogenX(:) = this%ehal
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getEnergies
 
 
@@ -650,6 +665,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine addGradients
 
 
@@ -669,6 +685,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getStress
 
 
@@ -775,6 +792,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine updateCharges
 
 
@@ -823,6 +841,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getShifts
 
 
@@ -844,6 +863,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getOrbitalInfo
 
 
@@ -916,6 +936,7 @@ contains
       end do
       orb%posShell(orb%nShell(iSp)+1, iSp) = ind
     end do
+
   end subroutine setupOrbitalInfo
 #:endif
 
@@ -938,6 +959,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getMultipoleInfo
 
 
@@ -972,6 +994,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getReferenceN0
 
 
@@ -1068,6 +1091,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine getOrbitalEquiv
 
 
@@ -1151,6 +1175,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine buildSH0
 
 
@@ -1260,6 +1285,7 @@ contains
       end do
 
     end do
+
   end subroutine buildDiagonalBlocks
 
 
@@ -1398,6 +1424,7 @@ contains
 
       end do
     end do
+
   end subroutine buildDiatomicBlocks
 #:endif
 
@@ -1460,6 +1487,7 @@ contains
     qj(4) = qi(4) + 1.5_dp * qj(4)
     qj(5) = qi(5) + 1.5_dp * qj(5)
     qj(6) = qi(6) + 1.5_dp * qj(6) - tr
+
   end subroutine shiftOperator
 
 
@@ -1551,6 +1579,7 @@ contains
   #:else
     call notImplementedError
   #:endif
+
   end subroutine buildDerivativeShift
 
 
@@ -1607,6 +1636,7 @@ contains
         dEdcn(iat) = dEdcn(iat) + dcni
       end do
     end do
+
   end subroutine buildDiagonalDerivs
 
 
@@ -1787,6 +1817,7 @@ contains
 
       end do
     end do
+
   end subroutine buildDiatomicDerivs
 #:endif
 
@@ -1829,13 +1860,15 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     call error("Forces currently not available in Ehrenfest dynamic with this Hamiltonian")
+
   end subroutine buildRdotSprime
 
 
 #:if not WITH_TBLITE
-  subroutine notImplementedError
+  subroutine notImplementedError()
 
     call error("DFTB+ compiled without support for tblite library")
+
   end subroutine notImplementedError
 #:endif
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,8 +21,8 @@ module dftbp_math_lapackroutines
   implicit none
 
   private
-  public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, larnv
-  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
+  public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs
+
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
   !> matrix and X and B are N-by-NRHS matrices
@@ -118,8 +118,6 @@ module dftbp_math_lapackroutines
     module procedure :: getrs_real
     module procedure :: getrs1_real
   end interface getrs
-
-
 
 
 contains
@@ -675,79 +673,6 @@ contains
   end subroutine getri_dble
 
 
-  !> Inverts a matrix.
-  subroutine matinv(aa, nRow, iError)
-
-    !> Matrix to invert on entry, inverted matrix on exit
-    real(dp), intent(inout) :: aa(:,:)
-
-    !> Nr. of rows of the matrix (if different from size(aa, dim=1)
-    integer, intent(in), optional :: nRow
-
-    !> iError Error flag. Returns 0 on successful operation. If this variable is not specified, any
-    !> occurring error (e.g. singular matrix) stops the program.
-    integer, intent(out), optional :: iError
-
-    integer :: nn, info
-    integer, allocatable :: ipiv(:)
-    character(len=100) :: error_string
-
-    nn = size(aa, dim=1)
-    if (present(nRow)) then
-      @:ASSERT(nRow >= 1 .and. nRow <= nn)
-      nn = nRow
-    end if
-    @:ASSERT(size(aa, dim=2) >= nn)
-
-    allocate(ipiv(nn))
-    call getrf(aa, ipiv, nRow=nn, nColumn=nn, iError=info)
-    if (info == 0) then
-      call getri(aa, ipiv, nRow=nn, iError=info)
-    end if
-
-    if (present(iError)) then
-      iError = info
-    elseif (info /= 0) then
-99120 format ('Matrix inversion failed because of error in getrf or getri.', &
-          & ' Info flag: ',i10)
-      write (error_string, 99120) info
-      call error(error_string)
-    end if
-
-  end subroutine matinv
-
-#:for SUFFIX, TYPE, KIND, NAME in [('sym', 'sy', 'real', 'symmetric'),&
-  & ('her', 'he', 'complex', 'hermitian')]
-
-  !> Inverts a ${NAME}$ matrix.
-  subroutine ${SUFFIX}$matinv(aa, status, uplo)
-
-    !> Symmetric matrix to invert on entry, inverted matrix on exit.
-    ${KIND}$(dp), intent(inout) :: aa(:,:)
-
-    !> Status of operation
-    type(TStatus), intent(out) :: status
-
-    !> Upper ('U') or lower ('L') matrix. Default: 'L'.
-    character, intent(in), optional :: uplo
-
-    integer :: nn
-    integer, allocatable :: ipiv(:)
-
-    nn = size(aa, dim=1)
-    allocate(ipiv(nn))
-
-    call ${TYPE}$trf(aa, ipiv, status, uplo=uplo)
-    @:PROPAGATE_ERROR(status)
-
-    call ${TYPE}$tri(aa, ipiv, status, uplo=uplo)
-    @:PROPAGATE_ERROR(status)
-
-  end subroutine ${SUFFIX}$matinv
-
-#:endfor
-
-
 #:for TYPE, KIND, NAME, PRC, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytrf'),&
   & ('sy', 'real', 'symmetric', 'rdp', 'dreal', 'dsytrf'),&
   & ('he', 'complex', 'hermitian', 'rsp', 'cmplx', 'chetrf'),&
@@ -1295,11 +1220,11 @@ contains
   end subroutine getrs_dble
 
 
-  !> Solves a system of linear equations with one right hand sides
+  !> Solves a system of linear equations with one right hand side
   subroutine getrs1_dble(amat, ipiv, bvec, trans, iError)
 
     !> Matrix of the linear system
-    real(rdp), intent(in) :: amat(:, :)
+    real(rdp), intent(in) :: amat(:,:)
 
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(in) :: ipiv(:)
@@ -1313,7 +1238,7 @@ contains
     !> Error flag, zero on successful exit
     integer, intent(out), optional :: iError
 
-    real(rdp), pointer :: bptr(:, :)
+    real(rdp), pointer :: bptr(:,:)
 
     bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
     call getrs(amat, ipiv, bptr, trans, iError)

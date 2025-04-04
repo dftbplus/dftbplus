@@ -6,6 +6,7 @@ The \modes{} program calculates vibrational modes using data created by
 
 
 \section{Input for \modes}
+\label{sec:modesInput}
 
 The input file for \modes{} must be named \verb|modes_in.hsd| and should be a
 Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd})
@@ -30,6 +31,7 @@ Additionally optional definitions may be present:
   \kw{Masses} & p & & & \pref{sec:modes.Masses} \\
   \kw{BornCharges} & p & & \cb & \pref{sec:modes.BornCharges} \\
   \kw{BornDerivs} & p & & \cb & \pref{sec:modes.BornDerivs} \\
+  \kw{EigenSolver} & s & & QR & \\
 \end{ptableh}
 
 \begin{description}
@@ -38,6 +40,45 @@ Additionally optional definitions may be present:
 \item[\is{Hessian}] Contains the second derivatives matrix of the
   system energy with respect to atomic positions. See
   p.~\pref{sec:modes.Hessian}.
+  
+  There are two different ways to specify the Hessian matrix elements,
+  explicit specification and using the \iscb{DirectRead} from a file.
+
+\subsubsection{Explicit specification}
+\label{sec:modes.Explicit}
+Every matrix element is listed explicitly in the order defined on
+p.~\pref{sec:modes.Hessian}.
+
+Example (using file inclusion):
+  \invparskip
+\begin{verbatim}
+  Hessian {
+    <<< "./hessian.out"
+  }
+\end{verbatim}
+
+\subsubsection{DirectRead\cb}
+\label{sec:modes.DirectRead}
+For large systems explicit specification of the matrix elements might
+overwhelm the parser and the parsing time to process this data could
+be unreasonably long. This can be avoided by including the matrix
+elements directly from an external file via the \kwcb{DirectRead}
+method (see the example below). You have to specify the filename:
+\begin{ptable}
+  \kw{File} & s &  & "" & \\
+\end{ptable}
+\begin{description}
+\item[\is{File}] Path and filename of the Hessian to read.
+\end{description}
+
+Example:
+\invparskip
+\begin{verbatim}
+  Hessian = DirectRead {
+    File = "./hessian.out"
+  }
+\end{verbatim}
+
 \item[\is{SlaterKosterFiles}] Name of the Slater-Koster files for
   every atom type pair combination. See
   p.~\pref{sec:dftbp.SlaterKosterFiles}. This is used to obtain the
@@ -56,8 +97,13 @@ Additionally optional definitions may be present:
 \item[\is{RemoveRotation}] Explicitly set the rotation modes of the system to be
   at 0 frequency. Note, for periodic systems, this is usually incorrect (if used
   for a molecule full inside the central cell, it may be harmless).
-\item[\is{Masses}] If present, replace the atomic masses from the Slater-Koster files. See
-  p.~\pref{sec:modes.Masses}
+\item[\is{Masses}] If present, replace the atomic masses from the
+  Slater-Koster files. See p.~\pref{sec:modes.Masses}.
+\item[\is{EigenSolver}] Choice of solver for the dynamical matrix,
+  current choices are \kw{QR}, \kw{DivideAndConquer} or
+  \kw{RelativelyRobust}. If the modes code is compiled with the
+  MAGMA~\cite{tdb10, tnld10, dghklty14} library
+  included, then the \kw{MAGMA} solver is also available.
 \end{description}
 
 

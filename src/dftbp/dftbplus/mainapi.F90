@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -138,6 +138,8 @@ contains
     call setNeighbourListOrig(main%neighbourList, env, nNeighbour, iNeighbour, neighDist, cutOff,&
         & main%coord0, main%species0, coordNeighbours, neighbour2CentCell, main%rCellVec,&
         & main%nAllAtom, main%img2CentCell, main%iCellVec, main%coord, main%species)
+    main%areNeighSetExternal = .true.
+    main%tCoordsChanged = .true.
 
   end subroutine setNeighbourList
 
@@ -570,6 +572,9 @@ contains
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
 
+    !> Error status
+    type(TStatus) :: errStatus
+
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
 
@@ -614,7 +619,10 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -654,14 +662,14 @@ contains
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
       call initializeDynamics(main%electronDynamics, main%boundaryCond, main%coord0, main%orb,&
-          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
-          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
-          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
-          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
+          & main%neighbourList, main%nNeighbourSK, main%symNeighbourList, main%nNeighbourCamSym,&
+          & main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell, main%skHamCont,&
+          & main%skOverCont, main%ints, env, main%coord, main%H0, main%spinW, main%tDualSpinOrbit,&
+          & main%xi, main%thirdOrd, main%dftbU, main%onSiteElements, main%refExtPot,&
+          & main%solvation, main%eFieldScaling, main%hybridXc, main%referenceN0, main%q0,&
+          & main%repulsive, main%iAtInCentralRegion, main%densityMatrix, main%eigvecsReal,&
           & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
-          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
-          & main%electronicSolver, errStatus)
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -722,12 +730,13 @@ contains
 
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, main%boundaryCond, iStep, main%coord0, main%orb,&
-          & main%neighbourList, main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart,&
-          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
-          & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
-          & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
-          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
-          & main%electronicSolver, main%qDepExtPot, errStatus)
+          & main%neighbourList, main%nNeighbourSK, main%symNeighbourList, main%nNeighbourCamSym,&
+          & main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell, main%skHamCont,&
+          & main%skOverCont, main%ints, env, main%coord, main%q0, main%referenceN0, main%spinW,&
+          & main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU, main%onSiteElements,&
+          & main%refExtPot, main%solvation, main%eFieldScaling, main%hybridXc, main%repulsive,&
+          & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
+          & errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -752,7 +761,7 @@ contains
         occ(:) = main%electronDynamics%occ
       end if
     else
-      call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
+      call error("Propagators for dynamics not initialized, please call initializeTimeProp()&
           & first.")
     end if
 

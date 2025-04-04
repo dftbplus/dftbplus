@@ -1,5 +1,5 @@
-if(WITH_UNIT_TESTS)
-  add_subdirectory(unittests)
+if(WITH_UNIT_TESTS AND NOT WITH_MPI)
+  add_subdirectory(unit)
 endif()
 
 if(WITH_API)

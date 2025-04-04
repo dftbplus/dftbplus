@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,22 +21,22 @@ module dftbp_dftb_dispiface
   type, abstract :: TDispersionIface
   contains
 
-    !> update internal copy of coordinates
+    !> Update internal copy of coordinates
     procedure(updateCoordsIface), deferred :: updateCoords
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     procedure(updateLatVecsIface), deferred :: updateLatVecs
 
-    !> get real space cutoff
+    !> Get real space cutoff
     procedure(getRCutoffIface), deferred :: getRCutoff
 
-    !> get energy contributions
+    !> Get energy contributions
     procedure(getEnergiesIface), deferred :: getEnergies
 
-    !> get force contributions
+    !> Get force contributions
     procedure(addGradientsIface), deferred :: addGradients
 
-    !> get stress tensor contributions
+    !> Get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
 
     !> Updates with changed charges for the instance.
@@ -60,22 +60,22 @@ module dftbp_dftb_dispiface
     subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0, stat)
       import :: TDispersionIface, TEnvironment, TNeighbourList, dp, TStatus
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
       !> Computational environment settings
       type(TEnvironment), intent(in) :: env
 
-      !> list of neighbours to atoms
+      !> List of neighbours to atoms
       type(TNeighbourList), intent(in) :: neigh
 
-      !> image to central cell atom index
+      !> Image to central cell atom index
       integer, intent(in) :: img2CentCell(:)
 
-      !> atomic coordinates
+      !> Atomic coordinates
       real(dp), intent(in) :: coords(:,:)
 
-      !> central cell chemical species
+      !> Central cell chemical species
       integer, intent(in) :: species0(:)
 
       !> Status of operation
@@ -84,54 +84,54 @@ module dftbp_dftb_dispiface
     end subroutine updateCoordsIface
 
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     subroutine updateLatVecsIface(this, latVecs)
       import :: TDispersionIface, dp
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
-      !> lattice vectors
+      !> Lattice vectors
       real(dp), intent(in) :: latVecs(:,:)
     end subroutine updateLatVecsIface
 
 
-    !> get energy contributions
+    !> Get energy contributions
     subroutine getEnergiesIface(this, energies)
       import :: TDispersionIface, dp
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
-      !> energy contributions for each atom
+      !> Energy contributions for each atom
       real(dp), intent(out) :: energies(:)
     end subroutine getEnergiesIface
 
 
-    !> get force contributions
+    !> Get force contributions
     subroutine addGradientsIface(this, env, neigh, img2CentCell, coords, species0, &
         & gradients, stat)
       import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
       !> Computational environment settings
       type(TEnvironment), intent(in) :: env
 
-      !> list of neighbours to atoms
+      !> List of neighbours to atoms
       type(TNeighbourList), intent(in) :: neigh
 
-      !> image to central cell atom index
+      !> Image to central cell atom index
       integer, intent(in) :: img2CentCell(:)
 
-      !> atomic coordinates
+      !> Atomic coordinates
       real(dp), intent(in) :: coords(:,:)
 
-      !> central cell chemical species
+      !> Central cell chemical species
       integer, intent(in) :: species0(:)
 
-      !> gradient contributions for each atom
+      !> Gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
 
       !> Status of operation
@@ -139,11 +139,11 @@ module dftbp_dftb_dispiface
     end subroutine addGradientsIface
 
 
-    !> get stress tensor contributions
+    !> Get stress tensor contributions
     subroutine getStressIface(this, stress)
       import :: TDispersionIface, dp
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
       !> Stress tensor contributions
@@ -155,10 +155,10 @@ module dftbp_dftb_dispiface
     function getRCutoffIface(this) result(cutoff)
       import :: TDispersionIface, dp
 
-      !> data structure
+      !> Data structure
       class(TDispersionIface), intent(inout) :: this
 
-      !> resulting cutoff
+      !> Resulting cutoff
       real(dp) :: cutoff
     end function getRCutoffIface
 
@@ -166,10 +166,10 @@ module dftbp_dftb_dispiface
 
 contains
 
-  !> update charges, dummy interface if not needed
+  !> Update charges, dummy interface if not needed
   subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
 
-    !> data structure
+    !> Data structure
     class(TDispersionIface), intent(inout) :: this
 
     !> Net atomic populations
@@ -193,7 +193,7 @@ contains
   !> Adds the atomic potential contribution from suitable dispersion models, no effect otherwise
   subroutine addPotential(this, vDisp)
 
-    !> data structure
+    !> Data structure
     class(TDispersionIface), intent(in) :: this
 
     !> Atomistic potential (dummy for most dispersion models)
@@ -205,10 +205,10 @@ contains
   !> Is the dispersion energy available for use in the main code after calling getEnergies
   function energyAvailable(this)
 
-    !> data structure
+    !> Data structure
     class(TDispersionIface), intent(in) :: this
 
-    !> result (dummy for most dispersion models)
+    !> Result (dummy for most dispersion models)
     logical :: energyAvailable
 
     energyAvailable = .true.

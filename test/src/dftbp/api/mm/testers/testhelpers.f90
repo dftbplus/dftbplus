@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 !> Module containing routines for the automatic testing of the API functionality
 
 module testhelpers
-  use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_c_binding, only : c_associated, c_double, c_f_pointer, c_int, c_ptr
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
   implicit none
   private

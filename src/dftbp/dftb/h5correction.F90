@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -92,19 +92,19 @@ contains
   !> Apply the correction to the short-range part of gamma function, returning modified shortGamma
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(TH5Correction), intent(in) :: this
 
-    !> short range gamma value
+    !> Short range gamma value
     real(dp), intent(inout) :: shortGamma
 
-    !> species of first atom in the pair
+    !> Species of first atom in the pair
     integer, intent(in) :: iSp1
 
-    !> species of the second atom in the pair
+    !> Species of the second atom in the pair
     integer, intent(in) :: iSp2
 
-    !> separation between atoms
+    !> Separation between atoms
     real(dp), intent(in) :: rab
 
     real(dp) :: h5Scaling_, gauss, sumVdw_, fwhm, r0, cc
@@ -125,22 +125,22 @@ contains
   !> Apply the correction to the derivative of the short-range part of gamma function
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
 
-    !> instance of the correction
+    !> Instance of the correction
     class(TH5Correction), intent(in) :: this
 
-    !> short range gamma
+    !> Short range gamma
     real(dp), intent(in) :: shortGamma
 
-    !> derivative of short range gamma to scale
+    !> Derivative of short range gamma to scale
     real(dp), intent(inout) :: shortGammaDeriv
 
-    !> species of first atom in the pair
+    !> Species of first atom in the pair
     integer, intent(in) :: iSp1
 
-    !> species of second atom in the pair
+    !> Species of second atom in the pair
     integer, intent(in) :: iSp2
 
-    !> separation of pair
+    !> Separation of pair
     real(dp), intent(in) :: rab
 
     ! Local variables

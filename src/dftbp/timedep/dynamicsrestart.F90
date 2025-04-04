@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> routines for the restart of the time propagation of the density matrix/atoms
+!> Routines for the restart of the time propagation of the density matrix/atoms
 module dftbp_timedep_dynamicsrestart
   use dftbp_common_accuracy, only : dp
   use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
   use dftbp_common_status, only : TStatus
   implicit none
 
-  !> version number for restart format, please increment if you change the file format (and consider
-  !> adding backward compatibility functionality)
+  !> Version number for restart format, please increment if you change the file format (and consider
+  !! adding backward compatibility functionality)
   integer, parameter :: iDumpFormat = 1
 
   private
@@ -24,7 +24,7 @@ module dftbp_timedep_dynamicsrestart
 
 contains
 
-  !> Write to a restart file
+  !> Write to a restart file.
   subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density matrix
@@ -33,32 +33,31 @@ contains
     !> Density matrix at previous time step
     complex(dp), intent(in) :: rhoOld(:,:,:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(in) :: veloc(:,:)
 
-    !> simulation time (in atomic units)
+    !> Simulation time (in atomic units)
     real(dp), intent(in) :: time
 
-    !> time step being used (in atomic units)
+    !> Time step being used (in atomic units)
     real(dp), intent(in) :: dt
 
-    !> name of the dump file
+    !> Name of the dump file
     character(len=*), intent(in) :: fileName
 
     !> Should restart data be written as ascii (cross platform, but potentially lower
-    !> reproducibility) or binary files
+    !! reproducibility) or binary files
     logical, intent(in) :: isAsciiFile
 
-    !> operation status
+    !> Operation status
     type(TStatus), intent(out) :: errStatus
 
     type(TFileDescr) :: fd
     integer :: ii, jj, kk, iErr
     character(len=120) :: error_string
-
 
     if (isAsciiFile) then
       call openFile(fd, trim(fileName) // '.dat', mode="w", iostat=iErr)
@@ -117,7 +116,7 @@ contains
   end subroutine writeRestartFile
 
 
-  !> read a restart file containing density matrix, overlap, coordinates and time step
+  !> Read a restart file containing density matrix, overlap, coordinates and time step
   subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, isAsciiFile, errStatus)
 
     !> Density Matrix
@@ -126,26 +125,26 @@ contains
     !> Previous density Matrix
     complex(dp), intent(out) :: rhoOld(:,:,:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(out) :: coord(:,:)
 
     !> Previous simulation elapsed time until restart file writing
     real(dp), intent(out) :: time
 
-    !> time step being currently used (in atomic units) for checking compatibility
+    !> Time step being currently used (in atomic units) for checking compatibility
     real(dp), intent(in) :: dt
 
     !> Name of the file to open
     character(*), intent(in) :: fileName
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(out) :: veloc(:,:)
 
     !> Should restart data be read as ascii (cross platform, but potentially lower reproducibility)
-    !> or binary files
+    !! or binary files
     logical, intent(in) :: isAsciiFile
 
-    !> operation status
+    !> Operation status
     type(TStatus), intent(out) :: errStatus
 
     type(TFileDescr) :: fd

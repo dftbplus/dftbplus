@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -38,6 +38,10 @@ module dftbp_dftb_determinants
   type(TDeterminantsEnum), parameter :: determinants = TDeterminantsEnum()
 
 
+  !> Names of the determinants, matching TDeterminantsEnum
+  character(len=2), parameter :: detNames(0:2) = ['s0', 't1', 's1']
+
+
   !> Control type for Delta DFTB / TI-DFTB
   type TDftbDeterminants
 
@@ -59,13 +63,13 @@ module dftbp_dftb_determinants
     !> Has the calculation finished and results are now ready to use
     logical :: isFinished
 
-    !> which determinant holds the ground state (0 if none)
+    !> Which determinant holds the ground state (0 if none)
     integer :: iGround
 
-    !> which determinant holds the triplet state (0 if none)
+    !> Which determinant holds the triplet state (0 if none)
     integer :: iTriplet
 
-    !> which determinant holds the (spin contaminated) S1 state
+    !> Which determinant holds the (spin contaminated) S1 state
     integer :: iMixed
 
     !> Resulting final determinant
@@ -80,6 +84,7 @@ module dftbp_dftb_determinants
     procedure :: nDeterminant
     procedure :: whichDeterminant
     procedure :: detFilling
+    procedure :: determinantName
 
   end type TDftbDeterminants
 
@@ -119,6 +124,26 @@ contains
   end function whichDeterminant
 
 
+  !> Converts determinant number into what it is called
+  function determinantName(this, iDet) result(det)
+
+    !> Instance
+    class(TDftbDeterminants), intent(in) :: this
+
+    !> Number of current determinant
+    integer, intent(in) :: iDet
+
+    character(2) :: det
+
+    if (iDet > size(this%determinants)) then
+      call error("Internal error: invalid determinant")
+    endif
+
+    det = detNames(this%determinants(iDet))
+
+  end function determinantName
+
+
   !> Spin Purifies Non-Aufbau excited state energy and forces
   subroutine postProcessDets(this, energies, qOutput, qDets, qBlockOut, qBlockDets, dipoleMoment,&
       & stress, tripletStress, mixedStress, derivs, tripletderivs, mixedderivs)
@@ -126,7 +151,7 @@ contains
     !> Instance
     class(TDftbDeterminants), intent(inout) :: this
 
-    !> energy components for whatever determinants are present
+    !> Energy components for whatever determinants are present
     type(TEnergies), intent(inout) :: energies(:)
 
     !> Charges
@@ -141,10 +166,10 @@ contains
     !> Charges from determinants
     real(dp), intent(in), allocatable :: qBlockDets(:,:,:,:,:)
 
-    !> dipole moment
+    !> Dipole moment
     real(dp), intent(inout), allocatable :: dipoleMoment(:,:)
 
-    !> stress tensor
+    !> Stress tensor
     real(dp), intent(inout) :: stress(:,:)
 
     !> Triplet stress
@@ -153,7 +178,7 @@ contains
     !> Spin contaminated stress
     real(dp), intent(inout), optional :: mixedStress(:,:)
 
-    !> derivatives for atom positions
+    !> Derivatives for atom positions
     real(dp), intent(inout), optional:: derivs(:,:)
 
     !> Triplet state derivatives

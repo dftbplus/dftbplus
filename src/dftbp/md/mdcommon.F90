@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@ module dftbp_md_mdcommon
 
   private
   public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
-  public :: evalKE, BoxMueller, MaxwellBoltzmann
+  public :: evalKE, BoxMueller, MaxwellBoltzmann, TMDOutput
 
 
   !> Contains necessary data for the MD framework
@@ -28,6 +28,21 @@ module dftbp_md_mdcommon
     !> Should transform to rest frame?
     logical :: tStationary
   end type TMDCommon
+
+
+  !> Output variables accumulated during MD
+  type TMDOutput
+
+    !> Are eigenvalues printed out at every write time?
+    logical :: bandStructure = .false.
+
+    !> Are 1st derivative data accumulated?
+    logical :: printForces = .true.
+
+    !> Are charge-related data accumulated?
+    logical :: printCharges = .true.
+
+  end type TMDOutput
 
 
   !> initialise thermostat

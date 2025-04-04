@@ -5,6 +5,81 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+Unreleased
+==========
+
+Added
+-----
+
+- MPI-parallelization of Waveplot
+
+- Generalization of mixers to also handle complex density matrices
+
+- General range-separated, long-range corrected CAM hybrid functionals for
+  ground-state periodic systems (MPI-parallel Fock-type exchange and energy
+  gradient construction by neighbour-list and matrix-multiplication based
+  algorithms)
+
+- Generalization of non-periodic, ground-state LC-DFTB Hamiltonian to general
+  range-separated, long-range corrected CAM hybrid functionals
+  (MPI-parallelization of matrix-multiplication based Fock-type exchange
+  construction, MPI-parallel matrix-multiplication based energy gradient
+  evaluation, restart of matrix-multiplication based hybrid-DFTB calculations)
+
+- Electronic constraints on arbitrary regions, targeting the electronic ground
+  state by determining a self-consistent constraint potential (restricted to
+  Mulliken populations at the moment)
+
+- Density Matrix construction on GPU using MAGMA-BLAS routines
+
+- More control over output of data and band structures during MD
+  calculations
+
+- MAGMA GPU accelerated solver for the modes code
+
+- Explicit keyword for gaussian electron temperature smearing (MP order 0)
+
+
+Changed
+-------
+
+- Components of xtb energies are now resolved
+
+
+Fixed
+-----
+
+- Incorrect superposition of atomic densities written by Waveplot
+
+- SK-file parser extra-/spline-tag sequence dependent
+
+- Incorrect excited gradients for spin-polarized long-range corrected
+  linear-response TD-DFTB calculations.
+
+- Temporarily remove free energy for Delta-DFTB calculations, as this
+  is not formally derived in the general case.
+
+- DeltaDFTB purified forces used correctly.
+
+- COSMO solvent models had a bug leading to the energy showing a
+  dependence on the ordering of the atoms in the system.
+
+- Solvents where RadiiScaling was specified with a unit conversion
+  were scaled by the square of the conversion. Affects calculations
+  using constructs of the form:
+  Radii = * [AA] = {}
+  where * is Values, vanDerWaalsRadiiBondi vanDerWaalsRadiiCosmo or
+  vanDerWaalsRadiiD3
+
+- Corrected the order of Methfestle-Paxton filling. It was producing
+  filling that was 1 order lower than the one requested in the input.
+  This is probably safe in most applications, the lowest order beyond
+  Gauss smearing (0th order) is default for several other codes and
+  already has linear and quadratic independence of the free energy wrt
+  temperature. Default for Methfestle-Paxton smearing is now set to 1
+  (matching the results from the old default value).
+
+
 24.1 (2024-02-12)
 =================
 
@@ -19,11 +94,9 @@ Fixed
 
 - Memory leak for MPI enabled code with many geometric steps.
 
-- API call to setExternalCharges was not marking calculation to be
-  re-evaluated.
+- API call to setExternalCharges was not marking calculation to be re-evaluated.
 
-- Calls to setExternalCharges were failing if number of external charges
-  changes.
+- Calls to setExternalCharges were failing if number of external charges changes.
 
 
 23.1 (2023-07-05)
@@ -38,7 +111,6 @@ Added
 
 - Born charges and derivatives can now be calculated for a subset of the desired
   atoms (similar to the Hessian).
-
 
 Changed
 -------

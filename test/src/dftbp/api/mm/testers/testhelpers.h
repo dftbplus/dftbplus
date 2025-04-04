@@ -1,12 +1,12 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2023  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2025  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
 
 #ifndef __TESTHELPERS_H__
-#define __TESTHELPERS_H_
+#define __TESTHELPERS_H__
 
 #ifdef __cplusplus
 extern "C" {

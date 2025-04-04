@@ -1,19 +1,21 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
-!> update the SCC hamiltonian
+!> Update the SCC hamiltonian
 module dftbp_dftb_hamiltonian
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
@@ -23,7 +25,6 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_integral, only : TIntegral
@@ -87,7 +88,7 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> species for atoms
+    !> Species for atoms
     integer, intent(in) :: species(:)
 
     !> Potential energy contributions
@@ -111,13 +112,13 @@ contains
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> potentials in the system
+    !> Potentials in the system
     type(TPotentials), intent(inout) :: potential
 
     @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
@@ -147,7 +148,7 @@ contains
   !> spin, and where relevant dispersion
   subroutine addChargePotentials(env, sccCalc, tblite, updateScc, qInput, q0, chargePerShell,&
       & orb, multipole, species, neighbourList, img2CentCell, spinW, solvation, thirdOrd,&
-      & dispersion, potential)
+      & dispersion, potential, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -164,34 +165,34 @@ contains
     !> Input atomic populations
     real(dp), intent(in) :: qInput(:,:,:)
 
-    !> reference atomic occupations
+    !> Reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> charges per atomic shell
+    !> Charges per atomic shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Multipole information
     type(TMultipole), intent(in) :: multipole
 
-    !> species of all atoms
+    !> Species of all atoms
     integer, target, intent(in) :: species(:)
 
-    !> neighbours to atoms
+    !> Neighbours to atoms
     type(TNeighbourList), intent(in) :: neighbourList
 
-    !> map from image atom to real atoms
+    !> Map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> spin constants
+    !> Spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Solvation mode
     class(TSolvation), allocatable, intent(inout) :: solvation
 
-    !> third order SCC interactions
+    !> Third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> Potentials acting
@@ -199,6 +200,9 @@ contains
 
     !> Dispersion interactions object
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
@@ -268,7 +272,9 @@ contains
     end if
 
     if (allocated(solvation)) then
-      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
+      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
@@ -289,25 +295,25 @@ contains
   !> Add potentials coming from on-site block of the dual density matrix.
   subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, dftbU, tImHam, species, orb, potential)
 
-    !> block input charges
+    !> Block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
 
-    !> imaginary part
+    !> Imaginary part
     real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
 
-    !> is this a +U calculation
+    !> Is this a +U calculation
     type(TDftbU), intent(in), allocatable :: dftbU
 
-    !> does the hamiltonian have an imaginary part in real space?
+    !> Does the hamiltonian have an imaginary part in real space?
     logical, intent(in) :: tImHam
 
-    !> chemical species of all atoms
+    !> Chemical species of all atoms
     integer, intent(in) :: species(:)
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> potentials acting in system
+    !> Potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
     if (allocated(dftbU)) then
@@ -354,7 +360,7 @@ contains
     !> Image atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> Potential acting on sustem
+    !> Potential acting on system
     type(TPotentials), intent(in) :: potential
 
     !> Is this DFTB/SSR formalism

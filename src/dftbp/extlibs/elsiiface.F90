@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,9 +13,24 @@
 module dftbp_extlibs_elsiiface
   use dftbp_common_accuracy, only : dp
 #:if WITH_ELSI
-  use elsi
+  use elsi, only : elsi_dm_complex, elsi_dm_complex_sparse, elsi_dm_real, elsi_dm_real_sparse,&
+      & elsi_ev_complex, elsi_ev_real, elsi_finalize, elsi_finalize_rw, elsi_get_datestamp,&
+      & elsi_get_edm_complex, elsi_get_edm_complex_sparse, elsi_get_edm_real,&
+      & elsi_get_edm_real_sparse, elsi_get_entropy, elsi_get_mu, elsi_get_pexsi_mu_max,&
+      & elsi_get_pexsi_mu_min, elsi_get_version, elsi_handle, elsi_init, elsi_init_rw, elsi_reinit,&
+      & elsi_rw_handle, elsi_set_blacs, elsi_set_csc, elsi_set_csc_blk, elsi_set_elpa_autotune,&
+      & elsi_set_elpa_gpu, elsi_set_elpa_solver, elsi_set_kpoint, elsi_set_mpi, elsi_set_mpi_global,&
+      & elsi_set_mu_broaden_scheme, elsi_set_mu_broaden_width, elsi_set_mu_mp_order,&
+      & elsi_set_ntpoly_filter, elsi_set_ntpoly_method, elsi_set_ntpoly_tol, elsi_set_omm_flavor,&
+      & elsi_set_omm_n_elpa, elsi_set_omm_tol, elsi_set_output, elsi_set_output_log,&
+      & elsi_set_pexsi_delta_e, elsi_set_pexsi_method, elsi_set_pexsi_mu_max, elsi_set_pexsi_mu_min,&
+      & elsi_set_pexsi_n_mu, elsi_set_pexsi_n_pole, elsi_set_pexsi_np_per_pole,&
+      & elsi_set_pexsi_np_symbo, elsi_set_pexsi_temp, elsi_set_rw_blacs, elsi_set_rw_csc,&
+      & elsi_set_rw_mpi, elsi_set_rw_zero_def, elsi_set_sing_check, elsi_set_sparsity_mask,&
+      & elsi_set_spin, elsi_set_zero_def, elsi_write_mat_complex, elsi_write_mat_complex_sparse,&
+      & elsi_write_mat_real, elsi_write_mat_real_sparse
 #:else
-  use iso_c_binding, only : r8 => c_double, i4 => c_int32_t
+  use, intrinsic :: iso_c_binding, only : r8 => c_double, i4 => c_int32_t
   use dftbp_io_message, only : error
 #:endif
   implicit none

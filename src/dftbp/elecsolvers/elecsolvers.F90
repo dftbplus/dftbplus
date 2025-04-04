@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,10 +15,8 @@ module dftbp_elecsolvers_elecsolvers
   implicit none
 
   private
-  public :: TElectronicSolverInp
-  public :: TElectronicSolver, TElectronicSolver_init
-  public :: TElsiSolverInp
-  public :: electronicSolverTypes
+  public :: TElectronicSolverInp, TElectronicSolver, TElectronicSolver_init, TElsiSolverInp
+  public :: electronicSolverTypes, providesEigenvalues
 
 
   !> Input for electronic/eigen solver block
@@ -109,23 +107,20 @@ contains
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
 
     !> Eigenvalues for hamiltonian available
-    this%providesEigenvals = any(this%iSolver ==&
-        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
-        & electronicSolverTypes%magma_gvd])
+    this%providesEigenvals = providesEigenvalues(this%iSolver)
 
     !> Band energy for electrons available
     this%providesBandEnergy = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
-        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi])
+        & electronicSolverTypes%magmaGvd, electronicSolverTypes%pexsi])
 
     !> TS term for electrons is available
     this%providesElectronEntropy = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
-        & electronicSolverTypes%elpadm, electronicSolverTypes%magma_gvd,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%magmaGvd,&
         & electronicSolverTypes%pexsi])
 
     !> Electron chemical potential is either available or provided externally. Note this can get
@@ -135,7 +130,7 @@ contains
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
-        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi, electronicSolverTypes%gf])
+        & electronicSolverTypes%magmaGvd, electronicSolverTypes%pexsi, electronicSolverTypes%gf])
 
     !> The electronic Helmholtz free energy of the system is available (U - TS + mu N_elec). Note
     !> that chemical potential logical can be re-defined elsewhere.
@@ -150,6 +145,23 @@ contains
     end if
 
   end subroutine TElectronicSolver_init
+
+
+  !> Does the electronic solver provide eigenvalues of the hamiltonian
+  pure function providesEigenvalues(iSolver)
+
+    !> Electronic solver in use
+    integer, intent(in) :: iSolver
+
+    !> Are eigenvalues available?
+    logical :: providesEigenvalues
+
+    providesEigenvalues = any(iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magmaGvd])
+
+  end function providesEigenvalues
 
 
   !> Resets the electronic solver for the next geometry step.
@@ -203,7 +215,7 @@ contains
     case(electronicSolverTypes%onlyTransport)
       write(buffer, "(A)") "Transport Only (no energies)"
 
-    case(electronicSolverTypes%magma_gvd)
+    case(electronicSolverTypes%magmaGvd)
       write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
 
     case default

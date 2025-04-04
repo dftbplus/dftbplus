@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -29,6 +29,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_io_message, only : error, warning
+  use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_reks_reks, only : TReksInp
   use dftbp_solvation_cm5, only : TCM5Input
@@ -40,6 +41,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_type_linkedlist, only : TListIntR1, destruct
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
+  use dftbp_mixer_factory, only: TMixerInput
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
@@ -51,7 +53,7 @@ module dftbp_dftbplus_inputdata
   private
   public :: TControl, TSlater, TInputData, TParallelOpts
   public :: TBlacsOpts
-  public :: TRangeSepInp
+  public :: THybridXcInp
   public :: init, destruct
   public :: TNEGFInfo
 
@@ -98,8 +100,8 @@ module dftbp_dftbplus_inputdata
   end type TLbfgsInput
 
 
-  !> Range separation input
-  type TRangeSepInp
+  !> Hybrid xc-functional input
+  type THybridXcInp
 
     !> Threshold for integral screening
     real(dp) :: screeningThreshold
@@ -110,13 +112,32 @@ module dftbp_dftbplus_inputdata
     !> Separation parameter
     real(dp) :: omega
 
-    !> Choice of range separation method
-    integer :: rangeSepAlg
+    !> CAM alpha parameter
+    real(dp) :: camAlpha
+
+    !> CAM beta parameter
+    real(dp) :: camBeta
+
+    !> Choice of hybrid xc-functional algorithm to build Hamiltonian
+    integer :: hybridXcAlg
 
     !> Hybrid xc-functional type, as extracted from SK-file(s)
-    integer :: rangeSepType
+    integer :: hybridXcType
 
-  end type TRangeSepInp
+    !> Choice of range separation gamma function type (periodic cases only)
+    integer :: gammaType
+
+    !> Cutoff for real-space g-summation
+    real(dp), allocatable :: gSummationCutoff
+
+    !> Number of unit cells along each supercell folding direction to subtract from minimum image
+    !! convention (MIC) Wigner-Seitz cell construction
+    integer, allocatable :: wignerSeitzReduction
+
+    !> Coulomb truncation cutoff of Gamma electrostatics
+    real(dp), allocatable :: gammaCutoff
+
+  end type THybridXcInp
 
 
   !> Main control data for program as extracted by the parser
@@ -254,6 +275,9 @@ module dftbp_dftbplus_inputdata
     !> Molecular dynamics
     logical :: tMD = .false.
 
+    !> Molecular dynamics data to be recorded as it is accumulated
+    type(TMDOutput), allocatable :: mdOutput
+
     !> Use Plumed
     logical :: tPlumed = .false.
 
@@ -280,22 +304,16 @@ module dftbp_dftbplus_inputdata
     !> Electronic/eigenvalue solver options
     type(TElectronicSolverInp) :: solver
 
-    integer :: iMixSwitch = 0
+    !> If using the GPU as
+    logical :: isDmOnGpu = .false.
 
-    !> Maximum number of self-consitent iterations
+
+    !> Maximum number of self-consistent iterations
     integer :: maxSccIter = 0
+    
+    !> Mixer Input data
+    type(TMixerInput) :: mixerInp
 
-    real(dp) :: almix = 0.0_dp
-    integer :: iGenerations = 0
-    logical :: tFromStart = .true.
-    real(dp) :: broydenOmega0 = 0.01_dp
-    real(dp) :: broydenMinWeight = 1.0_dp
-    real(dp) :: broydenMaxWeight = 1.0e5_dp
-    real(dp) :: broydenWeightFac = 1.0e-2_dp
-    real(dp) :: andersonInitMixing = 0.01_dp
-    integer :: andersonNrDynMix = 0
-    real(dp), allocatable :: andersonDynMixParams(:,:)
-    real(dp) :: andersonOmega0 = 1.0e-2_dp
     integer :: nrMoved = 0
     integer, allocatable :: indMovedAtom(:)
     integer, allocatable :: indDerivAtom(:)
@@ -316,6 +334,8 @@ module dftbp_dftbplus_inputdata
 
     !> Whether to initialize internal state of the Nose-Hoover thermostat from input
     logical :: tInitNHC = .false.
+
+    !> Internal state variables for the Nose-Hoover chain thermostat
     real(dp), allocatable :: xnose(:)
     real(dp), allocatable :: vnose(:)
     real(dp), allocatable :: gnose(:)
@@ -354,7 +374,7 @@ module dftbp_dftbplus_inputdata
     !> Number of k-points for the calculation
     integer :: nKPoint = 0
 
-    !> K-points for the system (= 0 for molecular in free space and no symmetries)
+    !> The k-points for the system (= 0 for molecular in free space and no symmetries)
     real(dp), allocatable :: kPoint(:,:)
 
     !> Weights for the k-points
@@ -362,6 +382,22 @@ module dftbp_dftbplus_inputdata
 
     !> Are the k-points not suitable for integrals over the Brillouin zone
     logical :: poorKSampling = .false.
+
+    !> Should an additional check be performed if more than one SCC step is requested
+    !! (indicates that the k-point sampling has changed as part of the restart)
+    logical :: checkStopHybridCalc = .false.
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), allocatable :: supercellFoldingMatrix(:,:)
+
+    !> Three diagonal elements of supercell folding coefficient matrix
+    integer, allocatable :: supercellFoldingDiag(:)
+
+    !> Tolerance for helical symmetry determination of acceptable k-points commensurate with the
+    !! C_n symmetry
+    real(dp) :: helicalSymTol = 1.0E-8_dp
 
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp
@@ -474,7 +510,6 @@ module dftbp_dftbplus_inputdata
     !> Input for tblite library
     type(TTBLiteInput), allocatable :: tbliteInp
 
-
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)
     real(dp), allocatable :: thirdOrderOn(:,:)
@@ -504,8 +539,8 @@ module dftbp_dftbplus_inputdata
     !> Geometry optimizer input
     type(TGeoOptInput), allocatable :: geoOpt
 
-    !> Range separated input
-    type(TRangeSepInp), allocatable :: rangeSepInp
+    !> Hybrid xc-functional input
+    type(THybridXcInp), allocatable :: hybridXcInp
 
   #:if WITH_SOCKETS
     !> Socket communication

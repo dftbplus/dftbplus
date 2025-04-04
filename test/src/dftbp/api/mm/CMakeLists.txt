@@ -2,13 +2,9 @@ set(projectdir ${PROJECT_SOURCE_DIR})
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-# execute_process is verbatim, therefore ";" must be replaced with " "
-string(REGEX REPLACE ";" " " releasename "${RELEASE}")
-
 add_subdirectory(testers)
 
-set(fypp_flags ${FYPP_CONFIG_FLAGS} -I${projectdir}/src/dftbp/include
-  -DRELEASE=\"'${releasename}'\")
+set(fypp_flags ${FYPP_CONFIG_FLAGS} -I${projectdir}/src/dftbp/include)
 
 execute_process(
   COMMAND ${projectdir}/utils/test/testlist_to_fypp
@@ -33,6 +29,10 @@ foreach(test IN LISTS tests)
     NAME api_${test}
     COMMAND ${projectdir}/test/app/dftb+/bin/autotest2
         -r ${srcdir}/testcases -w ${builddir}/testcases
-	-d ${projectdir}/test/app/dftb+/bin/tagdiff
+        -d ${projectdir}/test/app/dftb+/bin/tagdiff
         -P "${TEST_RUNNER}" -s P,R,C,S ${test})
+  set_tests_properties(
+    api_${test}
+    PROPERTIES
+    ENVIRONMENT "DFTBPLUS_PARAM_DIR=${PROJECT_SOURCE_DIR}/external")
 endforeach()

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,7 +26,7 @@ module dftbp_dftb_dispuffdata
     !> vdW minimum distance
     real(dp) :: distance
 
-    !> depth of minimum
+    !> Depth of minimum
     real(dp) :: energy
   end type TUFF
 

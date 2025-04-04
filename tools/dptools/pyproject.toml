@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dptools"
+version = "24.1"
+authors = [{name = "DFTB+ developers"},]
+dependencies = ["numpy",]
+requires-python = ">=3.10"
+description = "Tools to process DFTB+ related data"
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {text = "LGPLv3+"}
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Environment :: Console",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+]
+
+[project.urls]
+Homepage = "http://www.dftbplus.org"
+Documentation = "https://dftbplus-recipes.readthedocs.io/en/latest/"
+Repository = "https://github.com/dftbplus/dftbplus.git"
+Issues = "https://github.com/dftbplus/dftbplus/issues"
+Changelog = "https://github.com/dftbplus/dftbplus/blob/main/CHANGELOG.rst"
+
+[project.scripts]
+dp_bands = "dptools.scripts.dp_bands:main"
+dp_dos = "dptools.scripts.dp_dos:main"
+gen2cif = "dptools.scripts.gen2cif:main"
+gen2xyz = "dptools.scripts.gen2xyz:main"
+makecube = "dptools.scripts.makecube:main"
+repeatgen = "dptools.scripts.repeatgen:main"
+straingen = "dptools.scripts.straingen:main"
+xyz2gen = "dptools.scripts.xyz2gen:main"

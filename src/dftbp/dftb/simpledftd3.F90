@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -73,22 +73,22 @@ module dftbp_dftb_simpledftd3
   type, extends(TDispersionIface) :: TSimpleDftD3
     private
 
-    !> reference systems for dispersion
+    !> Reference systems for dispersion
     type(TDftD3Ref) :: ref
 
-    !> parameters for evaluating the dispersion energy
+    !> Parameters for evaluating the dispersion energy
     type(TDftD3Param) :: param
 
-    !> number of atoms
+    !> Number of atoms
     integer :: nAtom
 
-    !> energy
+    !> Energy
     real(dp), allocatable :: energies(:)
 
-    !> force contributions
+    !> Force contributions
     real(dp), allocatable :: gradients(:,:)
 
-    !> lattice vectors if periodic
+    !> Lattice vectors if periodic
     real(dp) :: latVecs(3, 3)
 
     !> Volume of the unit cell
@@ -97,10 +97,10 @@ module dftbp_dftb_simpledftd3
     !> Strain derivatives
     real(dp) :: sigma(3, 3)
 
-    !> is this periodic
+    !> Is this periodic
     logical :: tPeriodic
 
-    !> are the coordinates current?
+    !> Are the coordinates current?
     logical :: tCoordsUpdated
 
     !> Coordination number
@@ -111,22 +111,22 @@ module dftbp_dftb_simpledftd3
 
   contains
 
-    !> update internal store of coordinates
+    !> Update internal store of coordinates
     procedure :: updateCoords
 
-    !> update internal store of lattice vectors
+    !> Update internal store of lattice vectors
     procedure :: updateLatVecs
 
-    !> return energy contribution
+    !> Return energy contribution
     procedure :: getEnergies
 
-    !> return force contribution
+    !> Return force contribution
     procedure :: addGradients
 
-    !> return stress tensor contribution
+    !> Return stress tensor contribution
     procedure :: getStress
 
-    !> cutoff distance in real space for dispersion
+    !> Cutoff distance in real space for dispersion
     procedure :: getRCutoff
 
   end type TSimpleDftD3
@@ -288,16 +288,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> The vector to increase by the gradients.
@@ -323,7 +323,7 @@ contains
     !> Instance of DFTD4 data
     class(TSimpleDftD3), intent(inout) :: this
 
-    !> stress tensor from the dispersion
+    !> Stress tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(this%tPeriodic)
@@ -371,10 +371,10 @@ contains
     !> Coordination number of every atom.
     real(dp), intent(in) :: cn(:)
 
-    !> weighting function for the atomic reference systems
+    !> Weighting function for the atomic reference systems
     real(dp), intent(out) :: gwVec(:, :)
 
-    !> derivative of the weighting function w.r.t. the coordination number
+    !> Derivative of the weighting function w.r.t. the coordination number
     real(dp), intent(out) :: gwdcn(:, :)
 
     integer :: iAtFirst, iAtLast, iAt1, iSp1, iRef1
@@ -587,7 +587,7 @@ contains
   end subroutine dispersionGradient
 
 
-  !> calculate atomic dispersion coefficients and their derivatives w.r.t.
+  !> Calculate atomic dispersion coefficients and their derivatives w.r.t.
   !> coordination number and partial charge.
   subroutine getAtomicC6(env, calc, nAtom, species, gwVec, gwdcn, c6, dc6dcn)
 
@@ -603,16 +603,16 @@ contains
     !> Species of every atom.
     integer, intent(in) :: species(:)
 
-    !> weighting function for the atomic reference systems
+    !> Weighting function for the atomic reference systems
     real(dp), intent(in) :: gwVec(:, :)
 
-    !> derivative of the weighting function w.r.t. the coordination number
+    !> Derivative of the weighting function w.r.t. the coordination number
     real(dp), intent(in) :: gwdcn(:, :)
 
     !> C6 coefficients for all atom pairs.
     real(dp), intent(out) :: c6(:, :)
 
-    !> derivative of the C6 w.r.t. the coordination number
+    !> Derivative of the C6 w.r.t. the coordination number
     real(dp), intent(out) :: dc6dcn(:, :)
 
     integer :: iAtFirst, iAtLast, iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
@@ -658,13 +658,13 @@ contains
   !> Gaussian weight based on coordination number difference
   elemental function weightCN(wf, cn, cnref) result(cngw)
 
-    !> weighting factor / width of the gaussian function
+    !> Weighting factor / width of the gaussian function
     real(dp), intent(in) :: wf
 
-    !> current coordination number
+    !> Current coordination number
     real(dp), intent(in) :: cn
 
-    !> reference coordination number
+    !> Reference coordination number
     real(dp), intent(in) :: cnref
 
     !> CN-gaussian-weight

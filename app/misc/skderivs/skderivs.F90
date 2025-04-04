@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,22 +9,23 @@
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
-  use dftbp_common_accuracy
-  use dftbp_common_constants
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : maxL, shellNames
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_dftb_slakoeqgrid
-  use dftbp_io_charmanip
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_io_hsdutils
-  use dftbp_io_hsdutils2
-  use dftbp_io_message
-  use dftbp_type_linkedlist
-  use dftbp_type_oldskdata
+  use dftbp_dftb_slakoeqgrid, only : getNIntegrals, getSKIntegrals, init, skEqGridNew, skEqGridOld,&
+      & TSlakoEqGrid
+  use dftbp_io_charmanip, only : i2c, unquote
+  use dftbp_io_hsdparser, only : dumpHSD, getNodeHSDName, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue
+  use dftbp_io_hsdutils2, only : warnUnprocessedNodes
+  use dftbp_type_linkedlist, only : append, asArray, init, intoArray, len, TListInt, TListIntR1
+  use dftbp_type_oldskdata, only : readFromFile, TOldSKData
 #:if WITH_MPI
   use dftbp_common_mpienv
 #:endif
-  use xmlf90_flib_dom
+  use dftbp_extlibs_xmlf90, only : append_to_string, assignment(=), char, fNode, resize_string,&
+      & string
 implicit none
 
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -67,7 +67,7 @@ contains
     !> Element symbol
     character(len=*), intent(in) :: symbol
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     mass = getAtomicMass(symbolToNumber(symbol))
@@ -81,7 +81,7 @@ contains
     !> Atomic number
     integer, intent(in) :: number
 
-    !> atomic mass
+    !> Atomic mass
     real(dp) :: mass
 
     if (number > 0 .and. number <= size(atomicMassNist, dim=1)) then

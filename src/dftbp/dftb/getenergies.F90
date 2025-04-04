@@ -1,16 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Evaluate energies
 module dftbp_dftb_getenergies
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
@@ -19,7 +22,7 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
@@ -45,10 +48,10 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine calcEnergies(env, sccCalc, tblite, qOrb, q0, chargePerShell, multipole, species,&
       & isExtField, isXlbomd, dftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList,&
-      & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential, &
-      & energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock, qiBlock, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, onSiteElements, qNetAtom, vOnSiteAtomInt,&
-      & vOnSiteAtomExt)
+      & nNeighbourSK, img2CentCell, iSparseStart, cellVol, extPressure, TS, potential,&
+      & energy, thirdOrd, solvation, hybridXc, reks, qDepExtPot, qBlock, qiBlock, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, tRealHS, onSiteElements, errStatus, qNetAtom,&
+      & vOnSiteAtomInt, vOnSiteAtomExt, densityMatrix, kWeights, localKS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -62,19 +65,19 @@ contains
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> electrons in each atomi shell
+    !> Electrons in each atomi shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> Multipole moments
     type(TMultipole), intent(in) :: multipole
 
-    !> chemical species
+    !> Chemical species
     integer, intent(in) :: species(:)
 
-    !> is an external field present
+    !> Is an external field present
     logical, intent(in) :: isExtField
 
     !> Is the extended Lagrangian being used for MD
@@ -86,40 +89,40 @@ contains
     !> Is dual spin orbit being used
     logical, intent(in) :: tDualSpinOrbit
 
-    !> density matrix in sparse storage
+    !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
 
-    !> non-self-consistent hamiltonian
+    !> Non-self-consistent hamiltonian
     real(dp), intent(in) :: H0(:)
 
-    !> atomic orbital information
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> neighbour list
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours within cut-off for each atom
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> image to real atom mapping
+    !> Image to real atom mapping
     integer, intent(in) :: img2CentCell(:)
 
-    !> index for sparse large matrices
+    !> Index for sparse large matrices
     integer, intent(in) :: iSparseStart(:,:)
 
-    !> unit cell volume
+    !> Unit cell volume
     real(dp), intent(in) :: cellVol
 
-    !> external pressure
+    !> External pressure
     real(dp), intent(in) :: extPressure
 
-    !> electron entropy contribution
+    !> Electron entropy contribution
     real(dp), intent(in) :: TS(:)
 
-    !> potentials acting
+    !> Potentials acting
     type(TPotentials), intent(in) :: potential
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(inout) :: energy
 
     !> 3rd order settings
@@ -128,16 +131,16 @@ contains
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
 
-    !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
+    !> Data from hybrid xc-functional calculations
+    class(THybridXcFunc), intent(inout), allocatable :: hybridXc
 
-    !> data type for REKS
+    !> Data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
 
-    !> block (dual) atomic populations
+    !> Block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
 
     !> Imaginary part of block atomic populations
@@ -156,8 +159,14 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
+
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     !> Net atom populations
     real(dp), intent(in), optional :: qNetAtom(:)
@@ -167,6 +176,16 @@ contains
 
     !> On-site only (external) potential
     real(dp), intent(in), optional :: vOnSiteAtomExt(:,:)
+
+    !> Holds real and complex delta density matrices and pointers
+    type(TDensityMatrix), intent(in), optional :: densityMatrix
+
+    !> The k-point weights
+    real(dp), intent(in), optional :: kWeights(:)
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(in), optional :: localKS(:,:)
 
     integer :: nSpin
     real(dp) :: nEl(2)
@@ -211,8 +230,11 @@ contains
     end if
 
     if (allocated(tblite)) then
-      call tblite%getEnergies(energy%atomSCC)
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
+      call tblite%getEnergies(energy)
+      energy%EScc = sum(energy%atomSCC(iAtInCentralRegion))
+      energy%Erep = sum(energy%atomRep(iAtInCentralRegion))
+      energy%EDisp = sum(energy%atomDisp(iAtInCentralRegion))
+      energy%EHalogenX = sum(energy%atomHalogenX(iAtInCentralRegion))
     end if
 
     if (present(qNetAtom)) then
@@ -261,9 +283,17 @@ contains
     end if
 
     ! Add exchange contribution for range separated calculations
-    if (allocated(rangeSep) .and. .not. allocated(reks)) then
-      energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
+    if (allocated(hybridXc) .and. .not. allocated(reks)) then
+      if (tRealHS) then
+        call hybridXc%getHybridEnergy_real(env, energy%Efock)
+      else
+        if ((.not. present(densityMatrix)) .or. (.not. present(kWeights))) then
+          @:RAISE_ERROR(errStatus, -1, "Missing expected array(s) for hybrid xc-functional&
+              & calculation.")
+        end if
+        call hybridXc%getHybridEnergy_kpts(env, localKS, densityMatrix%iKiSToiGlobalKS, kWeights,&
+            & densityMatrix%deltaRhoOutCplx, energy%Efock)
+      end if
     end if
 
     ! Free energy contribution if attached to an electron reservoir
@@ -293,16 +323,16 @@ contains
   !> Calculates dispersion energy for current geometry.
   subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
 
-    !> dispersion interactions
+    !> Dispersion interactions
     class(TDispersionIface), intent(inout) :: dispersion
 
-    !> energy per atom
+    !> Energy per atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> total energy
+    !> Total energy
     real(dp), intent(out) :: Etotal
 
-    !> atoms in the central cell (or device region if transport)
+    !> Atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
@@ -320,7 +350,7 @@ contains
   !> Sums together components of final energies
   subroutine sumEnergies(energy)
 
-    !> energy contributions
+    !> Energy contributions
     type(TEnergies), intent(inout) :: energy
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&

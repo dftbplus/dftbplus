@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -197,7 +197,7 @@ contains
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> chemical species of atoms
+    !> Chemical species of atoms
     integer, intent(in) :: species0(:)
 
     !> Nr. of neighbours for each atom
@@ -346,7 +346,7 @@ contains
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    !> unit cell volume
+    !> Unit cell volume
     real(dp), intent(in) :: vol
 
     !> Optimal parameter.

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -349,7 +349,11 @@ contains
     ! Boundary condition label
     character(1) :: boundary
 
-    integer :: io_unit, ii, ierr
+    integer :: io_unit, ii
+
+  #:if WITH_MPI
+    integer :: ierr
+  #:endif
 
     if (IO) then
       open(newunit=io_unit,file=fname)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,13 +11,17 @@
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdOut
+#:if WITH_MAGMA
+  use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
+#:endif
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode, destroyNodeList
-  use dftbp_io_charmanip, only : i2c, tolower, unquote
+      & getNodeName, destroyNode, destroyNodeList, textNodeName
+  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_formatout, only : printDftbHeader
   use dftbp_io_hsdparser, only : parseHSD, dumpHSD
   use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
@@ -35,8 +39,9 @@ module modes_initmodes
   private
   public :: initProgramVariables
   public :: geo, atomicMasses, dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, nModesToPlot
-  public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs
+  public :: nCycles, nSteps, nMovedAtom, iMovedAtoms, nDerivs, iSolver, solverTypes
   public :: tVerbose, tPlotModes, tEigenVectors, tAnimateModes, tRemoveTranslate, tRemoveRotate
+  public :: setEigvecGauge
 
 
   !> Program version
@@ -59,7 +64,6 @@ module modes_initmodes
 
   !> If program should be verbose
   logical :: tVerbose
-
 
   !> Atomic masses to build dynamical matrix
   real(dp), allocatable :: atomicMasses(:)
@@ -111,6 +115,32 @@ module modes_initmodes
   !> Number of derivatives
   integer :: nDerivs
 
+  !> Eigensolver choice
+  integer :: iSolver
+
+#:if WITH_MAGMA
+  !> Global GPU settings
+  type(TGpuEnv), public :: gpu
+#:endif
+
+  !> Namespace for possible eigensolver methods
+  type :: TSolverTypesEnum
+
+    ! lapack/scalapack solvers
+    integer :: qr = 1
+    integer :: divideAndConquer = 2
+    integer :: relativelyRobust = 3
+
+    ! GPU accelerated solver using MAGMA
+    integer :: magmaEvd = 4
+
+  end type TSolverTypesEnum
+
+
+  !> Actual values for solverTypes.
+  type(TSolverTypesEnum), parameter :: solverTypes = TSolverTypesEnum()
+
+
 contains
 
 
@@ -128,11 +158,13 @@ contains
     integer :: ii, iSp1, iAt
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(TListCharLc), allocatable :: skFiles(:)
-    character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
-    logical :: tLower, tExist, tDumpPHSD
+    character(lc) :: prefix, suffix, separator, elem1, strTmp, str2Tmp, filename
+    logical :: tLower, tDumpPHSD
     logical :: tWriteHSD
     type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut
+    character(len=:), allocatable :: strOut, strJoin, hessianFile
+    type(TFileDescr) :: file
+    integer :: iErr
 
     !! Write header
     call printDftbHeader('(MODES '// version //')', releaseYear)
@@ -162,6 +194,9 @@ contains
     nMovedAtom = size(iMovedAtoms)
     nDerivs = 3 * nMovedAtom
 
+    tPlotModes = .false.
+    nModesToPlot = 0
+    tAnimateModes = .false.
     call getChild(root, "DisplayModes",child=node,requested=.false.)
     if (associated(node)) then
       tPlotModes = .true.
@@ -169,17 +204,34 @@ contains
       call getSelectedIndices(child, char(buffer2), [1, 3 * nMovedAtom], modesToPlot)
       nModesToPlot = size(modesToPlot)
       call getChildValue(node, "Animate", tAnimateModes, .true.)
-    else
-      nModesToPlot = 0
-      tPlotModes = .false.
-      tAnimateModes = .false.
     end if
 
     ! oscillation cycles in an animation
     nCycles = 3
 
+    ! Eigensolver
+    call getChildValue(root, "EigenSolver", buffer2, "qr")
+    select case(tolower(char(buffer2)))
+    case ("qr")
+      iSolver = solverTypes%qr
+    case ("divideandconquer")
+      iSolver = solverTypes%divideAndConquer
+    case ("relativelyrobust")
+      iSolver = solverTypes%relativelyRobust
+    case ("magma")
+    #:if WITH_MAGMA
+      call TGpuEnv_init(gpu)
+    #:else
+      call error("Magma-solver selected, but program was compiled without MAGMA")
+    #:endif
+      iSolver = solverTypes%magmaEvd
+    case default
+      call detailedError(root, "Unknown eigensolver "//char(buffer2))
+    end select
+
     ! Slater-Koster files
-    call getParamSearchPath(searchPath)
+    call getParamSearchPaths(searchPath)
+    strJoin = joinPathsPrettyErr(searchPath)
     allocate(speciesMass(geo%nSpecies))
     speciesMass(:) = 0.0_dp
     do iSp1 = 1, geo%nSpecies
@@ -211,16 +263,18 @@ contains
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem1) // trim(suffix)
           call findFile(searchPath, strTmp, strOut)
-          if (allocated(strOut)) strTmp = strOut
-          call append(skFiles(iSp1), strTmp)
-          inquire(file=strTmp, exist=tExist)
-          if (.not. tExist) then
+          if (.not. allocated(strOut)) then
             call detailedError(value, "SK file with generated name '" // trim(strTmp)&
-                & // "' does not exist.")
+                & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
           end if
+          strTmp = strOut
+          call append(skFiles(iSp1), strTmp)
         end do
       case default
         call setUnprocessed(value)
+        call getChildValue(child, "Prefix", buffer2, "")
+        prefix = unquote(char(buffer2))
+
         do iSp1 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp1))
           call init(lStr)
@@ -230,11 +284,14 @@ contains
             call detailedError(child2, "Incorrect number of Slater-Koster files")
           end if
           do ii = 1, len(lStr)
-            call get(lStr, strTmp, ii)
-            inquire(file=strTmp, exist=tExist)
-            if (.not. tExist) then
-              call detailedError(child2, "SK file '" // trim(strTmp) // "' does not exist'")
+            call get(lStr, str2Tmp, ii)
+            strTmp = trim(prefix) // str2Tmp
+            call findFile(searchPath, strTmp, strOut)
+            if (.not. allocated(strOut)) then
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
+                  & // "   (search path(s): " // strJoin // ").")
             end if
+            strTmp = strOut
             call append(skFiles(iSp1), strTmp)
           end do
           call destruct(lStr)
@@ -267,9 +324,22 @@ contains
 
     call getChildValue(root, "Hessian", value, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value, buffer)
-    if (char(buffer) == "") then
-      call error("No derivative matrix supplied!")
-    else
+    select case (char(buffer))
+    case ("directread")
+      call getChildValue(value, "File", buffer2, child=child2)
+      hessianFile = trim(unquote(char(buffer2)))
+      call openFile(file, hessianFile, mode="r", iostat=iErr)
+      if (iErr /= 0) then
+        call detailedError(child2, "Could not open file '" // hessianFile&
+            & // "' for direct reading." )
+      end if
+      read(file%unit, *, iostat=iErr) dynMatrix
+      if (iErr /= 0) then
+        call detailedError(child2, "Error during direct reading '" // hessianFile // "'.")
+      end if
+      call closeFile(file)
+    case (textNodeName)
+      call getNodeName2(value, buffer)
       call init(realBufferList)
       call getChildValue(child, "", nDerivs, realBufferList)
       if (len(realBufferList) /= nDerivs) then
@@ -279,7 +349,9 @@ contains
       call asArray(realBufferList, dynMatrix)
       call destruct(realBufferList)
       tDumpPHSD = .false.
-    end if
+    case default
+      call detailedError(child, "Invalid Hessian scheme.")
+    end select
 
     call getChild(root, "BornCharges", child, requested=.false.)
     call getNodeName2(child, buffer)
@@ -413,5 +485,29 @@ contains
     call destroyNodeList(children)
 
   end subroutine getInputMasses
+
+
+  !> Returns gauge-corrected eigenvectors, such that the first non-zero coefficient of each mode is
+  !! positive.
+  subroutine setEigvecGauge(eigvec)
+
+    !> Gauge corrected eigenvectors on exit. Shape: [iCoeff, iMode]
+    real(dp), intent(inout) :: eigvec(:,:)
+
+    !! Auxiliary variables
+    integer :: iMode, iCoeff
+
+    do iMode = 1, size(eigvec, dim=2)
+      lpCoeff: do iCoeff = 1, size(eigvec, dim=1)
+        if (abs(eigvec(iCoeff, iMode)) > 1e2_dp * epsilon(1.0_dp)) then
+          if (sign(1.0_dp, eigvec(iCoeff, iMode)) < 0.0_dp) then
+            eigvec(:, iMode) = -eigvec(:, iMode)
+          end if
+          exit lpCoeff
+        end if
+      end do lpCoeff
+    end do
+
+  end subroutine setEigvecGauge
 
 end module modes_initmodes

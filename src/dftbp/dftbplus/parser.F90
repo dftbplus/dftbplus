@@ -1,18 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, getParamSearchPath
+  use dftbp_common_filesystem, only : findFile, joinPaths, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
@@ -21,7 +22,7 @@ module dftbp_dftbplus_parser
       & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
       & volumeUnits, angularUnits
   use dftbp_dftb_elecconstraints, only : readElecConstraintInput
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getCovalentRadius, cnType
+  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getD3Radius, cnType
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
@@ -29,9 +30,10 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling, &
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
       & getCellTranslations, updateNeighbourList
-  use dftbp_dftb_rangeseparated, only : TRangeSepSKTag, rangeSepTypes, rangeSepFunc
+  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcAlgo, hybridXcGammaTypes,&
+      & checkSupercellFoldingMatrix, hybridXcFunc
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
@@ -40,10 +42,11 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, TRangeSepInp
+  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
-  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes
+  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
@@ -62,11 +65,9 @@ module dftbp_dftbplus_parser
       & renameChildren
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only: cross3, determinant33
+  use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
-  use dftbp_mixer_mixer, only : mixerTypes
   use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
@@ -75,7 +76,7 @@ module dftbp_dftbplus_parser
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
       & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, inquireRangeSepTag
+  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, parseHybridXcTag
   use dftbp_type_orbitals, only : getShellnames
   use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
   use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
@@ -158,6 +159,7 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
+    type(TStatus) :: errStatus
     type(TOrbitals) :: orb
     type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
     logical :: tReadAnalysis
@@ -207,7 +209,7 @@ contains
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
-        & input%ginfo%greendens, input%poisson)
+        & input%ginfo%greendens, input%poisson, errStatus)
 
   #:else
 
@@ -217,9 +219,13 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
 
   #:endif
+
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
     call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
@@ -762,13 +768,14 @@ contains
 
       if (geom%tPeriodic) then
 
+        ctrl%tBarostat = .false.
+        ctrl%pressure = 0.0_dp
+        ctrl%BarostatStrength = 0.0_dp
         call getChild(node, "Barostat", child, requested=.false.)
-        if (.not. associated(child)) then
-          call setChild(node, "Barostat", child)
-          ctrl%tBarostat = .false.
-          ctrl%pressure = 0.0_dp
-          ctrl%BarostatStrength = 0.0_dp
-        else
+        if (associated(child)) then
+          if (allocated(ctrl%hybridXcInp)) then
+            call detailedError(node, "Barostating not currently implemented for hybrid functionals")
+          end if
           if (ctrl%nrMoved /= geom%nAtom) then
             call error("Dynamics for a subset of atoms is not currently&
                 & possible when using a barostat")
@@ -947,6 +954,10 @@ contains
 
     call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
     if (ctrl%tLatOpt) then
+      if (allocated(ctrl%hybridXcInp)) then
+        call detailedError(node, "Lattice optimisation not currently implemented for hybrid&
+            & functionals")
+      end if
       call getChildValue(node, "Pressure", ctrl%pressure, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), pressureUnits, child, ctrl%pressure)
       call getChildValue(node, "FixAngles", ctrl%tLatOptFixAng, .false.)
@@ -1003,7 +1014,6 @@ contains
     type(TXLBOMDInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: pXlbomd, pXlbomdFast, pRoot, pChild
-    integer :: nKappa
     logical :: tXlbomdFast
 
     call getChild(node, 'Xlbomd', pXlbomd, requested=.false.)
@@ -1024,24 +1034,15 @@ contains
     end if
     allocate(input)
     call getChildValue(pRoot, 'IntegrationSteps', input%nKappa, 5, child=pChild)
-    ! Workaround for nagfor 6.1 as the derived type in the array comparison
-    ! is not recognized as such
-    nKappa = input%nKappa
-    if (all([5, 6, 7] /= nKappa)) then
+    if (all([5, 6, 7] /= input%nKappa)) then
       call detailedError(pChild, 'Invalid number of integration steps (must be&
           & 5, 6 or 7)')
     end if
     call getChildValue(pRoot, 'PreSteps', input%nPreSteps, 0)
 
-    ! Since inverse Jacobian is not enabled, we can set FullSccSteps
-    ! to its minimal value (no averaging of inverse Jacobians is done)
-    !call getChildValue(child, 'FullSccSteps', input%nFullSccSteps, &
-    !    & input%nKappa + 1, child=child2)
+    ! Since support for inverse Jacobian has been removed, we can set FullSccSteps
+    ! to its minimal value (no averaging of inverse Jacobians is done anymore)
     input%nFullSccSteps = input%nKappa + 1
-    !if (input%nFullSccSteps < input%nKappa + 1) then
-    !  call detailedError(child2, 'Nr. of full SCC steps must be greater by&
-    !      & one than integration steps')
-    !end if
 
     if (tXlbomdFast) then
       call getChildValue(pRoot, 'TransientSteps', input%nTransientSteps, 10)
@@ -1055,15 +1056,6 @@ contains
             & (0.0, 1.0]')
       end if
 
-      !! Inverse Jacobian is experimental feature so far.
-      !call getChildValue(child, "UseJacobianKernel", &
-      !    & input%useInverseJacobian, .false.)
-      !if (input%useInverseJacobian) then
-      !  call getChildValue(child, "ReadJacobianKernel", &
-      !      & input%readInverseJacobian, .false.)
-      !end if
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     else
       input%nTransientSteps = 0
       call getChildValue(pRoot, 'MinSccIterations', input%minSCCIter, 1)
@@ -1073,8 +1065,6 @@ contains
       end if
       call getChildValue(pRoot, 'SccTolerance', input%sccTol, 1e-5_dp)
       input%scale = 1.0_dp
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     end if
 
   end subroutine readXlbomdOptions
@@ -1221,9 +1211,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1232,7 +1222,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure to be filled
@@ -1249,22 +1239,27 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(string) :: buffer
 
     call getNodeName(node, buffer)
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson)
+      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson)
+      call readXTBHam(node, ctrl, geo, poisson, errStatus)
   #:endif
+      @:PROPAGATE_ERROR(errStatus)
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1274,9 +1269,9 @@ contains
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson)
+  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1302,6 +1297,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
@@ -1315,19 +1313,19 @@ contains
     type(TListIntR1), allocatable :: angShells(:)
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, ii
-    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
+    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp, str2Tmp
     character(lc) :: errorStr
-    logical :: tLower, tExist
+    logical :: tLower
     integer, allocatable :: pTmpI1(:)
     real(dp) :: rTmp
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
     real(dp) :: rSKCutOff
     type(string), allocatable :: searchPath(:)
-    character(len=:), allocatable :: strOut
+    character(len=:), allocatable :: strOut, strJoin
 
-    !> For range separation
-    type(TRangeSepSKTag) :: rangeSepSK
+    !> For hybrid functional calculations
+    type(THybridXcSKTag) :: hybridXcSK
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
@@ -1339,7 +1337,8 @@ contains
     call setupOrbitals(slako%orb, geo, angShells)
 
     ! Slater-Koster files
-    call getParamSearchPath(searchPath)
+    call getParamSearchPaths(searchPath)
+    strJoin = joinPathsPrettyErr(searchPath)
     allocate(skFiles(geo%nSpecies, geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
       do iSp2 = 1, geo%nSpecies
@@ -1369,39 +1368,41 @@ contains
           else
             elem2 = geo%speciesNames(iSp2)
           end if
-          strTmp = trim(prefix) // trim(elem1) // trim(separator) &
-              &// trim(elem2) // trim(suffix)
+          strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem2) // trim(suffix)
           call findFile(searchPath, strTmp, strOut)
-          if (allocated(strOut)) strTmp = strOut
-          call append(skFiles(iSp2, iSp1), strTmp)
-          inquire(file=strTmp, exist=tExist)
-          if (.not. tExist) then
-            call detailedError(value1, "SK file with generated name '" &
-                &// trim(strTmp) // "' does not exist.")
+          if (.not. allocated(strOut)) then
+            call detailedError(value1, "SK file with generated name '" // trim(strTmp)&
+                & // "' not found." // newline // "   (search path(s): " // strJoin // ").")
           end if
+          strTmp = strOut
+          call append(skFiles(iSp2, iSp1), strTmp)
         end do
       end do
     case default
       call setUnprocessed(value1)
+      call getChildValue(child, "Prefix", buffer2, "")
+      prefix = unquote(char(buffer2))
+
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-              &// trim(geo%speciesNames(iSp2))
+          strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
-            call detailedError(child2, "Incorrect number of Slater-Koster &
-                &files")
+            write(errorStr, "(A,I0,A,I0)") "Incorrect number of Slater-Koster files for " //&
+                & trim(strTmp) // ", expected ", len(angShells(iSp1)) * len(angShells(iSp2)),&
+                & " but received ", len(lStr)
+            call detailedError(child2, errorStr)
           end if
           do ii = 1, len(lStr)
-            call get(lStr, strTmp, ii)
+            call get(lStr, str2Tmp, ii)
+            strTmp = trim(prefix) // str2Tmp
             call findFile(searchPath, strTmp, strOut)
-            if (allocated(strOut)) strTmp = strOut
-            inquire(file=strTmp, exist=tExist)
-            if (.not. tExist) then
-              call detailedError(child2, "SK file '" // trim(strTmp) &
-                  &// "' does not exist'")
+            if (.not. allocated(strOut)) then
+              call detailedError(child2, "SK file '" // trim(strTmp) // "' not found." // newline&
+                  & // "   (search path(s): " // strJoin // ").")
             end if
+            strTmp = strOut
             call append(skFiles(iSp2, iSp1), strTmp)
           end do
           call destruct(lStr)
@@ -1436,8 +1437,14 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
-    ! SCC
-    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geo, skFiles)
+
+    if (allocated(ctrl%hybridXcInp)) then
+      ctrl%tSCC = .true.
+    else
+      ! SCC
+      call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+    end if
 
     if (ctrl%tSCC) then
       call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
@@ -1452,9 +1459,7 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call parseRangeSeparated(node, ctrl%rangeSepInp, skFiles)
-
-    if (.not. allocated(ctrl%rangeSepInp)) then
+    if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
@@ -1466,14 +1471,13 @@ contains
         call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
-
     else
-
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
-      ctrl%rangeSepInp%omega = rangeSepSk%omega
+          & skInterMeth, repPoly, hybridXcSK=hybridXcSK)
+      ctrl%hybridXcInp%omega = hybridXcSK%omega
+      ctrl%hybridXcInp%camAlpha = hybridXcSK%camAlpha
+      ctrl%hybridXcInp%camBeta = hybridXcSK%camBeta
     end if
-
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -1556,7 +1560,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
     if (associated(child)) then
@@ -1700,13 +1705,13 @@ contains
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
-    ! ! Electronic constraints
-    ! call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-    !     & allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    ! if (associated(value1)) then
-    !   allocate(ctrl%elecConstraintInp)
-    !   call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin)
-    ! end if
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+    end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
@@ -1795,9 +1800,9 @@ contains
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson)
+  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1821,10 +1826,13 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
-    type(fnode), pointer :: value1, child, child2
-    type(string) :: buffer, modifier
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-    integer :: method, iSp1
+    integer :: method
     character(len=:), allocatable :: paramFile, paramTmp
     type(TOrbitals) :: orb
 
@@ -1855,7 +1863,7 @@ contains
       if (associated(value1)) then
         call getChildValue(child, "", buffer)
         paramFile = trim(unquote(char(buffer)))
-        call getParamSearchPath(searchPath)
+        call getParamSearchPaths(searchPath)
         call findFile(searchPath, paramFile, paramTmp)
         if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
         write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
@@ -1933,7 +1941,8 @@ contains
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, ctrl%poorKSampling)
+    call readKPoints(node, ctrl, geo, errStatus)
+    @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, &
@@ -1973,6 +1982,14 @@ contains
       call readForceOptions(node, ctrl)
     else
       ctrl%forceType = forceTypes%orig
+    end if
+
+    ! Electronic constraints
+    call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
@@ -2521,16 +2538,25 @@ contains
     select case (char(buffer))
     case ("fermi")
       ctrl%iDistribFn = fillingTypes%Fermi ! Fermi function
+    case ("gaussian")
+      ctrl%iDistribFn = fillingTypes%Methfessel ! Gauss function broadening of levels (0th order MP)
     case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2nd order
-      call getChildValue(value1, "Order", ctrl%iDistribFn, 2)
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 1st order
+      call getChildValue(value1, "Order", ctrl%iDistribFn, 1)
       if (ctrl%iDistribFn < 1) then
         call getNodeHSDName(value1, buffer)
-        write(errorStr, "(A,A,A,I4)")"Unsuported filling mode for '", &
-            & char(buffer),"' :",ctrl%iDistribFn
-        call detailedError(child, errorStr)
+        select case(ctrl%iDistribFn)
+        case (0)
+          write(errorStr, "(A)")"Methfessel-Paxton filling order 0 is equivalent to gaussian&
+              & smearing"
+          call detailedWarning(child, errorStr)
+        case default
+          write(errorStr, "(A,A,A,I4)")"Filling order must be above zero '", char(buffer),"' :",&
+              &ctrl%iDistribFn
+          call detailedError(child, errorStr)
+        end select
       end if
-      ctrl%iDistribFn = fillingTypes%Methfessel + ctrl%iDistribFn
+      ctrl%iDistribFn = ctrl%iDistribFn + fillingTypes%Methfessel
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
@@ -2612,9 +2638,13 @@ contains
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
-  #:if WITH_MAGMA
     case ("magma")
-      ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+  #:if WITH_MAGMA
+      ctrl%solver%isolver = electronicSolverTypes%magmaGvd
+      call getChildValue(value1, "DensityMatrixGPU", ctrl%isDmOnGpu, .true.)
+  #:else
+      call detailedError(node, "DFTB+ must be compiled with MAGMA support in order to enable&
+          & this solver")
   #:endif
 
     case ("elpa")
@@ -2703,7 +2733,7 @@ contains
             &  "when task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
-      ! fixEf also avoids checks of total charge in initQFromFile
+      ! fixEf also avoids checks of total charge later on in the run
       ctrl%tFixEf = .true.
     case ("transportonly")
       if (tp%defined .and. .not.tp%taskUpload) then
@@ -2752,11 +2782,12 @@ contains
           & (GreensFunction or TransportOnly required)")
     end if
   #:endif
+
   end subroutine readSolver
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, poorKSampling)
+  subroutine readKPoints(node, ctrl, geo, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2767,30 +2798,41 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
-
-    integer :: ii
-    character(lc) :: errorStr
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
 
     ! Assume SCC can has usual default number of steps if needed
-    poorKSampling = .false.
+    ctrl%poorKSampling = .false.
+
+    ! We can omit any hybrid xc-functional related checks for helical boundary conditions, since
+    ! such a calculation will nevertheless be stopped due to the incompatibility of these features
+    ctrl%checkStopHybridCalc = .false.
 
     ! K-Points
     if (geo%tPeriodic) then
-
-      call getEuclideanKSampling(poorKSampling, ctrl, node, geo)
-
-    else if (geo%tHelical) then
-
-      call getHelicalKSampling(poorKSampling, ctrl, node, geo)
-
+      call getEuclideanKSampling(ctrl, node, geo, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    elseif (geo%tHelical) then
+      call getHelicalKSampling(ctrl, node, geo)
     end if
 
     call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
     ! Eventually, perturbation routines should also have restart reads:
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
+    end if
+
+    ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
+    if (ctrl%checkStopHybridCalc) then
+      if (ctrl%maxSccIter == 1) then
+        call warning("Restarting a hybrid xc-functional run with what appears to be&
+            & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
+            & original sampling (however fine for bandstructure calculations).")
+      else
+        call error("Error while parsing k-point sampling for a hybrid xc-functional&
+            & run." // NEW_LINE('A') // "   Only allowed for bandstructure calculations,&
+            & i.e. a single SCC iteration.")
+      end if
     end if
 
   end subroutine readKPoints
@@ -2836,11 +2878,33 @@ contains
   end subroutine maxSelfConsIterations
 
 
-  !> K-points in Euclidean space
-  subroutine getEuclideanKSampling(poorKSampling, ctrl, node, geo)
+  !> Tries to infer whether the k-point sampling is restricted to the Gamma-point.
+  pure function isGammaOnly(nKPoint, kPoint, kWeight)
 
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
+    !> Number of k-points for the calculation
+    integer, intent(in) :: nKPoint
+
+    !> The k-points for the system
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for the k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> True, if this appears to be a Gamma-only calculation
+    logical :: isGammaOnly
+
+    if (.not. nKPoint == 1) then
+      isGammaOnly = .false.
+    else
+      isGammaOnly = .not. ((.not. all(abs(kPoint(:, 1)) < 1.0e-08_dp))&
+          & .or. (.not. abs(kWeight(1)) - 1.0_dp < 1.0e-08_dp))
+    end if
+
+  end function isGammaOnly
+
+
+  !> The k-points in Euclidean space
+  subroutine getEuclideanKSampling(ctrl, node, geo, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2851,49 +2915,57 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
     integer :: ind, ii, jj, kk
-    real(dp) :: coeffsAndShifts(3, 4)
+    real(dp), target :: coeffsAndShifts(3, 4)
     real(dp) :: rTmp3(3)
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
 
-    call getChildValue(node, "KPointsAndWeights", value1, child=child, &
-        &modifier=modifier)
+    !! True, if k-points should be reduced by inversion
+    logical :: tReduceByInversion
+
+    !! True, if a Gamma-only k-point sampling is requested
+    logical :: tGammaOnly
+
+    call getChildValue(node, "KPointsAndWeights", value1, child=child, modifier=modifier)
     call getNodeName(value1, buffer)
+
     select case(char(buffer))
 
     case ("supercellfolding")
-      poorKSampling = .false.
+      ctrl%poorKSampling = .false.
       if (len(modifier) > 0) then
-        call detailedError(child, "No modifier is allowed, if the &
-            &SupercellFolding scheme is used.")
+        call detailedError(child, "No modifier is allowed, if the SupercellFolding scheme is used.")
       end if
       call getChildValue(value1, "", coeffsAndShifts)
-      if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
-        call detailedError(value1, "Determinant of the supercell matrix must &
-            &be greater than 1")
+      if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-06_dp) then
+        call detailedError(value1, "Determinant of the supercell matrix must be greater than 1")
       end if
-      if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
-          &> 1e-6_dp)) then
-        call detailedError(value1, "The components of the supercell matrix &
-            &must be integers.")
+      if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp)&
+          & > 1e-06_dp)) then
+        call detailedError(value1, "The components of the supercell matrix must be integers.")
       end if
-      if (.not.ctrl%tSpinOrbit) then
-        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.true.)
-      else
-        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
+      if (allocated(ctrl%hybridXcInp)) then
+        call checkSupercellFoldingMatrix(coeffsAndShifts, errStatus)
+        ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
+        @:PROPAGATE_ERROR(errStatus)
+        ctrl%supercellFoldingMatrix = coeffsAndShifts
       end if
+      tReduceByInversion = (.not. ctrl%tSpinOrbit)
+      call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+          & ctrl%kPoint, ctrl%kWeight, reduceByInversion=tReduceByInversion)
       ctrl%nKPoint = size(ctrl%kPoint, dim=2)
 
     case ("klines")
       ! probably unable to integrate charge for SCC
-      poorKSampling = .true.
+      ctrl%poorKSampling = .true.
       call init(li1)
       call init(lr1)
       call getChildValue(value1, "", 1, li1, 3, lr1)
@@ -2951,7 +3023,7 @@ contains
     case (textNodeName)
 
       ! no idea, but assume user knows what they are doing
-      poorKSampling = .false.
+      ctrl%poorKSampling = .false.
 
       call init(lr1)
       call getChildValue(child, "", 4, lr1, modifier=modifier)
@@ -2982,14 +3054,37 @@ contains
       call detailedError(value1, "Invalid K-point scheme")
     end select
 
+    ! Catch problematic k-point sampling in case this is a hybrid calculation
+    ctrl%checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+        & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
+
+    ! Check for hybrid xc-functional requirements
+    tGammaOnly = isGammaOnly(ctrl%nKPoint, ctrl%kPoint, ctrl%kWeight)
+    if (.not. tGammaOnly) then
+      if (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+          & .and. (char(buffer) /= "supercellfolding") .and. (.not. ctrl%tReadChrg)) then
+        call detailedError(child, "Error while parsing k-point sampling for a hybrid xc-functional&
+            & run. Currently only" // NEW_LINE('A') // "   the supercell folding technique (or any&
+            & format specifying the Gamma-point only)" // NEW_LINE('A') // "   is supported.")
+      end if
+    end if
+
+    ! Hybrid calculations expect the supercell folding coefficients/shifts to be present
+    if (allocated(ctrl%hybridXcInp) .and. tGammaOnly&
+        & .and. (char(buffer) /= "supercellfolding")) then
+      coeffsAndShifts(:,:) = 0.0_dp
+      do ii = 1, 3
+        coeffsAndShifts(ii, ii) = 1.0_dp
+      end do
+      ctrl%supercellFoldingMatrix = coeffsAndShifts
+      ctrl%supercellFoldingDiag = nint(diagonal(coeffsAndShifts(:,:3)))
+    end if
+
   end subroutine getEuclideanKSampling
 
 
-  !> K-points for helical boundaries
-  subroutine getHelicalKSampling(poorKSampling, ctrl, node, geo)
-
-    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
-    logical, intent(out) :: poorKSampling
+  !> The k-points for helical boundaries
+  subroutine getHelicalKSampling(ctrl, node, geo)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -3009,7 +3104,7 @@ contains
     character(lc) :: errorStr
 
     ! assume the user knows what they are doing
-    poorKSampling = .false.
+    ctrl%poorKSampling = .false.
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child)
     call getNodeName(value1, buffer)
@@ -3139,13 +3234,18 @@ contains
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
 
-    ! temporararily removed until debugged
-    !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
+    ! temporarily removed until debugged
+    ! call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
     ctrl%tWriteShifts = .false.
 
     if (geo%tPeriodic) then
       call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
+    end if
+
+    if (geo%tHelical) then
+      ! Tolerance for k-points being commensurate with C_n rotation
+      call getChildValue(node, "HelicalSymmetryTol", ctrl%helicalSymTol, 1.0E-6_dp)
     end if
 
     ! self consistency required or not to proceed
@@ -3410,10 +3510,7 @@ contains
         call getChildValue(value1, "RScaling", h5Input%rScale, 0.714_dp)
         call getChildValue(value1, "WScaling", h5Input%wScale, 0.25_dp)
         allocate(h5Input%elementParams(geo%nSpecies))
-        call getChild(value1, "H5Scaling", child2, requested=.false.)
-        if (.not. associated(child2)) then
-          call setChild(value1, "H5scaling", child2)
-        end if
+        call getChild(value1, "H5Scaling", child2, requested=.false., emptyIfMissing=.true.)
         do iSp = 1, geo%nSpecies
           select case (geo%speciesNames(iSp))
           case ("O")
@@ -3440,11 +3537,11 @@ contains
   end subroutine readHCorrection
 
 
-  !> Reads Slater-Koster files
+  !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
-  !> established
+  !> established.
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, rangeSepSK)
+      & truncationCutOff, hybridXcSK)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3474,8 +3571,9 @@ contains
     !> Distances to artificially truncate tables of SK integrals
     real(dp), intent(in), optional :: truncationCutOff
 
-    !> if calculation range separated then read omega from end of SK file
-    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+    !> If calculation uses a hybrid functional, try to read extra data from end of SK file and
+    !! confirm it is a suitable parameterisation
+    type(THybridXcSKTag), intent(inout), optional :: hybridXcSK
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
@@ -3523,24 +3621,24 @@ contains
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
             write(stdOut, "(a)") trim(fileName)
-            if (.not. present(rangeSepSK)) then
+            if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1)
+                    & splineRepInp=repSplineIn1)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepIn=repPolyIn1,&
-                    & rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1,&
+                    & hybridXcSK=hybridXcSK)
               elseif (readRep) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
-                    & splineRepIn=repSplineIn1, rangeSepSK=rangeSepSK)
+                    & splineRepInp=repSplineIn1, hybridXcSK=hybridXcSK)
               else
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, hybridXcSK=hybridXcSK)
               end if
             end if
             ind = ind + 1
@@ -3578,10 +3676,10 @@ contains
               call get(sKFiles(iSp1, iSp2), fileName, ind)
               if (readRep .and. repPoly(iSp1, iSp2)) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &polyRepIn=repPolyIn2)
+                    &polyRepInp=repPolyIn2)
               elseif (readRep) then
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic, &
-                    &iSp2, iSp1, splineRepIn=repSplineIn2)
+                    &iSp2, iSp1, splineRepInp=repSplineIn2)
               else
                 call readFromFile(skData21(iSK1,iSK2), fileName, readAtomic)
               end if
@@ -3917,7 +4015,6 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    type(string) :: strBuffer
     logical :: tWriteDetailedOutDef
 
   #:if WITH_SOCKETS
@@ -3936,6 +4033,21 @@ contains
         call getChildValue(node, "RestartFrequency", ctrl%restartFreq, 20)
       else
         ctrl%restartFreq = 0
+      end if
+    end if
+    if (ctrl%tMD) then
+      allocate(ctrl%mdOutput)
+      call getChild(node, "MDOutput", child, requested=.false.)
+      if (associated(child)) then
+        if (providesEigenvalues(ctrl%solver%isolver)) then
+          call getChildValue(child, "AppendBandOut", ctrl%mdOutput%bandStructure, .false.)
+        end if
+        if (ctrl%tPrintForces) then
+          call getChildValue(child, "Derivatives", ctrl%mdOutput%printForces, .true.)
+        end if
+        if (ctrl%tPrintMulliken) then
+          call getChildValue(child, "Charges", ctrl%mdOutput%printCharges, .true.)
+        end if
       end if
     end if
     call getChildValue(node, "RandomSeed", ctrl%iSeed, 0, child=child)
@@ -4279,7 +4391,7 @@ contains
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
       allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, izpDefault)
+      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
@@ -4407,7 +4519,7 @@ contains
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
       allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, izpDefault)
+      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
@@ -4474,7 +4586,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%chi, kChiDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%chi, default=kChiDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%chi)
     end select
@@ -4485,7 +4597,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%gam, kGamDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%gam, default=kGamDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%gam)
     end select
@@ -4496,7 +4608,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%kcn, kKcnDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%kcn, default=kKcnDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%kcn)
     end select
@@ -4507,7 +4619,7 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%rad, kRadDefault)
+      call readSpeciesList(value1, geo%speciesNames, input%rad, default=kRadDefault)
     case ("values")
       call readSpeciesList(value1, geo%speciesNames, input%rad)
     end select
@@ -4580,7 +4692,7 @@ contains
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
-        call readSpeciesList(value2, geo%speciesNames, input%en, kENDefault)
+        call readSpeciesList(value2, geo%speciesNames, input%en, default=kENDefault)
         deallocate(kENDefault)
       case("values")
         call readSpeciesList(value2, geo%speciesNames, input%en)
@@ -4601,8 +4713,8 @@ contains
       call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
     case("covalentradiid3")
       allocate(kRadDefault(geo%nSpecies))
-      kRadDefault(:) = getCovalentRadius(geo%speciesNames)
-      call readSpeciesList(value2, geo%speciesNames, input%covRad, kRadDefault)
+      kRadDefault(:) = getD3Radius(geo%speciesNames)
+      call readSpeciesList(value2, geo%speciesNames, input%covRad, default=kRadDefault)
       deallocate(kRadDefault)
     case("values")
       call readSpeciesList(value2, geo%speciesNames, input%covRad)
@@ -4691,7 +4803,7 @@ contains
 
 #:endif
 
-  !> reads in value of temperature for MD with sanity checking of the input
+  !> reads in value of temperature for MD with correctness checking of the input
   subroutine readTemperature(node, ctrl)
 
     !> data to parse
@@ -4719,7 +4831,7 @@ contains
   end subroutine readTemperature
 
 
-  !> reads a temperature profile for MD with sanity checking of the input
+  !> reads a temperature profile for MD with correctness checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
 
     !> parser node containing the relevant part of the user input
@@ -4882,13 +4994,11 @@ contains
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      if (allocated(ctrl%rangeSepInp)) then
-        call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
-      end if
+      call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
-      call getChildValue(child, "Diagonaliser", child2)
+      call getChildValue(child, "Diagonaliser", child2, "", allowEmptyValue=.true.)
       call getNodeName(child2, buffer)
       select case(char(buffer))
       case ("arpack")
@@ -4902,6 +5012,8 @@ contains
       case ("stratmann")
         ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
         call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+      case ("")
+        call detailedError(child2, "Missing diagonaliser method")
       case default
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
@@ -4915,8 +5027,10 @@ contains
           call getChildValue(child2, "EnergyShift", ctrl%lrespini%energyShiftCI,&
               & modifier=modifier, default=0.0_dp)
           call convertUnitHsd(char(modifier), energyUnits, child, ctrl%lrespini%energyShiftCI)
+        case ("")
+          call detailedError(child2, "Missing choice of CI optimiser.")
         case default
-          call detailedError(child2, "Invalid optimiser method '" // char(buffer) // "'")
+          call detailedError(child2, "Invalid CI optimiser method '" // char(buffer) // "'")
         end select
       else
         ctrl%lrespini%isCIopt = .false.
@@ -5005,21 +5119,15 @@ contains
     type(fnode), pointer :: val, child, child2, child3
     type(fnodeList), pointer :: children
     integer, allocatable :: pTmpI1(:)
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
-    type(TListReal) :: lr
     logical :: tPipekDense
-    logical :: tWriteBandDatDef, tHaveEigenDecomposition, tHaveDensityMatrix
+    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
     logical :: isEtaNeeded
 
-    tHaveEigenDecomposition = .false.
-    if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
-      tHaveEigenDecomposition = .true.
-    end if
+    tHaveEigenDecomposition = providesEigenvalues(ctrl%solver%isolver)
     tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
 
     if (tHaveEigenDecomposition) then
@@ -5105,13 +5213,14 @@ contains
       call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
 
     #:if WITH_SOCKETS
-      tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+      tWriteBandDatDefault = .not. allocated(ctrl%socketInput)
     #:else
-      tWriteBandDatDef = .true.
+      tWriteBandDatDefault = .true.
     #:endif
 
-      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
+      call renameChildren(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
       call getChild(node, "ResponseKernel", child=child2, requested=.false.)
       if (associated(child) .or. associated(child2)) then
@@ -5396,48 +5505,55 @@ contains
 
         case ("broyden")
 
-          ctrl%iMixSwitch = mixerTypes%broyden
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+          allocate(ctrl%mixerInp%broydenMixerInp)
+          associate (inp => ctrl%mixerInp%broydenMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.2_dp)
+            call getChildValue(value1, "InverseJacobiWeight", inp%omega0, 0.01_dp)
+            call getChildValue(value1, "MinimalWeight", inp%minWeight, 1.0_dp)
+            call getChildValue(value1, "MaximalWeight", inp%maxWeight, 1.0e5_dp)
+            call getChildValue(value1, "WeightFactor", inp%weightFac, 1.0e-2_dp)
+          end associate
 
         case ("anderson")
 
-          ctrl%iMixSwitch = mixerTypes%anderson
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-              & allowEmptyValue=.true.)
-          call getNodeName2(value2, buffer2)
-          if (char(buffer2) == "") then
-            ctrl%andersonNrDynMix = 0
-          else
-            call init(lr1)
-            call getChildValue(child, "", 2, lr1, child=child2)
-            if (len(lr1) < 1) then
-              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+          allocate(ctrl%mixerInp%andersonMixerInp)
+          associate (inp => ctrl%mixerInp%andersonMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 4)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.01_dp)
+            call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
+            call getNodeName2(value2, buffer2)
+            if (char(buffer2) == "") then
+              inp%nConvMixParam = 0
+            else
+              call init(lr1)
+              call getChildValue(child, "", 2, lr1, child=child2)
+              if (len(lr1) < 1) then
+                call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+              end if
+              inp%nConvMixParam = len(lr1)
+              allocate(inp%convMixParam(2, inp%nConvMixParam))
+              call asArray(lr1, inp%convMixParam)
+              call destruct(lr1)
             end if
-            ctrl%andersonNrDynMix = len(lr1)
-            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-            call asArray(lr1, ctrl%andersonDynMixParams)
-            call destruct(lr1)
-          end if
-          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+            call getChildValue(value1, "DiagonalRescaling", inp%omega0, 1.0e-2_dp)
+          end associate
 
         case ("simple")
 
-          ctrl%iMixSwitch = mixerTypes%simple
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+          allocate(ctrl%mixerInp%simpleMixerInp)
+          associate (inp => ctrl%mixerInp%simpleMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+          end associate
 
-        case("diis")
+        case ("diis")
 
-          ctrl%iMixSwitch = mixerTypes%diis
-          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+          allocate(ctrl%mixerInp%diisMixerInp)
+          associate (inp => ctrl%mixerInp%diisMixerInp)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.2_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 6)
+            call getChildValue(value1, "UseFromStart", inp%tFromStart, .true.)
+          end associate
 
         case default
 
@@ -5516,7 +5632,10 @@ contains
 
     type(fnode), pointer :: child
     logical :: tLRNeedsSpinConstants, tShellResolvedW
-    integer :: iSp1
+    integer :: iSp1, nConstants
+    type(TListReal) :: realBuffer
+    character(lc) :: strTmp
+    real(dp) :: rWork(maxval(orb%nShell)**2)
 
     tLRNeedsSpinConstants = .false.
 
@@ -5546,20 +5665,34 @@ contains
         end if
       end if
 
-      if (tShellResolvedW) then
-        ! potentially unique values for each shell
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),&
-              & ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1))
-        end do
-      else
-        ! only one value per atom
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, geo%speciesNames(iSp1),ctrl%spinW(1, 1, iSp1))
-          ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
-              & ctrl%spinW(1, 1, iSp1)
-        end do
-      end if
+      do iSp1 = 1, geo%nSpecies
+        call init(realBuffer)
+        call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+        nConstants = len(realBuffer)
+        if (tShellResolvedW) then
+          if (nConstants == orb%nShell(iSp1)**2) then
+            call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
+                & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+          else
+            write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
+                & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                & '", as ShellResolvedSpin enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        else
+          if (nConstants == 1) then
+            call asArray(realBuffer, rWork(:1))
+            ! only one value for all atom spin constants
+            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
+          else
+            write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
+                & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+            call detailedError(child, trim(strTmp))
+          end if
+        end if
+        call destruct(realBuffer)
+      end do
     end if
 
   end subroutine readSpinConstants
@@ -6072,26 +6205,18 @@ contains
     if (geom%tPeriodic) then
       contUnitVec = contactVec / sqrt(sum(contactVec**2, dim=1))
       dots = abs(matmul(contUnitVec, geom%latVecs))
-      mask = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
+      mask(:) = (abs(dots - sqrt(sum(geom%latVecs, dim=1)**2)) < 1e-8_dp)
       if (count(mask) /= 1) then
         call error("Too many lattice vectors parallel to the contact")
       end if
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      ind = findloc(mask, .true., 1)
       newLatVecs = geom%latVecs
       newLatVecs(:,ind) = 2.0_dp * contactVec
       newOrigin = geom%origin
     else
       newLatVecs(:,1) = 2.0_dp * contactVec
-      mask = abs(contactVec) > 1e-8_dp
-      ! Workaround for bug in Intel compiler (can not use index function)
-      ind = 1
-      do while (.not. mask(ind))
-        ind = ind + 1
-      end do
+      mask(:) = abs(contactVec) > 1e-8_dp
+      ind = findloc(mask, .true., 1)
       ! Note: ind is one-based, subtract 1 before modulo and add 1 after.
       indNext = modulo(ind + 1 - 1, 3) + 1
       indPrev = modulo(ind - 1 - 1, 3) + 1
@@ -6383,7 +6508,7 @@ contains
     call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
     if (associated(pTmp) .and. associated(pTmp2)) then
-      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
+      call detailedError(pNode, "Only one of the tags AtomDensityCutoff or AtomDensityTolerance&
           & can be specified.")
     else if (associated(pTmp)) then
       call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
@@ -6417,7 +6542,7 @@ contains
 
     call getChildValue(pNode, "OverrideBulkBC", pTmp, "none")
     poisson%overrBulkBC(:) = -1
-    if (associated(pNode)) then
+    if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp, [ 0, 1, 2 ], poisson%overrBulkBC)
     end if
 
@@ -6590,7 +6715,7 @@ contains
 
 
 #:if WITH_TRANSPORT
-  !> Sanity checking of atom ranges and returning contact vector and direction.
+  !> Correctness checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
 
@@ -6622,7 +6747,7 @@ contains
     logical :: mask(3)
     character(lc) :: errorStr
 
-    !! Sanity check for the atom ranges
+    !! Correctness check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
@@ -6668,16 +6793,12 @@ contains
     end if
 
     ! Determine to which axis the contact vector is parallel.
-    mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
+    mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
+      call warning("Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
       contactDir = 0
     else
-      ! Workaround for bug in Intel compiler (can not use index function)
-      contactDir = 1
-      do while (.not. mask(contactDir))
-        contactDir = contactDir + 1
-      end do
+      contactDir = findloc(mask, .true., 1)
     end if
 
   end subroutine getContactVector
@@ -7431,7 +7552,7 @@ contains
           if (input%transpar%contacts(ii)%dir.lt.1 .or. &
             &input%transpar%contacts(ii)%dir.gt.3 ) then
             call error("Contact " // i2c(ii) // " not parallel to any &
-              & coordinate axis is not compatible with Poisson solver")
+              & coordinate axis and is not compatible with Poisson solver")
           end if
         end do
       end if
@@ -7532,10 +7653,7 @@ contains
 
     type(fnode), pointer :: node, pTmp
 
-    call getChild(root, "Parallel", child=node, requested=.false.)
-    if (withMpi .and. .not. associated(node)) then
-      call setChild(root, "Parallel", node)
-    end if
+    call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
     if (associated(node)) then
       if (.not. withMpi) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
@@ -7561,10 +7679,7 @@ contains
 
     type(fnode), pointer :: node
 
-    call getChild(root, "Blacs", child=node, requested=.false.)
-    if (withScalapack .and. .not. associated(node)) then
-      call setChild(root, "Blacs", node)
-    end if
+    call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
     if (associated(node)) then
       if (.not. withScalapack) then
         call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
@@ -7768,13 +7883,20 @@ contains
   end function is_numeric
 
 
-  !> Parse range separation input
-  subroutine parseRangeSeparated(node, input, skFiles)
+  !> Parses hybrid xc-functional input.
+  subroutine parseHybridBlock(node, input, ctrl, geo, skFiles)
+
     !> Node to parse
     type(fnode), intent(in), pointer :: node
 
     !> Range separated data structure to fill
-    type(TRangeSepInp), intent(inout), allocatable :: input
+    type(THybridXcInp), intent(inout), allocatable :: input
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
+
+    !> General control structure
+    type(TControl), intent(in) :: ctrl
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -7782,94 +7904,171 @@ contains
     !! File name of representative SK-file to read
     character(lc) :: fileName
 
-    !! Range-separated extra tag in SK-files, if allocated
-    integer :: rangeSepSkTag
-
-    !! Range-separated functional type of user input
-    integer :: rangeSepInputTag
-
-    !! Auxiliary node pointers
-    type(fnode), pointer :: hybridChild, hybridValue, screeningChild, screeningValue, child1
-
-    !! True, if RangeSeparated input block present
+    !! True, if hybrid xc-functional input block present
     logical :: isHybridInp
 
-    !! True, if range-separated extra tag found in SK-file(s)
+    !! True, if hybrid xc-functional extra tag found in SK-file(s)
     logical :: isHybridSk
+
+    !! Hybrid xc-functional extra tag found in the SK-file
+    integer :: hybridXcSkTag
+
+    !! Type of hybrid xc-functional found in the SK-file
+    integer :: hybridXcSkType
+
+    !! Hybrid functional type of user input
+    integer :: hybridXcInputTag
+
+    !! Auxiliary node pointers
+    type(fnode), pointer :: hybridChild, hybridValue, screeningChild
+    type(fnode), pointer :: screeningValue, cmChild, cmValue, child1, child2
 
     !! Temporary string buffers
     type(string) :: buffer, modifier
 
+    !! Temporary string buffer, that stores the gamma function type
+    type(string) :: strBuffer
+
     @:ASSERT(size(skFiles, dim=1) == size(skFiles, dim=2))
     @:ASSERT((size(skFiles, dim=1) > 0))
 
-    ! Extracting range-separated tag from first SK-file only is a workaround and assumes that a set
-    ! of given SK-files uses the same parameters (which should always be the case)!
+    ! Extracting hybridXc tag from first SK-file only is a workaround and assumes that a set of
+    ! given SK-files uses the same parameters (which should always be the case)!
     call get(skFiles(1, 1), fileName, 1)
 
-    ! Check if SK-files contain extra tag for range-separated functionals
-    call inquireRangeSepTag(fileName, rangeSepSkTag)
-    isHybridSk = rangeSepSkTag /= rangeSepFunc%none
+    ! Check if SK-files contain extra tag for hybrid xc-functionals
+    call parseHybridXcTag(fileName, hybridXcTag=hybridXcSkTag, hybridXcType=hybridXcSkType)
+    isHybridSk = hybridXcSkTag /= hybridXcFunc%none
 
-    call getChild(node, "RangeSeparated", child=hybridChild, requested=.false.)
-    isHybridInp = associated(hybridChild)
+    call getChild(node, "Hybrid", child=hybridChild, requested=.false.)
+    call getChildValue(node, "Hybrid", hybridValue, "None", child=hybridChild)
+    call getNodeName(hybridValue, buffer)
+
+    isHybridInp = associated(hybridChild) .and. (tolower(char(buffer)) /= "none")
 
     if (isHybridInp .and. .not. isHybridSk) then
-      call error("RangeSeparated input block present, but SK-file '" // trim(fileName)&
-          & // "' seems to be (semi-)local.")
+      call error("Hybrid input block present, but SK-file '" // trim(fileName)&
+          & // "'" // newline // "   appears to be (semi-)local.")
     elseif (isHybridSk .and. .not. isHybridInp) then
-      call error("Hybrid SK-file '" // trim(fileName) // "' present, but HSD input block missing.")
+      call error("Hybrid SK-file '" // trim(fileName) // "' provided," // newline //&
+          & "   but the hybrid block is missing from the HSD input file.")
     end if
 
+    hybridXcInputTag = hybridXcFunc%none
     if (isHybridInp) then
-      call getChildValue(node, "RangeSeparated", hybridValue, "None", child=hybridChild)
-      call getNodeName(hybridValue, buffer)
       ! Convert hybrid functional type of user input to enumerator
       select case(tolower(char(buffer)))
       case ("lc")
-        rangeSepInputTag = rangeSepFunc%lc
+        hybridXcInputTag = hybridXcFunc%lc
+      case ("cam")
+        hybridXcInputTag = hybridXcFunc%cam
       case default
         call detailedError(hybridChild, "Unknown hybrid xc-functional type '" // char(buffer)&
             & // "' in input.")
       end select
-      if (.not. rangeSepInputTag == rangeSepSkTag) then
-        ! Check if hybrid functional type is in line with SK-files
-        call detailedError(hybridChild, "Hybrid functional type conflict with SK-files.")
+
+      ! Check if hybrid functional type is in line with SK-files
+      if (hybridXcInputTag == hybridXcFunc%lc .and. hybridXcSkType /= hybridXcFunc%lc) then
+        call detailedError(hybridChild, "Requested hybrid functional type conflict with provided&
+            & SK-file(s).")
       end if
-      select case (tolower(char(buffer)))
-      case ("none")
-        rangeSepInputTag = rangeSepFunc%none
-        continue
-      case ("lc")
-        allocate(input)
-        call getChildValue(hybridValue, "Screening", screeningValue, "Thresholded",&
-            & child=screeningChild)
-        call getNodeName(screeningValue, buffer)
-        select case(char(buffer))
-        case ("neighbourbased")
-          input%rangeSepAlg = rangeSepTypes%neighbour
-          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-              & modifier=modifier, child=child1)
-          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
-        case ("thresholded")
-          input%rangeSepAlg = rangeSepTypes%threshold
+
+      allocate(input)
+      input%hybridXcType = hybridXcSkType
+      call getChildValue(hybridValue, "Screening", screeningValue, "MatrixBased",&
+          & child=screeningChild)
+
+      call getNodeName(screeningValue, buffer)
+      select case(tolower(char(buffer)))
+      case ("neighbourbased")
+        input%hybridXcAlg = hybridXcAlgo%neighbourBased
+        call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child1)
+        call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+        if (geo%tPeriodic) then
           call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
-          call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
-              & modifier=modifier, child=child1)
-          call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
-        case ("matrixbased")
-          input%rangeSepAlg = rangeSepTypes%matrixBased
-          ! In this case, CutoffRedunction is not used so it should be set to zero.
-          input%cutoffRed = 0.0_dp
-        case default
-          call getNodeHSdName(screeningValue, buffer)
-          call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'.")
-        end select
+        end if
+      case ("thresholded")
+        input%hybridXcAlg = hybridXcAlgo%thresholdBased
+        call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
+        call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child1)
+        call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
+      case ("matrixbased")
+        input%hybridXcAlg = hybridXcAlgo%matrixBased
+        ! In this case, CutoffRedunction is not used so it should be set to zero.
+        input%cutoffRed = 0.0_dp
+      case default
+        call getNodeHSdName(screeningValue, buffer)
+        call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'")
       end select
-      input%rangeSepType = rangeSepInputTag
+
+      if (ctrl%tSpinOrbit) then
+        call detailedError(hybridChild, "Spin-orbit coupling not currently supported for hybrids")
+      end if
+      if (ctrl%t2Component) then
+        if (input%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+          call detailedError(screeningChild, "MatrixBased screening required for noncollinear spin")
+        end if
+      end if
+
+      ! Additional settings for periodic sytems
+      ifPeriodic: if (geo%tPeriodic) then
+
+        ! parse gamma function type (full, truncated, mic, ...)
+        call getChildValue(hybridValue, "CoulombMatrix", cmValue, "Truncated", child=cmChild)
+
+        call getNodeName(cmValue, buffer)
+        select case(char(buffer))
+        case ("full")
+          input%gammaType = hybridXcGammaTypes%full
+        case ("minimumimage")
+          input%gammaType = hybridXcGammaTypes%mic
+        case ("truncated")
+          input%gammaType = hybridXcGammaTypes%truncated
+        case ("truncatedanddamped")
+          input%gammaType = hybridXcGammaTypes%truncatedAndDamped
+        case default
+          call getNodeHSdName(cmValue, buffer)
+          call detailedError(cmChild, "Invalid Gamma function type '" // char(strBuffer) // "'")
+        end select
+
+        ! g-Summation cutoff not needed for MIC CAM Hamiltonian
+        if (input%gammaType /= hybridXcGammaTypes%mic) then
+          call getChild(cmValue, "GSummationCutoff", child=child1, modifier=modifier,&
+              & requested=.false.)
+          if (associated(child1)) then
+            allocate(input%gSummationCutoff)
+            call getChildValue(child1, "", input%gSummationCutoff, modifier=modifier, child=child2)
+            call convertUnitHsd(char(modifier), lengthUnits, child2, input%gSummationCutoff)
+          end if
+        end if
+
+        if (input%gammaType == hybridXcGammaTypes%truncated&
+            & .or. input%gammaType == hybridXcGammaTypes%truncatedAndDamped) then
+          call getChild(cmValue, "CoulombCutoff", child=child1, modifier=modifier,&
+              & requested=.false.)
+          if (associated(child1)) then
+            allocate(input%gammaCutoff)
+            call getChildValue(child1, "", input%gammaCutoff, modifier=modifier, child=child2)
+            call convertUnitHsd(char(modifier), lengthUnits, child2, input%gammaCutoff)
+          end if
+        end if
+
+      else
+        ! Always use unaltered gamma function for non-periodic systems
+        input%gammaType = hybridXcGammaTypes%full
+      end if ifPeriodic
+
+      ! Number of primitive cells regarded in MIC, along each supercell folding direction
+      if (input%gammaType == hybridXcGammaTypes%mic) then
+        allocate(input%wignerSeitzReduction)
+        call getChildValue(cmValue, "WignerSeitzReduction", input%wignerSeitzReduction, default=0)
+      end if
+
     end if
 
-  end subroutine parseRangeSeparated
+  end subroutine parseHybridBlock
 
 
   !> Reads the REKS block
@@ -8094,13 +8293,12 @@ contains
     type(TChimesRepInp), allocatable, intent(out) :: chimesRepInput
 
     type(fnode), pointer :: chimes
-    type(string) :: buffer
 
   #:if WITH_CHIMES
+    type(string) :: buffer
     type(string), allocatable :: searchPath(:)
-  #:endif
-
     character(len=:), allocatable :: chimesFile
+  #:endif
 
     call getChild(root, "Chimes", chimes, requested=.false.)
     if (.not. associated(chimes)) return
@@ -8108,7 +8306,7 @@ contains
       allocate(chimesRepInput)
       call getChildValue(chimes, "ParameterFile", buffer, default="chimes.dat")
       chimesFile = unquote(char(buffer))
-      call getParamSearchPath(searchPath)
+      call getParamSearchPaths(searchPath)
       call findFile(searchPath, chimesFile, chimesRepInput%chimesFile)
       if (.not. allocated(chimesRepInput%chimesFile)) then
         call error("Could not find ChIMES parameter file '" // chimesFile // "'")

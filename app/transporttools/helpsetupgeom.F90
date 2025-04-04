@@ -1,23 +1,22 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 module transporttools_helpsetupgeom
-  use dftbp_common_accuracy
-  use dftbp_common_constants
-  use dftbp_common_globalenv
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_io_message
-  use dftbp_math_f08math
-  use dftbp_math_simplealgebra
-  use dftbp_math_sorting
+  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_constants, only : Bohr__AA
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : stdOut
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_simplealgebra, only : cross3
+  use dftbp_math_sorting, only : index_heap_sort
   use dftbp_transport_negfvars, only : contactInfo
-  use dftbp_type_linkedlist
-  use dftbp_type_typegeometry
-  use dftbp_type_wrappedintr
+  use dftbp_type_linkedlist, only : append, asArray, destruct, get, init, len, TListInt, TListIntR1
+  use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
 
   private

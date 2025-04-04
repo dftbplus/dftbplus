@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -33,8 +33,7 @@ module dftbp_dftb_dispslaterkirkw
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_io_message, only : error
-  use dftbp_math_lapackroutines, only : matinv
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 
   private
@@ -75,7 +74,7 @@ module dftbp_dftb_dispslaterkirkw
     !> Gradients (3, nAtom)
     real(dp), allocatable :: gradients(:,:)
 
-    !> stress tensor components
+    !> Stress tensor components
     real(dp) :: stress(3,3)
 
     !> If system is periodic
@@ -107,22 +106,22 @@ module dftbp_dftb_dispslaterkirkw
 
   contains
 
-    !> update internal copy of coordinates
+    !> Update internal copy of coordinates
     procedure :: updateCoords
 
-    !> update internal copy of lattice vectors
+    !> Update internal copy of lattice vectors
     procedure :: updateLatVecs
 
-    !> energy contribution
+    !> Energy contribution
     procedure :: getEnergies
 
-    !> force contributions
+    !> Force contributions
     procedure :: addGradients
 
-    !> stress tensor contribution
+    !> Stress tensor contribution
     procedure :: getStress
 
-    !> real space cutoff
+    !> Real space cutoff
     procedure :: getRCutoff
 
   end type TDispSlaKirk
@@ -196,7 +195,7 @@ contains
       this%vol = abs(determinant33(latVecs))
       invRecVecs(:,:) = latVecs / (2.0_dp * pi)
       recVecs(:,:) = transpose(invRecVecs)
-      call matinv(recVecs)
+      call invert33(recVecs)
 
       ! Scaling down optimal eta (as suggested in the literature) is purely empirical, it reduces
       ! the real space summation, and seems to yield shorter execution times. (It does not influence
@@ -292,7 +291,7 @@ contains
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
     recVecs(:,:) = transpose(invRecVecs)
-    call matinv(recVecs)
+    call invert33(recVecs)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
     c6sum = sum(abs(this%c6))
     this%rCutoff = getMaxRDispersion(this%eta, c6sum, this%vol, tolDispersion)
@@ -335,16 +334,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> The vector to increase by the gradients.
@@ -369,7 +368,7 @@ contains
     !> The data object for dispersion
     class(TDispSlaKirk), intent(inout) :: this
 
-    !> tensor from the dispersion
+    !> Tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
 
     @:ASSERT(this%coordsUpdated)
@@ -538,7 +537,7 @@ contains
     !> Tolerance value.
     real(dp), intent(in) :: tol
 
-    !> cutoff
+    !> Cutoff
     real(dp) :: xx
 
     ! solve: 1 - tol < (1-exp(-d*(r/r0)^N))^M for r and hope that the logarithm is not blowing up
