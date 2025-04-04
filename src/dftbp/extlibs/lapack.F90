@@ -5,2071 +5,582 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Interface wrapper for the lapack routines. See the <a href="http://www.netlib.org/lapack/">lapack
-!> project documentation</a> for more details
+!> Interface wrappers for LAPACK routines. See the <a href="http://www.netlib.org/lapack/">lapack
+!! project documentation</a> for documentation of the routines.
 module dftbp_extlibs_lapack
   use dftbp_common_accuracy, only : rsp, rdp
   implicit none
-  public
 
-
-  !> Real symmetric eigensolver
-  interface ssyev
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("ssyev", "rsp"), ("dsyev", "rdp")]
 
     !> Real symmetric eigensolver
-    subroutine ssyev(jobz, uplo, nn, aa, lda, ww, work, lwork, info)
-      import rsp
-
-      !> Job type
+    subroutine ${LAPACK_ROUTINE}$(jobz, uplo, nn, aa, lda, ww, work, lwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine ssyev
-  end interface ssyev
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Double precision symmetric eigensolver
-  interface dsyev
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("cheev", "rsp"), ("zheev", "rdp")]
 
-    !> Double precision symmetric eigensolver
-    subroutine dsyev(jobz, uplo, nn, aa, lda, ww, work, lwork, info)
-      import rdp
-
-      !> Job type
+    !> Complex symmetric eigensolver
+    subroutine ${LAPACK_ROUTINE}$(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      complex(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
+      real(${KIND}$), intent(inout) :: rwork(*)
       integer, intent(out) :: info
-    end subroutine dsyev
-  end interface dsyev
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Complex hermitian eigensolver
-  interface cheev
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("ssyevd", "rsp"), ("dsyevd", "rdp")]
 
-    !> Complex hermitian eigensolver
-    subroutine cheev(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
-      import rsp
-
-      !> Job type
+    !> Real symmetric eigensolver (relatively robust)
+    subroutine ${LAPACK_ROUTINE}$(jobz, uplo, nn, aa, lda, ww, work, lwork, iwork, liwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine cheev
-  end interface cheev
-
-
-  !> Double complex hermitian eigensolver
-  interface zheev
-
-    !> Double complex hermitian eigensolver
-    subroutine zheev(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, info)
-      import rdp
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rdp), intent(inout) :: rwork(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zheev
-  end interface zheev
-
-
-  !> Real symmetric eigensolver (divide and conquer)
-  interface ssyevd
-
-    !> Real symmetric eigensolver, divide and conquer
-    subroutine ssyevd(jobz, uplo, nn, aa, lda, ww, work, lwork, iwork, liwork, info)
-      import rsp
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Integer workspace
       integer, intent(inout) :: iwork(*)
-
-      !> Integer workspace sizing
       integer, intent(in) :: liwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine ssyevd
-  end interface ssyevd
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Double precision symmetric eigensolver (divide and conquer)
-  interface dsyevd
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("cheevd", "rsp"), ("zheevd", "rdp")]
 
-    !> Real symmetric eigensolver, divide and conquer
-    subroutine dsyevd(jobz, uplo, nn, aa, lda, ww, work, lwork, iwork, liwork, info)
-      import rdp
-
-      !> Job type
+    !> Complex hermitian eigensolver (relatively robust)
+    subroutine ${LAPACK_ROUTINE}$(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork,&
+        & liwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      complex(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Integer workspace sizing
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dsyevd
-  end interface dsyevd
-
-
-  !> Complex hermitian eigensolver (divide and conquer)
-  interface cheevd
-
-    !> Complex hermitian eigensolver
-    subroutine cheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
-      import rsp
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> Size of rwork
+      real(${KIND}$), intent(inout) :: rwork(*)
       integer, intent(in) :: lrwork
-
-      !> Integer workspace
       integer, intent(inout) :: iwork(*)
-
-      !> Integer workspace sizing
       integer, intent(in) :: liwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine cheevd
-  end interface cheevd
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Double complex hermitian eigensolver (divide and conquer)
-  interface zheevd
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("ssyevr", "rsp"), ("dsyevr", "rdp")]
 
-    !> Double complex hermitian eigensolver
-    subroutine zheevd(jobz, uplo, nn, aa, lda, ww, work, lwork, rwork, lrwork, iwork, liwork, info)
-      import rdp
-
-      !> Job type
+    !> Real symmetric eigensolver (relatively robust)
+    subroutine ${LAPACK_ROUTINE}$(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol, mm, ww,&
+        & zz, ldz, isuppz, work, lwork, iwork, liwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rdp), intent(inout) :: rwork(*)
-
-      !> Size of rwork
-      integer, intent(in) :: lrwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Integer workspace sizing
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zheevd
-  end interface zheevd
-
-
-  !> Real symmetric generalised eigensolver
-  interface ssygv
-
-    !> Real symmetric generalised eigensolver
-    subroutine ssygv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
-        & info)
-      import rsp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rsp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine ssygv
-  end interface ssygv
-
-
-  !> Double precision generalised symmetric eigensolver
-  interface dsygv
-
-    !> Double precision generalised symmetric eigensolver
-    subroutine dsygv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
-        & info)
-      import rdp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rdp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dsygv
-  end interface dsygv
-
-
-  !> Complex generalised hermitian eigensolver
-  interface chegv
-
-    !> Complex generalised hermitian eigensolver
-    subroutine chegv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
-        & rwork, info)
-      import rsp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rsp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine chegv
-  end interface chegv
-
-
-  !> Double complex generalised hermitian eigensolver
-  interface zhegv
-
-    !> Double complex generalised hermitian eigensolver
-    subroutine zhegv(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork,&
-        & rwork, info)
-      import rdp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rdp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rdp), intent(inout) :: rwork(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zhegv
-  end interface zhegv
-
-
-  !> Real symmetric generalised eigensolver, divide and conquer
-  interface ssygvd
-
-    !> Real symmetric generalised eigensolver, divide and conquer
-    subroutine ssygvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
-        & lwork, iwork, liwork, info)
-      import rsp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rsp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine ssygvd
-  end interface ssygvd
-
-
-  !> Double precision generalised symmetric eigensolver, divide and conquer
-  interface dsygvd
-
-    !> Double precision generalised symmetric eigensolver, divide and conquer
-    subroutine dsygvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
-        & lwork, iwork, liwork, info)
-      import rdp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rdp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dsygvd
-  end interface dsygvd
-
-
-  !> Complex generalised hermitian eigensolver, divide and conquer
-  interface chegvd
-
-    !> Complex generalised hermitian eigensolver, divide and conquer
-    subroutine chegvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
-        & lwork, rwork, lrwork, iwork, liwork, info)
-      import rsp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rsp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> Size of rwork
-      integer, intent(in) :: lrwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine chegvd
-  end interface chegvd
-
-
-  !> Double complex generalised hermitian eigensolver, divide and conquer
-  interface zhegvd
-
-    !> Double complex generalised hermitian eigensolver, divide and conquer
-    subroutine zhegvd(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work,&
-        & lwork, rwork, lrwork, iwork, liwork, info)
-      import rdp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rdp), intent(inout) :: bb(ldb, *)
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rdp), intent(inout) :: rwork(*)
-
-      !> Workspace size for rwork
-      integer, intent(in) :: lrwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zhegvd
-  end interface zhegvd
-
-
-  !> Real symmetric generalised eigensolver, relatively robust
-  interface ssyevr
-
-    !> Real symmetric generalised eigensolver, relatively robust
-    subroutine ssyevr(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol,&
-        & mm, ww, zz, ldz, isuppz, work, lwork, iwork, liwork, info)
-      import rsp
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
-      !> eigenvalues
       character, intent(in) :: range
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Lower range if in mode range =  V
-      real(rsp), intent(in) :: vl
-
-      !> Upper range
-      real(rsp), intent(in) :: vu
-
-      !> Lower number if in mode range =  I
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(in) :: vl
+      real(${KIND}$), intent(in) :: vu
       integer, intent(in) :: il
-
-      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
-
-      !> Absolute error tolerance for the eigenvalues
-      real(rsp), intent(in) :: abstol
-
-      !> Total number of eigenvalues found
+      real(${KIND}$), intent(in) :: abstol
       integer, intent(out) :: mm
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Leading dimension of Z
+      real(${KIND}$), intent(out) :: ww(*)
       integer, intent(in) :: ldz
-
-      !> Matrix Z
-      real(rsp), intent(out) :: zz(ldz, *)
-
-      !> Support of the eigenvectors in Z
+      real(${KIND}$), intent(out) :: zz(ldz, *)
       integer, intent(out) :: isuppz(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> Integer workspace
       integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
       integer, intent(in) :: liwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine ssyevr
-  end interface ssyevr
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Double precision generalised symmetric eigensolver, relatively robust
-  interface dsyevr
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("cheevr", "rsp"), ("zheevr", "rdp")]
 
-    !> Double precision generalised symmetric eigensolver, relatively robust
-    subroutine dsyevr(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol,&
-        & mm, ww, zz, ldz, isuppz, work, lwork, iwork, liwork, info)
-      import rdp
-
-      !> Job type
+    !> Complex hermitian eigensolver (relatively robust)
+    subroutine ${LAPACK_ROUTINE}$(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol,&
+        & mm, ww, zz, ldz, isuppz, work, lwork, rwork, lrwork, iwork, liwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobz
-
-      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
-      !> eigenvalues
       character, intent(in) :: range
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Lower range if in mode range =  V
-      real(rdp), intent(in) :: vl
-
-      !> Upper range
-      real(rdp), intent(in) :: vu
-
-      !> Lower number if in mode range =  I
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
+      real(${KIND}$), intent(in) :: vl
+      real(${KIND}$), intent(in) :: vu
       integer, intent(in) :: il
-
-      !> Upper number if in mode range =  I
       integer, intent(in) :: iu
-
-      !> Absolute error tolerance for the eigenvalues
-      real(rdp), intent(in) :: abstol
-
-      !> Total number of eigenvalues found
+      real(${KIND}$), intent(in) :: abstol
       integer, intent(out) :: mm
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Leading dimension of Z
+      real(${KIND}$), intent(out) :: ww(*)
       integer, intent(in) :: ldz
-
-      !> Matrix Z
-      real(rdp), intent(out) :: zz(ldz, *)
-
-      !> Support of the eigenvectors in Z
+      complex(${KIND}$), intent(out) :: zz(ldz, *)
       integer, intent(out) :: isuppz(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      complex(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> Integer workspace
-      integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
-      integer, intent(in) :: liwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dsyevr
-  end interface dsyevr
-
-
-  !> Complex generalised hermitian eigensolver, relatively robust
-  interface cheevr
-
-    !> Complex generalised hermitian eigensolver, relatively robust
-    subroutine cheevr(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol,&
-        & mm, ww, zz, ldz, isuppz, work, lwork, rwork, lrwork, iwork, liwork,&
-        & info)
-      import rsp
-
-      !> Job type
-      character, intent(in) :: jobz
-
-      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
-      !> eigenvalues
-      character, intent(in) :: range
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Lower range if in mode range =  V
-      real(rsp), intent(in) :: vl
-
-      !> Upper range
-      real(rsp), intent(in) :: vu
-
-      !> Lower number if in mode range =  I
-      integer, intent(in) :: il
-
-      !> Upper number if in mode range =  I
-      integer, intent(in) :: iu
-
-      !> Absolute error tolerance for the eigenvalues
-      real(rsp), intent(in) :: abstol
-
-      !> Total number of eigenvalues found
-      integer, intent(out) :: mm
-
-      !> Eigenvalues
-      real(rsp), intent(out) :: ww(*)
-
-      !> Leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> Matrix Z
-      complex(rsp), intent(out) :: zz(ldz, *)
-
-      !> Support of the eigenvectors in Z
-      integer, intent(out) :: isuppz(*)
-
-      !> Workspace
-      complex(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> Real workspace
-      real(rsp), intent(inout) :: rwork(*)
-
-      !> Size of rwork
+      real(${KIND}$), intent(inout) :: rwork(*)
       integer, intent(in) :: lrwork
-
-      !> Integer workspace
       integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
       integer, intent(in) :: liwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine cheevr
-  end interface cheevr
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Complex generalised hermitian eigensolver, relatively robust
-  interface zheevr
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("ssygv", "rsp"), ("dsygv", "rdp")]
 
-    !> Complex generalised hermitian eigensolver, relatively robust
-    subroutine zheevr(jobz, range, uplo, nn, aa, lda, vl, vu, il, iu, abstol,&
-        & mm, ww, zz, ldz, isuppz, work, lwork, rwork, lrwork, iwork, liwork,&
-        & info)
-      import rdp
-
-      !> Job type
+    !> Real symmetric generalized eigensolver
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork, info)
+      import :: ${KIND}$
+      integer, intent(in) :: itype
       character, intent(in) :: jobz
-
-      !> Choice for range of eigenstates, 'A'll, 'V' half range (VL,VU], 'I' IL-th through IU-th
-      !> eigenvalues
-      character, intent(in) :: range
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Lower range if in mode range =  V
-      real(rdp), intent(in) :: vl
-
-      !> Upper range
-      real(rdp), intent(in) :: vu
-
-      !> Lower number if in mode range =  I
-      integer, intent(in) :: il
-
-      !> Upper number if in mode range =  I
-      integer, intent(in) :: iu
-
-      !> Absolute error tolerance for the eigenvalues
-      real(rdp), intent(in) :: abstol
-
-      !> Total number of eigenvalues found
-      integer, intent(out) :: mm
-
-      !> Eigenvalues
-      real(rdp), intent(out) :: ww(*)
-
-      !> Leading dimension of Z
-      integer, intent(in) :: ldz
-
-      !> Matrix Z
-      complex(rdp), intent(out) :: zz(ldz, *)
-
-      !> Support of the eigenvectors in Z
-      integer, intent(out) :: isuppz(*)
-
-      !> Workspace
-      complex(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: ldb
+      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
 
-      !> Real workspace
-      real(rdp), intent(inout) :: rwork(*)
+  #:endfor
+  end interface
 
-      !> Size of rwork
-      integer, intent(in) :: lrwork
 
-      !> Integer workspace
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("chegv", "rsp"), ("zhegv", "rdp")]
+
+    !> Complex hermitian generalized eigensolver
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork, rwork,&
+          & info)
+      import :: ${KIND}$
+      integer, intent(in) :: itype
+      character, intent(in) :: jobz
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      integer, intent(in) :: lda
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: ldb
+      complex(${KIND}$), intent(inout) :: bb(ldb, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      complex(${KIND}$), intent(inout) :: work(*)
+      integer, intent(in) :: lwork
+      real(${KIND}$), intent(inout) :: rwork(*)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+    #:for LAPACK_ROUTINE, KIND in [("ssygvd", "rsp"), ("dsygvd", "rdp")]
+
+    !> Real symmetric generalized eigensolver (divide and conquer)
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork, iwork,&
+          & liwork, info)
+      import :: ${KIND}$
+      integer, intent(in) :: itype
+      character, intent(in) :: jobz
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      integer, intent(in) :: lda
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: ldb
+      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      real(${KIND}$), intent(inout) :: work(*)
+      integer, intent(in) :: lwork
       integer, intent(inout) :: iwork(*)
-
-      !> Size of integer workspace
       integer, intent(in) :: liwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine zheevr
-  end interface zheevr
+    end subroutine ${LAPACK_ROUTINE}$
+  #:endfor
+  end interface
 
 
-  !> Cholesky factorization of real symmetric positive definite matrix
-  interface spotrf
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("chegvd", "rsp"), ("zhegvd", "rdp")]
 
-    !> Cholesky factorization of real symmetric positive definite matrix
-    subroutine spotrf(uplo, nn, aa, lda, info)
-      import rsp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine spotrf
-  end interface spotrf
-
-
-  !> Cholesky factorization of double precision symmetric positive definite matrix
-  interface dpotrf
-
-    !> Cholesky factorization of double precision symmetric positive definite matrix
-    subroutine dpotrf(uplo, nn, aa, lda, info)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dpotrf
-  end interface dpotrf
-
-
-  !> Cholesky factorization of complex hermitian positive definite matrix
-  interface cpotrf
-
-    !> Cholesky factorization of complex hermitian positive definite matrix
-    subroutine cpotrf(uplo, nn, aa, lda, info)
-      import rsp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine cpotrf
-  end interface cpotrf
-
-
-  !> Cholesky factorization of double complex hermitian positive definite matrix
-  interface zpotrf
-
-    !> Cholesky factorization of double complex hermitian positive definite matrix
-    subroutine zpotrf(uplo, nn, aa, lda, info)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zpotrf
-  end interface zpotrf
-
-
-  !> Reduce real symmetric-definite generalized eigenproblem to standard form
-  interface ssygst
-
-    !> Reduce real symmetric-definite generalized eigenproblem to standard form
-    subroutine ssygst(itype, uplo, nn, aa, lda, bb, ldb, info)
-      import rsp
-
-      !> Specifies the problem type to be solved
+    !> Complex hermitian generalized eigensolver (divide and conquer)
+    subroutine ${LAPACK_ROUTINE}$(itype, jobz, uplo, nn, aa, lda, bb, ldb, ww, work, lwork, rwork,&
+          & lrwork, iwork, liwork, info)
+      import :: ${KIND}$
       integer, intent(in) :: itype
-
-      !> Upper 'U' or lower 'L' triangle
+      character, intent(in) :: jobz
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
+      complex(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rsp), intent(in) :: bb(ldb, *)
-
-      !> State of routine on return
+      complex(${KIND}$), intent(inout) :: bb(ldb, *)
+      real(${KIND}$), intent(out) :: ww(*)
+      complex(${KIND}$), intent(inout) :: work(*)
+      integer, intent(in) :: lwork
+      real(${KIND}$), intent(inout) :: rwork(*)
+      integer, intent(in) :: lrwork
+      integer, intent(inout) :: iwork(*)
+      integer, intent(in) :: liwork
       integer, intent(out) :: info
-    end subroutine ssygst
-  end interface ssygst
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Reduce double precision symmetric-definite generalized eigenproblem to standard form
-  interface dsygst
 
-    !> Reduce double precision symmetric-definite generalized eigenproblem to standard form
-    subroutine dsygst(itype, uplo, nn, aa, lda, bb, ldb, info)
-      import rdp
 
-      !> Specifies the problem type to be solved
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("spotrf", "real", "rsp"), ("dpotrf", "real", "rdp"),&
+      & ("cpotrf", "complex", "rsp"), ("zpotrf", "complex", "rdp")]
+
+    !> Cholesky factorization of symmetric / hermitian positive definite matrix
+    subroutine ${LAPACK_ROUTINE}$(uplo, nn, aa, lda, info)
+      import :: ${KIND}$
+      character, intent(in) :: uplo
+      integer, intent(in) :: nn
+      integer, intent(in) :: lda
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("ssygst", "real", "rsp"), ("dsygst", "real", "rdp"),&
+      & ("chegst", "complex", "rsp"), ("zhegst", "complex", "rdp")]
+
+    !> Reduces generalized eigenproblem to standard form
+    subroutine ${LAPACK_ROUTINE}$(itype, uplo, nn, aa, lda, bb, ldb, info)
+      import :: ${KIND}$
       integer, intent(in) :: itype
-
-      !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rdp), intent(in) :: bb(ldb, *)
-
-      !> State of routine on return
+      ${TYPE}$(${KIND}$), intent(in) :: bb(ldb, *)
       integer, intent(out) :: info
-    end subroutine dsygst
-  end interface dsygst
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Reduce complex hermitian-definite generalized eigenproblem to standard form
-  interface chegst
-
-    !> Reduce complex hermitian-definite generalized eigenproblem to standard form
-    subroutine chegst(itype, uplo, nn, aa, lda, bb, ldb, info)
-      import rsp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rsp), intent(in) :: bb(ldb, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine chegst
-  end interface chegst
-
-
-  !> Reduce double complex hermitian-definite generalized eigenproblem to standard form
-  interface zhegst
-
-    !> Reduce double complex hermitian-definite generalized eigenproblem to standard form
-    subroutine zhegst(itype, uplo, nn, aa, lda, bb, ldb, info)
-      import rdp
-
-      !> Specifies the problem type to be solved
-      integer, intent(in) :: itype
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      complex(rdp), intent(in) :: bb(ldb, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zhegst
-  end interface zhegst
-
-
-  !> Solve overdetermined or underdetermined real linear systems
-  interface sgesv
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("sgesv", "rsp"), ("dgesv", "rdp")]
 
     !> Solve overdetermined or underdetermined real linear systems
-    subroutine sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-      import rsp
-
-      !> Matrix dimension
+    subroutine ${LAPACK_ROUTINE}$(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
+      import :: ${KIND}$
       integer, intent(in) :: nn
-
-      !> Number of right hand side equations
       integer, intent(in) :: nrhs
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
+      real(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(out) :: ipiv(*)
-
-      !> Leading dimension of B
       integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rsp), intent(inout) :: bb(ldb, *)
-
-      !> State of routine on return
+      real(${KIND}$), intent(inout) :: bb(ldb, *)
       integer, intent(out) :: info
-    end subroutine sgesv
-  end interface sgesv
+    end subroutine ${LAPACK_ROUTINE}$
+  #:endfor
+  end interface
 
 
-  !> Solve overdetermined or underdetermined double precision linear systems
-  interface dgesv
-
-    !> Solve overdetermined or underdetermined double precision linear systems
-    subroutine dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-      import rdp
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Number of right hand side equations
-      integer, intent(in) :: nrhs
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(out) :: ipiv(*)
-
-      !> Leading dimension of B
-      integer, intent(in) :: ldb
-
-      !> Matrix B
-      real(rdp), intent(inout) :: bb(ldb, *)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dgesv
-  end interface dgesv
-
-
-  !> Computes LU factorization of real matrix
-  interface sgetrf
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("sgetrf", "real", "rsp"), ("dgetrf", "real", "rdp"),&
+      &  ("cgetrf", "complex", "rsp"), ("zgetrf", "complex", "rdp")]
 
     !> Computes LU factorization of real matrix
-    subroutine sgetrf(mm, nn, aa, lda, ipiv, info)
-      import rsp
-
-      !> Number of rows of the matrix
+    subroutine ${LAPACK_ROUTINE}$(mm, nn, aa, lda, ipiv, info)
+      import :: ${KIND}$
       integer, intent(in) :: mm
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
+      ${TYPE}$(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(out) :: ipiv(*)
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine sgetrf
-  end interface sgetrf
+    end subroutine ${LAPACK_ROUTINE}$
+  #:endfor
+  end interface
 
 
-  !> Computes LU factorization of double precision matrix
-  interface dgetrf
-
-    !> Computes LU factorization of double precision matrix
-    subroutine dgetrf(mm, nn, aa, lda, ipiv, info)
-      import rdp
-
-      !> Number of rows of the matrix
-      integer, intent(in) :: mm
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(out) :: ipiv(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dgetrf
-  end interface dgetrf
-
-
-  !> Computes LU factorization of complex matrix
-  interface cgetrf
-
-    !> Computes LU factorization of real matrix
-    subroutine cgetrf(mm, nn, aa, lda, ipiv, info)
-      import rsp
-
-      !> Number of rows of the matrix
-      integer, intent(in) :: mm
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rsp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(out) :: ipiv(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine cgetrf
-  end interface cgetrf
-
-
-  !> Computes LU factorization of double precision complex matrix
-  interface zgetrf
-
-    !> Computes LU factorization of double precision matrix
-    subroutine zgetrf(mm, nn, aa, lda, ipiv, info)
-      import rdp
-
-      !> Number of rows of the matrix
-      integer, intent(in) :: mm
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      complex(rdp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(out) :: ipiv(*)
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine zgetrf
-  end interface zgetrf
-
-
-  !> Computes inverse of a real matrix using LU factorisation
-  interface sgetri
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("sgetri", "rsp"), ("dgetri", "rdp")]
 
     !> Computes inverse of a real matrix using LU factorisation
-    subroutine sgetri(nn, aa, lda, ipiv, work, lwork, info)
-      import rsp
-
-      !> Matrix dimension
+    subroutine ${LAPACK_ROUTINE}$(nn, aa, lda, ipiv, work, lwork, info)
+      import :: ${KIND}$
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
+      real(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(in) :: ipiv(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine sgetri
-  end interface sgetri
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Computes inverse of a double precision matrix using LU factorisation
-  interface dgetri
-
-    !> Computes inverse of a double precision matrix using LU factorisation
-    subroutine dgetri(nn, aa, lda, ipiv, work, lwork, info)
-      import rdp
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(in) :: ipiv(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dgetri
-  end interface dgetri
-
-
-  !> Factorise a real symmetric matrix as A = U*D*U**T or A = L*D*L**T
-  interface ssytrf
+  interface
+  #:for LAPACK_ROUTINE, TYPE_KIND in [("ssytrf", "rsp"), ("dsytrf", "rdp")]
 
     !> Factorise a real symmetric matrix as A = U*D*U**T or A = L*D*L**T
-    subroutine ssytrf(uplo, nn, aa, lda, ipiv, work, lwork, info)
-      import rsp
-
-      !> Upper 'U' or lower 'L' triangle
+    subroutine ${LAPACK_ROUTINE}$(uplo, nn, aa, lda, ipiv, work, lwork, info)
+      import :: ${KIND}$
       character, intent(in) :: uplo
-
-      !> Matrix dimension
       integer, intent(in) :: nn
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rsp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
+      real(${KIND}$), intent(inout) :: aa(lda, *)
       integer, intent(out) :: ipiv(*)
-
-      !> Workspace
-      real(rsp), intent(inout) :: work(*)
-
-      !> Workspace sizing
+      real(${KIND}$), intent(inout) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(out) :: info
-    end subroutine ssytrf
-  end interface ssytrf
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 
-  !> Factorise a double precision symmetric matrix as A = U*D*U**T or A = L*D*L**T
-  interface dsytrf
-
-    !> Factorise a double precision symmetric matrix as A = U*D*U**T or A = L*D*L**T
-    subroutine dsytrf(uplo, nn, aa, lda, ipiv, work, lwork, info)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> Matrix dimension
-      integer, intent(in) :: nn
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Matrix A
-      real(rdp), intent(inout) :: aa(lda, *)
-
-      !> Pivot array
-      integer, intent(out) :: ipiv(*)
-
-      !> Workspace
-      real(rdp), intent(inout) :: work(*)
-
-      !> Workspace sizing
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(out) :: info
-    end subroutine dsytrf
-  end interface dsytrf
-
-
-  !> Returns a vector of real random numbers from a uniform or normal distribution
-  interface slarnv
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("slarnv", "real", "rsp"), ("dlarnv", "real", "rdp"),&
+      &  ("clarnv", "complex", "rsp"), ("zlarnv", "complex", "rdp")]
 
     !> Returns a vector of real random numbers from a uniform or normal distribution
-    subroutine slarnv(idist, iseed, nn, xx)
-      import rsp
-
-      !> Distribution choice
+    subroutine ${LAPACK_ROUTINE}$(idist, iseed, nn, xx)
+      import :: ${KIND}$
       integer, intent(in) :: idist
-
-      !> Generator seed
       integer, intent(inout) :: iseed(4)
-
-      !> Vector dimension
       integer, intent(in) :: nn
+      ${TYPE}$(${KIND}$), intent(out) :: xx(*)
+    end subroutine ${LAPACK_ROUTINE}$
 
-      !> Random values on exit
-      real(rsp), intent(out) :: xx(*)
-    end subroutine slarnv
-  end interface slarnv
-
-
-  !> Returns a vector of double precision random numbers from a uniform or normal distribution
-  interface dlarnv
-
-    !> Returns a vector of double precision random numbers from a uniform or normal distribution
-    subroutine dlarnv(idist, iseed, nn, xx)
-      import rdp
-
-      !> Distribution choice
-      integer, intent(in) :: idist
-
-      !> Generator seed
-      integer, intent(inout) :: iseed(4)
-
-      !> Vector dimension
-      integer, intent(in) :: nn
-
-      !> Random values on exit
-      real(rdp), intent(out) :: xx(*)
-    end subroutine dlarnv
-  end interface dlarnv
+  #:endfor
+  end interface
 
 
-  !> Returns a vector of complex random numbers from a uniform or normal distribution
-  interface clarnv
-
-    !> Returns a vector of complex random numbers from a uniform or normal distribution
-    subroutine clarnv(idist, iseed, nn, xx)
-      import rsp
-
-      !> Distribution choice
-      integer, intent(in) :: idist
-
-      !> Generator seed
-      integer, intent(inout) :: iseed(4)
-
-      !> Vector dimension
-      integer, intent(in) :: nn
-
-      !> Random values on exit
-      complex(rsp), intent(out) :: xx(*)
-    end subroutine clarnv
-  end interface clarnv
-
-
-  !> Returns a vector of double complex random numbers from a uniform or normal distribution
-  interface zlarnv
-
-    !> Returns a vector of double complex random numbers from a uniform or normal distribution
-    subroutine zlarnv(idist, iseed, nn, xx)
-      import rdp
-
-      !> Distribution choice
-      integer, intent(in) :: idist
-
-      !> Generator seed
-      integer, intent(inout) :: iseed(4)
-
-      !> Vector dimension
-      integer, intent(in) :: nn
-
-      !> Random values on exit
-      complex(rdp), intent(out) :: xx(*)
-    end subroutine zlarnv
-  end interface zlarnv
-
-
-  !> Provides problem-dependent LAPACK routine parameters for the local environment
-  interface ilaenv
-
+  interface
     !> Provides problem-dependent LAPACK routine parameters for the local environment
     function ilaenv(ispec, name, opts, n1, n2, n3, n4)
-
-      !> Specifies the parameter to be returned
       integer, intent(in) :: ispec
-
-      !> Name of alling subroutine
       character, intent(in) :: name
-
-      !> The character options to the subroutine NAME, concatenated together
       character, intent(in) :: opts
-
-      !> Problem dimensions for the subroutine NAME
       integer, intent(in) :: n1
-
-      !> Problem dimensions for the subroutine NAME
       integer, intent(in) :: n2
-
-      !> Problem dimensions for the subroutine NAME
       integer, intent(in) :: n3
-
-      !> Problem dimensions for the subroutine NAME
       integer, intent(in) :: n4
-
-      !> Returned parameter
       integer :: ilaenv
     end function ilaenv
-  end interface ilaenv
+  end interface
 
 
-  !> Single precision machine parameters
-  interface slamch
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("slamch", "rsp"), ("dlamch", "rdp")]
 
-    !> Single precision machine parameters
-    function slamch(cmach)
-      import rsp
-
-      !> Name of parameter to return
+    !> Machine parameters
+    function ${LAPACK_ROUTINE}$(cmach)
+      import :: ${KIND}$
       character, intent(in) :: cmach
+      real(${KIND}$) :: ${LAPACK_ROUTINE}$
+    end function ${LAPACK_ROUTINE}$
 
-      !> Parameter value
-      real(rsp) :: slamch
-    end function slamch
-  end interface slamch
-
-
-  !> Double precision machine parameters
-  interface dlamch
-
-    !> Double precision machine parameters
-    function dlamch(cmach)
-      import rdp
-
-      !> Name of parameter to return
-      character, intent(in) :: cmach
-
-      !> Parameter value
-      real(rdp) :: dlamch
-    end function dlamch
-  end interface dlamch
+  #:endfor
+  end interface
 
 
-  !> Error handler for the LAPACK routines
-  interface xerbla
-
+  interface
     !> Error handler for the LAPACK routines
     subroutine xerbla(srname, info)
-
-      !> Calling subroutine name
       character(6), intent(in) :: srname
-
-      !> Info state of the routine
       integer, intent(in) :: info
     end subroutine xerbla
-  end interface xerbla
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("rgesvd", "rsp"), ("dgesvd", "rdp")]
 
   !> Real singular value decomposition
-  interface rgesvd
-
-    !> Real singular value decomposition
-    subroutine rgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
-      import rsp
-
-      !> Job type for vt
+    subroutine ${LAPACK_ROUTINE}$(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobvt
-
-      !> Job type for u
       character, intent(in) :: jobu
-
-      !> First matrix dimension for A
       integer, intent(in) :: m
-
-      !> Second matrix dimension for A
       integer, intent(in) :: n
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Leading dimension of U
       integer, intent(in) :: ldu
-
-      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
-
-      !> Matrix to decompose
-      real(rsp), intent(inout) :: a(lda,*)
-
-      !> Singular values on return min(m,n)
-      real(rsp), intent(out) :: s(*)
-
-      !> Left singular vectors
-      real(rsp), intent(out) :: u(ldu,*)
-
-      !> Right singular vectors
-      real(rsp), intent(out) :: vt(ldvt,*)
-
-      !> Work space
-      real(rsp), intent(out) :: work(*)
-
-      !> Size of real work space
+      real(${KIND}$), intent(inout) :: a(lda,*)
+      real(${KIND}$), intent(out) :: s(*)
+      real(${KIND}$), intent(out) :: u(ldu,*)
+      real(${KIND}$), intent(out) :: vt(ldvt,*)
+      real(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(in) :: info
+    end subroutine ${LAPACK_ROUTINE}$
 
-    end subroutine rgesvd
+  #:endfor
+  end interface
 
-  end interface rgesvd
 
-  !> Double real singular value decomposition
-  interface dgesvd
-
-    !> Double real singular value decomposition
-    subroutine dgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, info)
-      import rdp
-
-      !> Job type for vt
-      character, intent(in) :: jobvt
-
-      !> Job type for u
-      character, intent(in) :: jobu
-
-      !> First matrix dimension for A
-      integer, intent(in) :: m
-
-      !> Second matrix dimension for A
-      integer, intent(in) :: n
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Leading dimension of U
-      integer, intent(in) :: ldu
-
-      !> Leading dimension of Vt
-      integer, intent(in) :: ldvt
-
-      !> Matrix to decompose
-      real(rdp), intent(inout) :: a(lda,*)
-
-      !> Singular values on return min(m,n)
-      real(rdp), intent(out) :: s(*)
-
-      !> Left singular vectors
-      real(rdp), intent(out) :: u(ldu,*)
-
-      !> Right singular vectors
-      real(rdp), intent(out) :: vt(ldvt,*)
-
-      !> Work space
-      real(rdp), intent(out) :: work(*)
-
-      !> Size of work space
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(in) :: info
-
-    end subroutine dgesvd
-
-  end interface dgesvd
-
-  !> Complex singular value decomposition
-  interface cgesvd
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("cgesvd", "rsp"), ("zgesvd", "rdp")]
 
     !> Complex singular value decomposition
-    subroutine cgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
-      import rsp
-
-      !> Job type for vt
+    subroutine ${LAPACK_ROUTINE}$(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobvt
-
-      !> Job type for u
       character, intent(in) :: jobu
-
-      !> First matrix dimension for A
       integer, intent(in) :: m
-
-      !> Second matrix dimension for A
       integer, intent(in) :: n
-
-      !> Leading dimension of A
       integer, intent(in) :: lda
-
-      !> Leading dimension of U
       integer, intent(in) :: ldu
-
-      !> Leading dimension of Vt
       integer, intent(in) :: ldvt
-
-      !> Matrix to decompose
-      complex(rsp), intent(inout) :: a(lda,*)
-
-      !> Singular values on return min(m,n)
-      real(rsp), intent(out) :: s(*)
-
-      !> Real workspace
-      real(rsp), intent(out) :: rwork(*)
-
-      !> Left singular vectors
-      complex(rsp), intent(out) :: u(ldu,*)
-
-      !> Right singular vectors
-      complex(rsp), intent(out) :: vt(ldvt,*)
-
-      !> Complex work space
-      complex(rsp), intent(out) :: work(*)
-
-      !> Size of complex work space
+      complex(${KIND}$), intent(inout) :: a(lda,*)
+      real(${KIND}$), intent(out) :: s(*)
+      real(${KIND}$), intent(out) :: rwork(*)
+      complex(${KIND}$), intent(out) :: u(ldu,*)
+      complex(${KIND}$), intent(out) :: vt(ldvt,*)
+      complex(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(in) :: info
+    end subroutine ${LAPACK_ROUTINE}$
 
-    end subroutine cgesvd
-
-  end interface cgesvd
-
-  !> Double complex singular value decomposition
-  interface zgesvd
-
-    !> Double complex singular value decomposition
-    subroutine zgesvd(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
-      import rdp
-
-      !> Job type for vt
-      character, intent(in) :: jobvt
-
-      !> Job type for u
-      character, intent(in) :: jobu
-
-      !> First matrix dimension for A
-      integer, intent(in) :: m
-
-      !> Second matrix dimension for A
-      integer, intent(in) :: n
-
-      !> Leading dimension of A
-      integer, intent(in) :: lda
-
-      !> Leading dimension of U
-      integer, intent(in) :: ldu
-
-      !> Leading dimension of Vt
-      integer, intent(in) :: ldvt
-
-      !> Matrix to decompose
-      complex(rdp), intent(inout) :: a(lda,*)
-
-      !> Singular values on return min(m,n)
-      real(rdp), intent(out) :: s(*)
-
-      !> Real workspace
-      real(rdp), intent(out) :: rwork(*)
-
-      !> Left singular vectors
-      complex(rdp), intent(out) :: u(ldu,*)
-
-      !> Right singular vectors
-      complex(rdp), intent(out) :: vt(ldvt,*)
-
-      !> Complex work space
-      complex(rdp), intent(out) :: work(*)
-
-      !> Size of complex work space
-      integer, intent(in) :: lwork
-
-      !> State of routine on return
-      integer, intent(in) :: info
-
-    end subroutine zgesvd
-
-  end interface zgesvd
+  #:endfor
+  end interface
 
 
-#:for VPREC in [('s'), ('d')]
+  interface
+  #:for LAPACK_ROUTINE, KIND in [("sgeev", "rsp"), ("dgeev", "rdp")]
 
-  interface ${VPREC}$geev
-
-    !> General matrix eigensolver
-    subroutine ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, lwork, info)
-
-      import r${VPREC}$p
-
-      !> Job type for left vector
+    !> general matrix eigensolver
+    subroutine ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work,&
+          & lwork, info)
+      import :: ${KIND}$
       character, intent(in) :: jobvl
-
-      !> Job type for right vector
       character, intent(in) :: jobvr
-
-      !> Second matrix dimension for A
       integer, intent(in) :: n
-
-      !> Matrix to decompose
-      real(r${VPREC}$p), intent(inout) :: a(lda,*)
-
-      !> Leading dimension of A
+      real(${KIND}$), intent(inout) :: a(lda,*)
       integer, intent(in) :: lda
-
-      !> Real part of eigenvalues
-      real(r${VPREC}$p), intent(out) :: wr(*)
-
-      !> Imaginary part of eigenvalues
-      real(r${VPREC}$p), intent(out) :: wi(*)
-
-      !> Left eigenvectors
-      real(r${VPREC}$p), intent(out) :: vl(ldvl, *)
-
-      !> Leading dimension of vl
+      real(${KIND}$), intent(out) :: wr(*)
+      real(${KIND}$), intent(out) :: wi(*)
+      real(${KIND}$), intent(out) :: vl(ldvl, *)
       integer, intent(in) :: ldvl
-
-      !> Right eigenvectors
-      real(r${VPREC}$p), intent(out) :: vr(ldvr, *)
-
-      !> Leading dimension of vr
+      real(${KIND}$), intent(out) :: vr(ldvr, *)
       integer, intent(in) :: ldvr
-
-      !> Work array
-      real(r${VPREC}$p), intent(out) :: work(*)
-
-      !> Work array size
+      real(${KIND}$), intent(out) :: work(*)
       integer, intent(in) :: lwork
-
-      !> State of routine on return
       integer, intent(in) :: info
+    end subroutine ${LAPACK_ROUTINE}$
 
-    end subroutine ${VPREC}$geev
+  #:endfor
+  end interface
 
-  end interface ${VPREC}$geev
 
-#:endfor
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("strsm", "real", "rsp"), ("dtrsm", "real", "rdp"),&
+      &  ("ctrsm", "complex", "rsp"), ("ztrsm", "complex", "rdp")]
+
+    !> Triangular solve with multiple right-hand sides
+    subroutine ${LAPACK_ROUTINE}$(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+      import :: ${KIND}$
+      character, intent(in) :: side
+      character, intent(in) :: uplo
+      character, intent(in) :: transa
+      character, intent(in) :: diag
+      integer, intent(in) :: m
+      integer, intent(in) :: n
+      ${TYPE}$(${KIND}$), intent(in) :: alpha
+      integer, intent(in) :: lda
+      ${TYPE}$(${KIND}$), intent(in) :: a(lda, *)
+      integer, intent(in) :: ldb
+      ${TYPE}$(${KIND}$), intent(inout) :: b(ldb, *)
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
+
+
+  interface
+  #:for LAPACK_ROUTINE, TYPE, KIND in &
+      & [("strmm", "real", "rsp"), ("dtrmm", "real", "rdp"),&
+      &  ("ctrmm", "complex", "rsp"), ("ztrmm", "complex", "rdp")]
+
+    !> Triangular matrix-matrix multiplication
+    subroutine ${LAPACK_ROUTINE}$(side, uplo, transa, diag, m, n, alpha, a, lda, b, ldb)
+      import :: ${KIND}$
+      character, intent(in) :: side
+      character, intent(in) :: uplo
+      character, intent(in) :: transa
+      character, intent(in) :: diag
+      integer, intent(in) :: m
+      integer, intent(in) :: n
+      ${TYPE}$(${KIND}$), intent(in) :: alpha
+      integer, intent(in) :: lda
+      ${TYPE}$(${KIND}$), intent(in) :: a(lda, *)
+      integer, intent(in) :: ldb
+      ${TYPE}$(${KIND}$), intent(inout) :: b(ldb, *)
+    end subroutine ${LAPACK_ROUTINE}$
+
+  #:endfor
+  end interface
 
 end module dftbp_extlibs_lapack
