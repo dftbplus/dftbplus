@@ -32,7 +32,7 @@ set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
 # Note: uninit only works reliably if all linked libraries were compiled using this flag
 # Note: boundary violation check is broken in ifx 2025.0
 # (https://community.intel.com/t5/Intel-Fortran-Compiler/Compiler-bug-boundary-check-triggering-false-positives/m-p/1664953#M175032)
-set(Fortran_FLAGS_DEBUG "-g -O0 -warn all -stand f08 -check all,nouninit,nobounds -diag-error-limit 1 -traceback"
+set(Fortran_FLAGS_DEBUG "-g -O0 -warn all -stand f18 -check all,nouninit,nobounds -diag-error-limit 1 -traceback"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions
