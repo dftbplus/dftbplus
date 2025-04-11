@@ -25,6 +25,8 @@ The DFTB+ development is being lead and coordinated by:
 The following people (in alphabetic order by their family names) have
 contributed to DFTB+ :
 
+* Matías Berdakin (Universidad Nacional de Córdoba, Argentina)
+
 * Franco Bonafé (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
