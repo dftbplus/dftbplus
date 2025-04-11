@@ -12,8 +12,7 @@ url: "https://dftbplus.org/"
 contact:
   - email: "dftb-plus-user@mailman.zfn.uni-bremen.de"
     name: "DFTB+ developers group"
-license:
- - LGPL-3.0-or-later
+license: LGPL-3.0-or-later
 authors:
   - family-names: "Hourahine"
     given-names: "Benjamin"
