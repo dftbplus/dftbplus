@@ -17,7 +17,6 @@ module dftbp_math_lapackroutines
   use dftbp_common_accuracy, only : dp, rdp, rsp
   use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error, warning
-  ! use dftbp_extlibs_lapack
   implicit none
 
   private
