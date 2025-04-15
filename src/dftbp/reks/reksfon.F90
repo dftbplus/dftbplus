@@ -15,7 +15,6 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksfon
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_reks_reksvar, only : TReksCalc, reksTypes
 
@@ -35,10 +34,13 @@ module dftbp_reks_reksfon
   contains
 
   !> Optimize the fractional occupation numbers (FONs) in REKS
-  subroutine optimizeFons(this)
+  subroutine optimizeFons(this, output)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: this
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     real(dp) :: x
 
@@ -46,7 +48,7 @@ module dftbp_reks_reksfon
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
 
-      call getFONs22_(x, this%hess, this%enLtot, this%delta, this%FonMaxIter, this%Plevel)
+      call getFONs22_(output, x, this%hess, this%enLtot, this%delta, this%FonMaxIter, this%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
       this%FONs(1,1) = 2.0_dp * x
       this%FONs(2,1) = 2.0_dp - this%FONs(1,1)
@@ -65,7 +67,10 @@ module dftbp_reks_reksfon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Optimize FONs in REKS(2,2) case with Newton-Raphson method
-  subroutine getFONs22_(x, hess0, enLtot, delta, maxIter, opt)
+  subroutine getFONs22_(output, x, hess0, enLtot, delta, maxIter, opt)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> converged x (= n_a/2)
     real(dp), intent(out) :: x
@@ -155,7 +160,7 @@ module dftbp_reks_reksfon
       ! Update eps value
       eps = (Const - grad) / hess
       if (opt >= 2) then
-        write(stdOut,'(2x,a,1x,i4,4x,a,F18.14,1x,a,F18.14)') &
+        write(output,'(2x,a,1x,i4,4x,a,F18.14,1x,a,F18.14)') &
        & 'NR solver: Iteration', iter, 'X =', x1, 'Eps =', eps
       end if
 
@@ -163,13 +168,13 @@ module dftbp_reks_reksfon
       if (abs(eps) > ConvergeLimit) then
         x0 = x1
         if (iter == maxIter) then
-          write(stdOut,'(2x,a,i4,a)') &
+          write(output,'(2x,a,i4,a)') &
          & 'Warning! Maximum number of iterations (', maxIter, &
          & ') is exceeded in NR solver'
         end if
       else
         if (opt >= 2) then
-          write(stdOut,'(2x,a,1x,i4,1x,a)') &
+          write(output,'(2x,a,1x,i4,1x,a)') &
          & 'Convergence reached in NR solver after', iter, 'iterations'
         end if
         exit NRsolver

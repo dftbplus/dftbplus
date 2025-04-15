@@ -11,7 +11,6 @@
 module dftbp_elecsolvers_elsisolver
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_version, only : TVersion
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_etemp, only : fillingTypes
@@ -350,7 +349,7 @@ contains
     integer :: version(3)
 
     call elsi_get_version(version(1), version(2), version(3))
-    call supportedVersionNumber(TVersion(version(1), version(2), version(3)))
+    call supportedVersionNumber(env%stdOut, TVersion(version(1), version(2), version(3)))
 
     this%iSolver = inp%iSolver
 
@@ -540,7 +539,10 @@ contains
 
 
   !> Checks for supported ELSI api version, ideally 2.6.2, but 2.5.0 can also be used with warnings.
-  subroutine supportedVersionNumber(version)
+  subroutine supportedVersionNumber(output, version)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Version value components inside the structure
     type(TVersion), intent(in) :: version
@@ -553,11 +555,11 @@ contains
     if (.not. isPartSupported) then
       call error("Unsuported ELSI version for DFTB+ (requires release >= 2.5.0)")
     else if (.not. isSupported) then
-      call warning("ELSI version 2.5 is only partially supported due to changes in default solver&
+      call warning(output, "ELSI version 2.5 is only partially supported due to changes in default solver&
           & behaviour for PEXSI at 2.6.0")
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
+    write(output,"(A,T30,I0,'.',I0,'.',I0)") 'ELSI library version :', version%numbers
 
   end subroutine supportedVersionNumber
 
@@ -957,7 +959,7 @@ contains
     if (nSpin /= 4) then
       if (tRealHS) then
         if (this%isSparse) then
-          call getDensityRealSparse(this, parallelKS, ham, over, neighbourList%iNeighbour,&
+          call getDensityRealSparse(this, env, parallelKS, ham, over, neighbourList%iNeighbour,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
               & species, coord, rhoPrim, Eband)
         else
@@ -967,7 +969,7 @@ contains
         end if
       else
         if (this%isSparse) then
-          call getDensityCmplxSparse(this, parallelKS, kPoint(:,iK), kWeight(iK), iCellVec,&
+          call getDensityCmplxSparse(this, env, parallelKS, kPoint(:,iK), kWeight(iK), iCellVec,&
               & cellVec, ham, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
               & iSparseStart, img2CentCell, tHelical, orb, species, coord, rhoPrim, Eband)
         else
@@ -1355,7 +1357,7 @@ contains
       call elsi_write_mat_real(this%rwHandle, "ELSI_Hreal.bin", HSqrReal)
       call elsi_write_mat_real(this%rwHandle, "ELSI_Sreal.bin", SSqrReal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_real(this%handle, HSqrReal, SSqrReal, rhoSqrReal, Eband(iS))
 
@@ -1485,7 +1487,7 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_complex(this%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
@@ -1643,7 +1645,7 @@ contains
       call elsi_write_mat_complex(this%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished dense matrix write")
+      call cleanShutdown(env%stdOut, "Finished dense matrix write")
     end if
     call elsi_dm_complex(this%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
@@ -1672,11 +1674,14 @@ contains
 
 
   !> Calculates density matrix using the elsi routine.
-  subroutine getDensityRealSparse(this, parallelKS, ham, over, iNeighbour, nNeighbourSK,&
+  subroutine getDensityRealSparse(this, env, parallelKS, ham, over, iNeighbour, nNeighbourSK,&
       & iAtomStart, iSparseStart, img2CentCell, tHelical, orb, species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -1761,7 +1766,7 @@ contains
       call elsi_write_mat_real_sparse(this%rwHandle, "ELSI_SrealSparse.bin",&
           & this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal, SnzValLocal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished matrix write")
+      call cleanShutdown(env%stdOut, "Finished matrix write")
     end if
 
     call elsi_dm_real_sparse(this%handle, HnzValLocal, SnzValLocal, DMnzValLocal,&
@@ -1781,12 +1786,15 @@ contains
 
 
   !> Calculates density matrix using the elsi routine.
-  subroutine getDensityCmplxSparse(this, parallelKS, kPoint, kWeight, iCellVec, cellVec, ham,&
+  subroutine getDensityCmplxSparse(this, env, parallelKS, kPoint, kWeight, iCellVec, cellVec, ham,&
       & over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
       & species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -1882,7 +1890,7 @@ contains
       call elsi_write_mat_complex_sparse(this%rwHandle, "ELSI_ScmplxSparse.bin",&
           & this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal, SnzValLocal)
       call elsi_finalize_rw(this%rwHandle)
-      call cleanShutdown("Finished matrix write")
+      call cleanShutdown(env%stdOut, "Finished matrix write")
     end if
 
     call elsi_dm_complex_sparse(this%handle, HnzValLocal, SnzValLocal, DMnzValLocal, Eband(iS))

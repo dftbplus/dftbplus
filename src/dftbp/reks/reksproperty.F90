@@ -16,8 +16,8 @@
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksproperty
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_io_message, only : error
@@ -37,9 +37,12 @@ module dftbp_reks_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoL, FONs, &
+  subroutine getUnrelaxedDensMatAndTdp(env, eigenvecs, overSqr, rhoL, FONs, &
       & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
       & unrelRhoSqr, unrelTdm, densityMatrix, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -228,15 +231,18 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
+    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR, env%stdOut)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
 
   !> Calculate relaxed density for target SA-REKS or SSR state
-  subroutine getRelaxedDensMat(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
+  subroutine getRelaxedDensMat(env, eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
       & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, reksAlg, &
       & tSSR, tNAC, relRhoSqr)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -390,15 +396,18 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
+    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR, env%stdOut)
 
   end subroutine getRelaxedDensMat
 
 
   !> Calculate relaxed density for target L-th microstate
-  subroutine getRelaxedDensMatL(eigenvecs, rhoSqrL, overSqr, weight, &
+  subroutine getRelaxedDensMatL(env, eigenvecs, rhoSqrL, overSqr, weight, &
       & SAweight, unrelRhoSqr, RmatL, ZT, omega, weightIL, G1, orderRmatL, &
       & Lpaired, Nc, Na, Lstate, reksAlg, relRhoSqr)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -504,7 +513,7 @@ module dftbp_reks_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
+    call printRelaxedFONsL(tmpRho, Lstate, Nc, Na, env%stdOut)
 
   end subroutine getRelaxedDensMatL
 
@@ -573,7 +582,10 @@ module dftbp_reks_reksproperty
 
 
   !> get the oscillator strength between the states
-  subroutine getReksOsc(tdp, energy)
+  subroutine getReksOsc(output, tdp, energy)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> transition dipole moment between states
     real(dp), intent(in) :: tdp(:,:)
@@ -587,16 +599,16 @@ module dftbp_reks_reksproperty
     nstates = size(energy,dim=1)
     nstHalf = size(tdp,dim=2)
 
-    write(stdOut,*)
-    write(stdOut,'(A)') " Oscillator Strength (au)"
+    write(output,*)
+    write(output,'(A)') " Oscillator Strength (au)"
     do ist = 1, nstHalf
 
       call getTwoIndices(nstates, ist, ia, ib, 1)
 
       osc = 2.0_dp / 3.0_dp * (energy(ib) - energy(ia)) * sum(tdp(:,ist)**2)
 
-      write(stdOut,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
-      write(stdOut,'(1(f12.6))') osc
+      write(output,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
+      write(output,'(1(f12.6))') osc
 
     end do
 

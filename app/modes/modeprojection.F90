@@ -23,9 +23,13 @@ module modes_modeprojection
 
 contains
 
-  !> Projection out of the space of the dynamical matrix.
-  subroutine project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
+
+  !> Projection out of the space of the dynamical matrix
+  subroutine project(output, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo,&
       & atomicMasses)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Dynamical matrix
     real(dp), intent(inout) :: dynMatrix(:,:)
@@ -81,7 +85,7 @@ contains
 
     if (tRemoveRotate) then
       if (geo%tPeriodic) then
-        call warning("Rotational modes were requested to be removed for a periodic geometry -&
+        call warning(output, "Rotational modes were requested to be removed for a periodic geometry -&
             & results probably unphysical!")
       end if
       centreOfMass(:) = 0.0_dp

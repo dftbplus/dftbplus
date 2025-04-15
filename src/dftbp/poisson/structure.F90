@@ -14,7 +14,6 @@
 !**************************************************************************
 module dftbp_poisson_structure
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_poisson_gallocation, only : log_gallocate
   use dftbp_poisson_mpi_poisson, only : active_id
 
@@ -61,8 +60,11 @@ module dftbp_poisson_structure
   ! -----------------------------------------------------------------------------
   !  FILL UP Structure
   ! -----------------------------------------------------------------------------
-  subroutine init_structure(st_nAtom, st_nSpecies, st_specie0, st_x0, &
+  subroutine init_structure(output, st_nAtom, st_nSpecies, st_specie0, st_x0, &
               st_latVecs, st_isperiodic)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     integer, intent(in)   :: st_nAtom          ! number of Atoms in central cell
     integer, intent(in)   :: st_nSpecies       ! number of Species
@@ -109,10 +111,10 @@ module dftbp_poisson_structure
 
       period=st_isperiodic
 
-      call log_gallocate(x,3,natoms)
+      call log_gallocate(output, x,3,natoms)
       x(1:3,1:natoms)=st_x0(1:3,1:natoms)
 
-      call log_gallocate(izp,natoms)
+      call log_gallocate(output, izp,natoms)
       izp(1:natoms)=st_specie0(1:natoms)
 
     endif
@@ -120,17 +122,25 @@ module dftbp_poisson_structure
   end subroutine init_structure
 
   !------------------------------------------------------------------------------
-  subroutine init_charges()
+  subroutine init_charges(output)
+
+    !> output for write processes
+    integer, intent(in) :: output
+
     integer :: nsh
 
     if (active_id) then
       nsh = maxval(nshells)
-      call log_gallocate(dQmat, nsh, natoms)
+      call log_gallocate(output, dQmat, nsh, natoms)
     endif
   end subroutine init_charges
 
   !------------------------------------------------------------------------------
-  subroutine init_skdata(nShell, angShell, hubbU)
+  subroutine init_skdata(output, nShell, angShell, hubbU)
+
+    !> output for write processes
+    integer, intent(in) :: output
+
     integer, intent(in) :: nShell(:)
     integer, intent(in) :: angShell(:,:)
     real(dp), intent(in) :: hubbU(:,:)
@@ -140,15 +150,15 @@ module dftbp_poisson_structure
     if (active_id) then
 
       ! number of shells
-      call log_gallocate(nshells, ntypes)
+      call log_gallocate(output, nshells, ntypes)
       nshells(:) = nShell
 
       ! angular momentum of each shell
-      call log_gallocate(angshells,maxval(nshell),ntypes)
+      call log_gallocate(output, angshells,maxval(nshell),ntypes)
       angshells(:,:) = angShell
 
       ! set maximum angular momentum per species
-      call log_gallocate(lmax, ntypes)
+      call log_gallocate(output, lmax, ntypes)
 
       do i = 1, ntypes
          lmax(i) = maxval(angShell(:,i))
@@ -156,7 +166,7 @@ module dftbp_poisson_structure
 
       ! set Hubbard parameters
 
-      call log_gallocate(uhubb,maxval(nshell),ntypes)
+      call log_gallocate(output, uhubb,maxval(nshell),ntypes)
 
       do i = 1, ntypes
         uhubb(:nshells(i),i) = hubbU(:nshells(i),i)
@@ -270,9 +280,12 @@ module dftbp_poisson_structure
    !-------------------------------------------------------------------
    ! This section builds the Super Structure for periodic systems
    !
-   subroutine buildsupercell()
+   subroutine buildsupercell(output)
 
      implicit none
+
+     !> output for write processes
+     integer, intent(in) :: output
 
      integer :: ijk(9),algn,nu,nv,nw,i,j,k,n
 
@@ -301,8 +314,8 @@ module dftbp_poisson_structure
 
      endif
 
-     if (.not.allocated(ss_x)) call log_gallocate(ss_x,3,ss_natoms)
-     if (.not.allocated(ss_izp)) call log_gallocate(ss_izp,ss_natoms)
+     if (.not.allocated(ss_x)) call log_gallocate(output, ss_x,3,ss_natoms)
+     if (.not.allocated(ss_izp)) call log_gallocate(output, ss_izp,ss_natoms)
 
      ijk(1)=0;  ijk(2)=-1; ijk(3)=1;  ijk(4)=-2;  ijk(5)=2;
      ijk(6)=-3; ijk(7)=3;  ijk(8)=-4; ijk(9)=4;

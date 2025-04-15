@@ -11,11 +11,11 @@
 !! This object is responsible for reading in the eigenvectors from a specified file and passing the
 !! appropriate eigenvectors to the molecule orbital calculator.
 module waveplot_gridcache
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
 #:if WITH_MPI
   use dftbp_common_schedule, only : getStartAndEndIndex
 #:endif
@@ -254,7 +254,10 @@ contains
 
 
   !> Returns the next entry from the cache (real version).
-  subroutine TGridCache_next_real(sf, gridValReal, levelIndex, tFinished)
+  subroutine TGridCache_next_real(env, sf, gridValReal, levelIndex, tFinished)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Gridcache instance
     type(TgridCache), intent(inout) :: sf
@@ -270,13 +273,16 @@ contains
 
     complex(dp), pointer, save :: gridValCmpl(:,:,:) => null()
 
-    call localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+    call localNext(env, sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine TGridCache_next_real
 
 
   !> Returns the next entry from the cache (complex version).
-  subroutine TGridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
+  subroutine TGridCache_next_cmpl(env, sf, gridValCmpl, levelIndex, tFinished)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Gridcache instance
     type(TgridCache), intent(inout) :: sf
@@ -292,13 +298,16 @@ contains
 
     real(dp), pointer, save :: gridValReal(:,:,:) => null()
 
-    call localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+    call localNext(env, sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
   end subroutine TGridCache_next_cmpl
 
 
   !> Working subroutine for the TGridCache_next_* subroutines.
-  subroutine localNext(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+  subroutine localNext(env, sf, gridValReal, gridValCmpl, levelIndex, tFinished)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Gridcache instance
     type(TgridCache), intent(inout), target :: sf
@@ -347,14 +356,14 @@ contains
         if (all([iLevel, iKPoint, iSpin] == sf%levelIndex(:,iStartAbs+ind-1))) then
           ind = ind + 1
           if (sf%tVerbose) then
-            write(stdout, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
+            write(env%stdout, "(I5,I7,I7,A8)") iSpin, iKPoint, iLevel, "read"
           end if
         end if
       end do
 
       ! Get molecular orbital for that eigenvector
       if (sf%tVerbose) then
-        write(stdout, "(/,A,/)") "Calculating grid"
+        write(env%stdout, "(/,A,/)") "Calculating grid"
       end if
       if (sf%tReal) then
         eigReal => sf%eigenvecReal(:, :iEnd)

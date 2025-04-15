@@ -9,12 +9,14 @@
 !! and second derivatives.
 program integvalue
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
   use dftbp_dftb_slakoeqgrid, only : getCutoff, getSKIntegrals, init, skEqGridNew, TSlakoEqGrid
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readFromFile, TOldSKData
   implicit none
 
+  type(TEnvironment) :: env
   integer, parameter :: nSKInter = 20
   integer, parameter :: nSKInterOld = 10
   integer, parameter :: iSKInterOld(nSKInterOld) &
@@ -29,20 +31,31 @@ program integvalue
   real(dp), parameter :: rStart = 0.01_dp, dr = 0.001_dp
   real(dp), pointer :: data(:,:)
 
-  call processArguments(fname, homo, extended, col)
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
+
+  call processArguments(env, fname, homo, extended, col)
   call readFromFile(skdata, fname, homo)
   call getSkColumnData(extended, skData, col, data)
   call init(skgrid, skdata%dist, data, skEqGridNew)
   nPoint = floor((getCutoff(skgrid) - rStart) / dr) + 1
-  call writeValues(skgrid, rStart, dr, nPoint)
+  call writeValues(env%stdOut, skgrid, rStart, dr, nPoint)
+
+  call env%destruct()
+  call destructGlobalEnv()
 
 contains
 
 
   !> Prints help and stops.
-  subroutine printHelp()
+  subroutine printHelp(output)
 
-    write(stdout, "(A)") &
+    !> output for write processes
+    integer, intent(in) :: output
+
+    write(output, "(A)") &
         & "Usage: integvalue  {homo|hetero}  skfile {orig|ext} col",&
         & "",&
         "Reads an SK-file, extracts the given column in the integral table and&
@@ -63,7 +76,10 @@ contains
 
   !> Process program arguments.
   !!
-  subroutine processArguments(fname, homo, extended, col)
+  subroutine processArguments(env, fname, homo, extended, col)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> File name
     character(*), intent(out) :: fname
@@ -86,7 +102,7 @@ contains
     end if
     call get_command_argument(1, arg)
     if (arg == "-h" .or. arg == "--help") then
-      call printHelp()
+      call printHelp(env%stdOut)
     end if
     if (command_argument_count() /= 4) then
       call error("Invalid number of arguments. Use 'integvalue -h' to obtain&
@@ -159,7 +175,10 @@ contains
 
   !> Writes values on a given grid.
   !!
-  subroutine writeValues(skgrid, rStart, dr, nPoint)
+  subroutine writeValues(output, skgrid, rStart, dr, nPoint)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> SK data grid
     type(TSlakoEqGrid), intent(in) :: skgrid
@@ -181,7 +200,7 @@ contains
       call getSKIntegrals(skgrid, sk0, dist)
       call getSKIntegrals(skgrid, skp1, dist + deltaXDiff)
       call getSKIntegrals(skgrid, skm1, dist - deltaXDiff)
-      write(stdout, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
+      write(output, "(4E23.15)") dist, sk0, (skp1 - skm1) / deltaXDiff, &
           & (skp1 + skm1 - 2.0_dp * sk0) / (deltaXDiff * deltaXDiff)
     end do
 

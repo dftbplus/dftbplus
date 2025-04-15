@@ -10,11 +10,12 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
   use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
   use dftbp_common_filesystem, only : findFile, joinPaths, joinPathsPrettyErr, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
+  use dftbp_common_globalenv, only : withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
@@ -148,7 +149,10 @@ contains
 
 
   !> Parse input from an HSD/XML file
-  subroutine parseHsdTree(hsdTree, input, parserFlags)
+  subroutine parseHsdTree(env, hsdTree, input, parserFlags)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Tree representation of the input
     type(fnode), pointer :: hsdTree
@@ -165,25 +169,25 @@ contains
     logical :: tReadAnalysis
     integer, allocatable :: implicitParserVersion
 
-    write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    write(stdout, "(A)") repeat("-", 80)
+    write(env%stdOut, '(A,1X,I0,/)') 'Parser version:', parserVersion
+    write(env%stdOut, "(A)") repeat("-", 80)
 
     call getChild(hsdTree, rootTag, root)
 
     call handleInputVersion(root, implicitParserVersion)
     call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readParserOptions(child, root, parserFlags, implicitParserVersion)
+    call readParserOptions(env, child, root, parserFlags, implicitParserVersion)
 
     ! Read the geometry unless the list of atoms has been provided through the API
     if (.not. allocated(input%geom%coords)) then
       call getChild(root, "Geometry", tmp)
-      call readGeometry(tmp, input)
+      call readGeometry(env, tmp, input)
     end if
 
     ! Hamiltonian settings that need to know settings from the REKS block
     call getChildValue(root, "Reks", dummy, "None", child=child)
-    call readReks(child, dummy, input%ctrl, input%geom)
+    call readReks(env, child, dummy, input%ctrl, input%geom)
 
     call getChild(root, "Transport", child, requested=.false.)
 
@@ -191,7 +195,7 @@ contains
 
     ! Read in transport and modify geometry if it is only a contact calculation
     if (associated(child)) then
-      call readTransportGeometry(child, input%geom, input%transpar)
+      call readTransportGeometry(env, child, input%geom, input%transpar)
     else
       input%transpar%ncont=0
       allocate(input%transpar%contacts(0))
@@ -203,12 +207,12 @@ contains
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
       call detailedError(child, "Be patient... Dephasing feature will be available soon!")
-      !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
+      !call readDephasing(env, child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
+    call readHamiltonian(env, hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
         & input%ginfo%greendens, input%poisson, errStatus)
 
   #:else
@@ -219,7 +223,7 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
+    call readHamiltonian(env, hamNode, input%ctrl, input%geom, input%slako, input%poisson, errStatus)
 
   #:endif
 
@@ -229,16 +233,16 @@ contains
 
     call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
-    call readDriver(driverNode, child, input%geom, input%ctrl, input%transpar)
+    call readDriver(env, driverNode, child, input%geom, input%ctrl, input%transpar)
   #:else
-    call readDriver(driverNode, child, input%geom, input%ctrl)
+    call readDriver(env, driverNode, child, input%geom, input%ctrl)
   #:endif
 
     tReadAnalysis = .true.
     call getChild(root, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
       allocate(input%ctrl%elecDynInp)
-      call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+      call readElecDynamics(env, child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
       if (input%ctrl%elecDynInp%tReadRestart .and. .not.input%ctrl%elecDynInp%tPopulations) then
         tReadAnalysis = .false.
       end if
@@ -251,12 +255,12 @@ contains
           & allowEmptyValue=.true., dummyValue=.true.)
 
     #:if WITH_TRANSPORT
-      call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+      call readAnalysis(env, analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
           & input%ginfo%tundos)
 
       call finalizeNegf(input)
     #:else
-      call readAnalysis(analysisNode, input%ctrl, input%geom)
+      call readAnalysis(env, analysisNode, input%ctrl, input%geom)
     #:endif
 
     end if
@@ -266,11 +270,11 @@ contains
     call readExcited(child, input%geom, input%ctrl)
 
     ! Hamiltonian settings that need to know about settings from the blocks above
-    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
+    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom, env%stdOut)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readOptions(child, input%ctrl)
+    call readOptions(env, child, input%ctrl)
 
     ! W values if needed by Hamiltonian or excited state calculation
     if (allocated(input%ctrl%tbliteInp)) then
@@ -286,7 +290,7 @@ contains
     end if
 
     ! read parallel calculation settings
-    call readParallel(root, input)
+    call readParallel(env, root, input)
 
     ! input data strucutre has been initialised
     input%tInitialized = .true.
@@ -318,7 +322,10 @@ contains
 
 
   !> Read in parser options (options not passed to the main code)
-  subroutine readParserOptions(node, root, flags, implicitVersion)
+  subroutine readParserOptions(env, node, root, flags, implicitVersion)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -360,15 +367,15 @@ contains
           & "Sorry, no compatibility mode for parser version " // i2c(inputVersion)&
           & // " (too old)")
     else if (inputVersion /= parserVersion) then
-      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from parser version ",&
+      write(env%stdOut, "(A,I2,A,I2,A)") "***  Converting input from parser version ",&
           & inputVersion, " to parser version ", parserVersion, " ..."
-      call convertOldHSD(root, inputVersion, parserVersion)
-      write(stdout, "(A,/)") "***  Done."
+      call convertOldHSD(env%stdOut, root, inputVersion, parserVersion)
+      write(env%stdOut, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     if (.not. flags%tWriteHSD) then
-      call detailedWarning(node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
+      call detailedWarning(env%stdOut, node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
           &" to able to obtain the same results with a later version of the code!" // newline // &
           & "(the dftb_pin.hsd file DOES guarantee this)")
     end if
@@ -381,7 +388,10 @@ contains
 
 
   !> Read in Geometry
-  subroutine readGeometry(node, input)
+  subroutine readGeometry(env, node, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -398,13 +408,13 @@ contains
     input%geom%tHelical = .false.
     select case (char(buffer))
     case ("genformat")
-      call readTGeometryGen(value1, input%geom)
+      call readTGeometryGen(env, value1, input%geom)
     case ("xyzformat")
       call readTGeometryXyz(value1, input%geom)
     case ("vaspformat")
-      call readTGeometryVasp(value1, input%geom)
+      call readTGeometryVasp(env, value1, input%geom)
     case ("lammpsformat")
-      call readTGeometryLammps(value1, input%geom)
+      call readTGeometryLammps(env, value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)
@@ -415,10 +425,13 @@ contains
 
   !> Read in driver properties
 #:if WITH_TRANSPORT
-  subroutine readDriver(node, parent, geom, ctrl, transpar)
+  subroutine readDriver(env, node, parent, geom, ctrl, transpar)
 #:else
-  subroutine readDriver(node, parent, geom, ctrl)
+  subroutine readDriver(env, node, parent, geom, ctrl)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -487,7 +500,7 @@ contains
 
       allocate(ctrl%geoOpt)
 
-      call readGeoOptInput(node, geom, ctrl%geoOpt, atomsRange)
+      call readGeoOptInput(env, node, geom, ctrl%geoOpt, atomsRange)
 
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
 
@@ -497,28 +510,28 @@ contains
     case ("steepestdescent")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
-      call commonGeoOptions(node, ctrl, geom, atomsRange)
+      call commonGeoOptions(env, node, ctrl, geom, atomsRange)
 
     case ("conjugategradient")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')// "Please use the GeometryOptimisation driver instead.")
 
       ! Conjugate gradient location optimisation
       ctrl%iGeoOpt = geoOptTypes%conjugateGrad
-      call commonGeoOptions(node, ctrl, geom, atomsRange)
+      call commonGeoOptions(env, node, ctrl, geom, atomsRange)
 
     case("gdiis")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -526,12 +539,12 @@ contains
       ctrl%iGeoOpt = geoOptTypes%diis
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
       call getChildValue(node, "Generations", ctrl%iGenGeoOpt, 8)
-      call commonGeoOptions(node, ctrl, geom, atomsRange)
+      call commonGeoOptions(env, node, ctrl, geom, atomsRange)
 
     case ("lbfgs")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
@@ -550,17 +563,17 @@ contains
         call getChildValue(node, "oldLineSearch", ctrl%lbfgsInp%isOldLS, .false.)
       end if
 
-      call commonGeoOptions(node, ctrl, geom, atomsRange, ctrl%lbfgsInp%isLineSearch)
+      call commonGeoOptions(env, node, ctrl, geom, atomsRange, ctrl%lbfgsInp%isLineSearch)
 
     case ("fire")
 
       modeName = "geometry relaxation"
-      call detailedWarning(node, "This driver is deprecated and will be removed in future&
+      call detailedWarning(env%stdOut, node, "This driver is deprecated and will be removed in future&
           & versions."//new_line('a')//&
           & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
-      call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
+      call commonGeoOptions(env, node, ctrl, geom, atomsRange, .false.)
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
@@ -574,7 +587,7 @@ contains
 
       call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
           & multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species,&
           & ctrl%indDerivAtom)
       if (size(ctrl%indDerivAtom) == 0) then
         call error("No atoms specified for derivatives calculation.")
@@ -587,7 +600,7 @@ contains
             & "Atoms for calculation of partial Hessian must be a contiguous range.")
         end if
         call getChildValue(child, "", buffer2, child=child2, multiple=.true.)
-        call getSelectedAtomIndices(child2, char(buffer2), geom%speciesNames, geom%species, &
+        call getSelectedAtomIndices(env%stdOut, child2, char(buffer2), geom%speciesNames, geom%species, &
            & ctrl%indMovedAtom)
         if (.not. isContiguousRange(ctrl%indMovedAtom)) then
           call detailedError(child2, "MovedAtoms for calculation of partial Hessian must be a &
@@ -616,7 +629,7 @@ contains
       call getChildValue(node, "MDRestartFrequency", ctrl%restartFreq, 1)
       call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, &
           &multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species, &
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species, &
           & ctrl%indMovedAtom)
       ctrl%nrMoved = size(ctrl%indMovedAtom)
       if (ctrl%nrMoved == 0) then
@@ -814,7 +827,7 @@ contains
         call readXlbomdOptions(node, ctrl%xlbomd)
       end if
 
-      call getInputMasses(node, geom, ctrl%masses)
+      call getInputMasses(env, node, geom, ctrl%masses)
 
     case ("socket")
       ! external socket control of the run (once initialised from input)
@@ -921,7 +934,10 @@ contains
 
 
   !> Common geometry optimisation settings for various drivers
-  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxStepNeeded)
+  subroutine commonGeoOptions(env, node, ctrl, geom, atomsRange, isMaxStepNeeded)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -971,7 +987,7 @@ contains
       end if
     end if
     call getChildValue(node, "MovedAtoms", buffer2, trim(atomsRange), child=child, multiple=.true.)
-    call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
+    call getSelectedAtomIndices(env%stdOut, child, char(buffer2), geom%speciesNames, geom%species,&
         & ctrl%indMovedAtom)
 
     ctrl%nrMoved = size(ctrl%indMovedAtom)
@@ -1158,7 +1174,10 @@ contains
 
 
   !> Reads atomic masses from input file, eventually overwriting those in the SK files
-  subroutine getInputMasses(node, geo, masses)
+  subroutine getInputMasses(env, node, geo, masses)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> relevant node of input data
     type(fnode), pointer :: node
@@ -1191,13 +1210,13 @@ contains
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
         iAt = pTmpI1(jj)
         if (masses(iAt) >= 0.0_dp) then
-          call detailedWarning(child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
+          call detailedWarning(env%stdOut, child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
               & " overwritten")
         end if
         masses(iAt) = rTmp
@@ -1211,10 +1230,13 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readHamiltonian(env, node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readHamiltonian(env, node, ctrl, geo, slako, poisson, errStatus)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1248,16 +1270,16 @@ contains
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+      call readDFTBHam(env, node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+      call readDFTBHam(env, node, ctrl, geo, slako, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+      call readXTBHam(env, node, ctrl, geo, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson, errStatus)
+      call readXTBHam(env, node, ctrl, geo, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case default
@@ -1269,10 +1291,13 @@ contains
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readDFTBHam(env, node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readDFTBHam(env, node, ctrl, geo, slako, poisson, errStatus)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1462,17 +1487,17 @@ contains
     if (.not. allocated(ctrl%hybridXcInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
-        call warning("Artificially truncating the SK table, this is normally a bad idea!")
+        call warning(env%stdOut, "Artificially truncating the SK table, this is normally a bad idea!")
         call SKTruncations(child, rSKCutOff, skInterMeth)
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+        call readSKFiles(env, skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly, rSKCutOff)
       else
         rSKCutOff = 0.0_dp
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+        call readSKFiles(env, skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
     else
-      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+      call readSKFiles(env, skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
           & skInterMeth, repPoly, hybridXcSK=hybridXcSK)
       ctrl%hybridXcInp%omega = hybridXcSK%omega
       ctrl%hybridXcInp%camAlpha = hybridXcSK%camAlpha
@@ -1493,7 +1518,7 @@ contains
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options
-      call readSccOptions(node, ctrl, geo)
+      call readSccOptions(env, node, ctrl, geo)
 
       ! DFTB hydrogen bond corrections
       call readHCorrection(node, geo, ctrl)
@@ -1515,15 +1540,15 @@ contains
     end if ifSCC
 
     ! Customize the reference atomic charges for virtual doping
-    call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
+    call readCustomReferenceOcc(env, node, slako%orb, slako%skOcc, geo, &
         & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
     #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
+      call readSpinPolarisation(env, node, ctrl, geo, tp)
     #:else
-      call readSpinPolarisation(node, ctrl, geo)
+      call readSpinPolarisation(env, node, ctrl, geo)
     #:endif
     end if
 
@@ -1543,7 +1568,7 @@ contains
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geo, tp, greendens, poisson, env%stdOut)
 
     if (tp%taskUpload) then
       ! Initialise variable, but unused
@@ -1553,14 +1578,14 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geo, poisson, env%stdOut)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, errStatus)
+    call readKPoints(env, node, ctrl, geo, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     call getChild(node, "OrbitalPotential", child, requested=.false.)
@@ -1663,11 +1688,11 @@ contains
               & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
         end do
         if (any(iTmpN(:)>1)) then
-          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
-          write(stdout, "(A,A3,A,I2)") &
+          write(env%stdOut, *)'Multiple copies of shells present in OrbitalPotential!'
+          write(env%stdOut, "(A,A3,A,I2)") &
               & 'The count for the occurrence of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
-          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
+          write(env%stdOut, *)iTmpN(1:slako%orb%nShell(iSp1))
           call abortProgram()
         end if
       end do
@@ -1693,7 +1718,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(env, child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1701,7 +1726,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
-      call readSolvation(child, geo, ctrl%solvInp)
+      call readSolvation(env, child, geo, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
@@ -1710,7 +1735,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      call readElecConstraintInput(env, child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -1800,10 +1825,13 @@ contains
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+  subroutine readXTBHam(env, node, ctrl, geo, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
+  subroutine readXTBHam(env, node, ctrl, geo, poisson, errStatus)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1866,7 +1894,7 @@ contains
         call getParamSearchPaths(searchPath)
         call findFile(searchPath, paramFile, paramTmp)
         if (allocated(paramTmp)) call move_alloc(paramTmp, paramFile)
-        write(stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
+        write(env%stdOut, '(a)') "Using parameter file '"//paramFile//"' for xTB Hamiltonian"
         call ctrl%tbliteInp%setupCalculator(paramFile)
       else
         call detailedError(node, "Either a Method or ParameterFile must be specified for xTB")
@@ -1880,7 +1908,7 @@ contains
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options etc.
-      call readSccOptions(node, ctrl, geo)
+      call readSccOptions(env, node, ctrl, geo)
 
       !> TI-DFTB varibles for Delta DFTB
       call getChild(node, "NonAufbau", child, requested=.false.)
@@ -1901,9 +1929,9 @@ contains
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau .and. ctrl%tSCC) then
     #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
+      call readSpinPolarisation(env, node, ctrl, geo, tp)
     #:else
-      call readSpinPolarisation(node, ctrl, geo)
+      call readSpinPolarisation(env, node, ctrl, geo)
     #:endif
     end if
 
@@ -1924,7 +1952,7 @@ contains
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geo, tp, greendens, poisson, env%stdOut)
 
     if (tp%taskUpload) then
       ! Initialise, but unused
@@ -1934,14 +1962,14 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geo, poisson, env%stdOut)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, errStatus)
+    call readKPoints(env, node, ctrl, geo, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
@@ -1949,7 +1977,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(env, child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1957,7 +1985,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
-      call readSolvation(child, geo, ctrl%solvInp)
+      call readSolvation(env, child, geo, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
@@ -1989,7 +2017,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      call readElecConstraintInput(env, child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
     end if
 
   end subroutine readXTBHam
@@ -2259,10 +2287,13 @@ contains
 
   !> Spin calculation
 #:if WITH_TRANSPORT
-  subroutine readSpinPolarisation(node, ctrl, geo, tp)
+  subroutine readSpinPolarisation(env, node, ctrl, geo, tp)
 #:else
-  subroutine readSpinPolarisation(node, ctrl, geo)
+  subroutine readSpinPolarisation(env, node, ctrl, geo)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2297,14 +2328,14 @@ contains
       call getChildValue(value1, 'UnpairedElectrons', ctrl%nrSpinPol, 0.0_dp)
       call getChildValue(value1, 'RelaxTotalSpin', ctrl%tSpinSharedEf, .false.)
       if (.not. ctrl%tReadChrg) then
-        call getInitialSpins(value1, geo, 1, ctrl%initialSpins)
+        call getInitialSpins(env, value1, geo, 1, ctrl%initialSpins)
       end if
 
     case ("noncolinear", "noncollinear")
       ctrl%tSpin = .true.
       ctrl%t2Component = .true.
       if (.not. ctrl%tReadChrg) then
-        call getInitialSpins(value1, geo, 3, ctrl%initialSpins)
+        call getInitialSpins(env, value1, geo, 3, ctrl%initialSpins)
       end if
 
     case default
@@ -2514,7 +2545,7 @@ contains
 
 
   !> Filling of electronic levels
-  subroutine readFilling(node, ctrl, geo, temperatureDefault)
+  subroutine readFilling(node, ctrl, geo, temperatureDefault, output)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2527,6 +2558,9 @@ contains
 
     !> Default temperature for filling
     real(dp), intent(in) :: temperatureDefault
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child, child2, child3, field
     type(string) :: buffer, modifier
@@ -2549,7 +2583,7 @@ contains
         case (0)
           write(errorStr, "(A)")"Methfessel-Paxton filling order 0 is equivalent to gaussian&
               & smearing"
-          call detailedWarning(child, errorStr)
+          call detailedWarning(output, child, errorStr)
         case default
           write(errorStr, "(A,A,A,I4)")"Filling order must be above zero '", char(buffer),"' :",&
               &ctrl%iDistribFn
@@ -2592,9 +2626,9 @@ contains
 
   !> Electronic Solver
 #:if WITH_TRANSPORT
-  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson, output)
 #:else
-  subroutine readSolver(node, ctrl, geo, poisson)
+  subroutine readSolver(node, ctrl, geo, poisson, output)
 #:endif
 
     !> Relevant node in input tree
@@ -2617,6 +2651,9 @@ contains
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -2727,7 +2764,7 @@ contains
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
       ! need electronic temperature to be read for this solver:
-      call readElectronicFilling(node, ctrl, geo)
+      call readElectronicFilling(node, ctrl, geo, output)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -2787,7 +2824,10 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, errStatus)
+  subroutine readKPoints(env, node, ctrl, geo, errStatus)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2816,16 +2856,16 @@ contains
       call getHelicalKSampling(ctrl, node, geo)
     end if
 
-    call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
+    call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
     ! Eventually, perturbation routines should also have restart reads:
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
-      call warning("It is strongly suggested you use the ReadInitialCharges option.")
+      call warning(env%stdOut, "It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
     ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
     if (ctrl%checkStopHybridCalc) then
       if (ctrl%maxSccIter == 1) then
-        call warning("Restarting a hybrid xc-functional run with what appears to be&
+        call warning(env%stdOut, "Restarting a hybrid xc-functional run with what appears to be&
             & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
             & original sampling (however fine for bandstructure calculations).")
       else
@@ -2839,7 +2879,10 @@ contains
 
 
   !> Set the maximum number of SCC cycles, depending on k-point behaviour
-  subroutine maxSelfConsIterations(node, ctrl, label, maxSccIter)
+  subroutine maxSelfConsIterations(output, node, ctrl, label, maxSccIter)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2872,7 +2915,7 @@ contains
     if (ctrl%poorKSampling .and. maxSccIter /= 1) then
       write(warningStr, "(A,I3)") "A self-consistent cycle with these k-points probably will&
           & not correctly calculate many properties, maximum iterations set to:", maxSccIter
-      call warning(warningStr)
+      call warning(output, warningStr)
     end if
 
   end subroutine maxSelfConsIterations
@@ -3214,7 +3257,10 @@ contains
 
 
   !> SCC options that are need for different hamiltonian choices
-  subroutine readSccOptions(node, ctrl, geo)
+  subroutine readSccOptions(env, node, ctrl, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -3229,7 +3275,7 @@ contains
 
     call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
     if (.not. ctrl%tReadChrg) then
-      call getInitialCharges(node, geo, ctrl%initialCharges)
+      call getInitialCharges(env, node, geo, ctrl%initialCharges)
     end if
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
@@ -3320,7 +3366,10 @@ contains
 
 
   !> Reads initial charges
-  subroutine getInitialCharges(node, geo, initCharges)
+  subroutine getInitialCharges(env, node, geo, initCharges)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> relevant node in input tree
     type(fnode), pointer :: node
@@ -3355,12 +3404,12 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "ChargePerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (initCharges(iAt) /= 0.0_dp) then
-            call detailedWarning(child3, "Previous setting for the charge &
+            call detailedWarning(env%stdOut, child3, "Previous setting for the charge &
                 &of atom" // i2c(iAt) // " overwritten")
           end if
           initCharges(iAt) = rTmp
@@ -3374,7 +3423,10 @@ contains
 
 
   !> Reads initial spins
-  subroutine getInitialSpins(node, geo, nSpin, initSpins)
+  subroutine getInitialSpins(env, node, geo, nSpin, initSpins)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> relevant node in input data
     type(fnode), pointer :: node
@@ -3415,12 +3467,12 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
         call getChildValue(child2, "SpinPerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
           if (any(initSpins(:,iAt) /= 0.0_dp)) then
-            call detailedWarning(child3, "Previous setting for the spin of atom" // i2c(iAt) //&
+            call detailedWarning(env%stdOut, child3, "Previous setting for the spin of atom" // i2c(iAt) //&
                 & " overwritten")
           end if
           initSpins(:,iAt) = rTmp
@@ -3540,8 +3592,11 @@ contains
   !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established.
-  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
+  subroutine readSKFiles(env, skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
       & truncationCutOff, hybridXcSK)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -3607,7 +3662,7 @@ contains
     call init(slako%skOverCont, nSpecies)
     allocate(slako%pairRepulsives(nSpecies, nSpecies))
 
-    write(stdout, "(A)") "Reading SK-files:"
+    write(env%stdOut, "(A)") "Reading SK-files:"
     lpSp1: do iSp1 = 1, nSpecies
       nSK1 = len(angShells(iSp1))
       lpSp2: do iSp2 = iSp1, nSpecies
@@ -3620,7 +3675,7 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
-            write(stdOut, "(a)") trim(fileName)
+            write(env%stdOut, "(a)") trim(fileName)
             if (.not. present(hybridXcSK)) then
               if (readRep .and. repPoly(iSp2, iSp1)) then
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, polyRepInp=repPolyIn1)
@@ -3756,7 +3811,7 @@ contains
         end if
       end do lpSp2
     end do lpSp1
-    write(stdout, "(A)") "Done."
+    write(env%stdOut, "(A)") "Done."
 
   end subroutine readSKFiles
 
@@ -4006,7 +4061,10 @@ contains
 
 
   !> Reads the option block
-  subroutine readOptions(node, ctrl)
+  subroutine readOptions(env, node, ctrl)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -4059,7 +4117,7 @@ contains
     call renameChildren(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
     if (ctrl%tMinMemory) then
-      call detailedWarning(child, "Memory minimisation is not working currently, normal calculation&
+      call detailedWarning(env%stdOut, child, "Memory minimisation is not working currently, normal calculation&
           & will be used instead")
     end if
     call getChildValue(node, "ShowFoldedCoords", ctrl%tShowFoldedCoord, .false.)
@@ -4089,7 +4147,10 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input, nrChrg, tSCC)
+  subroutine readDispersion(env, node, geo, input, nrChrg, tSCC)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -4120,17 +4181,17 @@ contains
       call readDispVdWUFF(dispModel, geo, input%uff)
     case ("dftd3")
       allocate(input%dftd3)
-      call readDFTD3(dispModel, geo, input%dftd3)
+      call readDFTD3(env, dispModel, geo, input%dftd3)
     case ("simpledftd3")
       allocate(input%sdftd3)
       call readSimpleDFTD3(dispModel, geo, input%sdftd3)
     case ("dftd4")
       allocate(input%dftd4)
-      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
+      call readDispDFTD4(env, dispModel, geo, input%dftd4, nrChrg)
     case ("ts")
   #:if WITH_MBD
       allocate(input%mbd)
-      call readDispTs(dispModel, input%mbd)
+      call readDispTs(env, dispModel, input%mbd)
   #:else
       call detailedError(node, "Program must be compiled with the mbd library for TS-dispersion")
   #:endif
@@ -4330,7 +4391,10 @@ contains
 
 
   !> Reads in initialization data for the DFTD3 dispersion module
-  subroutine readDFTD3(node, geo, input)
+  subroutine readDFTD3(env, node, geo, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process.
     type(fnode), pointer :: node
@@ -4401,7 +4465,7 @@ contains
     do iSp = 1, size(geo%speciesNames)
       if (input%izp(iSp) <= 0 .or. input%izp(iSp) > d3MaxNum) then
         unknownSpecies = .true.
-        call warning("Species '"//trim(geo%speciesNames(iSp))// &
+        call warning(env%stdOut, "Species '"//trim(geo%speciesNames(iSp))// &
           & "' is not supported by DFT-D3")
       end if
     end do
@@ -4450,7 +4514,10 @@ contains
   !> Here we additionally require a s9, since the non-addititive contributions
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
-  subroutine readDispDFTD4(node, geo, input, nrChrg)
+  subroutine readDispDFTD4(env, node, geo, input, nrChrg)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process.
     type(fnode), pointer :: node
@@ -4531,7 +4598,7 @@ contains
     do iSp = 1, size(geo%speciesNames)
       if (input%izp(iSp) <= 0 .or. input%izp(iSp) > d4MaxNum) then
         unknownSpecies = .true.
-        call warning("Species '"//trim(geo%speciesNames(iSp))// &
+        call warning(env%stdOut, "Species '"//trim(geo%speciesNames(iSp))// &
           & "' is not supported by DFT-D4")
       end if
     end do
@@ -4730,7 +4797,10 @@ contains
 #:if WITH_MBD
 
   !> Reads in settings for Tkatchenko-Scheffler dispersion
-  subroutine readDispTs(node, input)
+  subroutine readDispTs(env, node, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> data to parse
     type(fnode), pointer, intent(in) :: node
@@ -4744,12 +4814,12 @@ contains
     input%method = 'ts'
     call getChild(node, "EnergyAccuracy", child, requested=.false.)
     if (associated(child)) then
-      call detailedWarning(child, "The energy accuracy setting will be ignored as it is not&
+      call detailedWarning(env%stdOut, child, "The energy accuracy setting will be ignored as it is not&
           & supported/need by libMBD any more")
     end if
     call getChild(node, "ForceAccuracy", child, requested=.false.)
     if (associated(child)) then
-      call detailedWarning(child, "The force accuracy setting will be ignored as it is not&
+      call detailedWarning(env%stdOut, child, "The force accuracy setting will be ignored as it is not&
           & supported/need by libMBD any more")
     end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
@@ -5091,10 +5161,13 @@ contains
 
   !> Reads the analysis block
 #:if WITH_TRANSPORT
-  subroutine readAnalysis(node, ctrl, geo, orb, transpar, tundos)
+  subroutine readAnalysis(env, node, ctrl, geo, orb, transpar, tundos)
 #:else
-  subroutine readAnalysis(node, ctrl, geo)
+  subroutine readAnalysis(env, node, ctrl, geo)
 #:endif
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -5145,7 +5218,7 @@ contains
         do iReg = 1, nReg
           call getItem1(children, iReg, child2)
           call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-          call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+          call getSelectedAtomIndices(env%stdOut, child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
           call append(ctrl%iAtInRegion, pTmpI1)
           call getChildValue(child2, "ShellResolved", &
               & ctrl%tShellResInRegion(iReg), .false., child=child3)
@@ -5274,7 +5347,7 @@ contains
       end if
 
       if (allocated(ctrl%perturbInp)) then
-        call maxSelfConsIterations(node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
+        call maxSelfConsIterations(env%stdOut, node, ctrl, "MaxPerturbIter", ctrl%perturbInp%maxPerturbIter)
         if (ctrl%tScc) then
           call getChildValue(node, "PerturbSccTol", ctrl%perturbInp%perturbSccTol, 1.0e-5_dp)
           ! self consistency required, or not, to proceed with perturbation
@@ -5336,7 +5409,7 @@ contains
         call error("Orbital information from SK-files missing (xTB Hamiltonian not compatible&
             & with transport yet)")
       end if
-      call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
+      call readTunAndDos(env, child, orb, geo, tundos, transpar, ctrl%tempElec)
     else
       if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
         call detailedError(node, "The TransportOnly solver requires a TunnelingAndDos block to be&
@@ -5477,7 +5550,7 @@ contains
 
 
   !> Read in hamiltonian settings that are influenced by those read from REKS{}, electronDynamics{}
-  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
+  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo, output)
 
     !> Hamiltonian node to parse
     type(fnode), pointer :: hamNode
@@ -5490,6 +5563,9 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     type(fnode), pointer :: value1, value2, child, child2
     type(string) :: buffer, buffer2
@@ -5584,7 +5660,7 @@ contains
       end if
 
       if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
-        call readElectronicFilling(hamNode, ctrl, geo)
+        call readElectronicFilling(hamNode, ctrl, geo, output)
       end if
 
     end if hamNeedsT
@@ -5594,7 +5670,7 @@ contains
 
   !> Parses for electronic filling temperature (should only read if not either REKS or electron
   !> dynamics from a supplied density matrix)
-  subroutine readElectronicFilling(hamNode, ctrl, geo)
+  subroutine readElectronicFilling(hamNode, ctrl, geo, output)
 
     !> Relevant node in input tree
     type(fnode), pointer :: hamNode
@@ -5605,11 +5681,14 @@ contains
     !> Geometry structure to test for periodicity
     type(TGeometry), intent(in) :: geo
 
+    !> Output for write processes
+    integer, intent(in) :: output
+
     select case(ctrl%hamiltonian)
     case(hamiltonianTypes%xtb)
-      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann, output)
     case(hamiltonianTypes%dftb)
-      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+      call readFilling(hamNode, ctrl, geo, 0.0_dp, output)
     end select
 
   end subroutine readElectronicFilling
@@ -5742,7 +5821,10 @@ contains
 
 
   !> Reads the electron dynamics block
-  subroutine readElecDynamics(node, input, geom, masses)
+  subroutine readElecDynamics(env, node, input, geom, masses)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> input data to parse
     type(fnode), pointer :: node
@@ -5862,7 +5944,7 @@ contains
       call getChildValue(value1, "Phase", input%phase, 0.0_dp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), angularUnits, child, input%phase)
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
 
       input%nExcitedAtom = size(input%indExcitedAtom)
@@ -5888,7 +5970,7 @@ contains
       call convertUnitHsd(char(modifier), EFieldUnits, child, input%tdLaserField)
 
       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indExcitedAtom)
       input%nExcitedAtom = size(input%indExcitedAtom)
       if (input%nExcitedAtom == 0) then
@@ -5951,7 +6033,7 @@ contains
     call getChildValue(node, "IonDynamics", input%tIons, .false.)
     if (input%tIons) then
       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geom%speciesNames, geom%species,&
           & input%indMovedAtom)
 
       input%nMovedAtom = size(input%indMovedAtom)
@@ -5965,7 +6047,7 @@ contains
           ! previously lower limit was minTemp:
           call readMDInitTemp(node, input%tempAtom, 0.0_dp)
         end if
-        call getInputMasses(node, geom, masses)
+        call getInputMasses(env, node, geom, masses)
       end if
     end if
 
@@ -6075,7 +6157,10 @@ contains
 
 #:if WITH_TRANSPORT
   !> Read geometry information for transport calculation
-  subroutine readTransportGeometry(root, geom, transpar)
+  subroutine readTransportGeometry(env, root, geom, transpar)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Root node containing the current block
     type(fnode), pointer :: root
@@ -6117,7 +6202,7 @@ contains
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     allocate(transpar%contacts(transpar%ncont))
-    call readContacts(pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
+    call readContacts(env, pNodeList, transpar%contacts, geom, char(buffer), transpar%contactLayerTol)
 
     ! check for atoms in multiple contact ranges/device or atoms missing from any of these regions
     allocate(atomInRegion(geom%nAtom), source=.false.)
@@ -6716,8 +6801,11 @@ contains
 
 #:if WITH_TRANSPORT
   !> Correctness checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
+  subroutine getContactVector(env, atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Range of atoms in the contact
     integer, intent(in) :: atomrange(2)
@@ -6771,19 +6859,19 @@ contains
     if (any(sum( (geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
         & - spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1) > contactLayerTol**2))&
         & then
-      write(stdout,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
-      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
-      write(stdout,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
+      write(env%stdOut,"(1X,A,I0,A,I0)")'Contact vector defined from atoms ', iStart, ' and ',iStart2
+      write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 1 atoms: ',iStart, iStart2-1
+      write(env%stdOut,"(1X,A,I0,'-',I0)")'Contact layer 2 atoms: ',iStart2, iEnd
       do ii = 0, iStart2 -1 -iStart
         if (sum((geom%coords(:,ii+iStart)-geom%coords(:,ii+iStart2) - contactVec)**2)&
             & > contactLayerTol**2) then
-          write(stdout,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
+          write(env%stdOut,"(1X,A,I0,A,I0,A)")'Atoms ',iStart+ii, ' and ', iStart2+ii,&
               & ' inconsistent with the contact vector.'
           exit
         end if
       end do
-      write(stdout,*)'Mismatches in atomic positions in the two layers:'
-      write(stdout,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
+      write(env%stdOut,*)'Mismatches in atomic positions in the two layers:'
+      write(env%stdOut,"(3F20.12)")((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd)&
           & - spread(contactVec(:), dim=2, ncopies=iStart2-iStart))) * Bohr__AA
 
       write (errorStr,"('Contact ',A,' (',A,') does not consist of two rigidly shifted layers')")&
@@ -6795,7 +6883,7 @@ contains
     ! Determine to which axis the contact vector is parallel.
     mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
+      call warning(env%stdOut, "Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
       contactDir = 0
     else
       contactDir = findloc(mask, .true., 1)
@@ -6805,7 +6893,10 @@ contains
 
 
   !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos)
+  subroutine readDephasing(env, node, orb, geom, tp, tundos)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input tree node
     type(fnode), pointer :: node
@@ -6827,14 +6918,14 @@ contains
     call getChild(node, "VibronicElastic", child, requested=.false.)
     if (associated(child)) then
       tp%tDephasingVE = .true.
-      call readElPh(child, tundos%elph, geom, orb, tp)
+      call readElPh(env, child, tundos%elph, geom, orb, tp)
     end if
 
     call getChildValue(node, "BuettikerProbes", value1, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       tp%tDephasingBP = .true.
-      call readDephasingBP(child, tundos%bp, geom, orb, tp)
+      call readDephasingBP(env, child, tundos%bp, geom, orb, tp)
     end if
 
     ! Lowdin transformations involve dense matrices and works only in small systems
@@ -6850,7 +6941,10 @@ contains
 
 
   !> Read Electron-Phonon blocks (for density and/or current calculation)
-  subroutine readElPh(node, elph, geom, orb, tp)
+  subroutine readElPh(env, node, elph, geom, orb, tp)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Input node in the tree
     type(fnode), pointer :: node
@@ -6889,13 +6983,16 @@ contains
       elph%model = 3
     endif
 
-    call readCoupling(node, elph, geom, orb, tp)
+    call readCoupling(env, node, elph, geom, orb, tp)
 
   end subroutine readElPh
 
 
   !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
-  subroutine readDephasingBP(node, elph, geom, orb, tp)
+  subroutine readDephasingBP(env, node, elph, geom, orb, tp)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node in input document tree
     type(fnode), pointer :: node
@@ -6952,14 +7049,17 @@ contains
       elph%model = 3
     endif
 
-    call readCoupling(dephModel, elph, geom, orb, tp)
+    call readCoupling(env, dephModel, elph, geom, orb, tp)
 
   end subroutine readDephasingBP
 
 
   !> Reads coupling strength and mode for dephasing
   !> 2 modes support, constant or specified per each orbital
-  subroutine readCoupling(node, elph, geom, orb, tp)
+  subroutine readCoupling(env, node, elph, geom, orb, tp)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node in the input tree
     type(fnode), pointer :: node
@@ -7029,7 +7129,7 @@ contains
       do ii = 1, getLength(children)
         call getItem1(children, ii, child3)
         call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
-        call getSelectedAtomIndices(child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
+        call getSelectedAtomIndices(env%stdOut, child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
         call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
         ! If not defined, use common unit modifier defined after Coupling
         if (len(modifier2)==0) then
@@ -7040,7 +7140,7 @@ contains
         do jj=1, size(tmpI1)
           iAt = tmpI1(jj)
           if (atmCoupling(iAt) /= 0.0_dp) then
-            call detailedWarning(child3, "Previous setting of coupling &
+            call detailedWarning(env%stdOut, child3, "Previous setting of coupling &
                 &for atom" // i2c(iAt) // " has been overwritten")
           end if
           atmCoupling(iAt) = rTmp
@@ -7069,7 +7169,11 @@ contains
 
 
   !> Read Tunneling and Dos options from analysis block
-  subroutine readTunAndDos(root, orb, geo, tundos, transpar, tempElec)
+  subroutine readTunAndDos(env, root, orb, geo, tundos, transpar, tempElec)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
+
     type(fnode), pointer :: root
     type(TOrbitals), intent(in) :: orb
     type(TGeometry), intent(in) :: geo
@@ -7197,7 +7301,7 @@ contains
       call convertUnitHsd(char(modifier), energyUnits, field, &
           &tundos%broadeningDelta)
 
-      call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
+      call readPDOSRegions(env, root, geo, transpar%idxdevice, iAtInRegion, &
           & tShellResInRegion, regionLabelPrefixes)
 
       if (allocated(iAtInRegion)) then
@@ -7210,7 +7314,10 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task, contactLayerTol)
+  subroutine readContacts(env, pNodeList, contacts, geom, task, contactLayerTol)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to process
     type(fnodeList), pointer :: pNodeList
@@ -7253,7 +7360,7 @@ contains
       call convertUnitHsd(char(modifier), lengthUnits, field, contactLayerTol)
 
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
+      call getContactVector(env, contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
         & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
@@ -7307,7 +7414,7 @@ contains
         call getNodeName2(child1, buffer)
         if (char(buffer) == "") then
           contacts(ii)%tFermiSet = .false.
-          call detailedWarning(pNode, "Missing Fermi level - required to be set in solver block or&
+          call detailedWarning(env%stdOut, pNode, "Missing Fermi level - required to be set in solver block or&
               & read from a contact shift file")
         else
           call init(fermiBuffer)
@@ -7439,7 +7546,10 @@ contains
 
 
   !> Read the names of regions to calculate PDOS for
-  subroutine readPDOSRegions(node, geo, idxdevice, iAtInregion, tShellResInRegion, regionLabels)
+  subroutine readPDOSRegions(env, node, geo, idxdevice, iAtInregion, tShellResInRegion, regionLabels)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: node
@@ -7491,7 +7601,7 @@ contains
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
-      call getSelectedAtomIndices(child2, char(buffer), geo%speciesNames,&
+      call getSelectedAtomIndices(env%stdOut, child2, char(buffer), geo%speciesNames,&
           & geo%species(idxdevice(1) : idxdevice(2)), tmpI1,&
           & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geo%nAtom])
       iAtInRegion(iReg)%data = tmpI1
@@ -7574,7 +7684,10 @@ contains
 
 
   !> This subroutine overrides the neutral (reference) atom electronic occupation
-  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, customOcc)
+  subroutine readCustomReferenceOcc(env, root, orb, referenceOcc, geo, iAtInRegion, customOcc)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
@@ -7619,7 +7732,7 @@ contains
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
+      call getSelectedAtomIndices(env%stdOut, child, char(buffer), geo%speciesNames, geo%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
         call detailedError(child, "Atom region contains atom(s) which have already been overridden")
@@ -7643,7 +7756,10 @@ contains
 
 
   !> Reads the parallel block.
-  subroutine readParallel(root, input)
+  subroutine readParallel(env, root, input)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Root node eventually containing the current block
     type(fnode), pointer, intent(in) :: root
@@ -7656,20 +7772,23 @@ contains
     call getChild(root, "Parallel", child=node, requested=.false., emptyIfMissing=withMpi)
     if (associated(node)) then
       if (.not. withMpi) then
-        call detailedWarning(node, "Settings will be read but ignored (compiled without MPI&
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without MPI&
             & support)")
       end if
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
       call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
-      call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
+      call readBlacs(env, node, input%ctrl%parallelOpts%blacsOpts)
     end if
 
   end subroutine readParallel
 
 
   !> Reads the blacs block
-  subroutine readBlacs(root, blacsOpts)
+  subroutine readBlacs(env, root, blacsOpts)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Root node eventually containing the current block
     type(fnode), pointer, intent(in) :: root
@@ -7682,7 +7801,7 @@ contains
     call getChild(root, "Blacs", child=node, requested=.false., emptyIfMissing=withScalapack)
     if (associated(node)) then
       if (.not. withScalapack) then
-        call detailedWarning(node, "Settings will be read but ignored (compiled without SCALAPACK&
+        call detailedWarning(env%stdOut, node, "Settings will be read but ignored (compiled without SCALAPACK&
             & support)")
       end if
       call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
@@ -8072,7 +8191,10 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readReks(node, dummy, ctrl, geo)
+  subroutine readReks(env, node, dummy, ctrl, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
@@ -8096,7 +8218,7 @@ contains
       ctrl%reksInp%reksAlg = reksTypes%noReks
     case ("ssr22")
       ctrl%reksInp%reksAlg = reksTypes%ssr22
-      call readSSR22(dummy, ctrl, geo)
+      call readSSR22(env, dummy, ctrl, geo)
     case ("ssr44")
       ctrl%reksInp%reksAlg = reksTypes%ssr44
       call detailedError(node, "SSR(4,4) is not implemented yet.")
@@ -8109,7 +8231,10 @@ contains
 
 
   !> Reads the SSR(2,2) block
-  subroutine readSSR22(node, ctrl, geo)
+  subroutine readSSR22(env, node, ctrl, geo)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
@@ -8126,7 +8251,6 @@ contains
     character(sc), allocatable :: tmpFunc(:)
     integer :: ii, nFunc
     logical :: tFunc = .true.
-
 
     !> Read 'Energy' block
     call getChild(node, "Energy", child=child1)
@@ -8159,12 +8283,12 @@ contains
     end if
 
     if (.not. tFunc) then
-      write(stdOut,'(A)',advance="no") "Current Functional : "
+      write(env%stdOut,'(A)',advance="no") "Current Functional : "
       do ii = 1, nFunc
         if (ii == nFunc) then
-          write(stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
+          write(env%stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
         else
-          write(stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
+          write(env%stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
         end if
       end do
       call detailedError(child1, "Invalid Functional")

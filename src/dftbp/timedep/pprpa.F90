@@ -11,6 +11,7 @@
 !> Excitations energies according to the particle-particle Random Phase Approximation
 !! (doi:10.1063/1.4977928).
 module dftbp_timedep_pprpa
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
@@ -24,7 +25,6 @@ module dftbp_timedep_pprpa
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private
@@ -168,7 +168,7 @@ contains
         symmetries(:) = [ "S", "T" ]
       end select
     else
-      @:ERROR_HANDLING(err, -1, "Spin-unrestricted calculations currently not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "spin-unrestricted calculations currently not possible with pp-RPA")
     end if
 
     ! Allocation for general arrays
@@ -188,10 +188,10 @@ contains
 
     nocc = nint(rnel)
     if (abs(rnel - real(nocc,dp)) > epsilon(0.0_dp)) then
-      @:ERROR_HANDLING(err, -1, "Fractionally charged systems not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "Fractionally charged systems not possible with pp-RPA")
     end if
     if (mod(abs(nocc),2) == 1) then
-      @:ERROR_HANDLING(err, -1, "Odd numbers of electrons not possible with pp-RPA")
+      @:ERROR_HANDLING(env%stdOut, err, -1, "Odd numbers of electrons not possible with pp-RPA")
     end if
     nocc = nocc / 2
 
@@ -238,7 +238,7 @@ contains
       allocate(pp_eval(dim_rpa))
       allocate(vr(dim_rpa, dim_rpa))
 
-      call buildAndDiagppRPAmatrix(RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
+      call buildAndDiagppRPAmatrix(env%stdOut, RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
           & denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
       call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
@@ -255,8 +255,11 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
+  subroutine buildAndDiagppRPAmatrix(output, tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -586,7 +589,7 @@ contains
     call geev(PP, pp_eval, wi, vl, vr, info)
 
     if (info /= 0) then
-      @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", " Error with dgeev, info = ", info)
+      @:FORMATTED_ERROR_HANDLING(output, err, info, "(A,I0)", " Error with dgeev, info = ", info)
     end if
 
   end subroutine buildAndDiagppRPAmatrix

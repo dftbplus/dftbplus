@@ -9,10 +9,11 @@
 
 !> Program for calculating system normal modes from a Hessian.
 program modes
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
   use dftbp_common_file, only : TFileDescr, closeFile, openFile
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, stdOut
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
@@ -29,12 +30,13 @@ program modes
 #:endif
   use modes_modeprojection, only : project
 #:if WITH_MPI
-  use mpi, only : MPI_THREAD_FUNNELED
+  use dftbp_io_message, only : error
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_extlibs_mpifx, only : mpifx_finalize
 #:endif
   implicit none
 
+  type(TEnvironment) :: env
   type(TTaggedWriter) :: taggedWriter
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom, nTrans
@@ -48,20 +50,23 @@ program modes
   type(TFileDescr) :: fd
   logical :: isAppend
 
-#:if WITH_MPI
-  !> MPI environment, if compiled with mpifort
-  type(TMpiEnv) :: mpiEnv
+  call initGlobalEnv()
+  call TEnvironment_init(env)
+  ! temporary fix
+  env%stdOut = stdOut
 
+#:if WITH_MPI
   ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
   ! build
-  call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
-  call TMpiEnv_init(mpiEnv)
-  call mpiEnv%mpiSerialEnv()
+  call TMpiEnv_init(env%mpi)
+  if (.not. env%mpi%isSerialEnv()) then
+    call error('This is serial code, but invoked on multiple processors')
+  end if
 #:endif
 
   ! Allocate resources
-  call initProgramVariables()
-  write(stdout, "(/,A,/)") "Starting main program"
+  call initProgramVariables(env)
+  write(env%stdOut, "(/,A,/)") "Starting main program"
 
   allocate(eigenValues(3 * nMovedAtom))
   if (tPlotModes) allocate(eigenModesScaled(3 * nMovedAtom, 3 * nMovedAtom))
@@ -87,7 +92,7 @@ program modes
   end do
 
   ! remove translations or rotations if necessary
-  call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
+  call project(env%stdOut, dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
 
   ! solve the eigenproblem
   if (tEigenVectors) then
@@ -202,10 +207,10 @@ program modes
 
   if (tPlotModes) then
     call taggedWriter%write(fd%unit, "saved_modes", modesToPlot)
-    write(stdout, *) "Writing eigenmodes to vibrations.tag"
+    write(env%stdOut, *) "Writing eigenmodes to vibrations.tag"
     call taggedWriter%write(fd%unit, "eigenmodes", dynMatrix(:, modesToPlot))
-    write(stdout, *) "Plotting eigenmodes:"
-    write(stdout, "(16I5)") modesToPlot(:)
+    write(env%stdOut, *) "Plotting eigenmodes:"
+    write(env%stdOut, "(16I5)") modesToPlot(:)
     call taggedWriter%write(fd%unit, "eigenmodes_scaled", eigenModesScaled(:, modesToPlot))
     if (tAnimateModes) then
       do ii = 1, nModesToPlot
@@ -233,39 +238,39 @@ program modes
     end if
   end if
 
-  write(stdout, *) "Vibrational modes"
+  write(env%stdOut, *) "Vibrational modes"
   if (allocated(bornMatrix) .and. allocated(bornDerivsMatrix)) then
-    write(stdout, "(T7,A,T16,A,T28,A)") "freq.", "IR", "Polarisability"
-    write(stdout, "(A,T7,A,T16,A,T28,A)") "Mode", "/ cm-1", "/ a.u.", "change / a.u."
+    write(env%stdOut, "(T7,A,T16,A,T28,A)") "freq.", "IR", "Polarisability"
+    write(env%stdOut, "(A,T7,A,T16,A,T28,A)") "Mode", "/ cm-1", "/ a.u.", "change / a.u."
   else if (allocated(bornMatrix)) then
-    write(stdout, "(T7,A,T16,A)") "freq.", "IR"
-    write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "/ a.u."
+    write(env%stdOut, "(T7,A,T16,A)") "freq.", "IR"
+    write(env%stdOut, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "/ a.u."
   else if (allocated(bornDerivsMatrix)) then
-    write(stdout, "(T7,A,T16,A)") "freq.", "Polarisability"
-    write(stdout, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "change / a.u."
+    write(env%stdOut, "(T7,A,T16,A)") "freq.", "Polarisability"
+    write(env%stdOut, "(A,T7,A,T16,A)") "Mode", "/ cm-1", "change / a.u."
   else
-    write(stdout, "(T7,A)") "freq."
-    write(stdout, "(A,T7,A)") "Mode", "cm-1"
+    write(env%stdOut, "(T7,A)") "freq."
+    write(env%stdOut, "(A,T7,A)") "Mode", "cm-1"
   end if
   if (allocated(bornMatrix) .and. allocated(bornDerivsMatrix)) then
     do ii = 1, 3 * nMovedAtom
-      write(stdout, "(i5,f8.2,2E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii),&
+      write(env%stdOut, "(i5,f8.2,2E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii),&
           & transPol(ii)
     end do
   else if (allocated(bornMatrix)) then
     do ii = 1, 3 * nMovedAtom
-      write(stdout, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii)
+      write(env%stdOut, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transDip(ii)
     end do
   else if (allocated(bornDerivsMatrix)) then
     do ii = 1, 3 * nMovedAtom
-      write(stdout, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transPol(ii)
+      write(env%stdOut, "(i5,f8.2,E12.4)") ii, eigenValues(ii) * Hartree__cm, transPol(ii)
     end do
   else
     do ii = 1, 3 * nMovedAtom
-      write(stdout, "(i5,f8.2)") ii,eigenValues(ii) * Hartree__cm
+      write(env%stdOut, "(i5,f8.2)") ii,eigenValues(ii) * Hartree__cm
     end do
   end if
-  write(stdout, *)
+  write(env%stdOut, *)
 
   call taggedWriter%write(fd%unit, "frequencies", eigenValues)
 
@@ -286,5 +291,8 @@ program modes
 #:if WITH_MPI
   call mpifx_finalize()
 #:endif
+
+  call env%destruct()
+  call destructGlobalEnv()
 
 end program modes

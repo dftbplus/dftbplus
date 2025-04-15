@@ -11,7 +11,6 @@
 !> Information on any GPUs on the system
 module dftbp_common_gpuenv
   use, intrinsic :: iso_c_binding, only : c_int
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_extlibs_magma, only : getGpusAvailable, getGpusRequested, gpusInit
   implicit none
 
@@ -32,18 +31,21 @@ contains
 
 
   !> Initilises a TGpuEnv instance
-  subroutine TGpuEnv_init(this)
+  subroutine TGpuEnv_init(this, output)
 
     !> Instance
     type(TGpuEnv), intent(out) :: this
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     integer(c_int) :: nGpuReq
 
     call gpusInit()
     call getGpusAvailable(this%nGpu)
     call getGpusRequested(nGpuReq)
-    write(stdOut, *) "Number of GPUs requested:", nGpuReq
-    write(stdOut, *) "Number of GPUs found    :", this%nGpu
+    write(output, *) "Number of GPUs requested:", nGpuReq
+    write(output, *) "Number of GPUs found    :", this%nGpu
     if ((nGpuReq <= this%nGpu) .and. (nGpuReq >= 1)) then
       this%nGpu = nGpuReq
     end if

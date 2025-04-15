@@ -18,7 +18,6 @@
 module dftbp_reks_reksgrad
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
   use dftbp_dftb_coulomb, only : addInvRPrime
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -820,9 +819,12 @@ contains
 
 
   !> Calculate super A hessian matrix with and without H-XC kernel
-  subroutine getSuperAMatrix(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, &
+  subroutine getSuperAMatrix(env, eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, &
       & omega, fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
       & Na, Glevel, reksAlg, tSaveMem, A1e, A1ePre, Aall)
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -890,7 +892,7 @@ contains
       if (tSaveMem) then
 
         ! build super A matrix except H-XC kernel
-        call buildA1e_(Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
+        call buildA1e_(env%stdOut, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
             & Glevel, reksAlg, A1e, A1ePre)
 
       end if
@@ -3112,8 +3114,11 @@ contains
 
 
   !> Calculate super A hessian matrix without H-XC kernel
-  subroutine buildA1e_(Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
+  subroutine buildA1e_(output, Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
       & Glevel, reksAlg, A1e, A1ePre)
+
+    !> output for write processes
+    integer, intent(in) :: output
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -3243,7 +3248,7 @@ contains
 
       ! check singularity for preconditioner
       if (abs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
-        write(stdOut,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
+        write(output,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
         call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 

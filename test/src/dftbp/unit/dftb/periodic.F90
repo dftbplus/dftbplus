@@ -9,6 +9,8 @@
 
 module test_dftb_periodic
   use dftbp_common_accuracy, only : dp, minNeighDist
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
   use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
       & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
   use dftbp_common_status, only : TStatus
@@ -19,14 +21,45 @@ module test_dftb_periodic
   private
   public :: tests
 
+  type :: test_env
+    type(TEnvironment) :: env
+  contains
+    final :: final_test_env
+  end type test_env
+
 contains
 
 
+  !> Intializes the test environment
+  subroutine init_test_env(this)
+    type(test_env), intent(out) :: this
+
+    call initGlobalEnv()
+    call TEnvironment_init(this%env)
+    ! temporary fix
+    this%env%stdOut = stdOut
+
+  end subroutine init_test_env
+
+
+  !> Finalizes the test environment
+  subroutine final_test_env(this)
+    type(test_env), intent(inout) :: this
+
+    call this%env%destruct()
+    call destructGlobalEnv()
+
+  end subroutine final_test_env
+
+
   $:TEST("singleRank")
+    type(test_env) :: tenv
     integer :: startAtom, endAtom
     logical :: error
 
-    call distributeAtoms(0, 1, 42, startAtom, endAtom, error)
+    call init_test_env(tenv)
+
+    call distributeAtoms(tenv%env%stdOut, 0, 1, 42, startAtom, endAtom, error)
     @:ASSERT(startAtom == 1)
     @:ASSERT(endAtom == 42)
     @:ASSERT(.not. error)
@@ -34,14 +67,17 @@ contains
 
 
   $:TEST("multipleRanks")
+    type(test_env) :: tenv
     integer :: startAtom, endAtom
     logical :: error
 
-    call distributeAtoms(0, 2, 13, startAtom, endAtom, error)
+    call init_test_env(tenv)
+
+    call distributeAtoms(tenv%env%stdOut, 0, 2, 13, startAtom, endAtom, error)
     @:ASSERT(startAtom == 1)
     @:ASSERT(endAtom == 7)
     @:ASSERT(.not. error)
-    call distributeAtoms(1, 2, 13, startAtom, endAtom, error)
+    call distributeAtoms(tenv%env%stdOut, 1, 2, 13, startAtom, endAtom, error)
     @:ASSERT(startAtom == 8)
     @:ASSERT(endAtom == 13)
     @:ASSERT(.not. error)
@@ -49,11 +85,14 @@ contains
 
 
   $:TEST("tooManyRanks")
+    type(test_env) :: tenv
     integer :: startAtom, endAtom, ii
     logical :: error
 
+    call init_test_env(tenv)
+
     do ii = 1, 4
-      call distributeAtoms(ii, 4, 2, startAtom, endAtom, error)
+      call distributeAtoms(tenv%env%stdOut, ii, 4, 2, startAtom, endAtom, error)
       @:ASSERT(error)
     end do
   $:END_TEST()

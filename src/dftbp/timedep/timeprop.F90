@@ -18,7 +18,6 @@ module dftbp_timedep_timeprop
   use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
@@ -688,13 +687,16 @@ contains
 
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
+  subroutine TElecDynamics_init(this, env, inp, species, speciesName, tWriteAutotest, autotestTag,&
       & randomThermostat, cutoff, mass, nAtom, atomEigVal, dispersion, nonSccDeriv, tPeriodic,&
       & parallelKS, tRealHS, kPoint, kWeight, isHybridXc, sccCalc, tblite, eFieldScaling,&
       & hamiltonianType, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
@@ -832,10 +834,10 @@ contains
 
     if (this%tLaser) then
       if (tPeriodic) then
-        call warning('Polarization components of the laser in a periodic direction do not work. &
+        call warning(env%stdOut, 'Polarization components of the laser in a periodic direction do not work. &
             & Make sure you are polarizing the field in non-periodic directions.')
         if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
-          call warning('Using circular or elliptical polarization with periodic structures might&
+          call warning(env%stdOut, 'Using circular or elliptical polarization with periodic structures might&
               & not work.')
         end if
       end if
@@ -1321,9 +1323,9 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
 
-    write(stdOut, "(A)")
-    write(stdOut, "(A)") 'Starting electronic dynamics...'
-    write(stdOut, "(A80)") repeat("-", 80)
+    write(env%stdOut, "(A)")
+    write(env%stdOut, "(A)") 'Starting electronic dynamics...'
+    write(env%stdOut, "(A80)") repeat("-", 80)
 
     ! Main loop
     do iStep = 1, this%nSteps
@@ -1338,13 +1340,13 @@ contains
       if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
         timeElec  = loopTime%getWallClockTime()
-        write(stdOut, "(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ',&
+        write(env%stdOut, "(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ',&
             & timeElec, 'average time per loop ', timeElec / (iStep + 1)
       end if
 
     end do
 
-    write(stdOut, "(A)") 'Dynamics finished OK!'
+    write(env%stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
@@ -1571,10 +1573,14 @@ contains
 
 
   !> Kick the density matrix for spectrum calculations
-  subroutine kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
+  subroutine kickDM(this, output, rho, Ssqr, Sinv, iSquare, coord)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> output for write processes
+    integer, intent(in) :: output
+
 
     !> Square overlap
     complex(dp), intent(in) :: Ssqr(:,:,:)
@@ -1638,7 +1644,7 @@ contains
       call gemm(rho(:,:,iKS), Sinv(:,:,iKS), T2, cmplx(0.5, 0, dp), cmplx(1, 0, dp), 'N', 'C')
     end do
 
-    write(stdout,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
+    write(output,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
 
   end subroutine kickDM
 
@@ -2052,7 +2058,7 @@ contains
 
 
   !> Create all necessary matrices and instances for dynamics
-  subroutine initializeTDVariables(this, densityMatrix, rho, H1, Ssqr, Sinv, H0, ham0, Dsqr, Qsqr,&
+  subroutine initializeTDVariables(this, env, densityMatrix, rho, H1, Ssqr, Sinv, H0, ham0, Dsqr, Qsqr,&
       & ints, eigvecsReal, filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare,&
       & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, qBlock, qNetAtom, isDftbU,&
       & onSiteElements, eigvecsCplx, HSqrCplxCam, bondWork, fdBondEnergy, fdBondPopul,&
@@ -2060,6 +2066,9 @@ contains
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Holds density matrix generation settings and real-space delta density matrix
     type(TDensityMatrix), intent(in) :: densityMatrix
@@ -2217,7 +2226,7 @@ contains
           call gesv(T4, Sinv(:,:,iKS))
         end if
       end do
-      write(stdOut,"(A)")'S inverted'
+      write(env%stdOut,"(A)")'S inverted'
 
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
@@ -2486,11 +2495,14 @@ contains
 
 
   !> Initialize output files
-  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
+  subroutine initTDOutput(this, env, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
       & atomEnergyDat)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Environmet
+    type(TEnvironment), intent(in) :: env
 
     !> Dipole output file ID
     type(TFileDescr), intent(out) :: dipoleDat
@@ -2614,7 +2626,7 @@ contains
     if (this%tPump) then
       call execute_command_line("mkdir "//trim(pumpFilesDir), exitstat=iErr)
       if (iErr /= 0) then
-        write (stdOut,*) 'cannot create '//trim(pumpFilesDir)//', error status of mkdir: ', iErr
+        write (env%stdOut,*) 'cannot create '//trim(pumpFilesDir)//', error status of mkdir: ', iErr
       end if
     end if
 
@@ -3714,6 +3726,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Data type for energy components and total
+
     type(TEnergies), intent(inout) :: energy
 
     !> All atomic coordinates
@@ -3732,7 +3745,7 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     if (allocated(repulsive)) then
-      call repulsive%updateCoords(coordAll, this%speciesAll, img2CentCell, neighbourList)
+      call repulsive%updateCoords(env, coordAll, this%speciesAll, img2CentCell, neighbourList)
       call repulsive%getEnergy(coordAll, this%speciesAll, img2CentCell, neighbourList,&
           & energy%atomRep, energy%Erep, iAtInCentralRegion=iAtInCentralRegion)
     else
@@ -3740,7 +3753,7 @@ contains
       energy%Erep = 0.0_dp
     end if
     if (allocated(this%dispersion)) then
-      call calcDispersionEnergy(this%dispersion, energy%atomDisp, energy%eDisp, iAtInCentralRegion)
+      call calcDispersionEnergy(env, this%dispersion, energy%atomDisp, energy%eDisp, iAtInCentralRegion)
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp
@@ -4073,7 +4086,7 @@ contains
       call getTDFunction(this, this%startTime)
     end if
 
-    call initializeTDVariables(this, densityMatrix, this%trho, this%H1, this%Ssqr, this%Sinv, H0,&
+    call initializeTDVariables(this, env, densityMatrix, this%trho, this%H1, this%Ssqr, this%Sinv, H0,&
         & this%ham0, this%Dsqr, this%Qsqr, ints, eigvecsReal, filling, orb, this%rhoPrim,&
         & this%potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
         & img2CentCell, this%Eiginv, this%EiginvAdj, this%energy, this%ErhoPrim, this%qBlock,&
@@ -4086,7 +4099,7 @@ contains
       call initLatticeVectors(this, boundaryCond)
     end if
 
-    call initTDOutput(this, this%dipoleDat, this%qDat, this%energyDat,&
+    call initTDOutput(this, env, this%dipoleDat, this%qDat, this%energyDat,&
         & this%populDat, this%forceDat, this%coorDat, this%atomEnergyDat)
 
     ! Write density at t=0
@@ -4164,7 +4177,7 @@ contains
 
     ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
     if (this%tKick .and. this%startTime < this%dt / 10.0_dp) then
-      call kickDM(this, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
+      call kickDM(this, env%stdOut, this%trho, this%Ssqr, this%Sinv, iSquare, coord)
     end if
 
     call getPositionDependentEnergy(this, env, this%energy, coordAll, img2CentCell, neighbourList,&
@@ -4599,7 +4612,7 @@ contains
         & neighbourList, nAllAtom, coord0Fold, this%species0, this%cutoff%mCutoff, this%rCellVec,&
         & errStatus)
     @:PROPAGATE_ERROR(errStatus)
-    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%cutoff%skCutoff)
+    call getNrOfNeighboursForAll(env%stdOut, nNeighbourSK, neighbourList, this%cutoff%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, this%sparseSize)
 
@@ -4610,7 +4623,7 @@ contains
           & this%cutoff%camCutoff, this%rCellVec, errStatus, symmetric=.true.)
       @:PROPAGATE_ERROR(errStatus)
       if (allocated(nNeighbourCamSym)) then
-        call getNrOfNeighboursForAll(nNeighbourCamSym, symNeighbourList%neighbourList,&
+        call getNrOfNeighboursForAll(env%stdOut, nNeighbourCamSym, symNeighbourList%neighbourList,&
             & this%cutoff%camCutoff)
         call getSparseDescriptor(symNeighbourList%neighbourList%iNeighbour, nNeighbourCamSym,&
             & symNeighbourList%img2CentCell, orb, symNeighbourList%iPair,&

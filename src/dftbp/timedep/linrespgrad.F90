@@ -15,7 +15,6 @@ module dftbp_timedep_linrespgrad
   use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_io_commonformats, only : format2U
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_hybridxc, only : THybridXcFunc, getDirectionalCamGammaPrimeValue
@@ -1236,9 +1235,9 @@ contains
     subSpaceDim = min(lr%subSpaceFactorStratmann * nExc, rpa%nxov_rd)
     iterStrat = 1
 
-    write(stdOut,'(A)')
-    write(stdOut,'(A)') '>> Stratmann diagonalisation of response matrix'
-    write(stdOut,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', rpa%nxov_rd, ' inital subspace: ',&
+    write(env%stdOut,'(A)')
+    write(env%stdOut,'(A)') '>> Stratmann diagonalisation of response matrix'
+    write(env%stdOut,'(3x,A,i6,A,i6)') 'Total dimension of A+B: ', rpa%nxov_rd, ' inital subspace: ',&
       & subSpaceDim
 
     allocate(mP(subSpaceDim, subSpaceDim))
@@ -1398,7 +1397,7 @@ contains
           call assembleChunks(env, xmy)
         end if
 
-        write(stdOut,'(A)') '>> Stratmann converged'
+        write(env%stdOut,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
 
       end if
@@ -1447,9 +1446,9 @@ contains
       subSpaceDim = subSpaceDim + newVec
 
       if(iterStrat == 1) then
-        write(stdOut,'(3x,A)') 'Iteration  Subspace dimension'
+        write(env%stdOut,'(3x,A)') 'Iteration  Subspace dimension'
       end if
-      write(stdOut,'(3x,i6,10x,i6)') iterStrat, subSpaceDim
+      write(env%stdOut,'(3x,i6,10x,i6)') iterStrat, subSpaceDim
 
       iterStrat = iterStrat + 1
 
@@ -5206,7 +5205,7 @@ contains
   !! with a differing version that assumed orthogonal X1 and X2 vectors, which leads to poor
   !! convergence.
   subroutine conicalIntersectionOptimizer(derivs, excDerivs, indNACouplings, energyShift,&
-      & naCouplings, excEnergies)
+      & naCouplings, excEnergies, output)
 
     !> Ground state gradient (overwritten)
     real(dp), intent(inout) :: derivs(:,:)
@@ -5225,6 +5224,9 @@ contains
 
     !> Sn-S0 excitation energy
     real(dp), intent(in) :: excEnergies(:)
+
+    !> Output for write processes
+    integer, intent(in) :: output
 
     integer :: nAtoms, nexcGrad, nCoupl
     real(dp), allocatable :: X1(:), X2(:), dE2(:), gpf(:)
@@ -5282,7 +5284,7 @@ contains
 
     derivs(:,:) = reshape(gpf, [3, nAtoms])
 
-    write(stdOut, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
+    write(output, format2U) "Energy gap CI", deltaE, 'H', Hartree__eV * deltaE, 'eV'
 
   end subroutine conicalIntersectionOptimizer
 
