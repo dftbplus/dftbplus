@@ -304,6 +304,12 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY AND WITH_UNIT_TESTS)
   external/fortuno "${exclude}" "${FORTUNO_GIT_REPOSITORY}" "${FORTUNO_GIT_TAG}")
 endif()
 
+# DNAOAD library for automatic differentiation
+set(DNAOAD_GIT_REPOSITORY "git@github.com:bhourahine/dnaoad_preprocessed.git")
+set(DNAOAD_GIT_TAG "5b7092656b2fd02a0843b09f7222c3b97193eb47")  # do not change manually!
+dftbp_config_hybrid_dependency(DNAOAD DNAOAD::dnaoad "${HYBRID_CONFIG_METHODS}" "VERBOSE"
+external/dnaoad "${exclude}" "${DNAOAD_GIT_REPOSITORY}" "${DNAOAD_GIT_TAG}")
+
 #
 # Add internal components
 #

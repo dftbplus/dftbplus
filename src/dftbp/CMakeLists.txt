@@ -131,6 +131,8 @@ if(WITH_CHIMES)
   target_link_libraries(dftbplus PUBLIC ChimesCalc::ChimesCalc_Fortran)
 endif()
 
+target_link_libraries(dftbplus PUBLIC DNAOAD::dnaoad)
+
 if(WITH_MPI)
   target_link_libraries(dftbplus PRIVATE MPI::MPI_Fortran)
   target_link_libraries(dftbplus PUBLIC MpiFx::MpiFx ScalapackFx::ScalapackFx)
