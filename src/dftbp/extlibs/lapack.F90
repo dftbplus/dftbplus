@@ -340,6 +340,24 @@ module dftbp_extlibs_lapack
   end interface
 
 
+    interface
+  #:for LAPACK_ROUTINE, KIND in [("sposv", "rsp"), ("dposv", "rdp")]
+
+    !> Solve overdetermined or underdetermined real linear systems
+    subroutine ${LAPACK_ROUTINE}$(nn, nrhs, aa, lda, bb, ldb, info)
+      import :: ${KIND}$
+      integer, intent(in) :: nn
+      integer, intent(in) :: nrhs
+      integer, intent(in) :: lda
+      real(${KIND}$), intent(inout) :: aa(lda, *)
+      integer, intent(in) :: ldb
+      real(${KIND}$), intent(inout) :: bb(ldb, *)
+      integer, intent(out) :: info
+    end subroutine ${LAPACK_ROUTINE}$
+  #:endfor
+  end interface
+
+
   interface
   #:for LAPACK_ROUTINE, TYPE, KIND in &
       & [("sgetrf", "real", "rsp"), ("dgetrf", "real", "rdp"),&
@@ -484,7 +502,8 @@ module dftbp_extlibs_lapack
   #:for LAPACK_ROUTINE, KIND in [("cgesvd", "rsp"), ("zgesvd", "rdp")]
 
     !> Complex singular value decomposition
-    subroutine ${LAPACK_ROUTINE}$(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork, rwork, info)
+    subroutine ${LAPACK_ROUTINE}$(jobu, jobvt, m, n, a, lda, s, u, ldu, vt, ldvt, work, lwork,&
+        & rwork, info)
       import :: ${KIND}$
       character, intent(in) :: jobvt
       character, intent(in) :: jobu
