@@ -20,7 +20,7 @@ module dftbp_math_lapackroutines
   implicit none
 
   private
-  public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs
+  public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs, posv
 
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
@@ -30,6 +30,16 @@ module dftbp_math_lapackroutines
     module procedure gesv_dble
     module procedure gesv_dcomplex
   end interface gesv
+
+
+  !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
+  !! symmetric or hermitian matrix and X and B are N-by-NRHS matrices
+  interface posv
+    module procedure posv_real
+    module procedure posv_dble
+    module procedure posv_cmplx
+    module procedure posv_dcmplx
+  end interface posv
 
 
   !> Computes the LU decomposition of a general rectangular matrix using partial pivoting with row
@@ -318,6 +328,89 @@ contains
     end if
 
   end subroutine gesv_dcomplex
+
+
+#:for TYPE, NAME, KIND, LABEL, PRF in [('real', 'symmetric', 'rsp', 'real', 'sposv'),&
+  & ('real', 'symmetric', 'rdp', 'dble', 'dposv'),&
+  & ('complex', 'hermitian', 'rsp', 'cmplx', 'cposv'),&
+  & ('complex', 'hermitian', 'rdp', 'dcmplx', 'zposv')]
+
+  !> Solves a general system of linear equations A * X = B, where A is a positive definite ${kind}$
+  !> ${NAME}$ matrix.
+  subroutine posv_${LABEL}$(aa, bb, nEquation, nSolution, uplo, status)
+
+    !> Contains the coefficients on entry, the LU factorisation on exit.
+    ${TYPE}$(${KIND}$), intent(inout) :: aa(:,:)
+
+    !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
+    ${TYPE}$(${KIND}$), intent(inout) :: bb(:,:)
+
+    !> The size of the problem (nr. of variables and equations). Must be only specified if different
+    !> from size(aa, dim=1).
+    integer, intent(in), optional :: nEquation
+
+    !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
+    !> dim=2).
+    integer, intent(in), optional :: nSolution
+
+    !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
+    character, intent(in), optional :: uplo
+
+    !> Status of operation, calls error if not present and a solver failure    character :: uplo0
+    type(TStatus), intent(out), optional :: status
+
+    integer :: info
+    integer :: nn, nrhs, lda, ldb
+    character(len=100) :: error_string
+    character :: uplo0
+
+    uplo0 = uploHelper(uplo)
+
+    lda = size(aa, dim=1)
+    if (present(nEquation)) then
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      nn = nEquation
+    else
+      nn = lda
+    end if
+    @:ASSERT(size(aa, dim=2) >= nn)
+
+    ldb = size(bb, dim=1)
+    @:ASSERT(ldb >= nn)
+    nrhs = size(bb, dim=2)
+    if (present(nSolution)) then
+      @:ASSERT(nSolution <= nrhs)
+      nrhs = nSolution
+    end if
+
+    info = 0
+
+    call ${PRF}$(uplo0, nn, nrhs, aa, lda, bb, ldb, info)
+
+    if (info /= 0) then
+      if (present(status)) then
+        if (info < 0) then
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Failure in ${PRF}$ illegal argument at position : ',I0)", info)
+        else
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Linear dependent system in linear equation solver ${PRF}$, info flag : ',I0)",&
+              & info)
+        end if
+      else
+        if (info < 0) then
+          write(error_string, "(A,I0)")'Failure in ${PRF}$ illegal argument at position : ', info
+        else
+          write(error_string, "(A,I0)")'Linear dependent system in linear equation solver ${PRF}$,&
+              & info flag : ', info
+        end if
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine posv_${LABEL}$
+
+#:endfor
 
 
   !> Single precision version of getrf.
