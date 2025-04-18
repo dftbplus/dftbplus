@@ -90,7 +90,8 @@ module dftbp_dftbplus_main
   use dftbp_math_angmomentum, only : getLOnsite, getLDual
   use dftbp_math_blasroutines, only : hemm, symm
   use dftbp_math_contactsymm, only : TEquivContactAtoms
-  use dftbp_math_matrixops, only : adjointLowerTriangle, hermatinv, symmatinv
+  use dftbp_math_lapackroutines, only : posv
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33, invert33
   use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
   use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
@@ -6222,10 +6223,10 @@ contains
           call unpackHS(work, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call symmatinv(work, errStatus)
+        work2(:,:) = transpose(eigvecsReal(:,:,iKS))
+        call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
-        work(:,:) = work2 + transpose(work2)
+        work(:,:) = 0.5_dp * (work2 + transpose(work2))
       #:endif
       end select
 
@@ -6450,10 +6451,10 @@ contains
           call unpackHS(work, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call hermatinv(work, errStatus)
+        work2(:,:) = transpose(conjg(eigvecsCplx(:,:,iKS)))
+        call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
-        work(:,:) = work2 + transpose(conjg(work2))
+        work(:,:) = 0.5_dp * (work2 + transpose(conjg(work2)))
       #:endif
       end select
 
