@@ -37,3 +37,6 @@
 [submodule "external/fortuno/origin"]
 	path = external/fortuno/origin
 	url = https://github.com/fortuno-repos/fortuno.git
+[submodule "external/dnaoad/origin"]
+	path = external/dnaoad/origin
+	url = https://github.com/bhourahine/dnaoad_preprocessed.git
