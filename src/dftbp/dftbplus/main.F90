@@ -580,8 +580,8 @@ contains
     if (this%tWriteDetailedXML) then
       call writeDetailedXml(this%runId, this%speciesName, this%species0, this%pCoord0Out,&
           & this%tPeriodic, this%tHelical, this%latVec, this%origin, this%tRealHS, this%nKPoint,&
-          & this%nSpin, size(this%eigen, dim=1), this%nOrb, this%kPoint, this%kWeight,&
-          & this%filling, this%occNatural)
+          & this%nSpin, this%nOrb, this%kPoint, this%kWeight, this%filling, this%eigen, this%Ef,&
+          & this%occNatural)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
