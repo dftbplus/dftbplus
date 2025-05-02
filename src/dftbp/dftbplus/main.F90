@@ -1403,7 +1403,7 @@ contains
         if (allocated(this%elecConstraint)) then
           nConstrIter = this%elecConstraint%getMaxIter()
           call printElecConstrHeader()
-          call this%elecConstraint%potOpt%reset()
+          call this%elecConstraint%optimizer%reset()
         else
           nConstrIter = 1
         end if
