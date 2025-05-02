@@ -13,13 +13,15 @@ Hamiltonian = xtb {
     Temperature [Kelvin] = 1.0
   }
   ElectronicConstraints {
-    MullikenPopulation {
+    Constraints {
+      MullikenPopulation {
         Atoms = H
         TotalPopulation = 1.5
-    }
-    MullikenPopulation {
+      }
+      MullikenPopulation {
         Atoms = 2
         TotalPopulation = 1.0
+      }
     }
     ConstrTolerance = 1.0E-8
     MaxConstrIterations = 100

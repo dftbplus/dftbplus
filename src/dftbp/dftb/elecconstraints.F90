@@ -133,7 +133,7 @@ contains
     !> Is this a calculation with Pauli wavefunctions
     logical, intent(in) :: is2Component
 
-    type(fnode), pointer :: constrNode, child1
+    type(fnode), pointer :: constrContainer, constrNode, child1, dummyNode
     type(fnodeList), pointer :: constrNodes
     type(string) :: buffer
     integer :: iConstr, nConstr
@@ -146,7 +146,9 @@ contains
     call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
     call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, .true.)
 
-    call getChildren(node, "MullikenPopulation", constrNodes)
+    call getChildValue(node, "Constraints", dummyNode, "", child=constrContainer,&
+        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildren(constrContainer, "MullikenPopulation", constrNodes)
     if (.not. associated(constrNodes)) return
 
     nConstr = getLength(constrNodes)

@@ -34,13 +34,15 @@ Hamiltonian = DFTB {
         }
     }
     ElectronicConstraints {
+      Constraints {
         MullikenPopulation {
-            Atoms = 1
-            TotalPopulation = 7.5
+          Atoms = 1
+          TotalPopulation = 7.5
         }
-        ConstrTolerance = 1.0E-08
-        MaxConstrIterations = 100
-        ConvergentConstrOnly = Yes
+      }
+      ConstrTolerance = 1.0E-08
+      MaxConstrIterations = 100
+      ConvergentConstrOnly = Yes
     }
     Filling = Fermi {
         Temperature [Kelvin] = 5.0e+2

@@ -29,20 +29,21 @@ Hamiltonian = DFTB {
   }
 
   ElectronicConstraints {
-    MullikenPopulation {
+    Constraints {
+      MullikenPopulation {
         Atoms = H
         TotalPopulation = 1.5
-    }
-    MullikenPopulation {
+      }
+      MullikenPopulation {
         Atoms = 2
         TotalPopulation = 1.0
+      }
     }
     Optimiser = SteepestDescent {ScalingFactor = 0.15}
     ConstrTolerance = 1.0e-08
     MaxConstrIterations = 20
     ConvergentConstrOnly = No
   }
-
 }
 
 Options {
