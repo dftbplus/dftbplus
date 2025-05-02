@@ -1711,6 +1711,10 @@ contains
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
       call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      if (.not. allocated(ctrl%elecConstraintInp%atomGrp)) then
+        call detailedWarning(child, "No electronic constaint specified")
+        deallocate(ctrl%elecConstraintInp)
+      end if
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then

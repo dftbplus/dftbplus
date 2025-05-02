@@ -133,8 +133,8 @@ contains
     !> Is this a calculation with Pauli wavefunctions
     logical, intent(in) :: is2Component
 
-    type(fnode), pointer :: val, child1, child2, child3
-    type(fnodeList), pointer :: children
+    type(fnode), pointer :: constrNode, child1
+    type(fnodeList), pointer :: constrNodes
     type(string) :: buffer
     integer :: iConstr, nConstr
 
@@ -146,23 +146,20 @@ contains
     call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
     call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, .true.)
 
-    call getChildValue(node, "Regions", val, "", child=child1, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+    call getChildren(node, "MullikenPopulation", constrNodes)
+    if (.not. associated(constrNodes)) return
 
-    ! Read specification for regions of atoms
-    call getChildren(child1, "Atoms", children)
-    nConstr = getLength(children)
-
+    nConstr = getLength(constrNodes)
     allocate(input%atomGrp(nConstr))
     allocate(input%atomNc(nConstr))
     allocate(input%atomSpinDir(nConstr))
 
     do iConstr = 1, nConstr
-      call getItem1(children, iConstr, child2)
-      call getChildValue(child2, "Domain", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species,&
+      call getItem1(constrNodes, iConstr, constrNode)
+      call getChildValue(constrNode, "Atoms", buffer, child=child1, multiple=.true.)
+      call getSelectedAtomIndices(child1, char(buffer), geo%speciesNames, geo%species,&
           & input%atomGrp(iConstr)%data)
-      call getChildValue(child2, "Population", input%atomNc(iConstr))
+      call getChildValue(constrNode, "TotalPopulation", input%atomNc(iConstr))
       ! Functionality currently restricted to charges only
       if (isSpinPol) then
         ! [q,m] representation
@@ -176,7 +173,7 @@ contains
       end if
     end do
 
-    call destroyNodeList(children)
+    call destroyNodeList(constrNodes)
 
   end subroutine readElecConstraintInput
 

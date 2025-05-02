@@ -40,11 +40,9 @@ Hamiltonian = DFTB {
   }
 
   ElectronicConstraints {
-    Regions {
-      Atoms {
-        Domain = 8
-        Population = 5.0
-      }
+    MullikenPopulation {
+        Atoms = 8
+        TotalPopulation = 5.0
     }
     Optimiser = SteepestDescent {ScalingFactor = 0.07}
     ConstrTolerance = 1.0e-08
