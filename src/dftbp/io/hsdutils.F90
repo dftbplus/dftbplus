@@ -17,8 +17,8 @@ module dftbp_io_hsdutils
       & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&
       & assignment(=),getNodeType, replaceChild, createTextNode, createElement, removeChild, trim,&
       & getAttribute, setAttribute, append_to_string, resize_string, len, xml_NewElement,&
-      & xml_AddPCData, xml_EndElement, getItem1, prepend_to_string, getAttribute, getNodeName,&
-      & getNodeValue, destroyNode, setAttribute, getAttribute, normalize
+      & xml_AddPCData, xml_EndElement, getItem1, getAttribute, getNodeName,&
+      & getNodeValue, destroyNode, setAttribute, getAttribute
   use dftbp_io_charmanip, only : newline, whiteSpaces, space, tolower, unquote, complementaryScan
   use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrStart, attrModifier, attrName,&
       & getHSDPath, getNodeHSDName
@@ -28,7 +28,7 @@ module dftbp_io_hsdutils
       & getNextToken
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
   use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListComplex,&
-      & TListComplexR1, TListInt, TlistIntR1, append, init, asArray, destruct
+      & TListComplexR1, TListInt, TlistIntR1, append
   implicit none
 
   private

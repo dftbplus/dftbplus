@@ -12,7 +12,6 @@
 module dftbp_dftb_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
   use dftbp_common_status, only : TStatus

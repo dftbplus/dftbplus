@@ -16,7 +16,6 @@ program test_extpot2
   use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, getMaxAngFromSlakoFile,&
       & setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use extchargepot, only : getPointChargeGradients, getPointChargePotential
-  use dftbp_common_constants, only : AA__Bohr
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none

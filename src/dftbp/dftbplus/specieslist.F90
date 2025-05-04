@@ -10,10 +10,9 @@
 !> Routines to deal with HSD species lists
 module dftbp_dftbplus_specieslist
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : elementSymbol
   use dftbp_common_unitconversion, only : TUnit
   use dftbp_extlibs_xmlf90, only : char, fnode, string
-  use dftbp_io_hsdutils, only : getChild, getChildValue
+  use dftbp_io_hsdutils, only : getChildValue
   use dftbp_io_hsdutils2, only : convertUnitHsd, setProcessed
   implicit none
 

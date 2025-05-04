@@ -17,7 +17,7 @@ module dftbp_dftb_encharges
   use dftbp_common_status, only : TStatus
   use dftbp_common_constants, only : pi
   use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_dftb_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
+  use dftbp_dftb_coulomb, only : ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_math_blasroutines, only : hemv, gemv, gemm

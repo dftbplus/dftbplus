@@ -41,9 +41,9 @@ module dftbp_dftb_hybridxc
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
-  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
-      & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g,&
-      & scalafx_getdescriptor, scalafx_getlocalshape, scalafx_addl2g, linecomm
+  use dftbp_extlibs_scalapackfx, only : CSRC_, MB_, NB_, RSRC_, pblasfx_pgemm,&
+      & pblasfx_ptran, pblasfx_psymm, scalafx_indxl2g,&
+      & scalafx_addl2g, linecomm
   use dftbp_math_bisect, only : bisection
 #:endif
 

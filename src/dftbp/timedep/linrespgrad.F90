@@ -26,13 +26,13 @@ module dftbp_timedep_linrespgrad
   use dftbp_extlibs_arpack, only : psaupd, pseupd, saupd, seupd, withArpack
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_math_blasroutines, only : gemm, hemv, symm, herk
+  use dftbp_math_blasroutines, only : gemm, hemv, symm
   use dftbp_math_degeneracy, only : TDegeneracyFind
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_matrixops, only : makeSimilarityTrans, orthonormalizeVectors, calcMatrixSqrt
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
-      & oscillatorStrength, indxoo, indxov, indxvv, rindxov_array,&
+      & oscillatorStrength, indxov, rindxov_array,&
       & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
       & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
       & incMemStratmann, getSqrOcc
@@ -46,8 +46,7 @@ module dftbp_timedep_linrespgrad
 #:if WITH_SCALAPACK
 
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
-  use dftbp_math_scalafxext, only : distrib2replicated
+  use dftbp_extlibs_mpifx, only : mpifx_bcast
 
 #:endif
 

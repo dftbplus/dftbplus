@@ -7,14 +7,13 @@
 
 !> Module to read input from HSD tree
 module dftbp_dftbplus_input_geoopt
-  use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_unitconversion, only : timeUnits, lengthUnits, energyUnits, forceUnits
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getNodeName
   use dftbp_geoopt_package, only : TFilterInput, TOptimizerInput, TRationalFuncInput,&
       & TLbfgsInput, TFireInput, TSteepdescInput, TOptTolerance
   use dftbp_io_charmanip, only : unquote
-  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, detailedWarning,&
+  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError,&
       & getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_type_typegeometry, only : TGeometry

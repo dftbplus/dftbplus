@@ -26,13 +26,12 @@
 #:set WITH_MPI = defined('WITH_MPI')
 
 program test_setSpeciesAndDependents
-  use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
+  use, intrinsic :: iso_fortran_env, only: output_unit, REAL64
 #:if WITH_MPI
   use mpi
 #:endif
   use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
-  use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
-  use dftbp_hsdapi, only: dumpHsd
+  use dftbp_hsdapi, only: fnode, setChild, setChildValue
   use testhelpers, only: writeAutotestTag
   implicit none
 

@@ -38,7 +38,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TEField
-  use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
   use dftbp_dftb_hamiltonian, only : TRefExtPot
   use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
@@ -66,7 +65,6 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
   use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInp
-  use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, THybridXcInp, TControl, TBlacsOpts
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&

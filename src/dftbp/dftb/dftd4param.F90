@@ -10,8 +10,8 @@
 !> Necessary parameters to perform DFT-D4 calculations
 module dftbp_dftb_dftd4param
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, AA__Bohr, symbolToNumber
-  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, cnType
+  use dftbp_common_constants, only : pi, symbolToNumber
+  use dftbp_dftb_coordnumber, only : TCNInput
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_extlibs_dftd4refs, only : secaiw, alphaiw, clsh, clsq, refn, refsys, refcn, sscale,&
       & refcovcn, hcount, ascale

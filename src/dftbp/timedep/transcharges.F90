@@ -16,7 +16,7 @@ module dftbp_timedep_transcharges
 
 #:if WITH_SCALAPACK
 
-  use dftbp_extlibs_scalapackfx, only : DLEN_, M_, NB_, N_, CSRC_, MB_, RSRC_, scalafx_indxl2g
+  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
   use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
 

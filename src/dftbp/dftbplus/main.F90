@@ -18,11 +18,10 @@ module dftbp_dftbplus_main
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd, polAdd
-  use dftbp_derivs_perturb, only : TResponse
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
-  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
+  use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
@@ -33,7 +32,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_halogenx, only : THalogenX
   use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
       & getSccHamiltonian, mergeExternalPotentials, resetExternalPotentials,&
-      & addBlockChargePotentials, constrainSccHamiltonian
+      & addBlockChargePotentials
   use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo
   use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
   use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
@@ -59,7 +58,6 @@ module dftbp_dftbplus_main
   use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
-  use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TNegfInt
   use dftbp_dftbplus_inputdata, only : TNEGFInfo

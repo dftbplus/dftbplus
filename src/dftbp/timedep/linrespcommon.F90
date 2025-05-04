@@ -14,11 +14,10 @@ module dftbp_timedep_linrespcommon
   use dftbp_common_schedule, only : assembleChunks, gatherChunks, distributeRangeInChunks
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_onsitecorrection, only : getOnsME
-  use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : hemv
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_linresptypes, only : TLinResp, TCasidaParameter
-  use dftbp_timedep_transcharges, only : TTransCharges, transq
+  use dftbp_timedep_transcharges, only : TTransCharges
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment

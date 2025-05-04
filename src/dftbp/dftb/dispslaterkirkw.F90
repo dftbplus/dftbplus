@@ -32,7 +32,6 @@ module dftbp_dftb_dispslaterkirkw
       &addDispEGr_per_atom
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 

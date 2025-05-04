@@ -23,7 +23,6 @@ module transporttools_parser
       & detailedError, detailedWarning
   use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes
   use dftbp_io_message, only : error, warning
-  use dftbp_math_simplealgebra, only: cross3, determinant33
   use dftbp_transport_negfvars, only : TTransPar, ContactInfo
   use dftbp_type_linkedlist, only : TListReal, TListString, TListCharLc, init, destruct, len, get,&
       & append, asArray

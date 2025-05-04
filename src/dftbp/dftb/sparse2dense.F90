@@ -15,11 +15,10 @@ module dftbp_dftb_sparse2dense
   use dftbp_common_constants, only : pi, imag
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dense, only : getDescriptor
-  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS
-  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
+  use dftbp_dftb_nonscc, only : TNonSccDiff
+  use dftbp_dftb_periodic, only : TSymNeighbourList
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_math_angmomentum, only : rotateZ
-  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK

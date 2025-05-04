@@ -35,7 +35,6 @@ module dftbp_reks_reksinterface
   use dftbp_dftb_stress, only : getBlockStress
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_io_message, only : error
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices
   use dftbp_reks_rekscpeqn, only : cggrad

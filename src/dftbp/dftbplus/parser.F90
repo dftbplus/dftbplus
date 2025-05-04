@@ -12,8 +12,8 @@
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
   use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
-  use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, joinPaths, joinPathsPrettyErr, getParamSearchPaths
+  use dftbp_common_file, only : openFile, closeFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
   use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
@@ -45,12 +45,11 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
-  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
-  use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
+  use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo
   use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
   use dftbp_extlibs_tblite, only : tbliteMethod
   use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
@@ -64,7 +63,6 @@ module dftbp_dftbplus_parser
   use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, setUnprocessed, splitModifier,&
       & renameChildren
   use dftbp_io_message, only : error, warning
-  use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp

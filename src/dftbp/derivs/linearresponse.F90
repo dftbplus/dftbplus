@@ -14,7 +14,7 @@ module dftbp_derivs_linearresponse
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
+  use dftbp_derivs_rotatedegen, only : TRotateDegen
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_type_commontypes, only : TOrbitals

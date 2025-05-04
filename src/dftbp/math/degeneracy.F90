@@ -9,7 +9,6 @@
 
 module dftbp_math_degeneracy
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   implicit none
 
   private

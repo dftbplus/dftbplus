@@ -28,7 +28,6 @@ module dftbp_dftbplus_inputdata
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
-  use dftbp_io_message, only : error, warning
   use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_reks_reks, only : TReksInp
@@ -310,7 +309,7 @@ module dftbp_dftbplus_inputdata
 
     !> Maximum number of self-consistent iterations
     integer :: maxSccIter = 0
-    
+
     !> Mixer Input data
     type(TMixerInput) :: mixerInp
 

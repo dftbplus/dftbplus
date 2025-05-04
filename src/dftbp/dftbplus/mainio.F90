@@ -15,7 +15,7 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
       & gfac, Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
@@ -33,7 +33,7 @@ module dftbp_dftbplus_mainio
   use dftbp_dftb_sccinit, only : writeQToFile
   use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
-  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
       & xml_NewElement, xml_OpenFile, xmlf_t
   use dftbp_io_charmanip, only : i2c

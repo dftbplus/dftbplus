@@ -16,7 +16,7 @@ program skderivs
   use dftbp_dftb_slakoeqgrid, only : getNIntegrals, getSKIntegrals, init, skEqGridNew, skEqGridOld,&
       & TSlakoEqGrid
   use dftbp_io_charmanip, only : i2c, unquote
-  use dftbp_io_hsdparser, only : dumpHSD, getNodeHSDName, parseHSD
+  use dftbp_io_hsdparser, only : parseHSD
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue
   use dftbp_io_hsdutils2, only : warnUnprocessedNodes
   use dftbp_type_linkedlist, only : append, asArray, init, intoArray, len, TListInt, TListIntR1

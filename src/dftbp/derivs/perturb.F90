@@ -17,12 +17,12 @@ module dftbp_derivs_perturb
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
+  use dftbp_derivs_fermihelper, only : deltamn
   use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
       & dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
+  use dftbp_dftb_dftbplusu, only : TDftbU, plusUFunctionals
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
@@ -33,7 +33,7 @@ module dftbp_derivs_perturb
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
-  use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
+  use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_mainio, only : writeDerivBandOut
   use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_io_commonformats, only : format2U
@@ -42,7 +42,7 @@ module dftbp_derivs_perturb
   use dftbp_mixer_mixer, only : TMixerReal
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
+  use dftbp_type_parallelks, only : TParallelKS
   use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
 #:if WITH_SCALAPACK
   use dftbp_dftb_populations, only : denseMullikenRealBlacs

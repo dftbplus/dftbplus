@@ -16,7 +16,6 @@
 #:include "error.fypp"
 
 module dftbp_poisson_parcheck
-  use dftbp_common_accuracy, only : lc, dp
   use dftbp_common_constants, only : hartree__eV, Bohr__AA
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : warning

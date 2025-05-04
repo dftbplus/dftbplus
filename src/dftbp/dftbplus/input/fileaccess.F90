@@ -9,7 +9,7 @@
 
 module dftbp_dftbplus_input_fileaccess
   use dftbp_common_file, only : fileAccessValues
-  use dftbp_extlibs_xmlf90, only : fnode, string
+  use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue, setChildValue
   use dftbp_type_linkedlist, only : TListString, asArray, destruct, init, len

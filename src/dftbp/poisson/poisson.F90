@@ -16,7 +16,7 @@
 #:include "error.fypp"
 
 module dftbp_poisson_poisson
-  use dftbp_common_accuracy, only : lc, dp
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi, hartree__eV, Bohr__AA
   use dftbp_common_environment, only : TEnvironment, globalTimers
   use dftbp_common_file, only : TFileDescr, openFile, closeFile

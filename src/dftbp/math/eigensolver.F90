@@ -17,7 +17,7 @@ module dftbp_math_eigensolver
       & ssygvd, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, cheev, cheevd, cheevr,&
       & chegst, chegv, chegvd, cpotrf, zheev, zheevd, zheevr, zhegst, zhegv, zhegvd, zpotrf,&
       & sgeev, dgeev, strsm, dtrsm, ctrsm, ztrsm, strmm, dtrmm, ctrmm, ztrmm
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : error
 #:if WITH_MAGMA
   use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
       & magmaf_zhegvd_m, magmaf_ssyevd_m, magmaf_dsyevd_m, magmaf_cheevd_m,&

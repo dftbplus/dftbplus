@@ -14,7 +14,6 @@ module dftbp_dftb_coordnumber
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemv
-  use dftbp_math_simplealgebra, only : determinant33
   implicit none
 
   private

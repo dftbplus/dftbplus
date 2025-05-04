@@ -12,7 +12,7 @@ program waveplot
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, initGlobalEnv, synchronizeAll, destructGlobalEnv
+  use dftbp_common_globalenv, only : stdOut, initGlobalEnv, destructGlobalEnv
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_message, only : warning, error
