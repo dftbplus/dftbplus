@@ -1135,6 +1135,30 @@ module dftbp_dftbplus_initprogram
     !> Density matrices, if multiple determinants are being used
     real(dp), allocatable :: deltaRhoDets(:,:,:,:)
 
+    !> Transition Dipole Moment (Delta DFTB TDM)
+    real(dp), allocatable :: transitionDipoleMoment(:)
+
+    !> Dense representation of ground state MOs (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatG(:,:,:)
+
+    !> Dense representation of excited state MOs (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatE(:,:,:)
+
+    !> Dense representation of transition density matrix (Delta DFTB TDM)
+    real(dp), allocatable :: tiMatPT(:,:)
+
+    !> Singular values from corresponding orbital transform (Delta DFTB TDM)
+    real(dp), allocatable :: tiSigma(:)
+
+    !> Ground state determinant filling (Delta DFTB TDM) 
+    real(dp), allocatable :: gfilling(:,:,:)
+
+    !> Mixed state determinant filling (Delta DFTB TDM) 
+    real(dp), allocatable :: mfilling(:,:,:)
+
+    !> Transition charges for Delta DFTB TDM
+    real(dp), allocatable :: tiTraCharges(:,:)
+
     !> Data type for REKS
     type(TReksCalc), allocatable :: reks
 
@@ -1914,9 +1938,15 @@ contains
       call error("Custom occupation not compatible with linear response")
     end if
 
+    if (input%ctrl%isTDM .and. this%boundaryCond%iBoundaryCondition/=boundaryConditions%cluster)&
+        & then
+      @:RAISE_ERROR(errStatus, -1, "Transition dipole moments only available for molecular&
+          & systems")
+    end if
     ! DFTB related variables if multiple determinants are used
     call TDftbDeterminants_init(this%deltaDftb, input%ctrl%isNonAufbau, input%ctrl%isSpinPurify,&
-        & input%ctrl%isGroundGuess, this%nEl, this%dftbEnergy)
+        & input%ctrl%isGroundGuess, input%ctrl%isTDM, this%nEl, this%dftbEnergy, errStatus)
+    if (errStatus%hasError()) call error(errStatus%message)
 
     if (this%tForces) then
       this%tCasidaForces = input%ctrl%tCasidaForces
@@ -2729,6 +2759,14 @@ contains
   #:endif
 
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
+
+  #:if WITH_SCALAPACK
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
+  #:else
+    nLocalRows = this%denseDesc%fullSize
+    nLocalCols = this%denseDesc%fullSize
+  #:endif
 
     if (areNeighboursSymmetric) then
       allocate(this%symNeighbourList)
@@ -3853,6 +3891,9 @@ contains
     end if
     if (this%deltaDftb%isNonAufbau .and. this%tLocalise) then
       call error("Delta DFTB incompatible with localisation")
+    end if
+    if ((.not. this%deltaDftb%isGroundGuess) .and. this%deltaDftb%isTDM) then
+      call error("Delta DFTB transition dipole moment requires ground state guess")
     end if
 
     if (this%tSpinOrbit .and. allocated(this%dftbU) .and. .not. this%tDualSpinOrbit)  then
@@ -5278,6 +5319,9 @@ contains
 
     !> Size descriptors for MPI parallel execution
     integer, intent(in) :: nLocalRows, nLocalCols
+    integer :: sqrHamSize
+
+    sqrHamSize = this%denseDesc%fullSize
 
     this%nDets = this%deltaDftb%nDeterminant()
     if (this%nDets > 1) then
@@ -5292,6 +5336,18 @@ contains
         allocate(this%deltaRhoDets(nLocalRows, nLocalCols, this%nIndepSpin, this%nDets),&
             & source=0.0_dp)
       end if
+    end if
+
+    !> Initialize storage for TI-DFTB TDMs
+    if (this%deltaDftb%isTDM) then
+      allocate(this%transitionDipoleMoment(3), source=0.0_dp)
+      allocate(this%tiMatG(nLocalRows,nLocalCols,this%nSpin), source=0.0_dp)
+      allocate(this%tiMatE(nLocalRows,nLocalCols,this%nSpin), source=0.0_dp)
+      allocate(this%tiMatPT(nLocalRows,nLocalCols), source=0.0_dp)
+      allocate(this%tiSigma(nLocalRows), source=0.0_dp)
+      allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom), source=0.0_dp)
     end if
 
   end subroutine initDetArrays
