@@ -8,9 +8,9 @@
 #:include "fortuno_serial.fypp"
 
 module test_mixer_broyden
+  use fortuno_serial, only : all_close, suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_mixer_broydenmixer, only : TBroydenMixerInp, TBroydenMixerReal, TBroydenMixerReal_init
-  use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

@@ -10,85 +10,85 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
-  use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
-  use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
-  use dftbp_common_file, only : openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
+  use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc, minTemp, sc
+  use dftbp_common_constants, only : Bohr__AA, boltzmann, maxL, pi, shellNames, symbolToNumber
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
+  use dftbp_common_globalenv, only : abortProgram, stdout, withMpi, withScalapack
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
-  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
-      & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits, angularUnits
-  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getD3Radius, cnType
+  use dftbp_common_unitconversion, only : angularUnits, chargeUnits, dipoleUnits, EFieldUnits,&
+      & energyUnits, forceUnits, freqUnits, lengthUnits, massUnits, pressureUnits, timeUnits,&
+      & VelocityUnits, volumeUnits
+  use dftbp_dftb_coordnumber, only : cnType, getD3Radius, getElectronegativity, TCNInput
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
-  use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
-      & TSimpleDftD3Input, TDispDftD4Inp, getUffValues
+  use dftbp_dftb_dispersions, only : getUffValues, TDispDftD4Inp, TDispersionInp, TDispSlaKirkInp,&
+      & TDispUffInp, TSimpleDftD3Input
+  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
-      & getCellTranslations, updateNeighbourList
-  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcAlgo, hybridXcGammaTypes,&
-      & checkSupercellFoldingMatrix, hybridXcFunc
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo, hybridXcFunc,&
+      & hybridXcGammaTypes, THybridXcSKTag
+  use dftbp_dftb_nonscc, only : diffTypes
+  use dftbp_dftb_periodic, only : getCellTranslations, getSuperSampling, TNeighbourList,&
+      & TNeighbourlist_init, updateNeighbourList
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
-  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
-  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
-  use dftbp_dftb_slakocont, only : init, addTable
-  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRep, TPolyRepInp
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRep, TSplineRepInp
+  use dftbp_dftb_slakocont, only : addTable, init
+  use dftbp_dftb_slakoeqgrid, only : init, skEqGridNew, skEqGridOld, TSlakoEqGrid
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
+  use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
+  use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData, TSlater
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
-  use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo
-  use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
+  use dftbp_extlibs_poisson, only : TPoissonInfo, withPoisson
+  use dftbp_extlibs_sdftd3, only : dampingFunction, TSDFTD3Input
   use dftbp_extlibs_tblite, only : tbliteMethod
-  use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
-      & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNode, destroyNodeList, fnode,&
+      & fnodeList, getItem1, getLength, getNodeName, removeChild, string, textNodeName
   use dftbp_geoopt_geoopt, only : geoOptTypes
-  use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
-  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
-      & getChildren, getSelectedAtomIndices, setChild, setChildValue
-  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, setUnprocessed, splitModifier,&
-      & renameChildren
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedAtomIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, renameChildren, setUnprocessed,&
+      & splitModifier
   use dftbp_io_message, only : error, warning
-  use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
+  use dftbp_math_simplealgebra, only : cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
-  use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
-  use dftbp_solvation_solvparser, only : readSolvation, readCM5
+  use dftbp_solvation_solvparser, only : readCM5, readSolvation
   use dftbp_timedep_linresptypes, only : linRespSolverTypes
-  use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
+  use dftbp_timedep_timeprop, only : envTypes, pertTypes, tdSpinTypes, TElecDynamicsInp
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
-      & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, parseHybridXcTag
+  use dftbp_type_linkedlist, only : append, asArray, asVector, destruct, get, init, intoArray, len,&
+      & TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1, TListRealR2, TListString
+  use dftbp_type_oldskdata, only : parseHybridXcTag, readFromFile, TOldSKData
   use dftbp_type_orbitals, only : getShellnames
-  use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
-  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
-      & readTGeometryVasp, readTGeometryLammps
+  use dftbp_type_typegeometry, only : reduce, setLattice, TGeometry
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryLammps,&
+      & readTGeometryVasp, readTGeometryXyz
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_MBD
-  use dftbp_dftb_dispmbd, only :TDispMbdInp
+  use dftbp_dftb_dispmbd, only : TDispMbdInp
 #:endif
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
-      & ContactInfo
+  use dftbp_transport_negfvars, only : ContactInfo, TElPh, TNEGFGreenDensInfo, TNEGFTunDos,&
+      & TTransPar
 #:endif
   implicit none
 

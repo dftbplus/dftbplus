@@ -8,8 +8,8 @@
 !> FIRE optimiser
 module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
+  use dftbp_io_message, only : error
   implicit none
 
   private

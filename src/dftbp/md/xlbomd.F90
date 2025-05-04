@@ -12,7 +12,7 @@
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_md_xlbomd
   use dftbp_common_accuracy, only : dp
-  use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
+  use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangian_init, ExtLagrangianInp
   implicit none
 
   private

@@ -13,15 +13,15 @@ module dftbp_dftb_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
-  use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
-      & TDftD4Calculator_init, TDftD4Ref_init
+  use dftbp_dftb_coordnumber, only : init_ => init, TCNCont
+  use dftbp_dftb_dftd4param, only : TDftD4Calc, TDftD4Calculator_init, TDftD4Ref, TDftD4Ref_init,&
+      & TDispDftD4Inp
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_encharges, only : TEeqCont, init_ => init
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_encharges, only : init_ => init, TEeqCont
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals

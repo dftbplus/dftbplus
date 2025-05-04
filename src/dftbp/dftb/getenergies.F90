@@ -17,11 +17,11 @@ module dftbp_dftb_getenergies
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : getEons
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder
@@ -32,7 +32,7 @@ module dftbp_dftb_getenergies
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
 #:if WITH_MBD
-  use dftbp_dftb_dispmbd, only: TDispMbd
+  use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
   implicit none
 

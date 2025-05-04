@@ -9,8 +9,8 @@
 
 !> File system utilities
 module dftbp_common_filesystem
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, string
   use dftbp_io_charmanip, only : endsWith
-  use dftbp_extlibs_xmlf90, only : string, char, assignment(=)
   implicit none
   private
 

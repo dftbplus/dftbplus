@@ -13,8 +13,8 @@
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
-  use dftbp_common_accuracy, only : dp, rsp, rdp
-  use dftbp_extlibs_blas, only : ssyr, cher, zher, sspmv, dspmv
+  use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_extlibs_blas, only : cher, dspmv, sspmv, ssyr, zher
   implicit none
 
   private

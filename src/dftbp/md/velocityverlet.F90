@@ -11,7 +11,7 @@
 module dftbp_md_velocityverlet
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
-  use dftbp_md_thermostat, only : TThermostat, state, init, updateVelocities, getInitVelocities
+  use dftbp_md_thermostat, only : getInitVelocities, init, state, TThermostat, updateVelocities
   implicit none
 
   private

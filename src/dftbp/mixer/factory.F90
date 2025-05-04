@@ -9,15 +9,15 @@
 #:set FLAVOURS = [('real', 'real', 'Real'),('cmplx', 'complex', 'Cmplx')]
 module dftbp_mixer_factory
   use dftbp_io_message, only : error
-  use dftbp_mixer_andersonmixer, only : TAndersonMixerCmplx, TAndersonMixerCmplx_init, &
+  use dftbp_mixer_andersonmixer, only : TAndersonMixerCmplx, TAndersonMixerCmplx_init,&
       & TAndersonMixerInp, TAndersonMixerReal, TAndersonMixerReal_init
-  use dftbp_mixer_broydenmixer, only : TBroydenMixerCmplx, TBroydenMixerCmplx_init, &
+  use dftbp_mixer_broydenmixer, only : TBroydenMixerCmplx, TBroydenMixerCmplx_init,&
       & TBroydenMixerInp, TBroydenMixerReal, TBroydenMixerReal_init
-  use dftbp_mixer_diismixer, only : TDiisMixerCmplx, TDiisMixerCmplx_init, &
-      & TDiisMixerInp, TDiisMixerReal, TDiisMixerReal_init
+  use dftbp_mixer_diismixer, only : TDiisMixerCmplx, TDiisMixerCmplx_init, TDiisMixerInp,&
+      & TDiisMixerReal, TDiisMixerReal_init
   use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
-  use dftbp_mixer_simplemixer, only : TSimpleMixerCmplx, TSimpleMixerCmplx_init, &
-      & TSimpleMixerInp, TSimpleMixerReal, TSimpleMixerReal_init
+  use dftbp_mixer_simplemixer, only : TSimpleMixerCmplx, TSimpleMixerCmplx_init, TSimpleMixerInp,&
+      & TSimpleMixerReal, TSimpleMixerReal_init
 
   implicit none
   private

@@ -14,18 +14,18 @@ module dftbp_dftbplus_eigenvects
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_extlibs_elsiiface, only : elsi_write_mat_complex, elsi_finalize_rw, elsi_ev_complex,&
-      & elsi_ev_real, elsi_write_mat_real
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver
+  use dftbp_extlibs_elsiiface, only : elsi_ev_complex, elsi_ev_real, elsi_finalize_rw,&
+      & elsi_write_mat_complex, elsi_write_mat_real
   use dftbp_io_message, only : cleanShutdown
   use dftbp_math_eigensolver, only : hegv, hegvd, hegvr
 #:if WITH_MAGMA
   use dftbp_math_eigensolver, only : magmaHegvd
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, MB_, NB_, scalafx_phegv,&
-      & scalafx_phegvd, scalafx_phegvr, scalafx_psygv, scalafx_psygvd, scalafx_psygvr,&
-      & scalafx_indxl2g
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, scalafx_indxl2g,&
+      & scalafx_phegv, scalafx_phegvd, scalafx_phegvr, scalafx_psygv, scalafx_psygvd,&
+      & scalafx_psygvr
 #:endif
   implicit none
 

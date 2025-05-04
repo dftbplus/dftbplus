@@ -18,7 +18,7 @@ module dftbp_dftb_hamiltonian
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : addShift, totalShift, addOnSiteShift, addAtomicMultipoleShift
+  use dftbp_dftb_shift, only : addAtomicMultipoleShift, addOnSiteShift, addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_thirdorder, only : TThirdOrder

@@ -21,9 +21,9 @@ module dftbp_math_matrixops
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_lapackroutines, only : gesvd, getrf, getri, hetrf, hetri, sytrf, sytri
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : DLEN_, CSRC_, RSRC_, M_, N_, MB_, NB_, blacsgrid,&
-      & pblasfx_ptranc, pblasfx_ptran, scalafx_pgetrf, scalafx_indxl2g, scalafx_islocal
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_comm
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, CSRC_, DLEN_, M_, MB_, N_, NB_, pblasfx_ptran,&
+      & pblasfx_ptranc, RSRC_, scalafx_indxl2g, scalafx_islocal, scalafx_pgetrf
 #:endif
 
   implicit none

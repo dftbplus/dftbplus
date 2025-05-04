@@ -9,30 +9,29 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_solvation_solvparser
-  use, intrinsic :: ieee_arithmetic, only : ieee_support_inf, ieee_value, ieee_positive_inf
+  use, intrinsic :: ieee_arithmetic, only : ieee_positive_inf, ieee_support_inf, ieee_value
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicrad, only : getAtomicRad
-  use dftbp_common_constants, only : Boltzmann, amu__au, kg__au, AA__Bohr
+  use dftbp_common_constants, only : AA__Bohr, amu__au, Boltzmann, kg__au
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, massUnits, &
-      & massDensityUnits, inverseLengthUnits
+  use dftbp_common_unitconversion, only : energyUnits, inverseLengthUnits, lengthUnits,&
+      & massDensityUnits, massUnits
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_extlibs_lebedev, only : gridSize
-  use dftbp_extlibs_xmlf90, only : fnode, string, char, getNodeName
+  use dftbp_extlibs_xmlf90, only : char, fnode, getNodeName, string
   use dftbp_io_charmanip, only : tolower, unquote
-  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, &
-      & detailedWarning
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue, setChild
   use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_math_bisect, only : bisection
-  use dftbp_solvation_born, only : TGBInput, fgbKernel
+  use dftbp_solvation_born, only : fgbKernel, TGBInput
   use dftbp_solvation_cm5, only : TCM5Input
   use dftbp_solvation_cosmo, only : TCosmoInput, TDomainDecompositionInput
   use dftbp_solvation_gbsafile, only : readParamGBSA
   use dftbp_solvation_sasa, only : TSASAInput
-  use dftbp_solvation_solvdata, only : getVanDerWaalsRadiusD3, getVanDerWaalsRadiusCosmo, &
-      & getVanDerWaalsRadiusBondi
-  use dftbp_solvation_solventdata, only : TSolventData, SolventFromName
+  use dftbp_solvation_solvdata, only : getVanDerWaalsRadiusBondi, getVanDerWaalsRadiusCosmo,&
+      & getVanDerWaalsRadiusD3
+  use dftbp_solvation_solventdata, only : SolventFromName, TSolventData
   use dftbp_solvation_solvinput, only : TSolvationInp
   use dftbp_type_typegeometry, only : TGeometry
   implicit none

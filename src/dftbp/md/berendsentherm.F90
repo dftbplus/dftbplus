@@ -16,7 +16,7 @@ module dftbp_md_berendsentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
-  use dftbp_md_mdcommon, only : TMDCommon, evalkT, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_md_mdcommon, only : evalkT, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   implicit none
 

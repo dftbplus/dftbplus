@@ -14,10 +14,10 @@
 !! F. J., Frauenheim, T., & Sánchez, C. G.  Journal of Chemical Theory and Computation (2020)
 !! https://doi.org/10.1021/acs.jctc.9b01217
 module dftbp_timedep_timeprop
-  use dftbp_common_accuracy, only : dp, sc, lc, mc
-  use dftbp_common_constants, only : au__fs, pi, Bohr__AA, imag, Hartree__eV
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
+  use dftbp_common_accuracy, only : dp, lc, mc, sc
+  use dftbp_common_constants, only : au__fs, Bohr__AA, Hartree__eV, imag, pi
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr, TOpenOptions
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
@@ -29,29 +29,29 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_forces, only : derivative_shift
-  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
-  use dftbp_dftb_hamiltonian, only : TRefExtPot, resetExternalPotentials, resetInternalPotentials,&
-      & addBlockChargePotentials, addChargePotentials, getSccHamiltonian
+  use dftbp_dftb_getenergies, only : calcDispersionEnergy, calcEnergies, sumEnergies
+  use dftbp_dftb_hamiltonian, only : addBlockChargePotentials, addChargePotentials,&
+      & getSccHamiltonian, resetExternalPotentials, resetInternalPotentials, TRefExtPot
   use dftbp_dftb_hybridxc, only : THybridXcFunc
-  use dftbp_dftb_nonscc, only : TNonSccDiff, buildH0, buildS
+  use dftbp_dftb_nonscc, only : buildH0, buildS, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : addOnsShift
-  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, updateNeighbourListAndSpecies,&
-      & getNrOfNeighboursForAll
-  use dftbp_dftb_populations, only :  getChargePerShell, denseSubtractDensityOfAtomsCmplxNonperiodic
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList, TSymNeighbourList,&
+      & updateNeighbourListAndSpecies
+  use dftbp_dftb_populations, only : denseSubtractDensityOfAtomsCmplxNonperiodic, getChargePerShell
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : totalShift
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : packHS, unpackHS, unpackDQ, getSparseDescriptor
-  use dftbp_dftb_spin, only : ud2qm, qm2ud
+  use dftbp_dftb_sparse2dense, only : getSparseDescriptor, packHS, unpackDQ, unpackHS
+  use dftbp_dftb_spin, only : qm2ud, ud2qm
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_io_message, only : warning
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : gesv
   use dftbp_math_matrixops, only : adjointLowerTriangle
@@ -59,14 +59,14 @@ module dftbp_timedep_timeprop
   use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_md_dummytherm, only : TDummyThermostat
   use dftbp_md_mdcommon, only : TMDCommon
-  use dftbp_md_mdintegrator, only : TMDIntegrator, reset, init, state, next
+  use dftbp_md_mdintegrator, only : init, next, reset, state, TMDIntegrator
   use dftbp_md_thermostat, only : TThermostat
   use dftbp_md_velocityverlet, only : TVelocityVerlet
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_timedep_dynamicsrestart, only : writeRestartFile, readRestartFile
-  use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_timedep_dynamicsrestart, only : readRestartFile, writeRestartFile
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_eleccutoffs, only : TCutoffs
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole, TMultipole_init

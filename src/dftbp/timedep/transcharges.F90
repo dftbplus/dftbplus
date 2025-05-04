@@ -10,15 +10,14 @@
 !> Helper routines for transition charges between levels.
 module dftbp_timedep_transcharges
   use dftbp_common_accuracy, only : dp
-  use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_common_environment, only : TEnvironment
   use dftbp_io_message, only : error
+  use dftbp_type_densedescr, only : TDenseDescr
 
 #:if WITH_SCALAPACK
-
-  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, MB_, RSRC_, scalafx_indxl2g
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : pblasfx_pgemm
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, pblasfx_pgemm, RSRC_,&
+      & scalafx_indxl2g
 
 #:endif
 

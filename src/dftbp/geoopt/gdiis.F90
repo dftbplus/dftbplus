@@ -10,7 +10,7 @@
 !> Contains a geometry DIIS optimizer interface.
 module dftbp_geoopt_gdiis
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerInp
+  use dftbp_mixer_diismixer, only : TDiisMixerInp, TDiisMixerReal, TDiisMixerReal_init
   implicit none
 
   private

@@ -13,9 +13,10 @@ module dftbp_solvation_solvinput
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_io_message, only : error
-  use dftbp_solvation_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, writeGeneralizedBornInfo
-  use dftbp_solvation_cosmo, only : TCosmo, TCosmoInput, TCosmo_init, writeCosmoInfo
-  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
+  use dftbp_solvation_born, only : TGBInput, TGeneralizedBorn, TGeneralizedBorn_init,&
+      & writeGeneralizedBornInfo
+  use dftbp_solvation_cosmo, only : TCosmo, TCosmo_init, TCosmoInput, writeCosmoInfo
+  use dftbp_solvation_sasa, only : TSASACont, TSASACont_init, TSASAInput, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
   implicit none
 

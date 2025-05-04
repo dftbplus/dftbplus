@@ -16,11 +16,11 @@
 module dftbp_reks_reksio
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : au__Debye
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only: stdOut
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
-  use dftbp_reks_rekscommon, only : getTwoIndices, getSpaceSym
-  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
+  use dftbp_reks_rekscommon, only : getSpaceSym, getTwoIndices
+  use dftbp_reks_reksvar, only : reksTypes, TReksCalc
 
   implicit none
 

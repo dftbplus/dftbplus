@@ -8,11 +8,11 @@
 #:include "fortuno_serial.fypp"
 
 module test_dftb_periodic
-  use dftbp_common_accuracy, only : dp, minNeighDist
-  use dftbp_dftb_periodic, only : distributeAtoms, reallocateArrays2, allocateNeighbourArrays,&
-      & fillNeighbourArrays, TNeighbourList, updateNeighbourList, TNeighbourlist_init
-  use dftbp_common_status, only : TStatus
   use fortuno_serial, only : suite => serial_suite_item, test_list
+  use dftbp_common_accuracy, only : dp, minNeighDist
+  use dftbp_common_status, only : TStatus
+  use dftbp_dftb_periodic, only : allocateNeighbourArrays, distributeAtoms, fillNeighbourArrays,&
+      & reallocateArrays2, TNeighbourList, TNeighbourlist_init, updateNeighbourList
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

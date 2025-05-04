@@ -10,7 +10,7 @@
 module dftbp_dftbplus_transportio
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
+  use dftbp_common_file, only : closeFile, fileExists, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_orbitals, only : TOrbitals

@@ -13,15 +13,14 @@
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
-  use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
-      & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
-      & normalize, append_to_string, destroyNodeList, removeAttribute, getItem1, getFirstChild,&
-      & getNextSibling
-  use dftbp_io_charmanip, only : newline, tolower, i2c
-  use dftbp_io_hsdparser, only : attrName, attrModifier
-  use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
-      & appendPathAndLine
+  use dftbp_common_unitconversion, only : convertUnit, unitConvStat => statusCodes, TUnit
+  use dftbp_extlibs_xmlf90, only : append_to_string, assignment(=), char, destroyNodeList, fnode,&
+      & fnodeList, getAttribute, getFirstChild, getItem1, getLength, getNextSibling, item, len,&
+      & normalize, parsefile, removeAttribute, setAttribute, setTagName, string, trim
+  use dftbp_io_charmanip, only : i2c, newline, tolower
+  use dftbp_io_hsdparser, only : attrModifier, attrName
+  use dftbp_io_hsdutils, only : appendPathAndLine, attrProcessed, detailedError, getChild,&
+      & setChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : getChildrenByName, getTagsWithoutAttribute, removeNodes,&
       & removeSpace

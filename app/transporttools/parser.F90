@@ -9,28 +9,28 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module transporttools_parser
-  use dftbp_common_accuracy, only : dp, mc, lc, distFudge, distFudgeOld
+  use transporttools_helpsetupgeom, only : setupGeometry
+  use transporttools_inputdata, only : TInputData
+  use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc
   use dftbp_common_constants, only : Bohr__AA
   use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_common_unitconversion, only : lengthUnits
   use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld
   use dftbp_dftbplus_oldcompat, only : convertOldHsd
-  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, assignment(=), getLength,&
-      & getNodeName, getItem1, destroyNode, destroyNodeList
-  use dftbp_io_charmanip, only : newline, unquote, i2c, tolower
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
-  use dftbp_io_hsdutils, only : getChild, getChildren, getChildValue, getSelectedAtomIndices,&
-      & detailedError, detailedWarning
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNode, destroyNodeList, fnode,&
+      & fNodeList, getItem1, getLength, getNodeName, string
+  use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
+  use dftbp_io_hsdparser, only : dumpHSD, getNodeHSDName, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes
   use dftbp_io_message, only : error, warning
-  use dftbp_transport_negfvars, only : TTransPar, ContactInfo
-  use dftbp_type_linkedlist, only : TListReal, TListString, TListCharLc, init, destruct, len, get,&
-      & append, asArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile
-  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHsd
+  use dftbp_transport_negfvars, only : ContactInfo, TTransPar
+  use dftbp_type_linkedlist, only : append, asArray, destruct, get, init, len, TListCharLc,&
+      & TListReal, TListString
+  use dftbp_type_oldskdata, only : readFromFile, TOldSKData
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  use transporttools_helpsetupgeom, only :setupGeometry
-  use transporttools_inputdata, only : TInputData
   implicit none
 
   private

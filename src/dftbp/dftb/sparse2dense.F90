@@ -12,7 +12,7 @@
 !>
 module dftbp_dftb_sparse2dense
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, imag
+  use dftbp_common_constants, only : imag, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dense, only : getDescriptor
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -23,7 +23,7 @@ module dftbp_dftb_sparse2dense
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv
-  use dftbp_extlibs_scalapackfx, only : scalafx_cpg2l, scalafx_addl2g
+  use dftbp_extlibs_scalapackfx, only : scalafx_addl2g, scalafx_cpg2l
 #:endif
   implicit none
 

@@ -9,21 +9,21 @@
 module dftbp_type_typegeometryhsd
   use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_common_atomicmass, only : getAtomicSymbol
-  use dftbp_common_constants, only : AA__Bohr, Bohr__AA, pi, avogadConst
+  use dftbp_common_constants, only : AA__Bohr, avogadConst, Bohr__AA, pi
   use dftbp_common_globalenv, only : stdout
-  use dftbp_common_unitconversion, only : lengthUnits, angularUnits
-  use dftbp_extlibs_xmlf90, only : fnode, flib_normalize => normalize, xmlf_t, string, char,&
-      & getNodeType, getNodeValue, TEXT_NODE
+  use dftbp_common_unitconversion, only : angularUnits, lengthUnits
+  use dftbp_extlibs_xmlf90, only : char, fnode, getNodeType, getNodeValue,&
+      & flib_normalize => normalize, string, TEXT_NODE, xmlf_t
   use dftbp_io_charmanip, only : i2c, tolower
-  use dftbp_io_hsdutils, only : getChildValue, setChildValue, detailedWarning, detailedError,&
-      & checkError, getFirstTextChild, writeChildValue
-  use dftbp_io_hsdutils2, only : splitModifier, convertUnitHsd
+  use dftbp_io_hsdutils, only : checkError, detailedError, detailedWarning, getChildValue,&
+      & getFirstTextChild, setChildValue, writeChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, splitModifier
   use dftbp_io_message, only : error
-  use dftbp_io_tokenreader, only : TOKEN_OK, TOKEN_ERROR, getNextToken
-  use dftbp_math_simplealgebra, only : invert33, determinant33
-  use dftbp_type_linkedlist, only : TListString, TListRealR1, TListIntR1, len, find, append, init,&
-      & destruct, asArray
-  use dftbp_type_typegeometry, only : TGeometry, normalize, reduce, setlattice
+  use dftbp_io_tokenreader, only : getNextToken, TOKEN_ERROR, TOKEN_OK
+  use dftbp_math_simplealgebra, only : determinant33, invert33
+  use dftbp_type_linkedlist, only : append, asArray, destruct, find, init, len, TListIntR1,&
+      & TListRealR1, TListString
+  use dftbp_type_typegeometry, only : normalize, reduce, setlattice, TGeometry
   implicit none
 
   private

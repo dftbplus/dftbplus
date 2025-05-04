@@ -11,8 +11,8 @@
 !> To do: extend to other populations than Mulliken
 module dftbp_dftb_populations
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -21,8 +21,8 @@ module dftbp_dftb_populations
   use dftbp_type_integral, only : TIntegral
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
-  use dftbp_extlibs_scalapackfx, only : DLEN_, NB_, CSRC_, scalafx_indxl2g,&
-      & scalafx_getdescriptor, scalafx_addl2g, scalafx_addg2l
+  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, NB_, scalafx_addg2l, scalafx_addl2g,&
+      & scalafx_getdescriptor, scalafx_indxl2g
   use dftbp_math_bisect, only : bisection
 #:endif
   implicit none

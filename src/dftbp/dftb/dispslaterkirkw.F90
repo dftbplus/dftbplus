@@ -26,12 +26,12 @@ module dftbp_dftb_dispslaterkirkw
   use dftbp_common_accuracy, only : dp, tolDispDamp, tolDispersion
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_dispcommon, only : getOptimalEta, getMaxGDispersion, getMaxRDispersion,&
-      &addDispEGr_per_atom
+  use dftbp_dftb_dispcommon, only : addDispEGr_per_atom, getMaxGDispersion, getMaxRDispersion,&
+      & getOptimalEta
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_dftb_periodic, only : getLatticePoints, getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
 

@@ -16,15 +16,15 @@
 #:include "error.fypp"
 
 module dftbp_poisson_parcheck
-  use dftbp_common_constants, only : hartree__eV, Bohr__AA
+  use dftbp_common_constants, only : Bohr__AA, hartree__eV
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : warning
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
-  use dftbp_poisson_parameters, only : cluster, DoGate, gatedir, ncdim, ncont, verbose, localBC,&
-      & mixed, overrideBC, contdir, contnames, iatc, dr_cont, poissbox, iatm, mu, poissBC, Efermi,&
-      & Rmin_ins, Rmin_gate, dr_eps, GateLength_l, deltaR_max, DoCilGate, DoPoisson, eps_r, gate, &
-      & GateLength_t, initPot, OxLength, PoissAcc, foundbox
-  use dftbp_poisson_structure, only : natoms, x, boxsiz, period, period_dir
+  use dftbp_poisson_parameters, only : cluster, contdir, contnames, deltaR_max, DoCilGate, DoGate,&
+      & DoPoisson, dr_cont, dr_eps, Efermi, eps_r, foundbox, gate, gatedir, GateLength_l,&
+      & GateLength_t, iatc, iatm, initPot, localBC, mixed, mu, ncdim, ncont, overrideBC, OxLength,&
+      & PoissAcc, poissBC, poissbox, Rmin_gate, Rmin_ins, verbose
+  use dftbp_poisson_structure, only : boxsiz, natoms, period, period_dir, x
 
   implicit none
 

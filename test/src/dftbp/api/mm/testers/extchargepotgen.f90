@@ -7,8 +7,8 @@
 
 !> Dummy generator for an external potential given by surrounding point charges
 module extchargepotgen
-  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   use extchargepot, only : getPointChargePotential
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   implicit none
   private
 

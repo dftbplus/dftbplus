@@ -23,7 +23,7 @@ module dftbp_common_schedule
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_allgatherv
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allgatherv, mpifx_allreduceip
 #:endif
   implicit none
 

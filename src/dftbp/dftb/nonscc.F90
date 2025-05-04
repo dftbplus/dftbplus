@@ -12,9 +12,9 @@
 module dftbp_dftb_nonscc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_dftb_sk, only : rotateH0
-  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_dftb_slakocont, only : getMIntegrals, getSKIntegrals, TSlakoCont
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   implicit none

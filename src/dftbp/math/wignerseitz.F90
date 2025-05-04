@@ -10,11 +10,10 @@
 
 !> Contains routines related to Wigner-Seitz cells.
 module dftbp_math_wignerseitz
-
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_dftb_periodic, only : frac2cart
   use dftbp_common_matrixappend, only : appendToArray1d_real, appendToArray2d_int
+  use dftbp_dftb_periodic, only : frac2cart
+  use dftbp_math_sorting, only : index_heap_sort
 
   implicit none
   private

@@ -14,13 +14,13 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumber,&
+  use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&
       & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_timedep_timeprop, only : initializeDynamics, finalizeDynamics, doTdStep
+  use dftbp_timedep_timeprop, only : doTdStep, finalizeDynamics, initializeDynamics
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs

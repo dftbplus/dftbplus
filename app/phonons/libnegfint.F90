@@ -31,14 +31,11 @@ module phonons_libnegfint
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_extlibs_negf, only : associate_ldos, associate_lead_currents, associate_transmission,&
-      & COMP_SGF, compute_phonon_current, convertHeatConductance, convertHeatCurrent,&
-      & create, csr2dns, DELTA_MINGO, DELTA_SQ, DELTA_W, destroy, &
-      & destroy_negf, dns2csr, get_params, init_contacts, init_ldos, init_negf,&
-      & init_structure, kb, lnParams, nzdrop, pass_hs, printcsr, &
-      & set_drop, &
-      & set_ldos_indexes, set_params,  set_scratch,&
-      & set_tun_indexes, thermal_conductance, Tnegf, units, writememinfo, writepeakinfo, z_CSR,&
-      & z_DNS
+      & COMP_SGF, compute_phonon_current, convertHeatConductance, convertHeatCurrent, create,&
+      & csr2dns, DELTA_MINGO, DELTA_SQ, DELTA_W, destroy, destroy_negf, dns2csr, get_params,&
+      & init_contacts, init_ldos, init_negf, init_structure, kb, lnParams, nzdrop, pass_hs,&
+      & printcsr, set_drop, set_ldos_indexes, set_params, set_scratch, set_tun_indexes,&
+      & thermal_conductance, Tnegf, units, writememinfo, writepeakinfo, z_CSR, z_DNS
   use dftbp_io_message, only : error
   use dftbp_transport_matconv, only : destruct
   use dftbp_transport_negfvars, only : TNEGFTunDos, TTranspar

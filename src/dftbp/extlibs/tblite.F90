@@ -26,10 +26,10 @@
 !> in the standard sorting, *i.e.* [-l, ..., 0, ..., l].
 module dftbp_extlibs_tblite
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_dftb_charges, only : getSummedCharges
+  use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemv
@@ -38,24 +38,23 @@ module dftbp_extlibs_tblite
   use dftbp_type_integral, only : TIntegral
 #:if WITH_TBLITE
   use mctc_env, only : error_type
-  use mctc_io, only : structure_type, new
+  use mctc_io, only : new, structure_type
   use mctc_io_symbols, only : symbol_length
-  use tblite_basis_type, only : get_cutoff, basis_type
-  use tblite_context_type, only : context_type
+  use tblite_basis_type, only : basis_type, get_cutoff
   use tblite_container, only : container_cache
+  use tblite_context_type, only : context_type
   use tblite_cutoff, only : get_lattice_points
-  use tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
+  use tblite_integral_multipole, only : maxl, msao, multipole_cgto, multipole_grad_cgto
   use tblite_param, only : param_record
-  use tblite_scf_info, only : scf_info, atom_resolved, shell_resolved, orbital_resolved,&
-      & not_used
-  use tblite_scf_potential, only : potential_type, new_potential
+  use tblite_scf_info, only : atom_resolved, not_used, orbital_resolved, scf_info, shell_resolved
+  use tblite_scf_potential, only : new_potential, potential_type
   use tblite_version, only : get_tblite_version
-  use tblite_wavefunction_type, only : wavefunction_type, new_wavefunction
-  use tblite_xtb_calculator, only : xtb_calculator, new_xtb_calculator
+  use tblite_wavefunction_type, only : new_wavefunction, wavefunction_type
+  use tblite_xtb_calculator, only : new_xtb_calculator, xtb_calculator
   use tblite_xtb_gfn1, only : new_gfn1_calculator
   use tblite_xtb_gfn2, only : new_gfn2_calculator
-  use tblite_xtb_h0, only : get_selfenergy, get_hamiltonian, get_occupation,&
-      & get_hamiltonian_gradient, tb_hamiltonian
+  use tblite_xtb_h0, only : get_hamiltonian, get_hamiltonian_gradient, get_occupation,&
+      & get_selfenergy, tb_hamiltonian
   use tblite_xtb_ipea1, only : new_ipea1_calculator
   use tblite_xtb_singlepoint, only : xtb_singlepoint
 #:endif

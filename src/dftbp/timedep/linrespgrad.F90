@@ -12,41 +12,39 @@
 !! Note: This module is NOT instance safe it uses a common block to communicate with ARPACK
 module dftbp_timedep_linrespgrad
   use dftbp_common_accuracy, only : dp, elecTolMax, lc, rsp
-  use dftbp_common_constants, only : Hartree__eV, au__Debye, cExchange
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_io_commonformats, only : format2U
+  use dftbp_common_constants, only : au__Debye, cExchange, Hartree__eV
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_file, only : clearFile, closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, clearFile
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
+  use dftbp_dftb_hybridxc, only : getDirectionalCamGammaPrimeValue, THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_hybridxc, only : THybridXcFunc, getDirectionalCamGammaPrimeValue
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime
   use dftbp_dftb_sk, only : rotateH0
-  use dftbp_dftb_slakocont, only : TSlakoCont, getMIntegrals, getSKIntegrals
+  use dftbp_dftb_slakocont, only : getMIntegrals, getSKIntegrals, TSlakoCont
   use dftbp_extlibs_arpack, only : psaupd, pseupd, saupd, seupd, withArpack
+  use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : error
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : gemm, hemv, symm
   use dftbp_math_degeneracy, only : TDegeneracyFind
   use dftbp_math_eigensolver, only : heev
-  use dftbp_math_matrixops, only : makeSimilarityTrans, orthonormalizeVectors, calcMatrixSqrt
+  use dftbp_math_matrixops, only : calcMatrixSqrt, makeSimilarityTrans, orthonormalizeVectors
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
-  use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
-      & oscillatorStrength, indxov, rindxov_array,&
-      & getSPExcitations, calcTransitionDipoles, dipselect, transitionDipole, writeSPExcitations,&
-      & getExcSpin, writeExcMulliken, actionAplusB, actionAminusB, initialSubSpaceMatrixApmB,&
-      & incMemStratmann, getSqrOcc
-  use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes, TCasidaParameter,&
-      & TCasidaParameter_init
-  use dftbp_timedep_transcharges, only : TTransCharges, transq, TTransCharges_init
+  use dftbp_timedep_linrespcommon, only : actionAminusB, actionAplusB, calcTransitionDipoles,&
+      & dipselect, excitedDipoleOut, excitedQOut, getExcSpin, getSPExcitations, getSqrOcc,&
+      & incMemStratmann, indxov, initialSubSpaceMatrixApmB, oscillatorStrength, rindxov_array,&
+      & transitionDipole, twothird, writeExcMulliken, writeSPExcitations
+  use dftbp_timedep_linresptypes, only : linrespSolverTypes, TCasidaParameter,&
+      & TCasidaParameter_init, TLinResp
+  use dftbp_timedep_transcharges, only : transq, TTransCharges, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment, globalTimers
 
 #:if WITH_SCALAPACK
-
-  use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
   use dftbp_extlibs_mpifx, only : mpifx_bcast
+  use dftbp_extlibs_scalapackfx, only : pblasfx_psymm
 
 #:endif
 

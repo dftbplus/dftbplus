@@ -10,7 +10,7 @@
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
 module dftbp_dftb_periodic
-  use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, minNeighDist2
+  use dftbp_common_accuracy, only : dp, minNeighDist2, tolSameDist, tolSameDist2
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_memman, only : incrmntOfArray, TAlignedArray
@@ -18,8 +18,8 @@ module dftbp_dftb_periodic
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : zAxis
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_win, mpifx_allreduceip, mpifx_allgather, MPI_MAX, MPI_LOR,&
-      & MPIFX_SIZE_T
+  use dftbp_extlibs_mpifx, only : MPI_LOR, MPI_MAX, mpifx_allgather, mpifx_allreduceip,&
+      & MPIFX_SIZE_T, mpifx_win
 #:endif
   use dftbp_io_message, only : error, warning
   use dftbp_math_bisect, only : bisection
@@ -27,7 +27,7 @@ module dftbp_dftb_periodic
   use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
-  use dftbp_type_linkedlist, only : TListRealR1, len, init, append, asArray, destruct
+  use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListRealR1
 
   implicit none
   private

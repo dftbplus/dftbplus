@@ -12,17 +12,17 @@ module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_derivs_perturb, only : TPerturbInp
-  use dftbp_dftb_elecconstraints, only : TElecConstraintInp
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
+  use dftbp_dftb_elecconstraints, only : TElecConstraintInp
   use dftbp_dftb_elstatpot, only : TElStatPotentialsInp
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TElecFieldInput
   use dftbp_dftb_h5correction, only : TH5CorrectionInput
-  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
-  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
   use dftbp_dftb_potentials, only : TAtomExtPotInput
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
+  use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
@@ -30,6 +30,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_md_mdcommon, only : TMDOutput
   use dftbp_md_xlbomd, only : TXLBOMDInp
+  use dftbp_mixer_factory, only : TMixerInput
   use dftbp_reks_reks, only : TReksInp
   use dftbp_solvation_cm5, only : TCM5Input
   use dftbp_solvation_solvinput, only : TSolvationInp
@@ -37,15 +38,14 @@ module dftbp_dftbplus_inputdata
   use dftbp_timedep_pprpa, only : TppRPAcal
   use dftbp_timedep_timeprop, only : TElecDynamicsInp
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_linkedlist, only : TListIntR1, destruct
+  use dftbp_type_linkedlist, only : destruct, TListIntR1
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1
-  use dftbp_mixer_factory, only: TMixerInput
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IpiSocketCommInp
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TNEGFTunDos, TNEGFGreenDensInfo, TTransPar
+  use dftbp_transport_negfvars, only : TNEGFGreenDensInfo, TNEGFTunDos, TTransPar
 #:endif
   implicit none
 
