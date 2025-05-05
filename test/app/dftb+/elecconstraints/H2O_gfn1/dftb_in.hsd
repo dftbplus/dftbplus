@@ -20,7 +20,7 @@ Hamiltonian = xtb {
       }
       MullikenPopulation {
         Atoms = 2
-        TotalPopulation = 1.0
+        Populations = 1.0
       }
     }
     ConstrTolerance = 1.0E-8

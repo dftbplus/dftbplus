@@ -39,7 +39,6 @@ Hamiltonian = DFTB {
     MaxConstrIterations = 100
     ConvergentConstrOnly = Yes
   }
-
 }
 
 Options {

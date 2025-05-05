@@ -36,7 +36,7 @@ Hamiltonian = DFTB {
       }
       MullikenPopulation {
         Atoms = 2
-        TotalPopulation = 1.0
+        Populations = 1.0
       }
     }
     Optimiser = SteepestDescent {ScalingFactor = 0.15}

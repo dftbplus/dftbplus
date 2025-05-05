@@ -37,7 +37,7 @@ Hamiltonian = DFTB {
       Constraints {
         MullikenPopulation {
           Atoms = 1
-          TotalPopulation = 7.5
+          Populations = 7.5
         }
       }
       ConstrTolerance = 1.0E-08

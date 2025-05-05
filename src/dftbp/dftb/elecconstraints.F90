@@ -5,31 +5,48 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "common.fypp"
+
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
   use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_extlibs_xmlf90, only : fnode, string, char, getLength, getItem1, fnodeList
-  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal1, TWrappedReal2
+  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal2
   use dftbp_geoopt_package, only : TOptimizer, TOptimizerInput, createOptimizer
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
       & getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : renameChildren
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
   use dftbp_extlibs_xmlf90, only : destroyNodeList
-  implicit none
+  implicit none (type, external)
 
   private
-  public :: TElecConstraint, TElecConstraint_init, TElecConstraintInput
+  public :: TElecConstraint, TElecConstraint_init, TElecConstraintInp
   public :: readElecConstraintInput
 
 
+  !> Represents the input for a single Mulliken population constraint
+  type TMullikenConstrInp
+
+    !> Atoms the constraint applies to
+    integer, allocatable :: atoms(:)
+
+    !> Target population (either single value = total or as as many as atoms = individual)
+    real(dp), allocatable :: populations(:)
+
+    !> Spin channel factors (1.0 for channels included in population calculations, 0.0 for rest)
+    real(dp), allocatable :: spinChannelFactors(:)
+
+  end type TMullikenConstrInp
+
+
   !> Contains input data for electronic constraints.
-  type TElecConstraintInput
+  type TElecConstraintInp
 
     !> Input for Mulliken population constraints
-    type(TMullikenConstrInput), allocatable :: mullikenConstrs(:)
+    type(TMullikenConstrInp), allocatable :: mullikenConstrs(:)
 
     !> Optimiser input choice
     class(TOptimizerInput), allocatable :: optimiser
@@ -41,42 +58,20 @@ module dftbp_dftb_elecconstraints
     integer :: nConstrIter
 
     !> True, if converged micro-iterations are required
-    logical :: isConstrConvRequired
+    logical :: isConvRequired
 
-  end type TElecConstraintInput
-
-
-  !> Represents the input for a Mulliken population constraint
-  type TMullikenConstrInput
-
-    !> Atoms the constraints applies to
-    integer, allocatable :: atoms(:)
-
-    !> Target population (either single value = total or as as many as atoms = individual)
-    real(dp), allocatable :: populations(:)
-
-    !> Spin channel factors (1.0 for channels included in population calculations, 0.0 for rest)
-    real(dp), allocatable :: spinChannelFactors(:)
-
-  end type TMullikenConstrInput
+  end type TElecConstraintInp
 
 
-  !> Represents electronic constraints.
-  type TElecConstraint
+  !> Collects data to apply all Mulliken constraints.
+  type TMullikenConstr
+    private
 
-    !> Value of the constraint
+    !> Number of constraints
+    integer :: nConstr
+
+    !> Target value of the constraints
     real(dp), allocatable :: Nc(:)
-
-    !> Potential
-    real(dp), allocatable :: Vc(:)
-
-    !> Contribution to free energy functional from constraint
-    real(dp), allocatable :: deltaW(:)
-
-    !> Derivative of energy functional with respect to Vc
-    real(dp), allocatable :: dWdVc(:)
-
-    ! Weighting function for constraint
 
     !> Atom(s) involved in each constraint
     type(TWrappedInt1), allocatable :: wAt(:)
@@ -84,21 +79,54 @@ module dftbp_dftb_elecconstraints
     !> Atomic orbital(s) involved in each constraint
     type(TWrappedInt1), allocatable :: wAtOrb(:)
 
-    !> Atomic orbital qm-values  involved in each constraint
+    !> Atomic orbital qm-values involved in each constraint
     !> ([q] for spin unpolarized case, [q, m] for colinear spin)
     type(TWrappedReal2), allocatable :: wAtSpin(:)
+
+  contains
+
+    !> Calculates Mulliken population constraints
+    procedure :: getEnergyAndPot => TMullikenConstr_getEnergyAndPot
+
+    !> Adds shift to Mulliken population constraints
+    procedure :: addShift => TMullikenConstr_addShift
+
+    !> Get nr. of constraints
+    procedure :: getNConstr => TMullikenConstr_getNConstr
+
+  end type TMullikenConstr
+
+
+  !> Represents electronic constraints.
+  type TElecConstraint
+    private
 
     !> General optimiser
     class(TOptimizer), allocatable :: optimizer
 
+    !> True, if converged micro-iterations are required
+    logical :: isConvRequired = .false.
+
+    !> Mulliken population constraints
+    type(TMullikenConstr) :: mullikenConstr
+
+    !> Number of constraints
+    integer :: nConstr = 0
+
+    !> Potential created by the constraints
+    real(dp), allocatable :: Vc(:)
+
+    !> Contribution to free energy functional from constraints
+    real(dp), allocatable :: deltaW(:)
+
+    !> Derivative of energy functional with respect to Vc
+    real(dp), allocatable :: dWdVc(:)
+
     !> Derivative tolerance for constraint
-    real(dp) :: constrTol
+    real(dp) :: constrTol = 0.0_dp
 
     !> Number of iterations for enforcing constraint
-    integer :: nConstrIter
-
-    !> True, if converged micro-iterations are required
-    logical :: isConstrConvRequired
+    integer :: nConstrIter = 0
 
   contains
 
@@ -114,25 +142,31 @@ module dftbp_dftb_elecconstraints
     !> Free energy (W) for system in constraining potential(s)
     procedure :: getFreeEnergy => TElecConstraint_getFreeEnergy
 
-    !> Maximum component of free energyt derivative wrt. constraint potential(s)
+    !> Maximum component of free energy derivative wrt. constraint potential(s)
     procedure :: getMaxEnergyDerivWrtVc => TElecConstraint_getMaxEnergyDerivWrtVc
+
+    !> Reset optimizer
+    procedure :: resetOptimizer => TElecConstraint_resetOptimizer
+
+    !> Whether constraints require converged micro-iterations
+    procedure :: requiresConvergence => TElecConstraint_requiresConvergence
 
   end type TElecConstraint
 
 contains
 
 
-  !> General entry point to read the constraint(s) on the electronic ground state.
-  subroutine readElecConstraintInput(node, geo, input, isSpinPol, is2Component)
+  !> Reads electronic constraint input from HSD.
+  subroutine readElecConstraintInput(node, geo, isSpinPol, is2Component, input)
 
-    !> Node to get the information from
+    !> Input structure to be filled
+    type(TElecConstraintInp), intent(out) :: input
+
+        !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
 
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
-
-    !> Control structure to be filled
-    type(TElecConstraintInput), intent(out) :: input
 
     !> True, if this is a spin polarized calculation
     logical, intent(in) :: isSpinPol
@@ -148,14 +182,84 @@ contains
 
     call getChildValue(node, "ConstrTolerance", input%constrTol, 1.0e-08_dp)
     call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
-    call getChildValue(node, "ConvergentConstrOnly", input%isConstrConvRequired, .true.)
+    call getChildValue(node, "ConvergentConstrOnly", input%isConvRequired, .true.)
 
     call getChildValue(node, "Constraints", dummyNode, "", child=constrContainer,&
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
-    call readMullikenConstraints_(constrContainer, geo, isSpinPol, is2Component,&
+    call readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component,&
         & input%mullikenConstrs)
 
   end subroutine readElecConstraintInput
+
+
+  !> Reads Mulliken constraint inputs from HSD.
+  subroutine readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component, inputs)
+
+    !> Node containing all constraints
+    type(fnode), pointer, intent(in) :: constrContainer
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> True, if this is a spin polarized calculation
+    logical, intent(in) :: isSpinPol
+
+
+
+    !> Is this a calculation with Pauli wavefunctions
+    logical, intent(in) :: is2Component
+
+    !> Array of input structures (depending on number of Mulliken constraints defined)
+    type(TMullikenConstrInp), allocatable, intent(out) :: inputs(:)
+
+    type(fnodeList), pointer :: constrNodes
+    type(fnode), pointer :: constrNode, child1, totalPopNode, populationsNode
+    type(string) :: buffer
+    real(dp) :: rTmp
+    integer :: iConstrInp, nConstrInp
+
+    call getChildren(constrContainer, "MullikenPopulation", constrNodes)
+    if (.not. associated(constrNodes)) return
+
+    nConstrInp = getLength(constrNodes)
+    allocate(inputs(nConstrInp))
+
+    do iConstrInp = 1, nConstrInp
+      associate(input => inputs(iConstrInp))
+        call getItem1(constrNodes, iConstrInp, constrNode)
+        call getChildValue(constrNode, "Atoms", buffer, child=child1, multiple=.true.)
+        call getSelectedAtomIndices(child1, char(buffer), geo%speciesNames, geo%species,&
+            & input%atoms)
+        call getChild(constrNode, "TotalPopulation", totalPopNode, requested=.false.)
+        call getChild(constrNode, "Populations", populationsNode, requested=.false.)
+        if (associated(totalPopNode) .and. .not. associated(populationsNode)) then
+          call getChildValue(totalPopNode, "", rTmp)
+          input%populations = [rTmp]
+        else if (associated(populationsNode) .and. .not. associated(totalPopNode)) then
+          allocate(input%populations(size(input%atoms)))
+          call getChildValue(populationsNode, "", input%populations)
+        else
+          call detailedError(constrNode, "You must specify exactly one from the options&
+              & TotalPopulations and Populations")
+        end if
+
+        ! Functionality currently restricted to charge channel only
+        if (isSpinPol) then
+          ! [q, m] representation
+          if (is2Component) then
+            input%spinChannelFactors = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
+          else
+            input%spinChannelFactors = [1.0_dp, 0.0_dp]
+          end if
+        else
+          input%spinChannelFactors = [1.0_dp]
+        end if
+      end associate
+    end do
+
+    call destroyNodeList(constrNodes)
+
+  end subroutine readMullikenConstraintInputs
 
 
   !> Initialises the constraints structure.
@@ -165,30 +269,28 @@ contains
     type(TElecConstraint), intent(out) :: this
 
     !> Input data structure
-    type(TElecConstraintInput), intent(inout) :: input
+    type(TElecConstraintInp), intent(inout) :: input
 
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    integer :: iConstr, nConstr, ii, jj, iAt, nOrb, nSpin
-
-    call initMullikenConstraints_(input%mullikenConstrs, orb, this%Nc, this%wAt, this%wAtOrb,&
-        & this%wAtSpin)
-    nConstr = size(this%Nc)
+    call TMullikenConstr_init(this%mullikenConstr, input%mullikenConstrs, orb)
+    ! Currently we only support Mulliken constraints
+    this%nConstr = this%mullikenConstr%getNConstr()
 
     ! We should enable optional initialization of Vc from input at some point.
-    allocate(this%Vc(nConstr), source=0.0_dp)
-    allocate(this%dWdVc(nConstr), source=0.0_dp)
-    allocate(this%deltaW(nConstr), source=0.0_dp)
+    allocate(this%Vc(this%nConstr), source=0.0_dp)
+    allocate(this%dWdVc(this%nConstr), source=0.0_dp)
+    allocate(this%deltaW(this%nConstr), source=0.0_dp)
 
-    call createOptimizer(input%optimiser, nConstr, this%optimizer)
+    call createOptimizer(input%optimiser, this%nConstr, this%optimizer)
 
     if (input%nConstrIter == -1) then
       this%nConstrIter = huge(1)
     else
       this%nConstrIter = input%nConstrIter
     end if
-    this%isConstrConvRequired = input%isConstrConvRequired
+    this%isConvRequired = input%isConvRequired
     this%constrTol = input%constrTol
 
 
@@ -261,14 +363,7 @@ contains
     ! Potential displacement proposed by optimizer
     real(dp) :: potDisplace(size(this%Vc))
 
-    integer :: iConstr, nConstr
-
-    nConstr = size(this%wAt)
-    do iConstr = 1, nConstr
-      call getConstraintEnergyAndPotQ_(this%Vc(iConstr), this%Nc(iConstr), this%wAt(iConstr)%data,&
-          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data, qq, this%deltaW(iConstr),&
-          & this%dWdVc(iConstr))
-    end do
+    call this%mullikenConstr%getEnergyAndPot(this%Vc, qq, this%deltaW, this%dWdVc)
 
     ! Sum up all free energy contributions
     deltaWTotal = this%getFreeEnergy()
@@ -295,83 +390,42 @@ contains
     !> Total shift of all constraints
     real(dp), intent(out) :: shift(:,:,:,:)
 
-    integer :: iConstr, nConstr
-
     shift(:,:,:,:) = 0.0_dp
-    nConstr = size(this%wAt)
-    do iConstr = 1, nConstr
-      call addConstraintsShiftQ_(shift, this%Vc(iConstr), this%wAt(iConstr)%data,&
-          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data)
-    end do
+    call this%mullikenConstr%addShift(this%Vc(1:this%nConstr), shift)
 
   end subroutine TElecConstraint_getConstraintShift
 
 
-  !> Reads Mulliken constraint inputs from HSD.
-  subroutine readMullikenConstraints_(constrContainer, geo, isSpinPol, is2Component, inputs)
-    type(fnode), pointer, intent(in) :: constrContainer
-    type(TGeometry), intent(in) :: geo
-    logical, intent(in) :: isSpinPol, is2Component
-    type(TMullikenConstrInput), allocatable, intent(out) :: inputs(:)
+  !> Resets the optimizer.
+  subroutine TElecConstraint_resetOptimizer(this)
 
-    type(fnodeList), pointer :: constrNodes
-    type(fnode), pointer :: constrNode, child1, totalPopNode, populationsNode
-    type(string) :: buffer
-    real(dp) :: rTmp
-    integer :: iConstrInp, nConstrInp
+    !> Class instance
+    class(TElecConstraint), intent(inout) :: this
 
-    call getChildren(constrContainer, "MullikenPopulation", constrNodes)
-    if (.not. associated(constrNodes)) return
+    call this%optimizer%reset()
 
-    nConstrInp = getLength(constrNodes)
-    allocate(inputs(nConstrInp))
-
-    do iConstrInp = 1, nConstrInp
-      associate(input => inputs(iConstrInp))
-        call getItem1(constrNodes, iConstrInp, constrNode)
-        call getChildValue(constrNode, "Atoms", buffer, child=child1, multiple=.true.)
-        call getSelectedAtomIndices(child1, char(buffer), geo%speciesNames, geo%species,&
-            & input%atoms)
-        call getChild(constrNode, "TotalPopulation", totalPopNode, requested=.false.)
-        call getChild(constrNode, "Populations", populationsNode, requested=.false.)
-        if (associated(totalPopNode) .and. .not. associated(populationsNode)) then
-          call getChildValue(totalPopNode, "", rTmp)
-          input%populations = [rTmp]
-        else if (associated(populationsNode) .and. .not. associated(totalPopNode)) then
-          allocate(input%populations(size(input%atoms)))
-          call getChildValue(populationsNode, "", input%populations)
-        else
-          call detailedError(constrNode, "You must specify exactly one from the options&
-              & TotalPopulations and Populations")
-        end if
-
-        ! Functionality currently restricted to charge channel only
-        if (isSpinPol) then
-          ! [q, m] representation
-          if (is2Component) then
-            input%spinChannelFactors = [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
-          else
-            input%spinChannelFactors = [1.0_dp, 0.0_dp]
-          end if
-        else
-          input%spinChannelFactors = [1.0_dp]
-        end if
-      end associate
-    end do
-
-    call destroyNodeList(constrNodes)
-
-  end subroutine readMullikenConstraints_
+  end subroutine TElecConstraint_resetOptimizer
 
 
-  !> Initializes contraint helper arrays from Mulliken constraints.
-  subroutine initMullikenConstraints_(inputs, orb, Nc, wAt, wAtOrb, wAtSpin)
-    type(TMullikenConstrInput), intent(in) :: inputs(:)
+  !> Whether constraints require converged micro-iterations.
+  pure function TElecConstraint_requiresConvergence(this) result(reqConv)
+
+    !> Class instance
+    class(TElecConstraint), intent(in) :: this
+
+    !> True, if converged micro-iterations are required
+    logical :: reqConv
+
+    reqConv = this%isConvRequired
+
+  end function TElecConstraint_requiresConvergence
+
+
+  !> Initializes constraint helper arrays from Mulliken constraints.
+  subroutine TMullikenConstr_init(this, inputs, orb)
+    type(TMullikenConstr), intent(out) :: this
+    type(TMullikenConstrInp), intent(in) :: inputs(:)
     type(TOrbitals), intent(in) :: orb
-    real(dp), allocatable, intent(out) :: Nc(:)
-    type(TWrappedInt1), allocatable, intent(out) :: wAt(:)
-    type(TWrappedInt1), allocatable, intent(out) :: wAtOrb(:)
-    type(TWrappedReal2), allocatable, intent(out) :: wAtSpin(:)
 
     integer, allocatable :: atoms(:)
     integer :: nConstrInputs, nAllConstr, nTargetVal, nOrb, nOrbAtom, nSpin
@@ -384,10 +438,10 @@ contains
       nAllConstr = nAllConstr + size(inputs(iConstrInp)%populations)
     end do
 
-    allocate(Nc(nAllConstr))
-    allocate(wAt(nAllConstr))
-    allocate(wAtOrb(nAllConstr))
-    allocate(wAtSpin(nAllConstr))
+    allocate(this%Nc(nAllConstr))
+    allocate(this%wAt(nAllConstr))
+    allocate(this%wAtOrb(nAllConstr))
+    allocate(this%wAtSpin(nAllConstr))
 
     ! Allocate + initialize arrays and build index mappings
     iConstrGlobal = 0
@@ -405,20 +459,20 @@ contains
             atoms = [input%atoms(iTargetVal)]
           end if
           nOrb = sum(orb%nOrbAtom(atoms))
-          allocate(wAt(iConstrGlobal)%data(nOrb), source=0)
-          allocate(wAtOrb(iConstrGlobal)%data(nOrb), source=0)
+          allocate(this%wAt(iConstrGlobal)%data(nOrb), source=0)
+          allocate(this%wAtOrb(iConstrGlobal)%data(nOrb), source=0)
           nSpin = size(input%spinChannelFactors)
-          allocate(wAtSpin(iConstrGlobal)%data(nOrb, nSpin), source=0.0_dp)
+          allocate(this%wAtSpin(iConstrGlobal)%data(nOrb, nSpin), source=0.0_dp)
 
-          Nc(iConstrGlobal) = input%populations(iTargetVal)
+          this%Nc(iConstrGlobal) = input%populations(iTargetVal)
           nOrb = 0
           do ii = 1, size(atoms)
             iAt = atoms(ii)
             nOrbAtom = orb%nOrbAtom(iAt)
             do iOrb = 1, nOrbAtom
-              wAt(iConstrGlobal)%data(nOrb + iOrb) = iAt
-              wAtOrb(iConstrGlobal)%data(nOrb + iOrb) = iOrb
-              wAtSpin(iConstrGlobal)%data(nOrb + iOrb, :) = input%spinChannelFactors
+              this%wAt(iConstrGlobal)%data(nOrb + iOrb) = iAt
+              this%wAtOrb(iConstrGlobal)%data(nOrb + iOrb) = iOrb
+              this%wAtSpin(iConstrGlobal)%data(nOrb + iOrb, :) = input%spinChannelFactors
             end do
             nOrb = nOrb + nOrbAtom
           end do
@@ -426,7 +480,80 @@ contains
       end associate
     end do
 
-  end subroutine initMullikenConstraints_
+    this%nConstr = nAllConstr
+
+  end subroutine TMullikenConstr_init
+
+
+  !> Calculate Mulliken population constraints.
+  subroutine TMullikenConstr_getEnergyAndPot(this, Vc, qq, deltaW, dWdV)
+
+    !> Class instance
+    class(TMullikenConstr), intent(in) :: this
+
+    !> Constraint potential
+    real(dp), intent(in) :: Vc(:)
+
+    !> Mulliken populations
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Contribution to free energy functional from constraints
+    real(dp), intent(out) :: deltaW(:)
+
+    !> Derivative of energy functional with respect to Vc
+    real(dp), intent(out) :: dWdV(:)
+
+    integer :: iConstr
+
+    @:ASSERT(size(Vc) == this%nConstr)
+    @:ASSERT(size(deltaW) == this%nConstr)
+    @:ASSERT(size(dWdV) == this%nConstr)
+
+    do iConstr = 1, this%nConstr
+      call getConstraintEnergyAndPotQ_(Vc(iConstr), this%Nc(iConstr), this%wAt(iConstr)%data,&
+          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data, qq, deltaW(iConstr),&
+          & dWdV(iConstr))
+    end do
+
+  end subroutine TMullikenConstr_getEnergyAndPot
+
+
+  !> Add shift to Mulliken population constraints.
+  subroutine TMullikenConstr_addShift(this, Vc, shift)
+
+    !> Class instance
+    class(TMullikenConstr), intent(in) :: this
+
+    !> Constraint potential
+    real(dp), intent(in) :: Vc(:)
+
+    !> Shift to be updated
+    real(dp), intent(inout) :: shift(:,:,:,:)
+
+    integer :: iConstr
+
+    @:ASSERT(size(Vc) == this%nConstr)
+
+    do iConstr = 1, this%nConstr
+      call addConstraintsShiftQ_(shift, Vc(iConstr), this%wAt(iConstr)%data,&
+          & this%wAtOrb(iConstr)%data, this%wAtSpin(iConstr)%data)
+    end do
+
+  end subroutine TMullikenConstr_addShift
+
+
+  !> Returns number of constraints.
+  function TMullikenConstr_getNConstr(this) result(nConstr)
+
+    !> Class instance
+    class(TMullikenConstr), intent(in) :: this
+
+    !> Number of constraints
+    integer :: nConstr
+
+    nConstr = this%nConstr
+
+  end function TMullikenConstr_getNConstr
 
 
   !> Calculate artificial potential to realize constraint(s) on atomic charge.

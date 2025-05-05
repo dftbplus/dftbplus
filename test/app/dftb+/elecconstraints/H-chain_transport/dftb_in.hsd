@@ -53,7 +53,7 @@ Hamiltonian = Dftb {
       Constraints {
         MullikenPopulation {
           Atoms = 6
-          TotalPopulation = 0.5
+          Populations = 0.5
         }
         MullikenPopulation {
           Atoms = 1:11

@@ -65,7 +65,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
-  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInput
+  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInp
   use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, THybridXcInp, TControl, TBlacsOpts
@@ -5732,7 +5732,7 @@ contains
     class(TDftbPlusMain), intent(inout) :: this
 
     !> Input parameters for electronic constraints
-    type(TElecConstraintInput), intent(in) :: elecConstraintInp
+    type(TElecConstraintInp), intent(in) :: elecConstraintInp
 
     if (.not. this%tSccCalc) then
       call error("Electronically constrained calculations do not yet support non-SCC calculations.")
