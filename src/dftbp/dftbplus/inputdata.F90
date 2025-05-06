@@ -24,6 +24,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_dftb_pmlocalisation, only : TPipekMezeyInp
   use dftbp_dftb_potentials, only : TAtomExtPotInput
   use dftbp_dftb_slakocont, only : TSlakoCont
+  use dftbp_dftb_mdftb, only : TMdftbAtomicIntegrals
   use dftbp_dftbplus_input_geoopt, only : TGeoOptInput
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolverInp
   use dftbp_extlibs_poisson, only : TPoissonInfo
@@ -541,6 +542,10 @@ module dftbp_dftbplus_inputdata
 
     !> Hybrid xc-functional input
     type(THybridXcInp), allocatable :: hybridXcInp
+
+    !> Multipole expansion
+    logical :: isMdftb = .false.
+    type(TMdftbAtomicIntegrals), allocatable :: mdftbAtomicIntegrals
 
   #:if WITH_SOCKETS
     !> Socket communication
