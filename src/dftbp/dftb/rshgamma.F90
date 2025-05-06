@@ -23,7 +23,7 @@ module dftbp_dftb_rshgamma
   public :: getCamAnalyticalGammaValue_workhorse
   public :: getHfAnalyticalGammaValue_workhorse, getdHfAnalyticalGammaValue_workhorse
   public :: getLrAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse
-  public :: getddLrNumericalGammaValue_workhorse
+  public :: getddLrNumericalGammaValue_workhorse, getddHfAnalyticalGammaValue_workhorse
 
 
 contains
@@ -363,6 +363,56 @@ contains
   end function getdHfAnalyticalGammaValue_workhorse
 
 
+  !> Returns analytical second derivative of full-range Hartree-Fock gamma.
+  function getddHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(ddGamma)
+
+    !> Hubbard U's
+    real(dp), intent(in) :: hubbu1, hubbu2
+
+    !> Distance between atoms
+    real(dp), intent(in) :: dist
+
+    !> Resulting d^2 gamma / d dist^2
+    real(dp) :: ddGamma
+
+    real(dp) :: tauA, tauB
+    real(dp) :: ddTmp
+
+    tauA = 3.2_dp * hubbu1
+    tauB = 3.2_dp * hubbu2
+
+    if (dist < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist < tolSameDist) then
+      ! on-site case
+      ddGamma = 0.0_dp
+    else
+      ! off-site case, Ua == Ub
+      if (abs(tauA - tauB) < MinHubDiff) then
+        tauA = 0.5_dp * (tauA + tauB)
+
+        ddTmp = &
+            & (2.0_dp*tauA**3/48.0_dp + 2.0_dp/dist**3 - tauA*(2.0_dp*dist*tauA**3/48.0_dp&
+            & + 0.1875_dp*tauA**2 - 1.0_dp/dist**2)) * exp(-tauA*dist)&
+            & +(dist**2*tauA**3/48.0_dp + 0.1875_dp*dist*tauA**2 + 0.6875_dp*tauA + 1.0_dp/dist)&
+            & *tauA**2*exp(-tauA*dist)&
+            & -(2*dist*tauA**3/48.0_dp +0.1875_dp*tauA**2 -1.0_dp/dist**2)*tauA*exp(-tauA*dist)
+
+        ddGamma = 2.0_dp / dist**3 - ddtmp
+
+      ! off-site, Ua != Ub
+      else
+        ddGamma = 2.0_dp / (dist**3)&
+            & - getddYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
+            & - getddYGammaSubPart(tauB, tauA, dist, 0.0_dp)
+      end if
+    end if
+
+  end function getddHfAnalyticalGammaValue_workhorse
+
+
   !> Returns 1st analytical derivative of long-range gamma.
   function getdLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(dGamma)
 
@@ -530,5 +580,40 @@ contains
     dYGammaSubPart = (dtmp - tmp2 * tauA) * exp(-tauA * dist)
 
   end function getdYGammaSubPart
+
+
+  !> Returns the second derivative of the subexpression for the evaluation of the off-site
+  !! Y-Gamma-integral. Note that tauA /= tauB.
+  pure function getddYGammaSubPart(tauA, tauB, R, omega) result(ddYGammaSubPart)
+
+    !> Decay constant site A
+    real(dp), intent(in) :: tauA
+
+    !> Decay constant site B
+    real(dp), intent(in) :: tauB
+
+    !> Separation of the sites A and B
+    real(dp), intent(in) :: R
+
+    !> Range-separation parameter
+    real(dp), intent(in) :: omega
+
+    !> Resulting second derivative of the subexpression
+    real(dp) :: ddYGammaSubPart
+
+    !! Auxiliary variables
+    real(dp) :: prefac, tmp, tmp2, dtmp, ddtmp, dtmp2
+
+    prefac = tauA * tauA / (tauA**2 - omega**2)
+    tmp = prefac * prefac / (tauA * tauA - tauB * tauB)**3
+    dtmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4)/R**2
+    ddtmp = -2.0_dp*tmp*(tauB**6 -3.0_dp*tauA*tauA*tauB**4 +2.0_dp*omega*omega*tauB**4)/R**3
+    tmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4) / R
+    tmp2 = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA )**2 - tmp
+    dtmp2 = tmp / R
+
+    ddYGammaSubPart = (ddtmp-dtmp2*tauA)*exp(-tauA*R) - (dtmp-tmp2*tauA)*tauA*exp(-tauA*R)
+
+  end function getddYGammaSubPart
 
 end module dftbp_dftb_rshgamma

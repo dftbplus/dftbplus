@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
 !> Contains an DIIS mixer
 !! The DIIS mixing is done by building a weighted combination over the previous input charges to
@@ -17,20 +18,35 @@
 module dftbp_mixer_diismixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
+  use dftbp_mixer_mixer, only: TMixerReal, TMixerCmplx
   implicit none
 
-#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
-
   private
-#:for NAME, TYPE, LABEL in FLAVOURS
-  public :: TDiisMixer${LABEL}$, TDiisMixer${LABEL}$_init, TDiisMixer${LABEL}$_reset
-  public :: TDiisMixer${LABEL}$_mix
-#:endfor
+
+  public :: TDiisMixerInp
+  public :: TDiisMixerReal, TDiisMixerReal_init
+  public :: TDiisMixerCmplx, TDiisMixerCmplx_init
+
+  type :: TDiisMixerInp
+    !> Nr. of generations (including actual) to consider
+    integer :: iGenerations = 0
+
+    !> Mixing parameter for the first iGenerations cycles
+    real(dp) :: initMixParam = 0.0_dp
+
+    !> True if using DIIS from iteration 2 as well as mixing
+    logical :: tFromStart = .true.
+
+    !> If > 0, fraction of extrapolated downhill direction to include in DIIS space
+    real(dp) :: alpha = 0.0_dp
+
+  end type TDiisMixerInp
 
 
 #:for NAME, TYPE, LABEL in FLAVOURS
+
   !> Contains the necessary data for an DIIS mixer.
-  type TDiisMixer${LABEL}$
+  type, extends (TMixer${LABEL}$) :: TDiisMixer${LABEL}$
     private
 
     !> Initial mixing parameter
@@ -66,6 +82,9 @@ module dftbp_mixer_diismixer
     !> Holds DIIS mixed gradients from older iterations for downhill direction
     ${TYPE}$(dp), allocatable :: deltaR(:)
 
+    contains
+      procedure :: reset => TDiisMixer${LABEL}$_reset
+      procedure :: mix1D => TDiisMixer${LABEL}$_mix
   end type TDiisMixer${LABEL}$
 #:endfor
 
@@ -73,43 +92,31 @@ module dftbp_mixer_diismixer
 contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
-  !> Creates a DIIS mixer instance.
-  subroutine TDiisMixer${LABEL}$_init(this, nGeneration, initMixParam, tFromStart, alpha)
+
+  !> Initializes a DIIS mixer instance.
+  subroutine TDiisMixer${LABEL}$_init(this, mixerInp)
 
     !> Pointer to an initialized DIIS mixer on exit
     type(TDiisMixer${LABEL}$), intent(out) :: this
 
-    !> Nr. of generations (including actual) to consider
-    integer, intent(in) :: nGeneration
+    !> TDiisMixer input structure
+    type(TDiisMixerInp), intent(in) :: mixerInp
 
-    !> Mixing parameter for the first nGeneration cycles
-    real(dp), intent(in) :: initMixParam
-
-    !> True if using DIIS from iteration 2 as well as mixing
-    logical, intent(in), optional :: tFromStart
-
-    !> If present, fraction of extrapolated downhill direction to include in DIIS space
-    real(dp), intent(in), optional :: alpha
-
-    @:ASSERT(nGeneration >= 2)
+    @:ASSERT(mixerInp%iGenerations >= 2)
 
     this%nElem = 0
-    this%mPrevVector = nGeneration
+    this%mPrevVector = mixerInp%iGenerations
 
     allocate(this%prevQInput(this%nElem, this%mPrevVector))
     allocate(this%prevQDiff(this%nElem, this%mPrevVector))
 
-    this%initMixParam = initMixParam
+    this%initMixParam = mixerInp%initMixParam
+    this%tFromStart = mixerInp%tFromStart
 
-    if (present(tFromStart)) then
-      this%tFromStart = tFromStart
-    else
-      this%tFromStart = .false.
-    end if
 
-    if (present(alpha)) then
+    if (mixerInp%alpha > 0.0_dp) then
       this%tAddIntrpGradient = .true.
-      this%alpha = alpha
+      this%alpha = mixerInp%alpha
       allocate(this%deltaR(this%nElem))
     else
       this%tAddIntrpGradient = .false.
@@ -126,7 +133,7 @@ contains
   subroutine TDiisMixer${LABEL}$_reset(this, nElem)
 
     !> DIIS mixer instance
-    type(TDiisMixer${LABEL}$), intent(inout) :: this
+    class(TDiisMixer${LABEL}$), intent(inout) :: this
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -162,7 +169,7 @@ contains
   subroutine TDiisMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> Pointer to the diis mixer
-    type(TDiisMixer${LABEL}$), intent(inout) :: this
+    class(TDiisMixer${LABEL}$), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
     ${TYPE}$(dp), intent(inout) :: qInpResult(:)
@@ -184,18 +191,6 @@ contains
         & this%mPrevVector)
 
     if (this%tFromStart .or. this%iPrevVector == this%mPrevVector) then
-
-      if (this%tAddIntrpGradient) then
-        ! old DIIS estimate for downhill direction points towards current downhill direction as well
-        ! as the actual vector, based on P. Briddon comments
-        if (abs(dot_product(this%deltaR, qDiff)) > 0.0_dp) then
-          ! mix in larger amounts of the gradient in future
-          this%alpha = 1.5_dp * this%alpha
-        else
-          ! points the other way, mix in less
-          this%alpha = 0.5 * this%alpha
-        end if
-      end if
 
       allocate(aa(this%iPrevVector + 1, this%iPrevVector + 1))
       allocate(bb(this%iPrevVector + 1, 1))
@@ -223,6 +218,16 @@ contains
       end do
 
       if (this%tAddIntrpGradient) then
+        ! old DIIS estimate for downhill direction points towards current downhill direction as well
+        ! as the actual vector, based on P. Briddon comments
+        if (abs(dot_product(this%deltaR, qDiff)) > 0.0_dp) then
+          ! mix in larger amounts of the gradient in future
+          this%alpha = 1.5_dp * this%alpha
+        else
+          ! points the other way, mix in less
+          this%alpha = 0.5 * this%alpha
+        end if
+
         ! add a fraction down the DIIS estimated gradient onto the new solution
         this%deltaR(:) = 0.0_dp
         do ii = 1, this%iPrevVector

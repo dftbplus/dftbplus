@@ -66,11 +66,9 @@ module dftbp_dftbplus_parser
       & renameChildren
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
-  use dftbp_mixer_mixer, only : mixerTypes
   use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
   use dftbp_solvation_solvparser, only : readSolvation, readCM5
@@ -1043,15 +1041,9 @@ contains
     end if
     call getChildValue(pRoot, 'PreSteps', input%nPreSteps, 0)
 
-    ! Since inverse Jacobian is not enabled, we can set FullSccSteps
-    ! to its minimal value (no averaging of inverse Jacobians is done)
-    !call getChildValue(child, 'FullSccSteps', input%nFullSccSteps, &
-    !    & input%nKappa + 1, child=child2)
+    ! Since support for inverse Jacobian has been removed, we can set FullSccSteps
+    ! to its minimal value (no averaging of inverse Jacobians is done anymore)
     input%nFullSccSteps = input%nKappa + 1
-    !if (input%nFullSccSteps < input%nKappa + 1) then
-    !  call detailedError(child2, 'Nr. of full SCC steps must be greater by&
-    !      & one than integration steps')
-    !end if
 
     if (tXlbomdFast) then
       call getChildValue(pRoot, 'TransientSteps', input%nTransientSteps, 10)
@@ -1065,15 +1057,6 @@ contains
             & (0.0, 1.0]')
       end if
 
-      !! Inverse Jacobian is experimental feature so far.
-      !call getChildValue(child, "UseJacobianKernel", &
-      !    & input%useInverseJacobian, .false.)
-      !if (input%useInverseJacobian) then
-      !  call getChildValue(child, "ReadJacobianKernel", &
-      !      & input%readInverseJacobian, .false.)
-      !end if
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     else
       input%nTransientSteps = 0
       call getChildValue(pRoot, 'MinSccIterations', input%minSCCIter, 1)
@@ -1083,8 +1066,6 @@ contains
       end if
       call getChildValue(pRoot, 'SccTolerance', input%sccTol, 1e-5_dp)
       input%scale = 1.0_dp
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     end if
 
   end subroutine readXlbomdOptions
@@ -1457,7 +1438,7 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
-    call parseHybridBlock(node, ctrl%hybridXcInp, geo, skFiles)
+    call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geo, skFiles)
 
     if (allocated(ctrl%hybridXcInp)) then
       ctrl%tSCC = .true.
@@ -4948,7 +4929,7 @@ contains
 
 #:endif
 
-  !> reads in value of temperature for MD with sanity checking of the input
+  !> reads in value of temperature for MD with correctness checking of the input
   subroutine readTemperature(node, ctrl)
 
     !> data to parse
@@ -4976,7 +4957,7 @@ contains
   end subroutine readTemperature
 
 
-  !> reads a temperature profile for MD with sanity checking of the input
+  !> reads a temperature profile for MD with correctness checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
 
     !> parser node containing the relevant part of the user input
@@ -5650,48 +5631,55 @@ contains
 
         case ("broyden")
 
-          ctrl%iMixSwitch = mixerTypes%broyden
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+          allocate(ctrl%mixerInp%broydenMixerInp)
+          associate (inp => ctrl%mixerInp%broydenMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.2_dp)
+            call getChildValue(value1, "InverseJacobiWeight", inp%omega0, 0.01_dp)
+            call getChildValue(value1, "MinimalWeight", inp%minWeight, 1.0_dp)
+            call getChildValue(value1, "MaximalWeight", inp%maxWeight, 1.0e5_dp)
+            call getChildValue(value1, "WeightFactor", inp%weightFac, 1.0e-2_dp)
+          end associate
 
         case ("anderson")
 
-          ctrl%iMixSwitch = mixerTypes%anderson
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-              & allowEmptyValue=.true.)
-          call getNodeName2(value2, buffer2)
-          if (char(buffer2) == "") then
-            ctrl%andersonNrDynMix = 0
-          else
-            call init(lr1)
-            call getChildValue(child, "", 2, lr1, child=child2)
-            if (len(lr1) < 1) then
-              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+          allocate(ctrl%mixerInp%andersonMixerInp)
+          associate (inp => ctrl%mixerInp%andersonMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 4)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.01_dp)
+            call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
+            call getNodeName2(value2, buffer2)
+            if (char(buffer2) == "") then
+              inp%nConvMixParam = 0
+            else
+              call init(lr1)
+              call getChildValue(child, "", 2, lr1, child=child2)
+              if (len(lr1) < 1) then
+                call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+              end if
+              inp%nConvMixParam = len(lr1)
+              allocate(inp%convMixParam(2, inp%nConvMixParam))
+              call asArray(lr1, inp%convMixParam)
+              call destruct(lr1)
             end if
-            ctrl%andersonNrDynMix = len(lr1)
-            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-            call asArray(lr1, ctrl%andersonDynMixParams)
-            call destruct(lr1)
-          end if
-          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+            call getChildValue(value1, "DiagonalRescaling", inp%omega0, 1.0e-2_dp)
+          end associate
 
         case ("simple")
 
-          ctrl%iMixSwitch = mixerTypes%simple
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+          allocate(ctrl%mixerInp%simpleMixerInp)
+          associate (inp => ctrl%mixerInp%simpleMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+          end associate
 
-        case("diis")
+        case ("diis")
 
-          ctrl%iMixSwitch = mixerTypes%diis
-          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+          allocate(ctrl%mixerInp%diisMixerInp)
+          associate (inp => ctrl%mixerInp%diisMixerInp)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.2_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 6)
+            call getChildValue(value1, "UseFromStart", inp%tFromStart, .true.)
+          end associate
 
         case default
 
@@ -6853,7 +6841,7 @@ contains
 
 
 #:if WITH_TRANSPORT
-  !> Sanity checking of atom ranges and returning contact vector and direction.
+  !> Correctness checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
 
@@ -6885,7 +6873,7 @@ contains
     logical :: mask(3)
     character(lc) :: errorStr
 
-    !! Sanity check for the atom ranges
+    !! Correctness check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
@@ -6933,7 +6921,7 @@ contains
     ! Determine to which axis the contact vector is parallel.
     mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
+      call warning("Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
       contactDir = 0
     else
       contactDir = findloc(mask, .true., 1)
@@ -7690,7 +7678,7 @@ contains
           if (input%transpar%contacts(ii)%dir.lt.1 .or. &
             &input%transpar%contacts(ii)%dir.gt.3 ) then
             call error("Contact " // i2c(ii) // " not parallel to any &
-              & coordinate axis is not compatible with Poisson solver")
+              & coordinate axis and is not compatible with Poisson solver")
           end if
         end do
       end if
@@ -8022,7 +8010,7 @@ contains
 
 
   !> Parses hybrid xc-functional input.
-  subroutine parseHybridBlock(node, input, geo, skFiles)
+  subroutine parseHybridBlock(node, input, ctrl, geo, skFiles)
 
     !> Node to parse
     type(fnode), intent(in), pointer :: node
@@ -8032,6 +8020,9 @@ contains
 
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
+
+    !> General control structure
+    type(TControl), intent(in) :: ctrl
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
@@ -8137,6 +8128,15 @@ contains
         call getNodeHSdName(screeningValue, buffer)
         call detailedError(screeningChild, "Invalid screening method '" // char(buffer) // "'")
       end select
+
+      if (ctrl%tSpinOrbit) then
+        call detailedError(hybridChild, "Spin-orbit coupling not currently supported for hybrids")
+      end if
+      if (ctrl%t2Component) then
+        if (input%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+          call detailedError(screeningChild, "MatrixBased screening required for noncollinear spin")
+        end if
+      end if
 
       ! Additional settings for periodic sytems
       ifPeriodic: if (geo%tPeriodic) then

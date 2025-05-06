@@ -94,11 +94,11 @@ module dftbp_dftbplus_initprogram
   use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
+  use dftbp_math_contactsymm, only : TEquivContactAtoms_init, TEquivContactAtoms
   use dftbp_math_duplicate, only : isRepeated
-  use dftbp_math_lapackroutines, only : matinv
   use dftbp_math_randomgenpool, only : TRandomGenPool, init
   use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_math_simplealgebra, only : determinant33, diagonal
+  use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
   use dftbp_md_andersentherm, only : TAndersenThermostat, init
   use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
   use dftbp_md_dummytherm, only : TDummyThermostat, init
@@ -109,16 +109,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_md_thermostat, only : TThermostat, init
   use dftbp_md_velocityverlet, only : TVelocityVerlet, init
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_mixer_andersonmixer, only : TAndersonMixerReal, TAndersonMixerReal_init,&
-      & TAndersonMixerCmplx, TAndersonMixerCmplx_init
-  use dftbp_mixer_broydenmixer, only : TBroydenMixerReal, TBroydenMixerReal_init,&
-      & TBroydenMixerCmplx, TBroydenMixerCmplx_init
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerCmplx,&
-      & TDiisMixerCmplx_init
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, mixerTypes, TMixerReal_init,&
-      & TMixerCmplx_init
-  use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
-      & TSimpleMixerCmplx_init
+  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx
+  use dftbp_mixer_factory, only: TMixerFactoryReal, TMixerFactoryCmplx
   use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
@@ -269,6 +261,9 @@ module dftbp_dftbplus_initprogram
 
     !> Index in cellVec for each atom
     integer, allocatable :: iCellVec(:)
+
+    !> Are neighbour lists set externally (via the API), so should not be changed internally
+    logical :: areNeighSetExternal = .false.
 
     !> ADT for neighbour parameters
     type(TNeighbourList), allocatable :: neighbourList
@@ -618,10 +613,10 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer for real matrices
-    type(TMixerReal), allocatable :: pChrgMixerReal
+    class(TMixerReal), allocatable :: chrgMixerReal
 
     !> Charge mixer for complex matrices
-    type(TMixerCmplx), allocatable :: pChrgMixerCmplx
+    class(TMixerCmplx), allocatable :: chrgMixerCmplx
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -1070,11 +1065,14 @@ module dftbp_dftbplus_initprogram
     type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
-    !> Synonym for G.F. calculation of density
+    !! Synonym for G.F. calculation of density
     logical :: tUpload
 
     !> Whether a contact Hamiltonian is being computed and stored
     logical :: isAContactCalc
+
+    !> Equivalent atoms in the structure
+    type(TEquivContactAtoms), allocatable :: equivContactAtoms
 
     !> Whether Poisson solver is invoked
     logical :: tPoisson
@@ -1129,8 +1127,11 @@ module dftbp_dftbplus_initprogram
     !> List of atoms in the central cell (or device region if transport)
     integer, allocatable :: iAtInCentralRegion(:)
 
-    !> Correction for {O,N}-X bonds
+    !> DFTB correction for {O,N}-X bonds
     type(THalogenX), allocatable :: halogenXCorrection
+
+    !> Should halogen energy contribution be printed?
+    logical :: isHalogenEgyPrinted = .false.
 
     !> All of the excited energies actually solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
@@ -1211,29 +1212,6 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    ! Mixer related local variables
-    integer :: nGeneration
-    real(dp) :: mixParam
-
-    !> Mixer number
-    integer :: iMixer
-
-    !> Simple mixer (if used)
-    type(TSimpleMixerReal), allocatable :: pSimpleMixerReal
-    type(TSimpleMixerCmplx), allocatable :: pSimpleMixerCmplx
-
-    !> Anderson mixer (if used)
-    type(TAndersonMixerReal), allocatable :: pAndersonMixerReal
-    type(TAndersonMixerCmplx), allocatable :: pAndersonMixerCmplx
-
-    !> Broyden mixer (if used)
-    type(TBroydenMixerReal), allocatable :: pBroydenMixerReal
-    type(TBroydenMixerCmplx), allocatable :: pBroydenMixerCmplx
-
-    !> DIIS mixer (if used)
-    type(TDiisMixerReal), allocatable :: pDiisMixerReal
-    type(TDiisMixerCmplx), allocatable :: pDiisMixerCmplx
-
     ! Geometry optimiser related local variables
 
     !> Conjugate gradient driver
@@ -1304,8 +1282,10 @@ contains
     !> Flag if some files do exist or not
     logical :: tExist
 
+    !> Whether any mixer is required
+    logical :: requiresMixer
     !> Whether a complex-valued mixer is required
-    logical :: tCmplxMixer
+    logical :: requiresCmplxMixer
 
     ! Damped interactions
     type(TShortGammaDamp) :: shortGammaDamp
@@ -1451,6 +1431,9 @@ contains
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
       this%orb = input%slako%orb
+    #:if WITH_TBLITE
+      this%isHalogenEgyPrinted = allocated(this%tblite%calc%halogen)
+    #:endif
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1523,6 +1506,12 @@ contains
             & this%nIndepSpin * this%nKPoint**2, ') groups!'
         call error(trim(tmpStr))
       end if
+      if (this%tSpinOrbit) then
+        call error("Spin orbit coupling not currently available for hybrid functionals")
+      end if
+      if (this%nSpin == 4 .and. input%ctrl%hybridXcInp%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+        call error("MatrixBased screening required for hybrids with non-collinear spin")
+      end if
     end if
 
     if (this%isHybridXc .and. (.not. this%tRealHS)&
@@ -1581,6 +1570,11 @@ contains
           this%tRestartNoSC = .true.
         end if
       end if
+    end if
+
+    if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
+      ! Duplicate maxScc Iterations as Input to broyden Mixer
+      input%ctrl%mixerInp%broydenMixerInp%maxSccIter = input%ctrl%maxSccIter
     end if
 
     this%tWriteHS = input%ctrl%tWriteHS
@@ -1708,6 +1702,11 @@ contains
     this%isAContactCalc = .false.
   #:endif
 
+    if (this%isAContactCalc) then
+      allocate(this%equivContactAtoms)
+      call TEquivContactAtoms_init(this%equivContactAtoms, this%nAtom)
+    end if
+
     this%tPoisson = input%ctrl%tPoisson .and. this%tSccCalc
     this%updateSccAfterDiag = input%ctrl%updateSccAfterDiag
 
@@ -1797,6 +1796,7 @@ contains
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
+      this%isHalogenEgyPrinted = .true.
     end if
 
     allocate(this%mass(this%nAtom))
@@ -1858,73 +1858,14 @@ contains
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
-    if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      iMixer = input%ctrl%iMixSwitch
-      nGeneration = input%ctrl%iGenerations
-      mixParam = input%ctrl%almix
-      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)
-      if (tCmplxMixer) then
-        allocate(this%pChrgMixerCmplx)
-        select case (iMixer)
-        case (mixerTypes%simple)
-          allocate(pSimplemixerCmplx)
-          call TSimpleMixerCmplx_init(pSimpleMixerCmplx, mixParam)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pSimpleMixerCmplx)
-        case(mixerTypes%anderson)
-          allocate(pAndersonMixerCmplx)
-          if (input%ctrl%andersonNrDynMix > 0) then
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-                & input%ctrl%andersonOmega0)
-          else
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-          end if
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pAndersonMixerCmplx)
-        case (mixerTypes%broyden)
-          allocate(pBroydenMixerCmplx)
-          call TBroydenMixerCmplx_init(pBroydenMixerCmplx, this%maxSccIter, mixParam,&
-              & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-              & input%ctrl%broydenWeightFac)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pBroydenMixerCmplx)
-        case(mixerTypes%diis)
-          allocate(pDiisMixerCmplx)
-          call TDiisMixerCmplx_init(pDiisMixerCmplx, nGeneration, mixParam, input%ctrl%tFromStart)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pDiisMixerCmplx)
-        case default
-          call error("Unknown charge/density mixer type.")
-        end select
-      end if
-      allocate(this%pChrgMixerReal)
-      select case (iMixer)
-      case(mixerTypes%simple)
-        allocate(pSimplemixerReal)
-        call TSimpleMixerReal_init(pSimpleMixerReal, mixParam)
-        call TMixerReal_init(this%pChrgMixerReal, pSimpleMixerReal)
-      case(mixerTypes%anderson)
-        allocate(pAndersonMixerReal)
-        if (input%ctrl%andersonNrDynMix > 0) then
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-              & input%ctrl%andersonOmega0)
-        else
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-        end if
-        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixerReal)
-      case(mixerTypes%broyden)
-        allocate(pBroydenMixerReal)
-        call TBroydenMixerReal_init(pBroydenMixerReal, this%maxSccIter, mixParam,&
-            & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-            & input%ctrl%broydenWeightFac)
-        call TMixerReal_init(this%pChrgMixerReal, pBroydenMixerReal)
-      case(mixerTypes%diis)
-        allocate(pDiisMixerReal)
-        call TDiisMixerReal_init(pDiisMixerReal, nGeneration, mixParam, input%ctrl%tFromStart)
-        call TMixerReal_init(this%pChrgMixerReal, pDiisMixerReal)
-      case default
-        call error("Unknown charge/density mixer type.")
-      end select
+    requiresMixer = this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC
+    requiresCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
+        & .or. (this%t2Component .and. this%isHybridXc)
+
+    if (requiresMixer .and. requiresCmplxMixer) then
+        call TMixerFactoryCmplx(this%chrgMixerCmplx, input%ctrl%mixerInp)
+    else if (requiresMixer) then
+        call TMixerFactoryReal(this%chrgMixerReal, input%ctrl%mixerInp)
     end if
 
     ! initialise in cases where atoms move
@@ -2099,10 +2040,6 @@ contains
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
     if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
-      if (allocated(this%dispersion)) then
-        call error ("Dispersion interactions are not currently available for transport&
-            & calculations")
-      end if
       if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
@@ -2115,7 +2052,7 @@ contains
         call error ("Third order DFTB is not currently available for transport calculations")
       end if
       if (this%isHybridXc) then
-        call error("Range separated calculations do not yet work with transport calculations")
+        call error("Hybrid functional calculations do not yet work with transport calculations")
       end if
     end if
   #:endif
@@ -2263,6 +2200,7 @@ contains
       if (this%tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
+
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
         if (this%tPeriodic) then
@@ -2320,6 +2258,7 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName)
         end if
         call move_alloc(dftd4, this%dispersion)
+
     #:if WITH_MBD
       else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
@@ -2349,7 +2288,16 @@ contains
         end if
     #:endif
       end if
+
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
+    #:if WITH_TRANSPORT
+      if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
+        if (allocated(this%dispersion)) then
+          call error ("Dispersion interactions are not currently available for transport&
+              & calculations")
+        end if
+      end if
+    #:endif
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -2949,7 +2897,7 @@ contains
       call THybridXcFunc_init(this%hybridXc, this%nAtom, this%species0, hubbU(1, :),&
           & input%ctrl%hybridXcInp%screeningThreshold, input%ctrl%hybridXcInp%omega,&
           & input%ctrl%hybridXcInp%camAlpha, input%ctrl%hybridXcInp%camBeta,&
-          & this%tSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
+          & this%tSpin, this%nSpin, allocated(this%reks), input%ctrl%hybridXcInp%hybridXcAlg,&
           & input%ctrl%hybridXcInp%hybridXcType, input%ctrl%hybridXcInp%gammaType, this%tPeriodic,&
           & this%tRealHS, errStatus, coeffsDiag=this%supercellFoldingDiag,&
           & gammaCutoff=this%cutOff%gammaCutoff,&
@@ -2962,7 +2910,11 @@ contains
           & size(this%parallelKS%localKS, dim=2))
       ! reset number of mixer elements, so that there is enough space for density matrices
       if (this%tRealHS) then
-        this%nMixElements = size(this%densityMatrix%deltaRhoIn)
+        if (this%t2Component) then
+          this%nMixElements = size(this%densityMatrix%deltaRhoInCplx)
+        else
+          this%nMixElements = size(this%densityMatrix%deltaRhoIn)
+        end if
       else
         if (input%ctrl%hybridXcInp%hybridXcAlg == hybridXcAlgo%matrixBased) then
           this%nMixElements = size(this%densityMatrix%deltaRhoInCplx)
@@ -3465,30 +3417,26 @@ contains
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
-        select case (iMixer)
-        case(mixerTypes%simple)
-          write (strTmp, "(A)") "Simple"
-        case(mixerTypes%anderson)
-          write (strTmp, "(A)") "Anderson"
-        case(mixerTypes%broyden)
-          write (strTmp, "(A)") "Broyden"
-        case(mixerTypes%diis)
-          write (strTmp, "(A)") "DIIS"
-        end select
-        write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-        write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
-        select case (iMixer)
-        case(mixerTypes%anderson)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        case(mixerTypes%broyden)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
-        case(mixerTypes%diis)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        end select
-      else
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
+        associate (inp => input%ctrl%mixerInp)
+          if (allocated(inp%simpleMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Simple", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
+            else if (allocated(inp%andersonMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%andersonMixerInp%iGenerations
+            else if (allocated(inp%broydenMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
+            else if (allocated(inp%diisMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%diisMixerInp%iGenerations
+          end if
+        end associate
       end if
+      write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
     if (this%tCoordOpt) then
@@ -5882,7 +5830,7 @@ contains
     !> True, if this is a shell resolved calculation
     logical, intent(in) :: tShellResolved
 
-    !> Parameters for the range separated calculation
+    !> Parameters for the hybrid functional calculation
     type(THybridXcInp), intent(in) :: hybridXcInp
 
     if (withMpi .and. (.not. this%tPeriodic) .and. (hybridXcInp%hybridXcAlg&
@@ -5925,7 +5873,7 @@ contains
     end if
 
     if (this%tReadChrg .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-      call error("Restart on thresholded range separation not working correctly.")
+      call error("Restart on thresholded hybrids not working correctly.")
     end if
 
     if (tShellResolved) then
@@ -5937,17 +5885,17 @@ contains
           & moment.")
     end if
 
-    if (this%nSpin > 2) then
-      call error("Hybrid calculations not implemented for non-colinear calculations.")
+    if (this%nSpin > 2 .and. .not. this%tRealHS) then
+      call error("Hybrid calculations not implemented for non-colinear calculations in this case.")
     end if
 
-    if ((.not. this%tRealHS) .and. this%nSpin == 2&
+    if ((.not. this%tRealHS) .and. this%nSpin > 1&
         & .and. hybridXcInp%gammaType /= hybridXcGammaTypes%truncated) then
       call error("Hybrid functionality does not yet support spin-polarized calculations of periodic&
           & systems beyond the Gamma-point for CoulombMatrix settings other than 'Truncated'.")
     end if
 
-    if ((.not. this%tRealHS) .and. this%nSpin == 2 .and. this%tForces) then
+    if ((.not. this%tRealHS) .and. this%nSpin > 1 .and. this%tForces) then
       call error("Hybrid functionality currently does not yet support spin-polarized gradient&
           & evaluation for periodic systems beyond the Gamma-point.")
     end if
@@ -5962,6 +5910,15 @@ contains
 
     if (this%t3rd) then
       call error("Hybrid calculations not currently implemented for 3rd-order DFTB.")
+    end if
+
+    if (this%nSpin == 4 .and. hybridXcInp%hybridXcAlg /= hybridXcAlgo%matrixBased) then
+      call error("Non-collinear spin only available for matrix alogorithm hybrids at present.")
+    end if
+
+    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster)&
+        & then
+      call error("Non-collinear spin only available for hybrids with molecular systems at present.")
     end if
 
     if (this%isHybLinResp .and. hybridXcInp%hybridXcType == hybridXcFunc%cam) then
@@ -5998,7 +5955,7 @@ contains
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
-    !> Is this an excited state calculation with range separation
+    !> Is this an excited state calculation with a hybrid functional
     logical, intent(in) :: isHybLinResp
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
@@ -6107,17 +6064,17 @@ contains
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then
-        call error("Range separated excited states for periodic geometries are currently&
+        call error("hybrid functional excited states for periodic geometries are currently&
             & unavailable")
       end if
       if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
-        call error("Range separated excited states not available for window options.")
+        call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning("Range separated excited states not well tested for triplet excited states!")
+        call warning("hybrid functional excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning("Range separated excited states not well tested for spin-polarized systems!")
+        call warning("hybrid functional excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -6128,7 +6085,7 @@ contains
   end subroutine ensureLinRespConditions
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_cluster(cutOff, cutoffRed)
 
     !> Resulting cutoff
@@ -6152,7 +6109,7 @@ contains
   end subroutine getHybridXcCutOff_cluster
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, errStatus, gSummationCutoff,&
       & gammaCutoff)
 
@@ -6204,7 +6161,7 @@ contains
   end subroutine getHybridXcCutOff_gamma
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag, errStatus,&
       & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
 
@@ -6300,10 +6257,19 @@ contains
 
     if (this%tRealHS) then
       ! Prevent for deleting charges read in from file
-      if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
-        allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
+      if (this%t2Component) then
+        if (.not. allocated(this%densityMatrix%deltaRhoInCplx)) then
+          allocate(this%densityMatrix%deltaRhoInCplx(nLocalRows, nLocalCols, nLocalKS),&
+              & source=(0.0_dp,0.0_dp))
+        end if
+        allocate(this%densityMatrix%deltaRhoOutCplx(nLocalRows, nLocalCols, nLocalKS),&
+            & source=(0.0_dp,0.0_dp))
+      else
+        if (.not. allocated(this%densityMatrix%deltaRhoIn)) then
+          allocate(this%densityMatrix%deltaRhoIn(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
+        end if
+        allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
       end if
-      allocate(this%densityMatrix%deltaRhoOut(nLocalRows, nLocalCols, nLocalKS), source=0.0_dp)
     elseif (this%tReadChrg .and. (.not. allocated(this%supercellFoldingDiag))) then
       ! in case of k-points and restart from file, we have to wait until charges.bin was read
       if (hybridXcAlg == hybridXcAlgo%matrixBased) then
@@ -6608,7 +6574,7 @@ contains
     !> Third order DFTB
     logical, intent(in) :: is3rd
 
-    !> Whether to run a range separated calculation
+    !> Whether to run a hybrid functional calculation
     logical, intent(in) :: isHybridXc
 
     !> Whether to run a dispersion calculation
@@ -6868,7 +6834,7 @@ contains
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
       invLatVec(:,:) = latVec
-      call matinv(invLatVec)
+      call invert33(invLatVec)
       invLatVec = reshape(invLatVec, [3, 3], order=[2, 1])
       recVec = 2.0_dp * pi * invLatVec
       cellVol = abs(determinant33(latVec))

@@ -54,10 +54,10 @@ module dftbp_timedep_timeprop
   use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_math_blasroutines, only : gemm, her2k
-  use dftbp_math_lapackroutines, only : matinv, gesv
+  use dftbp_math_lapackroutines, only : gesv
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_ranlux, only : TRanlux
-  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_md_dummytherm, only : TDummyThermostat
   use dftbp_md_mdcommon, only : TMDCommon
   use dftbp_md_mdintegrator, only : TMDIntegrator, reset, init, state, next
@@ -3059,7 +3059,16 @@ contains
     type(TFileDescr) :: fdAutotest
 
     call openFile(fdAutotest, trim(this%autotestTag), mode="a")
-    call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC)
+
+    select case(this%hamiltonianType)
+    case(hamiltonianTypes%dftb)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC)
+    case(hamiltonianTypes%xtb)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdenergy, energy%eSCC + energy%Erep&
+          & + energy%EDisp + energy%EHalogenX)
+    end select
+
+
     call taggedWriter%write(fdAutotest%unit, tagLabels%tddipole, dipole)
     call taggedWriter%write(fdAutotest%unit, tagLabels%tdcharges, deltaQ)
     if (this%tIons) then
@@ -3681,7 +3690,7 @@ contains
 
     cellVol = abs(determinant33(this%latVec))
     recVecs2p(:,:) = this%latVec
-    call matinv(recVecs2p)
+    call invert33(recVecs2p)
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
     if (allocated(this%sccCalc)) then

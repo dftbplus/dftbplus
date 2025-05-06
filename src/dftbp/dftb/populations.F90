@@ -30,11 +30,12 @@ module dftbp_dftb_populations
   implicit none
 
   private
-  public :: mulliken, skewMulliken, denseMullikenReal
+  public :: mulliken, skewMulliken, denseMullikenReal, denseMullikenPauli
   public :: getChargePerShell, denseBlockMulliken
   public :: getOnsitePopulation, getAtomicMultipolePopulation
-  public :: denseSubtractDensityOfAtomsReal, denseSubtractDensityOfAtomsCmplxNonperiodic,&
-      & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
+  public :: denseSubtractDensityOfAtomsReal, denseSubtractDensityOfAtomsPauli,&
+      & denseSubtractDensityOfAtomsCmplxNonperiodic, denseSubtractDensityOfAtomsCmplxPeriodic,&
+      & denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
       & denseSubtractDensityOfAtomsNospinRealNonperiodicReks,&
       & denseSubtractDensityOfAtomsSpinRealNonperiodicReks
 #:if WITH_SCALAPACK
@@ -557,6 +558,81 @@ contains
   end subroutine denseMullikenReal
 
 
+  !> Mulliken analysis with dense, square, real-space two-component matrices.
+  subroutine denseMullikenPauli(rhoSqr, overSqr, iSquare, qq)
+
+    !> Square (lower triangular) two component density matrix
+    complex(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Mulliken charges on output (mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:)
+
+    real(dp) :: tmpSqr(size(qq, dim=1), size(qq, dim=1))
+    integer :: iAtom1, iAtom2, iStart1, iEnd1, iStart2, iEnd2, nAtom, nSpin, nOrb1, nOrb2, nOrb
+
+    nAtom = size(qq, dim=2)
+    nOrb = size(overSqr, dim=1)
+    qq(:,:,:) = 0.0_dp
+
+    do iAtom1 = 1, nAtom
+      iStart1 = iSquare(iAtom1)
+      iEnd1 = iSquare(iAtom1 + 1) - 1
+      nOrb1 = iEnd1 - iStart1 + 1
+      do iAtom2 = iAtom1, nAtom
+        iStart2 = iSquare(iAtom2)
+        iEnd2 = iSquare(iAtom2 + 1) - 1
+        nOrb2 = iEnd2 - iStart2 + 1
+
+        ! 1 matrix
+        tmpSqr(1:nOrb2, 1:nOrb1) = &
+            & real(rhoSqr(iStart2:iEnd2, iStart1:iEnd1, 1)&
+            & + rhoSqr(iStart2+nOrb:iEnd2+nOrb, iStart1+nOrb:iEnd1+nOrb, 1),dp)&
+            & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
+        qq(1:nOrb1, iAtom1, 1) = qq(1:nOrb1, iAtom1, 1) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
+        if (iAtom1 /= iAtom2) then
+          qq(1:nOrb2, iAtom2, 1) = qq(1:nOrb2, iAtom2, 1) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
+        end if
+
+        ! x matrix
+        tmpSqr(1:nOrb2, 1:nOrb1) = 2.0_dp * &
+            & real(rhoSqr(iStart2+nOrb:iEnd2+nOrb, iStart1:iEnd1, 1), dp)&
+            & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
+        qq(1:nOrb1, iAtom1, 2) = qq(1:nOrb1, iAtom1, 2) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
+        if (iAtom1 /= iAtom2) then
+          qq(1:nOrb2, iAtom2, 2) = qq(1:nOrb2, iAtom2, 2) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
+        end if
+
+        ! y matrix
+        tmpSqr(1:nOrb2, 1:nOrb1) = 2.0_dp * &
+            & aimag(rhoSqr(iStart2+nOrb:iEnd2+nOrb, iStart1:iEnd1, 1))&
+            & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
+        qq(1:nOrb1, iAtom1, 3) = qq(1:nOrb1, iAtom1, 3) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
+        if (iAtom1 /= iAtom2) then
+          qq(1:nOrb2, iAtom2, 3) = qq(1:nOrb2, iAtom2, 3) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
+        end if
+
+        ! z matrix
+        tmpSqr(1:nOrb2, 1:nOrb1) = &
+            & real(rhoSqr(iStart2:iEnd2, iStart1:iEnd1, 1)&
+            & - rhoSqr(iStart2+nOrb:iEnd2+nOrb, iStart1+nOrb:iEnd1+nOrb, 1),dp)&
+            & * overSqr(iStart2:iEnd2, iStart1:iEnd1)
+        qq(1:nOrb1, iAtom1, 4) = qq(1:nOrb1, iAtom1, 4) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=1)
+        if (iAtom1 /= iAtom2) then
+          qq(1:nOrb2, iAtom2, 4) = qq(1:nOrb2, iAtom2, 4) + sum(tmpSqr(1:nOrb2, 1:nOrb1), dim=2)
+        end if
+
+      end do
+    end do
+
+  end subroutine denseMullikenPauli
+
+
   !> Returns pre-factor of Mulliken populations, depending on the number of spin-channels.
   pure function populationScalingFactor(nSpin) result(scale)
 
@@ -566,11 +642,13 @@ contains
     !> Pre-factor of Mulliken populations
     real(dp) :: scale
 
-    ! distinguish cases: spin-unpolarized, colinear-spin
+    ! distinguish cases: spin-unpolarized, colinear-spin, non-collinear/Pauli
     select case(nSpin)
     case(1)
       scale = 1.0_dp
     case(2)
+      scale = 0.5_dp
+    case(4)
       scale = 0.5_dp
     end select
 
@@ -579,7 +657,8 @@ contains
 
   !> Subtracts superposition of atomic densities from dense, square, real-space density matrix.
   !!
-  !! For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  !! For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices
+  !! for collinear spin.
   !! Note: For periodic systems, q0 is normalized by the overlap that includes periodic images.
   subroutine denseSubtractDensityOfAtomsReal(q0, iSquare, overSqr, rho)
 
@@ -615,6 +694,51 @@ contains
     end do
 
   end subroutine denseSubtractDensityOfAtomsReal
+
+
+  !> Subtracts superposition of atomic densities from dense, square, real-space density matrix.
+  !!
+  !! For non-collinear spin-polarized calculations, q0 is distributed equally over the identity
+  !! spinor for Pauli matrices.
+  !! Note: For periodic systems, q0 is normalized by the overlap that includes periodic images.
+  subroutine denseSubtractDensityOfAtomsPauli(q0, iSquare, overSqr, rho)
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Square (lower triangular) overlap matrix, note that for Pauli matrices this factor is
+    !> multiplied by the identity spinor, so is half the size of rho
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Spin polarized (lower triangular) density matrix
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iBlock, offset
+    real(dp) :: scale
+
+    nAtom = size(iSquare) - 1
+    nSpin = size(q0, dim=3)
+    @:ASSERT(nSpin == 4)
+
+    scale = populationScalingFactor(nSpin)
+
+    do iBlock = 0, 1
+      offset = iBlock * (iSquare(nAtom + 1) - 1)
+      do iAtom = 1, nAtom
+        iStart = iSquare(iAtom)
+        iEnd = iSquare(iAtom + 1) - 1
+        do iOrb = 1, iEnd - iStart + 1
+          rho(iStart + iOrb - 1 + offset, iStart + iOrb -1 + offset, 1) =&
+              & rho(iStart + iOrb - 1 + offset, iStart + iOrb - 1 + offset, 1)&
+              & - scale * q0(iOrb, iAtom, 1) / overSqr(iStart+iOrb-1, iStart+iOrb-1)
+        end do
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtomsPauli
 
 
   !> Subtracts superposition of atomic densities from dense, square, complex-valued density matrix.

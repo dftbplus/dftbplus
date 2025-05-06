@@ -15,8 +15,7 @@ module dftbp_timedep_linrespcommon
   use dftbp_common_file, only : TFileDescr, openFile, closeFile
   use dftbp_dftb_onsitecorrection, only : getOnsME
   use dftbp_io_message, only : error
-  use dftbp_math_blasroutines, only : hemv, gemm
-  use dftbp_math_eigensolver, only : heev
+  use dftbp_math_blasroutines, only : hemv
   use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_linresptypes, only : TLinResp, TCasidaParameter
   use dftbp_timedep_transcharges, only : TTransCharges, transq
@@ -1836,46 +1835,6 @@ contains
     call move_alloc(temp, mat)
 
   end subroutine incSizeMatBothDim
-
-
-  !> Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix.
-  subroutine calcMatrixSqrt(matIn, spaceDim, matOut, matInvOut)
-
-    !> Matrix to operate on
-    real(dp), intent(in) :: matIn(:,:)
-
-    !> Dimensions of input matrix
-    integer, intent(in) :: spaceDim
-
-    !> Matrix square root
-    real(dp), intent(out) :: matOut(:,:)
-
-    !> Inverse of matrix square root
-    real(dp), intent(out) :: matInvOut(:,:)
-
-    real(dp) :: dummyEV(spaceDim)
-    real(dp) :: dummyM(spaceDim, spaceDim), dummyM2(spaceDim, spaceDim)
-    integer :: ii
-
-    dummyM(:,:) = matIn
-
-    call heev(dummyM, dummyEV, 'U', 'V')
-
-    ! Calc. sqrt
-    do ii = 1, spaceDim
-      dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
-    end do
-
-    call gemm(matOut, dummyM2, dummyM, transB='T')
-
-    ! Calc. inv. of sqrt
-    do ii = 1, spaceDim
-      dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
-    end do
-
-    call gemm(matInvOut, dummyM2, dummyM, transB='T')
-
-  end subroutine calcMatrixSqrt
 
 
   !> Encapsulate memory expansion for Stratmann solver.

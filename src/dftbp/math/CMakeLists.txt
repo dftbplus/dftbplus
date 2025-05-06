@@ -4,8 +4,8 @@ set(sources-fpp
   ${curdir}/angmomentum.F90
   ${curdir}/bisect.F90
   ${curdir}/blasroutines.F90
+  ${curdir}/contactsymm.F90
   ${curdir}/degeneracy.F90
-  ${curdir}/determinant.F90
   ${curdir}/duplicate.F90
   ${curdir}/eigensolver.F90
   ${curdir}/erfcalc.F90
@@ -16,7 +16,6 @@ set(sources-fpp
   ${curdir}/interpolation.F90
   ${curdir}/lapackroutines.F90
   ${curdir}/matrixops.F90
-  ${curdir}/qm.F90
   ${curdir}/quaternions.F90
   ${curdir}/randomgenpool.F90
   ${curdir}/ranlux.F90

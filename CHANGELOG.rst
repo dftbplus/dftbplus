@@ -39,6 +39,13 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+
+Changed
+-------
+
+- Components of xtb energies are now resolved
+
+
 Fixed
 -----
 

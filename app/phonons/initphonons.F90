@@ -18,8 +18,8 @@ module phonons_initphonons
   use dftbp_common_unitconversion, only : energyUnits, lengthUnits
   use dftbp_dftb_periodic, only : getCellTranslations, getNrOfNeighboursForAll, getSuperSampling,&
       & TNeighbourList, TNeighbourlist_init, updateNeighbourList
-  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist, getItem1,&
-      & getLength, getNodeName, string, textNodeName
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist,&
+      & getItem1, getLength, getNodeName, string, textNodeName
   use dftbp_io_charmanip, only : i2c, tolower, unquote
   use dftbp_io_hsdparser, only : dumpHSD, parseHSD
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
@@ -67,7 +67,7 @@ module phonons_initphonons
   !> Container of tunneling parameters
   type(TNEGFtundos), public :: tundos
 
-  !> verbose flag
+  !> Verbose flag
   logical, public :: tVerbose
 
   !> Core Variables
@@ -80,16 +80,16 @@ module phonons_initphonons
   real(dp), allocatable, public :: kPoint(:,:), kWeight(:)
   integer, public :: nKPoints
 
-  !> maps atom index in central cell
+  !> Maps atom index in central cell
   integer, allocatable, public  :: Img2CentCell(:)
 
-  !> neighbor list
+  !> Neighbor list
   type(TNeighbourList), public :: neighbourList
 
-  !> number of neighbors
+  !> Number of neighbors
   integer, allocatable, target, public :: nNeighbour(:)
 
-  !> cutoff for Hessian
+  !> Cutoff for Hessian
   real(dp), public :: cutoff
 
   !> Temperature range
@@ -98,7 +98,7 @@ module phonons_initphonons
   !> Modes to analyze (e.g., longitudinal, transverse, in-plane, etc)
   integer, public :: selTypeModes
 
-  !> order=2 means harmonic, 3 is anharmonic 3rd order, etc.
+  !> Order=2 means harmonic, 3 is anharmonic 3rd order, etc.
   integer, public :: order
 
   !> Atomic temperature
@@ -119,16 +119,16 @@ module phonons_initphonons
   !>
   logical, public :: tTransport
 
-  !> whether phonon dispersions should be computed
+  !> Whether phonon dispersions should be computed
   logical, public :: tPhonDispersion
 
-  !> number of repeated cells along lattice vectors
+  !> Number of repeated cells along lattice vectors
   integer, public :: nCells(3)
 
-  !> whether phonon dispersions should be computed
+  !> Whether phonon dispersions should be computed
   character(4), public :: outputUnits
 
-  !> whether taggedoutput should be written
+  !> Whether taggedoutput should be written
   logical, public :: tWriteTagged
 
   !> Which phonon modes to animate
@@ -137,58 +137,59 @@ module phonons_initphonons
   !> Number of phonon modes to animate
   integer, public :: nModesToPlot
 
-  !> number of cycles in mode animation
+  !> Number of cycles in mode animation
   integer, public :: nCycles
 
-  !> number of steps in mode animation
+  !> Number of steps in mode animation
   integer, public, parameter :: nSteps = 10
 
   !> Version of the current parser
   integer, parameter :: parserVersion = 4
 
-  !> Version of the oldest parser, for which compatibility is maintained
+  !> Version of the oldest parser for which compatibility is maintained
   integer, parameter :: minVersion = 4
 
 
   !> Container type for parser related flags.
   type TParserFlags
 
-    !> stop after parsing?
+    !> Stop after parsing?
     logical :: tStop
 
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
 
-    !> write parsed HSD input
+    !> Write parsed HSD input
     logical :: tWriteHSD
 
-    !> write TaggedOutput
+    !> Write TaggedOutput
 
     logical :: tWriteTagged
   end type TParserFlags
 
 
-  !> constants parameters
+  !> Constants parameters
   type TModeEnum
-    !> along x,y,z
+    !> Along x,y,z
     integer :: ALLMODES = 0
-    !> along x
+    !> Along x
     integer :: XX = 1
-    !> along y
+    !> Along y
     integer :: YY = 2
-    !> along z
+    !> Along z
     integer :: ZZ = 3
-    !> along z (assume transport along z)
+    !> Along z (assume transport along z)
     integer :: LONGITUDINAL = 4
-    !> along x,y
+    !> Along x,y
     integer :: TRANSVERSE = 5
-    !> along x,z (assume 2D structure in x-z)
+    !> Along x,z (assume 2D structure in x-z)
     integer :: INPLANE = 6
-    !> along y
+    !> Along y
     integer :: OUTOFPLANE = 7
   end type TModeEnum
 
   type(TModeEnum), public, parameter :: modeEnum = TModeEnum()
+
 
 contains
 
@@ -409,15 +410,12 @@ contains
     type(fnode), pointer :: child
 
     !! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
+    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, child=child)
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
-      call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
-          &// ")")
+      call detailedError(child, "Invalid parser version (" // i2c(inputVersion) // ")")
     elseif (inputVersion < minVersion) then
-      call detailedError(child, &
-          &"Sorry, no compatibility mode for parser version " &
-          &// i2c(inputVersion) // " (too old)")
+      call detailedError(child, "Sorry, no compatibility mode for parser version "&
+          & // i2c(inputVersion) // " (too old)")
     end if
 
     call getChildValue(node, "WriteAutotestTag", tWriteTagged, .false.)
@@ -430,11 +428,14 @@ contains
 
   end subroutine readOptions
 
-  !!* Read in the geometry stored as xml in internal or gen format.
-  !!* @param geonode Node containing the geometry
-  !!* @param geo     Contains the geometry information on exit
+
+  !> Read in the geometry stored as xml in internal or gen format.
   subroutine readGeometry(geonode, geo)
+
+    !> Node containing the geometry
     type(fnode), pointer :: geonode
+
+    !> Contains the geometry information on exit
     type(TGeometry), intent(out) :: geo
 
     type(fnode), pointer :: child, value
@@ -459,7 +460,8 @@ contains
 
   end subroutine readGeometry
 
-  !!* Read geometry information for transport calculation
+
+  !> Read geometry information for transport calculation
   subroutine readTransportGeometry(root, geom, tp)
     type(fnode), pointer :: root
     type(TGeometry), intent(inout) :: geom
@@ -492,6 +494,7 @@ contains
     call readContacts(pNodeList, tp%contacts, geom, .true.)
 
   end subroutine readTransportGeometry
+
 
   !> Reads settings for the first layer atoms in principal layers
   subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, check)
@@ -539,7 +542,8 @@ contains
 
   end subroutine readFirstLayerAtoms
 
-   !> Read bias information, used in Analysis and Green's function solver
+
+  !> Read bias information, used in Analysis and Green's function solver
   subroutine readContacts(pNodeList, contacts, geom, upload)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
@@ -607,9 +611,9 @@ contains
 
   end subroutine readContacts
 
-      ! Sanity checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVectorII(atomrange, geom, id, pContact, plShiftTol, &
-      &contactVec, contactDir)
+
+  !> Verification checking of atom ranges and returning contact vector and direction.
+  subroutine getContactVectorII(atomrange, geom, id, pContact, plShiftTol, contactVec, contactDir)
     integer, intent(in) :: atomrange(2)
     type(TGeometry), intent(in) :: geom
     integer, intent(in) :: id
@@ -660,6 +664,7 @@ contains
     contactDir = 0
 
   end subroutine getContactVectorII
+
 
   !> Used to read atomic masses from SK files
   subroutine readSKfiles(child, geo, speciesMass)
@@ -750,6 +755,7 @@ contains
 
   end subroutine readSKfiles
 
+
   subroutine readMasses(value, geo, speciesMass)
     type(fnode), pointer :: value
     type(TGeometry), intent(in) :: geo
@@ -772,6 +778,7 @@ contains
     end do
 
   end subroutine readMasses
+
 
   !> K-Points
   subroutine readKPoints(node, geo, tBadIntegratingKPoints)
@@ -921,6 +928,7 @@ contains
 
   end subroutine readKPoints
 
+
   subroutine  readKPointsFile(child)
     type(fnode),  pointer ::  child
     type(string) :: text
@@ -929,6 +937,7 @@ contains
     call readKPointsFile_help(child, char(text))
 
   end subroutine  readKPointsFile
+
 
   subroutine readKPointsFile_help(child,text)
     type(fnode),  pointer ::  child
@@ -963,13 +972,13 @@ contains
 
 
   !>  Read DFTB hessian.
-  !>
-  !> The derivatives matrix must be stored as the following order:
-  !>  For the x y z directions of atoms 1..n
-  !>    d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
-  !>  ---------- + --------- + --------- + ---------- + ---------- +...
-  !>  dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
-  !>
+  !!
+  !! The derivatives matrix must be stored in the following order:
+  !!  For the x y z directions of atoms 1..n
+  !!    d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
+  !!  ---------- + --------- + --------- + ---------- + ---------- +...
+  !!  dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
+  !!
   subroutine readDftbHessian(child)
     type(fnode), pointer :: child
 
@@ -1025,6 +1034,7 @@ contains
 
   end subroutine readDftbHessian
 
+
   subroutine readDynMatrix(child)
     type(fnode), pointer :: child
 
@@ -1035,12 +1045,12 @@ contains
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
-    !The derivatives matrix must be stored as the following order:
-
-    ! For the x y z directions of atoms 1..n
-    !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
-    ! ---------- + --------- + --------- + ---------- + ---------- +...
-    ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
+    !! The derivatives matrix must be stored as the following order:
+    !!
+    !! For the x y z directions of atoms 1..n
+    !!   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
+    !! ---------- + --------- + --------- + ---------- + ---------- +...
+    !! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
 
     write(stdOut, "(/, A)") "read dynamical matrix..."
 
@@ -1055,6 +1065,7 @@ contains
     call destruct(realBuffer)
 
   end subroutine readDynMatrix
+
 
   subroutine readCp2kHessian(child)
     type(fnode), pointer :: child
@@ -1083,12 +1094,12 @@ contains
       call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
     end if
 
-    !The derivatives matrix must be stored as the following order:
-
-    ! For the x y z directions of atoms 1..n
-    !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
-    ! ---------- + --------- + --------- + ---------- + ---------- +...
-    ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
+    !! The derivatives matrix must be stored as the following order:
+    !!
+    !! For the x y z directions of atoms 1..n
+    !!   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E
+    !! ---------- + --------- + --------- + ---------- + ---------- +...
+    !! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1
 
     nBlocks = nDerivs/5.0
     allocate(HessCp2k(nDerivs*nBlocks,5))
@@ -1126,8 +1137,9 @@ contains
 
   end subroutine readCp2kHessian
 
-  ! Subroutine removing entries in the Dynamical Matrix.
-  ! Not used because identified as a wrong way
+
+  !> Subroutine removing entries in the Dynamical Matrix.
+  !! Not used because identified as a wrong way
   subroutine selectModes()
 
     integer :: iCount, jCount, ii, jj, kk, ll
@@ -1169,7 +1181,8 @@ contains
 
   end subroutine selectModes
 
-  !! Reads the Analysis block.
+
+  !> Reads the Analysis block.
   subroutine readAnalysis(node, geo, pdos, tundos, transpar, atTemperature)
     type(fnode), pointer :: node, pnode
     type(TGeometry), intent(in) :: geo
@@ -1215,6 +1228,7 @@ contains
 
   end subroutine readAnalysis
 
+
   subroutine readPDOSRegions(children, geo, iAtInregion, regionLabels)
     type(fnodeList), pointer :: children
     type(TGeometry), intent(in) :: geo
@@ -1243,12 +1257,13 @@ contains
 
   end subroutine readPDOSRegions
 
-  !!* Read Tunneling and Dos options from analysis block
-  !!* tundos is the container to be filled
-  !!* ncont is needed for contact option allocation
+
+  !> Read Tunneling and Dos options from analysis block
   subroutine readTunAndDos(root, geo, tundos, transpar, temperature)
     type(fnode), pointer :: root
     type(TGeometry), intent(in) :: geo
+
+    !> The container to be filled
     type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
     real(dp), intent(in) :: temperature
@@ -1376,7 +1391,8 @@ contains
 
   end subroutine readTunAndDos
 
-  ! Get contacts for terminal currents by name
+
+  !> Get contacts for terminal currents by name
   subroutine getEmitterCollectorByName(pNode, emitter, collector, contactNames)
     type(fnode), pointer :: pNode
     integer, intent(out) :: emitter, collector
@@ -1400,7 +1416,8 @@ contains
 
   end subroutine getEmitterCollectorByName
 
-  ! Getting the contact by name
+
+  !> Getting the contact by name
   function getContactByName(contactNames, contName, pNode) result(contact)
     character(len=*), intent(in) :: contactNames(:)
     character(len=*), intent(in) :: contName
@@ -1423,7 +1440,8 @@ contains
 
   end function getContactByName
 
-  ! Set model for w-dependent delta in G.F.
+
+  !> Set model for w-dependent delta in G.F.
   subroutine readDeltaModel(root, tundos)
     type(fnode), pointer :: root
     type(TNEGFTunDos), intent(inout) :: tundos
@@ -1463,8 +1481,9 @@ contains
     end select
   end subroutine ReadDeltaModel
 
-  ! Build a simple neighbor list. Currently does not work for periodic systems.
-  ! Have to fix this important point
+
+  !> Build a simple neighbor list. Currently does not work for periodic systems.
+  !! Have to fix this important point
   subroutine buildNeighbourList()
 
     integer ::  iAtom, jAtom, ii, jj, kk, PL1, PL2
@@ -1527,6 +1546,7 @@ contains
 
   end subroutine buildNeighbourList
 
+
   subroutine cutDynMatrix()
 
     integer :: iAtom, jAtom, jj
@@ -1553,6 +1573,7 @@ contains
 
   end subroutine cutDynMatrix
 
+
   function getPL(iAt) result(PL)
     integer, intent(in) :: iAt
     integer :: PL
@@ -1573,7 +1594,8 @@ contains
 
   end function getPL
 
-  !> select family of modes to analyze and restrict transmission
+
+  !> Select family of modes to analyze and restrict transmission
   subroutine setTypeOfModes(root, transpar)
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: transpar
@@ -1611,8 +1633,9 @@ contains
 
   end subroutine setTypeOfModes
 
+
   !> Check that the geometry orientation is consistent with selTypeModes
-  !> Currently only checks that transport direction is along z
+  !! Currently only checks that transport direction is along z
   subroutine checkTypeOfModes(root, tp)
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: tp
@@ -1627,7 +1650,8 @@ contains
 
   end subroutine checkTypeOfModes
 
-  ! check that transport direction is along z
+
+  !> Check that transport direction is along z
   subroutine checkAlongZ(root, tp)
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: tp
@@ -1644,8 +1668,8 @@ contains
         call detailedError(root,"Transport direction is not along z")
       end if
     end do
-  end subroutine checkAlongZ
 
+  end subroutine checkAlongZ
 
 
 end module phonons_initphonons

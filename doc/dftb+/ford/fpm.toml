@@ -1,0 +1,42 @@
+[extra.ford]
+macro = [
+    "DEBUG=0",
+    "WITH_MPI=1",
+    "WITH_ARPACK=1",
+    "WITH_DFTD3=1",
+    "WITH_SOCKETS=1",
+    "RELEASE=24.1"
+]
+
+preprocess = true
+preprocessor = "../../../external/fypp/bin/fypp"
+
+src_dir = [
+    "../../../app/dftb+",
+    "../../../app/modes",
+    "../../../app/waveplot",
+    "../../../app/misc"
+]
+include = [
+    "../../../src/dftbp/include",
+    "../../../external/dftd4refs"
+]
+output_dir = "./doc"
+
+project = "DFTB+"
+project_github = "https://github.com/dftbplus/dftbplus"
+project_website = "http://www.dftbplus.org"
+version = 24.1
+
+summary = "DFTB+ is a software package for carrying out fast quantum mechanical atomistic calculations based on the Density Functional Tight Binding method."
+author = "The DFTB+ developers group"
+license = "lgpl"
+doc_license = "by"
+
+predocmark = ">"
+display = ["public", "protected"]
+proc_internals = false
+source = true
+graph = true
+search = false
+warn = true
