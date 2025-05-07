@@ -30,11 +30,11 @@ Hamiltonian = DFTB {
     Constraints {
       MullikenPopulation {
         Atoms = H
-        TotalPopulation = 1.5
+        TotalCharge = 0.5
       }
       MullikenPopulation {
         Atoms = 2
-        Populations = 1.0
+        Charges = 0.0
       }
     }
     Optimiser = SteepestDescent {ScalingFactor = 0.25}
@@ -42,7 +42,6 @@ Hamiltonian = DFTB {
     MaxConstrIterations = 100
     ConvergentConstrOnly = Yes
   }
-
 }
 
 Options {

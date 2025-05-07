@@ -33,11 +33,14 @@ module dftbp_dftb_elecconstraints
     !> Atoms the constraint applies to
     integer, allocatable :: atoms(:)
 
-    !> Target population (either single value = total or as as many as atoms = individual)
-    real(dp), allocatable :: populations(:)
+    !> Constraint values (either single value = total or as as many as atoms = individual)
+    real(dp), allocatable :: constrValues(:)
 
     !> Spin channel factors (1.0 for channels included in population calculations, 0.0 for rest)
     real(dp), allocatable :: spinChannelFactors(:)
+
+    !> Whether constraint values are charges (otherwise they are populations)
+    logical :: constrValuesAreCharges = .false.
 
   end type TMullikenConstrInp
 
@@ -211,10 +214,11 @@ contains
     type(TMullikenConstrInp), allocatable, intent(out) :: inputs(:)
 
     type(fnodeList), pointer :: constrNodes
-    type(fnode), pointer :: constrNode, child1, totalPopNode, populationsNode
+    type(fnode), pointer :: constrNode, child1
+    type(fnode), pointer :: totalPopNode, populationsNode, totalChargeNode, chargesNode
     type(string) :: buffer
     real(dp) :: rTmp
-    integer :: iConstrInp, nConstrInp
+    integer :: iConstrInp, nConstrInp, nAssociated
 
     call getChildren(constrContainer, "MullikenPopulation", constrNodes)
     if (.not. associated(constrNodes)) return
@@ -228,17 +232,32 @@ contains
         call getChildValue(constrNode, "Atoms", buffer, child=child1, multiple=.true.)
         call getSelectedAtomIndices(child1, char(buffer), geo%speciesNames, geo%species,&
             & input%atoms)
-        call getChild(constrNode, "TotalPopulation", totalPopNode, requested=.false.)
+
         call getChild(constrNode, "Populations", populationsNode, requested=.false.)
-        if (associated(totalPopNode) .and. .not. associated(populationsNode)) then
-          call getChildValue(totalPopNode, "", rTmp)
-          input%populations = [rTmp]
-        else if (associated(populationsNode) .and. .not. associated(totalPopNode)) then
-          allocate(input%populations(size(input%atoms)))
-          call getChildValue(populationsNode, "", input%populations)
+        call getChild(constrNode, "TotalPopulation", totalPopNode, requested=.false.)
+        call getChild(constrNode, "Charges", chargesNode, requested=.false.)
+        call getChild(constrNode, "TotalCharge", totalChargeNode, requested=.false.)
+        nAssociated = count([associated(populationsNode), associated(totalPopNode), &
+            & associated(chargesNode), associated(totalChargeNode)])
+        if (nAssociated /= 1) then
+          call detailedError(constrNode, "You must specify exactly one and only one of the options&
+              & Populations, TotalPopulation, Charges or TotalCharge")
+        end if
+        input%constrValuesAreCharges = associated(chargesNode) .or. associated(totalChargeNode)
+        if (associated(populationsNode) .or. associated(chargesNode)) then
+          allocate(input%constrValues(size(input%atoms)), source=0.0_dp)
+          if (associated(populationsNode)) then
+            call getChildValue(populationsNode, "", input%constrValues)
+          else
+            call getChildValue(chargesNode, "", input%constrValues)
+          end if
         else
-          call detailedError(constrNode, "You must specify exactly one from the options&
-              & TotalPopulations and Populations")
+          if (associated(totalPopNode)) then
+            call getChildValue(totalPopNode, "", rTmp)
+          else
+            call getChildValue(totalChargeNode, "", rTmp)
+          end if
+          input%constrValues = [rTmp]
         end if
 
         ! Functionality currently restricted to charge channel only
@@ -252,6 +271,7 @@ contains
         else
           input%spinChannelFactors = [1.0_dp]
         end if
+
       end associate
     end do
 
@@ -261,7 +281,7 @@ contains
 
 
   !> Initialises the constraints structure.
-  subroutine TElecConstraint_init(this, input, orb)
+  subroutine TElecConstraint_init(this, input, orb, q0)
 
     !> Constraint structure instance
     type(TElecConstraint), intent(out) :: this
@@ -272,7 +292,10 @@ contains
     !> Data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    call TMullikenConstr_init(this%mullikenConstr, input%mullikenConstrs, orb)
+    !> Reference Mulliken populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    call TMullikenConstr_init(this%mullikenConstr, input%mullikenConstrs, orb, q0)
     ! Currently we only support Mulliken constraints
     this%nConstr = this%mullikenConstr%getNConstr()
 
@@ -290,7 +313,6 @@ contains
     end if
     this%isConvRequired = input%isConvRequired
     this%constrTol = input%constrTol
-
 
   end subroutine TElecConstraint_init
 
@@ -420,7 +442,7 @@ contains
 
 
   !> Initializes constraint helper arrays from Mulliken constraints.
-  subroutine TMullikenConstr_init(this, inputs, orb)
+  subroutine TMullikenConstr_init(this, inputs, orb, q0)
 
     !> Class instance
     type(TMullikenConstr), intent(out) :: this
@@ -431,15 +453,18 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> Reference population for each orbital in the system
+    real(dp), intent(in) :: q0(:,:,:)
+
     integer, allocatable :: atoms(:)
-    integer :: nConstrInputs, nAllConstr, nTargetVal, nOrb, nOrbAtom, nSpin
-    integer :: iConstrInp, iConstrGlobal, iTargetVal, iAt, iOrb, ii
+    integer :: nConstrInputs, nAllConstr, nConstrVal, nOrb, nOrbAtom, nSpin
+    integer :: iConstrInp, constrInd, iConstrVal, iAt, iOrb, ii
 
     ! Count number of constraints
     nAllConstr = 0
     nConstrInputs = size(inputs)
     do iConstrInp = 1, nConstrInputs
-      nAllConstr = nAllConstr + size(inputs(iConstrInp)%populations)
+      nAllConstr = nAllConstr + size(inputs(iConstrInp)%constrValues)
     end do
 
     allocate(this%Nc(nAllConstr))
@@ -448,35 +473,37 @@ contains
     allocate(this%wAtSpin(nAllConstr))
 
     ! Allocate + initialize arrays and build index mappings
-    iConstrGlobal = 0
+    constrInd = 0
     do iConstrInp = 1, nConstrInputs
       associate (input => inputs(iConstrInp))
-        nTargetVal = size(input%populations)
-        do iTargetVal = 1, nTargetVal
-          iConstrGlobal = iConstrGlobal + 1
-          ! If only one target value had been specified, it represents the sum over all atoms
-          ! in the constraint. Otherwise they represent target values for individual constraints on
-          ! single atoms.
-          if (nTargetVal == 1) then
+        nConstrVal = size(input%constrValues)
+        do iConstrVal = 1, nConstrVal
+          constrInd = constrInd + 1
+          ! If only one constraint value had been specified, it represents the sum over all atoms in
+          ! the constraint. Otherwise they are values for individual constraints on single atoms.
+          if (nConstrVal == 1) then
             atoms = input%atoms
           else
-            atoms = [input%atoms(iTargetVal)]
+            atoms = [input%atoms(iConstrVal)]
           end if
           nOrb = sum(orb%nOrbAtom(atoms))
-          allocate(this%wAt(iConstrGlobal)%data(nOrb), source=0)
-          allocate(this%wAtOrb(iConstrGlobal)%data(nOrb), source=0)
+          allocate(this%wAt(constrInd)%data(nOrb), source=0)
+          allocate(this%wAtOrb(constrInd)%data(nOrb), source=0)
           nSpin = size(input%spinChannelFactors)
-          allocate(this%wAtSpin(iConstrGlobal)%data(nOrb, nSpin), source=0.0_dp)
+          allocate(this%wAtSpin(constrInd)%data(nOrb, nSpin), source=0.0_dp)
 
-          this%Nc(iConstrGlobal) = input%populations(iTargetVal)
+          this%Nc(constrInd) = input%constrValues(iConstrVal)
+          if (input%constrValuesAreCharges) then
+            this%Nc(constrInd) = sum(q0(:, atoms, :)) - this%Nc(constrInd)
+          end if
           nOrb = 0
           do ii = 1, size(atoms)
             iAt = atoms(ii)
             nOrbAtom = orb%nOrbAtom(iAt)
             do iOrb = 1, nOrbAtom
-              this%wAt(iConstrGlobal)%data(nOrb + iOrb) = iAt
-              this%wAtOrb(iConstrGlobal)%data(nOrb + iOrb) = iOrb
-              this%wAtSpin(iConstrGlobal)%data(nOrb + iOrb, :) = input%spinChannelFactors
+              this%wAt(constrInd)%data(nOrb + iOrb) = iAt
+              this%wAtOrb(constrInd)%data(nOrb + iOrb) = iOrb
+              this%wAtSpin(constrInd)%data(nOrb + iOrb, :) = input%spinChannelFactors
             end do
             nOrb = nOrb + nOrbAtom
           end do
@@ -566,7 +593,7 @@ contains
     !> Constraint potential value
     real(dp), intent(in) :: Vc
 
-    !> Target population
+    !> Constraint population
     real(dp), intent(in) :: Nc
 
     !> Atoms involved in the constraint

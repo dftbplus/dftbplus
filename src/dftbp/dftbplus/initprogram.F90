@@ -2315,7 +2315,8 @@ contains
     if (allocated(input%ctrl%elecConstraintInp)) then
       call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
       allocate(this%elecConstraint)
-      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb)
+      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb,&
+          & this%q0)
     end if
 
     this%tDipole = this%tMulliken

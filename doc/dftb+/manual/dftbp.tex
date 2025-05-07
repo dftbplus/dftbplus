@@ -1881,18 +1881,24 @@ potential~\cite{Hourahine2010}.
       \kw{Atoms} & (i|s)+ &  &  & \\
       \kw{Populations} & r &  &  & \\
       \kw{TotalPopulation} & r &  &  & \\
+      \kw{Charges} & r &  &  & \\
+      \kw{TotalCharge} & r &  &  & \\
     \end{ptable}
       \begin{description}
-        \item[\is{Atoms}] Indices of the atoms within a constrained region. The
-          atoms can be specified via index selection expressions, as described
-          in appendix \ref{sec:index_selection}.
-        \item[\is{Populations}] Constraint on the Mulliken population on
-          individual atoms. Must contain as many entries as selected via the
-          \is{Atoms} keyword. This keyword is mutually exclusive with the
-          \is{TotalPopulation} keyword.
-        \item[\is{TotalPopulation}] Sets constraint on the Mulliken population
-          on all atoms selected via the \is{Atoms} keyword. This keyword is
-          mutually exclusive with the \is{Population} keyword.
+      \item[\is{Atoms}] Indices of the atoms within a constrained region. The atoms can be specified
+        via index selection expressions, as described in appendix \ref{sec:index_selection}.
+      \item[\is{Populations}] Constraint on the Mulliken population on individual atoms. Must
+        contain as many entries as selected via the \is{Atoms} keyword. This keyword is mutually
+        exclusive with the keywords \is{TotalPopulation}, \is{Charges} and \is{TotalCharge}.
+      \item[\is{TotalPopulation}] Sets constraint on the Mulliken population summed over all atoms
+        selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the keywords
+        \is{Population}, \is{Charges} and \is{TotalCharge}.
+      \item[\is{Charges}] Constraint on the gross charges on individual atoms. Must contain as many
+        entries as selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the
+        keywords \is{Populations}, \is{TotalPopulation} and \is{TotalCharge}.
+      \item[\is{TotalPopulation}] Sets constraint on the grossed charge summed over all atoms selected
+        via the \is{Atoms} keyword. This keyword is mutually exclusive with the keywords
+        \is{Population}, \is{TotalPopulation} and \is{Charges}.
       \end{description}
     \end{description}
 
@@ -1935,35 +1941,31 @@ potential~\cite{Hourahine2010}.
 
 Examples:
 \begin{verbatim}
-  ElectronicConstraints {
-    Constraints {
-      # Setting individual atomic populations by constraints
-      MullikenPopulation {
-        Atoms = 1 2
-        Populations = 1.2 0.8
-      }
+ElectronicConstraints {
+  Constraints {
+    # Setting individual atomic populations by constraints
+    MullikenPopulation {
+      Atoms = 1 2
+      Populations = 1.2 0.8
     }
-    Optimiser = FIRE {}
-    ConstrTolerance = 1.0e-08
-    MaxConstrIterations = 30
-    ConvergentConstrOnly = Yes
   }
+  Optimiser = FIRE {}
+  ConstrTolerance = 1.0e-08
+  MaxConstrIterations = 30
+  ConvergentConstrOnly = Yes
+}
 \end{verbatim}
 
 \begin{verbatim}
-  ElectronicConstraints {
-    Constraints {
-      # Setting constraint for the total population of the constrained atoms
-      MullikenPopulation {
-        Atoms = 1 2
-        TotalPopulation = 2.0
-      }
+ElectronicConstraints {
+  Constraints {
+    # Setting constraint for the total gross charge of the constrained atoms
+    MullikenPopulation {
+      Atoms = 1 2
+      TotalCharge = 1.0
     }
-    Optimiser = FIRE {}
-    ConstrTolerance = 1.0e-08
-    MaxConstrIterations = 30
-    ConvergentConstrOnly = Yes
   }
+}
 \end{verbatim}
 
 
