@@ -1869,20 +1869,21 @@ potential~\cite{Hourahine2010}.
 \end{ptable}
 
 \begin{description}
-\item[\is{Constraints}] Specifies the constraints to be applied. Currently only
-  constraints on atomic Mulliken populations are implemented:
+\item[\is{Constraints}] Specifies the constraint(s) to be applied. Currently
+  these are only implemented for atomic Mulliken populations:
   \begin{ptable}
     \kw{MullikenPopulations} & p &  & \cb & \\
   \end{ptable}
     \begin{description}
-      \item[\is{MullikenPopulation}] Defines a constraint based on Mulliken population.
+      \item[\is{MullikenPopulation}] Defines a constraint based on Mulliken
+      population.
     \begin{ptable}
       \kw{Atoms} & (i|s)+ &  &  & \\
       \kw{Populations} & r &  &  & \\
       \kw{TotalPopulation} & r &  &  & \\
     \end{ptable}
       \begin{description}
-        \item[\is{Atoms}] Indices of the atoms building a constrained region. The
+        \item[\is{Atoms}] Indices of the atoms within a constrained region. The
           atoms can be specified via index selection expressions, as described
           in appendix \ref{sec:index_selection}.
         \item[\is{Populations}] Constraint on the Mulliken population on
@@ -1890,7 +1891,7 @@ potential~\cite{Hourahine2010}.
           \is{Atoms} keyword. This keyword is mutually exclusive with the
           \is{TotalPopulation} keyword.
         \item[\is{TotalPopulation}] Sets constraint on the Mulliken population
-          of all atoms selected via the \is{Atoms} keyword. This keyword is
+          on all atoms selected via the \is{Atoms} keyword. This keyword is
           mutually exclusive with the \is{Population} keyword.
       \end{description}
     \end{description}
@@ -1936,7 +1937,7 @@ Examples:
 \begin{verbatim}
   ElectronicConstraints {
     Constraints {
-      # Setting individual atomic population constraints
+      # Setting individual atomic populations by constraints
       MullikenPopulation {
         Atoms = 1 2
         Populations = 1.2 0.8
@@ -1952,7 +1953,7 @@ Examples:
 \begin{verbatim}
   ElectronicConstraints {
     Constraints {
-      # Setting constraint on the total population
+      # Setting constraint for the total population of the constrained atoms
       MullikenPopulation {
         Atoms = 1 2
         TotalPopulation = 2.0

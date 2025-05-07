@@ -162,7 +162,7 @@ contains
     !> Input structure to be filled
     type(TElecConstraintInp), intent(out) :: input
 
-        !> Node to get the information from
+    !> Node to get the information from
     type(fnode), pointer, intent(in) :: node
 
     !> Geometry of the system
@@ -203,8 +203,6 @@ contains
 
     !> True, if this is a spin polarized calculation
     logical, intent(in) :: isSpinPol
-
-
 
     !> Is this a calculation with Pauli wavefunctions
     logical, intent(in) :: is2Component
@@ -423,8 +421,14 @@ contains
 
   !> Initializes constraint helper arrays from Mulliken constraints.
   subroutine TMullikenConstr_init(this, inputs, orb)
+
+    !> Class instance
     type(TMullikenConstr), intent(out) :: this
+
+    !> Mulliken population constraint inputs
     type(TMullikenConstrInp), intent(in) :: inputs(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     integer, allocatable :: atoms(:)
@@ -558,11 +562,30 @@ contains
 
   !> Calculate artificial potential to realize constraint(s) on atomic charge.
   subroutine getConstraintEnergyAndPotQ_(Vc, Nc, wAt, wOrb, wSp, qq, deltaW, dWdV)
-    real(dp), intent(in) :: Vc, Nc
-    integer, intent(in) :: wAt(:), wOrb(:)
+
+    !> Constraint potential value
+    real(dp), intent(in) :: Vc
+
+    !> Target population
+    real(dp), intent(in) :: Nc
+
+    !> Atoms involved in the constraint
+    integer, intent(in) :: wAt(:)
+
+    !> Orbitals involved in the constraint
+    integer, intent(in) :: wOrb(:)
+
+    !> Spin channel factors
     real(dp), intent(in) :: wSp(:,:)
+
+    !> Mulliken populations
     real(dp), intent(in) :: qq(:,:,:)
-    real(dp), intent(out) :: deltaW, dWdV
+
+    !> Contribution to free energy functional from constraints
+    real(dp), intent(out) :: deltaW
+
+    !> Derivative of energy functional with respect to Vc
+    real(dp), intent(out) :: dWdV
 
     integer :: nSpin, iSpin, iW
     real(dp) :: wn
@@ -583,9 +606,20 @@ contains
 
   !> Get shift for atomic charge constraint.
   subroutine addConstraintsShiftQ_(shift, Vc, wAt, wOrb, wSp)
+
+    !> Shift vector to modify
     real(dp), intent(inout) :: shift(:,:,:,:)
+
+    !> Constraint potential
     real(dp), intent(in) :: Vc
-    integer, intent(in) :: wAt(:), wOrb(:)
+
+    !> Atoms involved in the constraint
+    integer, intent(in) :: wAt(:)
+
+    !> Orbitals involved in the constraint
+    integer, intent(in) :: wOrb(:)
+
+    !> Spin channel factors
     real(dp), intent(in) :: wSp(:,:)
 
     integer :: nSpin, iSpin, iW
