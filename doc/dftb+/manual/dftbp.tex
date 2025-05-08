@@ -1887,16 +1887,16 @@ potential~\cite{Hourahine2010}.
       \begin{description}
       \item[\is{Atoms}] Indices of the atoms within a constrained region. The atoms can be specified
         via index selection expressions, as described in appendix \ref{sec:index_selection}.
-      \item[\is{Populations}] Constraint on the Mulliken population on individual atoms. Must
+      \item[\is{Populations}] Constraint on the Mulliken population of individual atoms. Must
         contain as many entries as selected via the \is{Atoms} keyword. This keyword is mutually
         exclusive with the keywords \is{TotalPopulation}, \is{Charges} and \is{TotalCharge}.
-      \item[\is{TotalPopulation}] Sets constraint on the Mulliken population summed over all atoms
-        selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the keywords
-        \is{Population}, \is{Charges} and \is{TotalCharge}.
-      \item[\is{Charges}] Constraint on the gross charges on individual atoms. Must contain as many
-        entries as selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the
-        keywords \is{Populations}, \is{TotalPopulation} and \is{TotalCharge}.
-      \item[\is{TotalPopulation}] Sets constraint on the grossed charge summed over all atoms selected
+      \item[\is{TotalPopulation}] Sets constraint on the sum of the Mulliken population for the
+        atoms selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the
+        keywords \is{Population}, \is{Charges} and \is{TotalCharge}.
+      \item[\is{Charges}] Constraint on the Mulliken (gross) charges of individual atoms. Must
+        contain as many entries as selected via the \is{Atoms} keyword. This keyword is mutually
+        exclusive with the keywords \is{Populations}, \is{TotalPopulation} and \is{TotalCharge}.
+      \item[\is{TotalCharge}] Sets constraint on the sum of the Mulliken charges of all atoms selected
         via the \is{Atoms} keyword. This keyword is mutually exclusive with the keywords
         \is{Population}, \is{TotalPopulation} and \is{Charges}.
       \end{description}
