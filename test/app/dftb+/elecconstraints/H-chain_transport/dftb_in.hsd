@@ -50,18 +50,18 @@ Hamiltonian = Dftb {
     }
 
     ElectronicConstraints {
-        Regions {
-            Atoms {
-                Domain = 6
-                Population = 0.5
-            }
-            Atoms {
-                Domain = 1:11
-                Population = 11
-            }
+      Constraints {
+        MullikenPopulation {
+          Atoms = 6
+          Populations = 0.5
         }
-        MaxConstrIterations = 10
-        ConstrTolerance = 1.0E-5
+        MullikenPopulation {
+          Atoms = 1:11
+          TotalPopulation = 11
+        }
+      }
+      MaxConstrIterations = 10
+      ConstrTolerance = 1.0E-5
     }
 }
 

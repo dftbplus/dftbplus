@@ -1403,7 +1403,7 @@ contains
         if (allocated(this%elecConstraint)) then
           nConstrIter = this%elecConstraint%getMaxIter()
           call printElecConstrHeader()
-          call this%elecConstraint%potOpt%reset()
+          call this%elecConstraint%resetOptimizer()
         else
           nConstrIter = 1
         end if
@@ -1618,7 +1618,7 @@ contains
         block
           character(len=*), parameter :: msg = "Electronic constraints did NOT converge, maximal&
               & micro-iterations exceeded"
-          if (this%elecConstraint%isConstrConvRequired) then
+          if (this%elecConstraint%requiresConvergence()) then
             call error(msg)
           else
             call warning(msg)
