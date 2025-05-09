@@ -60,7 +60,7 @@ Fortran-like choices should be preferred, for example if defining
 arguments for a generated routine, choose naming conventions which are
 familar to Fortran programmers ::
 
-  #:for TYPE, KIND VAR in [("real", "dp", "A"), ("real", "sp", "B"), ("complex", "dp", "C")]
+  #:for TYPE, KIND, VAR in [("real", "dp", "A"), ("real", "sp", "B"), ("complex", "dp", "C")]
   
   ${TYPE}$(${KIND}$) :: variable${VAR}$
 
