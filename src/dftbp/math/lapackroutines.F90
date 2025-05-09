@@ -133,8 +133,9 @@ module dftbp_math_lapackroutines
 contains
 
 
-#:for TYPE, KIND, LABEL, PRF in [('real', 'rsp', 'real', 'sgesv'), ('real', 'rdp', 'dble', 'dgesv'),&
-  & ('complex', 'rsp', 'cmplx', 'cgesv'), ('complex', 'rdp', 'dcmplx', 'zgesv')]
+#:for TYPE, KIND, LABEL, PRF in [('real', 'rsp', 'real', 'sgesv'),&
+  & ('real', 'rdp', 'dble', 'dgesv'), ('complex', 'rsp', 'cmplx', 'cgesv'),&
+  & ('complex', 'rdp', 'dcmplx', 'zgesv')]
 
   !> Solves a general system of linear equations A * X = B, where A is a ${kind}$ matrix.
   subroutine gesv_${LABEL}$(aa, bb, nEquation, nSolution, status)
@@ -643,16 +644,16 @@ contains
   end subroutine getri_dble
 
 
-#:for TYPE, KIND, NAME, PRC, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytrf'),&
+#:for SYM, TYPE, NAME, KIND, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytrf'),&
   & ('sy', 'real', 'symmetric', 'rdp', 'dreal', 'dsytrf'),&
   & ('he', 'complex', 'hermitian', 'rsp', 'cmplx', 'chetrf'),&
   & ('he', 'complex', 'hermitian', 'rdp', 'dcmplx', 'zhetrf')]
 
   !> Computes the Bunch-Kaufman factorization of a ${NAME}$ matrix.
-  subroutine ${TYPE}$trf_${LABEL}$(aa, ipiv, status, uplo)
+  subroutine ${SYM}$trf_${LABEL}$(aa, ipiv, status, uplo)
 
     !> ${NAME}$ matrix
-    ${KIND}$(${PRC}$), intent(inout) :: aa(:,:)
+    ${TYPE}$(${KIND}$), intent(inout) :: aa(:,:)
 
     !> Interchanges of blocks on exit.
     integer, intent(out) :: ipiv(:)
@@ -664,8 +665,8 @@ contains
     character, intent(in), optional :: uplo
 
     integer :: nn, info, lwork
-    ${KIND}$(${PRC}$), allocatable :: work(:)
-    ${KIND}$(${PRC}$) :: tmpwork(1)
+    ${TYPE}$(${KIND}$), allocatable :: work(:)
+    ${TYPE}$(${KIND}$) :: tmpwork(1)
     character :: uplo0
 
     uplo0 = uploHelper(uplo)
@@ -685,20 +686,20 @@ contains
       @:RAISE_FORMATTED_ERROR(status, -1, "('Failure in ${PRF}$, info: ',I0)", info)
     end if
 
-  end subroutine ${TYPE}$trf_${LABEL}$
+  end subroutine ${SYM}$trf_${LABEL}$
 
 #:endfor
 
-#:for TYPE, KIND, NAME, PRC, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytri'),&
+#:for SYM, TYPE, NAME, KIND, LABEL, PRF in [('sy', 'real', 'symmetric', 'rsp', 'real', 'ssytri'),&
   & ('sy', 'real', 'symmetric', 'rdp', 'dreal', 'dsytri'),&
   & ('he', 'complex', 'hermitian', 'rsp', 'cmplx', 'chetri'),&
   & ('he', 'complex', 'hermitian', 'rdp', 'dcmplx', 'zhetri')]
 
   !> Computes the inverse of a ${NAME}$ matrix.
-  subroutine ${TYPE}$tri_${LABEL}$(aa, ipiv, status, uplo)
+  subroutine ${SYM}$tri_${LABEL}$(aa, ipiv, status, uplo)
 
     !> ${NAME}$ matrix to be inverted.
-    ${KIND}$(${PRC}$), intent(in) :: aa(:,:)
+    ${TYPE}$(${KIND}$), intent(in) :: aa(:,:)
 
     !> Block interchanges as created by the sytrf() routine.
     integer, intent(in) :: ipiv(:)
@@ -711,7 +712,7 @@ contains
 
     integer :: info, nn
     character :: uplo0
-    ${KIND}$(${PRC}$), allocatable :: work(:)
+    ${TYPE}$(${KIND}$), allocatable :: work(:)
 
     uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
@@ -724,7 +725,7 @@ contains
       @:RAISE_FORMATTED_ERROR(status, -1, "('Failure in ${PRF}$, info: ',I0)", info)
     end if
 
-  end subroutine ${TYPE}$tri_${LABEL}$
+  end subroutine ${SYM}$tri_${LABEL}$
 
 #:endfor
 
