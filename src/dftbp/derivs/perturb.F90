@@ -11,42 +11,42 @@
 !> Module for linear response derivative calculations using perturbation methods at q=0 for fixed
 !! structures
 module dftbp_derivs_perturb
+  use, intrinsic :: ieee_arithmetic, only : ieee_quiet_nan, ieee_value
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : Hartree__eV, quaternionName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_derivs_fermihelper, only : theta, deltamn, invDiff
-  use dftbp_derivs_linearresponse, only : dRhoReal, dRhoFermiChangeReal, dRhoCmplx,&
-      & dRhoFermiChangeCmplx, dRhoPauli, dRhoFermiChangePauli
+  use dftbp_derivs_fermihelper, only : deltamn
+  use dftbp_derivs_linearresponse, only : dRhoCmplx, dRhoFermiChangeCmplx, dRhoFermiChangePauli,&
+      & dRhoFermiChangeReal, dRhoPauli, dRhoReal
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init, plusUFunctionals
+  use dftbp_dftb_dftbplusu, only : plusUFunctionals, TDftbU
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : addOnsShift, onsblock_expand
-  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_reduce, OrbitalEquiv_expand
+  use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_populations, only : mulliken, denseMullikenReal, getChargePerShell,&
-      & getOnsitePopulation
+  use dftbp_dftb_populations, only : denseMullikenReal, getChargePerShell, getOnsitePopulation,&
+      & mulliken
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addShift, totalShift
-  use dftbp_dftb_spin, only : getSpinShift, ud2qm, qm2ud
-  use dftbp_dftb_thirdorder, only : TThirdOrder,  TThirdOrderInp, ThirdOrder_init
+  use dftbp_dftb_spin, only : getSpinShift, qm2ud, ud2qm
+  use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_mainio, only : writeDerivBandOut
   use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_mixer_mixer, only : TMixerReal
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_parallelks, only : TParallelKS, TParallelKS_init
-  use, intrinsic :: ieee_arithmetic, only : ieee_value, ieee_quiet_nan
+  use dftbp_type_parallelks, only : TParallelKS
 #:if WITH_SCALAPACK
   use dftbp_dftb_populations, only : denseMullikenRealBlacs
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
 #:else
   use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif

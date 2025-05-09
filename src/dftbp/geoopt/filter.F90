@@ -11,7 +11,7 @@
 !> a common gradient vector and the apply the resulting displacement to a geometry.
 module dftbp_geoopt_filter
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_simplealgebra, only : invert33, determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
   private
   public :: TFilter, TFilterInput, TFilter_init

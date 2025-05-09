@@ -8,9 +8,9 @@
 #:include "fortuno_serial.fypp"
 
 module test_common_memman
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_common_memman, only : TAlignedArray
-  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

@@ -10,9 +10,8 @@
 !> Read GBSA parametrisation data from file
 module dftbp_solvation_gbsafile
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
-      & symbolToNumber
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_constants, only : AA__Bohr, amu__au, kcal_mol__Hartree, kg__au, symbolToNumber
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_io_hsdutils, only : detailedError, detailedWarning

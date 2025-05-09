@@ -9,8 +9,6 @@
 
 module dftbp_dftb_onsitecorrection
   use dftbp_common_accuracy, only : dp
-  use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

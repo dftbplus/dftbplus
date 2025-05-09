@@ -14,13 +14,13 @@ module waveplot_gridcache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
 #:if WITH_MPI
   use dftbp_common_schedule, only : getStartAndEndIndex
 #:endif
+  use waveplot_molorb, only : getValue, TMolecularOrbital
   use dftbp_io_message, only : error
-  use waveplot_molorb, only : TMolecularOrbital, getValue
   implicit none
 
   private

@@ -10,21 +10,21 @@
 !> Contains types and functions and subroutines for manipulating linked lists.  Every list must be
 !> initialized with init, and destroyed with destroy.
 module dftbp_type_linkedlist
-  use dftbp_common_accuracy, only : mc, lc
-  use dftbp_type_linkedlistc0, only : TListComplex, append, init, len, destruct, asArray
-  use dftbp_type_linkedlistc1, only : TListComplexR1, append, len, init, asArray, destruct,&
-      & asVector, intoArray
-  use dftbp_type_linkedlisti0, only : TListInt, append, destruct, asArray, init, len
-  use dftbp_type_linkedlisti1, only : TListIntR1, append, len, destruct, init, asArray, asVector,&
-      & intoArray, get, elemShape
-  use dftbp_type_linkedlistlc0, only : TListCharLc, append, init, get, destruct
+  use dftbp_common_accuracy, only : lc, mc
+  use dftbp_type_linkedlistc0, only : append, asArray, destruct, init, len, TListComplex
+  use dftbp_type_linkedlistc1, only : append, asArray, asVector, destruct, init, intoArray, len,&
+      & TListComplexR1
+  use dftbp_type_linkedlisti0, only : append, asArray, destruct, init, len, TListInt
+  use dftbp_type_linkedlisti1, only : append, asArray, asVector, destruct, elemShape, get, init,&
+      & intoArray, len, TListIntR1
+  use dftbp_type_linkedlistlc0, only : append, destruct, get, init, TListCharLc
   use dftbp_type_linkedlistmc0, only : TListCharMc
-  use dftbp_type_linkedlistr0, only : TListReal, append, init, len, destruct, asArray
-  use dftbp_type_linkedlistr1, only : TListRealR1, append, len, init, asArray, destruct, asVector,&
-      & intoArray
-  use dftbp_type_linkedlistr2, only : TListRealR2, init, append, intoArray, len, destruct
-  use dftbp_type_linkedlists0, only : TListString, find, set, hasElement, isUnishaped, append, len,&
-      & init, asArray, destruct, get
+  use dftbp_type_linkedlistr0, only : append, asArray, destruct, init, len, TListReal
+  use dftbp_type_linkedlistr1, only : append, asArray, asVector, destruct, init, intoArray, len,&
+      & TListRealR1
+  use dftbp_type_linkedlistr2, only : append, destruct, init, intoArray, len, TListRealR2
+  use dftbp_type_linkedlists0, only : append, asArray, destruct, find, get, hasElement, init,&
+      & isUnishaped, len, set, TListString
   implicit none
 
   private

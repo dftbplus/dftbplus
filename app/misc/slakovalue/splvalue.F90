@@ -11,9 +11,9 @@
 !! and second derivatives.
 program splvalue
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
-  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep, TSplineRep_init
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRep, TSplineRep_init, TSplineRepInp
   use dftbp_io_message, only : error
   use dftbp_type_oldskdata, only : readsplinerep
 #:if WITH_MPI

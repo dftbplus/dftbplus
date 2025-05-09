@@ -24,4 +24,3 @@ program test
   end do
 
 end program test
-

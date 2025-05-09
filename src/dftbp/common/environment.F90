@@ -12,16 +12,16 @@
 module dftbp_common_environment
   use dftbp_common_globalenv, only : shutdown, stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_common_timerarray, only : TTimerItem, TTimerArray, TTimerArray_init
+  use dftbp_common_timerarray, only : TTimerArray, TTimerArray_init, TTimerItem
 #:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
 #:if WITH_MPI
   use dftbp_common_globalenv, only : globalMpiComm
-  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init, TMpiEnv_final
+  use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_final, TMpiEnv_init
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_init, TBlacsEnv_final
+  use dftbp_common_blacsenv, only : TBlacsEnv, TBlacsEnv_final, TBlacsEnv_init
 #:endif
   implicit none
 

@@ -11,8 +11,8 @@
 module dftbp_dftbplus_hsdhelpers
   use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_parser, only : TParserFlags, rootTag, readHsdFile, parseHsdTree
-  use dftbp_extlibs_xmlf90, only : fnode, destroyNode
+  use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
+  use dftbp_extlibs_xmlf90, only : destroyNode, fnode
   use dftbp_io_hsdparser, only : dumpHSD
   use dftbp_io_hsdutils, only : getChild
   use dftbp_io_hsdutils2, only : warnUnprocessedNodes

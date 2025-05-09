@@ -8,9 +8,10 @@
 #:include "fortuno_serial.fypp"
 
 module test_mixer_anderson
+  use fortuno_serial, only : all_close, suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
-  use dftbp_mixer_andersonmixer, only : TAndersonMixerInp, TAndersonMixerReal, TAndersonMixerReal_init
-  use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
+  use dftbp_mixer_andersonmixer, only : TAndersonMixerInp, TAndersonMixerReal,&
+      & TAndersonMixerReal_init
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

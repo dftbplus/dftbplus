@@ -12,16 +12,15 @@
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
 module dftbp_math_eigensolver
-  use dftbp_common_accuracy, only : rsp, rdp
-  use dftbp_extlibs_lapack, only : slamch, dlamch, spotrf, ssyev, ssyevd, ssyevr, ssygst, ssygv,&
-      & ssygvd, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, cheev, cheevd, cheevr,&
-      & chegst, chegv, chegvd, cpotrf, zheev, zheevd, zheevr, zhegst, zhegv, zhegvd, zpotrf,&
-      & sgeev, dgeev, strsm, dtrsm, ctrsm, ztrsm, strmm, dtrmm, ctrmm, ztrmm
-  use dftbp_io_message, only : error, warning
+  use dftbp_common_accuracy, only : rdp, rsp
+  use dftbp_extlibs_lapack, only : cheev, cheevd, cheevr, chegst, chegv, chegvd, cpotrf, ctrmm,&
+      & ctrsm, dgeev, dlamch, dpotrf, dsyev, dsyevd, dsyevr, dsygst, dsygv, dsygvd, dtrmm, dtrsm,&
+      & sgeev, slamch, spotrf, ssyev, ssyevd, ssyevr, ssygst, ssygv, ssygvd, strmm, strsm, zheev,&
+      & zheevd, zheevr, zhegst, zhegv, zhegvd, zpotrf, ztrmm, ztrsm
+  use dftbp_io_message, only : error
 #:if WITH_MAGMA
-  use dftbp_extlibs_magma,  only : magmaf_ssygvd_m, magmaf_dsygvd_m, magmaf_chegvd_m,&
-      & magmaf_zhegvd_m, magmaf_ssyevd_m, magmaf_dsyevd_m, magmaf_cheevd_m,&
-      & magmaf_zheevd_m
+  use dftbp_extlibs_magma, only : magmaf_cheevd_m, magmaf_chegvd_m, magmaf_dsyevd_m,&
+      & magmaf_dsygvd_m, magmaf_ssyevd_m, magmaf_ssygvd_m, magmaf_zheevd_m, magmaf_zhegvd_m
 #:endif
   implicit none (type, external)
 

@@ -11,7 +11,7 @@
 program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error
@@ -20,10 +20,10 @@ program modes
 #:if WITH_MAGMA
   use dftbp_math_eigensolver, only : magmaHeevd
 #:endif
-  use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
-      & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
-      & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables,&
-      & iSolver, solverTypes, setEigvecGauge
+  use modes_initmodes, only : atomicMasses, bornDerivsMatrix, bornMatrix, dynMatrix, geo,&
+      & iMovedAtoms, initProgramVariables, iSolver, modesToPlot, nCycles, nDerivs, nModesToPlot,&
+      & nMovedAtom, nSteps, setEigvecGauge, solverTypes, tAnimateModes, tEigenVectors, tPlotModes,&
+      & tRemoveRotate, tRemoveTranslate
 #:if WITH_MAGMA
   use modes_initmodes, only : gpu
 #:endif
@@ -31,7 +31,7 @@ program modes
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_extlibs_mpifx, only : mpifx_finalize, mpifx_init_thread
 #:endif
   implicit none
 

@@ -12,12 +12,12 @@
 module dftbp_type_oldskdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : amu__au
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcFunc
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_dftb_hybridxc, only : hybridXcFunc, THybridXcSKTag
   use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp
   use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp
-  use dftbp_io_message, only : error
   use dftbp_io_charmanip, only : tolower
+  use dftbp_io_message, only : error
   implicit none
 
   private

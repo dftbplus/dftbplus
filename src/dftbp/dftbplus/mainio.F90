@@ -15,27 +15,27 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
-      & gfac, Hartree__eV, quaternionName, spinName
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
+      & Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
-  use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_elecconstraints, only : TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sccinit, only : writeQToFile
   use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
-  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver
-  use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
-      & xml_NewElement, xml_OpenFile, xmlf_t
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement, xml_NewElement,&
+      & xml_OpenFile, xmlf_t
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
       & formatBorn, formatdBorn, formatGeoOut, formatHessian
@@ -45,9 +45,9 @@ module dftbp_dftbplus_mainio
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : hemv
   use dftbp_math_eigensolver, only : heev
-  use dftbp_md_mdintegrator, only : TMdIntegrator, state
   use dftbp_md_mdcommon, only : TMDOutput
-  use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
+  use dftbp_md_mdintegrator, only : state, TMdIntegrator
+  use dftbp_reks_reks, only : reksTypes, setReksTargetEnergy, TReksCalc
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_cosmo, only : TCosmo
   use dftbp_solvation_fieldscaling, only : TScaleExtEField

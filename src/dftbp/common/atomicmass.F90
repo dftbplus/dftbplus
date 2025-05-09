@@ -10,7 +10,7 @@
 !> Atomic masses for each element known in the PSE
 module dftbp_common_atomicmass
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : amu__au, symbolToNumber, elementSymbol
+  use dftbp_common_constants, only : amu__au, elementSymbol, symbolToNumber
   implicit none
 
   private

@@ -8,7 +8,7 @@
 !> Contains mathematical functions to calculate the short-ranged part of gamma, and the distance
 !! beyond which it becomes negligible.
 module dftbp_dftb_shortgammafuncs
-  use dftbp_common_accuracy, only : dp, lc, minHubTol, minHubDiff, tolSameDist, minShortGamma,&
+  use dftbp_common_accuracy, only : dp, lc, minHubDiff, minHubTol, minShortGamma, tolSameDist,&
       & tolShortGamma
   use dftbp_io_message, only : error
   implicit none

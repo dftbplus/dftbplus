@@ -11,8 +11,7 @@
 
 !> Contains workhorse routines for range-separated gamma functions.
 module dftbp_dftb_rshgamma
-
-  use dftbp_common_accuracy, only : dp, tolSameDist, MinHubDiff
+  use dftbp_common_accuracy, only : dp, MinHubDiff, tolSameDist
   use dftbp_common_status, only : TStatus
   use dftbp_math_simplealgebra, only : cross3
 

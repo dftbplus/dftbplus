@@ -10,16 +10,16 @@
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
   use dftbp_common_accuracy, only : dp
-  use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_typegeometry, only : TGeometry
-  use dftbp_extlibs_xmlf90, only : fnode, string, char, getLength, getItem1, fnodeList
-  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal2
-  use dftbp_geoopt_package, only : TOptimizer, TOptimizerInput, createOptimizer
+  use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
+  use dftbp_extlibs_xmlf90, only : char, destroyNodeList, fnode, fnodeList, getItem1, getLength,&
+      & string
+  use dftbp_geoopt_package, only : createOptimizer, TOptimizer, TOptimizerInput
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
       & getSelectedAtomIndices
   use dftbp_io_hsdutils2, only : renameChildren
-  use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
-  use dftbp_extlibs_xmlf90, only : destroyNodeList
+  use dftbp_type_commontypes, only : TOrbitals
+  use dftbp_type_typegeometry, only : TGeometry
+  use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal2
   implicit none (type, external)
 
   private

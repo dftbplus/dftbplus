@@ -17,22 +17,22 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksgrad
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_dftb_coulomb, only : addInvRPrime
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHS, packHS
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_math_lapackroutines, only : getrf, getri
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
-      & findShellOfAO, qmExpandL
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, findShellOfAO, getTwoIndices,&
+      & matAO2MO, matMO2AO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals

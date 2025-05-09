@@ -9,9 +9,9 @@
 
 
 module test_io_tokenreader
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_io_tokenreader, only : getNextToken
-  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

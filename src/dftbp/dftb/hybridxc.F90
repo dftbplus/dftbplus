@@ -11,23 +11,23 @@
 
 !> Contains hybrid xc-functional related routines.
 module dftbp_dftb_hybridxc
-  use dftbp_common_accuracy, only : dp, distFudge
-  use dftbp_common_constants, only : pi, imag
-  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_accuracy, only : distFudge, dp
+  use dftbp_common_constants, only : imag, pi
+  use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_schedule, only : getStartAndEndIndex
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dense, only : getDescriptor
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
-  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS
-  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, getCellTranslations, cart2frac
+  use dftbp_dftb_nonscc, only : buildS, TNonSccDiff
+  use dftbp_dftb_periodic, only : cart2frac, getCellTranslations, TNeighbourList, TSymNeighbourList
   use dftbp_dftb_rshgamma, only : getCamAnalyticalGammaValue_workhorse,&
-      & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse,&
+      & getddHfAnalyticalGammaValue_workhorse, getddLrNumericalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
-      & getddLrNumericalGammaValue_workhorse, getddHfAnalyticalGammaValue_workhorse
+      & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHS, getUnpackedOverlapPrime_real,&
-      & getUnpackedOverlapPrime_kpts
-  use dftbp_math_blasroutines, only : gemm, symm, hemm
+  use dftbp_dftb_sparse2dense, only : getUnpackedOverlapPrime_kpts, getUnpackedOverlapPrime_real,&
+      & unpackHS
+  use dftbp_math_blasroutines, only : gemm, hemm, symm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_math_sorting, only : heap_sort, index_heap_sort
@@ -41,9 +41,8 @@ module dftbp_dftb_hybridxc
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
-  use dftbp_extlibs_scalapackfx, only : CSRC_, DLEN_, MB_, NB_, RSRC_, pblasfx_pgemm,&
-      & pblasfx_ptranc, pblasfx_ptran, pblasfx_phemm, pblasfx_psymm, scalafx_indxl2g,&
-      & scalafx_getdescriptor, scalafx_getlocalshape, scalafx_addl2g, linecomm
+  use dftbp_extlibs_scalapackfx, only : CSRC_, linecomm, MB_, NB_, pblasfx_pgemm, pblasfx_psymm,&
+      & pblasfx_ptran, RSRC_, scalafx_addl2g, scalafx_indxl2g
   use dftbp_math_bisect, only : bisection
 #:endif
 

@@ -18,37 +18,35 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksinterface
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
   use dftbp_dftb_populations, only : mulliken
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : packHS, unpackHS
   use dftbp_dftb_stress, only : getBlockStress
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
-  use dftbp_io_message, only : error
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices
   use dftbp_reks_rekscpeqn, only : cggrad
   use dftbp_reks_reksen, only : adjustEigenval, solveSecularEqn
-  use dftbp_reks_reksgrad, only : weightgradient, ssrshift, sishift, satossrxt, satossrweight,&
-      & addsitorq, ssrshift, lshift, getothersagrad, satossrgradient, getreksnac, rtshift, &
-      & solvezt, getrmat, getzmat, getq2mat, getq1mat, buildsareksvectors, getrdel, getzmat,&
-      & buildinteractionvectors, getq2mat, getq1del, buildlstatevector, getsccspinlrpars,&
-      & gethxckernel, getsuperamatrix, getenergyweighteddensityl, derivative_blockl,&
-      & getg1ilomegarab, getextchrggradients
-  use dftbp_reks_reksio, only : writereksrelaxedcharge, printreksgradinfo, writerekstdp
-  use dftbp_reks_reksproperty, only : getrelaxeddensmat, getrelaxeddensmatl,&
-      & getunrelaxeddensmatandtdp, getdipoleintegral, getdipolemomentmatrix, getreksosc
+  use dftbp_reks_reksgrad, only : addsitorq, buildinteractionvectors, buildlstatevector,&
+      & buildsareksvectors, derivative_blockl, getenergyweighteddensityl, getextchrggradients,&
+      & getg1ilomegarab, gethxckernel, getothersagrad, getq1del, getq1mat, getq2mat, getrdel,&
+      & getreksnac, getrmat, getsccspinlrpars, getsuperamatrix, getzmat, lshift, rtshift,&
+      & satossrgradient, satossrweight, satossrxt, sishift, solvezt, ssrshift, weightgradient
+  use dftbp_reks_reksio, only : printreksgradinfo, writereksrelaxedcharge, writerekstdp
+  use dftbp_reks_reksproperty, only : getdipoleintegral, getdipolemomentmatrix, getreksosc,&
+      & getrelaxeddensmat, getrelaxeddensmatl, getunrelaxeddensmatandtdp
   use dftbp_reks_reksvar, only : TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals

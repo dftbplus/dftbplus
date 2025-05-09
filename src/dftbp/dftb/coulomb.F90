@@ -9,26 +9,26 @@
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_dftb_coulomb
-  use dftbp_common_accuracy, only : dp, tolSameDist, tolSameDist2, nSearchIter
+  use dftbp_common_accuracy, only : dp, nSearchIter, tolSameDist, tolSameDist2
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeInChunks2,&
-      & assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks,&
+      & distributeRangeInChunks2
   use dftbp_dftb_boundarycond, only : boundaryConditions
-  use dftbp_dftb_periodic, only : TNeighbourList, getLatticePoints, getCellTranslations
+  use dftbp_dftb_periodic, only : getCellTranslations, getLatticePoints, TNeighbourList
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : hemv
-  use dftbp_math_errorfunction, only : erfwrap, erfcwrap
+  use dftbp_math_errorfunction, only : erfcwrap, erfwrap
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_dynneighlist, only : TDynNeighList, TDynNeighList_init, TNeighIterator,&
       & TNeighIterator_init
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, MPI_SUM
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, scalafx_getdescriptor, scalafx_getlocalshape,&
-      & scalafx_indxl2g, scalafx_cpl2g, scalafx_islocal, scalafx_cpg2l, pblasfx_psymv, DLEN_,&
-      & CSRC_, RSRC_, MB_, NB_
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, CSRC_, DLEN_, MB_, NB_, pblasfx_psymv, RSRC_,&
+      & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape, scalafx_indxl2g,&
+      & scalafx_islocal
 #:endif
   implicit none
 

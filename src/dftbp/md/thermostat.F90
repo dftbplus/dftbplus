@@ -8,12 +8,12 @@
 !> Contains wrapper for all thermostats.
 module dftbp_md_thermostat
   use dftbp_common_accuracy, only : dp
-  use dftbp_md_andersentherm, only : TAndersenThermostat, getInitVelocities, updateVelocities,&
-      & state
-  use dftbp_md_berendsentherm, only : TBerendsenThermostat, state, updateVelocities,&
-      & getInitVelocities
-  use dftbp_md_dummytherm, only : TDummyThermostat, getInitVelocities, init
-  use dftbp_md_nhctherm, only : TNHCThermostat, state, updateVelocities, getInitVelocities, init
+  use dftbp_md_andersentherm, only : getInitVelocities, state, TAndersenThermostat,&
+      & updateVelocities
+  use dftbp_md_berendsentherm, only : getInitVelocities, state, TBerendsenThermostat,&
+      & updateVelocities
+  use dftbp_md_dummytherm, only : getInitVelocities, init, TDummyThermostat
+  use dftbp_md_nhctherm, only : getInitVelocities, init, state, TNHCThermostat, updateVelocities
   implicit none
 
   private

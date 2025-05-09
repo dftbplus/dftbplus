@@ -10,32 +10,29 @@
 
 !> Evaluate energies
 module dftbp_dftb_getenergies
-  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
-  use dftbp_dftb_determinants, only : TDftbDeterminants, determinants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_onsitecorrection, only : getEons
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_potentials, only : TPotentials
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
-  use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
+  use dftbp_dftb_spinorbit, only : getDualSpinOrbitEnergy
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error
   use dftbp_reks_reks, only : TReksCalc
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
 #:if WITH_MBD
-  use dftbp_dftb_dispmbd, only: TDispMbd
+  use dftbp_dftb_dispmbd, only : TDispMbd
 #:endif
   implicit none
 

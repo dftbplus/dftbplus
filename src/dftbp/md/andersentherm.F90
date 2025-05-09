@@ -15,9 +15,8 @@
 module dftbp_md_andersentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
-  use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_md_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame,&
-      & rescaleTokT
+  use dftbp_math_ranlux, only : getRandom, TRanlux
+  use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   implicit none
 

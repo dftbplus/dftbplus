@@ -8,7 +8,7 @@
 !> Interface wrappers for LAPACK routines. See the <a href="http://www.netlib.org/lapack/">lapack
 !! project documentation</a> for documentation of the routines.
 module dftbp_extlibs_lapack
-  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_common_accuracy, only : rdp, rsp
   implicit none
 
   interface

@@ -12,10 +12,10 @@ module dftbp_dftb_shortgamma
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : getIndicesWithWorkload
-  use dftbp_dftb_h5correction, only : TH5CorrectionInput, TH5Correction, TH5Correction_init
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
-  use dftbp_dftb_shortgammafuncs, only : expGammaCutOff, expGamma, expGammaPrime, expGammaDamped,&
-      & expGammaDampedPrime
+  use dftbp_dftb_h5correction, only : TH5Correction, TH5Correction_init, TH5CorrectionInput
+  use dftbp_dftb_periodic, only : getNrOfNeighbours, TNeighbourList
+  use dftbp_dftb_shortgammafuncs, only : expGamma, expGammaCutOff, expGammaDamped,&
+      & expGammaDampedPrime, expGammaPrime
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK

@@ -12,17 +12,15 @@
 module dftbp_dftb_simpledftd3
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_common_status, only : TStatus
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
-  use dftbp_dftb_coordnumber, only : TCNCont, TCNInput, init
-  use dftbp_dftb_dftd3param, only : TDftD3Ref, init
-  use dftbp_dftb_dftd4param, only : getSqrtZr4r2
+  use dftbp_dftb_coordnumber, only : init, TCNCont, TCNInput
+  use dftbp_dftb_dftd3param, only : init, TDftD3Ref
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
-  use dftbp_math_simplealgebra, only : determinant33, invert33
+  use dftbp_math_simplealgebra, only : determinant33
   implicit none
 
   private
