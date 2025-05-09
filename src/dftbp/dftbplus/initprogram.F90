@@ -34,8 +34,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
   use dftbp_dftb_dispersions, only : DispSlaKirk_init, DispUff_init, init, TDispDftD4,&
       & TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3
-  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init,&
-      & TElecConstraintInput
+  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInp
   use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_etemp, only : fillingTypes
