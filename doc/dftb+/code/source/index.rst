@@ -10,6 +10,7 @@ Welcome to DFTB+ code design's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   buildsystem.rst
    testing.rst
    
 
