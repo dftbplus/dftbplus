@@ -10,12 +10,13 @@
 !! code.
 !! Not all routines use the string length specifications to set their character string lengths.
 module dftbp_common_accuracy
+  use iso_fortran_env, only : real32, real64
   implicit none
 
   public
 
   !> Precision of the real data type
-  integer, parameter :: dp = kind(1.0d0)
+  integer, parameter :: dp = real64
 
   !> Precision of the complex data type
   integer, parameter :: cp = dp
@@ -31,10 +32,10 @@ module dftbp_common_accuracy
 
 
   !> Real double precision - do not edit
-  integer, parameter :: rdp = kind(0.0d0)
+  integer, parameter :: rdp = real64
 
   !> Real single precision - do not edit
-  integer, parameter :: rsp = kind(0.0)
+  integer, parameter :: rsp = real32
 
   ! Program technical constants
 
