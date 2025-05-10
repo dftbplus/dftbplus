@@ -203,7 +203,7 @@ contains
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterNew_ + 1) then
       call error("SlakoEqGrid: Not enough points in the SK-table for &
           &interpolation!")
@@ -270,7 +270,7 @@ contains
 
     invdistFudge = -1.0_dp / (real(mInd - leng -1, dp) * incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterOld_ + 1) then
       call error("skspar: Not enough points in the SK-table for interpolation!")
     end if

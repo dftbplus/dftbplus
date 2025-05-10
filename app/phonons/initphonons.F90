@@ -625,9 +625,9 @@ contains
     integer :: iStart, iStart2, iEnd
     logical :: mask(3)
 
-    !! Sanity check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
+    !! Consistency check for the atom ranges
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom &
         &.or. iEnd > geom%nAtom .or. iEnd < iStart) then
       call detailedError(pContact, "Invalid atom range '" // i2c(iStart) &

@@ -2523,7 +2523,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialHessian = .false.
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrect number of rows of dynamical Matrix")
     end if
@@ -2581,7 +2581,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -2636,7 +2636,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -4242,7 +4242,7 @@ contains
 
     nSpin = size(ham, dim=2)
 
-    ! Sanity check, although this should have been caught in initprogram already.
+    ! Consistent with functionality? Although this should have been caught in initprogram already.
     if (nSpin == 4) then
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
