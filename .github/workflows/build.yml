@@ -1,5 +1,23 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'cmake/**'
+      - 'external/**'
+      - 'src/**'
+      - 'test/**'
+      - 'CMakeLists.txt'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'cmake/**'
+      - 'external/**'
+      - 'src/**'
+      - 'test/**'
+      - 'CMakeLists.txt'
 
 env:
   CI: "ON"
