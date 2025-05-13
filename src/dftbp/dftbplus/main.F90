@@ -1154,7 +1154,7 @@ contains
           & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
           & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   #:if WITH_TRANSPORT
@@ -1708,7 +1708,8 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
             & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
             & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
-            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
+            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities, this%coord,&
+            & this%extendedGeomFile, this%species)
       endif
     end if
 
@@ -2017,7 +2018,7 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
-            & this%qOutput, this%velocities)
+            & this%qOutput, this%velocities, this%coord, this%extendedGeomFile, this%species)
       end if
       this%coord0(:,:) = this%newCoords
       if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
@@ -2118,7 +2119,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
-      & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
+      & repulsive, dispersion, solvation, cm5Cont, recVecs, invLatVecs, cellVol, recCellVol,&
       & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
 
     !> Lattice vectors
@@ -2155,7 +2156,7 @@ contains
     real(dp), intent(out) :: recVecs(:,:)
 
     !> Reciprocal lattice vectors in units of 2 pi
-    real(dp), intent(out) :: recVecs2p(:,:)
+    real(dp), intent(out) :: invLatVecs(:,:)
 
     !> Unit cell volume
     real(dp), intent(out) :: cellVol
@@ -2175,12 +2176,8 @@ contains
     !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
-    cellVol = abs(determinant33(latVecs))
-    recVecs2p(:,:) = latVecs
-    call invert33(recVecs2p)
-    recVecs2p = transpose(recVecs2p)
-    recVecs = 2.0_dp * pi * recVecs2p
-    recCellVol = abs(determinant33(recVecs))
+    call boundaryCond%handleBoundaryChanges(latVecs, invLatVecs, recVecs, cellVol, recCellVol)
+
     if (tStress) then
       call derivDeterminant33(extLatDerivs, latVecs)
       extLatDerivs(:,:) = extPressure * extLatDerivs
@@ -2208,7 +2205,7 @@ contains
        call cm5Cont%updateLatVecs(latVecs)
        mCutoff = max(mCutOff, cm5Cont%getRCutOff())
     end if
-    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
+    call getCellTranslations(cellVecs, rCellVecs, latVecs, invLatVecs, mCutOff, boundaryCond)
 
   end subroutine handleLatticeChange
 
