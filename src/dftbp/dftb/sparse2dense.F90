@@ -16,7 +16,7 @@ module dftbp_dftb_sparse2dense
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_dense, only : getDescriptor
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_periodic, only : TSymNeighbourList
+  use dftbp_dftb_periodic, only : TAuxNeighbourList
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_math_angmomentum, only : rotateZ
   use dftbp_type_commontypes, only : TOrbitals
@@ -3205,7 +3205,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -3282,7 +3282,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -3356,7 +3356,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
