@@ -1777,7 +1777,8 @@ contains
       do iS = 1, nS
         do iK = 1, nK
           write(fd%unit, '(i5.2)', ADVANCE='NO') iS
-          write(fd%unit, '(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
+          write(fd%unit, '(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO')kpoints(:,iK),&
+              & kWeights(iK)
         end do
       end do
       write(fd%unit, *)

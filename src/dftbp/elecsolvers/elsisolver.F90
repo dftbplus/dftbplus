@@ -27,10 +27,10 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs, packRhoHelicalCplxBlacs,&
-      & packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs, unpackHPauliBlacs,&
-      & unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
-      & unpackSPauliBlacs
+  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs,&
+      & packRhoHelicalCplxBlacs, packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs,&
+      & unpackHPauliBlacs, unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs,&
+      & unpackHSRealBlacs, unpackSPauliBlacs
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc_init
   use dftbp_extlibs_elsiiface, only : elsi_dm_complex, elsi_dm_complex_sparse, elsi_dm_real,&
       & elsi_dm_real_sparse, elsi_finalize, elsi_finalize_rw, elsi_get_edm_complex,&
@@ -43,10 +43,10 @@ module dftbp_elecsolvers_elsisolver
       & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol, elsi_set_output,&
       & elsi_set_output_log, elsi_set_pexsi_delta_e, elsi_set_pexsi_method, elsi_set_pexsi_mu_max,&
       & elsi_set_pexsi_mu_min, elsi_set_pexsi_n_mu, elsi_set_pexsi_n_pole,&
-      & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_np_symbo, elsi_set_pexsi_temp, elsi_set_rw_blacs,&
-      & elsi_set_rw_csc, elsi_set_rw_mpi, elsi_set_sing_check, elsi_set_sparsity_mask,&
-      & elsi_set_spin, elsi_set_zero_def, elsi_write_mat_complex, elsi_write_mat_complex_sparse,&
-      & elsi_write_mat_real, elsi_write_mat_real_sparse
+      & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_np_symbo, elsi_set_pexsi_temp,&
+      & elsi_set_rw_blacs, elsi_set_rw_csc, elsi_set_rw_mpi, elsi_set_sing_check,&
+      & elsi_set_sparsity_mask, elsi_set_spin, elsi_set_zero_def, elsi_write_mat_complex,&
+      & elsi_write_mat_complex_sparse, elsi_write_mat_real, elsi_write_mat_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
   implicit none
