@@ -1154,7 +1154,7 @@ contains
           & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
           & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   #:if WITH_TRANSPORT
