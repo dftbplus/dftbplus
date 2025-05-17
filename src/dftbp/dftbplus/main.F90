@@ -38,7 +38,7 @@ module dftbp_dftbplus_main
   use dftbp_dftb_onsitecorrection, only : addOnsShift, Onsblock_expand, onsBlock_reduce
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
   use dftbp_dftb_periodic, only : cart2frac, frac2cart, getCellTranslations,&
-      & getNrOfNeighboursForAll, TNeighbourList, TSymNeighbourList, updateNeighbourListAndSpecies
+      & getNrOfNeighboursForAll, TNeighbourList, TAuxNeighbourList, updateNeighbourListAndSpecies
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
   use dftbp_dftb_populations, only : denseBlockMulliken, denseMullikenPauli, denseMullikenReal,&
       & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
@@ -1154,7 +1154,7 @@ contains
           & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
           & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   #:if WITH_TRANSPORT
@@ -2291,7 +2291,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Total number of atoms including images
     integer, intent(out) :: nAllAtom
@@ -2741,7 +2741,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -2965,7 +2965,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -3192,7 +3192,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -3348,7 +3348,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -6654,7 +6654,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -8257,7 +8257,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Number of atomic neighbours
     integer, intent(in) :: nNeighbourSK(:)
