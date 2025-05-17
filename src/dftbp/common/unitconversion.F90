@@ -13,9 +13,9 @@
 !> internal in the code (atomic units).
 module dftbp_common_unitconversion
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : AA__Bohr, amu__au, au__fs, Bohr__AA, Boltzmann, c, Coulomb__au,&
-      & Debye__au, eV__Hartree, fs__au, Hartree__cm, hbar, J__Hartree, kcal_mol__Hartree, kg__au,&
-      & nm__Bohr, pascal__au, pi, V_m__au
+  use dftbp_common_constants, only : AA__Bohr, amu__au, au__fs, Bohr__AA, Boltzmann, c,&
+      & Coulomb__au, Debye__au, eV__Hartree, fs__au, Hartree__cm, hbar, J__Hartree,&
+      & kcal_mol__Hartree, kg__au, nm__Bohr, pascal__au, pi, V_m__au
   use dftbp_io_charmanip, only : tolower
   implicit none
 

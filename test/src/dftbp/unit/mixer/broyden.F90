@@ -26,17 +26,18 @@ contains
     type(TBroydenMixerReal) :: mixer
     
     real(dp), parameter :: atol = 100.0_dp * epsilon(0.0_dp)
-    real(dp), parameter :: expectedCharges(3, 5) = reshape([ &
-        6.0000000000000018_dp, 1.0000000000000002_dp, 1.0000000000000002_dp, &  
-        6.1761632532030193_dp, 0.91191837339849169_dp, 0.91191837339849169_dp, & 
-        6.4798000093100434_dp, 0.76009999534497941_dp, 0.76009999534497941_dp, & 
-        6.4625859389302871_dp, 0.76870703053485734_dp, 0.76870703053485745_dp, & 
-        6.4635561795150211_dp, 0.76822191024249031_dp, 0.76822191024249042_dp], [3,5])
+    real(dp), parameter :: expectedCharges(3, 5) = reshape([&
+        & 6.0000000000000018_dp, 1.0000000000000002_dp, 1.0000000000000002_dp,&
+        & 6.1761632532030193_dp, 0.91191837339849169_dp, 0.91191837339849169_dp,&
+        & 6.4798000093100434_dp, 0.76009999534497941_dp, 0.76009999534497941_dp,&
+        & 6.4625859389302871_dp, 0.76870703053485734_dp, 0.76870703053485745_dp,&
+        & 6.4635561795150211_dp, 0.76822191024249031_dp, 0.76822191024249042_dp], [3,5])
     real(dp), parameter :: difference(3, 4) = reshape([ &
-        0.88081626601508667_dp, -0.44040813300754278_dp, -0.44040813300754278_dp, &
-        0.55742893386488124_dp, -0.27871446693244140_dp, -0.27871446693244140_dp, &
-        -3.2497351757903914E-002_dp, 1.6248675878950958E-002_dp, 1.6248675878951291E-002_dp, &
-        1.9288771697691942E-003_dp, -9.6443858488526324E-004_dp, -9.6443858488515222E-004_dp], [3,4])
+        & 0.88081626601508667_dp, -0.44040813300754278_dp, -0.44040813300754278_dp,&
+        & 0.55742893386488124_dp, -0.27871446693244140_dp, -0.27871446693244140_dp,&
+        & -3.2497351757903914E-002_dp, 1.6248675878950958E-002_dp, 1.6248675878951291E-002_dp,&
+        & 1.9288771697691942E-003_dp, -9.6443858488526324E-004_dp, -9.6443858488515222E-004_dp],&
+        & [3,4])
 
     real(dp) :: qInpResult(3)
     integer :: ii
@@ -54,7 +55,8 @@ contains
     ! Set initial charges
     qInpResult = expectedCharges(:,1)
 
-    ! Iteratively assert that each pair of (charges, chargeDifference) results in the expected charges.
+    ! Iteratively assert that each pair of (charges, chargeDifference) results in the expected
+    ! charges.
     do ii = 1, 4
         call mixer%mix(qInpResult, difference(:,ii))
         @:ASSERT(all_close(qInpResult, expectedCharges(:,ii+1), atol=atol))

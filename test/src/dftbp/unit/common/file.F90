@@ -418,7 +418,8 @@ contains
 
     call openFile(fx%fd, fname, mode="wb", ioStat=fx%ioStat)
     @:ASSERT(fx%ioStat == 0 .and. connected_(fname))
-    @:ASSERT(checkUnitProperties_(fx%fd%unit, action="write", form="unformatted", position="rewind"))
+    @:ASSERT(checkUnitProperties_(fx%fd%unit, action="write", form="unformatted",&
+        & position="rewind"))
   $:END_TEST()
 
 

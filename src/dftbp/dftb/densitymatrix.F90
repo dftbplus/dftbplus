@@ -24,9 +24,9 @@ module dftbp_dftb_densitymatrix
 #:endif
 #:if WITH_MAGMA
   use iso_fortran_env, only : int64
-  use magma, only : magmaf_dgetmatrix, magmaf_dmalloc, magmaf_dsetmatrix, magmaf_dsyrk, magmaf_free,&
-      & magmaf_queue_create, magmaf_queue_destroy, magmaf_zgetmatrix, magmaf_zherk, magmaf_zmalloc,&
-      & magmaf_zsetmatrix
+  use magma, only : magmaf_dgetmatrix, magmaf_dmalloc, magmaf_dsetmatrix, magmaf_dsyrk,&
+      & magmaf_free, magmaf_queue_create, magmaf_queue_destroy, magmaf_zgetmatrix, magmaf_zherk,&
+      & magmaf_zmalloc, magmaf_zsetmatrix
 #:endif
 
   implicit none

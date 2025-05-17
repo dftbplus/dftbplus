@@ -18,8 +18,9 @@ module dftbp_extlibs_sdftd3
   use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : determinant33
 #:if WITH_SDFTD3
-  use dftd3, only : d3_model, damping_param, get_dftd3_version, get_dispersion, mzero_damping_param,&
-      & new_d3_model, rational_damping_param, realspace_cutoff, zero_damping_param
+  use dftd3, only : d3_model, damping_param, get_dftd3_version, get_dispersion,&
+      & mzero_damping_param, new_d3_model, rational_damping_param, realspace_cutoff,&
+      & zero_damping_param
   use mctc_env, only : error_type
   use mctc_io, only : new, structure_type
 #:endif

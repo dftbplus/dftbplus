@@ -181,7 +181,7 @@ integer :: i_x,i_y,i_z
   return
 
 end subroutine coef_gate
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 subroutine gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
 
@@ -266,7 +266,7 @@ subroutine gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
  enddo
 
  end subroutine gate_bound
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine coef_cilgate(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
 
  real(kind=dp) :: cxx,cyy,czz,cx,cy,cz,ce
@@ -429,7 +429,7 @@ Subroutine coef_cilgate(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
 
 
 end subroutine coef_cilgate
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
 
@@ -466,9 +466,8 @@ subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
 
              d_cntr = sqrt((yj-cntr_gate(2))**2+(zk-cntr_gate(3))**2)
 
-             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(xi.ge.x_min_ox).and.(xi.le.x_max_ox) ) then
-             !   rhs(i,j,k) = 0.d0
-             !endif
+             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(xi.ge.x_min_ox).and.(xi.le.x_max_ox) )
+             !   then rhs(i,j,k) = 0.d0 endif
 
              if ( (d_cntr.ge.Rmin_Gate).and.(xi.ge.x_min_gate).and.(xi.le.x_max_gate) ) then
                 rhs(i,j,k) = gate
@@ -483,9 +482,8 @@ subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
 
              d_cntr = sqrt((xi-cntr_gate(1))**2+(zk-cntr_gate(3))**2)
 
-             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(yj.ge.y_min_ox).and.(yj.le.y_max_ox) ) then
-             !   rhs(i,j,k) = 0.d0
-             !endif
+             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(yj.ge.y_min_ox).and.(yj.le.y_max_ox) )
+             !   then rhs(i,j,k) = 0.d0 endif
 
              if ( (d_cntr.ge.Rmin_Gate).and.(yj.ge.y_min_gate).and.(yj.le.y_max_gate) ) then
                  rhs(i,j,k) = gate
@@ -500,9 +498,8 @@ subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)
 
              d_cntr = sqrt((xi-cntr_gate(1))**2+(yj-cntr_gate(2))**2)
 
-             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(zk.ge.z_min_ox).and.(zk.le.z_max_ox) ) then
-             !   rhs(i,j,k) = 0.d0
-             !endif
+             !if ( (d_cntr.gt.(Rmin_Ins-dr_eps/2.d0)).and.(zk.ge.z_min_ox).and.(zk.le.z_max_ox) )
+             !   then rhs(i,j,k) = 0.d0 endif
 
              if ( (d_cntr.ge.Rmin_Gate).and.(zk.ge.z_min_gate).and.(zk.le.z_max_gate) ) then
                 rhs(i,j,k) = gate
@@ -795,7 +792,7 @@ Subroutine coef_local(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
  enddo !m
 
 end subroutine coef_local
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 subroutine local_bound(iparm,fparm,x,rhs,phi_bulk)
 

@@ -11,8 +11,8 @@ program phonons
   use phonons_initphonons, only : atomicMasses, autotestTag, destructProgramVariables, dynMatrix,&
       & geo, img2CentCell, iMovedAtoms, initProgramVariables, kPoint, modesToPlot, nAtomUnitCell,&
       & nCells, nCycles, neighbourList, nKPoints, nModesToPlot, nMovedAtom, nNeighbour, nSteps,&
-      & outputUnits, selTypeModes, tAnimateModes, tCompModes, tPhonDispersion, tPlotModes, transpar,&
-      & tTransport, tundos, tWriteTagged, tXmakeMol
+      & outputUnits, selTypeModes, tAnimateModes, tCompModes, tPhonDispersion, tPlotModes,&
+      & transpar, tTransport, tundos, tWriteTagged, tXmakeMol
   use phonons_libnegfint, only : calc_phonon_current, init_tun_proj, negf_init, negf_init_str
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Bohr__AA, Hartree__cm, Hartree__eV, Hartree__J, hbar, pi

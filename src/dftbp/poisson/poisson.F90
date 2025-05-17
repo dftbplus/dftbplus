@@ -34,14 +34,14 @@ module dftbp_poisson_poisson
       & DoGate, DoPoisson, DOS, DoTip, dR_cont, dr_eps, Efermi, eps_r, etb, fictcont, fixed_renorm,&
       & FoundBox, gate, gatedir, GateLength_l, GateLength_t, iatc, iatm, init_defaults, InitPot,&
       & LmbMax, localBC, maxiter, MAXNCONT, maxpoissiter, mbound_end, mixed, mu, ncdim, ncont, nf,&
-      & ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds, PoissBox, PoissPlane,&
-      & R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList, SavePOT,&
-      & scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indices, set_contdir,&
-      & set_contlabels, set_dopoisson, set_fermi, set_mol_indeces, set_ncont, set_poissonbox,&
-      & set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose, telec, temp,&
-      & tip_atom, tipbias, verbose, x0, y0, z0
-  use dftbp_poisson_parcheck, only : check_biasdir, check_contacts, check_localbc, check_parameters,&
-      & check_poisson_box, write_parameters
+      & ni, overrBulkBC, overrideBC, OxLength, PoissAcc, poissBC, PoissBounds, PoissBox,&
+      & PoissPlane, R_cont, racc, ReadBulk, Readold, Rmin_Gate, Rmin_Ins, SaveHS, SaveNNList,&
+      & SavePOT, scratchfolder, set_accuracy, set_builtin, set_cluster, set_cont_indices,&
+      & set_contdir, set_contlabels, set_dopoisson, set_fermi, set_mol_indeces, set_ncont,&
+      & set_poissonbox, set_poissongrid, set_potentials, set_scratch, set_temperature, set_verbose,&
+      & telec, temp, tip_atom, tipbias, verbose, x0, y0, z0
+  use dftbp_poisson_parcheck, only : check_biasdir, check_contacts, check_localbc,&
+      & check_parameters, check_poisson_box, write_parameters
   use dftbp_poisson_structure, only : angShells, boxsiz, dqmat, init_charges, init_skdata,&
       & init_structure, initlatvecs, izp, lmax, natoms, nshells, period, period_dir, renorm, uhubb,&
       & x
@@ -1649,7 +1649,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          xi = fparm(1) + (i - 1)*dlx
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp%unit,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, zk*Bohr__AA, phi(i,ny_fix,k)*hartree__eV
+           write(fp%unit,'(E17.8,E17.8,E17.8)')xi*Bohr__AA, zk*Bohr__AA, phi(i,ny_fix,k)*hartree__eV
          end do
        end do
        call closeFile(fp)
@@ -1711,10 +1711,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      z_max_ox = cntr_gate(biasdir) + OxLength/2.d0
      call openFile(fp, 'gate.dat', mode="w")
      write(fp%unit,'(i2)') biasdir
-     write(fp%unit,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
-     write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
-     write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
-     write(fp%unit,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)')z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)')z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)')Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)')cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      call closeFile(fp)
    end if
 
@@ -1737,7 +1737,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      z_max_ox = cntr_gate(gatedir) + OxLength/2.d0
      write(fp%unit,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
      write(fp%unit,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
-     write(fp%unit,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
+     write(fp%unit,'(E17.8,E17.8)')cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      call closeFile(fp)
    end if
 

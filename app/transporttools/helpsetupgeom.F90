@@ -283,8 +283,8 @@ contains
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
             iAtInRegion(icont)%data(jj) = geom%nAtom + jj - PLsize
-            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii)) &
-                  &+ iPL*contVec(1:3,icont)
+            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii))&
+                  & + iPL*contVec(1:3,icont)
             geom%species(iAtInRegion(icont)%data(jj)) = geom%species(iAtInRegion(icont)%data(ii))
           end do
         end do

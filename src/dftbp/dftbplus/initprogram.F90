@@ -69,8 +69,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData,&
       & TParallelOpts
-  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, fCharges, fStopDriver,&
-      & fStopSCC, hessianOut, mdOut, resultsTag, userOut
+  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, fCharges,&
+      & fStopDriver, fStopSCC, hessianOut, mdOut, resultsTag, userOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver,&
@@ -3418,7 +3418,8 @@ contains
             else if (allocated(inp%andersonMixerInp)) then
               write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
               write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
-              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%andersonMixerInp%iGenerations
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
+                  & inp%andersonMixerInp%iGenerations
             else if (allocated(inp%broydenMixerInp)) then
               write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
               write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
@@ -3426,7 +3427,8 @@ contains
             else if (allocated(inp%diisMixerInp)) then
               write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
               write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
-              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%diisMixerInp%iGenerations
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix",&
+                  & inp%diisMixerInp%iGenerations
           end if
         end associate
       end if

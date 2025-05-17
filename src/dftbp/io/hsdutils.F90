@@ -26,8 +26,8 @@ module dftbp_io_hsdutils
   use dftbp_io_tokenreader, only : getNextToken, LOGICAL_FALSE, LOGICAL_TRUE, TOKEN_EOS,&
       & TOKEN_ERROR, TOKEN_OK
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
-  use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt, TlistIntR1,&
-      & TListReal, TListRealR1, TListString
+  use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt,&
+      & TlistIntR1, TListReal, TListRealR1, TListString
   implicit none
 
   private
