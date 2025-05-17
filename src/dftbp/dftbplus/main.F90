@@ -60,6 +60,9 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TNegfInt
+#:if WITH_TRANSPORT
+  use dftbp_dftbplus_initprogram, only : overrideContactCharges
+#:endif
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : openOutputFile, printBlankLine, printElecConstrHeader,&
       & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo, printLatticeForceNorm,&
@@ -113,6 +116,10 @@ module dftbp_dftbplus_main
   use dftbp_type_eleccutoffs, only : TCutoffs
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
+#:if WITH_TRANSPORT
+  use dftbp_transport_negfint, only : TNegfInt_final
+#:endif
+  use dftbp_transport_negfvars, only : TTransPar
 #:if WITH_SCALAPACK
   use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
   use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
@@ -132,11 +139,6 @@ module dftbp_dftbplus_main
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
   use dftbp_io_ipisocket, only : IpiSocketComm
-#:endif
-#:if WITH_TRANSPORT
-  use dftbp_dftbplus_initprogram, only : overrideContactCharges
-  use dftbp_transport_negfint, only : TNegfInt_final
-  use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
 
@@ -1141,7 +1143,7 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec, this%boundaryCond)
+          & this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
     end if
 
     if (this%tCoordsChanged .and. isFirstDet) then
@@ -1154,7 +1156,7 @@ contains
           & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
           & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
   #:if WITH_TRANSPORT
@@ -1708,7 +1710,8 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
             & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
             & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
-            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
+            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities, this%coord,&
+            & this%extendedGeomFile, this%species)
       endif
     end if
 
@@ -2017,7 +2020,7 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
-            & this%qOutput, this%velocities)
+            & this%qOutput, this%velocities, this%coord, this%extendedGeomFile, this%species)
       end if
       this%coord0(:,:) = this%newCoords
       if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then
@@ -2118,8 +2121,8 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
-      & repulsive, dispersion, solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs, boundaryCond)
+      & repulsive, dispersion, solvation, cm5Cont, recVecs, invLatVecs, cellVol, recCellVol,&
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond, transpar)
 
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -2155,7 +2158,7 @@ contains
     real(dp), intent(out) :: recVecs(:,:)
 
     !> Reciprocal lattice vectors in units of 2 pi
-    real(dp), intent(out) :: recVecs2p(:,:)
+    real(dp), intent(out) :: invLatVecs(:,:)
 
     !> Unit cell volume
     real(dp), intent(out) :: cellVol
@@ -2175,12 +2178,10 @@ contains
     !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(in) :: boundaryCond
 
-    cellVol = abs(determinant33(latVecs))
-    recVecs2p(:,:) = latVecs
-    call invert33(recVecs2p)
-    recVecs2p = transpose(recVecs2p)
-    recVecs = 2.0_dp * pi * recVecs2p
-    recCellVol = abs(determinant33(recVecs))
+    !> Transport settings
+    type(TTransPar), intent(in) :: transpar
+
+    call boundaryCond%handleBoundaryChanges(latVecs, invLatVecs, recVecs, cellVol, recCellVol)
     if (tStress) then
       call derivDeterminant33(extLatDerivs, latVecs)
       extLatDerivs(:,:) = extPressure * extLatDerivs
@@ -2197,7 +2198,9 @@ contains
       call repulsive%updateLatVecs(latVecs)
     end if
     if (allocated(dispersion)) then
-      call dispersion%updateLatVecs(latVecs)
+      if (transpar%ncont == 0) then
+        call dispersion%updateLatVecs(latVecs)
+      end if
       mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
     if (allocated(solvation)) then
@@ -2208,7 +2211,7 @@ contains
        call cm5Cont%updateLatVecs(latVecs)
        mCutoff = max(mCutOff, cm5Cont%getRCutOff())
     end if
-    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
+    call getCellTranslations(cellVecs, rCellVecs, latVecs, invLatVecs, mCutOff, boundaryCond)
 
   end subroutine handleLatticeChange
 
