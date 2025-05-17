@@ -47,7 +47,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
-      & TSymNeighbourList
+      & TSymNeighbourList, TSymNeighbourList_init
   use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRep, TChimesRep_init, TChimesRepInp
@@ -2728,13 +2728,11 @@ contains
     call densityMatrixSource(this%densityMatrix, this%electronicSolver, input%ctrl%isDmOnGpu)
 
     if (areNeighboursSymmetric) then
+
       allocate(this%symNeighbourList)
-      allocate(this%symNeighbourList%neighbourList)
-      allocate(this%symNeighbourList%coord(3, this%nAllAtom))
-      allocate(this%symNeighbourList%species(this%nAllAtom))
-      allocate(this%symNeighbourList%img2CentCell(this%nAllAtom))
-      allocate(this%symNeighbourList%iCellVec(this%nAllAtom))
-      allocate(this%symNeighbourList%iPair(0, this%nAtom))
+      call TSymNeighbourlist_init(this%symNeighbourList, this%nAtom, this%nAllAtom,&
+          & nInitNeighbour)
+
       if ((.not. this%tReadChrg) .and. this%tPeriodic) then
         this%supercellFoldingMatrix = input%ctrl%supercellFoldingMatrix
         call checkSupercellFoldingMatrix(this%supercellFoldingMatrix(:,:3), errStatus)
@@ -2743,7 +2741,9 @@ contains
         @:ASSERT(all(this%supercellFoldingDiag ==&
             & nint(diagonal(this%supercellFoldingMatrix(:,:3)))))
       end if
+
       if (this%isHybridXc) then
+
         call ensureHybridXcReqs(this, input%ctrl%tShellResolved, input%ctrl%hybridXcInp)
         if (this%tPeriodic .and. .not. this%tReadChrg) then
           if (this%tRealHS) then
@@ -2768,12 +2768,10 @@ contains
           call getHybridXcCutOff_cluster(this%cutOff, input%ctrl%hybridXcInp%cutoffRed)
         end if
 
-      end if
-
-      if (this%isHybridXc) then
-        ! allocation is necessary to hint "initializeCharges" what information to extract
+        ! allocation is necessary to hint "initializeCharges" as to what information to extract
         call reallocateHybridXc(this, input%ctrl%hybridXcInp%hybridXcAlg, nLocalRows, nLocalCols,&
             & size(this%parallelKS%localKS, dim=2))
+
       end if
 
     end if
@@ -2893,7 +2891,6 @@ contains
     call TNeighbourlist_init(this%neighbourList, this%nAtom, nInitNeighbour)
     allocate(this%nNeighbourSK(this%nAtom))
     if (areNeighboursSymmetric) then
-      call TNeighbourlist_init(this%symNeighbourList%neighbourList, this%nAtom, nInitNeighbour)
       if (this%isHybridXc) then
         allocate(this%nNeighbourCam(this%nAtom))
         allocate(this%nNeighbourCamSym(this%nAtom))
