@@ -353,7 +353,7 @@ contains
 
     integer :: order
 
-    order = size(dist%f) -1
+    order = dist%order()
     call initialize_dual(gamma, order)
 
     if (abs(camAlpha) > 100_dp * epsilon(0.0_dp)) then
@@ -383,7 +383,7 @@ contains
     type(dual_real64) :: tmp, distTauA, invDist
     integer :: order
 
-    order = size(dist%f) -1
+    order = dist%order()
     call initialize_dual(gamma, order)
     call initialize_dual(tmp, order)
     call initialize_dual(distTauA, order)
@@ -392,11 +392,11 @@ contains
     tauA = 3.2_dp * hubbu1
     tauB = 3.2_dp * hubbu2
 
-    if (dist%f(0) < tolSameDist) then
+    if (dist%get_derivative(0) < tolSameDist) then
       @:ASSERT(abs(tauA - tauB) < MinHubDiff)
     end if
 
-    if (dist%f(0) < tolSameDist) then
+    if (dist%get_derivative(0) < tolSameDist) then
       ! on-site case
       tau = 0.5_dp * (tauA + tauB)
       gamma = tau * 0.3125_dp
@@ -440,7 +440,7 @@ contains
     real(dp) :: tau, omega2
     integer :: order
 
-    order = size(dist%f) - 1
+    order = dist%order()
     call initialize_dual(gamma, order)
     call initialize_dual(distTau, order)
     call initialize_dual(distTauA, order)
@@ -454,11 +454,11 @@ contains
     tauA = 3.2_dp * hubbu1
     tauB = 3.2_dp * hubbu2
 
-    if (dist%f(0) < tolSameDist) then
+    if (dist%get_derivative(0) < tolSameDist) then
       @:ASSERT(abs(tauA - tauB) < MinHubDiff)
     end if
 
-    if (dist%f(0) < tolSameDist) then
+    if (dist%get_derivative(0) < tolSameDist) then
       ! on-site case
       tau = 0.5_dp * (tauA + tauB)
       tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega2 - 5.0_dp * tau**2 * omega**4 + omega**6
@@ -754,7 +754,7 @@ contains
     type(dual_real64) :: prefac, tmp
     integer :: order
 
-    order = size(dist%f) - 1
+    order = dist%order()
     call initialize_dual(prefac, order)
     call initialize_dual(tmp, order)
 
