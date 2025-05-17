@@ -20,7 +20,8 @@ module test_mixer_simple
 contains
 
   ! Checks the correctness of the simple mixer's mix1D routine.
-  ! The simple mixer works by simply adding chargeDifference weighed by mixParam to the existing charges.
+  ! The simple mixer works by simply adding chargeDifference weighed by mixParam to the existing
+  ! charges.
   $:TEST("simple_mixer_mix1D")
     type(TSimpleMixerInp) :: mixerinp
     type(TSimpleMixerReal) :: mixer
@@ -44,7 +45,8 @@ contains
   $:END_TEST()
 
   ! Checks if mix3d properly maps the data to 1D and subsequently invokes the mix1D routine.
-  ! Uses the simple mixer, which just add the charge difference weighted by the mix parameter for simplicity.
+  ! Uses the simple mixer, which just add the charge difference weighted by the mix parameter for
+  ! simplicity.
   $:TEST("simple_mixer_mix3d")
     type(TSimpleMixerInp) :: mixerinp
     type(TSimpleMixerReal) :: mixer
@@ -79,7 +81,8 @@ contains
 
     ! Mix and check
     call mixer%mix3D(charges, chargeDiff)
-    @:ASSERT(all_close(reshape(charges, [size(charges)]), reshape(expected, [size(expected)]), atol=atol))
+    @:ASSERT(all_close(reshape(charges, [size(charges)]), reshape(expected, [size(expected)]),&
+        & atol=atol))
 
   $:END_TEST()
 
@@ -117,7 +120,8 @@ contains
 
     ! Mix and check
     call mixer%mix6D(charges, chargeDiff)
-    @:ASSERT(all_close(reshape(charges, [size(charges)]), reshape(expected, [size(expected)]), atol=atol))
+    @:ASSERT(all_close(reshape(charges, [size(charges)]), reshape(expected, [size(expected)]),&
+        & atol=atol))
   $:END_TEST()
 
   function tests()

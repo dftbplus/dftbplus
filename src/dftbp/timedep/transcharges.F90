@@ -680,8 +680,9 @@ contains
 
 
   !> Transition charges right produced with a vector v * Q for spin up
-  !> and negative transition charges right produced with a vector v * Q for spin down
-  !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
+  !! and negative transition charges right produced with a vector v * Q for spin down
+  !! R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin
+  !! down
   subroutine TTransCharges_qVecMatDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
       & win, vector, qProduct)
 

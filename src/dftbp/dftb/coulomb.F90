@@ -27,8 +27,8 @@ module dftbp_dftb_coulomb
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, CSRC_, DLEN_, MB_, NB_, pblasfx_psymv, RSRC_,&
-      & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape, scalafx_indxl2g,&
-      & scalafx_islocal
+      & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape,&
+      & scalafx_indxl2g, scalafx_islocal
 #:endif
   implicit none
 

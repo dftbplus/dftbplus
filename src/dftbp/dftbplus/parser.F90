@@ -5656,7 +5656,8 @@ contains
             call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
             call getChildValue(value1, "Generations", inp%iGenerations, 4)
             call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.01_dp)
-            call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
+            call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
+                & allowEmptyValue=.true.)
             call getNodeName2(value2, buffer2)
             if (char(buffer2) == "") then
               inp%nConvMixParam = 0

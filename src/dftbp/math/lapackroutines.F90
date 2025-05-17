@@ -133,9 +133,8 @@ module dftbp_math_lapackroutines
 contains
 
 
-#:for TYPE, KIND, LABEL, PRF in [('real', 'rsp', 'real', 'sgesv'),&
-  & ('real', 'rdp', 'dble', 'dgesv'), ('complex', 'rsp', 'cmplx', 'cgesv'),&
-  & ('complex', 'rdp', 'dcmplx', 'zgesv')]
+#:for TYPE, KIND, LABEL, PRF in [('real', 'rsp', 'real', 'sgesv'),('real', 'rdp', 'dble', 'dgesv'),&
+  & ('complex', 'rsp', 'cmplx', 'cgesv'),('complex', 'rdp', 'dcmplx', 'zgesv')]
 
   !> Solves a general system of linear equations A * X = B, where A is a ${kind}$ matrix.
   subroutine gesv_${LABEL}$(aa, bb, nEquation, nSolution, status)

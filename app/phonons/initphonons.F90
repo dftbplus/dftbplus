@@ -18,8 +18,8 @@ module phonons_initphonons
   use dftbp_common_unitconversion, only : energyUnits, lengthUnits
   use dftbp_dftb_periodic, only : getCellTranslations, getNrOfNeighboursForAll, getSuperSampling,&
       & TNeighbourList, TNeighbourlist_init, updateNeighbourList
-  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist, getItem1,&
-      & getLength, getNodeName, string, textNodeName
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist,&
+      & getItem1, getLength, getNodeName, string, textNodeName
   use dftbp_io_charmanip, only : i2c, tolower, unquote
   use dftbp_io_hsdparser, only : dumpHSD, parseHSD
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&

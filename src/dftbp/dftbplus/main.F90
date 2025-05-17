@@ -52,8 +52,8 @@ module dftbp_dftbplus_main
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_shift, only : addAtomicMultipoleShift, addShift
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : getSparseDescriptor, iPackHS, packerho, packHelicalHS, packHS,&
-      & unpackHelicalHS, unpackHPauli, unpackHS, unpackSPauli
+  use dftbp_dftb_sparse2dense, only : getSparseDescriptor, iPackHS, packerho, packHelicalHS,&
+      & packHS, unpackHelicalHS, unpackHPauli, unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud, ud2qm
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_dftb_stress, only : getBlockiStress, getBlockStress, getkineticstress, getNonSCCStress
@@ -63,17 +63,17 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TNegfInt
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_dftbplus_mainio, only : openOutputFile, printBlankLine, printElecConstrHeader,&
-      & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo, printLatticeForceNorm,&
-      & printMaxForce, printMaxLatticeForce, printMdInfo, printPressureAndFreeEnergy,&
-      & printReksSccHeader, printReksSccInfo, printSccHeader, printSccInfo, printVolume,&
-      & readEigenVecs, writeAutotestTag, writebandout, writeBornChargesOut, writeBornDerivs,&
-      & writeCharges, writeCosmoFile, writeCplxEigVecs, writeCurrentGeometry, writeDerivBandOut,&
-      & writeDetailedOut1, writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets,&
-      & writeDetailedOut3, writeDetailedOut4, writeDetailedOut5, writeDetailedOut6,&
-      & writeDetailedOut7, writeDetailedOut8, writeDetailedOut9, writeDetailedXml,&
-      & writeEigenVectors, writeEsp, writeFinalDriverstatus, writeHessianout, writehsandstop,&
-      & writeMdOut1, writeMdOut2, writeProjectedEigenvectors, writeRealEigvecs,&
-      & writeReksDetailedOut1, writeResultsTag
+      & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo,&
+      & printLatticeForceNorm, printMaxForce, printMaxLatticeForce, printMdInfo,&
+      & printPressureAndFreeEnergy, printReksSccHeader, printReksSccInfo, printSccHeader,&
+      & printSccInfo, printVolume, readEigenVecs, writeAutotestTag, writebandout,&
+      & writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile, writeCplxEigVecs,&
+      & writeCurrentGeometry, writeDerivBandOut, writeDetailedOut1, writeDetailedOut10,&
+      & writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3, writeDetailedOut4,&
+      & writeDetailedOut5, writeDetailedOut6, writeDetailedOut7, writeDetailedOut8,&
+      & writeDetailedOut9, writeDetailedXml, writeEigenVectors, writeEsp, writeFinalDriverstatus,&
+      & writeHessianout, writehsandstop, writeMdOut1, writeMdOut2, writeProjectedEigenvectors,&
+      & writeRealEigvecs, writeReksDetailedOut1, writeResultsTag
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
       & derivEBandOut, fCharges, fShifts, fStopDriver, fStopScc, hessianOut, mdOut, resultsTag,&
       & userOut
@@ -120,14 +120,14 @@ module dftbp_dftbplus_main
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
       & denseSubtractDensityOfAtomsRealPeriodicBlacs
-  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs, packRhoHelicalCplxBlacs,&
-      & packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs, unpackHPauliBlacs,&
-      & unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
-      & unpackSPauliBlacs
+  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs,&
+      & packRhoHelicalCplxBlacs, packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs,&
+      & unpackHPauliBlacs, unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs,&
+      & unpackHSRealBlacs, unpackSPauliBlacs
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
   use dftbp_extlibs_mpifx, only : MPI_MAX, MPI_SUM, mpifx_allreduceip, mpifx_bcast
-  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
-      & pblasfx_ptranc, scalafx_pposv
+  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, pblasfx_phemm, pblasfx_psymm,&
+      & pblasfx_ptran, pblasfx_ptranc, scalafx_pposv
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
