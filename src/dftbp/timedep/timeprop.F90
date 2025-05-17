@@ -35,7 +35,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : buildH0, buildS, TNonSccDiff
   use dftbp_dftb_onsitecorrection, only : addOnsShift
-  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList, TSymNeighbourList,&
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList, TAuxNeighbourList,&
       & updateNeighbourListAndSpecies
   use dftbp_dftb_populations, only : denseSubtractDensityOfAtomsCmplxNonperiodic, getChargePerShell
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
@@ -1025,7 +1025,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(inout), allocatable :: nNeighbourCamSym(:)
@@ -1208,7 +1208,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(inout), allocatable :: nNeighbourCamSym(:)
@@ -3370,7 +3370,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in), allocatable :: nNeighbourCamSym(:)
@@ -3905,7 +3905,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(inout), allocatable :: nNeighbourCamSym(:)
@@ -4271,7 +4271,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(inout), allocatable :: nNeighbourCamSym(:)
@@ -4560,7 +4560,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(inout), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(inout), allocatable :: nNeighbourCamSym(:)

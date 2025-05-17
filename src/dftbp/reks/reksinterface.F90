@@ -26,7 +26,7 @@ module dftbp_reks_reksinterface
   use dftbp_dftb_dispiface, only : TDispersionIface
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
-  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList
+  use dftbp_dftb_periodic, only : TNeighbourList, TAuxNeighbourList
   use dftbp_dftb_populations, only : mulliken
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
@@ -330,7 +330,7 @@ module dftbp_reks_reksinterface
     type(TStatus), intent(inout) :: errStatus
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable, optional :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable, optional :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -871,7 +871,7 @@ module dftbp_reks_reksinterface
     type(TStatus), intent(inout) :: errStatus
 
     !> List of neighbouring atoms (symmetric version)
-    type(TSymNeighbourList), intent(in), allocatable, optional :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), allocatable, optional :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in), optional :: nNeighbourCamSym(:)
