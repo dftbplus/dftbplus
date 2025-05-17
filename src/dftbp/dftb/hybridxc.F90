@@ -562,16 +562,15 @@ contains
 
       call initialize_dual(dualDist, 2)
       call initialize_dual(fDualDist, 2)
-      dualDist%f(0) = this%gammaDamping
-      dualDist%f(1) = 1
+      dualDist = [this%gammaDamping, 1.0_dp]
 
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
           fDualDist = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & this%omega, dualDist)
-          this%lrGammaAtDamping(iSp1, iSp2) = fDualDist%f(0)
-          this%lrdGammaAtDamping(iSp1, iSp2) = fDualDist%f(1)
-          this%lrddGammaAtDamping(iSp1, iSp2) = fDualDist%f(2)
+          this%lrGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(0)
+          this%lrdGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(1)
+          this%lrddGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(2)
           !this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
           !    & this%hubbu(iSp2), this%omega, this%gammaDamping)
           !this%lrdGammaAtDamping(iSp1, iSp2)&
@@ -582,9 +581,9 @@ contains
           !    & this%omega, this%gammaDamping, delta)
           fDualDist = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
               & dualDist)
-          this%hfGammaAtDamping(iSp1, iSp2) = fDualDist%f(0)
-          this%hfdGammaAtDamping(iSp1, iSp2) = fDualDist%f(1)
-          this%hfddGammaAtDamping(iSp1, iSp2) = fDualDist%f(2)
+          this%hfGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(0)
+          this%hfdGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(1)
+          this%hfddGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(2)
           !this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
           !    & this%hubbu(iSp2), this%gammaDamping)
           !this%hfdGammaAtDamping(iSp1, iSp2)&

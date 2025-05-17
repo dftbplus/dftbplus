@@ -34,12 +34,13 @@ module dftbp_math_interpolation
     module procedure polyInterU1
     module procedure polyInterU2
     module procedure polyInterU1_dual
+    module procedure polyInterU2_dual
   end interface polyInterUniform
 
 contains
 
 
-  !> Returns the value of a polynomial of 5th degree at x.
+  !> Returns the value of a polynomial of 5th degree at xx.
   !! The polynomial is created with the following boundary conditions: Its value, 1st and 2nd
   !! derivatives are zero at x = 0 and agree with the provided values at x = dx.
   pure function poly5ToZero_real(y0, y0p, y0pp, xx, dx, invdx) result(yy)
@@ -53,15 +54,15 @@ contains
     !> Value of the 2nd derivative at x = dx.
     real(dp), intent(in) :: y0pp
 
-    !> Reciprocal of dx.
-    real(dp), intent(in) :: invdx
-
     !> The point where the polynomial should be evaluated.
     real(dp), intent(in) :: xx
 
     !> The point, where the polynomial value and its first two derivatives should take the provided
     !! values.
     real(dp), intent(in) :: dx
+
+    !> Reciprocal of dx.
+    real(dp), intent(in) :: invdx
 
     !> Value of the polynomial at xx.
     real(dp) :: yy
@@ -79,22 +80,14 @@ contains
   end function poly5ToZero_real
 
 
-  !> Returns the value of a polynomial of 5th degree at x.
+  !> Returns the value of a polynomial of 5th degree at point xx.
   !! The polynomial is created with the following boundary conditions: Its value, 1st and 2nd
   !! derivatives are zero at x = 0 and agree with the provided values at x = dx.
-  pure function poly5ToZero_dual(y0, y0p, y0pp, xx, dx, invdx) result(yy)
+  !! Note, must be called with at least 2nd order derivatives of y available
+  pure function poly5ToZero_dual(y, xx, dx, invdx) result(yy)
 
-    !> Value of the polynomial at x = dx.
-    real(dp), intent(in) :: y0
-
-    !> Value of the 1st derivative at x = dx.
-    real(dp), intent(in) :: y0p
-
-    !> Value of the 2nd derivative at x = dx.
-    real(dp), intent(in) :: y0pp
-
-    !> Reciprocal of dx.
-    real(dp), intent(in) :: invdx
+    !> Value of the polynomial (with derivatives up to at least 2nd order) at x = dx.
+    type(dual_real64), intent(in) :: y
 
     !> The point where the polynomial should be evaluated.
     type(dual_real64), intent(in) :: xx
@@ -103,17 +96,24 @@ contains
     !! values.
     real(dp), intent(in) :: dx
 
+    !> Reciprocal of dx for efficiency.
+    real(dp), intent(in) :: invdx
+
     !> Value of the polynomial at xx.
     type(dual_real64) :: yy
 
     real(dp) :: dx1, dx2, dd, ee, ff
     type(dual_real64) :: xr
+    integer :: order
 
-    dx1 = y0p * dx
-    dx2 = y0pp * dx * dx
-    dd =  10.0_dp * y0 - 4.0_dp * dx1 + 0.5_dp * dx2
-    ee = -15.0_dp * y0 + 7.0_dp * dx1 - 1.0_dp * dx2
-    ff =   6.0_dp * y0 - 3.0_dp * dx1 + 0.5_dp * dx2
+    order = xx%order()
+    call initialize_dual(xr, order)
+    call initialize_dual(yy, order)
+    dx1 = y%get_derivative(1) * dx
+    dx2 = y%get_derivative(2) * dx * dx
+    dd =  10.0_dp * y%get_derivative(0) - 4.0_dp * dx1 + 0.5_dp * dx2
+    ee = -15.0_dp * y%get_derivative(0) + 7.0_dp * dx1 - 1.0_dp * dx2
+    ff =   6.0_dp * y%get_derivative(0) - 3.0_dp * dx1 + 0.5_dp * dx2
     xr = xx * invdx
     yy = ((ff * xr + ee) * xr + dd) * xr * xr * xr
 
@@ -214,9 +214,12 @@ contains
   end subroutine freeCubicSpline_dual
 
 
+#:for name, vartype, xval in [("", "real(dp)", ""), ("_dual", "type(dual_real64)",&
+  & "%get_derivative(0)")]
+
   !> Polynomial interpolation of scalar data through given points. The algorithm is based on the one
   !! in Numerical recipes, but assumes a uniform grid spacing.
-  function polyInterU1(xp, yp, xx, dy) result(yy)
+  function polyInterU1${name}$(xp, yp, xx, dy) result(yy)
 
     !> x-coordinates of the fit points
     real(dp), intent(in) :: xp(:)
@@ -225,35 +228,46 @@ contains
     real(dp), intent(in) :: yp(:)
 
     !> The point where the polynomial should be calculated
-    real(dp), intent(in) :: xx
+    ${vartype}$, intent(in) :: xx
 
     !> Optional error estimate on calculated value
-    real(dp), intent(out), optional :: dy
+    ${vartype}$, intent(out), optional :: dy
 
     !> The value of the polynomial
-    real(dp) :: yy
+    ${vartype}$ :: yy
 
-    integer :: iCl, ii, mm, nn
-    real(dp) :: cc(size(xp)), dd(size(xp)), dyy, rTmp
+    integer :: iCl, ii, mm, nPts
+    ${vartype}$ :: cc(size(xp)), dd(size(xp)), dyy, rTmp
+  #:if name == "_dual"
+    integer :: order
 
-    nn = size(xp)
+    order = xx%order()
+    call initialize_dual(yy, order)
+    call initialize_dual(cc, order)
+    call initialize_dual(dd, order)
+    call initialize_dual(dyy, order)
+    call initialize_dual(rTmp, order)
+    if (present(dy)) call initialize_dual(dy, order)
+  #:endif
 
-    @:ASSERT(nn > 1)
-    @:ASSERT(size(yp) == nn)
+    nPts = size(xp)
+
+    @:ASSERT(nPts > 1)
+    @:ASSERT(size(yp) == nPts)
 
     cc(:) = yp
     dd(:) = yp
-    iCl = ceiling((xx-xp(1))/abs(xp(2)-xp(1)))
+    iCl = ceiling((xx${xval}$-xp(1)) / abs(xp(2)-xp(1)))
+
     yy = yp(iCl)
     iCl = iCl - 1
-    do mm = 1, nn - 1
-      do ii = 1, nn - mm
-        rTmp = xp(ii) - xp(ii+mm)
-        rTmp = (cc(ii+1) - dd(ii)) / rTmp
+    do mm = 1, nPts - 1
+      do ii = 1, nPts - mm
+        rTmp = (dd(ii) - cc(ii+1)) / (xp(ii+mm) - xp(ii))
         cc(ii) = (xp(ii) - xx) * rTmp
         dd(ii) = (xp(ii+mm) - xx) * rTmp
       end do
-      if (2 * iCl < nn - mm) then
+      if (2 * iCl < nPts - mm) then
         dyy = cc(iCl + 1)
       else
         dyy = dd(iCl)
@@ -266,53 +280,60 @@ contains
       dy = dyy
     end if
 
-  end function polyInterU1
+  end function polyInterU1${name}$
 
 
   !> Polynomial interpolation of vector data through given points. The algorithm is based on the one
   !! in Numerical recipes, but assumes a uniform grid spacing and interpolates a vector of values.
-  function polyInterU2(xp, yp, xx, dy) result(yy)
+  function polyInterU2${name}$(xp, yp, xx, dy) result(yy)
 
     !> x-coordinates of the fit points
     real(dp), intent(in) :: xp(:)
 
-    !> y-coordinates of the fit points
+    !> y-coordinates of the fit points, sized (:, nPts)
     real(dp), intent(in) :: yp(:,:)
 
     !> The point where the polynomial should be calculated
-    real(dp), intent(in) :: xx
+    ${vartype}$, intent(in) :: xx
 
     !> Optional error estimate on calculated value
-    real(dp), intent(out), optional :: dy(:)
+    ${vartype}$, intent(out), optional :: dy(:)
 
     !> The value of the polynomial
-    real(dp) :: yy(size(yp,dim=1))
+    ${vartype}$ :: yy(size(yp,dim=1))
 
-    integer :: iCl, ii, mm, nn
-    real(dp) :: cc(size(yp,dim=1),size(xp)), dd(size(yp,dim=1),size(xp))
-    real(dp) :: dyy(size(yp,dim=1)), r2Tmp(size(yp,dim=1)), delta(size(xp)-1)
+    integer :: iCl, ii, mm, nPts
+    ${vartype}$ :: cc(size(yp,dim=1),size(xp)), dd(size(yp,dim=1),size(xp))
+    ${vartype}$ :: dyy(size(yp,dim=1)), r2Tmp(size(yp,dim=1))
+  #:if name == "_dual"
+    integer :: order
 
-    nn = size(xp)
+    order = xx%order()
+    call initialize_dual(yy, order)
+    call initialize_dual(cc, order)
+    call initialize_dual(dd, order)
+    call initialize_dual(dyy, order)
+    call initialize_dual(r2Tmp, order)
+    if (present(dy)) call initialize_dual(dy, order)
+  #:endif
 
-    @:ASSERT(nn > 1)
-    @:ASSERT(size(yp,dim=2) == nn)
+    nPts = size(xp)
 
-    delta(:) = 0.0_dp
-    do ii = 1, size(xp)-1
-      delta(ii) = 1.0_dp / (xp(1+ii) - xp(1))
-    end do
+    @:ASSERT(nPts > 1)
+    @:ASSERT(size(yp,dim=2) == nPts)
+
     cc(:,:) = yp
     dd(:,:) = yp
-    iCl = ceiling((xx-xp(1))*delta(1))
+    iCl = ceiling((xx${xval}$-xp(1)) / abs(xp(2)-xp(1)))
     yy(:) = yp(:,iCl)
     iCl = iCl - 1
-    do mm = 1, nn - 1
-      do ii = 1, nn - mm
-        r2Tmp(:) = (dd(:,ii) - cc(:,ii+1)) * delta(mm)
+    do mm = 1, nPts - 1
+      do ii = 1, nPts - mm
+        r2Tmp(:) = (dd(:,ii) - cc(:,ii+1)) / (xp(ii+mm) - xp(ii))
         cc(:,ii) = (xp(ii) - xx) * r2Tmp
         dd(:,ii) = (xp(ii+mm) - xx) * r2Tmp
       end do
-      if (2 * iCl < nn - mm) then
+      if (2 * iCl < nPts - mm) then
         dyy(:) = cc(:,iCl + 1)
       else
         dyy(:) = dd(:,iCl)
@@ -325,68 +346,8 @@ contains
       dy(:) = dyy
     end if
 
-  end function polyInterU2
+  end function polyInterU2${name}$
 
-
-  !> Polynomial interpolation of scalar data through given points. The algorithm is based on the one
-  !! in Numerical recipes, but assumes a uniform grid spacing.
-  function polyInterU1_dual(xp, yp, xx, dy) result(yy)
-
-    !> x-coordinates of the fit points
-    real(dp), intent(in) :: xp(:)
-
-    !> y-coordinates of the fit points
-    real(dp), intent(in) :: yp(:)
-
-    !> The point where the polynomial should be calculated
-    type(dual_real64), intent(in) :: xx
-
-    !> Optional error estimate on calculated value
-    real(dp), intent(out), optional :: dy
-
-    !> The value of the polynomial
-    type(dual_real64) :: yy
-
-    integer :: iCl, ii, mm, nn, order
-    type(dual_real64) :: cc(size(xp)), dd(size(xp)), dyy, rTmp
-
-    order = size(xx%f) - 1
-    call initialize_dual(yy, order)
-    call initialize_dual(cc, order)
-    call initialize_dual(dd, order)
-    call initialize_dual(dyy, order)
-    call initialize_dual(rTmp, order)
-
-    nn = size(xp)
-
-    @:ASSERT(nn > 1)
-    @:ASSERT(size(yp) == nn)
-
-    cc(:) = yp
-    dd(:) = yp
-    iCl = ceiling((xx%f(0)-xp(1))/abs(xp(2)-xp(1)))
-    yy = yp(iCl)
-    iCl = iCl - 1
-    do mm = 1, nn - 1
-      do ii = 1, nn - mm
-        rTmp = xp(ii) - xp(ii+mm)
-        rTmp = (cc(ii+1) - dd(ii)) / rTmp
-        cc(ii) = (xp(ii) - xx) * rTmp
-        dd(ii) = (xp(ii+mm) - xx) * rTmp
-      end do
-      if (2 * iCl < nn - mm) then
-        dyy = cc(iCl + 1)
-      else
-        dyy = dd(iCl)
-        iCl = iCl - 1
-      end if
-      yy = yy + dyy
-    end do
-
-    if (present(dy)) then
-      dy = dyy%f(0)
-    end if
-
-  end function polyInterU1_dual
+#:endfor
 
 end module dftbp_math_interpolation

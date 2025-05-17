@@ -24,7 +24,7 @@ contains
     integer, parameter :: nPts = 10, order = 3
     real(dp) :: xStart = 1.0_dp, xEnd = 3.0_dp
     real(dp) :: xp(nPts), yp(nPts)
-    type(dual_real64) :: x, y
+    type(dual_real64) :: x, y, ref
     integer :: ii
     do ii = 0, nPts-1
       xp(ii+1) = xStart + (xEnd - xStart) * real(ii, dp) / real(nPts-1, dp)
@@ -35,17 +35,60 @@ contains
     write(*,*)yp
     write(*,*)
     call initialize_dual(x, order)
-    x = (xEnd + xStart) / 2.0_dp
-    x%f(1) = 1.0_dp
+    x = [(xEnd + xStart) / 2.0_dp, 1.0_dp]
     write(*,*)'Interpolation at'
-    write(*,*)x%f
+    write(*,*)x%get_derivatives()
     y = polyInterUniform(xp, yp, x)
     write(*,*)'Interpolated value and derivatives'
-    write(*,*)y%f
+    write(*,*)y%get_derivatives()
     write(*,*)'Exact values'
-    x%f(:) = [testFn(x%f(0)), testdFn(x%f(0)), testddFn(x%f(0)), testdddFn(x%f(0))]
-    write(*,*)x%f
-    @:ASSERT(all(abs(x%f - y%f) < 10000.0_dp * epsilon(0.0_dp)))
+    call initialize_dual(ref, order)
+    ref = [testFn(x%get_derivative(0)), testdFn(x%get_derivative(0)),&
+        & testddFn(x%get_derivative(0)), testdddFn(x%get_derivative(0))]
+    write(*,*)ref%get_derivatives()
+    write(*,*)'Fraction of eps difference'
+    write(*,*)abs(ref%get_derivatives() - y%get_derivatives()) / epsilon(0.0_dp)
+    @:ASSERT(all(abs(ref%get_derivatives() - y%get_derivatives()) < 10000.0_dp * epsilon(0.0_dp)))
+  $:END_TEST()
+
+  $:TEST("interpolate_vector")
+    integer, parameter :: nPts = 10, order = 3
+    real(dp) :: xStart = 1.0_dp, xEnd = 3.0_dp
+    real(dp) :: xp(nPts), yp(2,nPts)
+    type(dual_real64) :: x, y(2), ref(2)
+    integer :: ii
+    do ii = 0, nPts-1
+      xp(ii+1) = xStart + (xEnd - xStart) * real(ii, dp) / real(nPts-1, dp)
+    end do
+    yp(1, :) = testFn(xp)
+    yp(2, :) = 2.0_dp * yp(1, :)
+    write(*,*)'Data points'
+    write(*,*)xp
+    write(*,*)yp(1,:)
+    write(*,*)yp(2,:)
+    write(*,*)
+    call initialize_dual(x, order)
+    x = [(xEnd + xStart) / 2.0_dp, 1.0_dp]
+    write(*,*)'Interpolation at'
+    write(*,*)x%get_derivatives()
+    y = polyInterUniform(xp, yp, x)
+    write(*,*)'Interpolated value and derivatives'
+    write(*,*)y(1)%get_derivatives()
+    write(*,*)y(2)%get_derivatives()
+    write(*,*)'Exact values'
+    call initialize_dual(ref, order)
+    ref(1) = [testFn(x%get_derivative(0)), testdFn(x%get_derivative(0)),&
+        & testddFn(x%get_derivative(0)), testdddFn(x%get_derivative(0))]
+    ref(2) = 2.0_dp * ref(1)
+    write(*,*)ref(1)%get_derivatives()
+    write(*,*)ref(2)%get_derivatives()
+    write(*,*)'Fraction of eps difference'
+    write(*,*)abs(ref(1)%get_derivatives() - y(1)%get_derivatives()) / epsilon(0.0_dp)
+    write(*,*)abs(ref(2)%get_derivatives() - y(2)%get_derivatives()) / epsilon(0.0_dp)
+    @:ASSERT(all(abs(ref(1)%get_derivatives() - y(1)%get_derivatives())&
+        & < 100000.0_dp * epsilon(0.0_dp)))
+    @:ASSERT(all(abs(ref(2)%get_derivatives() - y(2)%get_derivatives())&
+        & < 100000.0_dp * epsilon(0.0_dp)))
   $:END_TEST()
 
   elemental function testFn(x) result(y)
