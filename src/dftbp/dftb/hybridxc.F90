@@ -19,7 +19,7 @@ module dftbp_dftb_hybridxc
   use dftbp_dftb_dense, only : getDescriptor
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_nonscc, only : buildS, TNonSccDiff
-  use dftbp_dftb_periodic, only : cart2frac, getCellTranslations, TNeighbourList, TSymNeighbourList
+  use dftbp_dftb_periodic, only : cart2frac, getCellTranslations, TNeighbourList, TAuxNeighbourList
   use dftbp_dftb_rshgamma, only : getCamAnalyticalGammaValue_workhorse,&
       & getddHfAnalyticalGammaValue_workhorse, getddLrNumericalGammaValue_workhorse,&
       & getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse,&
@@ -843,7 +843,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -943,7 +943,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -1132,7 +1132,7 @@ contains
     class(THybridXcFunc), intent(inout), target :: this
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Symmetric neighbour list version of nNeighbourCam
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -1545,7 +1545,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -2767,7 +2767,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:,:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -3097,7 +3097,7 @@ contains
     real(dp), intent(in) :: deltaRhoSqr(:,:,:,:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -4620,7 +4620,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -4709,7 +4709,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), optional :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -4785,7 +4785,7 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in), optional :: symNeighbourList
+    type(TAuxNeighbourList), intent(in), optional :: symNeighbourList
 
     !> Nr. of neighbours for each atom
     integer, intent(in), optional :: nNeighbourCamSym(:)
@@ -5005,7 +5005,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5532,7 +5532,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5759,7 +5759,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -5928,7 +5928,7 @@ contains
     type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -6207,7 +6207,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -6304,7 +6304,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)
@@ -6561,7 +6561,7 @@ contains
     complex(dp), intent(in) :: deltaRhoOutSqrCplx(:,:,:)
 
     !> List of neighbours for each atom (symmetric version)
-    type(TSymNeighbourList), intent(in) :: symNeighbourList
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
 
     !> Nr. of neighbours for each atom.
     integer, intent(in) :: nNeighbourCamSym(:)

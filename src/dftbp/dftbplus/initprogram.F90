@@ -47,7 +47,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
   use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
-      & TSymNeighbourList, TSymNeighbourList_init
+      & TAuxNeighbourList, TAuxNeighbourList_init
   use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRep, TChimesRep_init, TChimesRepInp
@@ -267,7 +267,7 @@ module dftbp_dftbplus_initprogram
     type(TNeighbourList), allocatable :: neighbourList
 
     !> ADT for neighbour parameters, symmetric version for CAM calculations
-    type(TSymNeighbourList), allocatable :: symNeighbourList
+    type(TAuxNeighbourList), allocatable :: symNeighbourList
 
     !> Nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
@@ -2730,7 +2730,7 @@ contains
     if (areNeighboursSymmetric) then
 
       allocate(this%symNeighbourList)
-      call TSymNeighbourlist_init(this%symNeighbourList, this%nAtom, this%nAllAtom,&
+      call TAuxNeighbourList_init(this%symNeighbourList, this%nAtom, this%nAllAtom,&
           & nInitNeighbour)
 
       if ((.not. this%tReadChrg) .and. this%tPeriodic) then
