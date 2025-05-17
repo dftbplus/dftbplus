@@ -35,7 +35,7 @@ module dftbp_dftb_periodic
   public :: getCellTranslations, getLatticePoints
   public :: getSuperSampling
   public :: frac2cart, cart2frac
-  public :: TNeighbourList, TNeighbourList_init, TSymNeighbourList
+  public :: TNeighbourList, TNeighbourList_init, TSymNeighbourList, TSymNeighbourList_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
 
@@ -115,7 +115,7 @@ module dftbp_dftb_periodic
     !> Mapping of all atoms onto atoms in the central cell
     integer, allocatable :: img2CentCell(:)
 
-    !> Shift vector index for every interacting atom, including periodic images
+    !> Cell shift vector index for every interacting atom, including periodic images
     integer, allocatable :: iCellVec(:)
 
     !> Sparse array indexing for the start of atomic blocks in data structures
@@ -156,6 +156,33 @@ contains
     this%setExternally = .false.
 
   end subroutine TNeighbourList_init
+
+
+  !> Initializes a symmetric neighbourlist instance.
+  subroutine TSymNeighbourList_init(this, nAtom, nAllAtom, nInitNeighbour)
+
+    !> Neighbourlist data.
+    type(TSymNeighbourList), intent(out) :: this
+
+    !> Nr. of atoms in the central cell of the system.
+    integer, intent(in) :: nAtom
+
+    !> Nr. of atoms in the extended system.
+    integer, intent(in) :: nAllAtom
+
+    !> Expected nr. of neighbours per atom.
+    integer, intent(in) :: nInitNeighbour
+
+    allocate(this%neighbourList)
+    call TNeighbourList_init(this%neighbourList, nAtom, nInitNeighbour)
+
+    allocate(this%coord(3, nAllAtom))
+    allocate(this%species(nAllAtom))
+    allocate(this%img2CentCell(nAllAtom))
+    allocate(this%iCellVec(nAllAtom))
+    allocate(this%iPair(0, nAtom))
+
+  end subroutine TSymNeighbourList_init
 
 
   !> Deallocates MPI shared memory if required
