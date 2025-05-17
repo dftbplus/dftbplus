@@ -733,7 +733,8 @@ contains
 
   !> Calculate atomic dispersion coefficients and their derivatives w.r.t.
   !> coordination number and partial charge.
-  subroutine getAtomicC6(calc, ref, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
+  subroutine getAtomicC6(calc, ref, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn,&
+      & dc6dq)
 
     !> DFT-D dispersion model
     type(TDftD4Calc), intent(in) :: calc

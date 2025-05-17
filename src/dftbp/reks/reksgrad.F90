@@ -294,8 +294,8 @@ contains
 
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-      !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-      !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+      !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig, &
+      !$OMP& sqrDMTmp,sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
       do iIter = 1, size(iterIndices)
         iAtom1 = iterIndices(iIter)
