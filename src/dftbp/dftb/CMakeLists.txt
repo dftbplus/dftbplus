@@ -4,7 +4,7 @@ set(sources-fpp
   ${curdir}/blockpothelper.F90
   ${curdir}/bondpopulations.F90
   ${curdir}/boundarycond.F90
-  ${curdir}/chargeconstr.F90
+  ${curdir}/chargepenalty.F90
   ${curdir}/charges.F90
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90

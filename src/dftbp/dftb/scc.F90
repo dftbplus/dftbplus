@@ -12,7 +12,7 @@ module dftbp_dftb_scc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
-  use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
+  use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
@@ -45,8 +45,8 @@ module dftbp_dftb_scc
     !> If broadened external charges
     real(dp), allocatable :: blurWidths(:)
 
-    !> Any constraints on atomic charges
-    real(dp), allocatable :: chrgConstraints(:,:)
+    !> Any penalties on atomic charges
+    real(dp), allocatable :: chrgPenalties(:,:)
 
     !> Third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
@@ -109,17 +109,17 @@ module dftbp_dftb_scc
     !> Is the system periodic?
     logical :: tPeriodic
 
-    !> Shifts due charge constrains?
-    logical :: tChrgConstr
+    !> Shifts due charge penalties?
+    logical :: tChrgPenalty
 
-    !> Object for charge constraints
-    type(TChrgConstr), allocatable :: chrgConstr
+    !> Object for charge penalties
+    type(TChrgPenalty), allocatable :: chrgPenalties
 
     !> Use third order contributions
     logical :: tThirdOrder
 
     !> Shifts due to 3rd order
-    type(TChrgConstr), allocatable :: thirdOrder
+    type(TChrgPenalty), allocatable :: thirdOrder
 
     !> External charges
     type(TExtCharges), allocatable :: extCharges
@@ -273,16 +273,16 @@ contains
           & blurWidths=input%blurWidths)
     end if
 
-    this%tChrgConstr = allocated(input%chrgConstraints)
-    if (this%tChrgConstr) then
-      allocate(this%chrgConstr)
-      call TChrgConstr_init(this%chrgConstr, input%chrgConstraints, 2)
+    this%tChrgPenalty = allocated(input%chrgPenalties)
+    if (this%tChrgPenalty) then
+      allocate(this%chrgPenalties)
+      call TChrgPenalty_init(this%chrgPenalties, input%chrgPenalties, 2)
     end if
     this%tThirdOrder = allocated(input%thirdOrderOn)
     if (this%tThirdOrder) then
       allocate(this%thirdOrder)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
-      call TChrgConstr_init(this%thirdOrder, input%thirdOrderOn / 6.0_dp, 3)
+      call TChrgPenalty_init(this%thirdOrder, input%thirdOrderOn / 6.0_dp, 3)
     end if
 
     ! Initialise arrays for charge differences
@@ -478,8 +478,8 @@ contains
       #:endblock
     end select
 
-    if (this%tChrgConstr) then
-      call this%chrgConstr%buildShift(this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%buildShift(this%deltaQAtom)
     end if
     if (this%tThirdOrder) then
       call this%thirdOrder%buildShift(this%deltaQAtom)
@@ -680,8 +680,8 @@ contains
       call this%extCharges%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
 
-    if (this%tChrgConstr) then
-      call this%chrgConstr%addEnergyPerAtom(eScc, this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
     if (this%tThirdOrder) then
@@ -739,9 +739,9 @@ contains
       !call addEnergyPerAtom_ExtChrg(this%deltaQAtom, eScc)
     end if
 
-    if (this%tChrgConstr) then
-      call error("XLBOMD not working with charge constraints yet")
-      !call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call error("XLBOMD not working with charge penalties yet")
+      !call addEnergyPerAtom(this%chrgPenalties, eScc, this%deltaQAtom)
     end if
 
     if (this%tThirdOrder) then
@@ -866,8 +866,8 @@ contains
     if (allocated(this%extCharges)) then
       call this%extCharges%addShiftPerAtom(shift)
     end if
-    if (this%tChrgConstr) then
-      call this%chrgConstr%addShiftPerAtom(shift)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%addShiftPerAtom(shift)
     end if
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
