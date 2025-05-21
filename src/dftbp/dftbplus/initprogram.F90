@@ -7000,9 +7000,9 @@ contains
       end if
     end if
 
-    if (allocated(ctrl%chrgConstr)) then
-      if (any(abs(ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
-        sccInput%chrgConstraints = ctrl%chrgConstr
+    if (allocated(ctrl%chrgPenalty)) then
+      if (any(abs(ctrl%chrgPenalty(:,2)) > epsilon(1.0_dp))) then
+        sccInput%chrgPenalties = ctrl%chrgPenalty
       end if
     end if
 
