@@ -6802,11 +6802,16 @@ instead.
 \index{ESP.dat}
 
 The output from evaluating the electrostatic potential (see
-page~\pref{sec:dftbp.esp}). The first line consists of a comment mark followed
-by a logical variable as to whether there is an external electric field (or
-not), followed by 3 values for any regular grid pattern present in the system
-and the total number of points. If the data is gridded, the next four lines
-contain the origin and grid separation vectors in {\AA}ngstroms.
+page~\pref{sec:dftbp.esp}). The first line consists of a comment mark
+followed by a logical variable as to whether there is an external
+electric field (or not), followed by 3 values for any regular grid
+pattern present in the system and the total number of points. If the
+data is gridded, the next four lines contain the origin and vectors
+for the separation of grid points in {\AA}ngstroms. For gridded data,
+the 3 values in the header give the number of sampling points along
+each of the directions of the grid and the grid is written in order of
+the last vector most rapidly cycling, then the middle vector and
+finally the first vector.
 
 The next line is a comment, then the locations and the potential experience for
 a positive charge due to the internal field plus optionally the external field
@@ -6847,6 +6852,19 @@ shown in the label:
   0.215815549672E-01
   .
   .
+\end{verbatim}
+The grid is 25 points for each iteration, with the first few of the
+points are located at
+\begin{verbatim}
+0 -2 -2
+0 -2 -1
+0 -2  0
+0 -2  1
+0 -2  2
+0 -1 -2
+0 -1 -1
+.
+.
 \end{verbatim}
 
 \section{Excited state results files}
