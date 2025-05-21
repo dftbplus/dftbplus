@@ -510,7 +510,7 @@ module dftbp_dftbplus_inputdata
     type(TTBLiteInput), allocatable :: tbliteInp
 
     !> Local potentials
-    real(dp), allocatable :: chrgConstr(:,:)
+    real(dp), allocatable :: chrgPenalty(:,:)
     real(dp), allocatable :: thirdOrderOn(:,:)
 
 
