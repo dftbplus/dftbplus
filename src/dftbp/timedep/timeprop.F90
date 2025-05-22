@@ -901,6 +901,16 @@ contains
     this%species0 = species
     this%tPeriodic = tPeriodic
     this%isHybridXc = isHybridXc
+  #:if WITH_MPI
+    if (isHybridXc) then
+      @:RAISE_ERROR(errStatus, -1, "MPI-parallel HybridXc not implement for&
+          & real-time TDDFTB.")
+    end if
+    if (allocated(tblite)) then
+        @:RAISE_ERROR(errStatus, -1, "MPI-parallel real-time TDDFTB not available for xTB&
+            & Hamiltonian yet.")
+    end if
+  #:endif
     this%tWriteAtomEnergies = inp%tWriteAtomEnergies
 
     if (this%tIons) then
@@ -1609,7 +1619,8 @@ contains
     end do
   #:endif
 
-    ! add hybrid xc-functional contribution
+  ! add hybrid xc-functional contribution
+  ! TODO: this is currently disabled because tests C4H6_rs and C4H6_rs_Singlet were failing.
     if (this%isHybridXc) then
   #:if WITH_MPI
       deltaRho = rho
