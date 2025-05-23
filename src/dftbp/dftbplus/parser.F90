@@ -4050,6 +4050,9 @@ contains
         if (ctrl%tPrintMulliken) then
           call getChildValue(child, "Charges", ctrl%mdOutput%printCharges, .true.)
         end if
+        if (ctrl%tAtomicEnergy) then
+          call getChildValue(child, "AtomEnergies", ctrl%mdOutput%printAtomEnergies, .true.)
+        end if
       end if
     end if
     call getChildValue(node, "RandomSeed", ctrl%iSeed, 0, child=child)

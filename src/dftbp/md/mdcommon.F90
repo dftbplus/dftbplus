@@ -37,10 +37,13 @@ module dftbp_md_mdcommon
     logical :: bandStructure = .false.
 
     !> Are 1st derivative data accumulated?
-    logical :: printForces = .true.
+    logical :: printForces = .false.
 
     !> Are charge-related data accumulated?
-    logical :: printCharges = .true.
+    logical :: printCharges = .false.
+
+    !> Are atom resolved energies printed?
+    logical :: printAtomEnergies = .false.
 
   end type TMDOutput
 

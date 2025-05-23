@@ -5102,8 +5102,9 @@ calculations.
 
 \begin{ptable}
   \kw{AppendBandOut} & l &  & No & \\
-  \kw{Derivatives} & l & & Yes & \\
-  \kw{Charges} & l & {\is MullikenAnalysis} = \is{Yes} & Yes & \\
+  \kw{Derivatives} & l & \is{Printforces} = \is{Yes} & Yes & \\
+  \kw{Charges} & l & \is{MullikenAnalysis} = \is{Yes} & Yes & \\
+  \kw{AtomEnergies} & l & \is{WriteAtomicEnergies} = \is{Yes} & Yes & \\
 \end{ptable}
 \begin{description}
 \item[\is{AppendBandOut}] If enabled, add the band structure for the
@@ -5114,6 +5115,7 @@ calculations.
   periodic) data in \verb|md.out|.
 \item[\is{Charges}] If enabled, save charges and charge related
   quantities.
+\item[\is{AtomEnergies}] If enabled, save atom resolved energies.
 \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
