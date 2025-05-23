@@ -2012,7 +2012,7 @@ contains
             & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
             & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%electronicSolver,&
-            & this%deltaDftb, this%mdOutput)
+            & this%deltaDftb, this%iAtInCentralRegion, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
