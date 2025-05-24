@@ -1719,11 +1719,13 @@ contains
       call error("Lattice optimisation only applies for periodic structures.")
     end if
 
-  #:if WITH_TRANSPORT
-    call readElectrostatics(node, ctrl, geo, tp, poisson)
-  #:else
-    call readElectrostatics(node, ctrl, geo, poisson)
-  #:endif
+    if (ctrl%tSCC) then
+    #:if WITH_TRANSPORT
+      call readElectrostatics(node, ctrl, geo, tp, poisson)
+    #:else
+      call readElectrostatics(node, ctrl, geo, poisson)
+    #:endif
+    end if
 
     ! Third order stuff
     ctrl%t3rd = .false.
