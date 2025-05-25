@@ -5,13 +5,15 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-#:include 'common.fypp'
+#:include "common.fypp"
+#:include "error.fypp"
 
 !> Contains subroutines for formatted output of data
 module dftbp_io_formatout
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : au__fs, Bohr__AA, pi
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_exception, only : TException, TInternalError
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
   use dftbp_dftb_sparse2dense, only : unpackHS
@@ -428,8 +430,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_real(env, fname, sparse, iNeighbour, nNeighbourSK, iAtomStart,&
-      & iPair, img2CentCell)
+  subroutine writeSparseAsSquare_real(exc, env, fname, sparse, iNeighbour, nNeighbourSK,&
+      & iAtomStart, iPair, img2CentCell)
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -462,7 +467,7 @@ contains
     type(TFileDescr) :: fd
 
     if (withMpi) then
-      call error("Writing of HS not working with MPI yet")
+      @:RAISE_EXCEPTION(exc, TInternalError("Writing of HS not working with MPI yet"))
     end if
 
     nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1
@@ -485,8 +490,11 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_cplx(env, fname, sparse, kPoints, iNeighbour, nNeighbourSK,&
+  subroutine writeSparseAsSquare_cplx(exc, env, fname, sparse, kPoints, iNeighbour, nNeighbourSK,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -528,7 +536,7 @@ contains
     integer :: iK
 
     if (withMpi) then
-      call error("Writing of HS not working with MPI yet")
+      @:RAISE_EXCEPTION(exc, TInternalError("Writing of HS not working with MPI yet"))
     end if
 
     nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1

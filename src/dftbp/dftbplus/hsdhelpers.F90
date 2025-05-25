@@ -10,6 +10,7 @@
 !> HSD-parsing related helper routines.
 module dftbp_dftbplus_hsdhelpers
   use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_exception, only : TException
   use dftbp_dftbplus_inputdata, only : TInputData
   use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
   use dftbp_extlibs_xmlf90, only : destroyNode, fnode
@@ -32,7 +33,10 @@ module dftbp_dftbplus_hsdhelpers
 contains
 
   !> Parses input file and returns initialised input structure
-  subroutine parseHsdInput(input)
+  subroutine parseHsdInput(exc, input)
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Input data parsed from the input file
     type(TInputData), intent(out) :: input
