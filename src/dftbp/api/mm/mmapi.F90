@@ -12,8 +12,10 @@ module dftbp_mmapi
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_exception, only : TException
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi,&
+      & stdOut0
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -438,6 +440,7 @@ contains
     !> Representation of the DFTB+ input.
     type(TDftbPlusInput), intent(inout) :: input
 
+    type(TException), allocatable :: exc
     type(TParserFlags) :: parserFlags
     type(TInputData) :: inpData
 
@@ -445,7 +448,11 @@ contains
 
     call parseHsdTree(input%hsdTree, inpData, parserFlags)
     call doPostParseJobs(input%hsdTree, parserFlags)
-    call this%main%initProgramVariables(inpData, this%env)
+    call this%main%initProgramVariables(exc, this%env, inpData)
+    if (allocated(exc)) then
+      call exc%writeTo(stdOut0, withPropagationPath=.true.)
+      error stop "Exception occured during executing initProgramVariables()"
+    end if
 
   end subroutine TDftbPlus_setupCalculator
 

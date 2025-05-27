@@ -105,5 +105,22 @@
 #:enddef PROPAGATE_ERROR
 
 
+#:def RAISE_EXCEPTION(exc, event)
+  block
+    use dftbp_common_exception, only : TException_create
+    call TException_create(${exc}$, ${event}$, file="${_FILE_}$", line=${_LINE_}$)
+    return
+  end block
+#:enddef RAISE_EXCEPTION
+
+
+#:def PROPAGATE_EXCEPTION(exc)
+  if (allocated(${exc}$)) then
+    call ${exc}$%propagate(file="${_FILE_}$", line=${_LINE_}$)
+    return
+  end if
+#:enddef PROPAGATE_EXCEPTION
+
+
 #:endif
 #:endmute
