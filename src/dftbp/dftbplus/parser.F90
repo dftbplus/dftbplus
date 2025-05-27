@@ -121,6 +121,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("25.1", 14),&
       & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
@@ -311,9 +312,11 @@ contains
     call getChild(root, "InputVersion", child, requested=.false.)
     if (associated(child)) then
       call getChildValue(child, "", versionString)
-      implicitParserVersion = parserVersionFromInputVersion(unquote(char(versionString)), child)
-      dummy => removeChild(root, child)
-      call destroyNode(dummy)
+      implicitParserVersion = parserVersionFromInputVersion(trim(unquote(char(versionString))))
+      if (implicitParserVersion == 0) then
+        call detailedError(child, "Input version '" // trim(unquote(char(versionString)))&
+            & // "' not recognized")
+      end if
     end if
 
   end subroutine handleInputVersion
@@ -338,21 +341,24 @@ contains
     integer :: inputVersion
     type(fnode), pointer :: child
 
-    if (present(implicitVersion)) then
-      call getChild(node, "ParserVersion", child, requested=.false.)
-      if (associated(child)) then
-        call getChildValue(child, "", inputVersion)
-        if (inputVersion /= implicitVersion) then
-          call detailedError(child, "Parser version deduced from InputVersion ("&
-          & // i2c(implicitVersion) // ") differs from version explicitely set in ParserVersion ("&
-          & // i2c(inputVersion) // ")")
-        end if
-      else
-        inputVersion = implicitVersion
-        call setChildValue(node, "ParserVersion", inputVersion, child=child)
-      end if
+    call getChild(node, "ParserVersion", child, requested=.false.)
+    if (.not. associated(child) .and. .not. present(implicitVersion)) then
+      call detailedWarning(root, "Input containing neither InputVersion nor ParserVersion is&
+          & DEPRECATED!(!!) Specify the InputVersion keyword in your input to ensure that future&
+          & versions of DFTB+ can also parse it.")
+      inputVersion = parserVersion
+      call setChildValue(node, "ParserVersion", inputVersion)
+    else if (.not. associated(child) .and. present(implicitVersion)) then
+      inputVersion = implicitVersion
+    else if (associated(child) .and. .not. present(implicitVersion)) then
+      call getChildValue(child, "", inputVersion)
     else
-      call getChildValue(node, "ParserVersion", inputVersion, parserVersion, child=child)
+      call getChildValue(child, "", inputVersion)
+      if (inputVersion /= implicitVersion) then
+        call detailedError(child, "Parser version deduced from InputVersion ("&
+            & // i2c(implicitVersion) // ") differs from version explicitely set in&
+            & ParserVersion (" // i2c(inputVersion) // ")")
+      end if
     end if
 
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
@@ -8463,27 +8469,23 @@ contains
 
 
   !> Returns parser version for a given input version or throws an error if not possible.
-  function parserVersionFromInputVersion(versionString, node) result(parserVersion)
+  function parserVersionFromInputVersion(versionString) result(parserVersion)
 
     !> Input version string
     character(len=*), intent(in) :: versionString
 
-    !> Input version node (needed for error messagess)
-    type(fnode), pointer :: node
-
-    !> Corresponding parser version.
+    !> Corresponding parser version, or 0 if no corresponding parser version was found
     integer :: parserVersion
 
     integer :: ii
 
+    parserVersion = 0
     do ii = 1, size(versionMaps)
       if (versionMaps(ii)%inputVersion == versionString) then
         parserVersion = versionMaps(ii)%parserVersion
         return
       end if
     end do
-
-    call detailedError(node, "Program version '"// trim(versionString) // "' is not recognized")
 
   end function parserVersionFromInputVersion
 

@@ -59,7 +59,10 @@ Changed
   corrections
 
 - Raise error if a non-SCC calculation is using hybrid functionals
-  (this should always be SCC)
+
+- Raise a warning if neither the input of parser version is set in the
+  input
+
 
 Fixed
 -----
