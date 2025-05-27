@@ -534,6 +534,8 @@ md/DNA_Berendsen2                      #? MPI_PROCS <= 4
 md/ptcda-xlbomd                        #? MPI_PROCS <= 4
 md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4 and LONG_TEST
 md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4 and LONG_TEST
+md/SiC64-xlbomdfast-T0_kpts            #? MPI_PROCS <= 4 and LONG_TEST
+md/SiC64-xlbomdfast_kpts               #? MPI_PROCS <= 4 and LONG_TEST
 
 non-scc/Si_216                         #? MPI_PROCS <= 4 and LONG_TEST
 md/ptcda-xlbomd-ldep                   #? MPI_PROCS <= 4 and LONG_TEST
