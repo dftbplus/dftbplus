@@ -1710,7 +1710,7 @@ contains
       allocate(ctrl%elecConstraintInp)
       call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
       if (.not. allocated(ctrl%elecConstraintInp%mullikenConstrs)) then
-        call detailedWarning(child, "No electronic constaint specified")
+        call detailedWarning(child, "No electronic constraint specified")
         deallocate(ctrl%elecConstraintInp)
       end if
     end if
