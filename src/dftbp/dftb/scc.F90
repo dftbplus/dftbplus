@@ -14,20 +14,19 @@ module dftbp_dftb_scc
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
   use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
+  use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
+  use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
   use dftbp_dftbplus_elstattypes, only : elstatTypes
-  use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
+  use dftbp_extlibs_poisson, only : TPoisson, TPoisson_init, TPoissonInput
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   
 #:if WITH_SCALAPACK
-
   use mpi
-  use dftbp_extlibs_scalapackfx, only : MB_, NB_, CSRC_, RSRC_, scalafx_indxl2g
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : CSRC_, MB_, NB_, RSRC_, scalafx_indxl2g
 
 #:endif
   

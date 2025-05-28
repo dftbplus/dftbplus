@@ -15,7 +15,7 @@ module dftbp_dftb_dispcommon
   use dftbp_common_accuracy, only : dp, lc, nSearchIter
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_io_message, only : error
   use dftbp_math_errorfunction, only : erfcwrap
   use dftbp_math_simplealgebra, only : cross3

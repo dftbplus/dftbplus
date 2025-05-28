@@ -10,13 +10,13 @@
 !> Contains routines to calculate the value of one or more molecular orbitals composed from STOs on
 !! an equidistant grid.
 module waveplot_molorb
+  use waveplot_slater, only : getValue, realTessY, TSlaterOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_periodic, only : getCellTranslations
   use dftbp_math_simplealgebra, only : invert33
   use dftbp_type_typegeometry, only : TGeometry
-  use waveplot_slater, only : TSlaterOrbital, realTessY, getValue
   implicit none
 
   private

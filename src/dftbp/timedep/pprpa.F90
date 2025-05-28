@@ -13,18 +13,18 @@
 module dftbp_timedep_pprpa
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_dftb_scc, only : TScc
   use dftbp_io_message, only : error
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : symm
   use dftbp_math_eigensolver, only : geev
-  use dftbp_math_sorting, only: index_heap_sort
+  use dftbp_math_sorting, only : index_heap_sort
   use dftbp_timedep_linrespcommon, only : indxoo, indxvv
   use dftbp_timedep_transcharges, only : transq
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private

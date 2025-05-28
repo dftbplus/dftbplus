@@ -14,8 +14,8 @@
 !> currently be handled.
 module dftbp_io_tokenreader
   use dftbp_common_accuracy, only : dp
-  use dftbp_extlibs_xmlf90, only : string, assignment(=)
-  use dftbp_io_charmanip, only : whiteSpaces, tolower, complementaryScan, unquotedScan
+  use dftbp_extlibs_xmlf90, only : assignment(=), string
+  use dftbp_io_charmanip, only : complementaryScan, tolower, unquotedScan, whiteSpaces
   use dftbp_io_message, only : error
   implicit none
 

@@ -15,11 +15,11 @@
 !> code.
 !>
 module dftbp_common_globalenv
-  use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
+  use, intrinsic :: iso_fortran_env, only : error_unit, output_unit
 #:if WITH_MPI
   use mpi, only : MPI_COMM_WORLD
-  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_THREAD_FUNNELED, mpifx_init_thread, mpifx_abort,&
-      & mpifx_barrier, mpifx_finalize
+  use dftbp_extlibs_mpifx, only : MPI_THREAD_FUNNELED, mpifx_abort, mpifx_barrier, mpifx_comm,&
+      & mpifx_finalize, mpifx_init_thread
 #:endif
   implicit none
 

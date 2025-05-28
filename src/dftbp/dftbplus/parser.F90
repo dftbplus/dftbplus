@@ -10,88 +10,85 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
-  use dftbp_common_accuracy, only : dp, sc, lc, mc, minTemp, distFudge, distFudgeOld
-  use dftbp_common_constants, only : pi, boltzmann, Bohr__AA, maxL, shellNames, symbolToNumber
-  use dftbp_common_file, only : fileAccessValues, openFile, closeFile, TFileDescr
-  use dftbp_common_filesystem, only : findFile, joinPaths, joinPathsPrettyErr, getParamSearchPaths
-  use dftbp_common_globalenv, only : stdout, withMpi, withScalapack, abortProgram
+  use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc, minTemp, sc
+  use dftbp_common_constants, only : Bohr__AA, boltzmann, maxL, pi, shellNames, symbolToNumber
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
+  use dftbp_common_globalenv, only : abortProgram, stdout, withMpi, withScalapack
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
-  use dftbp_common_unitconversion, only : lengthUnits, energyUnits, forceUnits, pressureUnits,&
-      & timeUnits, EFieldUnits, freqUnits, massUnits, VelocityUnits, dipoleUnits, chargeUnits,&
-      & volumeUnits, angularUnits
-  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
-  use dftbp_dftb_coordnumber, only : TCNInput, getElectronegativity, getD3Radius, cnType
+  use dftbp_common_unitconversion, only : angularUnits, chargeUnits, dipoleUnits, EFieldUnits,&
+      & energyUnits, forceUnits, freqUnits, lengthUnits, massUnits, pressureUnits, timeUnits,&
+      & VelocityUnits, volumeUnits
+  use dftbp_dftb_coordnumber, only : cnType, getD3Radius, getElectronegativity, TCNInput
   use dftbp_dftb_dftbplusu, only : plusUFunctionals
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
-  use dftbp_dftb_dispersions, only : TDispersionInp, TDispSlaKirkInp, TDispUffInp,&
-      & TSimpleDftD3Input, TDispDftD4Inp, getUffValues
+  use dftbp_dftb_dispersions, only : getUffValues, TDispDftD4Inp, TDispersionInp, TDispSlaKirkInp,&
+      & TDispUffInp, TSimpleDftD3Input
+  use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_halogenx, only : halogenXSpecies1, halogenXSpecies2
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, getSuperSampling,&
-      & getCellTranslations, updateNeighbourList
-  use dftbp_dftb_hybridxc, only : THybridXcSKTag, hybridXcAlgo, hybridXcGammaTypes,&
-      & checkSupercellFoldingMatrix, hybridXcFunc
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo, hybridXcFunc,&
+      & hybridXcGammaTypes, THybridXcSKTag
+  use dftbp_dftb_nonscc, only : diffTypes
+  use dftbp_dftb_periodic, only : getCellTranslations, getSuperSampling, TNeighbourList,&
+      & TNeighbourlist_init, updateNeighbourList
   use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp
-  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep
-  use dftbp_dftb_repulsive_splinerep, only : TSplineRepInp, TSplineRep
-  use dftbp_dftb_slakocont, only : init, addTable
-  use dftbp_dftb_slakoeqgrid, only : skEqGridNew, skEqGridOld, TSlakoEqGrid, init
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRep, TPolyRepInp
+  use dftbp_dftb_repulsive_splinerep, only : TSplineRep, TSplineRepInp
+  use dftbp_dftb_slakocont, only : addTable, init
+  use dftbp_dftb_slakoeqgrid, only : init, skEqGridNew, skEqGridOld, TSlakoEqGrid
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
+  use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
-  use dftbp_dftbplus_inputdata, only :TInputData, TControl, TSlater, TBlacsOpts, THybridXcInp
+  use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData, TSlater
   use dftbp_dftbplus_oldcompat, only : convertOldHSD
   use dftbp_dftbplus_specieslist, only : readSpeciesList
-  use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
-  use dftbp_extlibs_poisson, only : withPoisson, TPoissonInfo, TPoissonStructure
-  use dftbp_extlibs_sdftd3, only : TSDFTD3Input, dampingFunction
+  use dftbp_extlibs_poisson, only : TPoissonInfo, withPoisson
+  use dftbp_extlibs_sdftd3, only : dampingFunction, TSDFTD3Input
   use dftbp_extlibs_tblite, only : tbliteMethod
-  use dftbp_extlibs_xmlf90, only : fnode, removeChild, string, char, textNodeName, fnodeList,&
-      & getLength, getNodeName, getItem1, destroyNodeList, destroyNode, assignment(=)
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNode, destroyNodeList, fnode,&
+      & fnodeList, getItem1, getLength, getNodeName, removeChild, string, textNodeName
   use dftbp_geoopt_geoopt, only : geoOptTypes
-  use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
-  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue,&
-      & getChildren, getSelectedAtomIndices, setChild, setChildValue
-  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, setUnprocessed, splitModifier,&
-      & renameChildren
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedAtomIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, renameChildren, setUnprocessed,&
+      & splitModifier
   use dftbp_io_message, only : error, warning
-  use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_math_simplealgebra, only: cross3, determinant33, diagonal
+  use dftbp_math_simplealgebra, only : cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
   use dftbp_md_xlbomd, only : TXlbomdInp
-  use dftbp_mixer_mixer, only : mixerTypes
-  use dftbp_dftb_nonscc, only : diffTypes
   use dftbp_reks_reks, only : reksTypes
-  use dftbp_solvation_solvparser, only : readSolvation, readCM5
+  use dftbp_solvation_solvparser, only : readCM5, readSolvation
   use dftbp_timedep_linresptypes, only : linRespSolverTypes
-  use dftbp_timedep_timeprop, only : TElecDynamicsInp, pertTypes, tdSpinTypes, envTypes
+  use dftbp_timedep_timeprop, only : envTypes, pertTypes, tdSpinTypes, TElecDynamicsInp
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_linkedlist, only : TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1,&
-      & TListRealR2, TListString, init, destruct, append, get, len, asArray, asVector, intoArray
-  use dftbp_type_oldskdata, only : TOldSKData, readFromFile, parseHybridXcTag
+  use dftbp_type_linkedlist, only : append, asArray, asVector, destruct, get, init, intoArray, len,&
+      & TListCharLc, TListInt, TListIntR1, TListReal, TListRealR1, TListRealR2, TListString
+  use dftbp_type_oldskdata, only : parseHybridXcTag, readFromFile, TOldSKData
   use dftbp_type_orbitals, only : getShellnames
-  use dftbp_type_typegeometry, only : TGeometry, reduce, setLattice
-  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryXyz,&
-      & readTGeometryVasp, readTGeometryLammps
+  use dftbp_type_typegeometry, only : reduce, setLattice, TGeometry
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryLammps,&
+      & readTGeometryVasp, readTGeometryXyz
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_MBD
-  use dftbp_dftb_dispmbd, only :TDispMbdInp
+  use dftbp_dftb_dispmbd, only : TDispMbdInp
 #:endif
 #:if WITH_SOCKETS
   use dftbp_io_ipisocket, only : IPI_PROTOCOLS
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_transport_negfvars, only : TTransPar, TNEGFGreenDensInfo, TNEGFTunDos, TElPh,&
-      & ContactInfo
+  use dftbp_transport_negfvars, only : ContactInfo, TElPh, TNEGFGreenDensInfo, TNEGFTunDos,&
+      & TTransPar
 #:endif
   implicit none
 
@@ -1041,15 +1038,9 @@ contains
     end if
     call getChildValue(pRoot, 'PreSteps', input%nPreSteps, 0)
 
-    ! Since inverse Jacobian is not enabled, we can set FullSccSteps
-    ! to its minimal value (no averaging of inverse Jacobians is done)
-    !call getChildValue(child, 'FullSccSteps', input%nFullSccSteps, &
-    !    & input%nKappa + 1, child=child2)
+    ! Since support for inverse Jacobian has been removed, we can set FullSccSteps
+    ! to its minimal value (no averaging of inverse Jacobians is done anymore)
     input%nFullSccSteps = input%nKappa + 1
-    !if (input%nFullSccSteps < input%nKappa + 1) then
-    !  call detailedError(child2, 'Nr. of full SCC steps must be greater by&
-    !      & one than integration steps')
-    !end if
 
     if (tXlbomdFast) then
       call getChildValue(pRoot, 'TransientSteps', input%nTransientSteps, 10)
@@ -1063,15 +1054,6 @@ contains
             & (0.0, 1.0]')
       end if
 
-      !! Inverse Jacobian is experimental feature so far.
-      !call getChildValue(child, "UseJacobianKernel", &
-      !    & input%useInverseJacobian, .false.)
-      !if (input%useInverseJacobian) then
-      !  call getChildValue(child, "ReadJacobianKernel", &
-      !      & input%readInverseJacobian, .false.)
-      !end if
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     else
       input%nTransientSteps = 0
       call getChildValue(pRoot, 'MinSccIterations', input%minSCCIter, 1)
@@ -1081,8 +1063,6 @@ contains
       end if
       call getChildValue(pRoot, 'SccTolerance', input%sccTol, 1e-5_dp)
       input%scale = 1.0_dp
-      input%useInverseJacobian = .false.
-      input%readInverseJacobian = .false.
     end if
 
   end subroutine readXlbomdOptions
@@ -1728,18 +1708,24 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
+      if (.not. allocated(ctrl%elecConstraintInp%mullikenConstrs)) then
+        call detailedWarning(child, "No electronic constraint specified")
+        deallocate(ctrl%elecConstraintInp)
+      end if
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
     end if
 
-  #:if WITH_TRANSPORT
-    call readElectrostatics(node, ctrl, geo, tp, poisson)
-  #:else
-    call readElectrostatics(node, ctrl, geo, poisson)
-  #:endif
+    if (ctrl%tSCC) then
+    #:if WITH_TRANSPORT
+      call readElectrostatics(node, ctrl, geo, tp, poisson)
+    #:else
+      call readElectrostatics(node, ctrl, geo, poisson)
+    #:endif
+    end if
 
     ! Third order stuff
     ctrl%t3rd = .false.
@@ -2007,7 +1993,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%elecConstraintInp, ctrl%tSpin, ctrl%t2Component)
+      call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
     end if
 
   end subroutine readXTBHam
@@ -4066,6 +4052,9 @@ contains
         if (ctrl%tPrintMulliken) then
           call getChildValue(child, "Charges", ctrl%mdOutput%printCharges, .true.)
         end if
+        if (ctrl%tAtomicEnergy) then
+          call getChildValue(child, "AtomEnergies", ctrl%mdOutput%printAtomEnergies, .true.)
+        end if
       end if
     end if
     call getChildValue(node, "RandomSeed", ctrl%iSeed, 0, child=child)
@@ -4821,7 +4810,7 @@ contains
 
 #:endif
 
-  !> reads in value of temperature for MD with sanity checking of the input
+  !> reads in value of temperature for MD with correctness checking of the input
   subroutine readTemperature(node, ctrl)
 
     !> data to parse
@@ -4849,7 +4838,7 @@ contains
   end subroutine readTemperature
 
 
-  !> reads a temperature profile for MD with sanity checking of the input
+  !> reads a temperature profile for MD with correctness checking of the input
   subroutine readTemperatureProfile(node, modifier, ctrl)
 
     !> parser node containing the relevant part of the user input
@@ -5523,48 +5512,55 @@ contains
 
         case ("broyden")
 
-          ctrl%iMixSwitch = mixerTypes%broyden
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+          allocate(ctrl%mixerInp%broydenMixerInp)
+          associate (inp => ctrl%mixerInp%broydenMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.2_dp)
+            call getChildValue(value1, "InverseJacobiWeight", inp%omega0, 0.01_dp)
+            call getChildValue(value1, "MinimalWeight", inp%minWeight, 1.0_dp)
+            call getChildValue(value1, "MaximalWeight", inp%maxWeight, 1.0e5_dp)
+            call getChildValue(value1, "WeightFactor", inp%weightFac, 1.0e-2_dp)
+          end associate
 
         case ("anderson")
 
-          ctrl%iMixSwitch = mixerTypes%anderson
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-              & allowEmptyValue=.true.)
-          call getNodeName2(value2, buffer2)
-          if (char(buffer2) == "") then
-            ctrl%andersonNrDynMix = 0
-          else
-            call init(lr1)
-            call getChildValue(child, "", 2, lr1, child=child2)
-            if (len(lr1) < 1) then
-              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+          allocate(ctrl%mixerInp%andersonMixerInp)
+          associate (inp => ctrl%mixerInp%andersonMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 4)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.01_dp)
+            call getChildValue(value1, "DynMixingParameters", value2, "", child=child, allowEmptyValue=.true.)
+            call getNodeName2(value2, buffer2)
+            if (char(buffer2) == "") then
+              inp%nConvMixParam = 0
+            else
+              call init(lr1)
+              call getChildValue(child, "", 2, lr1, child=child2)
+              if (len(lr1) < 1) then
+                call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+              end if
+              inp%nConvMixParam = len(lr1)
+              allocate(inp%convMixParam(2, inp%nConvMixParam))
+              call asArray(lr1, inp%convMixParam)
+              call destruct(lr1)
             end if
-            ctrl%andersonNrDynMix = len(lr1)
-            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-            call asArray(lr1, ctrl%andersonDynMixParams)
-            call destruct(lr1)
-          end if
-          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+            call getChildValue(value1, "DiagonalRescaling", inp%omega0, 1.0e-2_dp)
+          end associate
 
         case ("simple")
 
-          ctrl%iMixSwitch = mixerTypes%simple
-          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+          allocate(ctrl%mixerInp%simpleMixerInp)
+          associate (inp => ctrl%mixerInp%simpleMixerInp)
+            call getChildValue(value1, "MixingParameter", inp%mixParam, 0.05_dp)
+          end associate
 
-        case("diis")
+        case ("diis")
 
-          ctrl%iMixSwitch = mixerTypes%diis
-          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+          allocate(ctrl%mixerInp%diisMixerInp)
+          associate (inp => ctrl%mixerInp%diisMixerInp)
+            call getChildValue(value1, "InitMixingParameter", inp%initMixParam, 0.2_dp)
+            call getChildValue(value1, "Generations", inp%iGenerations, 6)
+            call getChildValue(value1, "UseFromStart", inp%tFromStart, .true.)
+          end associate
 
         case default
 
@@ -6726,7 +6722,7 @@ contains
 
 
 #:if WITH_TRANSPORT
-  !> Sanity checking of atom ranges and returning contact vector and direction.
+  !> Correctness checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
 
@@ -6758,7 +6754,7 @@ contains
     logical :: mask(3)
     character(lc) :: errorStr
 
-    !! Sanity check for the atom ranges
+    !! Correctness check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom .or. iEnd > geom%nAtom) then
@@ -6806,7 +6802,7 @@ contains
     ! Determine to which axis the contact vector is parallel.
     mask(:) = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
     if (count(mask) /= 1) then
-      call warning("Contact vector " // i2c(id) // " not parallel to any of the coordinate axis.")
+      call warning("Contact vector " // i2c(id) // " not parallel to any coordinate axis.")
       contactDir = 0
     else
       contactDir = findloc(mask, .true., 1)
@@ -7563,7 +7559,7 @@ contains
           if (input%transpar%contacts(ii)%dir.lt.1 .or. &
             &input%transpar%contacts(ii)%dir.gt.3 ) then
             call error("Contact " // i2c(ii) // " not parallel to any &
-              & coordinate axis is not compatible with Poisson solver")
+              & coordinate axis and is not compatible with Poisson solver")
           end if
         end do
       end if

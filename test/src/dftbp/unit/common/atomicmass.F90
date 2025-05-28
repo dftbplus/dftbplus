@@ -8,9 +8,9 @@
 #:include "fortuno_serial.fypp"
 
 module test_common_atomicmass
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_common_atomicmass, only : getAtomicSymbol
-  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

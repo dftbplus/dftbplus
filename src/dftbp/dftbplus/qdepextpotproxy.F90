@@ -9,7 +9,7 @@
 module dftbp_dftbplus_qdepextpotproxy
   use dftbp_common_accuracy, only : dp
   use dftbp_dftb_shift, only : totalShift
-  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGenWrapper
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

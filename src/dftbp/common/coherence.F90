@@ -24,10 +24,10 @@
 
 !> Contains MPI coherence tests across a comm world
 module dftbp_common_coherence
-  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_bcast, mpifx_allreduce
+  use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_allreduce, mpifx_bcast
 #:endif
   implicit none
 

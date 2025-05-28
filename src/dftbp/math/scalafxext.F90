@@ -10,13 +10,11 @@
 
 !> Common mathematical operations built out of multiple scalapack calls
 module dftbp_math_scalafxext
-  use dftbp_common_accuracy, only : lc, dp
-  use dftbp_io_message, only : error
+  use dftbp_common_accuracy, only : dp
 #:if WITH_SCALAPACK
   use dftbp_common_status, only : TStatus
-  use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_comm, MPI_SUM
-  use dftbp_extlibs_scalapackfx, only : MB_, NB_, RSRC_, CSRC_, DLEN_, blacsfx_gsum,&
-      & scalafx_ppotrf, scalafx_ppotri, blacsgrid, scalafx_indxl2g, scalafx_getlocalshape
+  use dftbp_extlibs_scalapackfx, only : blacsfx_gsum, blacsgrid, CSRC_, DLEN_, MB_, NB_, RSRC_,&
+      & scalafx_getlocalshape, scalafx_indxl2g, scalafx_ppotrf, scalafx_ppotri
 #:endif
   implicit none
 

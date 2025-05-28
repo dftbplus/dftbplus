@@ -97,7 +97,7 @@ needed for the test ::
   ./utils/get_opt_externals gbsa
 
 or ::
-  
+
   ./utils/get_opt_externals ALL
 
 and then run the tests with ::

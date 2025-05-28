@@ -18,8 +18,8 @@ module phonons_initphonons
   use dftbp_common_unitconversion, only : energyUnits, lengthUnits
   use dftbp_dftb_periodic, only : getCellTranslations, getNrOfNeighboursForAll, getSuperSampling,&
       & TNeighbourList, TNeighbourlist_init, updateNeighbourList
-  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist,&
-      & getItem1, getLength, getNodeName, string, textNodeName
+  use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNodeList, fnode, fnodelist, getItem1,&
+      & getLength, getNodeName, string, textNodeName
   use dftbp_io_charmanip, only : i2c, tolower, unquote
   use dftbp_io_hsdparser, only : dumpHSD, parseHSD
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
@@ -625,9 +625,9 @@ contains
     integer :: iStart, iStart2, iEnd
     logical :: mask(3)
 
-    !! Sanity check for the atom ranges
     iStart = atomrange(1)
     iEnd = atomrange(2)
+    !! Consistency check for the atom ranges
     if (iStart < 1 .or. iEnd < 1 .or. iStart > geom%nAtom &
         &.or. iEnd > geom%nAtom .or. iEnd < iStart) then
       call detailedError(pContact, "Invalid atom range '" // i2c(iStart) &

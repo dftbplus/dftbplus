@@ -9,7 +9,6 @@
 
 !> Contains subroutines for the dense matrix representation
 module dftbp_dftb_dense
-  use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

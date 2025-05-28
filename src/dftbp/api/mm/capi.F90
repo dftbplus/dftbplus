@@ -15,9 +15,7 @@ module dftbp_capi
   use dftbp_common_globalenv, only : instanceSafeBuild
   use dftbp_dftbplus_qdepextpotgenc, only : getExtPotGradIfaceC, getExtPotIfaceC, TQDepExtPotGenC,&
       & TQDepExtPotGenC_init
-  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusAtomList,&
-      & TDftbPlusInput
-  use dftbp_type_linkedlist, only : append, destruct, init, TListString
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusInput
   implicit none
   private
 

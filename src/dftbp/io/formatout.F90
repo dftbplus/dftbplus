@@ -12,7 +12,7 @@ module dftbp_io_formatout
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : au__fs, Bohr__AA, pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
   use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error

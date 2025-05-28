@@ -9,9 +9,12 @@
 
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
+  use waveplot_gridcache, only : TGridCache, TGridCache_init
+  use waveplot_molorb, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
+  use waveplot_slater, only : TSlaterOrbital_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
+  use dftbp_common_file, only : closeFile, openFile, setDefaultBinaryAccess, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
@@ -19,23 +22,20 @@ module waveplot_initwaveplot
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
-  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode
+  use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&
+      & getNodeName, string
   use dftbp_io_charmanip, only : i2c, unquote
   use dftbp_io_formatout, only : printDftbHeader
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
-      & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes, renameChildren
-  use dftbp_io_message, only : warning, error
+  use dftbp_io_hsdparser, only : dumpHSD, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, renameChildren, warnUnprocessedNodes
+  use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_simplealgebra, only : determinant33
-  use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
-  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
-      & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
-  use waveplot_gridcache, only : TGridCache, TGridCache_init
-  use waveplot_molorb, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use waveplot_slater, only : TSlaterOrbital_init
+  use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListIntR1, TListReal
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryVasp,&
+      & readTGeometryXyz, TGeometry, writeTGeometryHSD
   implicit none
 
   private

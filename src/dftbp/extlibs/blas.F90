@@ -15,7 +15,7 @@
 !>
 !> ALL BLAS routines which are called from the main code must be included here.
 module dftbp_extlibs_blas
-  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_common_accuracy, only : rdp, rsp
   public
 
   interface

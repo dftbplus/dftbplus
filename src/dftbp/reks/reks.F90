@@ -18,8 +18,8 @@ module dftbp_reks_reks
   use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
       & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
   use dftbp_reks_reksfon, only : optimizeFons
-  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradProperties,&
-      & getReksGradients, getReksStress, getStateInteraction
+  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradients, getReksGradProperties,&
+      & getReksStress, getStateInteraction
   use dftbp_reks_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
   use dftbp_reks_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
 

@@ -11,12 +11,12 @@
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_extlibs_xmlf90, only : fnodeList, fnode, removeChild, string, char, getLength,&
-      & getNodeName, destroyNode, getItem1, destroyNodeList
+  use dftbp_extlibs_xmlf90, only : char, destroyNode, destroyNodeList, fnode, fnodeList, getItem1,&
+      & getLength, getNodeName, removeChild, string
   use dftbp_io_charmanip, only : i2c, newline, tolower
-  use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, detailedWarning,&
-      & detailedError, getChildren
-  use dftbp_io_hsdutils2, only : getDescendant, setUnprocessed, setNodeName
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : getDescendant, setNodeName, setUnprocessed
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
   implicit none

@@ -13,7 +13,6 @@ module dftbp_common_blacsenv
   use dftbp_common_mpienv, only : TMpiEnv
   use dftbp_common_status, only : TStatus
   use dftbp_extlibs_scalapackfx, only : blacsgrid
-  use dftbp_io_message, only : error
   implicit none
 
   private
@@ -96,7 +95,7 @@ contains
     ! rectangular grid for the rowBlock
     call getGridMap(myMpiEnv%groupMembersWorld, 1, nProcRow * nProcCol, gridMap)
     call this%rowOrbitalGrid%initmappedgrids(gridMap)
-    
+
     ! Create atom grid for each processor group
     maxProcRow = (nAtom - 1) / rowBlock + 1
     maxProcColMax = (nAtom - 1) / colBlock + 1

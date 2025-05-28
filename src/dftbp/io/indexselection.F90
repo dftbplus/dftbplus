@@ -13,7 +13,7 @@
 !> Grammar inspired by https://gist.github.com/mlabbe/81d667bac36aa60787fee60e3647a0a8/
 !>
 module dftbp_io_indexselection
-  use dftbp_common_accuracy, only : dp, mc
+  use dftbp_common_accuracy, only : mc
   use dftbp_common_status, only : TStatus
   use dftbp_io_charmanip, only : tolower
   implicit none

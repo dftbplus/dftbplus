@@ -8,10 +8,10 @@
 #:include "fortuno_serial.fypp"
 
 module test_common_file
-  use dftbp_common_file, only : TFileDescr, TOpenOptions, fileExists, openFile, closeFile,&
-      & clearFile, defaultBinaryAccess, defaultTextAccess
-  use dftbp_io_charmanip, only : tolower
   use fortuno_serial, only : suite => serial_suite_item, test_list
+  use dftbp_common_file, only : clearFile, closeFile, defaultBinaryAccess, defaultTextAccess,&
+      & fileExists, openFile, TFileDescr, TOpenOptions
+  use dftbp_io_charmanip, only : tolower
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

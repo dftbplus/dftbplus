@@ -11,7 +11,7 @@
 !> Routines for the restart of the time propagation of the density matrix/atoms
 module dftbp_timedep_dynamicsrestart
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr, TOpenOptions
   use dftbp_common_status, only : TStatus
   implicit none
 

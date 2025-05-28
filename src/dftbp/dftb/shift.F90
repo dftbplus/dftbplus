@@ -12,7 +12,7 @@
 module dftbp_dftb_shift
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_type_commontypes, only : TOrbitals
 
   implicit none

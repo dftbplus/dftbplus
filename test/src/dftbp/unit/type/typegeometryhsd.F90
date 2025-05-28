@@ -8,12 +8,12 @@
 #:include "fortuno_serial.fypp"
 
 module test_type_typegeometryhsd
+  use fortuno_serial, only : suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : AA__Bohr
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createTextNode, destroyNode
+  use dftbp_extlibs_xmlf90, only : createDocumentNode, createTextNode, destroyNode, fnode
   use dftbp_io_hsdutils, only : setChildValue
   use dftbp_type_typegeometryhsd, only : readTGeometryLammps, TGeometry
-  use fortuno_serial, only : suite => serial_suite_item, test_list
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

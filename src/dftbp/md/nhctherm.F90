@@ -13,7 +13,7 @@ module dftbp_md_nhctherm
   use dftbp_common_accuracy, only : dp, lc, minTemp
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
-  use dftbp_md_mdcommon, only : TMDCommon, init, evalKE, restFrame, MaxwellBoltzmann, rescaleTokT
+  use dftbp_md_mdcommon, only : evalKE, init, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   implicit none
 

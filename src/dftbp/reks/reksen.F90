@@ -20,14 +20,14 @@ module dftbp_reks_reksen
   use dftbp_dftb_energytypes, only : TEnergies
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
-  use dftbp_elecsolvers_elecsolvers, only: TElectronicSolver
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_reks_rekscommon, only : getTwoIndices, matAO2MO
   use dftbp_reks_reksio, only : printReksSSRInfo
-  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
+  use dftbp_reks_reksvar, only : reksTypes, TReksCalc
   use dftbp_type_densedescr, only : TDenseDescr
 
   implicit none

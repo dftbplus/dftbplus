@@ -8,8 +8,8 @@
 #:include "fortuno_serial.fypp"
 
 module test_include_pointerlist
-  use ptrlisthelper, only : TInt, TIntList
   use fortuno_serial, only : serial_case_base, suite => serial_suite_item, test_item, test_list
+  use ptrlisthelper, only : TInt, TIntList
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

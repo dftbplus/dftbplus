@@ -15,10 +15,10 @@ module dftbp_dftb_pmlocalisation
   use dftbp_common_constants, only : imag
   use dftbp_common_globalenv, only : stdOut
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_sparse2dense, only :unpackHS
+  use dftbp_dftb_sparse2dense, only : unpackHS
   use dftbp_io_message, only : error, warning
-  use dftbp_math_blasroutines, only : hemv, hemm, symm
-  use dftbp_math_sorting, only : unique, heap_sort
+  use dftbp_math_blasroutines, only : hemm, hemv, symm
+  use dftbp_math_sorting, only : heap_sort, unique
   implicit none
 
   private

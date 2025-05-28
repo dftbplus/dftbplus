@@ -18,15 +18,15 @@
 module dftbp_poisson_bulkpot
  use dftbp_common_accuracy, only : dp
  use dftbp_common_constants, only : Bohr__AA
- use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
+ use dftbp_common_file, only : closeFile, fileExists, openFile, TFileDescr
  use dftbp_common_globalenv, only : stdOut
  use dftbp_io_message, only : warning
  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
- use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
+ use dftbp_poisson_gewald, only : getalpha, long_pot, rezvol, short_pot
  use dftbp_poisson_mpi_poisson, only : id0
- use dftbp_poisson_parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc,&
-      & overrbulkbc, dmin
- use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, nshells
+ use dftbp_poisson_parameters, only : contdir, deltaR_max, dmin, iatc, ncont, overrbulkbc, poissacc,&
+     & readbulk
+ use dftbp_poisson_structure, only : dqmat, izp, nshells, period, period_dir, uhubb, x
 
  implicit none
  private

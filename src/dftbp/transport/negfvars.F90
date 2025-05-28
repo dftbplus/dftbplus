@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 module dftbp_transport_negfvars
-  use dftbp_common_accuracy, only : dp, mc, lc
+  use dftbp_common_accuracy, only : dp, lc, mc
   use dftbp_type_wrappedintr, only : TWrappedInt1
   implicit none
 

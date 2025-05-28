@@ -7,10 +7,9 @@
 
 !> Proxy module to ddCOSMO implementation
 module dftbp_extlibs_ddcosmo
-  use ddcosmo_core, only : TDomainDecomposition, TDomainDecompositionInput, &
-      & TDomainDecomposition_init, hsnorm, calcv, intrhs, prtsph, adjrhs, wghpot, &
-      & ddupdate, fdoka, fdokb, fdoga
-  use ddcosmo_solver, only : jacobi_diis, lx, lstarx, ldm1x, hnorm
+  use ddcosmo_core, only : adjrhs, calcv, ddupdate, fdoga, fdoka, fdokb, hsnorm, intrhs, prtsph,&
+      & TDomainDecomposition, TDomainDecomposition_init, TDomainDecompositionInput, wghpot
+  use ddcosmo_solver, only : hnorm, jacobi_diis, ldm1x, lstarx, lx
   implicit none
 
   public

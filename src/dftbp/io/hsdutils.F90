@@ -13,22 +13,21 @@
 module dftbp_io_hsdutils
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
-  use dftbp_extlibs_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string,&
-      & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&
-      & assignment(=),getNodeType, replaceChild, createTextNode, createElement, removeChild, trim,&
-      & getAttribute, setAttribute, append_to_string, resize_string, len, xml_NewElement,&
-      & xml_AddPCData, xml_EndElement, getItem1, prepend_to_string, getAttribute, getNodeName,&
-      & getNodeValue, destroyNode, setAttribute, getAttribute, normalize
-  use dftbp_io_charmanip, only : newline, whiteSpaces, space, tolower, unquote, complementaryScan
-  use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrStart, attrModifier, attrName,&
+  use dftbp_extlibs_xmlf90, only : append_to_string, appendChild, assignment(=), char,&
+      & createElement, createTextNode, destroyNode, ELEMENT_NODE, fnode, fnodeList, getAttribute,&
+      & getFirstChild, getItem1, getLength, getNodeName, getNodeType, getNodeValue, getParentNode,&
+      & len, removeChild, replaceChild, resize_string, setAttribute, string, TEXT_NODE,&
+      & textNodeName, trim, xml_AddPCData, xml_EndElement, xml_NewElement, xmlf_t
+  use dftbp_io_charmanip, only : complementaryScan, newline, space, tolower, unquote, whiteSpaces
+  use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrModifier, attrName, attrStart,&
       & getHSDPath, getNodeHSDName
   use dftbp_io_indexselection, only : getIndexSelection
   use dftbp_io_message, only : error, warning
-  use dftbp_io_tokenreader, only : TOKEN_EOS, TOKEN_ERROR, LOGICAL_TRUE, LOGICAL_FALSE, TOKEN_OK,&
-      & getNextToken
+  use dftbp_io_tokenreader, only : getNextToken, LOGICAL_FALSE, LOGICAL_TRUE, TOKEN_EOS,&
+      & TOKEN_ERROR, TOKEN_OK
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
-  use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListComplex,&
-      & TListComplexR1, TListInt, TlistIntR1, append, init, asArray, destruct
+  use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt, TlistIntR1,&
+      & TListReal, TListRealR1, TListString
   implicit none
 
   private

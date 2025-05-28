@@ -7,7 +7,7 @@
 
 !> Contains a list of physical constants for the code
 module dftbp_common_constants
-  use dftbp_common_accuracy, only : dp, rsp, lc, mc, elecTolMax, tolSameDist
+  use dftbp_common_accuracy, only : dp, mc
   implicit none
 
   private

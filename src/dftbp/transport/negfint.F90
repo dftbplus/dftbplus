@@ -13,33 +13,31 @@ module dftbp_transport_negfint
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIOproc
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, updateNeighbourListAndSpecies
+  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init,&
+      & updateNeighbourListAndSpecies
   use dftbp_dftb_sparse2dense, only : unpackHS
-  use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
-  use dftbp_extlibs_negf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units,&
-      & z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF, associate_lead_currents, associate_ldos,&
-      & associate_transmission, associate_current, compute_current, compute_density_dft,&
-      & compute_ldos, create, create_scratch, destroy, set_readoldDMsgf, destroy_matrices,&
-      & destroy_negf, get_params, init_contacts, init_ldos, init_negf, init_structure, pass_hs,&
-      & set_bp_dephasing, set_drop, set_elph_block_dephasing, set_elph_dephasing,&
-      & set_elph_s_dephasing, set_ldos_indexes, set_params, set_scratch, writememinfo,&
-       writepeakinfo, printcsr
+  use dftbp_extlibs_negf, only : associate_current, associate_ldos, associate_lead_currents,&
+      & associate_transmission, COMP_SGF, COMPSAVE_SGF, compute_current, compute_density_dft,&
+      & compute_ldos, convertcurrent, create, create_scratch, destroy, destroy_matrices,&
+      & destroy_negf, eovh, get_params, getel, init_contacts, init_ldos, init_negf, init_structure,&
+      & lnParams, pass_DM, pass_hs, printcsr, READ_SGF, set_bp_dephasing, set_drop,&
+      & set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing, set_ldos_indexes,&
+      & set_params, set_readoldDMsgf, set_scratch, Tnegf, units, writememinfo, writepeakinfo, z_CSR
   use dftbp_io_formatout, only : writeXYZFormat
   use dftbp_io_message, only : error, warning
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_lapackroutines, only : gesvd
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_transport_matconv, only : init, destruct, foldToCSR, unfoldFromCSR
-  use dftbp_transport_negfvars, only : TTranspar, TNEGFGreenDensInfo, TNEGFTunDos, ContactInfo,&
-      & TElph
+  use dftbp_transport_matconv, only : destruct, foldToCSR, init, unfoldFromCSR
+  use dftbp_transport_negfvars, only : TElph, TNEGFGreenDensInfo, TNEGFTunDos, TTranspar
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_comm, MPI_SUM, mpifx_reduceip, mpifx_allreduceip
-  use dftbp_extlibs_negf, only : negf_mpi_init, negf_cart_init
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_comm, mpifx_reduceip
+  use dftbp_extlibs_negf, only : negf_mpi_init
 #:endif
   implicit none
 

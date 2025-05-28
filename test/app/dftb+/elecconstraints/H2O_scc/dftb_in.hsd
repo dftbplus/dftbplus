@@ -27,14 +27,14 @@ Hamiltonian = DFTB {
   }
 
   ElectronicConstraints {
-    Regions {
-      Atoms {
-        Domain = H
-        Population = 1.5
+    Constraints {
+      MullikenPopulation {
+        Atoms = H
+        TotalCharge = 0.5
       }
-      Atoms {
-        Domain = 2
-        Population = 1.0
+      MullikenPopulation {
+        Atoms = 2
+        Charges = 0.0
       }
     }
     Optimiser = SteepestDescent {ScalingFactor = 0.25}
@@ -42,7 +42,6 @@ Hamiltonian = DFTB {
     MaxConstrIterations = 100
     ConvergentConstrOnly = Yes
   }
-
 }
 
 Options {

@@ -9,10 +9,10 @@
 
 !> Contains various constants for memory management
 module dftbp_common_memman
+  use, intrinsic :: iso_c_binding, only : c_associated, c_f_pointer, c_int, c_null_ptr, c_ptr,&
+      & c_size_t, c_sizeof
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
-  use, intrinsic :: iso_c_binding, only : c_associated, c_f_pointer, c_int,&
-      & c_null_ptr, c_ptr, c_size_t, c_sizeof
 
   implicit none
 

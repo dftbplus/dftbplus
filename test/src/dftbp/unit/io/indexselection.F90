@@ -8,9 +8,9 @@
 #:include "fortuno_serial.fypp"
 
 module test_io_indexselection
-  use dftbp_common_status, only : TStatus
-  use dftbp_io_indexselection, only : getIndexSelection, errors
   use fortuno_serial, only : suite => serial_suite_item, test_list
+  use dftbp_common_status, only : TStatus
+  use dftbp_io_indexselection, only : errors, getIndexSelection
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

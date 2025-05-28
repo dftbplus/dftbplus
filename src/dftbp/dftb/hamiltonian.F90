@@ -10,17 +10,15 @@
 
 !> Update the SCC hamiltonian
 module dftbp_dftb_hamiltonian
-  use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : addShift, totalShift, addOnSiteShift, addAtomicMultipoleShift
+  use dftbp_dftb_shift, only : addAtomicMultipoleShift, addOnSiteShift, addShift, totalShift
   use dftbp_dftb_spin, only : getSpinShift
   use dftbp_dftb_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftb_thirdorder, only : TThirdOrder

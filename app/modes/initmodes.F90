@@ -11,29 +11,29 @@
 module modes_initmodes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_atomicmass, only : getAtomicMass
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_filesystem, only : findFile, joinPathsPrettyErr, getParamSearchPaths
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
   use dftbp_common_globalenv, only : stdOut
 #:if WITH_MAGMA
   use dftbp_common_gpuenv, only : TGpuEnv, TGpuEnv_init
 #:endif
   use dftbp_common_release, only : releaseYear
   use dftbp_common_unitconversion, only : massUnits
-  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode, destroyNodeList, textNodeName
+  use dftbp_extlibs_xmlf90, only : char, destroyNode, destroyNodeList, fnode, fNodeList, getItem1,&
+      & getLength, getNodeName, string, textNodeName
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_formatout, only : printDftbHeader
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_hsdutils, only : getChild, getChildValue, getChildren, getSelectedAtomIndices,&
-      & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd, setUnprocessed, warnUnprocessedNodes, getNodeName2
+  use dftbp_io_hsdparser, only : dumpHSD, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedAtomIndices, getSelectedIndices
+  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, setUnprocessed, warnUnprocessedNodes
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_type_linkedlist, only : TListCharLc, TListReal, TListRealR1, TListString, init,&
-      & destruct, append, get, len, asArray
-  use dftbp_type_oldskdata, only : TOldSkData, readFromFile
-  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryXyz,&
-      & readTGeometryHsd, readTGeometryVasp, writeTGeometryHsd
+  use dftbp_type_linkedlist, only : append, asArray, destruct, get, init, len, TListCharLc,&
+      & TListReal, TListRealR1, TListString
+  use dftbp_type_oldskdata, only : readFromFile, TOldSkData
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHsd, readTGeometryVasp,&
+      & readTGeometryXyz, TGeometry, writeTGeometryHsd
   implicit none
 
   private

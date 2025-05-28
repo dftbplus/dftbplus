@@ -13,9 +13,9 @@ module dftbp_solvation_sasa
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_extlibs_lebedev, only : getAngGrid, gridSize
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33

@@ -9,7 +9,7 @@
 
 program dftbplus
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
   use dftbp_common_release, only : releaseName, releaseYear
   use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain

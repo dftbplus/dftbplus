@@ -10,134 +10,125 @@
 
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
-  use dftbp_common_accuracy, only : dp, lc, mc, sc, elecTolMax, minTemp, tolSameDist, tolEfEquiv
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc, mc, minTemp, sc, tolEfEquiv, tolSameDist
   use dftbp_common_atomicmass, only : getAtomicMass
-  use dftbp_common_coherence, only : checkToleranceCoherence, checkExactCoherence
-  use dftbp_common_constants, only : shellNames, Hartree__eV, Bohr__AA, amu__au, pi, au__ps,&
-      & Bohr__nm, Hartree__kJ_mol, Boltzmann
+  use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
+  use dftbp_common_constants, only : amu__au, au__ps, Bohr__AA, Bohr__nm, Boltzmann, Hartree__eV,&
+      & Hartree__kJ_mol, pi, shellNames
   use dftbp_common_envcheck, only : checkStackSize
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, setDefaultBinaryAccess, clearFile
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_file, only : clearFile, setDefaultBinaryAccess, TFileDescr
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_densitymatrix, only : TDensityMatrix
-  use dftbp_derivs_numderivs2, only : TNumDerivs, create
-  use dftbp_derivs_perturb, only : TResponse, TResponse_init, responseSolverTypes
+  use dftbp_derivs_numderivs2, only : create, TNumDerivs
+  use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
-  use dftbp_dftb_dispersions, only : TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3,&
-      & TDispDftD4, init, DispSlaKirk_init, DispUff_init
+  use dftbp_dftb_dispersions, only : DispSlaKirk_init, DispUff_init, init, TDispDftD4,&
+      & TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3
+  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInp
   use dftbp_dftb_elstatpot, only : TElStatPotentials, TElStatPotentials_init
   use dftbp_dftb_energytypes, only : TEnergies, TEnergies_init
   use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TEField
-  use dftbp_dftb_h5correction, only : TH5CorrectionInput
   use dftbp_dftb_halogenx, only : THalogenX, THalogenX_init
   use dftbp_dftb_hamiltonian, only : TRefExtPot
-  use dftbp_dftb_nonscc, only : TNonSccDiff, NonSccDiff_init, diffTypes
-  use dftbp_dftb_onsitecorrection, only : Ons_getOrbitalEquiv, Ons_blockIndx
+  use dftbp_dftb_hybridxc, only : checkSupercellFoldingMatrix, hybridXcAlgo, hybridXcFunc,&
+      & hybridXcGammaTypes, THybridXcFunc, THybridXcFunc_init
+  use dftbp_dftb_nonscc, only : diffTypes, NonSccDiff_init, TNonSccDiff
+  use dftbp_dftb_onsitecorrection, only : Ons_blockIndx, Ons_getOrbitalEquiv
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_merge, OrbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TNeighbourlist_init, TSymNeighbourList,&
-      & getCellTranslations
-  use dftbp_dftb_pmlocalisation, only : TPipekMezey, initialise
+  use dftbp_dftb_periodic, only : getCellTranslations, TNeighbourList, TNeighbourlist_init,&
+      & TSymNeighbourList
+  use dftbp_dftb_pmlocalisation, only : initialise, TPipekMezey
   use dftbp_dftb_potentials, only : TPotentials, TPotentials_init
-  use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo, hybridXcFunc, hybridXcGammaTypes,&
-      & THybridXcFunc_init, checkSupercellFoldingMatrix
-  use dftbp_dftb_repulsive_chimesrep, only : TChimesRepInp, TChimesRep, TChimesRep_init
+  use dftbp_dftb_repulsive_chimesrep, only : TChimesRep, TChimesRep_init, TChimesRepInp
   use dftbp_dftb_repulsive_pairrepulsive, only : TPairRepulsiveItem
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_repulsive_repulsivecont, only : TRepulsiveCont, TRepulsiveCont_init
   use dftbp_dftb_repulsive_repulsivelist, only : TRepulsiveList
-  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRepInp, TTwoBodyRep, TTwoBodyRep_init
+  use dftbp_dftb_repulsive_twobodyrep, only : TTwoBodyRep, TTwoBodyRep_init, TTwoBodyRepInp
   use dftbp_dftb_rshgamma, only : getCoulombTruncationCutoff
-  use dftbp_dftb_scc, only : TSccInput, TScc, TScc_init
-  use dftbp_dftb_sccinit, only : initQFromFile, initQFromUsrChrg, initQFromAtomChrg,&
-      & initQFromShellChrg
-  use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGammaDamp
-  use dftbp_dftb_slakocont, only : TSlakoCont, getCutOff
-  use dftbp_dftb_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
-  use dftbp_dftb_thirdorder, only : TThirdOrderInp, TThirdOrder, ThirdOrder_init
+  use dftbp_dftb_scc, only : TScc, TScc_init, TSccInput
+  use dftbp_dftb_sccinit, only : initQFromAtomChrg, initQFromFile, initQFromShellChrg,&
+      & initQFromUsrChrg
+  use dftbp_dftb_shortgamma, only : TShortGammaDamp, TShortGammaInput
+  use dftbp_dftb_slakocont, only : getCutOff, TSlakoCont
+  use dftbp_dftb_spin, only : qm2ud, Spin_getOrbitalEquiv, ud2qm
+  use dftbp_dftb_thirdorder, only : ThirdOrder_init, TThirdOrder, TThirdOrderInp
   use dftbp_dftb_uniquehubbard, only : TUniqueHubbard, TUniqueHubbard_init
-  use dftbp_dftb_elecconstraints, only : TElecConstraint, TElecConstraint_init, TElecConstraintInput
-  use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
-  use dftbp_dftbplus_inputdata, only : TParallelOpts, TInputData, THybridXcInp, TControl, TBlacsOpts
-  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, hessianOut, mdOut,&
-      & resultsTag, userOut, fCharges, fStopDriver, fStopSCC
+  use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData,&
+      & TParallelOpts
+  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, derivEBandOut, fCharges, fStopDriver,&
+      & fStopSCC, hessianOut, mdOut, resultsTag, userOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readContactShifts
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes,&
+  use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver,&
       & TElectronicSolver_init
-  use dftbp_elecsolvers_elsisolver, only : TElsiSolver_init, TElsiSolver_final
+  use dftbp_elecsolvers_elsisolver, only : TElsiSolver_final, TElsiSolver_init
   use dftbp_extlibs_arpack, only : withArpack
   use dftbp_extlibs_elsiiface, only : withELSI
-  use dftbp_extlibs_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
+  use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_init, withPlumed
   use dftbp_extlibs_poisson, only : TPoissonInput
   use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
   use dftbp_geoopt_conjgrad, only : TConjGrad
+  use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr
   use dftbp_geoopt_filter, only : TFilter, TFilter_init
   use dftbp_geoopt_fire, only : TFire, TFire_init
   use dftbp_geoopt_gdiis, only : TDiis
-  use dftbp_geoopt_geoopt, only : TGeoOpt, geoOptTypes, reset, init
+  use dftbp_geoopt_geoopt, only : geoOptTypes, init, reset, TGeoOpt
   use dftbp_geoopt_lbfgs, only : TLbfgs, TLbfgs_init
-  use dftbp_geoopt_package, only : TOptimizer, createOptimizer, TOptTolerance
-  use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr
+  use dftbp_geoopt_package, only : createOptimizer, TOptimizer, TOptTolerance
   use dftbp_io_commonformats, only : format2Ue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
-  use dftbp_math_contactsymm, only : TEquivContactAtoms_init, TEquivContactAtoms
+  use dftbp_math_contactsymm, only : TEquivContactAtoms, TEquivContactAtoms_init
   use dftbp_math_duplicate, only : isRepeated
-  use dftbp_math_randomgenpool, only : TRandomGenPool, init
-  use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_math_randomgenpool, only : init, TRandomGenPool
+  use dftbp_math_ranlux, only : getRandom, TRanlux
   use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
-  use dftbp_md_andersentherm, only : TAndersenThermostat, init
-  use dftbp_md_berendsentherm, only :TBerendsenThermostat, init
-  use dftbp_md_dummytherm, only : TDummyThermostat, init
-  use dftbp_md_mdcommon, only : TMDCommon, init, TMDOutput
-  use dftbp_md_mdintegrator, only : TMDIntegrator, init
-  use dftbp_md_nhctherm, only : TNHCThermostat, init
-  use dftbp_md_tempprofile, only : TTempProfile, TempProfile_init
-  use dftbp_md_thermostat, only : TThermostat, init
-  use dftbp_md_velocityverlet, only : TVelocityVerlet, init
+  use dftbp_md_andersentherm, only : init, TAndersenThermostat
+  use dftbp_md_berendsentherm, only : init, TBerendsenThermostat
+  use dftbp_md_dummytherm, only : init, TDummyThermostat
+  use dftbp_md_mdcommon, only : init, TMDCommon, TMDOutput
+  use dftbp_md_mdintegrator, only : init, TMDIntegrator
+  use dftbp_md_nhctherm, only : init, TNHCThermostat
+  use dftbp_md_tempprofile, only : TempProfile_init, TTempProfile
+  use dftbp_md_thermostat, only : init, TThermostat
+  use dftbp_md_velocityverlet, only : init, TVelocityVerlet
   use dftbp_md_xlbomd, only : TXLBOMD, Xlbomd_init
-  use dftbp_mixer_andersonmixer, only : TAndersonMixerReal, TAndersonMixerReal_init,&
-      & TAndersonMixerCmplx, TAndersonMixerCmplx_init
-  use dftbp_mixer_broydenmixer, only : TBroydenMixerReal, TBroydenMixerReal_init,&
-      & TBroydenMixerCmplx, TBroydenMixerCmplx_init
-  use dftbp_mixer_diismixer, only : TDiisMixerReal, TDiisMixerReal_init, TDiisMixerCmplx,&
-      & TDiisMixerCmplx_init
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, mixerTypes, TMixerReal_init,&
-      & TMixerCmplx_init
-  use dftbp_mixer_simplemixer, only : TSimpleMixerReal, TSimpleMixerCmplx, TSimpleMixerReal_init,&
-      & TSimpleMixerCmplx_init
-  use dftbp_reks_reks, only : TReksInp, TReksCalc, reksTypes, REKS_init
+  use dftbp_mixer_factory, only : TMixerFactoryCmplx, TMixerFactoryReal
+  use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
+  use dftbp_reks_reks, only : REKS_init, reksTypes, TReksCalc, TReksInp
   use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init
-  use dftbp_solvation_fieldscaling, only : TScaleExtEField, init_TScaleExtEField
+  use dftbp_solvation_fieldscaling, only : init_TScaleExtEField, TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_solvation_solvinput, only : createSolvationModel, writeSolvationInfo
   use dftbp_timedep_linresp, only : LinResp_init
-  use dftbp_timedep_linresptypes, only : TLinResp, linRespSolverTypes
+  use dftbp_timedep_linresptypes, only : linRespSolverTypes, TLinResp
   use dftbp_timedep_pprpa, only : TppRPAcal
-  use dftbp_timedep_timeprop, only : TElecDynamics, TElecDynamics_init, tdSpinTypes
+  use dftbp_timedep_timeprop, only : tdSpinTypes, TElecDynamics, TElecDynamics_init
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS, TParallelKS_init
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_eleccutoffs, only : TCutoffs
   use dftbp_type_integral, only : TIntegral, TIntegral_init
-  use dftbp_type_linkedlist, only : TListIntR1, TListCharLc, init, destruct, elemShape, intoArray,&
-      & append
+  use dftbp_type_linkedlist, only : append, destruct, elemShape, init, intoArray, TListCharLc,&
+      & TListIntR1
   use dftbp_type_multipole, only : TMultipole, TMultipole_init
   use dftbp_type_orbitals, only : getShellNames
   use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_MBD
-  use dftbp_dftb_dispmbd, only :TDispMbd, TDispMbdInp, TDispMbd_init
+  use dftbp_dftb_dispmbd, only : TDispMbd, TDispMbd_init, TDispMbdInp
 #:endif
 #:if WITH_OMP
   use omp_lib, only : omp_get_max_threads
@@ -147,7 +138,7 @@ module dftbp_dftbplus_initprogram
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
-  use dftbp_io_ipisocket, only : ipiSocketCommInp, ipiSocketComm
+  use dftbp_io_ipisocket, only : ipiSocketComm, ipiSocketCommInp
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
@@ -268,6 +259,9 @@ module dftbp_dftbplus_initprogram
 
     !> Index in cellVec for each atom
     integer, allocatable :: iCellVec(:)
+
+    !> Are neighbour lists set externally (via the API), so should not be changed internally
+    logical :: areNeighSetExternal = .false.
 
     !> ADT for neighbour parameters
     type(TNeighbourList), allocatable :: neighbourList
@@ -614,10 +608,10 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: gcurr(:), glast(:), displ(:)
 
     !> Charge mixer for real matrices
-    type(TMixerReal), allocatable :: pChrgMixerReal
+    class(TMixerReal), allocatable :: chrgMixerReal
 
     !> Charge mixer for complex matrices
-    type(TMixerCmplx), allocatable :: pChrgMixerCmplx
+    class(TMixerCmplx), allocatable :: chrgMixerCmplx
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -1110,14 +1104,14 @@ module dftbp_dftbplus_initprogram
     !> Details of energy interval for tunneling used in output
     real(dp) :: Emin, Emax, Estep
 
-    !> Electrostatics type (either gammafunctional or poisson)
-    integer :: electrostatics
-
     !> List of atoms in the central cell (or device region if transport)
     integer, allocatable :: iAtInCentralRegion(:)
 
-    !> Correction for {O,N}-X bonds
+    !> DFTB correction for {O,N}-X bonds
     type(THalogenX), allocatable :: halogenXCorrection
+
+    !> Should halogen energy contribution be printed?
+    logical :: isHalogenEgyPrinted = .false.
 
     !> All of the excited energies actually solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
@@ -1198,29 +1192,6 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    ! Mixer related local variables
-    integer :: nGeneration
-    real(dp) :: mixParam
-
-    !> Mixer number
-    integer :: iMixer
-
-    !> Simple mixer (if used)
-    type(TSimpleMixerReal), allocatable :: pSimpleMixerReal
-    type(TSimpleMixerCmplx), allocatable :: pSimpleMixerCmplx
-
-    !> Anderson mixer (if used)
-    type(TAndersonMixerReal), allocatable :: pAndersonMixerReal
-    type(TAndersonMixerCmplx), allocatable :: pAndersonMixerCmplx
-
-    !> Broyden mixer (if used)
-    type(TBroydenMixerReal), allocatable :: pBroydenMixerReal
-    type(TBroydenMixerCmplx), allocatable :: pBroydenMixerCmplx
-
-    !> DIIS mixer (if used)
-    type(TDiisMixerReal), allocatable :: pDiisMixerReal
-    type(TDiisMixerCmplx), allocatable :: pDiisMixerCmplx
-
     ! Geometry optimiser related local variables
 
     !> Conjugate gradient driver
@@ -1291,8 +1262,10 @@ contains
     !> Flag if some files do exist or not
     logical :: tExist
 
+    !> Whether any mixer is required
+    logical :: requiresMixer
     !> Whether a complex-valued mixer is required
-    logical :: tCmplxMixer
+    logical :: requiresCmplxMixer
 
     ! Damped interactions
     type(TShortGammaDamp) :: shortGammaDamp
@@ -1438,6 +1411,9 @@ contains
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
       this%orb = input%slako%orb
+    #:if WITH_TBLITE
+      this%isHalogenEgyPrinted = allocated(this%tblite%calc%halogen)
+    #:endif
     end select
     this%nOrb = this%orb%nOrb
 
@@ -1574,6 +1550,11 @@ contains
           this%tRestartNoSC = .true.
         end if
       end if
+    end if
+
+    if (allocated(input%ctrl%mixerInp%broydenMixerInp)) then
+      ! Duplicate maxScc Iterations as Input to broyden Mixer
+      input%ctrl%mixerInp%broydenMixerInp%maxSccIter = input%ctrl%maxSccIter
     end if
 
     this%tWriteHS = input%ctrl%tWriteHS
@@ -1775,6 +1756,7 @@ contains
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
+      this%isHalogenEgyPrinted = .true.
     end if
 
     allocate(this%mass(this%nAtom))
@@ -1830,74 +1812,14 @@ contains
 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
-    if (this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC) then
-      iMixer = input%ctrl%iMixSwitch
-      nGeneration = input%ctrl%iGenerations
-      mixParam = input%ctrl%almix
-      tCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
-          & .or. (this%t2Component .and. this%isHybridXc)
-      if (tCmplxMixer) then
-        allocate(this%pChrgMixerCmplx)
-        select case (iMixer)
-        case (mixerTypes%simple)
-          allocate(pSimplemixerCmplx)
-          call TSimpleMixerCmplx_init(pSimpleMixerCmplx, mixParam)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pSimpleMixerCmplx)
-        case(mixerTypes%anderson)
-          allocate(pAndersonMixerCmplx)
-          if (input%ctrl%andersonNrDynMix > 0) then
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-                & input%ctrl%andersonOmega0)
-          else
-            call TAndersonMixerCmplx_init(pAndersonMixerCmplx, nGeneration, mixParam,&
-                & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-          end if
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pAndersonMixerCmplx)
-        case (mixerTypes%broyden)
-          allocate(pBroydenMixerCmplx)
-          call TBroydenMixerCmplx_init(pBroydenMixerCmplx, this%maxSccIter, mixParam,&
-              & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-              & input%ctrl%broydenWeightFac)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pBroydenMixerCmplx)
-        case(mixerTypes%diis)
-          allocate(pDiisMixerCmplx)
-          call TDiisMixerCmplx_init(pDiisMixerCmplx, nGeneration, mixParam, input%ctrl%tFromStart)
-          call TMixerCmplx_init(this%pChrgMixerCmplx, pDiisMixerCmplx)
-        case default
-          call error("Unknown charge/density mixer type.")
-        end select
-      end if
-      allocate(this%pChrgMixerReal)
-      select case (iMixer)
-      case(mixerTypes%simple)
-        allocate(pSimplemixerReal)
-        call TSimpleMixerReal_init(pSimpleMixerReal, mixParam)
-        call TMixerReal_init(this%pChrgMixerReal, pSimpleMixerReal)
-      case(mixerTypes%anderson)
-        allocate(pAndersonMixerReal)
-        if (input%ctrl%andersonNrDynMix > 0) then
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, input%ctrl%andersonDynMixParams,&
-              & input%ctrl%andersonOmega0)
-        else
-          call TAndersonMixerReal_init(pAndersonMixerReal, nGeneration, mixParam,&
-              & input%ctrl%andersonInitMixing, omega0=input%ctrl%andersonOmega0)
-        end if
-        call TMixerReal_init(this%pChrgMixerReal, pAndersonMixerReal)
-      case(mixerTypes%broyden)
-        allocate(pBroydenMixerReal)
-        call TBroydenMixerReal_init(pBroydenMixerReal, this%maxSccIter, mixParam,&
-            & input%ctrl%broydenOmega0, input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight,&
-            & input%ctrl%broydenWeightFac)
-        call TMixerReal_init(this%pChrgMixerReal, pBroydenMixerReal)
-      case(mixerTypes%diis)
-        allocate(pDiisMixerReal)
-        call TDiisMixerReal_init(pDiisMixerReal, nGeneration, mixParam, input%ctrl%tFromStart)
-        call TMixerReal_init(this%pChrgMixerReal, pDiisMixerReal)
-      case default
-        call error("Unknown charge/density mixer type.")
-      end select
+    requiresMixer = this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC
+    requiresCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
+        & .or. (this%t2Component .and. this%isHybridXc)
+
+    if (requiresMixer .and. requiresCmplxMixer) then
+        call TMixerFactoryCmplx(this%chrgMixerCmplx, input%ctrl%mixerInp)
+    else if (requiresMixer) then
+        call TMixerFactoryReal(this%chrgMixerReal, input%ctrl%mixerInp)
     end if
 
     ! initialise in cases where atoms move
@@ -2072,10 +1994,6 @@ contains
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
     if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
-      if (allocated(this%dispersion)) then
-        call error ("Dispersion interactions are not currently available for transport&
-            & calculations")
-      end if
       if (this%nSpin > 2) then
         call error("Non-collinear spin polarization disabled for transport calculations at the&
             & moment.")
@@ -2088,7 +2006,7 @@ contains
         call error ("Third order DFTB is not currently available for transport calculations")
       end if
       if (this%isHybridXc) then
-        call error("Range separated calculations do not yet work with transport calculations")
+        call error("Hybrid functional calculations do not yet work with transport calculations")
       end if
     end if
   #:endif
@@ -2236,6 +2154,7 @@ contains
       if (this%tHelical) then
         call error("Dispersion not currently supported for helical boundary conditions")
       end if
+
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
         if (this%tPeriodic) then
@@ -2293,6 +2212,7 @@ contains
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName)
         end if
         call move_alloc(dftd4, this%dispersion)
+
     #:if WITH_MBD
       else if (allocated(input%ctrl%dispInp%mbd)) then
         if (this%isLinResp) then
@@ -2322,7 +2242,16 @@ contains
         end if
     #:endif
       end if
+
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
+    #:if WITH_TRANSPORT
+      if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
+        if (allocated(this%dispersion)) then
+          call error ("Dispersion interactions are not currently available for transport&
+              & calculations")
+        end if
+      end if
+    #:endif
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -2382,7 +2311,8 @@ contains
     if (allocated(input%ctrl%elecConstraintInp)) then
       call this%ensureConstrainedDftbReqs(input%ctrl%elecConstraintInp)
       allocate(this%elecConstraint)
-      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb)
+      call TElecConstraint_init(this%elecConstraint, input%ctrl%elecConstraintInp, this%orb,&
+          & this%q0)
     end if
 
     this%tDipole = this%tMulliken
@@ -3439,30 +3369,26 @@ contains
 
     if (this%tSccCalc .and. .not.this%tRestartNoSC) then
       if (.not. allocated(this%reks)) then
-        select case (iMixer)
-        case(mixerTypes%simple)
-          write (strTmp, "(A)") "Simple"
-        case(mixerTypes%anderson)
-          write (strTmp, "(A)") "Anderson"
-        case(mixerTypes%broyden)
-          write (strTmp, "(A)") "Broyden"
-        case(mixerTypes%diis)
-          write (strTmp, "(A)") "DIIS"
-        end select
-        write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
-        write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
-        select case (iMixer)
-        case(mixerTypes%anderson)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        case(mixerTypes%broyden)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
-        case(mixerTypes%diis)
-          write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-        end select
-      else
-        write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", this%maxSccIter
+        associate (inp => input%ctrl%mixerInp)
+          if (allocated(inp%simpleMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Simple", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%simpleMixerInp%mixParam
+            else if (allocated(inp%andersonMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Anderson", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%andersonMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%andersonMixerInp%iGenerations
+            else if (allocated(inp%broydenMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "Broyden", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%broydenMixerInp%mixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", this%maxSccIter
+            else if (allocated(inp%diisMixerInp)) then
+              write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", "DIIS", "mixer"
+              write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", inp%diisMixerInp%initMixParam
+              write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", inp%diisMixerInp%iGenerations
+          end if
+        end associate
       end if
+      write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
     if (this%tCoordOpt) then
@@ -5803,7 +5729,7 @@ contains
     class(TDftbPlusMain), intent(inout) :: this
 
     !> Input parameters for electronic constraints
-    type(TElecConstraintInput), intent(in) :: elecConstraintInp
+    type(TElecConstraintInp), intent(in) :: elecConstraintInp
 
     if (.not. this%tSccCalc) then
       call error("Electronically constrained calculations do not yet support non-SCC calculations.")
@@ -5837,7 +5763,7 @@ contains
     !> True, if this is a shell resolved calculation
     logical, intent(in) :: tShellResolved
 
-    !> Parameters for the range separated calculation
+    !> Parameters for the hybrid functional calculation
     type(THybridXcInp), intent(in) :: hybridXcInp
 
     if (withMpi .and. (.not. this%tPeriodic) .and. (hybridXcInp%hybridXcAlg&
@@ -5880,7 +5806,7 @@ contains
     end if
 
     if (this%tReadChrg .and. hybridXcInp%hybridXcAlg == hybridXcAlgo%thresholdBased) then
-      call error("Restart on thresholded range separation not working correctly.")
+      call error("Restart on thresholded hybrids not working correctly.")
     end if
 
     if (tShellResolved) then
@@ -5962,7 +5888,7 @@ contains
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
 
-    !> Is this an excited state calculation with range separation
+    !> Is this an excited state calculation with a hybrid functional
     logical, intent(in) :: isHybLinResp
 
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
@@ -6071,17 +5997,17 @@ contains
         call error("TD-LC-DFTB implemented only for Stratmann diagonaliser.")
       end if
       if (tPeriodic) then
-        call error("Range separated excited states for periodic geometries are currently&
+        call error("hybrid functional excited states for periodic geometries are currently&
             & unavailable")
       end if
       if (input%ctrl%lrespini%tEnergyWindow .or. input%ctrl%lrespini%tOscillatorWindow) then
-        call error("Range separated excited states not available for window options.")
+        call error("hybrid functional excited states not available for window options.")
       end if
       if (input%ctrl%lrespini%sym == 'B' .or. input%ctrl%lrespini%sym == 'T') then
-        call warning("Range separated excited states not well tested for triplet excited states!")
+        call warning("hybrid functional excited states not well tested for triplet excited states!")
       end if
       if (input%ctrl%tSpin) then
-        call warning("Range separated excited states not well tested for spin-polarized systems!")
+        call warning("hybrid functional excited states not well tested for spin-polarized systems!")
       end if
     else
       if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
@@ -6092,7 +6018,7 @@ contains
   end subroutine ensureLinRespConditions
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_cluster(cutOff, cutoffRed)
 
     !> Resulting cutoff
@@ -6116,7 +6042,7 @@ contains
   end subroutine getHybridXcCutOff_cluster
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_gamma(cutOff, latVecs, cutoffRed, errStatus, gSummationCutoff,&
       & gammaCutoff)
 
@@ -6168,7 +6094,7 @@ contains
   end subroutine getHybridXcCutOff_gamma
 
 
-  !> Determine range separated cut-off and also update maximal cutoff
+  !> Determine hybrid functional cut-off and also update maximal cutoff
   subroutine getHybridXcCutOff_kpts(cutOff, latVecs, cutoffRed, supercellFoldingDiag, errStatus,&
       & gSummationCutoff, wignerSeitzReduction, gammaCutoff)
 
@@ -6581,7 +6507,7 @@ contains
     !> Third order DFTB
     logical, intent(in) :: is3rd
 
-    !> Whether to run a range separated calculation
+    !> Whether to run a hybrid functional calculation
     logical, intent(in) :: isHybridXc
 
     !> Whether to run a dispersion calculation

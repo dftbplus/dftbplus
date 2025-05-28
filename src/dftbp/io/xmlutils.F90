@@ -9,10 +9,10 @@
 
 !> Utilities for processing an XML tree
 module dftbp_io_xmlutils
-  use dftbp_extlibs_xmlf90, only : fnode, string, fnodeList, TEXT_NODE, item, getParentNode,&
-      & getLength, getFirstChild, removeChild, getNextSibling, getAttributeNode, getNodeType,&
-      & char, getLastChild, getPreviousSibling, operator(==), destroyNode, append, getNodeValue,&
-      & getNodeName
+  use dftbp_extlibs_xmlf90, only : append, char, destroyNode, fnode, fnodeList, getAttributeNode,&
+      & getFirstChild, getLastChild, getLength, getNextSibling, getNodeName, getNodeType,&
+      & getNodeValue, getParentNode, getPreviousSibling, item, operator(==), removeChild, string,&
+      & TEXT_NODE
   use dftbp_io_charmanip, only : len_trim2
   implicit none
 

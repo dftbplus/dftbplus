@@ -8,12 +8,12 @@
 !> Exports the functionality of the geometry optimizers as one package
 module dftbp_geoopt_package
   use dftbp_common_accuracy, only : dp
-  use dftbp_geoopt_filter, only : TFilterInput, TFilter
-  use dftbp_geoopt_fire, only : TFireInput, TFire, TFire_init
-  use dftbp_geoopt_lbfgs2, only : TLbfgsInput, TLbfgs, TLbfgs_init
+  use dftbp_geoopt_filter, only : TFilter, TFilterInput
+  use dftbp_geoopt_fire, only : TFire, TFire_init, TFireInput
+  use dftbp_geoopt_lbfgs2, only : TLbfgs, TLbfgs_init, TLbfgsInput
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
-  use dftbp_geoopt_rationalfunc, only : TRationalFuncInput, TRationalFunc, TRationalFunc_init
-  use dftbp_geoopt_steepdesc, only : TSteepdescInput, TSteepdesc, TSteepdesc_init
+  use dftbp_geoopt_rationalfunc, only : TRationalFunc, TRationalFunc_init, TRationalFuncInput
+  use dftbp_geoopt_steepdesc, only : TSteepdesc, TSteepdesc_init, TSteepdescInput
   implicit none
 
   private

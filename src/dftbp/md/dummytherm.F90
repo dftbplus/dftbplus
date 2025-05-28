@@ -11,7 +11,7 @@
 module dftbp_md_dummytherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_math_ranlux, only : TRanlux
-  use dftbp_md_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame, rescaleTokT
+  use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   implicit none
 
   private

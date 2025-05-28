@@ -14,14 +14,13 @@
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_math_lapackroutines
-  use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_common_accuracy, only : rdp, rsp
   use dftbp_common_status, only : TStatus
-  use dftbp_io_message, only : error, warning
-  ! use dftbp_extlibs_lapack
+  use dftbp_io_message, only : error
   implicit none
 
   private
-  public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs
+  public :: gesv, getri, getrf, sytri, sytrf, larnv, hetri, hetrf, gesvd, potrf, trsm, getrs, posv
 
 
   !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
@@ -29,8 +28,19 @@ module dftbp_math_lapackroutines
   interface gesv
     module procedure gesv_real
     module procedure gesv_dble
-    module procedure gesv_dcomplex
+    module procedure gesv_cmplx
+    module procedure gesv_dcmplx
   end interface gesv
+
+
+  !> Computes the solution to a real system of linear equations A * X = B, where A is an N-by-N
+  !! symmetric or hermitian matrix and X and B are N-by-NRHS matrices
+  interface posv
+    module procedure posv_real
+    module procedure posv_dble
+    module procedure posv_cmplx
+    module procedure posv_dcmplx
+  end interface posv
 
 
   !> Computes the LU decomposition of a general rectangular matrix using partial pivoting with row
@@ -123,14 +133,17 @@ module dftbp_math_lapackroutines
 contains
 
 
-  !> Single precision version of gesv
-  subroutine gesv_real(aa, bb, nEquation, nSolution, iError)
+#:for TYPE, KIND, LABEL, PRF in [('real', 'rsp', 'real', 'sgesv'), ('real', 'rdp', 'dble', 'dgesv'),&
+  & ('complex', 'rsp', 'cmplx', 'cgesv'), ('complex', 'rdp', 'dcmplx', 'zgesv')]
+
+  !> Solves a general system of linear equations A * X = B, where A is a ${kind}$ matrix.
+  subroutine gesv_${LABEL}$(aa, bb, nEquation, nSolution, status)
 
     !> Contains the coefficients on entry, the LU factorisation on exit.
-    real(rsp), intent(inout) :: aa(:,:)
+    ${TYPE}$(${KIND}$), intent(inout) :: aa(:,:)
 
     !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
-    real(rsp), intent(inout) :: bb(:,:)
+    ${TYPE}$(${KIND}$), intent(inout) :: bb(:,:)
 
     !> The size of the problem (nr. of variables and equations). Must be only specified if different
     !> from size(aa, dim=1).
@@ -140,75 +153,8 @@ contains
     !> dim=2).
     integer, intent(in), optional :: nSolution
 
-    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
-    !> will not abort the program.
-    integer, intent(out), optional :: iError
-    integer :: info
-    integer :: nn, nrhs, lda, ldb
-    integer, allocatable :: ipiv(:)
-    character(len=100) :: error_string
-
-
-    lda = size(aa, dim=1)
-    if (present(nEquation)) then
-      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
-      nn = nEquation
-    else
-      nn = lda
-    end if
-    @:ASSERT(size(aa, dim=2) >= nn)
-
-    ldb = size(bb, dim=1)
-    @:ASSERT(ldb >= nn)
-    nrhs = size(bb, dim=2)
-    if (present(nSolution)) then
-      @:ASSERT(nSolution <= nrhs)
-      nrhs = nSolution
-    end if
-
-    info = 0
-    allocate(ipiv(nn))
-    call sgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
-
-    if (info < 0) then
-99000 format ('Failure in linear equation solver sgesv,', &
-          & ' illegal argument at position ',i10)
-      write (error_string, 99000) info
-      call error(error_string)
-    else
-      if (present(iError)) then
-        iError = info
-      elseif (info > 0) then
-99010   format ('Linear dependent system in linear equation solver sgetrf,', &
-            & ' info flag: ',i10)
-        write (error_string, 99010) info
-        call error(error_string)
-      end if
-    end if
-
-  end subroutine gesv_real
-
-
-  !> Double precision version of gesv
-  subroutine gesv_dble(aa, bb, nEquation, nSolution, iError)
-
-    !> Contains the coefficients on entry, the LU factorisation on exit.
-    real(rdp), intent(inout) :: aa(:,:)
-
-    !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
-    real(rdp), intent(inout) :: bb(:,:)
-
-    !> The size of the problem (nr. of variables and equations). Must be only specified if different
-    !> from size(aa, dim=1).
-    integer, intent(in), optional :: nEquation
-
-    !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
-    !> dim=2).
-    integer, intent(in), optional :: nSolution
-
-    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
-    !> will not abort the program.
-    integer, intent(out), optional :: iError
+    !> Status of operation, calls error if not present and a solver failure
+    type(TStatus), intent(out), optional :: status
 
     integer :: info
     integer :: nn, nrhs, lda, ldb
@@ -234,35 +180,48 @@ contains
 
     info = 0
     allocate(ipiv(nn))
-    call dgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
+    call ${PRF}$(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
 
-    if (info < 0) then
-99020 format ('Failure in linear equation solver dgesv,', &
-          & ' illegal argument at position ',i10)
-      write (error_string, 99020) info
-      call error(error_string)
-    else
-      if (present(iError)) then
-        iError = info
-      elseif (info > 0) then
-99030   format ('Linear dependent system in linear equation solver dgesv,', &
-            & ' info flag: ',i10)
-        write (error_string, 99030) info
+    if (info /= 0) then
+      if (present(status)) then
+        if (info < 0) then
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Failure in ${PRF}$ illegal argument at position : ',I0)", info)
+        else
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Linear dependent system in linear equation solver ${PRF}$, info flag : ',I0)",&
+              & info)
+        end if
+      else
+        if (info < 0) then
+          write(error_string, "(A,I0)")'Failure in ${PRF}$ illegal argument at position : ', info
+        else
+          write(error_string, "(A,I0)")'Linear dependent system in linear equation solver ${PRF}$,&
+              & info flag : ', info
+        end if
         call error(error_string)
       end if
     end if
 
-  end subroutine gesv_dble
+  end subroutine gesv_${LABEL}$
+
+#:endfor
 
 
-  !> Double precision version of gesv
-  subroutine gesv_dcomplex(aa, bb, nEquation, nSolution, iError)
+#:for TYPE, NAME, KIND, LABEL, PRF in [('real', 'symmetric', 'rsp', 'real', 'sposv'),&
+  & ('real', 'symmetric', 'rdp', 'dble', 'dposv'),&
+  & ('complex', 'hermitian', 'rsp', 'cmplx', 'cposv'),&
+  & ('complex', 'hermitian', 'rdp', 'dcmplx', 'zposv')]
+
+  !> Solves a general system of linear equations A * X = B, where A is a positive definite ${kind}$
+  !> ${NAME}$ matrix.
+  subroutine posv_${LABEL}$(aa, bb, nEquation, nSolution, uplo, status)
 
     !> Contains the coefficients on entry, the LU factorisation on exit.
-    complex(rdp), intent(inout) :: aa(:,:)
+    ${TYPE}$(${KIND}$), intent(inout) :: aa(:,:)
 
     !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
-    complex(rdp), intent(inout) :: bb(:,:)
+    ${TYPE}$(${KIND}$), intent(inout) :: bb(:,:)
 
     !> The size of the problem (nr. of variables and equations). Must be only specified if different
     !> from size(aa, dim=1).
@@ -272,14 +231,18 @@ contains
     !> dim=2).
     integer, intent(in), optional :: nSolution
 
-    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
-    !> will not abort the program.
-    integer, intent(out), optional :: iError
+    !> Signals whether upper (U) or lower (L) triangle should be used (default: lower).
+    character, intent(in), optional :: uplo
+
+    !> Status of operation, calls error if not present and a solver failure    character :: uplo0
+    type(TStatus), intent(out), optional :: status
 
     integer :: info
     integer :: nn, nrhs, lda, ldb
-    integer, allocatable :: ipiv(:)
     character(len=100) :: error_string
+    character :: uplo0
+
+    uplo0 = uploHelper(uplo)
 
     lda = size(aa, dim=1)
     if (present(nEquation)) then
@@ -299,26 +262,33 @@ contains
     end if
 
     info = 0
-    allocate(ipiv(nn))
-    call zgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
 
-    if (info < 0) then
-99020 format ('Failure in linear equation solver dgesv,', &
-          & ' illegal argument at position ',i10)
-      write (error_string, 99020) info
-      call error(error_string)
-    else
-      if (present(iError)) then
-        iError = info
-      elseif (info > 0) then
-99030   format ('Linear dependent system in linear equation solver dgesv,', &
-            & ' info flag: ',i10)
-        write (error_string, 99030) info
+    call ${PRF}$(uplo0, nn, nrhs, aa, lda, bb, ldb, info)
+
+    if (info /= 0) then
+      if (present(status)) then
+        if (info < 0) then
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Failure in ${PRF}$ illegal argument at position : ',I0)", info)
+        else
+          @:RAISE_FORMATTED_ERROR(status, -1,&
+              & "('Linear dependent system in linear equation solver ${PRF}$, info flag : ',I0)",&
+              & info)
+        end if
+      else
+        if (info < 0) then
+          write(error_string, "(A,I0)")'Failure in ${PRF}$ illegal argument at position : ', info
+        else
+          write(error_string, "(A,I0)")'Linear dependent system in linear equation solver ${PRF}$,&
+              & info flag : ', info
+        end if
         call error(error_string)
       end if
     end if
 
-  end subroutine gesv_dcomplex
+  end subroutine posv_${LABEL}$
+
+#:endfor
 
 
   !> Single precision version of getrf.

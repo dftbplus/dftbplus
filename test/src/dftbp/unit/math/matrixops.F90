@@ -8,11 +8,11 @@
 #:include "fortuno_serial.fypp"
 
 module test_math_matrixops
+  use fortuno_serial, only : all_close, suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_math_matrixops, only : adjointLowerTriangle, adjugate, orthonormalizeVectors
-  use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
 

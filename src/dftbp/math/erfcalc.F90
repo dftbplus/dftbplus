@@ -19,7 +19,7 @@
 module dftbp_math_erfcalc
 
   !> wp: working precision, sp: real single, dp: real double
-  use dftbp_common_accuracy,  only : wp => dp, sp => rsp, dp => rdp
+  use dftbp_common_accuracy, only : wp => dp, dp => rdp, sp => rsp
   implicit none
 
   private

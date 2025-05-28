@@ -11,7 +11,7 @@
 module dftbp_md_mdcommon
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_math_ranlux, only : getRandom, TRanlux
   implicit none
 
   private
@@ -37,10 +37,13 @@ module dftbp_md_mdcommon
     logical :: bandStructure = .false.
 
     !> Are 1st derivative data accumulated?
-    logical :: printForces = .true.
+    logical :: printForces = .false.
 
     !> Are charge-related data accumulated?
-    logical :: printCharges = .true.
+    logical :: printCharges = .false.
+
+    !> Are atom resolved energies printed?
+    logical :: printAtomEnergies = .false.
 
   end type TMDOutput
 

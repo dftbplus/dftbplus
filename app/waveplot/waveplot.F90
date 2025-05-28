@@ -9,21 +9,21 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
-  use dftbp_common_accuracy, only : dp
-  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, initGlobalEnv, synchronizeAll, destructGlobalEnv
-  use dftbp_dftb_periodic, only : getCellTranslations
-  use dftbp_io_charmanip, only : i2c
-  use dftbp_io_message, only : warning, error
-  use dftbp_math_simplealgebra, only : invert33
-  use dftbp_type_linkedlist, only : TListInt, TListRealR1, len, init, append, asArray
-  use dftbp_type_typegeometry, only : TGeometry
   use waveplot_gridcache, only : next
   use waveplot_initwaveplot, only : TProgramVariables, TProgramVariables_init
   use waveplot_molorb, only : getValue
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut
+  use dftbp_dftb_periodic, only : getCellTranslations
+  use dftbp_io_charmanip, only : i2c
+  use dftbp_io_message, only : error, warning
+  use dftbp_math_simplealgebra, only : invert33
+  use dftbp_type_linkedlist, only : append, asArray, init, len, TListInt, TListRealR1
+  use dftbp_type_typegeometry, only : TGeometry
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, MPI_LOR, mpifx_allreduceip, mpifx_bcast
+  use dftbp_extlibs_mpifx, only : MPI_LOR, MPI_SUM, mpifx_allreduceip, mpifx_bcast
 #:endif
 
   implicit none

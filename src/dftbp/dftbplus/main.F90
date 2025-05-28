@@ -12,101 +12,99 @@
 module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_common_constants, only : pi
-  use dftbp_common_environment, only : TEnvironment, globalTimers
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
-  use dftbp_derivs_numderivs2, only : TNumderivs, next, getHessianMatrix, dipoleAdd, polAdd
-  use dftbp_derivs_perturb, only : TResponse
+  use dftbp_derivs_numderivs2, only : dipoleAdd, getHessianMatrix, next, polAdd, TNumderivs
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : TBoundaryConditions
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
-  use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init, determinants
+  use dftbp_dftb_determinants, only : determinants, TDftbDeterminants
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
   use dftbp_dftb_energytypes, only : TEnergies
-  use dftbp_dftb_etemp, only : electronFill, Efilling
+  use dftbp_dftb_etemp, only : Efilling, electronFill
   use dftbp_dftb_extfields, only : addUpExternalField
   use dftbp_dftb_forces, only : derivative_shift
-  use dftbp_dftb_getenergies, only : calcEnergies, calcDispersionEnergy, sumEnergies
+  use dftbp_dftb_getenergies, only : calcDispersionEnergy, calcEnergies, sumEnergies
   use dftbp_dftb_halogenx, only : THalogenX
-  use dftbp_dftb_hamiltonian, only : resetInternalPotentials, addChargePotentials,&
+  use dftbp_dftb_hamiltonian, only : addBlockChargePotentials, addChargePotentials,&
       & getSccHamiltonian, mergeExternalPotentials, resetExternalPotentials,&
-      & addBlockChargePotentials, constrainSccHamiltonian
-  use dftbp_dftb_hybridxc, only : THybridXcFunc, hybridXcAlgo
-  use dftbp_dftb_nonscc, only : TNonSccDiff, buildS, buildH0
-  use dftbp_dftb_onsitecorrection, only : Onsblock_expand, onsBlock_reduce, addOnsShift
+      & resetInternalPotentials
+  use dftbp_dftb_hybridxc, only : hybridXcAlgo, THybridXcFunc
+  use dftbp_dftb_nonscc, only : buildH0, buildS, TNonSccDiff
+  use dftbp_dftb_onsitecorrection, only : addOnsShift, Onsblock_expand, onsBlock_reduce
   use dftbp_dftb_orbitalequiv, only : OrbitalEquiv_expand, orbitalEquiv_reduce
-  use dftbp_dftb_periodic, only : TNeighbourList, TSymNeighbourList, updateNeighbourListAndSpecies,&
-      & cart2frac, frac2cart, getNrOfNeighboursForAll, getCellTranslations
+  use dftbp_dftb_periodic, only : cart2frac, frac2cart, getCellTranslations,&
+      & getNrOfNeighboursForAll, TNeighbourList, TSymNeighbourList, updateNeighbourListAndSpecies
   use dftbp_dftb_pmlocalisation, only : TPipekMezey
-  use dftbp_dftb_populations, only : getChargePerShell, denseSubtractDensityOfAtomsReal,&
+  use dftbp_dftb_populations, only : denseBlockMulliken, denseMullikenPauli, denseMullikenReal,&
       & denseSubtractDensityOfAtomsCmplxPeriodic, denseSubtractDensityOfAtomsCmplxPeriodicGlobal,&
       & denseSubtractDensityOfAtomsNospinRealNonperiodicReks, denseSubtractDensityOfAtomsPauli,&
-      & denseSubtractDensityOfAtomsSpinRealNonperiodicReks, mulliken, denseMullikenReal,&
-      & denseBlockMulliken, skewMulliken, getOnsitePopulation, getAtomicMultipolePopulation,&
-      & denseMullikenPauli
+      & denseSubtractDensityOfAtomsReal, denseSubtractDensityOfAtomsSpinRealNonperiodicReks,&
+      & getAtomicMultipolePopulation, getChargePerShell, getOnsitePopulation, mulliken,&
+      & skewMulliken
   use dftbp_dftb_potentials, only : TPotentials
   use dftbp_dftb_repulsive_repulsive, only : TRepulsive
   use dftbp_dftb_scc, only : TScc
-  use dftbp_dftb_shift, only : addShift, addAtomicMultipoleShift
+  use dftbp_dftb_shift, only : addAtomicMultipoleShift, addShift
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHPauli, unpackHS, packHS, packHS, unpackHelicalHS,&
-      & packerho, packHelicalHS, iPackHS, unpackSPauli, getSparseDescriptor
-  use dftbp_dftb_spin, only : ud2qm, qm2ud
+  use dftbp_dftb_sparse2dense, only : getSparseDescriptor, iPackHS, packerho, packHelicalHS, packHS,&
+      & unpackHelicalHS, unpackHPauli, unpackHS, unpackSPauli
+  use dftbp_dftb_spin, only : qm2ud, ud2qm
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use dftbp_dftb_stress, only : getkineticstress, getBlockStress, getBlockiStress, getNonSCCStress
+  use dftbp_dftb_stress, only : getBlockiStress, getBlockStress, getkineticstress, getNonSCCStress
   use dftbp_dftb_thirdorder, only : TThirdOrder
   use dftbp_dftbplus_eigenvects, only : diagDenseMtx
-  use dftbp_dftbplus_elstattypes, only : elstatTypes
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, TNegfInt
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
-  use dftbp_dftbplus_mainio, only : writeRealEigvecs, writeCplxEigVecs, readEigenVecs,&
-      & printMaxForce, printMaxLatticeForce, printReksSccHeader, printSccHeader, printMdInfo,&
-      & writeMdOut2, writeDetailedOut5, writeMdOut1, openOutputFile, printReksSccInfo,&
-      & writeReksDetailedOut1, writebandout, writehsandstop, printSccInfo, printBlankLine,&
-      & writeCharges, writeDetailedOut1, writeDetailedOut2, writeDetailedOut3,&
-      & writeEigenVectors, writeProjectedEigenvectors, writeCurrentGeometry, writeDetailedOut4,&
-      & writeEsp, printGeostepInfo, writeDetailedOut2dets, printEnergies, printVolume,&
-      & printPressureAndFreeEnergy, writeDetailedOut6, writeDetailedOut7,&
-      & writeFinalDriverstatus, writeHessianout, writeBornChargesOut, writeBornDerivs,&
-      & writeAutotestTag, writeResultsTag, writeDetailedXml, writeCosmoFile, printForceNorm,&
-      & printLatticeForceNorm, writeDerivBandOut, writeDetailedOut8, writeDetailedOut9,&
-      & writeDetailedOut10, printElecConstrHeader, printElecConstrInfo
-  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, fCharges, fShifts, fStopScc, mdOut,&
-      & userOut, fStopDriver, hessianOut, bornChargesOut, bornDerivativesOut, resultsTag,&
-      & derivEBandOut
+  use dftbp_dftbplus_mainio, only : openOutputFile, printBlankLine, printElecConstrHeader,&
+      & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo, printLatticeForceNorm,&
+      & printMaxForce, printMaxLatticeForce, printMdInfo, printPressureAndFreeEnergy,&
+      & printReksSccHeader, printReksSccInfo, printSccHeader, printSccInfo, printVolume,&
+      & readEigenVecs, writeAutotestTag, writebandout, writeBornChargesOut, writeBornDerivs,&
+      & writeCharges, writeCosmoFile, writeCplxEigVecs, writeCurrentGeometry, writeDerivBandOut,&
+      & writeDetailedOut1, writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets,&
+      & writeDetailedOut3, writeDetailedOut4, writeDetailedOut5, writeDetailedOut6,&
+      & writeDetailedOut7, writeDetailedOut8, writeDetailedOut9, writeDetailedXml,&
+      & writeEigenVectors, writeEsp, writeFinalDriverstatus, writeHessianout, writehsandstop,&
+      & writeMdOut1, writeMdOut2, writeProjectedEigenvectors, writeRealEigvecs,&
+      & writeReksDetailedOut1, writeResultsTag
+  use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
+      & derivEBandOut, fCharges, fShifts, fStopDriver, fStopScc, hessianOut, mdOut, resultsTag,&
+      & userOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_dftbplus_transportio, only : readShifts, writeShifts, writeContactShifts
+  use dftbp_dftbplus_transportio, only : readShifts, writeContactShifts, writeShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_geoopt_geoopt, only : TGeoOpt, next, reset
+  use dftbp_geoopt_geoopt, only : next, reset, TGeoOpt
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
-  use dftbp_math_angmomentum, only : getLOnsite, getLDual
+  use dftbp_math_angmomentum, only : getLDual, getLOnsite
   use dftbp_math_blasroutines, only : hemm, symm
   use dftbp_math_contactsymm, only : TEquivContactAtoms
-  use dftbp_math_matrixops, only : adjointLowerTriangle, hermatinv, symmatinv
-  use dftbp_math_simplealgebra, only : determinant33, derivDeterminant33, invert33
-  use dftbp_md_mdcommon, only : TMdCommon, evalKE, evalKT
-  use dftbp_md_mdintegrator, only : TMdIntegrator, next, rescale
+  use dftbp_math_lapackroutines, only : posv
+  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_math_simplealgebra, only : derivDeterminant33, determinant33, invert33
+  use dftbp_md_mdcommon, only : evalKE, evalKT, TMdCommon
+  use dftbp_md_mdintegrator, only : next, rescale, TMdIntegrator
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_xlbomd, only : TXLBOMD
-  use dftbp_mixer_mixer, only : TMixerReal, TMixerCmplx, TMixerReal_reset, TMixerCmplx_reset,&
-      & TMixerReal_mix, TMixerCmplx_mix, TMixerReal_getInverseJacobian
-  use dftbp_reks_reks, only : TReksCalc, guessneweigvecs, optimizeFONs, calcweights, activeorbswap,&
-      & getfilling, calcsareksenergy, printsareksenergy, qm2udl, printreksmicrostates, qmexpandl,&
-      & ud2qml, constructmicrostates, checkgammapoint, getfockanddiag, printrekssainfo,&
-      & getstateinteraction, getreksenproperties, getreksgradients, getreksgradproperties,&
-      & getReksStress
+  use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
+  use dftbp_reks_reks, only : activeorbswap, calcsareksenergy, calcweights, checkgammapoint,&
+      & constructmicrostates, getfilling, getfockanddiag, getreksenproperties, getreksgradients,&
+      & getreksgradproperties, getReksStress, getstateinteraction, guessneweigvecs, optimizeFONs,&
+      & printreksmicrostates, printrekssainfo, printsareksenergy, qm2udl, qmexpandl, TReksCalc,&
+      & ud2qml
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
-  use dftbp_timedep_linresp, only : TLinResp, linResp_calcExcitations, LinResp_addGradients
+  use dftbp_timedep_linresp, only : LinResp_addGradients, linResp_calcExcitations, TLinResp
   use dftbp_timedep_linrespgrad, only : conicalIntersectionOptimizer
   use dftbp_timedep_pprpa, only : ppRpaEnergies
   use dftbp_timedep_timeprop, only : runDynamics
@@ -116,20 +114,19 @@ module dftbp_dftbplus_main
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole
 #:if WITH_SCALAPACK
-  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
+  use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
   use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
       & denseSubtractDensityOfAtomsRealPeriodicBlacs
-  use dftbp_dftb_sparse2dense, only : packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs,&
-      & packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs, packERhoPauliBlacs, unpackHSRealBlacs,&
-      & unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs, unpackHSHelicalRealBlacs,&
-      & unpackHSHelicalCplxBlacs
+  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs, packRhoHelicalCplxBlacs,&
+      & packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs, unpackHPauliBlacs,&
+      & unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
+      & unpackSPauliBlacs
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
-  use dftbp_extlibs_mpifx, only : MPI_SUM, MPI_MAX, mpifx_allreduceip, mpifx_bcast
-  use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
-      & pblasfx_ptranc, blacsfx_gemr2d
-  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+  use dftbp_extlibs_mpifx, only : MPI_MAX, MPI_SUM, mpifx_allreduceip, mpifx_bcast
+  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
+      & pblasfx_ptranc, scalafx_pposv
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
@@ -319,7 +316,7 @@ contains
               & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
               & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
               & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-              & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%pChrgMixerReal,&
+              & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
               & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
               & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
           if (errStatus%hasError()) then
@@ -495,7 +492,7 @@ contains
             & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
             & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
             & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-            & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%pChrgMixerReal,&
+            & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
             & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
             & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
         if (errStatus%hasError()) then
@@ -521,7 +518,7 @@ contains
             & this%perturbSccTol, this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb,&
             & this%iEqOrbitals, this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU,&
             & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%hybridXc,&
-            & this%nNeighbourCam, this%pChrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
+            & this%nNeighbourCam, this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
             & this%cellVec, this%neFermi, errStatus, this%dynKernelFreq, this%tHelical, this%coord)
         if (errStatus%hasError()) then
           call error(errStatus%message)
@@ -946,7 +943,7 @@ contains
 
       ! Mix charges Input/Output
       if (.not. this%isHybridXc) then
-        call getNextInputCharges(env, this%pChrgMixerReal, this%qOutput, this%qOutRed, this%orb,&
+        call getNextInputCharges(env, this%chrgMixerReal, this%qOutput, this%qOutRed, this%orb,&
             & this%nIneqOrb, this%iEqOrbitals, iGeoStep, iSccIter, this%minSccIter,&
             & this%maxSccIter, this%sccTol, tStopScc, this%tMixBlockCharges, this%tReadChrg,&
             & this%qInput, this%qInpRed, this%equivContactAtoms, sccErrorQ, tConverged, this%dftbU,&
@@ -959,7 +956,7 @@ contains
           if (this%t2Component) then
 
             call getNextInputDensityPauli(this%ints, this%neighbourList, this%nNeighbourSK,&
-                & this%denseDesc, this%iSparseStart, this%img2CentCell, this%pChrgMixerCmplx,&
+                & this%denseDesc, this%iSparseStart, this%img2CentCell, this%chrgMixerCmplx,&
                 & this%qOutput, this%orb, this%tHelical, iGeoStep, iSccIter, this%minSccIter,&
                 & this%maxSccIter, this%sccTol, tStopScc, this%tReadChrg, this%q0, this%hybridXc,&
                 & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
@@ -969,7 +966,7 @@ contains
           else
             call getNextInputDensityReal(env, this%parallelKS, this%SSqrReal, this%ints,&
                 & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
-                & this%img2CentCell, this%pChrgMixerReal, this%qOutput, this%orb, this%tHelical,&
+                & this%img2CentCell, this%chrgMixerReal, this%qOutput, this%orb, this%tHelical,&
                 & this%species0, this%species, this%coord, iGeoStep, iSccIter, this%minSccIter,&
                 & this%maxSccIter, this%sccTol, tStopScc, this%tReadChrg, this%q0, this%hybridXc,&
                 & this%qInput, sccErrorQ, tConverged, this%densityMatrix, this%qBlockIn,&
@@ -978,8 +975,8 @@ contains
           @:PROPAGATE_ERROR(errStatus)
         else
           call getNextInputDensityCplx(env, this%ints, this%neighbourList, this%nNeighbourSK,&
-              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%pChrgMixerReal,&
-              & this%pChrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
+              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%chrgMixerReal,&
+              & this%chrgMixerCmplx, this%qOutput, this%orb, this%parallelKS, this%kPoint,&
               & this%kWeight, iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%sccTol,&
               & tStopScc, this%tReadChrg, this%checkStopHybridCalc, this%q0, this%iCellVec,&
               & this%cellVec, this%hybridXc, this%qInput, sccErrorQ, tConverged,&
@@ -1060,7 +1057,7 @@ contains
           & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
           & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
           & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
-          & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
+          & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
           & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
     end if
 
@@ -1155,7 +1152,7 @@ contains
           & this%nAllAtom, this%coord0Fold, this%coord,this%species, this%cellVec, this%rCellVec,&
           & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
-          & this%cm5Cont, this%skOverCont, errStatus)
+          & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
         @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -1171,17 +1168,17 @@ contains
         if (withMpi .and. this%tRealHS&
             & .and. this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
           if (this%t2Component) then
-            call TMixerCmplx_reset(this%pChrgMixerCmplx, this%nOrb**2)
+            call this%chrgMixerCmplx%reset(this%nOrb**2)
           else
-            call TMixerReal_reset(this%pChrgMixerReal, this%nOrb**2 * this%nSpin)
+            call this%chrgMixerReal%reset(this%nOrb**2 * this%nSpin)
           end if
-        elseif (allocated(this%pChrgMixerCmplx)) then
-          call TMixerCmplx_reset(this%pChrgMixerCmplx, this%nMixElements)
+        elseif (allocated(this%chrgMixerCmplx)) then
+          call this%chrgMixerCmplx%reset(this%nMixElements)
         else
-          call TMixerReal_reset(this%pChrgMixerReal, this%nMixElements)
+          call this%chrgMixerReal%reset(this%nMixElements)
         end if
       else
-        call TMixerReal_reset(this%pChrgMixerReal, this%nMixElements)
+        call this%chrgMixerReal%reset(this%nMixElements)
       end if
     end if
 
@@ -1227,6 +1224,8 @@ contains
       call this%halogenXCorrection%getEnergies(this%dftbEnergy(&
           & this%deltaDftb%iDeterminant)%atomHalogenX, this%coord, this%species,&
           & this%neighbourList, this%img2CentCell)
+    end if
+    if (this%isHalogenEgyPrinted) then
       this%dftbEnergy(this%deltaDftb%iDeterminant)%EHalogenX =&
           & sum(this%dftbEnergy(this%deltaDftb%iDeterminant)%atomHalogenX(this%iAtInCentralRegion))
     end if
@@ -1402,7 +1401,7 @@ contains
         if (allocated(this%elecConstraint)) then
           nConstrIter = this%elecConstraint%getMaxIter()
           call printElecConstrHeader()
-          call this%elecConstraint%potOpt%reset()
+          call this%elecConstraint%resetOptimizer()
         else
           nConstrIter = 1
         end if
@@ -1595,7 +1594,7 @@ contains
             & this%tPrintMulliken, this%Ef, this%extPressure, this%cellVol, this%tAtomicEnergy,&
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
-            & this%iAtInCentralRegion, this%electronicSolver, allocated(this%halogenXCorrection),&
+            & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
             & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation))
       end if
     end if
@@ -1617,7 +1616,7 @@ contains
         block
           character(len=*), parameter :: msg = "Electronic constraints did NOT converge, maximal&
               & micro-iterations exceeded"
-          if (this%elecConstraint%isConstrConvRequired) then
+          if (this%elecConstraint%requiresConvergence()) then
             call error(msg)
           else
             call warning(msg)
@@ -1685,7 +1684,7 @@ contains
     end if
 
     if (this%isXlbomd) then
-      call getXlbomdCharges(this%xlbomdIntegrator, this%qOutRed, this%pChrgMixerReal, this%orb,&
+      call getXlbomdCharges(this%xlbomdIntegrator, this%qOutRed, this%chrgMixerReal, this%orb,&
           & this%nIneqOrb, this%iEqOrbitals, this%qInput, this%qInpRed, this%dftbU,&
           & this%iEqBlockDftbU, this%qBlockIn, this%species0, this%iEqBlockDftbuLs, this%qiBlockIn,&
           & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
@@ -2013,7 +2012,7 @@ contains
             & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
             & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%electronicSolver,&
-            & this%deltaDftb, this%mdOutput)
+            & this%deltaDftb, this%iAtInCentralRegion, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -2219,7 +2218,7 @@ contains
       & areSolventNeighboursSym, thirdOrd, hybridXc, reks, img2CentCell, iCellVec, neighbourList,&
       & symNeighbourList, nAllAtom, coord0Fold, coord, species, cellVec, rCellVec, denseDescr,&
       & nNeighbourSK, nNeighbourCam, nNeighbourCamSym, ints, H0, rhoPrim, iRhoPrim, ERhoPrim,&
-      & iSparseStart, cm5Cont, skOverCont, errStatus)
+      & iSparseStart, cm5Cont, skOverCont, areNeighSetExternal, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2347,6 +2346,9 @@ contains
     !> Sparse overlap part
     type(TSlakoCont), intent(in) :: skOverCont
 
+    !> Are Neighbour lists set externally, so should not be updated
+    logical, intent(in) :: areNeighSetExternal
+
     !> Status of operation
     type(TStatus), intent(out) :: errStatus
 
@@ -2358,15 +2360,17 @@ contains
 
     call boundaryCond%foldCoordsToCell(coord0Fold, latVec)
 
-    if (tHelical) then
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
-          & errStatus, helicalBoundConds=latVec)
-    else
-      call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
+    if (.not.areNeighSetExternal) then
+      if (tHelical) then
+        call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+            & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec,&
+            & errStatus, helicalBoundConds=latVec)
+      else
+        call updateNeighbourListAndSpecies(env, coord, species, img2CentCell, iCellVec,&
+            & neighbourList, nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec, errStatus)
+      end if
+      @:PROPAGATE_ERROR(errStatus)
     end if
-    @:PROPAGATE_ERROR(errStatus)
 
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
 
@@ -2458,17 +2462,17 @@ contains
     !> libNEGF data
     type(TNEGFInfo), intent(in) :: ginfo
 
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Image atoms to their equivalent in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
     !> List of neighbouring atoms
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours of each real atom
     integer, intent(in) :: nNeighbourSK(:)
+
+    !> Image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     ! known issue about the PLs: We need an automatic partitioning
     call negfInt%setup_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbourSK,&
@@ -4379,7 +4383,7 @@ contains
 
 
   !> Returns input charges for next SCC iteration.
-  subroutine getNextInputCharges(env, pChrgMixerReal, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+  subroutine getNextInputCharges(env, chrgMixerReal, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, equivContactAtoms, sccErrorQ, tConverged, dftbU, qBlockOut, iEqBlockDftbU,&
       & qBlockIn, qiBlockOut, iEqBlockDftbuLS, species0, qiBlockIn, iEqBlockOnSite,&
@@ -4389,7 +4393,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -4532,7 +4536,7 @@ contains
         end if
         multipoleInp = multipoleOut
       else
-        call TMixerReal_mix(pChrgMixerReal, qInpRed, qDiffRed)
+        call chrgMixerReal%mix(qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart
         call mpifx_bcast(env%mpi%globalComm, qInpRed)
@@ -4573,7 +4577,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityReal(env, parallelKS, SSqrReal, ints, neighbourList, nNeighbourSK,&
-      & denseDesc, iSparseStart, img2CentCell, pChrgMixerReal, qOutput, orb, tHelical, species0,&
+      & denseDesc, iSparseStart, img2CentCell, chrgMixerReal, qOutput, orb, tHelical, species0,&
       & species, coord, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
       & q0, hybridXc, qInput, sccErrorQ, tConverged, densityMatrix, qBlockIn, qBlockOut, errStatus)
 
@@ -4605,7 +4609,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -4736,7 +4740,7 @@ contains
           if (env%tGlobalLead) then
             ! Re-allocate difference, this time for full density collected from all MPI ranks
             deltaRhoDiffSqr = collectedDeltaRhoOutSqr - collectedDeltaRhoInSqr
-            call TMixerReal_mix(pChrgMixerReal, collectedDeltaRhoInSqr, deltaRhoDiffSqr)
+            call chrgMixerReal%mix(collectedDeltaRhoInSqr, deltaRhoDiffSqr)
           end if
           ! scatter mixed full, square density matrix to MPI ranks
           call scatterFullToDistributed(env, denseDesc, parallelKS, collectedDeltaRhoInSqr,&
@@ -4746,7 +4750,7 @@ contains
               & SSqrReal, qInput)
         end if
       #:else
-        call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
+        call chrgMixerReal%mix(densityMatrix%deltaRhoIn, deltaRhoDiffSqr)
         call denseMullikenReal(densityMatrix%deltaRhoIn, SSqrReal, denseDesc%iAtomStart, qInput)
       #:endif
 
@@ -4788,7 +4792,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityCplx(env, ints, neighbourList, nNeighbourSK, denseDesc,&
-      & iSparseStart, img2CentCell, pChrgMixerReal, pChrgMixerCmplx, qOutput, orb, parallelKS,&
+      & iSparseStart, img2CentCell, chrgMixerReal, chrgMixerCmplx, qOutput, orb, parallelKS,&
       & kPoint, kWeight, iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg,&
       & checkStopHybridCalc, q0, iCellVec, cellVec, hybridXc, qInput, sccErrorQ, tConverged,&
       & densityMatrix, qBlockIn, qBlockOut)
@@ -4815,10 +4819,10 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), allocatable, intent(inout) :: chrgMixerReal
 
     !> Complex charge mixing object
-    type(TMixerCmplx), intent(inout), allocatable :: pChrgMixerCmplx
+    class(TMixerCmplx), allocatable, intent(inout) :: chrgMixerCmplx
 
     !> Output electrons
     real(dp), intent(in) :: qOutput(:,:,:)
@@ -4943,7 +4947,7 @@ contains
 
         if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
           if (env%tGlobalLead) then
-            call TMixerCmplx_mix(pChrgMixerCmplx, densityMatrix%deltaRhoInCplx, deltaRhoDiffSqrCplx)
+            call chrgMixerCmplx%mix(densityMatrix%deltaRhoInCplx, deltaRhoDiffSqrCplx)
           end if
         #:if WITH_MPI
           call mpifx_bcast(env%mpi%globalComm, densityMatrix%deltaRhoInCplx)
@@ -4984,7 +4988,7 @@ contains
           end do
 
         else ! hybridXc%hybridXcAlg /= hybridXcAlgo%matrixBased
-          call TMixerReal_mix(pChrgMixerReal, densityMatrix%deltaRhoInCplxHS, deltaRhoDiffSqrCplxHS)
+          call chrgMixerReal%mix(densityMatrix%deltaRhoInCplxHS, deltaRhoDiffSqrCplxHS)
           call mulliken(qInput, ints%overlap, densityMatrix%deltaRhoInCplxHS, orb,&
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
               & denseDesc%iAtomStart, iCellVec, cellVec, hybridXc)
@@ -5010,7 +5014,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityPauli(ints, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-      & img2CentCell, pChrgMixerCplx, qOutput, orb, tHelical, iGeoStep, iSccIter, minSccIter,&
+      & img2CentCell, chrgMixerCplx, qOutput, orb, tHelical, iGeoStep, iSccIter, minSccIter,&
       & maxSccIter, sccTol, tStopScc, tReadChrg, q0, hybridXc, qInput, sccErrorQ, tConverged,&
       & densityMatrix, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut, errStatus)
 
@@ -5033,7 +5037,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    type(TMixerCmplx), intent(inout) :: pChrgMixerCplx
+    class(TMixerCmplx), intent(inout) :: chrgMixerCplx
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -5136,7 +5140,7 @@ contains
           call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call TMixerCmplx_mix(pChrgMixerCplx, densityMatrix%deltaRhoInCplx, deltaRhoDiffSqr)
+        call chrgMixerCplx%mix(densityMatrix%deltaRhoInCplx, deltaRhoDiffSqr)
         call denseMullikenPauli(densityMatrix%deltaRhoInCplx, sSqrReal, denseDesc%iAtomStart,&
             & qInput)
 
@@ -5576,7 +5580,7 @@ contains
 
 
   !> Get the XLBOMD charges for the current geometry.
-  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixerReal, orb, nIneqOrb,&
+  subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, chrgMixerReal, orb, nIneqOrb,&
       & iEqOrbitals, qInput, qInpRed, dftbU, iEqBlockDftbu, qBlockIn, species0, iEqBlockDftbuLS,&
       & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
 
@@ -5587,7 +5591,7 @@ contains
     real(dp), intent(in) :: qOutRed(:)
 
     !> SCC mixer
-    type(TMixerReal), intent(inout) :: pChrgMixerReal
+    class(TMixerReal), intent(inout) :: chrgMixerReal
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5628,15 +5632,6 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary part
     integer, intent(inout), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
-    real(dp), allocatable :: invJacobian(:,:)
-
-    if (xlbomdIntegrator%needsInverseJacobian()) then
-      write(stdOut, "(A)") ">> Updating XLBOMD Inverse Jacobian"
-      allocate(invJacobian(nIneqOrb, nIneqOrb))
-      call TMixerReal_getInverseJacobian(pChrgMixerReal, invJacobian)
-      call xlbomdIntegrator%setInverseJacobian(invJacobian)
-      deallocate(invJacobian)
-    end if
     call xlbomdIntegrator%getNextCharges(qOutRed(1:nIneqOrb), qInpRed(1:nIneqOrb))
     call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, dftbU, qBlockIn, iEqBlockDftbu,&
         & species0, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
@@ -6126,7 +6121,7 @@ contains
 
     real(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
-    integer :: iKS, iS
+    integer :: iKS, iS, info
 
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
@@ -6209,13 +6204,18 @@ contains
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call psymmatinv(denseDesc%blacsOrbSqr, work, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
-        call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
-            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
+        ! transpose in preparation for S^-1 being transposed in inversion
+        call pblasfx_ptran(eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, work2,&
+            & denseDesc%blacsOrbSqr, alpha=1.0_dp, beta=0.0_dp)
+        ! Solve to get S^-1 c
+        call scalafx_pposv(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, info=info)
+        if (info /= 0) then
+          @:RAISE_ERROR(errStatus, info, "XLBOMD failure with real posv non-zero info")
+        end if
+        ! Symmetrize just in case
         work(:,:) = work2
-        call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=1.0_dp,&
-            & beta=1.0_dp)
+        call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=0.5_dp,&
+            & beta=0.5_dp)
       #:else
         call densityMatrix%getDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), errStatus)
         @:PROPAGATE_ERROR(errStatus)
@@ -6235,10 +6235,13 @@ contains
           call unpackHS(work, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call symmatinv(work, errStatus)
+        ! transpose in preparation for S^-1 being transposed in inversion
+        work2(:,:) = transpose(eigvecsReal(:,:,iKS))
+        ! Solve to get S^-1 c
+        call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call symm(work2, "R", work, eigvecsReal(:,:,iKS), alpha=0.5_dp)
-        work(:,:) = work2 + transpose(work2)
+        ! Symmetrize just in case
+        work(:,:) = 0.5_dp * (work2 + transpose(work2))
       #:endif
       end select
 
@@ -6349,7 +6352,7 @@ contains
 
     complex(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
-    integer :: iKS, iS, iK
+    integer :: iKS, iS, iK, info
 
     nLocalRows = size(eigvecsCplx, dim=1)
     nLocalCols = size(eigvecsCplx, dim=2)
@@ -6435,13 +6438,18 @@ contains
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call phermatinv(denseDesc%blacsOrbSqr, work, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
-        call pblasfx_phemm(work, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
-            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
+        ! hermitian transpose in preparation for S^-1 being transposed in inversion
+        call pblasfx_ptranc(eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, work2,&
+            & denseDesc%blacsOrbSqr, alpha=(1.0_dp, 0.0_dp), beta=(0.0_dp, 0.0_dp))
+        ! Solve to get S^-1 c
+        call scalafx_pposv(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, info=info)
+        if (info /= 0) then
+          @:RAISE_ERROR(errStatus, info, "XLBOMD failure with complex posv non-zero info")
+        end if
+        ! Symmetrize just in case
         work(:,:) = work2
         call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
-            & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
+            & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
       #:else
         call densityMatrix%getDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), errStatus)
         @:PROPAGATE_ERROR(errStatus)
@@ -6463,10 +6471,13 @@ contains
           call unpackHS(work, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call hermatinv(work, errStatus)
+        ! hermitian conjugate in preparation for S^-1 being transposed in inversion
+        work2(:,:) = transpose(conjg(eigvecsCplx(:,:,iKS)))
+        ! Solve to get S^-1 c
+        call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
-        call hemm(work2, "R", work, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
-        work(:,:) = work2 + transpose(conjg(work2))
+        ! Symmetrize just in case
+        work(:,:) = 0.5_dp * (work2 + transpose(conjg(work2)))
       #:endif
       end select
 

@@ -14,21 +14,19 @@
 !! (cc* instead of the conventional c*c).
 module dftbp_dftb_densitymatrix
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_constants, only : pi, imag
+  use dftbp_common_constants, only : imag, pi
   use dftbp_common_status, only : TStatus
   use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_math_blasroutines, only : herk
-  use dftbp_math_sorting, only : unique, heap_sort
-  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
-  use dftbp_common_globalenv, only : stdOut
+  use dftbp_type_commontypes, only : TParallelKS
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, size, pblasfx_pgemm, pblasfx_ptranc
+  use dftbp_extlibs_scalapackfx, only : blacsgrid, blocklist, pblasfx_pgemm, pblasfx_ptranc, size
 #:endif
 #:if WITH_MAGMA
-  use magma, only : magmaf_queue_create, magmaf_dsetmatrix, magmaf_dsyrk, magmaf_dgetmatrix,&
-      & magmaf_dmalloc, magmaf_free, magmaf_zsetmatrix, magmaf_zherk, magmaf_zgetmatrix,&
-      & magmaf_zmalloc, magmaf_queue_destroy
   use iso_fortran_env, only : int64
+  use magma, only : magmaf_dgetmatrix, magmaf_dmalloc, magmaf_dsetmatrix, magmaf_dsyrk, magmaf_free,&
+      & magmaf_queue_create, magmaf_queue_destroy, magmaf_zgetmatrix, magmaf_zherk, magmaf_zmalloc,&
+      & magmaf_zsetmatrix
 #:endif
 
   implicit none

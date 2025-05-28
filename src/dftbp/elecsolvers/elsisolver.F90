@@ -10,7 +10,7 @@
 !> Contains the interface to the ELSI solvers
 module dftbp_elecsolvers_elsisolver
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
   use dftbp_common_version, only : TVersion
   use dftbp_dftb_energytypes, only : TEnergies
@@ -21,33 +21,32 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc
-  use dftbp_extlibs_elsiiface, only : elsi_rw_handle, elsi_handle
-  use dftbp_io_message, only : error, warning, cleanshutdown
+  use dftbp_extlibs_elsiiface, only : elsi_handle, elsi_rw_handle
+  use dftbp_io_message, only : cleanshutdown, error, warning
   use dftbp_math_angmomentum, only : getLOnsite
-  use dftbp_type_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_MPI
-  use dftbp_dftb_sparse2dense, only : unpackHPauliBlacs, unpackHSHelicalRealBlacs,&
-      & unpackHSRealBlacs, packRhoHelicalCplxBlacs, packRhoCplxBlacs, unpackSPauliBlacs,&
-      & packRhoPauliBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, unpackHSHelicalCplxBlacs,&
-      & unpackHSCplxBlacs, packRhoHelicalRealBlacs, packRhoRealBlacs, packERhoPauliBlacs
+  use dftbp_dftb_sparse2dense, only : packERhoPauliBlacs, packRhoCplxBlacs, packRhoHelicalCplxBlacs,&
+      & packRhoHelicalRealBlacs, packRhoPauliBlacs, packRhoRealBlacs, unpackHPauliBlacs,&
+      & unpackHSCplxBlacs, unpackHSHelicalCplxBlacs, unpackHSHelicalRealBlacs, unpackHSRealBlacs,&
+      & unpackSPauliBlacs
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc_init
-  use dftbp_extlibs_elsiiface, only : elsi_get_version, elsi_finalize, elsi_reinit, elsi_init,&
-      & elsi_set_mpi_global, elsi_set_sing_check, elsi_set_mpi, elsi_set_csc_blk,&
-      & elsi_set_zero_def, elsi_set_sparsity_mask, elsi_set_blacs, elsi_init_rw, elsi_set_rw_blacs,&
-      & elsi_set_elpa_solver, elsi_set_elpa_autotune, elsi_set_elpa_gpu,&
-      & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol,&
-      & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_mu_min, elsi_set_pexsi_mu_max,&
-      & elsi_set_pexsi_method, elsi_set_pexsi_n_pole, elsi_set_pexsi_n_mu, elsi_set_pexsi_np_symbo,&
-      & elsi_set_pexsi_delta_e, elsi_set_ntpoly_tol, elsi_set_ntpoly_filter,&
-      & elsi_set_ntpoly_method, elsi_set_spin, elsi_set_kpoint, elsi_set_output,&
-      & elsi_set_output_log, elsi_get_entropy, elsi_get_mu, elsi_get_pexsi_mu_max,&
-      & elsi_get_pexsi_mu_min, elsi_write_mat_real, elsi_finalize_rw, elsi_dm_complex,&
-      & elsi_write_mat_complex, elsi_set_mu_broaden_width, elsi_set_mu_mp_order,&
-      & elsi_set_mu_broaden_scheme, elsi_set_pexsi_temp, elsi_set_csc, elsi_set_rw_csc,&
-      & elsi_write_mat_complex_sparse, elsi_dm_complex_sparse, elsi_get_edm_real_sparse,&
-      & elsi_get_edm_real, elsi_set_rw_mpi, elsi_get_edm_complex, elsi_get_edm_complex_sparse,&
-      & elsi_dm_real, elsi_write_mat_real_sparse, elsi_dm_real_sparse
+  use dftbp_extlibs_elsiiface, only : elsi_dm_complex, elsi_dm_complex_sparse, elsi_dm_real,&
+      & elsi_dm_real_sparse, elsi_finalize, elsi_finalize_rw, elsi_get_edm_complex,&
+      & elsi_get_edm_complex_sparse, elsi_get_edm_real, elsi_get_edm_real_sparse, elsi_get_entropy,&
+      & elsi_get_mu, elsi_get_pexsi_mu_max, elsi_get_pexsi_mu_min, elsi_get_version, elsi_init,&
+      & elsi_init_rw, elsi_reinit, elsi_set_blacs, elsi_set_csc, elsi_set_csc_blk,&
+      & elsi_set_elpa_autotune, elsi_set_elpa_gpu, elsi_set_elpa_solver, elsi_set_kpoint,&
+      & elsi_set_mpi, elsi_set_mpi_global, elsi_set_mu_broaden_scheme, elsi_set_mu_broaden_width,&
+      & elsi_set_mu_mp_order, elsi_set_ntpoly_filter, elsi_set_ntpoly_method, elsi_set_ntpoly_tol,&
+      & elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol, elsi_set_output,&
+      & elsi_set_output_log, elsi_set_pexsi_delta_e, elsi_set_pexsi_method, elsi_set_pexsi_mu_max,&
+      & elsi_set_pexsi_mu_min, elsi_set_pexsi_n_mu, elsi_set_pexsi_n_pole,&
+      & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_np_symbo, elsi_set_pexsi_temp, elsi_set_rw_blacs,&
+      & elsi_set_rw_csc, elsi_set_rw_mpi, elsi_set_sing_check, elsi_set_sparsity_mask,&
+      & elsi_set_spin, elsi_set_zero_def, elsi_write_mat_complex, elsi_write_mat_complex_sparse,&
+      & elsi_write_mat_real, elsi_write_mat_real_sparse
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
   implicit none

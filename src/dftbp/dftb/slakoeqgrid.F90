@@ -10,9 +10,9 @@
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
 module dftbp_dftb_slakoeqgrid
-  use dftbp_common_accuracy, only : dp, distFudge, distFudgeOld
+  use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp
   use dftbp_io_message, only : error
-  use dftbp_math_interpolation, only : polyInterUniform, poly5ToZero, freeCubicSpline
+  use dftbp_math_interpolation, only : freeCubicSpline, poly5ToZero, polyInterUniform
   implicit none
 
   private
@@ -203,7 +203,7 @@ contains
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterNew_ + 1) then
       call error("SlakoEqGrid: Not enough points in the SK-table for &
           &interpolation!")
@@ -270,7 +270,7 @@ contains
 
     invdistFudge = -1.0_dp / (real(mInd - leng -1, dp) * incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterOld_ + 1) then
       call error("skspar: Not enough points in the SK-table for interpolation!")
     end if

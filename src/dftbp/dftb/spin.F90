@@ -11,7 +11,6 @@
 !> switched on!
 module dftbp_dftb_spin
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

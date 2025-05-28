@@ -18,7 +18,9 @@
 !! * Onsite corrections are not included in this version
 module dftbp_timedep_linresp
   use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : TFileDescr
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
@@ -26,11 +28,9 @@ module dftbp_timedep_linresp
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_timedep_linrespgrad, only : LinRespGrad_old
-  use dftbp_timedep_linresptypes, only : TLinResp, linrespSolverTypes
+  use dftbp_timedep_linresptypes, only : linrespSolverTypes, TLinResp
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_dftb_hybridxc, only : THybridXcFunc
-  use dftbp_common_environment, only : TEnvironment
   implicit none
 
   private

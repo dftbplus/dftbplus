@@ -12,7 +12,7 @@
 module dftbp_dftb_halogenx
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_dftb_vdwdata, only : getVdwData
   use dftbp_io_message, only : error
   implicit none
