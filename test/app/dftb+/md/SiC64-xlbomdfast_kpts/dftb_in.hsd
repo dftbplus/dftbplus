@@ -151,13 +151,16 @@ Driver = VelocityVerlet {
 }
 
 Hamiltonian = DFTB {
-  ForceEvaluation = 'DynamicsT0'
+  ForceEvaluation = 'dynamics'
   SCC = Yes
   SCCTolerance = 1e-6
   MaxSCCIterations = 1000
   MaxAngularMomentum = {
     Si = "p"
     C = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 600
   }
   SlaterKosterFiles = {
     Prefix = {slakos/origin/pbc-0-3/}
@@ -166,9 +169,11 @@ Hamiltonian = DFTB {
     C-Si = "./C-Si.skf"
     C-C = "./C-C.skf"
   }
-
-KPointsAndWeights = {
-   0.000000000000E+000 0.000000000000E+000 0.000000000000E+000   1.00000000000
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5 0.5
   }
 }
 
