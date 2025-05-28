@@ -1104,9 +1104,6 @@ module dftbp_dftbplus_initprogram
     !> Details of energy interval for tunneling used in output
     real(dp) :: Emin, Emax, Estep
 
-    !> Electrostatics type (either gammafunctional or poisson)
-    integer :: electrostatics
-
     !> List of atoms in the central cell (or device region if transport)
     integer, allocatable :: iAtInCentralRegion(:)
 

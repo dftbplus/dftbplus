@@ -1710,7 +1710,7 @@ contains
       allocate(ctrl%elecConstraintInp)
       call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
       if (.not. allocated(ctrl%elecConstraintInp%mullikenConstrs)) then
-        call detailedWarning(child, "No electronic constaint specified")
+        call detailedWarning(child, "No electronic constraint specified")
         deallocate(ctrl%elecConstraintInp)
       end if
     end if
@@ -1719,11 +1719,13 @@ contains
       call error("Lattice optimisation only applies for periodic structures.")
     end if
 
-  #:if WITH_TRANSPORT
-    call readElectrostatics(node, ctrl, geo, tp, poisson)
-  #:else
-    call readElectrostatics(node, ctrl, geo, poisson)
-  #:endif
+    if (ctrl%tSCC) then
+    #:if WITH_TRANSPORT
+      call readElectrostatics(node, ctrl, geo, tp, poisson)
+    #:else
+      call readElectrostatics(node, ctrl, geo, poisson)
+    #:endif
+    end if
 
     ! Third order stuff
     ctrl%t3rd = .false.
