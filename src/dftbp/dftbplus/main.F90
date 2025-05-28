@@ -126,8 +126,7 @@ module dftbp_dftbplus_main
   use dftbp_dftbplus_eigenvects, only : diagDenseMtxBlacs
   use dftbp_extlibs_mpifx, only : MPI_MAX, MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
-      & pblasfx_ptranc
-  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+      & pblasfx_ptranc, scalafx_pposv
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
@@ -2013,7 +2012,7 @@ contains
             & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
             & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
             & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%electronicSolver,&
-            & this%deltaDftb, this%mdOutput)
+            & this%deltaDftb, this%iAtInCentralRegion, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -6112,7 +6111,7 @@ contains
 
     real(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
-    integer :: iKS, iS
+    integer :: iKS, iS, info
 
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
@@ -6195,13 +6194,18 @@ contains
           call unpackHSRealBlacs(env%blacs, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call psymmatinv(denseDesc%blacsOrbSqr, work, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
-        call pblasfx_psymm(work, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
-            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
+        ! transpose in preparation for S^-1 being transposed in inversion
+        call pblasfx_ptran(eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, work2,&
+            & denseDesc%blacsOrbSqr, alpha=1.0_dp, beta=0.0_dp)
+        ! Solve to get S^-1 c
+        call scalafx_pposv(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, info=info)
+        if (info /= 0) then
+          @:RAISE_ERROR(errStatus, info, "XLBOMD failure with real posv non-zero info")
+        end if
+        ! Symmetrize just in case
         work(:,:) = work2
-        call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=1.0_dp,&
-            & beta=1.0_dp)
+        call pblasfx_ptran(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, alpha=0.5_dp,&
+            & beta=0.5_dp)
       #:else
         call densityMatrix%getDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS), errStatus)
         @:PROPAGATE_ERROR(errStatus)
@@ -6221,9 +6225,12 @@ contains
           call unpackHS(work, ints%overlap, neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
+        ! transpose in preparation for S^-1 being transposed in inversion
         work2(:,:) = transpose(eigvecsReal(:,:,iKS))
+        ! Solve to get S^-1 c
         call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
+        ! Symmetrize just in case
         work(:,:) = 0.5_dp * (work2 + transpose(work2))
       #:endif
       end select
@@ -6335,7 +6342,7 @@ contains
 
     complex(dp), allocatable :: work2(:,:)
     integer :: nLocalRows, nLocalCols
-    integer :: iKS, iS, iK
+    integer :: iKS, iS, iK, info
 
     nLocalRows = size(eigvecsCplx, dim=1)
     nLocalCols = size(eigvecsCplx, dim=2)
@@ -6421,13 +6428,18 @@ contains
           call unpackHSCplxBlacs(env%blacs, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour,&
               & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call phermatinv(denseDesc%blacsOrbSqr, work, errStatus)
-        @:PROPAGATE_ERROR(errStatus)
-        call pblasfx_phemm(work, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
-            & denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, side="R", alpha=(0.5_dp, 0.0_dp))
+        ! hermitian transpose in preparation for S^-1 being transposed in inversion
+        call pblasfx_ptranc(eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, work2,&
+            & denseDesc%blacsOrbSqr, alpha=(1.0_dp, 0.0_dp), beta=(0.0_dp, 0.0_dp))
+        ! Solve to get S^-1 c
+        call scalafx_pposv(work, denseDesc%blacsOrbSqr, work2, denseDesc%blacsOrbSqr, info=info)
+        if (info /= 0) then
+          @:RAISE_ERROR(errStatus, info, "XLBOMD failure with complex posv non-zero info")
+        end if
+        ! Symmetrize just in case
         work(:,:) = work2
         call pblasfx_ptranc(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
-            & alpha=(1.0_dp, 0.0_dp), beta=(1.0_dp, 0.0_dp))
+            & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
       #:else
         call densityMatrix%getDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS), errStatus)
         @:PROPAGATE_ERROR(errStatus)
@@ -6449,9 +6461,12 @@ contains
           call unpackHS(work, ints%overlap, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
+        ! hermitian conjugate in preparation for S^-1 being transposed in inversion
         work2(:,:) = transpose(conjg(eigvecsCplx(:,:,iKS)))
+        ! Solve to get S^-1 c
         call posv(work, work2, status=errStatus)
         @:PROPAGATE_ERROR(errStatus)
+        ! Symmetrize just in case
         work(:,:) = 0.5_dp * (work2 + transpose(conjg(work2)))
       #:endif
       end select

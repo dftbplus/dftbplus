@@ -166,9 +166,11 @@ Hamiltonian = DFTB {
     C-Si = "./C-Si.skf"
     C-C = "./C-C.skf"
   }
-
-KPointsAndWeights = {
-   0.000000000000E+000 0.000000000000E+000 0.000000000000E+000   1.00000000000
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5 0.5
   }
 }
 
