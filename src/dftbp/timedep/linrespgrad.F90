@@ -377,7 +377,7 @@ contains
       if (tZVector .or. tHybridXc) this%tCacheChargesSame = .true.
     end if
 
-    ! Sanity checks
+    ! Check consistency with functionality
     if (nstat < 0 .and. this%symmetry /= "S") then
       call error("Linresp: Brightest mode only available for singlets.")
     end if

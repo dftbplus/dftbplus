@@ -1104,9 +1104,6 @@ module dftbp_dftbplus_initprogram
     !> Details of energy interval for tunneling used in output
     real(dp) :: Emin, Emax, Estep
 
-    !> Electrostatics type (either gammafunctional or poisson)
-    integer :: electrostatics
-
     !> List of atoms in the central cell (or device region if transport)
     integer, allocatable :: iAtInCentralRegion(:)
 
@@ -7003,9 +7000,9 @@ contains
       end if
     end if
 
-    if (allocated(ctrl%chrgConstr)) then
-      if (any(abs(ctrl%chrgConstr(:,2)) > epsilon(1.0_dp))) then
-        sccInput%chrgConstraints = ctrl%chrgConstr
+    if (allocated(ctrl%chrgPenalty)) then
+      if (any(abs(ctrl%chrgPenalty(:,2)) > epsilon(1.0_dp))) then
+        sccInput%chrgPenalties = ctrl%chrgPenalty
       end if
     end if
 

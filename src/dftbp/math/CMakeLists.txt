@@ -10,7 +10,6 @@ set(sources-fpp
   ${curdir}/eigensolver.F90
   ${curdir}/erfcalc.F90
   ${curdir}/errorfunction.F90
-  ${curdir}/f08math.F90
   ${curdir}/factorial.F90
   ${curdir}/hermite.F90
   ${curdir}/interpolation.F90

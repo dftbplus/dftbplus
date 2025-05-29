@@ -7,19 +7,19 @@
 
 #:include 'common.fypp'
 
-!> Contains routines for the additional local potential, which should enforce charge constraints.
+!> Contains routines for the additional local potential, which should enforce charge penalties.
 !>
 !> Note: this also has the same functional form as onsite 3rd order SCC contributions
-module dftbp_dftb_chargeconstr
+module dftbp_dftb_chargepenalty
   use dftbp_common_accuracy, only : dp
   implicit none
 
-  private
-  public :: TChrgConstr, TChrgConstr_init
+  Private
+  public :: TChrgPenalty, TChrgPenalty_init
 
 
-  !> Constraint object
-  type TChrgConstr
+  !> Penalty object
+  type TChrgPenalty
     private
 
     ! Instance initialised?
@@ -34,10 +34,10 @@ module dftbp_dftb_chargeconstr
     ! Target charges
     real(dp), allocatable :: refCharges_(:)
 
-    ! Prefactor for constraint
+    ! Prefactor for penalty
     real(dp), allocatable :: prefactors_(:)
 
-    ! Potential from constraint
+    ! Potential from penalty
     real(dp), allocatable :: shift_(:)
 
   contains
@@ -46,17 +46,17 @@ module dftbp_dftb_chargeconstr
     procedure :: addShiftPerAtom
     procedure :: addEnergyPerAtom
 
-  end type TChrgConstr
+  end type TChrgPenalty
 
 
 contains
 
 
   !> Initializes
-  subroutine TChrgConstr_init(this, inp, kappa)
+  subroutine TChrgPenalty_init(this, inp, kappa)
 
-    !> Instance of a constraint
-    type(TChrgConstr), intent(out) :: this
+    !> Instance of a penalty
+    type(TChrgPenalty), intent(out) :: this
 
     !> Array containing reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
@@ -77,14 +77,14 @@ contains
     this%kappa_ = kappa
     this%tInit_ = .true.
 
-  end subroutine TChrgConstr_init
+  end subroutine TChrgPenalty_init
 
 
   !> Build the shift (potential)
   subroutine buildShift(this, chargesPerAtom)
 
-    !> Instance of a constraint
-    class(TChrgConstr), intent(inout) :: this
+    !> Instance of a penalty
+    class(TChrgPenalty), intent(inout) :: this
 
     !> Atomic charges
     real(dp), intent(in) :: chargesPerAtom(:)
@@ -101,8 +101,8 @@ contains
   !> Add the shift onto a supplied vector
   subroutine addShiftPerAtom(this, shiftPerAtom)
 
-    !> Instance of a constraint
-    class(TChrgConstr), intent(in) :: this
+    !> Instance of a penalty
+    class(TChrgPenalty), intent(in) :: this
 
     !> Shift to append onto
     real(dp), intent(inout) :: shiftPerAtom(:)
@@ -115,16 +115,16 @@ contains
   end subroutine addShiftPerAtom
 
 
-  !> Energy associated with constrain violation
+  !> Energy associated with penalty
   subroutine addEnergyPerAtom(this, energyPerAtom, chargesPerAtom)
 
-    !> Instance of a constraint
-    class(TChrgConstr), intent(in) :: this
+    !> Instance of a penalty
+    class(TChrgPenalty), intent(in) :: this
 
-    !> Energy per atom from constraint
+    !> Energy per atom from penalty
     real(dp), intent(inout) :: energyPerAtom(:)
 
-    !> Instance of a constraint
+    !> Instance of a penalty
     real(dp), intent(in) :: chargesPerAtom(:)
 
     @:ASSERT(this%tInit_)
@@ -136,4 +136,4 @@ contains
 
   end subroutine addEnergyPerAtom
 
-end module dftbp_dftb_chargeconstr
+end module dftbp_dftb_chargepenalty

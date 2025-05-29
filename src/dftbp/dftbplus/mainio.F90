@@ -2523,7 +2523,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialHessian = .false.
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrect number of rows of dynamical Matrix")
     end if
@@ -2581,7 +2581,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -2636,7 +2636,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -3419,7 +3419,7 @@ contains
     write(fd, *)
 
     if (tAtomicEnergy) then
-      write(fd, "(A)") 'Atom resolved electronic energies '
+      write(fd, "(A)") 'Atom resolved electronic energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
@@ -3427,14 +3427,14 @@ contains
       end do
       write(fd, *)
 
-      write(fd, "(A)") 'Atom resolved repulsive energies '
+      write(fd, "(A)") 'Atom resolved repulsive energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
-      write(fd, "(A)") 'Atom resolved total energies '
+      write(fd, "(A)") 'Atom resolved total energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
@@ -3964,7 +3964,7 @@ contains
   subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
       & fixEf, printMulliken, dftbEnergy, energiesCasida, latVec, derivs, totalStress, cellVol,&
       & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage,&
-      & electronicSolver, deltaDftb,  mdOutput)
+      & electronicSolver, deltaDftb,  iAtInCentralRegion, mdOutput)
 
     !> File ID
     integer, intent(in) :: fd
@@ -4041,10 +4041,13 @@ contains
     !> Type for DFTB determinants
     type(TDftbDeterminants), intent(in) :: deltaDftb
 
+    !> Atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     !> Control structure for which variables are written
     type(TMDOutput), intent(in) :: mdOutput
 
-    integer :: ii, iDet
+    integer :: iAt, iDet, ii
     character(lc) :: strTmp
 
     iDet = deltaDftb%iFinal
@@ -4052,8 +4055,8 @@ contains
     if (printForces .and. mdOutput%printForces) then
 
       write(fd, "(A)") "Forces (au)"
-      do ii = 1, size(derivs, dim=2)
-        write(fd, "(3E24.8)") -derivs(:, ii)
+      do iAt = 1, size(derivs, dim=2)
+        write(fd, "(3E24.8)") -derivs(:, iAt)
       end do
       if (hasStress) then
         write(fd, "(A)") "Total stress (au)"
@@ -4109,7 +4112,7 @@ contains
       end if
     end if
 
-    if (mdOutput%PrintCharges) then
+    if (mdOutput%printCharges) then
       if (fixEf .and. printMulliken) then
         write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
       end if
@@ -4124,6 +4127,15 @@ contains
         write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
             & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
       end if
+    end if
+
+    if (mdOutput%printAtomEnergies) then
+      write(fd, "(A)") 'Atom resolved ground state total energies'
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, dftbEnergy(iDet)%atomTotal(iAt), ' H',&
+            & Hartree__eV * dftbEnergy(iDet)%atomTotal(iAt), ' eV'
+      end do
     end if
 
     if (deltaDftb%nDeterminant() > 1) then
@@ -4242,7 +4254,7 @@ contains
 
     nSpin = size(ham, dim=2)
 
-    ! Sanity check, although this should have been caught in initprogram already.
+    ! Consistent with functionality? Although this should have been caught in initprogram already.
     if (nSpin == 4) then
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
@@ -5610,7 +5622,7 @@ contains
     !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> atoms in the central cell (or device region if transport)
+    !> Atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Electronic solver information
