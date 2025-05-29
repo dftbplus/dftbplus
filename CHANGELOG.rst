@@ -26,6 +26,8 @@ Added
   construction, MPI-parallel matrix-multiplication based energy gradient
   evaluation, restart of matrix-multiplication based hybrid-DFTB calculations)
 
+- Hybrid functionals for (molecular) non-collinear spin groundstate
+
 - Electronic constraints on arbitrary regions, targeting the electronic ground
   state by determining a self-consistent constraint potential (restricted to
   Mulliken populations at the moment)
@@ -39,12 +41,23 @@ Added
 
 - Explicit keyword for gaussian electron temperature smearing (MP order 0)
 
+- Addition of developer documentation for code internals in doc/dftb+/code/
+
+- Optional GPU acceleration for the modes code via the MAGMA library
+  and support for the divide and conquer and relatively robust LAPACK
+  solvers
+
 
 Changed
 -------
 
 - Components of xtb energies are now resolved
 
+- Use least squares solution instead of inversion for XLBOMD force
+  corrections
+
+- Removes SCC keyword if using hybrid functionals (as these should always
+  be SCC)
 
 Fixed
 -----
@@ -78,6 +91,8 @@ Fixed
   already has linear and quadratic independence of the free energy wrt
   temperature. Default for Methfestle-Paxton smearing is now set to 1
   (matching the results from the old default value).
+
+- Remove duplicate printing of internal energy in results.tag
 
 
 24.1 (2024-02-12)
