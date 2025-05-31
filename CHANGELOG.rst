@@ -33,7 +33,9 @@ Added
 - Density Matrix construction on GPU using MAGMA-BLAS routines
 
 - More control over output of data and band structures during MD
-  calculations
+  calculations. By default, requesting printing of atomic charges,
+  energies or forces in the input leads them to also be included in
+  the md.out file.
 
 - MAGMA GPU accelerated solver for the modes code
 

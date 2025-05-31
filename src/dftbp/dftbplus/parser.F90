@@ -1687,8 +1687,8 @@ contains
     end if
 
     ! Dispersion
-    call getChildValue(node, "Dispersion", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
@@ -4018,7 +4018,7 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child
+    type(fnode), pointer :: child, value1
     logical :: tWriteDetailedOutDef
 
   #:if WITH_SOCKETS
@@ -4041,8 +4041,9 @@ contains
     end if
     if (ctrl%tMD) then
       allocate(ctrl%mdOutput)
-      call getChild(node, "MDOutput", child, requested=.false.)
-      if (associated(child)) then
+      call getChildValue(node, "MDOutput", value1, "", child=child, allowEmptyValue=.true.,&
+          & dummyValue=.true.)
+      if (associated(value1)) then
         if (providesEigenvalues(ctrl%solver%isolver)) then
           call getChildValue(child, "AppendBandOut", ctrl%mdOutput%bandStructure, .false.)
         end if
@@ -5763,7 +5764,7 @@ contains
     !> masses to be returned
     real(dp), allocatable, intent(inout) :: masses(:)
 
-    type(fnode), pointer :: value1, child
+    type(fnode), pointer :: child, value1
     type(string) :: buffer, buffer2, modifier
     logical :: ppRangeInvalid, tNeedFieldStrength
     real (dp) :: defPpRange(2)
