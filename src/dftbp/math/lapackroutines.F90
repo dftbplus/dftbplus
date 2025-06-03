@@ -301,12 +301,12 @@ contains
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
 
-    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows
     !> of the passed matrix)
     integer, optional, intent(in) :: nRow
 
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
-    !> of the passed matrix)
+    !> Number of columns of the matrix to decompose. (Necessary if different from the number of
+    !> columns of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
     !> Error flag. Zero on successful exit. If not present, any lapack error causes program
@@ -360,12 +360,12 @@ contains
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
 
-    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
-    !> of the passed matrix)
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows of
+    !> the passed matrix)
     integer, optional, intent(in) :: nRow
 
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
-    !> of the passed matrix)
+    !> Number of columns of the matrix to decompose. (Necessary if different from the number of
+    !> columns of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
     !> Error flag. Zero on successful exit. If not present, any lapack error causes program
@@ -419,12 +419,12 @@ contains
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
 
-    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
-    !> of the passed matrix)
+    !> Number of columns of the matrix to be decomposed. (Necessary if different from the number of
+    !> rows of the passed matrix)
     integer, optional, intent(in) :: nRow
 
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
-    !> of the passed matrix)
+    !> Number of columns of the matrix to decompose. (Necessary if different from the number of
+    !> columns of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
     !> Error flag. Zero on successful exit. If not present, any lapack error causes program
@@ -478,12 +478,12 @@ contains
     !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
     integer, intent(out) :: ipiv(:)
 
-    !> Number of rows of the matrix to decomposea. (Necessary if different from the number of rows
+    !> Number of rows of the matrix to decompose. (Necessary if different from the number of rows
     !> of the passed matrix)
     integer, optional, intent(in) :: nRow
 
-    !> Number of rows of the matrix to decompose. (Necessary if different from the number of columns
-    !> of the passed matrix)
+    !> Number of columns of the matrix to decompose. (Necessary if different from the number of
+    !> columns of the passed matrix)
     integer, optional, intent(in) :: nColumn
 
     !> Error flag. Zero on successful exit. If not present, any lapack error causes program
