@@ -186,12 +186,20 @@ contains
 
 
   !> Finalizes the environment.
-  subroutine TEnvironment_destruct(this)
+  subroutine TEnvironment_destruct(this, writeTimings)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    if (allocated(this%globalTimer)) then
+    !> Whether timings should be written (default: .true.)
+    logical, optional, intent(in) :: writeTimings
+
+    logical :: writeTimings_
+
+    writeTimings_ = .true.
+    if (present(writeTimings)) writeTimings_ = writeTimings
+
+    if (writeTimings_ .and. allocated(this%globalTimer)) then
       call this%globalTimer%writeTimings()
     end if
 
