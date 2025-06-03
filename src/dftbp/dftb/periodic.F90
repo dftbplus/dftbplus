@@ -35,7 +35,7 @@ module dftbp_dftb_periodic
   public :: getCellTranslations, getLatticePoints
   public :: getSuperSampling
   public :: frac2cart, cart2frac
-  public :: TNeighbourList, TNeighbourList_init, TSymNeighbourList
+  public :: TNeighbourList, TNeighbourList_init, TAuxNeighbourList, TAuxNeighbourList_init
   public :: updateNeighbourList, updateNeighbourListAndSpecies, setNeighbourList
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
 
@@ -98,7 +98,7 @@ module dftbp_dftb_periodic
 
 
   !> Contains neighbour list instance and symmetry specific entries
-  type TSymNeighbourList
+  type TAuxNeighbourList
 
     !> Neighbour list instance
     type(TNeighbourList), allocatable :: neighbourList
@@ -115,7 +115,7 @@ module dftbp_dftb_periodic
     !> Mapping of all atoms onto atoms in the central cell
     integer, allocatable :: img2CentCell(:)
 
-    !> Shift vector index for every interacting atom, including periodic images
+    !> Cell shift vector index for every interacting atom, including periodic images
     integer, allocatable :: iCellVec(:)
 
     !> Sparse array indexing for the start of atomic blocks in data structures
@@ -126,9 +126,9 @@ module dftbp_dftb_periodic
 
   contains
 
-    final :: TSymNeighbourList_final
+    final :: TAuxNeighbourList_final
 
-  end type TSymNeighbourList
+  end type TAuxNeighbourList
 
 contains
 
@@ -158,6 +158,33 @@ contains
   end subroutine TNeighbourList_init
 
 
+  !> Initializes a symmetric neighbourlist instance.
+  subroutine TAuxNeighbourList_init(this, nAtom, nAllAtom, nInitNeighbour)
+
+    !> Neighbourlist data.
+    type(TAuxNeighbourList), intent(out) :: this
+
+    !> Nr. of atoms in the central cell of the system.
+    integer, intent(in) :: nAtom
+
+    !> Nr. of atoms in the extended system.
+    integer, intent(in) :: nAllAtom
+
+    !> Expected nr. of neighbours per atom.
+    integer, intent(in) :: nInitNeighbour
+
+    allocate(this%neighbourList)
+    call TNeighbourList_init(this%neighbourList, nAtom, nInitNeighbour)
+
+    allocate(this%coord(3, nAllAtom))
+    allocate(this%species(nAllAtom))
+    allocate(this%img2CentCell(nAllAtom))
+    allocate(this%iCellVec(nAllAtom))
+    allocate(this%iPair(0, nAtom))
+
+  end subroutine TAuxNeighbourList_init
+
+
   !> Deallocates MPI shared memory if required
   subroutine TNeighbourList_final(this)
 
@@ -182,14 +209,14 @@ contains
   !! Workaround: Intel oneAPI 2021/22
   !! Without explicit deallocation, the oneAPI versions listed above do not correctly finalize the
   !! MPI windows.
-  subroutine TSymNeighbourList_final(this)
+  subroutine TAuxNeighbourList_final(this)
 
-    !> TSymNeighbourList instance
-    type(TSymNeighbourList), intent(inout) :: this
+    !> TAuxNeighbourList instance
+    type(TAuxNeighbourList), intent(inout) :: this
 
     if (allocated(this%neighbourList)) deallocate(this%neighbourList)
 
-  end subroutine TSymNeighbourList_final
+  end subroutine TAuxNeighbourList_final
 
 
   !> Calculates the translation vectors for cells, which could contain atoms interacting with any of
