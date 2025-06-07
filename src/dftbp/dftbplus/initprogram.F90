@@ -1147,10 +1147,10 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: tiSigma(:)
 
     !> Ground state determinant filling (Delta DFTB TDM) 
-    real(dp), allocatable :: gfilling(:,:,:)
+    real(dp), allocatable :: groundFill(:,:,:)
 
     !> Mixed state determinant filling (Delta DFTB TDM) 
-    real(dp), allocatable :: mfilling(:,:,:)
+    real(dp), allocatable :: mixedFill(:,:,:)
 
     !> Transition charges for Delta DFTB TDM
     real(dp), allocatable :: tiTraCharges(:,:)
@@ -5342,8 +5342,8 @@ contains
       allocate(this%tiMatE(nLocalRows,nLocalCols,this%nSpin), source=0.0_dp)
       allocate(this%tiMatPT(nLocalRows,nLocalCols), source=0.0_dp)
       allocate(this%tiSigma(nLocalRows), source=0.0_dp)
-      allocate(this%gfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
-      allocate(this%mfilling(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%groundFill(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
+      allocate(this%mixedFill(sqrHamSize, this%nKPoint, this%nSpin), source=0.0_dp)
       allocate(this%tiTraCharges(this%orb%mOrb, this%nAtom), source=0.0_dp)
     end if
 

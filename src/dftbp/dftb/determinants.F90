@@ -163,7 +163,7 @@ contains
 
   !> Spin Purifies Non-Aufbau excited state energy and forces
   subroutine postProcessDets(this, energies, qOutput, qDets, qBlockOut, qBlockDets, dipoleMoment,&
-      & transitionDipoleMoment, gfilling, mfilling, stress, tripletStress, mixedStress, derivs,&
+      & transitionDipoleMoment, groundFill, mixedFill, stress, tripletStress, mixedStress, derivs,&
       & tripletderivs, mixedderivs)
 
     !> Instance
@@ -191,10 +191,10 @@ contains
     real(dp), intent(inout), allocatable :: transitionDipoleMoment(:)
 
     !> Fillings for ground state (TI-DFTB transition dipoles)
-    real(dp), intent(inout), allocatable :: gfilling(:,:,:)
+    real(dp), intent(inout), allocatable :: groundFill(:,:,:)
 
     !> Fillings for mixed-spin state (TI-DFTB transition dipoles)
-    real(dp), intent(inout), allocatable :: mfilling(:,:,:)
+    real(dp), intent(inout), allocatable :: mixedFill(:,:,:)
 
     !> Stress tensor
     real(dp), intent(inout) :: stress(:,:)
@@ -513,89 +513,95 @@ contains
 
 
   !> Evaluate transition density matrix for time independent excitation
-  subroutine tiTDM(g, e, pt, gfilling, mfilling)
+  subroutine tiTDM(groundC, excitedC, transitionDM, groundFill, mixedFill)
 
     !> DFTB ground state MO eigenvectors
-    real(dp), intent(inout) :: g(:,:)
+    real(dp), intent(inout) :: groundC(:,:)
 
     !> TI-DFTB mixed-determinant MO eigenvectors
-    real(dp), intent(inout) :: e(:,:)
+    real(dp), intent(inout) :: excitedC(:,:)
 
     !> Transition density matrix in corresponding orbital basis
-    real(dp), intent(inout) :: pt(:,:)
+    real(dp), intent(inout) :: transitionDM(:,:)
 
     !> DFTB ground state occupation numbers
-    real(dp), intent(in) :: gfilling(:)
+    real(dp), intent(in) :: groundFill(:)
 
     !> TI-DFTB mixed-determinant occupation numbers
-    real(dp), intent(in) :: mfilling(:)
+    real(dp), intent(in) :: mixedFill(:)
 
-    !> Left eigenvectors (corresponding orbitals) from SVD
+    !! Left singular vectors (corresponding orbitals)
     real(dp), allocatable :: u(:,:)
 
-    !> Right eigenvectors (corresponding orbitals) from SVD
+    !! Right (transposed) singular vectors (corresponding orbitals)
     real(dp), allocatable :: vt(:,:)
 
-    !> Temporary storage for matrix products in this subroutine
-    real(dp), allocatable :: M(:,:)
+    !! Temporary storage for matrix products in this subroutine
+    real(dp), allocatable :: work(:,:)
 
-    !> Singular values from SVD
+    !! Singular values
     real(dp), allocatable :: sigma(:)
 
-    !> DFTB ground state MO eigenvectors in transformed (CO) basis
-    real(dp), allocatable :: Cg(:,:)
+    !! DFTB ground state MO eigenvectors in transformed (CO) basis
+    real(dp), allocatable :: groundMOs(:,:)
 
-    !> TI-DFTB excited state MO eigenvectors in transformed (CO) basis
-    real(dp), allocatable :: Ce(:,:)
+    !! TI-DFTB excited state MO eigenvectors in transformed (CO) basis
+    real(dp), allocatable :: excitedMOs(:,:)
 
-    integer :: jj, nElec
+    integer :: jj, nElec, nOrb, nGrndMOs, nExMOs
 
-    allocate(u(size(e,dim=1), size(e,dim=2)))
-    allocate(vt(size(e,dim=1), size(e,dim=2)))
-    allocate(M(size(e,dim=1), size(e,dim=2)))
-    allocate(sigma(size(e,dim=1)))
-    allocate(Ce(size(e,dim=1), size(e,dim=2)))
-    allocate(Cg(size(e,dim=1), size(e,dim=2)))
+    nOrb = size(excitedC,dim=1)
+    @:ASSERT(nOrb == size(groundC,dim=1))
+    nGrndMOs = size(groundC, dim=2)
+    nExMOs = size(excitedC, dim=2)
 
-    !! Determine how many orbitals with non-negligible occupations to track
-    do jj = size(gfilling), 1, -1
+    allocate(u(nOrb, nExMOs))
+    allocate(vt(nOrb, nExMOs))
+    allocate(work(nOrb, nExMOs))
+    allocate(sigma(nOrb))
+    allocate(excitedMOs(nOrb, nExMOs))
+    allocate(groundMOs(nOrb, nGrndMOs))
+
+    !! Determine how many orbitals with non-negligible occupations to track (assumes Fermi
+    !! occupation)
+    do jj = size(groundFill), 1, -1
       nElec = jj
-      if (abs(gfilling(jj)) >= epsilon(1.0_dp)) then
+      if (abs(groundFill(jj)) >= epsilon(1.0_dp)) then
         exit
       end if
     end do
 
     !! Compute singular value decomposition of non-orthogonal MO-MO overlap
-    M = matmul(transpose(g),e)
-    call gesvd(M,u,sigma,vt)
+    work = matmul(transpose(groundC),excitedC)
+    call gesvd(work,u,sigma,vt)
 
-    !! Rotate g into corresponding orbital basis and isolate the occupied MOs
-    M = matmul(g,u)
-    Cg(:,:) = 0.0_dp
+    !! Rotate ground MOs into corresponding orbital basis and isolate the occupied MOs
+    work = matmul(groundC, u)
+    groundMOs(:,:) = 0.0_dp
     do jj = 1, nElec
-      if (abs(gfilling(jj)) >= epsilon(1.0_dp)) then
-        Cg(:,jj) = gfilling(jj)*M(:,jj)
+      if (abs(groundFill(jj)) >= epsilon(1.0_dp)) then
+        groundMOs(:,jj) = groundFill(jj) * work(:,jj)
       end if
     end do
 
-    !! Rotate e into corresponding orbital basis and isolate the occupied MOs
-    M = matmul(e,transpose(vt))
-    Ce(:,:) = 0.0_dp
+    !! Rotate excited MOs into corresponding orbital basis and isolate the occupied MOs
+    work = matmul(excitedC,transpose(vt))
+    excitedMOs(:,:) = 0.0_dp
     do jj = 1, nElec
-      Ce(:,jj) = 0.0_dp
-      if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
-        Ce(:,jj) = mfilling(jj)*M(:,jj)
+      excitedMOs(:,jj) = 0.0_dp
+      if (abs(mixedFill(jj)) >= epsilon(1.0_dp)) then
+        excitedMOs(:,jj) = mixedFill(jj) * work(:,jj)
       end if
     end do
-    if (mfilling(nElec)==0.0_dp) then
-      do jj = nElec, size(mFilling) ! Could just as well start from nElec+1 here (see condition)
-        if (abs(mfilling(jj)) >= epsilon(1.0_dp)) then
-          Ce(:,nElec) = mfilling(jj)*M(:,jj)
+    if (mixedFill(nElec) == 0.0_dp) then
+      do jj = nElec, size(mixedFill) ! Could just as well start from nElec+1 here (see condition)
+        if (abs(mixedFill(jj)) >= epsilon(1.0_dp)) then
+          excitedMOs(:,nElec) = mixedFill(jj) * work(:,jj)
         end if
       end do
     end if
 
-    pt = matmul(Cg,transpose(Ce))
+    transitionDM = matmul(groundMOs,transpose(excitedMOs))
 
   end subroutine tiTDM
 
@@ -603,7 +609,7 @@ contains
   !> Evaluate transition dipole for time independent excitation
   subroutine tiTraDip(tiMatG, tiMatE, tiMatPT, neighbourlist, nNeighbourSK, orb, denseDesc,&
       & iSparseStart, img2CentCell, rhoPrimSize, over, tiTraCharges, transitionDipoleMoment, q0,&
-      & coord, iAtInCentralRegion, gfilling, mfilling, env)
+      & coord, iAtInCentralRegion, groundFill, mixedFill, env)
 
     !> DFTB ground state MO eigenvectors
     real(dp), intent(inout) :: tiMatG(:,:,:)
@@ -654,10 +660,10 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> ground state filling for TDM
-    real(dp), intent(in) :: gfilling(:,:,:)
+    real(dp), intent(in) :: groundFill(:,:,:)
 
     !> mixed-spin excited state filling for TDM
-    real(dp), intent(in) :: mfilling(:,:,:)
+    real(dp), intent(in) :: mixedFill(:,:,:)
 
     !> Sparse representation for transition density matrix
     real(dp), allocatable :: rhoPrim(:,:)
@@ -690,10 +696,10 @@ contains
     tiTraCharges(:,:) = 0.0_dp
 
     ! Corresponding orbital transformation of stored ground and excited MOs
-    do iSpin = 1, size(gfilling, dim=3)
+    do iSpin = 1, size(groundFill, dim=3)
 
-      call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, gfilling(:,1,iSpin),&
-          & mfilling(:,1,iSpin))
+      call tiTDM(tiMatG(:,:,iSpin), tiMatE(:,:,iSpin), tiMatPT, groundFill(:,1,iSpin),&
+          & mixedFill(:,1,iSpin))
 
       ! Matrix of transition density
       tiTransitionDensity(:,:, iSpin) = tiMatPT
