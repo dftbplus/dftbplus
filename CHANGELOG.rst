@@ -58,8 +58,8 @@ Changed
 - Use least squares solution instead of inversion for XLBOMD force
   corrections
 
-- Removes SCC keyword if using hybrid functionals (as these should always
-  be SCC)
+- Raise error if a non-SCC calculation is using hybrid functionals
+  (this should always be SCC)
 
 Fixed
 -----
