@@ -859,41 +859,6 @@ contains
       call setNodeName(ch1, "Hybrid")
     end if
 
-    call getDescendant(root, "Hamiltonian/DFTB/Hybrid", ch1)
-    if (associated(ch1)) then
-      ! test if old input was actually SCC
-      isScc = .true.
-      call getDescendant(root, "Hamiltonian/DFTB/SCC", ch2, parent=par)
-      if (.not. associated(ch2)) then
-        isScc = .false.
-      else
-        call getChildValue(ch2, "", isScc, child=ch3)
-        call setUnprocessed(ch3)
-      end if
-
-      call getChildValue(ch1, "", hybridAlgorithm, child=ch3)
-      call getNodeName(hybridAlgorithm, buffer)
-
-      ! as this is allowed as an input choice
-      isNoneAlgorithm = tolower(char(buffer)) == "none"
-
-      if (.not.isNoneAlgorithm) then
-        call detailedWarning(ch1, "'Hamiltonian/DFTB/SCC' keyword removed as hybrid calculations&
-            & are always SCC.")
-        dummy => removeChild(par, ch2)
-      end if
-
-      if (.not. isScc .and. .not.isNoneAlgorithm) then
-        call detailedError(ch1, "Old input versions (<14) require SCC=Yes explicitly for hybrid&
-            & functional calculations.")
-      end if
-
-      call setUnprocessed(ch3)
-      call setUnprocessed(ch2)
-      call setUnprocessed(ch1)
-
-    end if
-
     call getDescendant(root, "Hamiltonian/DFTB/Filling/MethfesselPaxton", ch1)
     if (.not.associated(ch1)) then
       call getDescendant(root, "Hamiltonian/xTB/Filling/MethfesselPaxton", ch1)

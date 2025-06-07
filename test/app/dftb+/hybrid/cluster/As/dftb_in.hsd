@@ -3,6 +3,7 @@ Geometry = genFormat {
 }
 
 Hamiltonian = DFTB {
+    Scc = Yes
     SCCTolerance = 1.0E-8
     MaxSCCIterations = 1000
     MaxAngularMomentum = {

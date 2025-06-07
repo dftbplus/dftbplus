@@ -1437,13 +1437,15 @@ contains
 
     call parseChimes(node, ctrl%chimesRepInput)
 
+    ! SCC
+    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+
     call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geo, skFiles)
 
     if (allocated(ctrl%hybridXcInp)) then
-      ctrl%tSCC = .true.
-    else
-      ! SCC
-      call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+      if (.not.ctrl%tSCC) then
+        call detailedError(node, "Hybrid calculations require SCC = Yes")
+      end if
     end if
 
     if (ctrl%tSCC) then
@@ -1563,129 +1565,133 @@ contains
     call readKPoints(node, ctrl, geo, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
-    call getChild(node, "OrbitalPotential", child, requested=.false.)
-    if (associated(child)) then
-      allocate(ctrl%dftbUInp)
-      call getChildValue(child, "Functional", buffer, "fll")
-      select case(tolower(char(buffer)))
-      case ("fll")
-        ctrl%dftbUInp%iFunctional = plusUFunctionals%fll
-      case ("psic")
-        ctrl%dftbUInp%iFunctional = plusUFunctionals%pSic
-      case default
-        call detailedError(child,"Unknown orbital functional :"// char(buffer))
-      end select
+    if (ctrl%tscc) then
 
-      allocate(ctrl%dftbUInp%nUJ(geo%nSpecies))
-      ctrl%dftbUInp%nUJ(:) = 0
+      call getChild(node, "OrbitalPotential", child, requested=.false.)
+      if (associated(child)) then
+        allocate(ctrl%dftbUInp)
+        call getChildValue(child, "Functional", buffer, "fll")
+        select case(tolower(char(buffer)))
+        case ("fll")
+          ctrl%dftbUInp%iFunctional = plusUFunctionals%fll
+        case ("psic")
+          ctrl%dftbUInp%iFunctional = plusUFunctionals%pSic
+        case default
+          call detailedError(child,"Unknown orbital functional :"// char(buffer))
+        end select
 
-      ! to hold list of U-J values for each atom
-      allocate(lrN(geo%nSpecies))
-      ! to hold count of U-J values for each atom
-      allocate(liN(geo%nSpecies))
-      ! to hold list of shells for each U-J block of values
-      allocate(li1N(geo%nSpecies))
+        allocate(ctrl%dftbUInp%nUJ(geo%nSpecies))
+        ctrl%dftbUInp%nUJ(:) = 0
 
-      do iSp1 = 1, geo%nSpecies
-        call init(lrN(iSp1))
-        call init(liN(iSp1))
-        call init(li1N(iSp1))
-        call getChildren(child, trim(geo%speciesNames(iSp1)), children)
-        ctrl%dftbUInp%nUJ(iSp1) = getLength(children)
-        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
-          call getItem1(children, ii, child2)
+        ! to hold list of U-J values for each atom
+        allocate(lrN(geo%nSpecies))
+        ! to hold count of U-J values for each atom
+        allocate(liN(geo%nSpecies))
+        ! to hold list of shells for each U-J block of values
+        allocate(li1N(geo%nSpecies))
 
-          call init(li)
-          call getChildValue(child2,"Shells",li)
-          allocate(pTmpI1(len(li)))
-          call asArray(li,pTmpI1)
-          call append(li1N(iSp1),pTmpI1)
-          call append(liN(iSp1),size(pTmpI1))
-          deallocate(pTmpI1)
-          call destruct(li)
-          call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
-              & child=child3)
-          call convertUnitHsd(char(modifier), energyUnits, child3, rTmp)
-          if (rTmp < 0.0_dp) then
-            write(errorStr,"(F12.8)")rTmp
-            call detailedError(child2,"Negative value of U-J:"//errorStr)
-          end if
-          if (rTmp <= 1.0E-10_dp) then
-            write(errorStr,"(F12.8)")rTmp
-            call detailedError(child2,"Invalid value of U-J, too small: " &
-                & //errorStr)
-          end if
-          call append(lrN(iSp1),rTmp)
+        do iSp1 = 1, geo%nSpecies
+          call init(lrN(iSp1))
+          call init(liN(iSp1))
+          call init(li1N(iSp1))
+          call getChildren(child, trim(geo%speciesNames(iSp1)), children)
+          ctrl%dftbUInp%nUJ(iSp1) = getLength(children)
+          do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+            call getItem1(children, ii, child2)
+
+            call init(li)
+            call getChildValue(child2,"Shells",li)
+            allocate(pTmpI1(len(li)))
+            call asArray(li,pTmpI1)
+            call append(li1N(iSp1),pTmpI1)
+            call append(liN(iSp1),size(pTmpI1))
+            deallocate(pTmpI1)
+            call destruct(li)
+            call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
+                & child=child3)
+            call convertUnitHsd(char(modifier), energyUnits, child3, rTmp)
+            if (rTmp < 0.0_dp) then
+              write(errorStr,"(F12.8)")rTmp
+              call detailedError(child2,"Negative value of U-J:"//errorStr)
+            end if
+            if (rTmp <= 1.0E-10_dp) then
+              write(errorStr,"(F12.8)")rTmp
+              call detailedError(child2,"Invalid value of U-J, too small: " &
+                  & //errorStr)
+            end if
+            call append(lrN(iSp1),rTmp)
+          end do
+          call destroyNodeList(children)
         end do
-        call destroyNodeList(children)
-      end do
 
-      do iSp1 = 1, geo%nSpecies
-        ctrl%dftbUInp%nUJ(iSp1) = len(lrN(iSp1))
-      end do
-      allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
-      ctrl%dftbUInp%UJ(:,:) = 0.0_dp
-      allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
-      ctrl%dftbUInp%niUJ(:,:) = 0
-      do iSp1 = 1, geo%nSpecies
-        call asArray(lrN(iSp1),ctrl%dftbUInp%UJ(1:len(lrN(iSp1)),iSp1))
-        allocate(iTmpN(len(liN(iSp1))))
-        call asArray(liN(iSp1),iTmpN)
-        ctrl%dftbUInp%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
-        deallocate(iTmpN)
-        call destruct(lrN(iSp1))
-        call destruct(liN(iSp1))
-      end do
-      allocate(ctrl%dftbUInp%iUJ(maxval(ctrl%dftbUInp%niUJ),&
-          & maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
-      ctrl%dftbUInp%iUJ(:,:,:) = 0
-      do iSp1 = 1, geo%nSpecies
-        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
-          allocate(iTmpN(ctrl%dftbUInp%niUJ(ii,iSp1)))
-          call get(li1N(iSp1),iTmpN,ii)
-          ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
+        do iSp1 = 1, geo%nSpecies
+          ctrl%dftbUInp%nUJ(iSp1) = len(lrN(iSp1))
+        end do
+        allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+        ctrl%dftbUInp%UJ(:,:) = 0.0_dp
+        allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+        ctrl%dftbUInp%niUJ(:,:) = 0
+        do iSp1 = 1, geo%nSpecies
+          call asArray(lrN(iSp1),ctrl%dftbUInp%UJ(1:len(lrN(iSp1)),iSp1))
+          allocate(iTmpN(len(liN(iSp1))))
+          call asArray(liN(iSp1),iTmpN)
+          ctrl%dftbUInp%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
           deallocate(iTmpN)
+          call destruct(lrN(iSp1))
+          call destruct(liN(iSp1))
         end do
-        call destruct(li1N(iSp1))
-      end do
-
-      deallocate(li1N)
-      deallocate(lrN)
-      deallocate(liN)
-
-      ! check input values
-      allocate(iTmpN(slako%orb%mShell))
-      do iSp1 = 1, geo%nSpecies
-        iTmpN = 0
-        ! loop over number of blocks for that species
-        do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
-          iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) = &
-              & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
+        allocate(ctrl%dftbUInp%iUJ(maxval(ctrl%dftbUInp%niUJ),&
+            & maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+        ctrl%dftbUInp%iUJ(:,:,:) = 0
+        do iSp1 = 1, geo%nSpecies
+          do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+            allocate(iTmpN(ctrl%dftbUInp%niUJ(ii,iSp1)))
+            call get(li1N(iSp1),iTmpN,ii)
+            ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
+            deallocate(iTmpN)
+          end do
+          call destruct(li1N(iSp1))
         end do
-        if (any(iTmpN(:)>1)) then
-          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
-          write(stdout, "(A,A3,A,I2)") &
-              & 'The count for the occurrence of shells of species ', &
-              & trim(geo%speciesNames(iSp1)),' are:'
-          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
-          call abortProgram()
-        end if
-      end do
-      deallocate(iTmpN)
 
-    end if
+        deallocate(li1N)
+        deallocate(lrN)
+        deallocate(liN)
 
-    ! On-site
-    call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
-    if (associated(value1)) then
-      allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
-            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
-            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
-      end do
+        ! check input values
+        allocate(iTmpN(slako%orb%mShell))
+        do iSp1 = 1, geo%nSpecies
+          iTmpN = 0
+          ! loop over number of blocks for that species
+          do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
+            iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) = &
+                & iTmpN(ctrl%dftbUInp%iUJ(1:ctrl%dftbUInp%niUJ(ii,iSp1),ii,iSp1)) + 1
+          end do
+          if (any(iTmpN(:)>1)) then
+            write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
+            write(stdout, "(A,A3,A,I2)") &
+                & 'The count for the occurrence of shells of species ', &
+                & trim(geo%speciesNames(iSp1)),' are:'
+            write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
+            call abortProgram()
+          end if
+        end do
+        deallocate(iTmpN)
+
+      end if
+
+      ! On-site
+      call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
+          & dummyValue=.true.)
+      if (associated(value1)) then
+        allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
+        do iSp1 = 1, geo%nSpecies
+          call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
+          call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+              & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
+        end do
+      end if
+
     end if
 
     ! Dispersion
