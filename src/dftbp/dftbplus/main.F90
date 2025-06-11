@@ -5014,7 +5014,7 @@ contains
 
   !> Update delta density matrix rather than merely q for hybrid xc-functionals.
   subroutine getNextInputDensityPauli(ints, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-      & img2CentCell, chrgMixerCplx, qOutput, orb, tHelical, iGeoStep, iSccIter, minSccIter,&
+      & img2CentCell, chrgMixerCmplx, qOutput, orb, tHelical, iGeoStep, iSccIter, minSccIter,&
       & maxSccIter, sccTol, tStopScc, tReadChrg, q0, hybridXc, qInput, sccErrorQ, tConverged,&
       & densityMatrix, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut, errStatus)
 
@@ -5037,7 +5037,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Charge mixing object
-    class(TMixerCmplx), intent(inout) :: chrgMixerCplx
+    class(TMixerCmplx), intent(inout) :: chrgMixerCmplx
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -5140,7 +5140,7 @@ contains
           call unpackHS(SSqrReal, ints%overlap, neighbourList%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         end if
-        call chrgMixerCplx%mix(densityMatrix%deltaRhoInCplx, deltaRhoDiffSqr)
+        call chrgMixerCmplx%mix(densityMatrix%deltaRhoInCplx, deltaRhoDiffSqr)
         call denseMullikenPauli(densityMatrix%deltaRhoInCplx, sSqrReal, denseDesc%iAtomStart,&
             & qInput)
 
