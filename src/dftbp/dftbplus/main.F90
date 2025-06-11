@@ -539,7 +539,7 @@ contains
             & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
             & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
             & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
-            & this%pChrgMixerReal, this%tWriteBandDat, this%taggedWriter, this%tWriteAutotest,&
+            & this%chrgMixerReal, this%tWriteBandDat, this%taggedWriter, this%tWriteAutotest,&
             & autotestTag, this%tWriteResultsTag, resultsTag, this%tWriteDetailedOut,&
             & this%fdDetailedOut%unit, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
             & this%tPeriodic, this%tHelical, this%tMulliken, errStatus)
