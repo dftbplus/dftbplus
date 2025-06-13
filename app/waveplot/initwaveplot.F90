@@ -19,7 +19,7 @@ module waveplot_initwaveplot
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+  use dftbp_dftb_boundarycond, only : boundaryConditionList, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&
@@ -344,11 +344,11 @@ contains
   #:endif
 
     if (this%input%geo%tPeriodic) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditionList%pbc3d, errStatus)
     else if (this%input%geo%tHelical) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditionList%helical, errStatus)
     else
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+      call TBoundaryConditions_init(this%boundaryCond, boundaryConditionList%cluster, errStatus)
     end if
     if (errStatus%hasError()) call error(errStatus%message)
 

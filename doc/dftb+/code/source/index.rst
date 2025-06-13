@@ -11,6 +11,7 @@ Welcome to DFTB+ code design's documentation!
    :caption: Contents:
 
    buildsystem.rst
+   fortranpatterns.rst
    testing.rst
    
 
