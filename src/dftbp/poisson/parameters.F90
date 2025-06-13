@@ -109,6 +109,29 @@ module dftbp_poisson_parameters
 
   character(:), allocatable, public :: scratchfolder
 
+  !> Enumerator containing possible Poisson boundary conditions
+  type, private :: TBCPoissonEnum_
+
+    !> Unset
+    integer :: Unset = -1
+
+    !> Periodic on face
+    integer :: Periodic = 0
+
+    !> Potential specified at the cell edge
+    integer :: Dirichlet = 1
+
+    !> Derivative specified at the cell edge
+    integer :: Neumann = 2
+
+  end type TBCPoissonEnum_
+
+  !> Actual instance of the boundary condition enumerator
+  type(TBCPoissonEnum_), parameter, public :: bcPoissonList = TBCPoissonEnum_()
+
+  ! Note, order corresponds to TBCPoissonEnum_
+  character(10), parameter, public :: bcPoissonNames(-1:2) =&
+      & [ character(10) :: "Unset", "Periodic", "Dirichlet", "Neumann" ]
 
   contains
 
@@ -131,8 +154,8 @@ module dftbp_poisson_parameters
     maxiter=30
     localBC=0
     poissBC=0
-    overrideBC=0
-    overrBulkBC=-1
+    overrideBC(:) = 0
+    overrBulkBC(:) = -1
     mixed = .false.
     maxpoissiter=60
 

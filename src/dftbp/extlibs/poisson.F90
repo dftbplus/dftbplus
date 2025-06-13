@@ -19,6 +19,7 @@ module dftbp_extlibs_poisson
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
+  use dftbp_poisson_parameters, only : bcPoissonList
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_barrier, mpifx_bcast
@@ -628,8 +629,8 @@ contains
       dR_cont = poissoninfo%bufferLocBC
       bufferBox = poissoninfo%bufferBox
       SavePot = poissoninfo%savePotential
-      overrideBC = poissoninfo%overrideBC
-      overrBulkBC = poissoninfo%overrBulkBC
+      overrideBC(:) = poissoninfo%overrideBC
+      overrBulkBC(:) = poissoninfo%overrBulkBC
       !-----------------------------------------------------------------------------+
       ! Gate settings
       DoGate=.false.
@@ -666,9 +667,7 @@ contains
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      if (any(overrideBC.ne.0)) then
-        period = .false.
-      end if
+      period = all(overrideBC == bcPoissonList%periodic)
       call check_parameters()
       call check_localbc()
       call write_parameters()
