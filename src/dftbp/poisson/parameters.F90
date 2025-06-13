@@ -154,8 +154,8 @@ module dftbp_poisson_parameters
     maxiter=30
     localBC=0
     poissBC=0
-    overrideBC(:) = 0
-    overrBulkBC(:) = -1
+    overrideBC(:) = bcPoissonList%periodic
+    overrBulkBC(:) = bcPoissonList%unset
     mixed = .false.
     maxpoissiter=60
 
