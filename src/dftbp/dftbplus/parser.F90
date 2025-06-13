@@ -52,6 +52,7 @@ module dftbp_dftbplus_parser
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_poisson, only : TPoissonInfo, withPoisson
+  use dftbp_poisson_parameters, only : poissonBCsEnum, bcPoissonNames
   use dftbp_extlibs_sdftd3, only : dampingFunction, TSDFTD3Input
   use dftbp_extlibs_tblite, only : tbliteMethod
   use dftbp_extlibs_xmlf90, only : assignment(=), char, destroyNode, destroyNodeList, fnode,&
@@ -6542,16 +6543,19 @@ contains
     call getChildValue(pNode, "RecomputeAfterDensity", updateSccAfterDiag, .false.)
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
-    poisson%overrideBC(:) = 0
+    poisson%overrideBC(:) = poissonBCsEnum%periodic
     call getChild(pNode, "OverrideDefaultBC", pTmp, requested=.false.)
     if (associated(pTmp)) then
-      call getPoissonBoundaryConditionOverrides(pTmp, [ 1, 2 ], poisson%overrideBC)
+      call getPoissonBoundaryConditionOverrides(pTmp,&
+          & [ poissonBCsEnum%dirichlet, poissonBCsEnum%neumann ], poisson%overrideBC)
     end if
 
     call getChildValue(pNode, "OverrideBulkBC", pTmp, "none")
-    poisson%overrBulkBC(:) = -1
+    poisson%overrBulkBC(:) = poissonBCsEnum%unset
     if (associated(pTmp)) then
-      call getPoissonBoundaryConditionOverrides(pTmp, [ 0, 1, 2 ], poisson%overrBulkBC)
+      call getPoissonBoundaryConditionOverrides(pTmp,&
+          & [ poissonBCsEnum%periodic, poissonBCsEnum%dirichlet, poissonBCsEnum%neumann ],&
+          & poisson%overrBulkBC)
     end if
 
     call getChildValue(pNode, "BoundaryRegion", pTmp, "global")
@@ -6655,26 +6659,22 @@ contains
     !> Array of boundary condition types on the 6 faces of the box, 0 for use of default
     integer, intent(inout) :: overrideBC(:)
 
-    integer, parameter :: PERIODIC_BC = 0
-    integer, parameter :: DIRICHLET_BC = 1
-    integer, parameter :: NEUMANN_BC = 2
-    character(10), parameter :: bcstr(0:2) = &
-        & [ character(10) :: "Periodic", "Dirichlet", "Neumann" ]
     integer :: bctype, iBC
     integer :: faceBC, oppositeBC
     integer :: ii
     type(TListString) :: lStr
     type(fnode), pointer :: pNode2, pChild
     character(lc) :: strTmp
+    character(1), parameter :: sDirs(3) = ['x','y','z']
 
     do iBC = 1, size(availableConditions)
       bctype = availableConditions(iBC)
-      call getChild(pNode, trim(bcstr(bctype)), pNode2, requested=.false.)
+      call getChild(pNode, trim(bcPoissonNames(bctype)), pNode2, requested=.false.)
       if (associated(pNode2)) then
         call init(lStr)
         call getChildValue(pNode2, "boundaries", lStr, child=pChild)
         if (len(lStr).gt.6) then
-          call detailedError(pChild,"boundaries must be 6 or less")
+          call detailedError(pChild,"A maximum of 6 boundaries (or fewer) can be set")
         end if
         do ii = 1, len(lStr)
           call get(lStr, strTmp, ii)
@@ -6706,14 +6706,12 @@ contains
       end if
     end do
 
-    ! If face is set to periodic, opposite one should be the same
+    ! If a face is set to be periodic, the opposite one should be of the same type
     do ii = 1, 3
       faceBC = overrideBC(2 * ii)
       oppositeBC = overrideBC(2 * ii - 1)
-      if (faceBC == PERIODIC_BC &
-          & .and. oppositeBC /= faceBC) then
-        call detailedError(pChild, &
-            & "periodic override must be set both min max")
+      if (faceBC == poissonBCsEnum%periodic .neqv. oppositeBC == poissonBCsEnum%periodic) then
+        call detailedError(pChild, "Periodic override must be set both min max along "//sDirs(ii))
       end if
     end do
 
