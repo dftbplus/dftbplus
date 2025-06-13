@@ -20,7 +20,7 @@ module dftbp_dftb_boundarycond
   implicit none
 
   private
-  public :: zAxis, boundaryConditions, TBoundaryConditions, TBoundaryConditions_init
+  public :: zAxis, boundaryConditionList, TBoundaryConditions, TBoundaryConditions_init
 
 #:set FLAVOURS = [('complex', 'cplx'), ('real', 'real')]
 
@@ -47,12 +47,12 @@ module dftbp_dftb_boundarycond
 
 
   !> Actual instance of the boundary condition enumerator
-  type(TBoundaryConditionEnum_), parameter :: boundaryConditions = TBoundaryConditionEnum_()
+  type(TBoundaryConditionEnum_), parameter :: boundaryConditionList = TBoundaryConditionEnum_()
 
 
   type TBoundaryConditions
 
-    integer :: iBoundaryCondition = boundaryConditions%unknown
+    integer :: iBoundaryCondition = boundaryConditionList%unknown
 
   contains
 
@@ -83,8 +83,8 @@ contains
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
 
-    if (.not. any([boundaryConditions%cluster, boundaryConditions%pbc3d,&
-        & boundaryConditions%helical] == iBoundaryCondition)) then
+    if (.not. any([boundaryConditionList%cluster, boundaryConditionList%pbc3d,&
+        & boundaryConditionList%helical] == iBoundaryCondition)) then
       @:RAISE_ERROR(errStatus, -1, "Unknown boundary condition specified")
     end if
 
@@ -128,13 +128,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster, boundaryConditions%pbc3d)
+    case(boundaryConditionList%cluster, boundaryConditionList%pbc3d)
 
       ! orbitals all in the same orientation in space
 
       return
 
-    case(boundaryConditions%helical)
+    case(boundaryConditionList%helical)
 
       if (iAt1 == iAt2) then
         return
@@ -188,13 +188,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster, boundaryConditions%pbc3d)
+    case(boundaryConditionList%cluster, boundaryConditionList%pbc3d)
 
       ! orbitals all in the same orientation in space
 
       return
 
-    case(boundaryConditions%helical)
+    case(boundaryConditionList%helical)
 
       if (iAt1 == iAt2) then
         return
@@ -240,7 +240,7 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%helical)
+    case(boundaryConditionList%helical)
 
       do iAt = 1, nAtom
         deltaTheta = atan2(coords0(2,iAt),coords0(1,iAt)) - atan2(coords(2,iAt),coords(1,iAt))
@@ -279,13 +279,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster)
+    case(boundaryConditionList%cluster)
 
       ! No unit cell to fold into
 
       return
 
-    case(boundaryConditions%pbc3d)
+    case(boundaryConditionList%pbc3d)
 
       call invert33(invLatVecs, latVec)
       vecLen(:) = sqrt(sum(latVec**2, dim=1))
@@ -297,7 +297,7 @@ contains
         coord(:, iAt) = matmul(latVec, frac2)
       end do
 
-    case(boundaryConditions%helical)
+    case(boundaryConditionList%helical)
 
       do iAt = 1, nAtom
         jj = floor(coord(3,iAt)/latVec(1,1))

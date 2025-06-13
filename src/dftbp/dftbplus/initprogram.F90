@@ -24,7 +24,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
   use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
+  use dftbp_dftb_boundarycond, only : boundaryConditionList, TBoundaryConditions,&
       & TBoundaryConditions_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
@@ -5846,7 +5846,7 @@ contains
       call error("Non-collinear spin only available for matrix alogorithm hybrids at present.")
     end if
 
-    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster)&
+    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition/=boundaryConditionList%cluster)&
         & then
       call error("Non-collinear spin only available for hybrids with molecular systems at present.")
     end if
@@ -6743,11 +6743,11 @@ contains
     tHelical = input%geom%tHelical
 
     if (tPeriodic) then
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
+      call TBoundaryConditions_init(boundaryCond, boundaryConditionList%pbc3d, errStatus)
     else if (tHelical) then
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%helical, errStatus)
+      call TBoundaryConditions_init(boundaryCond, boundaryConditionList%helical, errStatus)
     else
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%cluster, errStatus)
+      call TBoundaryConditions_init(boundaryCond, boundaryConditionList%cluster, errStatus)
     end if
     @:PROPAGATE_ERROR(errStatus)
 
@@ -6983,7 +6983,7 @@ contains
     call move_alloc(poissonInput, sccInput%poissonInput)
 
     sccInput%boundaryCond = boundaryCond
-    if (boundaryCond == boundaryConditions%helical) then
+    if (boundaryCond == boundaryConditionList%helical) then
       call error("Scc calculations not currently supported for helical boundary conditions")
     end if
 
