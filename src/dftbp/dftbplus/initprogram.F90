@@ -142,9 +142,9 @@ module dftbp_dftbplus_initprogram
 #:endif
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
-  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init
-  use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init, transportPeriodicSetup
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
   implicit none
 
   private
@@ -224,6 +224,9 @@ module dftbp_dftbplus_initprogram
     !> Are atomic coordinates fractional?
     logical :: tFracCoord
 
+    !> If the extended structure outside of the central cell be outputed, name of file
+    character(lc) :: extendedGeomFile = ""
+
     !> Tolerance for SCC cycle
     real(dp) :: sccTol
 
@@ -242,7 +245,7 @@ module dftbp_dftbplus_initprogram
     !> Normalized vectors in those directions
     real(dp) :: normOrigLatVec(3,3)
 
-    !> Reciprocal vectors in 2 pi units
+    !> Reciprocal vectors in 2 pi units / inverse of the lattice vector matrix
     real(dp), allocatable :: invLatVec(:,:)
 
     !> Cell volume
@@ -268,6 +271,9 @@ module dftbp_dftbplus_initprogram
 
     !> ADT for neighbour parameters, symmetric version for CAM calculations
     type(TAuxNeighbourList), allocatable :: symNeighbourList
+
+    !> ADT for neighbour parameters, for dispersion and transport calculations
+    type(TAuxNeighbourList), allocatable :: extndDisprtnNeighbourList
 
     !> Nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
@@ -1040,9 +1046,9 @@ module dftbp_dftbplus_initprogram
 
   #:if WITH_TRANSPORT
     !> Transport variables
-    type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
   #:endif
+    type(TTransPar) :: transpar
 
     !> Transport interface (may be dummy placeholder, if built without transport)
     type(TNegfInt) :: negfInt
@@ -1368,10 +1374,14 @@ contains
       call error("Colinear spin polarization required for shared Ef over spin channels")
     end if
 
-    call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
+
+    call initGeometry_(env, input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
-        & errStatus)
+        & input%transpar, errStatus)
     if (errStatus%hasError()) call error(errStatus%message)
 
     ! Get species names and output file
@@ -1471,8 +1481,6 @@ contains
       call error("Multiple MPI groups not available for excited state calculations")
     end if
 
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
-
     if (this%isHybridXc) then
       if ((.not. this%tRealHS)&
           & .and. (input%ctrl%parallelOpts%nGroup > this%nIndepSpin * this%nKPoint**2)&
@@ -1530,6 +1538,14 @@ contains
           & boundary conditions!")
     end if
     this%tFracCoord = input%geom%tFracCoord
+
+    if (input%ctrl%areAllAtomsPrinted .and. isIoProc) then
+      if (len(trim(this%geoOutFile)) > 0) then
+        this%extendedGeomFile = "extendedGeom_"//trim(this%geoOutFile)//".xyz"
+      else
+        this%extendedGeomFile = "extendedGeom.xyz"
+      end if
+    end if
 
     ! no point if not SCC
     this%isSccConvRequired = (input%ctrl%isSccConvRequired .and. this%tSccCalc)
@@ -1669,6 +1685,9 @@ contains
     if (this%tUpload) then
       call initUploadArrays_(input%transpar, this%orb, this%nSpin, this%tMixBlockCharges,&
           & this%shiftPerLUp, this%chargeUp, this%blockUp)
+      if (input%transpar%ncont < 1) then
+        call error("At least one contact is required for an UploadContacts task")
+      end if
     end if
     call initTransport_(this, env, input, this%electronicSolver, this%nSpin, this%tempElec,&
         & this%tNegf, this%isAContactCalc, this%mu, this%negfInt, this%ginfo, this%transpar,&
@@ -2157,10 +2176,10 @@ contains
 
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, this%latVec)
         else if (this%tHelical) then
-          call error("Slater-Kirkwood incompatible with helical boundary conditions")
+          call error("Slater-Kirkwood currently incompatible with helical boundary conditions")
         else
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
@@ -2168,7 +2187,7 @@ contains
 
       elseif (allocated(input%ctrl%dispInp%uff)) then
         allocate(uff)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom, this%species0, this%latVec)
         else
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom)
@@ -2179,7 +2198,7 @@ contains
         block
           type(TSDFTD3), allocatable :: dftd3
           allocate(dftd3)
-          if (this%tPeriodic) then
+          if (this%tPeriodic .and. this%transpar%nCont == 0) then
             call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
                 & this%speciesName, this%coord0, this%latVec)
           else
@@ -2191,13 +2210,14 @@ contains
 
       else if (allocated(input%ctrl%dispInp%sdftd3)) then
         allocate(sdftd3)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName,&
               & this%latVec)
         else
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName)
         end if
         call move_alloc(sdftd3, this%dispersion)
+
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (allocated(this%reks)) then
@@ -2205,6 +2225,9 @@ contains
             call error("Calculation of self-consistent dftd4 is not currently compatible with&
                 & force calculation in REKS")
           end if
+        end if
+        if (this%transpar%nCont /= 0) then
+          call error("DFTD4 model not currently supported for transport calculations")
         end if
         if (this%tPeriodic) then
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName, this%latVec)
@@ -2223,6 +2246,8 @@ contains
             call error("Calculation of self-consistent MBD/TS is not currently compatible with&
                 & force calculation in REKS")
           end if
+        else if (this%transpar%nCont /= 0) then
+          call error("MBD model not currently supported for transport calculations")
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
@@ -2241,17 +2266,11 @@ contains
               & which may result in long gradient calculation times for large systems")
         end if
     #:endif
+
       end if
 
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
-    #:if WITH_TRANSPORT
-      if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
-        if (allocated(this%dispersion)) then
-          call error ("Dispersion interactions are not currently available for transport&
-              & calculations")
-        end if
-      end if
-    #:endif
+
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -2776,6 +2795,20 @@ contains
 
     end if
 
+  #:if WITH_TRANSPORT
+    if (this%transpar%nCont /= 0) then
+      ! Set up storage for extended geometries used by transport
+
+      if (allocated(this%dispersion)) then
+        call initAuxDispGeometry_(this%extndDisprtnNeighbourList, this%transpar, this%nAtom,&
+            & this%nAllAtom, this%coord0, this%species0, this%dispersion%getRCutOff(),&
+            & nInitNeighbour)
+        call writeXYZAuxGeometry(env, this%extndDisprtnNeighbourList, input%geom%speciesNames)
+      end if
+
+    end if
+  #:endif
+
     call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
         & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
     if (errStatus%hasError()) call error(errStatus%message)
@@ -2926,9 +2959,6 @@ contains
   #:endif
 
     if (this%tNegf) then
-      if (allocated(this%dispersion)) then
-        call error("Dispersion not currently available with transport calculations")
-      end if
       if (this%isLinResp) then
         call error("Linear response is not compatible with transport calculations")
       end if
@@ -5074,6 +5104,9 @@ contains
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
+    if (len(trim(this%extendedGeomFile)) > 0) then
+      call clearFile(trim(this%extendedGeomFile))
+    end if
     if (allocated(this%electrostatPot)) then
       call clearFile(this%electrostatPot%espOutFile)
     end if
@@ -6681,17 +6714,20 @@ contains
 
 
   !> Initializes the variables directly related to the user specified geometry.
-  subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
+  subroutine initGeometry_(env, input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol, errStatus)
+      & recCellVol, transpar, errStatus)
 
-    !> Geometry input
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Input variables to use for setput
     type(TInputData), intent(in) :: input
 
-    !> Total number of atoms, including images
+    !> Number of unique atoms in the system
     integer, intent(out) :: nAtom
 
-    !> Number of chemical types
+    !> Number of chemical types of atoms
     integer, intent(out) :: nType
 
     !> Is this a periodic geometry
@@ -6700,13 +6736,13 @@ contains
     !> Is this a helical geometry
     logical, intent(out) :: tHelical
 
-    !> Boundary conditions
+    !> Boundary conditions on the calculation
     type(TBoundaryConditions), intent(out) :: boundaryCond
 
-    !> Central cell coordinates
+    !> Coordinates of the central cell atoms
     real(dp), allocatable, intent(out) :: coord0(:,:)
 
-    !> Central cell chemical species
+    !> Species of the central cell atoms
     integer, allocatable, intent(out) :: species0(:)
 
     !> Have the coordinates been updated without updating dependent variables
@@ -6733,6 +6769,9 @@ contains
     !> Volume of the reciprocal space unit cell
     real(dp), intent(out) :: recCellVol
 
+    !> Transport calculation parameters
+    type(TTransPar), intent(in) :: transpar
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
 
@@ -6751,41 +6790,147 @@ contains
     end if
     @:PROPAGATE_ERROR(errStatus)
 
+  #:if WITH_TRANSPORT
+    if (tPeriodic) then
+       call transportPeriodicSetup(input%transpar, input%geom%latVecs, boundaryCond)
+    end if
+  #:endif
+
     coord0 = input%geom%coords
     species0 = input%geom%species
+
     tCoordsChanged = .true.
 
-    cellVol = 0.0_dp
-    recCellVol = 0.0_dp
+    tLatticeChanged = .false.
     if (tPeriodic) then
       tLatticeChanged = .true.
       latVec = input%geom%latVecs
       origin = input%geom%origin
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
-      invLatVec(:,:) = latVec
-      call invert33(invLatVec)
-      invLatVec = reshape(invLatVec, [3, 3], order=[2, 1])
-      recVec = 2.0_dp * pi * invLatVec
-      cellVol = abs(determinant33(latVec))
-      recCellVol = abs(determinant33(recVec))
-    elseif (tHelical) then
+    else if (tHelical) then
       origin = input%geom%origin
       latVec = input%geom%latVecs
-      allocate(recVec(1, 1))
-      recVec = 1.0_dp / latVec(1,1)
+      allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
     else
       allocate(latVec(0, 0))
       allocate(origin(0))
       allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
-      cellVol = 0.0_dp
-      recCellVol = 0.0_dp
-      tLatticeChanged = .false.
     end if
 
+    call boundaryCond%handleBoundaryChanges(latVec, invLatVec, recVec, cellVol, recCellVol)
+
   end subroutine initGeometry_
+
+
+  !> Set-up auxiliary geometry for dispersion with transport
+  subroutine initAuxDispGeometry_(extndDisprtnNeighbourList, transpar, nAtom, nAllAtom, coord0,&
+      & species0, cutOff, nInitNeighbour)
+
+    !> ADT for neighbour parameters
+    type(TAuxNeighbourList), allocatable, intent(inout) :: extndDisprtnNeighbourList
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> Number of unique atoms in the system
+    integer, intent(out) :: nAtom
+
+    !> Number of atoms including images in the system
+    integer, intent(out) :: nAllAtom
+
+    !> Coordinates of the central cell atoms
+    real(dp), allocatable, intent(in) :: coord0(:,:)
+
+    !> Species of the central cell atoms
+    integer, allocatable, intent(in) :: species0(:)
+
+    !> Distance at which contact atoms stop interacting with the device region
+    real(dp), intent(in) :: cutOff
+
+    !> First guess for nr. of neighbours
+    integer, intent(in) :: nInitNeighbour
+
+    integer, allocatable :: nExtraContAtoms(:), nRepeat(:)
+    integer :: iCont, nContAts, iStart, iEnd, iStart2, iStructOffSet, iAt, iRepeat, nContAt
+    real(dp) :: contactVector(3)
+
+    allocate(extndDisprtnNeighbourList)
+
+    call TAuxNeighbourList_init(extndDisprtnNeighbourList, nAtom, nAllAtom, nInitNeighbour)
+
+    ! Store cutoff used to extend contacts
+    extndDisprtnNeighbourList%cutOff = cutOff
+
+    ! Count atoms in extend contact regions for dispersion up to the interaction distance
+    allocate(nExtraContAtoms(transpar%ncont), source=0)
+    allocate(nRepeat(transpar%ncont), source=0)
+    do iCont = 1, transpar%ncont
+      iStart = transpar%contacts(iCont)%idxrange(1)
+      iEnd = transpar%contacts(iCont)%idxrange(2)
+      iStart2 = iStart + (iEnd - iStart + 1) / 2
+      ! Vector pointing into contact, away from device:
+      contactVector(:) = coord0(:,iStart2) - coord0(:,iStart)
+      ! As there are 2 principal layers already in coord0 :
+      nRepeat(iCont) = ceiling(cutOff/norm2(contactVector)) - 2
+      nExtraContAtoms(iCont) = nRepeat(iCont) * (iStart2 - iStart)
+    end do
+
+    extndDisprtnNeighbourList%nAtom0 = nAtom + sum(nExtraContAtoms)
+    allocate(extndDisprtnNeighbourList%coord0(3, extndDisprtnNeighbourList%nAtom0),&
+        & source=0.0_dp)
+    allocate(extndDisprtnNeighbourList%Species0(extndDisprtnNeighbourList%nAtom0), source=0)
+    ! Store existing geometry
+    extndDisprtnNeighbourList%coord0(:, :nAtom) = coord0
+    extndDisprtnNeighbourList%Species0(:nAtom) = species0
+
+    ! Store extra atoms on ends of contacts
+    iStructOffSet = nAtom
+    do iCont = 1, transpar%ncont
+      iStart = transpar%contacts(iCont)%idxrange(1)
+      iEnd = transpar%contacts(iCont)%idxrange(2)
+      iStart2 = iStart + (iEnd - iStart + 1) / 2
+      nContAt = iStart2 - iStart
+      ! Vector pointing into contact, away from device:
+      contactVector(:) = coord0(:,iStart2) - coord0(:,iStart)
+      do iRepeat = 1, nRepeat(iCont)
+        extndDisprtnNeighbourList%Species0(iStructOffSet+1:iStructOffSet+nContAt) =&
+            & species0(transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(1)&
+            & + nContAt-1)
+        extndDisprtnNeighbourList%coord0(:, iStructOffSet+1:iStructOffSet+nContAt) =&
+            & coord0(:,transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(1)&
+            & + nContAt-1)
+        do iAt = iStructOffSet+1, iStructOffSet+nContAt
+          extndDisprtnNeighbourList%coord0(:, iAt) = extndDisprtnNeighbourList%coord0(:, iAt)&
+              & + real(iRepeat,dp) * contactVector
+        end do
+        iStructOffSet = iStructOffSet + nContAt
+      end do
+    end do
+
+  end subroutine initAuxDispGeometry_
+
+
+  subroutine writeXYZAuxGeometry(env, extndDisprtnNeighbourList, speciesNames)
+    use dftbp_io_formatout, only : writeXYZFormat
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> ADT for neighbour parameters
+    type(TAuxNeighbourList), intent(in) :: extndDisprtnNeighbourList
+
+    !> Names of chemical species
+    character(*), intent(in) :: speciesNames(:)
+
+    if (env%tGlobalLead) then
+      call writeXYZFormat("contactedTmp.xyz", extndDisprtnNeighbourList%coord0,&
+          & extndDisprtnNeighbourList%Species0, speciesNames)
+    end if
+
+  end subroutine writeXYZAuxGeometry
 
 
   !> Initializes short gamma damping

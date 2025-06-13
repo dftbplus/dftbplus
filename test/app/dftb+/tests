@@ -303,6 +303,7 @@ dispersion/GaAs_dftd4                  #? MPI_PROCS <= 2
 dispersion/2H2O_dftd4_sc               #? MPI_PROCS <= 1
 dispersion/diamond_dftd4_sc            #? MPI_PROCS <= 2
 dispersion/GaAs_dftd4_sc               #? MPI_PROCS <= 2
+dispersion/C6H6_sdftd3_transp          #? WITH_TRANSPORT and MPI_PROCS <= 2
 geoopt/H2O-nonscc                      #? MPI_PROCS <= 1
 geoopt/H2O_sd                          #? MPI_PROCS <= 1
 geoopt/H2O_sd_old                      #? MPI_PROCS <= 1
