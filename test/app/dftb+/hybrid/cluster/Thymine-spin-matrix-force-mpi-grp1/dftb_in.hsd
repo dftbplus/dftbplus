@@ -4,6 +4,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
 
+  SCC = Yes
   SCCTolerance = 1.0e-10
 
   Mixer = Broyden {}

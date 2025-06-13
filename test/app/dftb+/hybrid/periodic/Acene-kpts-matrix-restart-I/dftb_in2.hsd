@@ -4,6 +4,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
 
+  SCC = Yes
   SccTolerance = 1e-10
   ReadInitialCharges = Yes
   MaxSccIterations = 3
