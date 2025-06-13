@@ -11,7 +11,7 @@
 module dftbp_dftb_extcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
   use dftbp_dftb_coulomb, only : TCoulomb
   implicit none
 
@@ -168,7 +168,7 @@ contains
     real(dp), intent(in) :: latVecs(:,:)
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryConds
+    type(TBoundaryConds), intent(in) :: boundaryConds
 
     @:ASSERT(this%tInitialized .and. this%tPeriodic)
 

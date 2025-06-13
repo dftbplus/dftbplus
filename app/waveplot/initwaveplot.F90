@@ -19,8 +19,8 @@ module waveplot_initwaveplot
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
-      & TBoundaryConditions_init
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+      & TBoundaryConds_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&
       & getNodeName, string
@@ -211,7 +211,7 @@ module waveplot_initwaveplot
     type(TOption) :: opt
 
     !> Boundary condition
-    type(TBoundaryConditions) :: boundaryCond
+    type(TBoundaryConds) :: boundaryCond
 
     !> Data of Basis block
     type(TBasis) :: basis
@@ -344,11 +344,11 @@ contains
   #:endif
 
     if (this%input%geo%tPeriodic) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%pbc3d, errStatus)
     else if (this%input%geo%tHelical) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%helical, errStatus)
     else
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%cluster, errStatus)
     end if
     if (errStatus%hasError()) call error(errStatus%message)
 

@@ -15,7 +15,7 @@
 module dftbp_math_sparseblas
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag, pi
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_SCALAPACK
   use dftbp_common_blacsenv, only : TBlacsEnv
@@ -181,7 +181,7 @@ contains
     ${typename}$(dp), intent(in) :: x(:)
 
     !> Boundary conditions on the system
-    type(TBoundaryConditions), intent(in) :: bcs
+    type(TBoundaryConds), intent(in) :: bcs
 
     !> Atom neighbour list
     integer, intent(in) :: iNeighbour(0:,:)
@@ -389,7 +389,7 @@ contains
     complex(dp), intent(in) :: x(:)
 
     !> Boundary conditions on the system
-    type(TBoundaryConditions), intent(in) :: bcs
+    type(TBoundaryConds), intent(in) :: bcs
 
     !> Atom neighbour list
     integer, intent(in) :: iNeighbour(0:,:)
@@ -648,7 +648,7 @@ contains
     ${typename}$(dp), intent(in) :: B(:,:)
 
     !> Boundary conditions on the system
-    type(TBoundaryConditions), intent(in) :: bcs
+    type(TBoundaryConds), intent(in) :: bcs
 
     !> Atom neighbour list
     integer, intent(in) :: iNeighbour(0:,:)
@@ -952,7 +952,7 @@ contains
     complex(dp), intent(in) :: B(:,:)
 
     !> Boundary conditions on the system
-    type(TBoundaryConditions), intent(in) :: bcs
+    type(TBoundaryConds), intent(in) :: bcs
 
     !> Atom neighbour list
     integer, intent(in) :: iNeighbour(0:,:)

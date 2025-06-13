@@ -24,8 +24,8 @@ module dftbp_dftbplus_initprogram
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
   use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
-      & TBoundaryConditions_init
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+      & TBoundaryConds_init
   use dftbp_dftb_coulomb, only : TCoulombInput
   use dftbp_dftb_dense, only : buildSquaredAtomIndex
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
@@ -1154,7 +1154,7 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: dQAtomEx(:)
 
     !> Boundary condition
-    type(TBoundaryConditions) :: boundaryCond
+    type(TBoundaryConds) :: boundaryCond
 
     !> Whether the order of the atoms matter. Typically the case, when properties were specified
     !> based on atom numbers (e.g. custom occupations). In that case setting a different order
@@ -5910,7 +5910,7 @@ contains
       call error("Non-collinear spin only available for matrix alogorithm hybrids at present.")
     end if
 
-    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition /= boundaryConditions%cluster)&
+    if (this%nSpin == 4 .and. this%boundaryCond%iBoundaryCondition/=boundaryCondsEnum%cluster)&
         & then
       call error("Non-collinear spin only available for hybrids with molecular systems at present.")
     end if
@@ -6765,7 +6765,7 @@ contains
     logical, intent(out) :: tHelical
 
     !> Boundary conditions
-    type(TBoundaryConditions), intent(out) :: boundaryCond
+    type(TBoundaryConds), intent(out) :: boundaryCond
 
     !> Central cell coordinates
     real(dp), allocatable, intent(out) :: coord0(:,:)
@@ -6807,11 +6807,11 @@ contains
     tHelical = input%geom%tHelical
 
     if (tPeriodic) then
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%pbc3d, errStatus)
+      call TBoundaryConds_init(boundaryCond, boundaryCondsEnum%pbc3d, errStatus)
     else if (tHelical) then
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%helical, errStatus)
+      call TBoundaryConds_init(boundaryCond, boundaryCondsEnum%helical, errStatus)
     else
-      call TBoundaryConditions_init(boundaryCond, boundaryConditions%cluster, errStatus)
+      call TBoundaryConds_init(boundaryCond, boundaryCondsEnum%cluster, errStatus)
     end if
     @:PROPAGATE_ERROR(errStatus)
 
@@ -7103,7 +7103,7 @@ contains
     call move_alloc(poissonInput, sccInput%poissonInput)
 
     sccInput%boundaryCond = boundaryCond
-    if (boundaryCond == boundaryConditions%helical) then
+    if (boundaryCond == boundaryCondsEnum%helical) then
       call error("Scc calculations not currently supported for helical boundary conditions")
     end if
 

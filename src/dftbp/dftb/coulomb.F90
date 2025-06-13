@@ -14,7 +14,7 @@ module dftbp_dftb_coulomb
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks,&
       & distributeRangeInChunks2
-  use dftbp_dftb_boundarycond, only : boundaryConditions
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum
   use dftbp_dftb_periodic, only : getCellTranslations, getLatticePoints, TNeighbourList
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : hemv
@@ -50,7 +50,7 @@ module dftbp_dftb_coulomb
     real(dp) :: tolEwald = 0.0_dp
 
     !> Boundary condition
-    integer :: boundaryCond = boundaryConditions%unknown
+    integer :: boundaryCond = boundaryCondsEnum%unknown
 
   end type TCoulombInput
 
@@ -203,7 +203,7 @@ module dftbp_dftb_coulomb
 
   !> Boundary conditions the module can handle
   integer, parameter :: implementedBoundaryConds_(*) = [&
-      & boundaryConditions%cluster, boundaryConditions%pbc3d]
+      & boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d]
 
 
 contains
@@ -235,7 +235,7 @@ contains
 
     this%boundaryCond_ = input%boundaryCond
 
-    if (this%boundaryCond_ == boundaryConditions%pbc3d) then
+    if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
       this%alpha = input%ewaldAlpha
       this%autoEwald_ = this%alpha <= 0.0_dp
       this%tolEwald_ = input%tolEwald
@@ -291,13 +291,13 @@ contains
     !> Central cell chemical species
     integer, intent(in) :: species(:)
 
-    if (this%boundaryCond_ == boundaryConditions%pbc3d) then
+    if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
       call this%neighList_%updateCoords(coords(:, 1:this%nAtom_))
     end if
 
     ! If process is outside of atom grid, skip invRMat calculation
     if (allocated(this%invRMat)) then
-      if (this%boundaryCond_ == boundaryConditions%pbc3d) then
+      if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
         call invRPeriodic(env, this%nAtom_, coords, this%neighList_, this%gLatPoints_, this%alpha,&
             & this%volume_, this%invRMat)
       else
@@ -432,14 +432,14 @@ contains
 
     ! 1/R contribution
     if (present(dQOutAtom)) then
-      if (this%boundaryCond_ == boundaryConditions%pbc3d) then
+      if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
         call addInvRPrimeXlbomd(env, this%nAtom_, coords, this%neighList_, this%gLatPoints_,&
             & this%alpha, this%volume_, this%deltaQAtom_, dQOutAtom, gradients)
       else
         call addInvRPrimeXlbomd(env, this%nAtom_, coords, this%deltaQAtom_, dQOutAtom, gradients)
       end if
     else
-      if (this%boundaryCond_ == boundaryConditions%pbc3d) then
+      if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
         call addInvRPrime(env, this%nAtom_, coords, this%neighList_, this%gLatPoints_, this%alpha,&
             & this%volume_, this%deltaQAtom_, gradients)
       else
@@ -2654,7 +2654,7 @@ contains
     !> Short distance softening
     real(dp), intent(in), optional :: epsSoften
 
-    if (this%boundaryCond_ == boundaryConditions%cluster) then
+    if (this%boundaryCond_ == boundaryCondsEnum%cluster) then
       call sumInvRClusterAsymm(env, size(coords, dim=2), size(charges), coords, chargeCoords,&
           & charges, potential, blurWidths1=blurWidths, epsSoften=epsSoften)
     else
@@ -2700,7 +2700,7 @@ contains
     !> If gaussian distribution for the charge
     real(dp), intent(in), optional :: extChargeBlurWidths(:)
 
-    if (this%boundaryCond_ == boundaryConditions%cluster) then
+    if (this%boundaryCond_ == boundaryCondsEnum%cluster) then
       call addInvRPrimeClusterAsymm(env, size(atomCharges), size(extCharges), atomCoords,&
           & extChargeCoords, atomCharges, extCharges, atomGrads, extChargeGrads, tHamDeriv,&
           & extChargeBlurWidths)

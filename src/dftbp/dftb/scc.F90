@@ -11,7 +11,7 @@
 module dftbp_dftb_scc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
@@ -61,7 +61,7 @@ module dftbp_dftb_scc
     type(TPoissonInput), allocatable :: poissonInput
 
     !> Boundary condition of the system
-    integer :: boundaryCond = boundaryConditions%unknown
+    integer :: boundaryCond = boundaryCondsEnum%unknown
 
   end type TSccInput
 
@@ -211,7 +211,7 @@ module dftbp_dftb_scc
 
   ! Boundary conditions the module can handle
   integer, parameter :: implementedBoundaryConds_(*) =&
-      & [boundaryConditions%cluster, boundaryConditions%pbc3d]
+      & [boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d]
 
 
 contains
@@ -262,7 +262,7 @@ contains
       #:endblock
     end select
 
-    this%tPeriodic = (input%boundaryCond == boundaryConditions%pbc3d)
+    this%tPeriodic = (input%boundaryCond == boundaryCondsEnum%pbc3d)
 
     ! Initialise external charges
     if (allocated(input%extCharges)) then
@@ -375,7 +375,7 @@ contains
     real(dp), intent(in) :: recVec(:,:)
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryConds
+    type(TBoundaryConds), intent(in) :: boundaryConds
 
     !> New volume
     real(dp), intent(in) :: vol
