@@ -23,7 +23,7 @@ module dftbp_timedep_timeprop
   use dftbp_common_status, only : TStatus
   use dftbp_common_timer, only : TTimer
   use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_dftbplusu, only : TDftbU
   use dftbp_dftb_dispersions, only : TDispersionIface
@@ -975,7 +975,7 @@ contains
     type(TElecDynamics) :: this
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecs(:,:,:)
@@ -1161,7 +1161,7 @@ contains
     type(TElecDynamics) :: this
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -3684,7 +3684,7 @@ contains
     type(TElecDynamics), intent(inout), target :: this
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3)
 
@@ -3863,7 +3863,7 @@ contains
     type(TElecDynamics), intent(inout), target :: this
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
@@ -4259,7 +4259,7 @@ contains
     type(TElecDynamics), intent(inout), target :: this
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Current step of the propagation
     integer, intent(in) :: iStep
@@ -4548,7 +4548,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), intent(inout), allocatable :: hybridXc

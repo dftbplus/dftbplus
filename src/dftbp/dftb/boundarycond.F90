@@ -20,7 +20,7 @@ module dftbp_dftb_boundarycond
   implicit none
 
   private
-  public :: zAxis, boundaryConditions, TBoundaryConditions, TBoundaryConditions_init
+  public :: zAxis, boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
 
 #:set FLAVOURS = [('complex', 'cplx'), ('real', 'real')]
 
@@ -47,12 +47,12 @@ module dftbp_dftb_boundarycond
 
 
   !> Actual instance of the boundary condition enumerator
-  type(TBoundaryConditionEnum_), parameter :: boundaryConditions = TBoundaryConditionEnum_()
+  type(TBoundaryConditionEnum_), parameter :: boundaryCondsEnum = TBoundaryConditionEnum_()
 
 
-  type TBoundaryConditions
+  type TBoundaryConds
 
-    integer :: iBoundaryCondition = boundaryConditions%unknown
+    integer :: iBoundaryCondition = boundaryCondsEnum%unknown
 
   contains
 
@@ -68,14 +68,14 @@ module dftbp_dftb_boundarycond
 
     procedure :: foldCoordsToCell
 
-  end type TBoundaryConditions
+  end type TBoundaryConds
 
 contains
 
-  subroutine TBoundaryConditions_init(this, iBoundaryCondition, errStatus)
+  subroutine TBoundaryConds_init(this, iBoundaryCondition, errStatus)
 
     !> Instance
-    type(TBoundaryConditions), intent(out) :: this
+    type(TBoundaryConds), intent(out) :: this
 
     !> Boundary condition choice
     integer, intent(in) :: iBoundaryCondition
@@ -83,14 +83,14 @@ contains
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
 
-    if (.not. any([boundaryConditions%cluster, boundaryConditions%pbc3d,&
-        & boundaryConditions%helical] == iBoundaryCondition)) then
+    if (.not. any([boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d,&
+        & boundaryCondsEnum%helical] == iBoundaryCondition)) then
       @:RAISE_ERROR(errStatus, -1, "Unknown boundary condition specified")
     end if
 
     this%iBoundaryCondition = iBoundaryCondition
 
-  end subroutine TBoundaryConditions_init
+  end subroutine TBoundaryConds_init
 
 
 #:for TYPE, LABEL in FLAVOURS
@@ -100,7 +100,7 @@ contains
       & img2CentCell, orb)
 
     !> Instance
-    class(TBoundaryConditions), intent(in) :: this
+    class(TBoundaryConds), intent(in) :: this
 
     !> Basis set expanded quantity to manipulate as per boundary conditions
     ${TYPE}$(dp), intent(inout) :: sqrBlock(:,:)
@@ -128,13 +128,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster, boundaryConditions%pbc3d)
+    case(boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d)
 
       ! orbitals all in the same orientation in space
 
       return
 
-    case(boundaryConditions%helical)
+    case(boundaryCondsEnum%helical)
 
       if (iAt1 == iAt2) then
         return
@@ -160,7 +160,7 @@ contains
       & img2CentCell, orb)
 
     !> Instance
-    class(TBoundaryConditions), intent(in) :: this
+    class(TBoundaryConds), intent(in) :: this
 
     !> Basis set expanded quantity to manipulate as per boundary conditions
     ${TYPE}$(dp), intent(inout) :: sqrBlock(:,:)
@@ -188,13 +188,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster, boundaryConditions%pbc3d)
+    case(boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d)
 
       ! orbitals all in the same orientation in space
 
       return
 
-    case(boundaryConditions%helical)
+    case(boundaryCondsEnum%helical)
 
       if (iAt1 == iAt2) then
         return
@@ -221,7 +221,7 @@ contains
   subroutine alignVectorCentralCell(this, vectors, coords, coords0, nAtom)
 
     !> Instance
-    class(TBoundaryConditions), intent(in) :: this
+    class(TBoundaryConds), intent(in) :: this
 
     !> Vectors to transform
     real(dp), intent(inout) :: vectors(:,:)
@@ -240,7 +240,7 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%helical)
+    case(boundaryCondsEnum%helical)
 
       do iAt = 1, nAtom
         deltaTheta = atan2(coords0(2,iAt),coords0(1,iAt)) - atan2(coords(2,iAt),coords(1,iAt))
@@ -264,7 +264,7 @@ contains
   subroutine foldCoordsToCell(this, coord, latVec)
 
     !> Instance
-    class(TBoundaryConditions), intent(in) :: this
+    class(TBoundaryConds), intent(in) :: this
 
     !> Contains the original coordinates on call and the folded ones on return.
     real(dp), intent(inout) :: coord(:,:)
@@ -279,13 +279,13 @@ contains
 
     select case(this%iBoundaryCondition)
 
-    case(boundaryConditions%cluster)
+    case(boundaryCondsEnum%cluster)
 
       ! No unit cell to fold into
 
       return
 
-    case(boundaryConditions%pbc3d)
+    case(boundaryCondsEnum%pbc3d)
 
       call invert33(invLatVecs, latVec)
       vecLen(:) = sqrt(sum(latVec**2, dim=1))
@@ -297,7 +297,7 @@ contains
         coord(:, iAt) = matmul(latVec, frac2)
       end do
 
-    case(boundaryConditions%helical)
+    case(boundaryCondsEnum%helical)
 
       do iAt = 1, nAtom
         jj = floor(coord(3,iAt)/latVec(1,1))

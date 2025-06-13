@@ -19,7 +19,7 @@ module dftbp_dftbplus_main
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : dipoleAdd, getHessianMatrix, next, polAdd, TNumderivs
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
   use dftbp_dftb_determinants, only : determinants, TDftbDeterminants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -2191,7 +2191,7 @@ contains
     real(dp), allocatable, intent(out) :: rCellVecs(:,:)
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
@@ -2243,7 +2243,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryCond
+    type(TBoundaryConds), intent(in) :: boundaryCond
 
     !> Central cell coordinates
     real(dp), intent(in) :: coord0(:,:)
@@ -6704,7 +6704,7 @@ contains
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Boundary conditions on the geometry
-    type(TBoundaryConditions), intent(in) :: boundaryConds
+    type(TBoundaryConds), intent(in) :: boundaryConds
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
