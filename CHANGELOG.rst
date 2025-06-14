@@ -96,6 +96,8 @@ Fixed
 
 - Remove duplicate printing of internal energy in results.tag
 
+- Correct testing for incompatible Poisson boundary overrides when
+  only one side of the box is marked as periodic
 
 24.1 (2024-02-12)
 =================
