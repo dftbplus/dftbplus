@@ -6676,8 +6676,8 @@ contains
           & [ poissonBCsEnum%dirichlet, poissonBCsEnum%neumann ], poisson%overrideBC)
     end if
 
-    call getChildValue(pNode, "OverrideBulkBC", pTmp, "none")
     poisson%overrBulkBC(:) = poissonBCsEnum%unset
+    call getChild(pNode, "OverrideBulkBC", pTmp, requested=.false.)
     if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp,&
           & [ poissonBCsEnum%periodic, poissonBCsEnum%dirichlet, poissonBCsEnum%neumann ],&
