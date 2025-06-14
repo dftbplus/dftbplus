@@ -6674,7 +6674,7 @@ contains
         call init(lStr)
         call getChildValue(pNode2, "boundaries", lStr, child=pChild)
         if (len(lStr).gt.6) then
-          call detailedError(pChild,"A maximum of boundaries (or fewer) can be set")
+          call detailedError(pChild,"A maximum of 6 boundaries (or fewer) can be set")
         end if
         do ii = 1, len(lStr)
           call get(lStr, strTmp, ii)
