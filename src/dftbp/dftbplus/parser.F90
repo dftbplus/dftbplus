@@ -6551,7 +6551,7 @@ contains
     end if
 
     poisson%overrBulkBC(:) = bcPoissonList%unset
-    call getChildValue(pNode, "OverrideBulkBC", pTmp, "none", requested=.false.)
+    call getChild(pNode, "OverrideBulkBC", pTmp, requested=.false.)
     if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp,&
           & [ bcPoissonList%Periodic, bcPoissonList%Dirichlet, bcPoissonList%Neumann ],&
