@@ -667,7 +667,7 @@ contains
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      period = all(overrideBC == bcPoissonList%periodic)
+      period = period .and. all(overrideBC == bcPoissonList%periodic)
       call check_parameters()
       call check_localbc()
       call write_parameters()
