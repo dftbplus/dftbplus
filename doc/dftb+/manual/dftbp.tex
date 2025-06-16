@@ -1396,6 +1396,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
+  \kw{Mdftb} & m & SCC = Yes & \is{None} & \pref{sec:dftbp.Mdftb} \\
   \kw{Hybrid} & p &  & \is{None} & \pref{sec:dftbp.Hybrid} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
@@ -3908,6 +3909,66 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 \end{description}
+
+\subsection{Mdftb}
+\label{sec:dftbp.Mdftb}
+\index{Mdftb}
+
+The \kw{Mdftb} keyword specifies the use of a multipole expansion (mDFTB)
+\cite{vuong-jctc-19-7592}. The \kw{Mdftb} keyword expects either \is{None} (default --
+no use of multipole expansion), or the \is{\mbox{OneCenterApproximation}} (on-site approximation)
+block as value. The \is{\mbox{OneCenterApproximation}} block has the following options:
+
+\begin{ptable}
+  \kw{OneCenterAtomIntegrals} & p & & \cb & \\
+  \kw{AtomDIntegralScalings} & p & & \cb & \\
+  \kw{AtomQIntegralScalings} & p & & \cb & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{OneCenterAtomIntegrals}] Specifies the atomic dipole and quadrupole integrals.
+  For each element, appropriate parameters must be specified.
+
+\item[\is{AtomDIntegralScalings}] Specifies empirical scaling factors for the atomic dipole
+  integrals of each element. The default value is 1.0 for all elements.
+
+\item[\is{AtomQIntegralScalings}] Specifies empirical scaling factors for the atomic quadrupole
+  integrals of each element. The default value is 1.0 for all elements.
+\end{description}
+
+Example using mDFTB without empirical scaling atomic dipole and quadrupole moments:
+\begin{verbatim}
+  Mdftb = OneCenterApproximation {
+    OneCenterAtomIntegrals = {
+      H:S|XX|S = 0.55976
+      O:S|X|Px = 0.60894
+      O:S|XX|S = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+  }
+\end{verbatim}
+
+Example using mDFTB with empirical scaling atomic dipole and quadrupole moments:
+\begin{verbatim}
+  Mdftb = OneCenterApproximation {
+    OneCenterAtomIntegrals = {
+      H:S|XX|S = 0.55976
+      O:S|X|Px = 0.60894
+      O:S|XX|S = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+    AtomDIntegralScalings = {
+      H = 1.0
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 1.0
+      O = 3.0
+    }
+  }
+\end{verbatim}
 
 \subsection{Implicit Solvation Model}
 \label{sec:dftbp.Solvation}

@@ -1,0 +1,68 @@
+Geometry = GenFormat {
+5 C
+O H
+1   1   1.2138430000E+00   9.5199000000E-02  -5.9430000000E-02
+2   1  -1.2138570000E+00  -9.5209000000E-02  -5.9416000000E-02
+3   2   4.5000000000E-05  -1.1000000000E-05  -7.1942000000E-02
+4   2   1.4948610000E+00  -6.1842600000E-01   5.1138700000E-01
+5   2  -1.4947950000E+00   6.1851300000E-01   5.1132400000E-01
+}
+
+Hamiltonian = DFTB {
+  Charge = -1
+  SCC = Yes
+  SCCTolerance = 1.0E-9
+  MaxSCCIterations = 300
+  Filling = Fermi {
+    Temperature = 0.0
+  }
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    H = "s"
+    O = "p"
+  }
+
+  ThirdOrderFull = Yes
+  HubbardDerivs = {
+    H = -0.1857
+    O = -0.1575
+  }
+
+  Mdftb = OneCenterApproximation {
+    AtomDIntegralScalings = {
+      H = 0.0
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 0.0
+      O = 3.0
+    }
+    OneCenterAtomIntegrals = {
+      H:S|XX|S   = 0.55976
+      O:S|X|Px   = 0.60894
+      O:S|XX|S   = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+  }
+
+  SlaterKosterFiles = Type2Filenames {
+    Prefix = {slakos/origin/m3ob-test/}
+    Suffix = ".skf"
+    Separator = "-"
+  }
+}
+
+ParserOptions = {
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
+}
+
+Analysis = {
+  PrintForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+}

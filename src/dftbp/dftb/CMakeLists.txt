@@ -34,6 +34,7 @@ set(sources-fpp
   ${curdir}/halogenx.F90
   ${curdir}/hamiltonian.F90
   ${curdir}/hybridxc.F90
+  ${curdir}/mdftb.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
