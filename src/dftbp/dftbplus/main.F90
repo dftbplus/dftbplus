@@ -1703,12 +1703,9 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      ! Turn off the test for the case when mdftb is active:
-      if (.not. allocated(this%mdftb)) then
-        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
-            & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
-      end if
+      call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
+          & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+          & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
     #:endblock DEBUG_CODE
       if (allocated(this%mdftb)) then
         call this%mdftb%addAtomicDipoleMoment(&
@@ -5766,7 +5763,6 @@ contains
 
   #:block DEBUG_CODE
     if (nDipole > 0) then
-      @:ASSERT(iHamiltonianType == hamiltonianTypes%xtb)
       allocate(potentialGradDeriv(nDipole, nAtom))
     end if
   #:endblock DEBUG_CODE
@@ -5781,7 +5777,7 @@ contains
       call addShift(env, hprime, ints%overlap, nNeighbourSK, neighbourList%iNeighbour, species,&
           & orb, iSparseStart, nAtom, img2CentCell, potentialDerivative, .true.)
 
-      if (nDipole > 0) then
+      if (nDipole > 0 .and. iHamiltonianType == hamiltonianTypes%xtb) then
         potentialGradDeriv(:,:) = 0.0_dp
         potentialGradDeriv(iCart,:) = -eFieldScaling%scaledExtEField(1.0_dp)
 

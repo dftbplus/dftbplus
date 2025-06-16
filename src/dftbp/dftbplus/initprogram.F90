@@ -2483,6 +2483,9 @@ contains
         call error("Dispersion (particularly charge dependent) not currently implemented for&
             & perturbation")
       end if
+      if (this%isMdftb) then
+        call error("Multipoles currently not currently implemented for perturbation")
+      end if
 
       if (this%isEResp) then
         allocate(this%polarisability(3, 3, size(this%dynRespEFreq)))
@@ -6988,6 +6991,9 @@ contains
     end if
     if (allocated(this%reks)) then
       call error("DFTB multipole expansion currently incompatible with REKS calculations")
+    end if
+    if (this%isHybridXc) then
+      call error("DFTB multipole expansion currently incompatible with hybrid calculations")
     end if
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
