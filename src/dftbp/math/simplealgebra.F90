@@ -13,7 +13,7 @@ module dftbp_math_simplealgebra
   implicit none
 
   private
-  public :: cross3, determinant33, derivDeterminant33, invert33, diagonal
+  public :: cross3, derivDeterminant33, determinant33, diagonal, invert33, removeTrace
 
   interface invert33
     module procedure invertInOut
@@ -145,7 +145,7 @@ contains
 
 
   !> Extract diagonal of a 3x3 matrix
-  function diagonal(A)
+  pure function diagonal(A)
 
     !> Matrix
     real(dp), intent(in) :: A(3,3)
@@ -160,5 +160,28 @@ contains
     end do
 
   end function diagonal
+
+
+  !> Remove the trace of a square matrix, subtracting equal fractions from each diagonal entry
+  subroutine removeTrace(A)
+
+    !> Matrix to process
+    real(dp), intent(inout) :: A(:,:)
+
+    real(dp) :: trace
+    integer :: ii
+
+    @:ASSERT(size(A, dim=1) == size(A, dim=2))
+
+    trace = 0.0_dp
+    do ii = 1, size(A, dim=2)
+      trace = trace + A(ii, ii)
+    end do
+    trace = trace / real(size(A, dim=2), dp)
+    do ii = 1, size(A, dim=2)
+      A(ii, ii) = A(ii, ii) - trace
+    end do
+
+  end subroutine removeTrace
 
 end module dftbp_math_simplealgebra

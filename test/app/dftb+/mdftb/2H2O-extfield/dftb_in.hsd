@@ -1,33 +1,36 @@
 Geometry = GenFormat {
-5 C
+6 C
 O H
-     1   1    3.8876254973730453E+00   -4.8775371915421566E+00   -2.2272609690180327E+00
-     2   1    2.3746035101536540E+00   -5.6231268128969649E+00   -3.9836331048077911E+00
-     3   2    3.1376971549748363E+00   -5.2609235037776756E+00   -3.1065501682615602E+00
-     4   2    3.3006303639409169E+00   -4.6441901786653093E+00   -1.5095913449245713E+00
-     5   2    2.3638368048678799E+00   -4.8895755354984249E+00   -4.5967040649847180E+00
+1   1   1.4980340000E+00   5.7000000000E-05  -1.2036000000E-01
+2   2   1.9212430000E+00  -3.5700000000E-04   7.3654400000E-01
+3   2   5.5003100000E-01  -3.2000000000E-05   6.0744000000E-02
+4   1  -1.3873420000E+00  -5.1000000000E-05   1.1675300000E-01
+5   2  -1.6783850000E+00   7.6269000000E-01  -3.8388900000E-01
+6   2  -1.6784220000E+00  -7.6234900000E-01  -3.8454400000E-01
 }
 
 Hamiltonian = DFTB {
-  Charge = -1
   SCC = Yes
   SCCTolerance = 1.0E-9
-  MaxSCCIterations = 300
   Filling = Fermi {
-    Temperature = 0.0
+    Temperature = 100.0
   }
   Mixer = Broyden {}
   MaxAngularMomentum = {
     H = "s"
     O = "p"
   }
-
   ThirdOrderFull = Yes
   HubbardDerivs = {
     H = -0.1857
     O = -0.1575
   }
-
+  ElectricField = {
+    External = {
+      Direction = 1.0 0.0 0.0
+      Strength = 1.0E-3
+    }
+  }
   Mdftb = OneCenterApproximation {
     AtomDIntegralScalings = {
       H = 0.0
@@ -45,7 +48,6 @@ Hamiltonian = DFTB {
       O:Py|XX|Py = 0.27964
     }
   }
-
   SlaterKosterFiles = Type2Filenames {
     Prefix = {slakos/origin/m3ob-test/}
     Suffix = ".skf"
@@ -55,7 +57,6 @@ Hamiltonian = DFTB {
 
 ParserOptions = {
   ParserVersion = 14
-  IgnoreUnprocessedNodes = No
 }
 
 Analysis = {
@@ -64,7 +65,6 @@ Analysis = {
 
 Options = {
   WriteAutotestTag = Yes
-  WriteResultsTag = Yes
 }
 
 Parallel{

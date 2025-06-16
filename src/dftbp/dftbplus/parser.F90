@@ -5307,8 +5307,8 @@ contains
           call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
           call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
           call append(ctrl%iAtInRegion, pTmpI1)
-          call getChildValue(child2, "ShellResolved", &
-              & ctrl%tShellResInRegion(iReg), .false., child=child3)
+          call getChildValue(child2, "ShellResolved", ctrl%tShellResInRegion(iReg), .false.,&
+              & child=child3)
           if (ctrl%tShellResInRegion(iReg)) then
             if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
               call detailedError(child3, "Shell resolved PDOS only allowed for &

@@ -91,7 +91,7 @@ module dftbp_dftbplus_main
   use dftbp_math_contactsymm, only : TEquivContactAtoms
   use dftbp_math_lapackroutines, only : posv
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_math_simplealgebra, only : derivDeterminant33, determinant33, invert33
+  use dftbp_math_simplealgebra, only : derivDeterminant33, determinant33, invert33, removeTrace
   use dftbp_md_mdcommon, only : evalKE, evalKT, TMdCommon
   use dftbp_md_mdintegrator, only : next, rescale, TMdIntegrator
   use dftbp_md_tempprofile, only : TTempProfile
@@ -1205,6 +1205,11 @@ contains
             & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
         call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
             & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
+        if (allocated(this%mDftb)) then
+          call this%mDftb%dipoleElements(this%ints%dipoleBra, this%ints%dipoleKet,&
+              & this%ints%overlap, this%species, this%neighbourList%iNeighbour, this%nNeighbourSK,&
+              & this%img2CentCell, this%iSparseStart, this%orb)
+        end if
       case(hamiltonianTypes%xtb)
         @:ASSERT(allocated(this%tblite), "Compiled without TBLITE included")
         call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &
@@ -1425,9 +1430,8 @@ contains
           end if
 
           call getSccHamiltonian(env, this%H0, this%ints, this%nNeighbourSK, this%neighbourList,&
-              & this%species, this%orb, this%iSparseStart, this%img2CentCell,&
-              & this%potential, this%mdftb, allocated(this%reks), this%ints%hamiltonian,&
-              & this%ints%iHamiltonian)
+              & this%species, this%orb, this%iSparseStart, this%img2CentCell, this%potential,&
+              & this%mdftb, allocated(this%reks), this%ints%hamiltonian, this%ints%iHamiltonian)
 
           if (this%tWriteRealHS .or. this%tWriteHS&
               & .and. any(this%electronicSolver%iSolver ==&
@@ -1603,8 +1607,8 @@ contains
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
             & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
-                & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation),&
-                & allocated(this%quadrupoleMoment))
+            & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation),&
+            & allocated(this%quadrupoleMoment))
       end if
     end if
 
@@ -1703,12 +1707,9 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      ! Turn off the test for the case when mdftb is active:
-      if (.not. allocated(this%mdftb)) then
-        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
-            & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
-      end if
+      call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
+          & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+          & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%mDftb, this%nDipole)
     #:endblock DEBUG_CODE
       if (allocated(this%mdftb)) then
         call getQuadrupoleMoment(this%qOutput, this%q0, this%coord, this%quadrupoleMoment,&
@@ -2294,7 +2295,7 @@ contains
     !> Data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
-    !> multipole contributions
+    !> Multipole contributions
     type(TMdftb), allocatable, intent(inout) :: mdftb
 
     !> Image atoms to their equivalent in the central cell
@@ -2636,14 +2637,14 @@ contains
     if (allocated(ints%dipoleKet)) then
       nDipole = size(ints%dipoleKet, 1)
       deallocate(ints%dipoleBra, ints%dipoleKet)
-      allocate(ints%dipoleKet(nDipole, sparseSize))
-      allocate(ints%dipoleBra(nDipole, sparseSize))
+      allocate(ints%dipoleKet(nDipole, sparseSize), source=0.0_dp)
+      allocate(ints%dipoleBra(nDipole, sparseSize), source=0.0_dp)
     end if
     if (allocated(ints%quadrupoleKet)) then
       nQuadrupole = size(ints%quadrupoleKet, 1)
       deallocate(ints%quadrupoleBra, ints%quadrupoleKet)
-      allocate(ints%quadrupoleKet(nQuadrupole, sparseSize))
-      allocate(ints%quadrupoleBra(nQuadrupole, sparseSize))
+      allocate(ints%quadrupoleKet(nQuadrupole, sparseSize), source=0.0_dp)
+      allocate(ints%quadrupoleBra(nQuadrupole, sparseSize), source=0.0_dp)
     end if
 
   end subroutine reallocateSparseArrays
@@ -2931,7 +2932,6 @@ contains
           & eigvecsCplx, rhoSqrReal, densityMatrix, nNeighbourCam, nNeighbourCamSym, deltaDftb,&
           & errStatus)
       @:PROPAGATE_ERROR(errStatus)
-
     case(densityMatrixTypes%elecSolverProvided)
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
@@ -5702,7 +5702,8 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(env, rhoPrim, q0, coord0, ints, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling, iHamiltonianType, nDipole)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling, iHamiltonianType, mDftb,&
+      & nDipole)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5743,11 +5744,14 @@ contains
     !> Hamiltonian type
     integer, intent(in) :: iHamiltonianType
 
+    !> DFTB multipole contributions
+    type(TMdftb), allocatable, intent(in) :: mDftb
+
     !> Number of atomic dipole moment components
     integer, intent(in) :: nDipole
 
     real(dp), allocatable :: hprime(:,:), dipole(:,:), potentialDerivative(:,:)
-    real(dp), allocatable :: potentialGradDeriv(:,:)
+    real(dp), allocatable :: potentialGradDeriv(:,:), Sad(:,:), adS(:,:)
     integer :: nAtom, sparseSize, iAt, iCart
 
     sparseSize = size(ints%overlap)
@@ -5758,12 +5762,13 @@ contains
     write(stdOut,*)
     write(stdOut, "(A)", advance='no') 'Hellmann Feynman dipole:'
 
-  #:block DEBUG_CODE
     if (nDipole > 0) then
-      @:ASSERT(iHamiltonianType == hamiltonianTypes%xtb)
       allocate(potentialGradDeriv(nDipole, nAtom))
+      if (iHamiltonianType == hamiltonianTypes%dftb) then
+        allocate(adS(3, sparseSize), source=0.0_dp)
+        allocate(Sad(3, sparseSize), source=0.0_dp)
+      endif
     end if
-  #:endblock DEBUG_CODE
 
     ! loop over directions
     do iCart = 1, 3
@@ -5779,9 +5784,18 @@ contains
         potentialGradDeriv(:,:) = 0.0_dp
         potentialGradDeriv(iCart,:) = -eFieldScaling%scaledExtEField(1.0_dp)
 
-        call addAtomicMultipoleShift(hPrime, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
-            & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
-            & potentialGradDeriv)
+        select case(iHamiltonianType)
+        case(hamiltonianTypes%xtb)
+          call addAtomicMultipoleShift(hPrime, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
+              & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+              & potentialGradDeriv)
+        case(hamiltonianTypes%dftb)
+          @:ASSERT(allocated(mDftb))
+          call mDftb%dipoleElements(adS, Sad, ints%overlap, species,  neighbourList%iNeighbour,&
+              & nNeighbourSK, img2CentCell, iSparseStart, orb)
+          call addAtomicMultipoleShift(hPrime, adS, Sad, nNeighbourSK, neighbourList%iNeighbour,&
+              & species, orb, iSparseStart, nAtom, img2CentCell, potentialGradDeriv)
+        end select
       end if
 
       dipole(:,:) = 0.0_dp
@@ -5820,7 +5834,7 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     integer :: nAtom, ii, iAtom, jj, ll
-    real(dp) dqAtom, tmpTrace
+    real(dp) dqAtom
 
     nAtom = size(qOutput, dim=2)
     quadrupoleMoment(:,:) = 0.0_dp
@@ -5835,10 +5849,7 @@ contains
       end do
     end do
 
-    tmpTrace = (quadrupoleMoment(1,1) + quadrupoleMoment(2,2) + quadrupoleMoment(3,3)) / 3.0_dp
-    do ii = 1, 3
-      quadrupoleMoment(ii,ii) = quadrupoleMoment(ii,ii) - tmpTrace
-    end do
+    call removeTrace(quadrupoleMoment)
 
   end subroutine getQuadrupoleMoment
 
@@ -6681,7 +6692,7 @@ contains
   end subroutine getEDensityMtxFromPauliEigvecs
 
 
-  !> Calculates the gradients
+  !> Calculates the gradients of energy wrt to atomic positions
   subroutine getGradients(env, parallelKS, boundaryConds, sccCalc, tblite, isExtField, isXlbomd,&
       & nonSccDeriv, rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, repulsive,&
       & neighbourList, symNeighbourList, nNeighbourSK, nNeighbourCamSym, iCellVec, cellVecs,&
@@ -6940,7 +6951,7 @@ contains
       if (allocated(mdftb)) then
         call mdftb%addMultiExpanGradients(derivs, nonSccDeriv, skOverCont, rhoPrim(:,1),&
             & species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart,&
-            & orb, coord)
+            & orb, coord, potential%extDipoleAtom)
       end if
 
       if (allocated(qDepExtPot)) then

@@ -207,6 +207,10 @@ contains
         energy%atomExt(:) = energy%atomExt &
             & + sum(potential%extDipoleAtom * multipole%dipoleAtom(:, :, 1), 1)
       end if
+      if (allocated(potential%extQuadrupoleAtom) .and. allocated(multipole%quadrupoleAtom)) then
+        energy%atomExt(:) = energy%atomExt &
+            & + sum(potential%extQuadrupoleAtom * multipole%quadrupoleAtom(:, :, 1), 1)
+      end if
     end if
     if (allocated(qDepExtPot)) then
       call qDepExtPot%addEnergy(energy%atomExt)
