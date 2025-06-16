@@ -8,17 +8,17 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> Routines implementing the (One-center approximation) multipole expansion for the 2nd order DFTB.
+!> Routines implementing the (one-center approximation) multipole expansion for 2nd order DFTB
 module dftbp_dftb_mdftb
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime, expGammaDoublePrime, expGammaTriplePrime,&
       & expGammaQuadruplePrime, expGammaQuintuplePrime
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_io_message, only : error
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
@@ -54,11 +54,19 @@ module dftbp_dftb_mdftb
   end type TMdftbAtomicIntegrals
 
 
-  !> Input for the MultiExpan module
+  !> Input for the multipole expansion module
   type TMdftbInp
 
-    !> Orbital information
-    integer :: nOrb = 0, nSpin = 0, nSpecies = 0
+    !> Number of atomic orbitals
+    integer :: nOrb = 0
+
+    !> Number of spin channels
+    integer :: nSpin = 0
+
+    !> Number of chemical species
+    integer :: nSpecies = 0
+
+    !> Orbital information structure
     type(TOrbitals), pointer :: orb => null()
 
     !> Hubbard U values for atoms
@@ -75,25 +83,43 @@ module dftbp_dftb_mdftb
 
   !> Internal management for the TMultiExpan.
   type TMdftb
-    integer :: nAtoms = 0, nSpecies = 0, mOrb = 0, nOrb = 0, nSpin = 0
+
+    !> Number of atoms
+    integer :: nAtom = 0
+
+    !> Number of chemical species
+    integer :: nSpecies = 0
+
+    !> Total number of orbitals
+    integer :: nOrb = 0
+
+    !> Number of spin channels
+    integer :: nSpin = 0
 
     !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
 
     !> Species of atoms
-    integer, allocatable :: species(:), nOrbSpecies(:)
-    !> Whether a species has dipole or quadrupole on-site charges (2, nSpecies)
+    integer, allocatable :: species(:)
+
+    !> Number of orbitals for each species
+    integer, allocatable :: nOrbSpecies(:)
+
+    !> Whether atoms of each species have a dipole or quadrupole on-site charge (2, nSpecies)
     logical, allocatable :: hasOnsiteCharges(:,:)
 
     !> Atomic dipole integrals
     real(dp), allocatable :: atomicDIntgrl(:,:,:,:)
+
     !> Atomic quadrupole integrals
     real(dp), allocatable :: atomicQIntgrl(:,:,:,:,:)
 
     !> Mulliken charge per atom
     real(dp), allocatable :: deltaMAtom(:)
+
     !> Dipole charge per atom
     real(dp), allocatable :: deltaDAtom(:,:)
+
     !> Quadrupole charge per atom
     real(dp), allocatable :: deltaQAtom(:,:,:)
 
@@ -106,7 +132,7 @@ module dftbp_dftb_mdftb
     !> Evaluated for the gradient, Atom1, Atom2 at each geometry step
     real(dp), allocatable :: f50AB(:,:,:,:,:,:,:)
 
-    !> Add for the H and the E
+    !> Additions for the hamiltonian and energy
     real(dp), allocatable :: pot10x1Atom(:)
     real(dp), allocatable :: pot20x2Atom(:)
     real(dp), allocatable :: pot10x0Atom(:,:)
@@ -116,7 +142,7 @@ module dftbp_dftb_mdftb
     real(dp), allocatable :: pot21x1Atom(:,:,:)
     real(dp), allocatable :: pot22x2Atom(:,:,:)
 
-    !> Add for the gradient
+    !> Additions for the energy gradient
     real(dp), allocatable :: pot30x0Atom(:,:,:,:)
     real(dp), allocatable :: pot31x1Atom(:,:,:,:)
     real(dp), allocatable :: pot32x2Atom(:,:,:,:)
@@ -134,14 +160,15 @@ module dftbp_dftb_mdftb
     procedure :: addAtomicQuadrupoleMoment
     procedure :: getMultiExpanInfo
     procedure :: getOrbitalEquiv
+    procedure :: dipoleElements
   end type TMdftb
 
 
   !> Number of dipole components (x, y, z)
-  integer, parameter :: dimDipole = 3
+  integer, parameter :: dimDipole_ = 3
 
   !> Number of quadrupole components (xx, xy, yy, xz, yz, zz)
-  integer, parameter :: dimQuadrupole = 6
+  integer, parameter :: dimQuadrupole_ = 6
 
 
 contains
@@ -158,8 +185,8 @@ contains
     !> Number of quadrupole moment components
     integer, intent(out) :: nQuadrupole
 
-    nDipole = dimDipole
-    nQuadrupole = dimQuadrupole
+    nDipole = dimDipole_
+    nQuadrupole = dimQuadrupole_
 
   end subroutine getMultiExpanInfo
 
@@ -178,18 +205,18 @@ contains
 
     integer :: nAtom, ii
 
-    nAtom = size(equivDip, dim=2)
+    nAtom = this%nAtom
 
     equivDip(:,:) = 0
     equivQuad(:,:) = 0
-    equivDip(:,:) = reshape([(ii, ii = 1, dimDipole * nAtom)], [dimDipole, nAtom])
-    equivQuad(:,:) = reshape([(ii, ii = 1, dimQuadrupole * nAtom)], [dimQuadrupole, nAtom])
+    equivDip(:,:) = reshape([(ii, ii = 1, dimDipole_ * nAtom)], [dimDipole_, nAtom])
+    equivQuad(:,:) = reshape([(ii, ii = 1, dimQuadrupole_ * nAtom)], [dimQuadrupole_, nAtom])
 
   end subroutine getOrbitalEquiv
 
 
   !> Initializes instance.
-  subroutine TMdftb_init(this, inp)
+  subroutine TMdftb_init(this, inp, errStatus)
 
     !> Instance.
     type(TMdftb), intent(out) :: this
@@ -197,34 +224,36 @@ contains
     !> Input data.
     type(TMdftbInp), intent(in) :: inp
 
+    !> Error status
+    type(tStatus), intent(inout) :: errStatus
+
     integer, parameter :: icx = 1, icy = 2, icz = 3
     integer, parameter :: ios = 0
     integer, parameter :: iopy = 0, iopz = 1, iopx = 2
     integer, parameter :: iodxy = 0, iodyz = 1, iodzz = 2, iodxz = 3, iodxxyy = 4
     real(dp), parameter :: minIntgrl = 1.0e-9_dp
-    integer :: nAtoms, mOrb, nSpecies, nOrb1, iSp1, ii, jj, mm, nn
+    integer :: nAtom, mOrb, nSpecies, nOrb1, iSp1, ii, jj, mm, nn
     integer :: ang1, ang2, iSh1, iSh2, iOrbAng1, iOrbAng2
     real(dp) tmpIntgrl, tmpAvgTrace
 
-    this%nAtoms = size(inp%orb%nOrbAtom)
+    this%nAtom = size(inp%orb%nOrbAtom)
     this%nSpecies = inp%nSpecies
     this%nOrb = inp%nOrb
-    this%mOrb = inp%orb%mOrb
     this%nSpin = inp%nSpin
     this%hubbu = inp%hubbu
     this%species = inp%species
     this%nOrbSpecies = inp%orb%nOrbSpecies
 
-    nAtoms = this%nAtoms
-    mOrb = this%mOrb
+    mOrb = inp%orb%mOrb
+    nAtom = this%nAtom
     nSpecies = this%nSpecies
 
     allocate(this%atomicDIntgrl(3, mOrb, mOrb, nSpecies), source=0.0_dp)
     allocate(this%atomicQIntgrl(3, 3, mOrb, mOrb, nSpecies), source=0.0_dp)
     
     if (maxval(inp%orb%angShell) >= 3) then
-        call error("DFTB multipole expansion currently unsupported for chemical elements&
-            & having angular moments higher than 2")
+      @:RAISE_ERROR(errStatus, -1, "DFTB multipole expansion currently unsupported for chemical&
+          & elements having angular moments higher than 2")
     end if
 
     do iSp1 = 1, nSpecies
@@ -420,26 +449,26 @@ contains
       this%hasOnsiteCharges(2, iSp1) = (maxval(abs(this%atomicQIntgrl(:,:,:,:,iSp1))) >= minIntgrl)
     end do
 
-    allocate(this%deltaMAtom(nAtoms), source=0.0_dp)
-    allocate(this%deltaDAtom(3, nAtoms), source=0.0_dp)
-    allocate(this%deltaQAtom(3, 3, nAtoms), source=0.0_dp)
-    allocate(this%f10AB(3, nAtoms, nAtoms), source=0.0_dp)
-    allocate(this%f20AB(3, 3, nAtoms, nAtoms), source=0.0_dp)
-    allocate(this%f30AB(3, 3, 3, nAtoms, nAtoms), source=0.0_dp)
-    allocate(this%f40AB(3, 3, 3, 3, nAtoms, nAtoms), source=0.0_dp)
-    allocate(this%f50AB(3, 3, 3, 3, 3, nAtoms, nAtoms), source=0.0_dp)
+    allocate(this%deltaMAtom(nAtom), source=0.0_dp)
+    allocate(this%deltaDAtom(3, nAtom), source=0.0_dp)
+    allocate(this%deltaQAtom(3, 3, nAtom), source=0.0_dp)
+    allocate(this%f10AB(3, nAtom, nAtom), source=0.0_dp)
+    allocate(this%f20AB(3, 3, nAtom, nAtom), source=0.0_dp)
+    allocate(this%f30AB(3, 3, 3, nAtom, nAtom), source=0.0_dp)
+    allocate(this%f40AB(3, 3, 3, 3, nAtom, nAtom), source=0.0_dp)
+    allocate(this%f50AB(3, 3, 3, 3, 3, nAtom, nAtom), source=0.0_dp)
 
-    allocate(this%pot10x1Atom(nAtoms), source=0.0_dp)
-    allocate(this%pot20x2Atom(nAtoms), source=0.0_dp)
-    allocate(this%pot10x0Atom(3, nAtoms), source=0.0_dp)
-    allocate(this%pot11x1Atom(3, nAtoms), source=0.0_dp)
-    allocate(this%pot21x2Atom(3, nAtoms), source=0.0_dp)
-    allocate(this%pot20x0Atom(3, 3, nAtoms), source=0.0_dp)
-    allocate(this%pot21x1Atom(3, 3, nAtoms), source=0.0_dp)
-    allocate(this%pot22x2Atom(3, 3, nAtoms), source=0.0_dp)
-    allocate(this%pot30x0Atom(3, 3, 3, nAtoms), source=0.0_dp)
-    allocate(this%pot31x1Atom(3, 3, 3, nAtoms), source=0.0_dp)
-    allocate(this%pot32x2Atom(3, 3, 3, nAtoms), source=0.0_dp)
+    allocate(this%pot10x1Atom(nAtom), source=0.0_dp)
+    allocate(this%pot20x2Atom(nAtom), source=0.0_dp)
+    allocate(this%pot10x0Atom(3, nAtom), source=0.0_dp)
+    allocate(this%pot11x1Atom(3, nAtom), source=0.0_dp)
+    allocate(this%pot21x2Atom(3, nAtom), source=0.0_dp)
+    allocate(this%pot20x0Atom(3, 3, nAtom), source=0.0_dp)
+    allocate(this%pot21x1Atom(3, 3, nAtom), source=0.0_dp)
+    allocate(this%pot22x2Atom(3, 3, nAtom), source=0.0_dp)
+    allocate(this%pot30x0Atom(3, 3, 3, nAtom), source=0.0_dp)
+    allocate(this%pot31x1Atom(3, 3, 3, nAtom), source=0.0_dp)
+    allocate(this%pot32x2Atom(3, 3, 3, nAtom), source=0.0_dp)
 
   end subroutine TMdftb_init
 
@@ -453,7 +482,7 @@ contains
     !> List of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: nAtoms, iAt1, iAt2, iSp1, iSp2, ii, jj, ll, mm, nn
+    integer :: nAtom, iAt1, iAt2, iSp1, iSp2, ii, jj, ll, mm, nn
     real(dp) :: rab, u1, u2, coeffTerm1, coeffTerm2, coeffTerm3
     real(dp) :: gammaPrime, gammaDoublePrime, gammaTriplePrime, gammaQuadruplePrime,&
         & gammaQuintuplePrime
@@ -485,7 +514,7 @@ contains
     call outerProductA3x3OtB3x3(mI3x3otI3x3, mI3x3, mI3x3)
     mI3x3otohoI3x3(:,:,:,:) = mI3x3otI3x3 + mI3x3ohI3x3 + mI3x3oI3x3
 
-    nAtoms = this%nAtoms
+    nAtom = this%nAtom
 
     !$OMP PARALLEL DO DEFAULT(NONE) &
     !$OMP PRIVATE(ii, jj, mm, ll, iAt1, iSp1, u1, iAt2, iSp2, u2, rab, vRabx3, workVx3) &
@@ -495,8 +524,8 @@ contains
     !$OMP PRIVATE(mRoIab3x3x3, mIotRab3x3x3, mIoRab3x3x3, mRIotoRab3x3x3, mRRRab3x3x3) &
     !$OMP PRIVATE(workM3x3x3x3, f40Term1M3x3x3x3, f40Term2M3x3x3x3, f40Term3M3x3x3x3) &
     !$OMP PRIVATE(workM3x3x3x3x3, f50Term1M3x3x3x3x3, f50Term2M3x3x3x3x3, f50Term3M3x3x3x3x3) &
-    !$OMP SHARED(this, coords, nAtoms, mi3x3, mi3x3otohoi3x3) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtoms
+    !$OMP SHARED(this, coords, nAtom, mi3x3, mi3x3otohoi3x3) SCHEDULE(RUNTIME)
+    do iAt1 = 1, nAtom
       iSp1 = this%species(iAt1)
       u1 = this%hubbu(iSp1)
       do iAt2 = 1, iAt1 - 1
@@ -549,10 +578,7 @@ contains
         this%f30AB(:,:,:,iAt1, iAt2) = -workM3x3x3
 
         ! f40AB and f50AB
-        if (all(.not. this%hasOnsiteCharges(:, iSp1)) &
-            & .or. all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (.not.(any(this%hasOnsiteCharges(:,iSp1) .or. this%hasOnsiteCharges(:,iSp2)))) cycle
 
         ! f40AB
         gammaQuadruplePrime = 24.0_dp / rab**5 - expGammaQuadruplePrime(rab, u1, u2)
@@ -655,7 +681,8 @@ contains
 
 
   !> Updates the deltaDAtom and deltaQAtom arrays for the instance.
-  subroutine updateDeltaDQAtom(this, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell, iPair)
+  subroutine updateDeltaDQAtom(this, over, rho, orb, iNeighbour, nNeighbourSK, img2CentCell,&
+      & iSparseStart)
 
     !> Class instance
     class(TMdftb), intent(inout) :: this
@@ -678,19 +705,18 @@ contains
     !> Indexing array to convert images of atoms back into their number in the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Indexing array for the Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    !> Indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
 
-    real(dp), allocatable :: tmpOvr(:,:), tmpDRho(:,:)
     integer, parameter :: iStart = 1, iEnd = 2, iNOrb = 3
 
     integer :: nAtom, iAtom1, iAtom2, iAtom2f, iSp1, iSp2, nOrb1, nOrb2, iOrig, iNeigh
-    integer :: ii, jj, mu, nu, kk
+    integer :: mu, nu, kk
     real(dp) :: mulTmp(orb%mOrb**2), sqrTmp(orb%mOrb, orb%mOrb)
     real(dp) :: sqrTmpOver(orb%mOrb, orb%mOrb), sqrTmpRho(orb%mOrb, orb%mOrb)
     real(dp) :: tmpVx3(3), tmpM3x3(3,3)
 
-    nAtom = this%nAtoms
+    nAtom = this%nAtom
     @:ASSERT(size(over) == size(rho))
 
     this%deltaDAtom(:,:) = 0.0_dp
@@ -702,7 +728,7 @@ contains
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         nOrb2 = orb%nOrbAtom(iAtom2f)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
 
         sqrTmp(:,:) = 0.0_dp
         mulTmp(:) = 0.0_dp
@@ -716,7 +742,7 @@ contains
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = this%species(iAtom2f)
         nOrb2 = orb%nOrbAtom(iAtom2f)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
 
         sqrTmpOver(:,:) = 0.0_dp
         sqrTmpRho(:,:) = 0.0_dp
@@ -771,14 +797,14 @@ contains
     !> Multipole moments to pull
     type(TMultipole), intent(in) :: multiExpanData
 
-    integer :: nAtoms
-    integer :: iAt1, iSp1, iSpin
-    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
+    integer :: nAtom
+    integer :: iAt1, iSpin
+    real(dp) :: tmpM3x3(3,3)
 
     iSpin = 1
-    nAtoms = this%nAtoms
+    nAtom = this%nAtom
     this%deltaDAtom(:,:) = multiExpanData%dipoleAtom(:,:,iSpin)
-    do iAt1 = 1, nAtoms
+    do iAt1 = 1, nAtom
       ! Quadrupole components used (xx, xy, yy, xz, yz, zz)
       tmpM3x3(:,:) = 0.0_dp
       tmpM3x3(1,1) = multiExpanData%quadrupoleAtom(1, iAt1, iSpin)
@@ -803,15 +829,15 @@ contains
     !> Multipole moments push
     type(TMultipole), intent(inout) :: multiExpanData
 
-    integer :: nAtoms
-    integer :: iAt1, iSp1, iSpin
+    integer :: nAtom
+    integer :: iAt1, iSpin
 
-    real(dp) :: tmpVx3(3), tmpM3x3(3,3)
+    real(dp) :: tmpM3x3(3,3)
 
     iSpin = 1
-    nAtoms = this%nAtoms
+    nAtom = this%nAtom
     multiExpanData%dipoleAtom(:,:,iSpin) = this%deltaDAtom
-    do iAt1 = 1, nAtoms
+    do iAt1 = 1, nAtom
       ! Quadrupole components used (xx, xy, yy, xz, yz, zz)
       tmpM3x3(:,:) = this%deltaQAtom(:,:,iAt1)
       multiExpanData%quadrupoleAtom(1, iAt1, iSpin) = tmpM3x3(1,1) 
@@ -834,18 +860,18 @@ contains
     !> Delta charge per atom
     real(dp), intent(in) :: deltaMAtom(:)
 
-    integer :: nAtoms, iAt1, iAt2, ii, jj, iSp1, iSp2
+    integer :: nAtom, iAt1, iAt2, ii, jj, iSp1, iSp2
 
     this%deltaMAtom(:) = deltaMAtom
-    nAtoms = this%nAtoms
+    nAtom = this%nAtom
 
     ! Calculate pot10x0, and pot20x0
     this%pot10x0Atom(:,:) = 0.0_dp
     this%pot20x0Atom(:,:,:) = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1, iAt2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtoms
-      do iAt2 = 1, nAtoms
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
         this%pot10x0Atom(:,iAt1) = this%pot10x0Atom(:,iAt1)&
             & + this%f10AB(:,iAt2, iAt1) * this%deltaMAtom(iAt2)
         this%pot20x0Atom(:,:,iAt1) = this%pot20x0Atom(:,:,iAt1)&
@@ -862,12 +888,10 @@ contains
     this%pot21x1Atom(:,:,:) = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1, iAt2, iSp2, ii, jj) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtoms
-      do iAt2 = 1, nAtoms
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
         iSp2 = this%species(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (all(.not. this%hasOnsiteCharges(:, iSp2))) cycle
         this%pot10x1Atom(iAt1) = this%pot10x1Atom(iAt1)&
             & + sum(this%f10AB(:,iAt2, iAt1) * this%deltaDAtom(:,iAt2))
         this%pot20x2Atom(iAt1) = this%pot20x2Atom(iAt1)&
@@ -890,16 +914,12 @@ contains
     this%pot22x2Atom(:,:,:) = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, iAt2, iSp2, ii, jj) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtoms
+    do iAt1 = 1, nAtom
       iSp1 = this%species(iAt1)
-      if (all(.not. this%hasOnsiteCharges(:, iSp1))) then
-        cycle
-      end if
-      do iAt2 = 1, nAtoms
+      if (all(.not. this%hasOnsiteCharges(:, iSp1))) cycle
+      do iAt2 = 1, nAtom
         iSp2 = this%species(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (all(.not. this%hasOnsiteCharges(:, iSp2))) cycle
         do ii = 1, 3
           do jj = 1, 3
             this%pot22x2Atom(jj, ii, iAt1) = this%pot22x2Atom(jj, ii, iAt1)&
@@ -913,12 +933,79 @@ contains
   end subroutine updateDQPotentials
 
 
-  !> Adds the multipole expansion contribution to the Hamiltonian.
-  subroutine addMultiExpanHamiltonian(this, ham, over, nNeighbour, iNeighbour, species, orb,&
-      & iPair, nAtom, img2CentCell)
+  !> Obtain S (x) r terms
+  subroutine dipoleElements(this, adS, Sad, over, species, iNeighbour, nNeighbourSK, img2CentCell,&
+      & iSparseStart, orb)
 
     !> class instance
-    class(TMdftb), intent(inout) :: this
+    class(TMdftb), intent(in) :: this
+
+    !> distance weighted overlap matrix
+    real(dp), intent(out) :: adS(:,:)
+
+    !> distance weighted overlap matrix
+    real(dp), intent(out) :: Sad(:,:)
+
+    !> The overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Number of neighbours of each real atom (central cell)
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> List of neighbours for each atom, starting at 0 for itself
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Indexing array to convert images of atoms back into their number in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> Information about the orbitals
+    type(TOrbitals), intent(in) :: orb
+
+    integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, nOrb1, nOrb2, iNeigh, iOrig, mu, nDipole
+    real(dp) :: sSqrTmp(orb%mOrb, orb%mOrb), sadTmp(orb%mOrb, orb%mOrb), adsTmp(orb%mOrb, orb%mOrb)
+
+    nDipole = size(this%atomicDIntgrl, dim=1)
+    @:ASSERT(all(shape(Sad) == shape(adS)))
+    @:ASSERT(all(shape(Sad) == [nDipole, size(over)]))
+    Sad(:,:) = 0.0_dp
+    adS(:,:) = 0.0_dp
+
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      nOrb1 = orb%nOrbAtom(iAt1)
+      do iNeigh = 0, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = this%species(iAt2f)
+        nOrb2 = orb%nOrbAtom(iAt2f)
+        iOrig = iSparseStart(iNeigh, iAt1)
+        sSqrTmp(1:nOrb2, 1:nOrb1) = reshape(over(iOrig+1:iOrig+nOrb2*nOrb1), [nOrb2, nOrb1])
+        do mu = 1, nDipole
+          SadTmp(:nOrb2, :nOrb1) = matmul(sSqrTmp(1:nOrb2, 1:nOrb1),&
+              & this%atomicDIntgrl(mu, :nOrb1, :nOrb1, iSp1))
+          adSTmp(:nOrb2, :nOrb1) = matmul(this%atomicDIntgrl(mu, :nOrb2, :nOrb2, iSp2),&
+              & sSqrTmp(1:nOrb2, 1:nOrb1))
+          Sad(mu, iOrig+1:iOrig+nOrb2*nOrb1) = reshape(SadTmp(:nOrb2, :nOrb1), [nOrb2 * nOrb1])
+          adS(mu, iOrig+1:iOrig+nOrb2*nOrb1) = reshape(adSTmp(:nOrb2, :nOrb1), [nOrb2 * nOrb1])
+        end do
+      end do
+    end do
+
+  end subroutine dipoleElements
+
+
+  !> Adds the multipole expansion contribution to the Hamiltonian.
+  subroutine addMultiExpanHamiltonian(this, ham, over, nNeighbourSK, iNeighbour, species, orb,&
+      & iSparseStart, nAtom, img2CentCell)
+
+    !> class instance
+    class(TMdftb), intent(in) :: this
 
     !> The resulting Hamiltonian contribution.
     real(dp), intent(inout) :: ham(:,:)
@@ -927,7 +1014,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> Number of neighbours surrounding each atom.
-    integer, intent(in) :: nNeighbour(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> List of neighbours for each atom.
     integer, intent(in) :: iNeighbour(0:,:)
@@ -939,7 +1026,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Indexing array for the Hamiltonian.
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Number of atoms
     integer, intent(in) :: nAtom
@@ -947,40 +1034,38 @@ contains
     !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: mu, nu, kappa, mm, nn, kk
+    integer :: mu, nu, kk
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: iSp1, iSp2, iNeigh, iOrig
     integer :: nOrb1, nOrb2
     real(dp) :: sqrTmpOver(orb%mOrb, orb%mOrb)
-    real(dp) :: sqrTmpOverT(orb%mOrb, orb%mOrb)
     real(dp) :: sqrTmpHam(orb%mOrb, orb%mOrb)
     real(dp) :: tmpVx3(3), tmpM3x3(3,3)
     real(dp) :: tmpadS(3), tmpSad(3)
     real(dp) :: tmpaQS(3,3), tmpSaQ(3,3)
+    !real(dp) :: sDipole(3, orb%mOrb, orb%mOrb, nAtom)
 
-    @:ASSERT(size(nNeighbour)==nAtom)
+    @:ASSERT(size(nNeighbourSK)==nAtom)
     @:ASSERT(size(iNeighbour, dim=2)==nAtom)
     @:ASSERT(size(species)>=maxval(iNeighbour))
     @:ASSERT(size(species)<=size(img2CentCell))
-    @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
-    @:ASSERT(size(iPair,dim=2)==nAtom)
+    @:ASSERT(size(iSparseStart,dim=1)>=(maxval(nNeighbourSK)+1))
+    @:ASSERT(size(iSparseStart,dim=2)==nAtom)
 
     do iAtom1 = 1, nAtom
       iSp1 = species(iAtom1)
       nOrb1 = orb%nOrbAtom(iAtom1)
-      do iNeigh = 0, nNeighbour(iAtom1)
+      do iNeigh = 0, nNeighbourSK(iAtom1)
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         iSp2 = this%species(iAtom2f)
         nOrb2 = orb%nOrbAtom(iAtom2f)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
 
         tmpVx3(:) = 0.0_dp
         tmpM3x3(:,:) = 0.0_dp
         sqrTmpOver(:,:) = 0.0_dp
-        sqrTmpOverT(:,:) = 0.0_dp
         sqrTmpOver(1:nOrb2, 1:nOrb1) = reshape(over(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
-        sqrTmpOverT(1:nOrb1, 1:nOrb2) = transpose(sqrTmpOver(1:nOrb2, 1:nOrb1)) 
 
         sqrTmpHam(:,:) = 0.0_dp
         do mu = 1, nOrb1
@@ -990,8 +1075,8 @@ contains
             tmpaQS(:,:) = 0.0_dp
             tmpSaQ(:,:) = 0.0_dp
             do kk = 1, nOrb1
-              tmpadS(:) = tmpadS + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrTmpOverT(kk,nu)
-              tmpaQS(:,:) = tmpaQS + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrTmpOverT(kk,nu)
+              tmpadS(:) = tmpadS + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrTmpOver(nu, kk)
+              tmpaQS(:,:) = tmpaQS + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrTmpOver(nu, kk)
             end do
             do kk = 1, nOrb2
               tmpSad(:) = tmpSad + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrTmpOver(kk,mu)
@@ -1050,19 +1135,19 @@ contains
     real(dp), allocatable :: EnergyMDAtom(:), EnergyDDAtom(:), EnergyMQAtom(:)
     real(dp), allocatable :: EnergyDQAtom(:), EnergyQQAtom(:)
 
-    integer :: nAtoms
+    integer :: nAtom
     integer :: iAt1
 
-    nAtoms = this%nAtoms
-    @:ASSERT(size(energyPerAtomTT) == nAtoms)
+    nAtom = this%nAtom
+    @:ASSERT(size(energyPerAtomTT) == nAtom)
 
-    allocate(EnergyMDAtom(nAtoms), source=0.0_dp)
-    allocate(EnergyDDAtom(nAtoms), source=0.0_dp)
-    allocate(EnergyMQAtom(nAtoms), source=0.0_dp)
-    allocate(EnergyDQAtom(nAtoms), source=0.0_dp)
-    allocate(EnergyQQAtom(nAtoms), source=0.0_dp)
+    allocate(EnergyMDAtom(nAtom), source=0.0_dp)
+    allocate(EnergyDDAtom(nAtom), source=0.0_dp)
+    allocate(EnergyMQAtom(nAtom), source=0.0_dp)
+    allocate(EnergyDQAtom(nAtom), source=0.0_dp)
+    allocate(EnergyQQAtom(nAtom), source=0.0_dp)
 
-    do iAt1 = 1, nAtoms
+    do iAt1 = 1, nAtom
       ! Monopole-Dipole contribution
       EnergyMDAtom(iAt1) = sum(this%pot10x0Atom(:,iAt1) * this%deltaDAtom(:,iAt1))
       ! Dipole-Dipole contribution
@@ -1089,8 +1174,8 @@ contains
 
 
   !> Add the mdftb contribution to the gradients.
-  subroutine addMultiExpanGradients(this, derivs, derivator, skOverCont, rho, species,&
-      & iNeighbour, nNeighbourSK, img2CentCell, iPair, orb, coords)
+  subroutine addMultiExpanGradients(this, derivs, derivator, skOverCont, rho, species, iNeighbour,&
+      & nNeighbourSK, img2CentCell, iSparseStart, orb, coords, extDipoleAtom)
 
     !> Class instance
     class(TMdftb), intent(inout) :: this
@@ -1120,7 +1205,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Indexing array for the Hamiltonian
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> Information about the shells and orbitals in the system.
     type(TOrbitals), intent(in) :: orb
@@ -1128,12 +1213,15 @@ contains
     !> Coordinate of each atom.
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: ii, jj, ll, mu, nu, kappa, mm, nn, kk
+    !> External dipolar contribution to the Hamiltonian
+    real(dp), allocatable :: extDipoleAtom(:,:)
+
+    integer :: ii, jj, ll, mu, nu, kk
     integer :: nOrb1, nOrb2
     integer :: iAt1, iAt2, iAt2f
-    integer :: iOrig, iSpin, nSpin, nAtom, iNeigh, iSp1, iSp2
+    integer :: iOrig, iNeigh, iSp1, iSp2
 
-    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrDMTmpT(orb%mOrb,orb%mOrb)
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     real(dp) :: tmpDerivMuNu
@@ -1147,16 +1235,13 @@ contains
     this%pot32x2Atom(:,:,:,:) = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, iAt2, iSp2, ii, jj, ll) DEFAULT(SHARED) SCHEDULE(RUNTIME)
-    do iAt1 = 1, this%nAtoms
+    do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
-      do iAt2 = 1, this%nAtoms
+      do iAt2 = 1, this%nAtom
         iSp2 = species(iAt2)
         this%pot30x0Atom(:,:,:,iAt1) = this%pot30x0Atom(:,:,:,iAt1)&
             & + this%f30AB(:,:,:,iAt2,iAt1) * this%deltaMAtom(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp1)) &
-            & .or. all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (.not.(any(this%hasOnsiteCharges(:,iSp1) .or. this%hasOnsiteCharges(:,iSp2)))) cycle
         do ii = 1, 3
           do jj = 1, 3
             do ll = 1, 3
@@ -1171,7 +1256,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    do iAt1 = 1, this%nAtoms
+    do iAt1 = 1, this%nAtom
       ! M-D contribution
       derivs(:,iAt1) = derivs(:,iAt1) + this%pot11x1Atom(:,iAt1) * this%deltaMAtom(iAt1)
       ! M-Q contribution
@@ -1203,13 +1288,10 @@ contains
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        if (iAt1 == iAt2f) then
-          cycle
-        end if
+        if (iAt1 == iAt2f) cycle
         nOrb2 = orb%nOrbSpecies(iSp2)
-        iOrig = iPair(iNeigh,iAt1) + 1
+        iOrig = iSparseStart(iNeigh,iAt1) + 1
         sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(rho(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
-        sqrDMTmpT(1:nOrb1,1:nOrb2) = transpose(sqrDMTmp(1:nOrb2,1:nOrb1)) 
         call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAt1, iAt2, orb)
 
         derivTmp(:) = 0.0_dp
@@ -1221,8 +1303,8 @@ contains
             tmpPaQ(:,:) = 0.0_dp
             tmpaQP(:,:) = 0.0_dp
             do kk = 1, nOrb1
-              tmpPad(:) = tmpPad + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
-              tmpPaQ(:,:) = tmpPaQ + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
+              tmpPad(:) = tmpPad + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmp(nu,kk)
+              tmpPaQ(:,:) = tmpPaQ + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmp(nu,kk)
             end do
             do kk = 1, nOrb2
               tmpadP(:) = tmpadP + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
@@ -1262,6 +1344,12 @@ contains
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot21x1Atom(:,:,iAt2) * tmpaQP)
             ! Q-Q contribution
             tmpDerivMuNu = tmpDerivMuNu + sum(this%pot22x2Atom(:,:,iAt2) * tmpaQP)
+
+            ! External field
+            if (allocated(extDipoleAtom)) then
+              tmpDerivMuNu = tmpDerivMuNu + sum(extDipoleAtom(:,iAt1) * tmpPad)
+              tmpDerivMuNu = tmpDerivMuNu + sum(extDipoleAtom(:,iAt2) * tmpadP)
+            end if
 
             derivTmp(:) = derivTmp + tmpDerivMuNu * sPrimeTmp(nu,mu,:)
 
