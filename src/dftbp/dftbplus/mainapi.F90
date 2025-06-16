@@ -12,6 +12,7 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_exception, only : TException
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
   use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&
@@ -980,12 +981,12 @@ contains
 
     !> Status of operation
     type(TStatus) :: errStatus
+    type(TException), allocatable :: exc
 
     if (main%tLatticeChanged .or. main%tCoordsChanged) then
-      call processGeometry(main, env, 1, 1, .false., tStopScc, tExitGeoOpt, errStatus)
-      if (errStatus%hasError()) then
-        call error(errStatus%message)
-      end if
+      call processGeometry(main, exc, env, 1, 1, .false., tStopScc, tExitGeoOpt, errStatus)
+      if (allocated(exc)) call error(exc%cause%asChar())
+      if (errStatus%hasError()) call error(errStatus%message)
       main%tLatticeChanged = .false.
       main%tCoordsChanged = .false.
     end if

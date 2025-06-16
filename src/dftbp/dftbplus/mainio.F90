@@ -18,6 +18,7 @@ module dftbp_dftbplus_mainio
   use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
       & Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_exception, only : TException, TInternalError
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
   use dftbp_common_status, only : TStatus
@@ -89,7 +90,7 @@ module dftbp_dftbplus_mainio
   public :: writeCharges
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
-  public :: writeHSAndStop, writeHS
+  public :: writeHS
   public :: printSccHeader, printElecConstrHeader
   public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
@@ -4200,85 +4201,15 @@ contains
   end subroutine writeCharges
 
 
-  !> Writes Hamiltonian and overlap matrices and stops program execution.
-  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
+  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
+  subroutine writeHS(exc, env, tWriteHS, tWriteRealHS, tRealHS, over, iNeighbour,&
       & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
 
     !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Write dense hamiltonian and overlap matrices
-    logical, intent(in) :: tWriteHS
-
-    !> write sparse hamiltonian and overlap matrices
-    logical, intent(in) :: tWriteRealHS
-
-    !> Is the hamiltonian real?
-    logical, intent(in) :: tRealHS
-
-    !> overlap in sparse storage
-    real(dp), intent(in) :: over(:)
-
-    !> atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> number of neighbours for each central cell atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Dense matrix indexing for atomic blocks
-    integer, intent(in) :: iAtomStart(:)
-
-    !> sparse matrix indexing for atomic blocks
-    integer, intent(in) :: iPair(:,:)
-
-    !> Image atoms to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> The k-points
-    real(dp), intent(in) :: kPoint(:,:)
-
-    !> index  for which unit cell an atom is in
-    integer, intent(in) :: iCellVec(:)
-
-    !> vectors to unit cells, in lattice constant units
-    real(dp), intent(in) :: cellVec(:,:)
-
-    !> sparse hamiltonian
-    real(dp), intent(in) :: ham(:,:)
-
-    !> imaginary part of hamiltonian (used if allocated)
-    real(dp), allocatable, intent(in) :: iHam(:,:)
-
-    real(dp), allocatable :: hamUpDown(:,:)
-    integer :: nSpin
-
-    nSpin = size(ham, dim=2)
-
-    ! Consistent with functionality? Although this should have been caught in initprogram already.
-    if (nSpin == 4) then
-      call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
-    end if
-
-    hamUpDown = ham
-    call qm2ud(hamUpDown)
-
-    ! Write out matrices if necessary and quit.
-    call writeHS(env, tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighbourList%iNeighbour,&
-        & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
-    write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
-    call env%destruct()
-    call destructGlobalEnv()
-    call abortProgram()
-
-  end subroutine writeHSAndStop
-
-
-  !> Invokes the writing routines for the Hamiltonian and overlap matrices.
-  subroutine writeHS(env, tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbour, nNeighbourSK,&
-      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
-
-    !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Should the hamiltonian and overlap be written out as dense matrices
     logical, intent(in) :: tWriteHS
@@ -4322,13 +4253,23 @@ contains
     !> Imaginary part of the hamiltonian if present
     real(dp), intent(in), allocatable :: iHam(:,:)
 
-    integer :: iS, nSpin
+    real(dp), allocatable :: hamUpDown(:,:)
+    integer :: nSpin, iS
 
     nSpin = size(ham, dim=2)
 
+    ! Consistent with functionality? Although this should have been caught in initprogram already.
+    if (nSpin == 4) then
+      @:RAISE_EXCEPTION(exc,&
+          & TInternalError("Hamiltonian writing for Pauli-Hamiltoninan not implemented"))
+    end if
+
+    hamUpDown = ham
+    call qm2ud(hamUpDown)
+
     if (tWriteRealHS) then
       do iS = 1, nSpin
-        call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbour, nNeighbourSK,&
+        call writeSparse("hamreal" // i2c(iS) // ".dat", hamUpDown(:,iS), iNeighbour, nNeighbourSK,&
             & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
         if (allocated(iHam)) then
           call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS), iNeighbour, nNeighbourSK,&
@@ -4341,18 +4282,23 @@ contains
     if (tWriteHS) then
       if (tRealHS) then
         do iS = 1, nSpin
-          call writeSparseAsSquare(env, "hamsqr" // i2c(iS) // ".dat", ham(:,iS), iNeighbour,&
-              & nNeighbourSK, iAtomStart, iPair, img2CentCell)
+          call writeSparseAsSquare(exc, env, "hamsqr" // i2c(iS) // ".dat", hamUpDown(:,iS),&
+              & iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
+          @:PROPAGATE_EXCEPTION(exc)
         end do
-        call writeSparseAsSquare(env, "oversqr.dat", over, iNeighbour, nNeighbourSK, iAtomStart,&
-            & iPair, img2CentCell)
+        call writeSparseAsSquare(exc, env, "oversqr.dat", over, iNeighbour, nNeighbourSK,&
+            & iAtomStart, iPair, img2CentCell)
+        @:PROPAGATE_EXCEPTION(exc)
       else
         do iS = 1, nSpin
-          call writeSparseAsSquare(env, "hamsqr" // i2c(iS) // ".dat", ham(:,iS), kPoint,&
-              & iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+          call writeSparseAsSquare(exc, env, "hamsqr" // i2c(iS) // ".dat", hamUpDown(:,iS),&
+              & kPoint, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell, iCellVec,&
+              & cellVec)
+          @:PROPAGATE_EXCEPTION(exc)
         end do
-        call writeSparseAsSquare(env, "oversqr.dat", over, kPoint, iNeighbour, nNeighbourSK,&
+        call writeSparseAsSquare(exc, env, "oversqr.dat", over, kPoint, iNeighbour, nNeighbourSK,&
             & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+        @:PROPAGATE_EXCEPTION(exc)
       end if
     end if
 

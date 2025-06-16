@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/constants.F90
   ${curdir}/envcheck.F90
   ${curdir}/environment.F90
+  ${curdir}/exception.F90
   ${curdir}/file.F90
   ${curdir}/filesystem.F90
   ${curdir}/globalenv.F90

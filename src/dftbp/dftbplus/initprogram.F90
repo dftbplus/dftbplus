@@ -17,6 +17,7 @@ module dftbp_dftbplus_initprogram
       & Hartree__kJ_mol, pi, shellNames
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_exception, only : TException
   use dftbp_common_file, only : clearFile, setDefaultBinaryAccess, TFileDescr
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
@@ -1181,16 +1182,20 @@ contains
 
 
   !> Initializes the variables in the module based on the parsed input
-  subroutine initProgramVariables(this, input, env)
+  subroutine initProgramVariables(this, exc, env, input)
 
     !> Instance
     class(TDftbPlusMain), intent(inout), target :: this
 
-    !> Holds the parsed input data.
-    type(TInputData), intent(inout), target :: input
+    !> Exception (allocated if an exception had been raised)
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+
+    !> Holds the parsed input data.
+    type(TInputData), intent(inout), target :: input
+
 
     ! Geometry optimiser related local variables
 
