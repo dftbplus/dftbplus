@@ -796,7 +796,7 @@ module dftbp_dftbplus_initprogram
     logical :: isHybLinResp
 
     !> Multipole DFTB
-    logical :: isMdftb
+    logical :: isMdftb = .false.
 
     !> input data structure for multipole
     type(TMdftbInp) :: mdftbInp
