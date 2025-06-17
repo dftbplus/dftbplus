@@ -1773,7 +1773,8 @@ contains
         this%mdftbInp%species = input%geom%species
         this%mdftbInp%mdftbAtomicIntegrals = input%ctrl%mdftbAtomicIntegrals
         allocate(this%mdftb)
-        call TMdftb_init(this%mdftb, this%mdftbInp)
+        call TMdftb_init(this%mdftb, this%mdftbInp, errStatus)
+        if (errStatus%hasError()) call error(errStatus%message)
       end if
     end if
 

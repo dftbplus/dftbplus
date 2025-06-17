@@ -13,12 +13,12 @@ module dftbp_dftb_mdftb
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_globalenv, only : stdOut
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
   use dftbp_dftb_shortgammafuncs, only : expGammaPrime, expGammaDoublePrime, expGammaTriplePrime,&
       & expGammaQuadruplePrime, expGammaQuintuplePrime
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_io_message, only : error
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_multipole, only : TMultipole
@@ -189,13 +189,16 @@ contains
 
 
   !> Initializes instance.
-  subroutine TMdftb_init(this, inp)
+  subroutine TMdftb_init(this, inp, errStatus)
 
     !> Instance.
     type(TMdftb), intent(out) :: this
 
     !> Input data.
     type(TMdftbInp), intent(in) :: inp
+
+    !> Error status
+    type(tStatus), intent(inout) :: errStatus
 
     integer, parameter :: icx = 1, icy = 2, icz = 3
     integer, parameter :: ios = 0
@@ -223,8 +226,8 @@ contains
     allocate(this%atomicQIntgrl(3, 3, mOrb, mOrb, nSpecies), source=0.0_dp)
     
     if (maxval(inp%orb%angShell) >= 3) then
-        call error("DFTB multipole expansion currently unsupported for chemical elements&
-            & having angular moments higher than 2")
+      @:RAISE_ERROR(errStatus, -1, "DFTB multipole expansion currently unsupported for chemical&
+          & elements having angular moments higher than 2")
     end if
 
     do iSp1 = 1, nSpecies
