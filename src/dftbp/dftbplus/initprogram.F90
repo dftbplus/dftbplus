@@ -1773,7 +1773,8 @@ contains
         this%mdftbInp%species = input%geom%species
         this%mdftbInp%mdftbAtomicIntegrals = input%ctrl%mdftbAtomicIntegrals
         allocate(this%mdftb)
-        call TMdftb_init(this%mdftb, this%mdftbInp)
+        call TMdftb_init(this%mdftb, this%mdftbInp, errStatus)
+        if (errStatus%hasError()) call error(errStatus%message)
       end if
     end if
 
@@ -2482,6 +2483,9 @@ contains
       if (allocated(this%dispersion)) then
         call error("Dispersion (particularly charge dependent) not currently implemented for&
             & perturbation")
+      end if
+      if (this%isMdftb) then
+        call error("Multipoles currently not currently implemented for perturbation")
       end if
 
       if (this%isEResp) then
@@ -6986,6 +6990,9 @@ contains
     end if
     if (allocated(this%reks)) then
       call error("DFTB multipole expansion currently incompatible with REKS calculations")
+    end if
+    if (this%isHybridXc) then
+      call error("DFTB multipole expansion currently incompatible with hybrid calculations")
     end if
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
