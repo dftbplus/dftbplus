@@ -4188,7 +4188,11 @@ contains
     if (ctrl%iSeed < 0) then
       call detailedError(child, "Random seed must be greater or equal zero")
     end if
-    call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
+    call getChildValue(node, "WriteHS", ctrl%tWriteHS, default=.false., child=child)
+    if (ctrl%tWriteHS .and. withMpi) then
+      call detailedError(child, "Writing of dense H and S matrices currently only implemented for&
+          & non-MPI builds")
+    end if
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
     call renameChildren(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)

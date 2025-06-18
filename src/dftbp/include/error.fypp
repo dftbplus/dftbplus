@@ -105,5 +105,24 @@
 #:enddef PROPAGATE_ERROR
 
 
+#! Raises an exception
+#:def RAISE_EXCEPTION(exc, cause)
+  block
+    use dftbp_common_exception, only : TException_create
+    call TException_create(${exc}$, ${cause}$, file="${_FILE_}$", line=${_LINE_}$)
+    return
+  end block
+#:enddef RAISE_EXCEPTION
+
+
+#! Propagates an exception upwards by adding path information and returning
+#:def PROPAGATE_EXCEPTION(exc)
+  if (allocated(${exc}$)) then
+    call ${exc}$%addLocation(file="${_FILE_}$", line=${_LINE_}$)
+    return
+  end if
+#:enddef PROPAGATE_EXCEPTION
+
+
 #:endif
 #:endmute

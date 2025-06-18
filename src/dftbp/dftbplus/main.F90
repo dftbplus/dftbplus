@@ -13,6 +13,7 @@ module dftbp_dftbplus_main
   use dftbp_common_accuracy, only : dp, elecTolMax, tolSameDist
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : globalTimers, TEnvironment
+  use dftbp_common_exception, only : TException, TEarlyExit, TGeneralError
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, withMpi
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
@@ -71,7 +72,7 @@ module dftbp_dftbplus_main
       & writeDetailedOut1, writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets,&
       & writeDetailedOut3, writeDetailedOut4, writeDetailedOut5, writeDetailedOut6,&
       & writeDetailedOut7, writeDetailedOut8, writeDetailedOut9, writeDetailedXml,&
-      & writeEigenVectors, writeEsp, writeFinalDriverstatus, writeHessianout, writehsandstop,&
+      & writeEigenVectors, writeEsp, writeFinalDriverstatus, writeHessianout, writeHS,&
       & writeMdOut1, writeMdOut2, writeProjectedEigenvectors, writeRealEigvecs,&
       & writeReksDetailedOut1, writeResultsTag
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
@@ -151,10 +152,13 @@ module dftbp_dftbplus_main
 contains
 
   !> The main DFTB program itself
-  subroutine runDftbPlus(this, env)
+  subroutine runDftbPlus(this, exc, env)
 
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -234,10 +238,12 @@ contains
               & this%iEqBlockOnSite, this%iEqBlockOnSiteLS)
         end if
 
-        call processGeometry(this, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
+        call processGeometry(this, exc, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
             & tExitGeoOpt, errStatus)
+        @:PROPAGATE_EXCEPTION(exc)
+        ! If error is signalized via old mechanism, convert it to exception
         if (errStatus%hasError()) then
-          call error(errStatus%message)
+          @:RAISE_EXCEPTION(exc, TGeneralError(message=errStatus%message))
         end if
 
         call postDetCharges(iDet, this%nDets, this%qOutput, this%qDets, this%qBlockDets,&
@@ -1072,11 +1078,14 @@ contains
 
 
   !> Process current geometry
-  subroutine processGeometry(this, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
+  subroutine processGeometry(this, exc, env, iGeoStep, iLatGeoStep, tWriteRestart, tStopScc,&
       & tExitGeoOpt, errStatus)
 
     !> Global variables
     type(TDftbPlusMain), intent(inout) :: this
+
+    !> Exception
+    type(TException), allocatable, intent(out) :: exc
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1433,10 +1442,13 @@ contains
               & .and. any(this%electronicSolver%iSolver ==&
               & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
               & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magmaGvd])) then
-            call writeHSAndStop(env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
-                & this%ints%overlap, this%neighbourList, this%nNeighbourSK,&
+            call writeHS(exc, env, this%tWriteHS, this%tWriteRealHS, this%tRealHS,&
+                & this%ints%overlap, this%neighbourList%iNeighbour, this%nNeighbourSK,&
                 & this%denseDesc%iAtomStart, this%iSparseStart, this%img2CentCell, this%kPoint,&
                 & this%iCellVec, this%cellVec, this%ints%hamiltonian, this%ints%iHamiltonian)
+            @:PROPAGATE_EXCEPTION(exc)
+            ! Even if writing was successfully, program should be terminated.
+            @:RAISE_EXCEPTION(exc, TEarlyExit())
           end if
 
           call convertToUpDownRepr(this%ints%hamiltonian, this%ints%iHamiltonian)
@@ -2094,6 +2106,7 @@ contains
       end if
     end function format_string
   end function stepSummary
+
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
