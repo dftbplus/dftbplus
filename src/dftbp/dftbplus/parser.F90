@@ -6800,6 +6800,8 @@ contains
     character(lc) :: strTmp
     character(1), parameter :: sDirs(3) = ['x','y','z']
 
+    call getChild(pNode, "none", pNode2, requested=.false.)
+    if (associated(pNode2)) return
     do iBC = 1, size(availableConditions)
       bctype = availableConditions(iBC)
       call getChild(pNode, trim(bcPoissonNames(bctype)), pNode2, requested=.false.)
