@@ -1263,6 +1263,7 @@ contains
     type(TDispMbd), allocatable :: mbd
   #:endif
 
+    ! H5 repulsion correction
     logical :: tHHRepulsion
 
     character(lc) :: tmpStr
@@ -1760,7 +1761,6 @@ contains
       this%isMdftb = input%ctrl%isMdftb
       if (this%isMdftb) then
         @:ASSERT(this%tSccCalc)
-        call ensureMdftbCompatibility(this, input)
 
         this%tQuadrupole = .true.
         allocate(this%quadrupoleMoment(3,3), source=0.0_dp)
@@ -1854,7 +1854,7 @@ contains
     call this%setEquivalencyRelations()
 
     ! Initialize mixer
-    ! (at the moment, the mixer does not need to know about the size of the vector to mix.)
+    ! (at this stage, the mixer does not need to know about the size of the vector to mix.)
     requiresMixer = this%tSccCalc .and. .not. allocated(this%reks) .and. .not. this%tRestartNoSC
     requiresCmplxMixer = (.not. this%tRealHS) .and. (this%hybridXcAlg == hybridXcAlgo%matrixBased)&
         & .or. (this%t2Component .and. this%isHybridXc)
@@ -1942,12 +1942,11 @@ contains
     this%tForces = input%ctrl%tForces .or. this%tPrintForces
     if (this%isLinResp) then
       allocate(this%linearResponse)
-    end if
-
-    if (this%isLinResp) then
       allocate(this%dQAtomEx(this%nAtom))
       this%dQAtomEx(:) = 0.0_dp
     end if
+
+    if (this%isMdftb) call ensureMdftbCompatibility(this, input)
 
     if (allocated(input%ctrl%customOccAtoms) .and. this%isLinResp) then
       call error("Custom occupation not compatible with linear response")
@@ -6951,10 +6950,10 @@ contains
   subroutine ensureMdftbCompatibility(this, input)
 
     !> DftbPlusMain instance
-    class(TDftbPlusMain), intent(in), target :: this
+    class(TDftbPlusMain), intent(in) :: this
 
     !> Holds the parsed input data.
-    type(TInputData), intent(in), target :: input
+    type(TInputData), intent(in) :: input
 
     if (this%tPeriodic) then
       call error("DFTB multipole expansion currently unsupported for periodic systems")
@@ -6965,16 +6964,13 @@ contains
     if (allocated(this%eField)) then
       call error("DFTB multipole expansion currently unsupported for external electric field")
     end if
-    if (input%ctrl%tSpin) then
+    if (this%tSpin) then
       call error("DFTB multipole expansion currently unsupported for spin-polarised&
           & calculations")
     end if
-    if (allocated(input%ctrl%lrespini)) then
+    if (this%isLinresp) then
       call error("DFTB multipole expansion currently unsupported for excited state&
           & calculations")
-    end if
-    if (allocated(input%ctrl%hybridXcInp)) then
-      call error("DFTB multipole expansion currently incompatible with hybrid functionals")
     end if
     if (allocated(this%onSiteElements)) then
       call error("DFTB multipole expansion currently incompatible with onsite corrections")
@@ -6982,11 +6978,11 @@ contains
     if (input%ctrl%tShellResolved) then
       call error("DFTB multipole expansion currently incompatible with shell-resolved SCC")
     end if
-    if (allocated(input%ctrl%elecDynInp)) then
+    if (this%isElecDyn) then
       call error("DFTB multipole expansion currently unsupported for electron dynamics&
           & calculations")
     end if
-    if (allocated(input%ctrl%perturbInp)) then
+    if (this%doPerturbation) then
       call error("DFTB multipole expansion currently incompatible with perturbation&
           & calculations")
     end if
@@ -6994,7 +6990,8 @@ contains
       call error("DFTB multipole expansion currently incompatible with REKS calculations")
     end if
     if (this%isHybridXc) then
-      call error("DFTB multipole expansion currently incompatible with hybrid calculations")
+      call error("DFTB multipole expansion currently incompatible with hybrid functionals&
+          & calculations")
     end if
   #:if WITH_TRANSPORT
     ! Check for incompatible options if this is a transport calculation
