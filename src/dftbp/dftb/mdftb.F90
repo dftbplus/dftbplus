@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> Routines implementing the (One-center approximation) multipole expansion for the 2nd order DFTB.
+!> Routines implementing the (one-center approximation) multipole expansion for 2nd order DFTB
 module dftbp_dftb_mdftb
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_environment, only : TEnvironment
@@ -54,7 +54,7 @@ module dftbp_dftb_mdftb
   end type TMdftbAtomicIntegrals
 
 
-  !> Input for the MultiExpan module
+  !> Input for the multipole expansion module
   type TMdftbInp
 
     !> Orbital information
@@ -106,7 +106,7 @@ module dftbp_dftb_mdftb
     !> Evaluated for the gradient, Atom1, Atom2 at each geometry step
     real(dp), allocatable :: f50AB(:,:,:,:,:,:,:)
 
-    !> Add for the H and the E
+    !> Additions for the hamiltonian and energy
     real(dp), allocatable :: pot10x1Atom(:)
     real(dp), allocatable :: pot20x2Atom(:)
     real(dp), allocatable :: pot10x0Atom(:,:)
@@ -116,7 +116,7 @@ module dftbp_dftb_mdftb
     real(dp), allocatable :: pot21x1Atom(:,:,:)
     real(dp), allocatable :: pot22x2Atom(:,:,:)
 
-    !> Add for the gradient
+    !> Additions for the energy gradient
     real(dp), allocatable :: pot30x0Atom(:,:,:,:)
     real(dp), allocatable :: pot31x1Atom(:,:,:,:)
     real(dp), allocatable :: pot32x2Atom(:,:,:,:)
