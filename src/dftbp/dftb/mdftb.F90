@@ -955,7 +955,6 @@ contains
     integer :: iSp1, iSp2, iNeigh, iOrig
     integer :: nOrb1, nOrb2
     real(dp) :: sqrTmpOver(orb%mOrb, orb%mOrb)
-    real(dp) :: sqrTmpOverT(orb%mOrb, orb%mOrb)
     real(dp) :: sqrTmpHam(orb%mOrb, orb%mOrb)
     real(dp) :: tmpVx3(3), tmpM3x3(3,3)
     real(dp) :: tmpadS(3), tmpSad(3)
@@ -981,9 +980,7 @@ contains
         tmpVx3(:) = 0.0_dp
         tmpM3x3(:,:) = 0.0_dp
         sqrTmpOver(:,:) = 0.0_dp
-        sqrTmpOverT(:,:) = 0.0_dp
         sqrTmpOver(1:nOrb2, 1:nOrb1) = reshape(over(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
-        sqrTmpOverT(1:nOrb1, 1:nOrb2) = transpose(sqrTmpOver(1:nOrb2, 1:nOrb1)) 
 
         sqrTmpHam(:,:) = 0.0_dp
         do mu = 1, nOrb1
@@ -993,8 +990,8 @@ contains
             tmpaQS(:,:) = 0.0_dp
             tmpSaQ(:,:) = 0.0_dp
             do kk = 1, nOrb1
-              tmpadS(:) = tmpadS + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrTmpOverT(kk,nu)
-              tmpaQS(:,:) = tmpaQS + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrTmpOverT(kk,nu)
+              tmpadS(:) = tmpadS + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrTmpOver(nu, kk)
+              tmpaQS(:,:) = tmpaQS + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrTmpOver(nu, kk)
             end do
             do kk = 1, nOrb2
               tmpSad(:) = tmpSad + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrTmpOver(kk,mu)
@@ -1136,7 +1133,7 @@ contains
     integer :: iAt1, iAt2, iAt2f
     integer :: iOrig, iSpin, nSpin, nAtom, iNeigh, iSp1, iSp2
 
-    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrDMTmpT(orb%mOrb,orb%mOrb)
+    real(dp) :: sqrDMTmp(orb%mOrb,orb%mOrb)
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: derivTmp(3)
     real(dp) :: tmpDerivMuNu
@@ -1212,7 +1209,6 @@ contains
         nOrb2 = orb%nOrbSpecies(iSp2)
         iOrig = iPair(iNeigh,iAt1) + 1
         sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(rho(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
-        sqrDMTmpT(1:nOrb1,1:nOrb2) = transpose(sqrDMTmp(1:nOrb2,1:nOrb1)) 
         call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAt1, iAt2, orb)
 
         derivTmp(:) = 0.0_dp
@@ -1224,8 +1220,8 @@ contains
             tmpPaQ(:,:) = 0.0_dp
             tmpaQP(:,:) = 0.0_dp
             do kk = 1, nOrb1
-              tmpPad(:) = tmpPad + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
-              tmpPaQ(:,:) = tmpPaQ + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmpT(kk,nu)
+              tmpPad(:) = tmpPad + this%atomicDIntgrl(:,kk,mu,iSp1) * sqrDMTmp(nu,kk)
+              tmpPaQ(:,:) = tmpPaQ + this%atomicQIntgrl(:,:,kk,mu,iSp1) * sqrDMTmp(nu,kk)
             end do
             do kk = 1, nOrb2
               tmpadP(:) = tmpadP + this%atomicDIntgrl(:,kk,nu,iSp2) * sqrDMTmp(kk,mu)
