@@ -82,7 +82,8 @@ module dftbp_dftb_mdftb
 
     !> Species of atoms
     integer, allocatable :: species(:), nOrbSpecies(:)
-    !> Whether a species has dipole or quadrupole on-site charges (2, nSpecies)
+
+    !> Whether atoms of each species have a dipole or quadrupole on-site charge (2, nSpecies)
     logical, allocatable :: hasOnsiteCharges(:,:)
 
     !> Atomic dipole integrals
@@ -552,10 +553,7 @@ contains
         this%f30AB(:,:,:,iAt1, iAt2) = -workM3x3x3
 
         ! f40AB and f50AB
-        if (all(.not. this%hasOnsiteCharges(:, iSp1)) &
-            & .or. all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (.not.(any(this%hasOnsiteCharges(:,iSp1) .or. this%hasOnsiteCharges(:,iSp2)))) cycle
 
         ! f40AB
         gammaQuadruplePrime = 24.0_dp / rab**5 - expGammaQuadruplePrime(rab, u1, u2)
@@ -868,9 +866,7 @@ contains
     do iAt1 = 1, nAtoms
       do iAt2 = 1, nAtoms
         iSp2 = this%species(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (all(.not. this%hasOnsiteCharges(:, iSp2))) cycle
         this%pot10x1Atom(iAt1) = this%pot10x1Atom(iAt1)&
             & + sum(this%f10AB(:,iAt2, iAt1) * this%deltaDAtom(:,iAt2))
         this%pot20x2Atom(iAt1) = this%pot20x2Atom(iAt1)&
@@ -895,14 +891,10 @@ contains
     !$OMP PARALLEL DO PRIVATE(iAt1, iSp1, iAt2, iSp2, ii, jj) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtoms
       iSp1 = this%species(iAt1)
-      if (all(.not. this%hasOnsiteCharges(:, iSp1))) then
-        cycle
-      end if
+      if (all(.not. this%hasOnsiteCharges(:, iSp1))) cycle
       do iAt2 = 1, nAtoms
         iSp2 = this%species(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (all(.not. this%hasOnsiteCharges(:, iSp2))) cycle
         do ii = 1, 3
           do jj = 1, 3
             this%pot22x2Atom(jj, ii, iAt1) = this%pot22x2Atom(jj, ii, iAt1)&
@@ -1153,10 +1145,7 @@ contains
         iSp2 = species(iAt2)
         this%pot30x0Atom(:,:,:,iAt1) = this%pot30x0Atom(:,:,:,iAt1)&
             & + this%f30AB(:,:,:,iAt2,iAt1) * this%deltaMAtom(iAt2)
-        if (all(.not. this%hasOnsiteCharges(:, iSp1)) &
-            & .or. all(.not. this%hasOnsiteCharges(:, iSp2))) then
-          cycle
-        end if
+        if (.not.(any(this%hasOnsiteCharges(:,iSp1) .or. this%hasOnsiteCharges(:,iSp2)))) cycle
         do ii = 1, 3
           do jj = 1, 3
             do ll = 1, 3
@@ -1203,9 +1192,7 @@ contains
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        if (iAt1 == iAt2f) then
-          cycle
-        end if
+        if (iAt1 == iAt2f) cycle
         nOrb2 = orb%nOrbSpecies(iSp2)
         iOrig = iPair(iNeigh,iAt1) + 1
         sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(rho(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
