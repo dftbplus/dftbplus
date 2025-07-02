@@ -91,7 +91,7 @@ module dftbp_dftbplus_main
   use dftbp_math_contactsymm, only : TEquivContactAtoms
   use dftbp_math_lapackroutines, only : posv
   use dftbp_math_matrixops, only : adjointLowerTriangle
-  use dftbp_math_simplealgebra, only : derivDeterminant33, determinant33, invert33
+  use dftbp_math_simplealgebra, only : derivDeterminant33, determinant33, invert33, removeTrace
   use dftbp_md_mdcommon, only : evalKE, evalKT, TMdCommon
   use dftbp_md_mdintegrator, only : next, rescale, TMdIntegrator
   use dftbp_md_tempprofile, only : TTempProfile
@@ -1603,8 +1603,8 @@ contains
             & this%dispersion, allocated(this%eField), this%tPeriodic, this%nSpin, this%tSpin,&
             & this%tSpinOrbit, this%tSccCalc, allocated(this%onSiteElements),&
             & this%iAtInCentralRegion, this%electronicSolver, this%isHalogenEgyPrinted,&
-                & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation),&
-                & allocated(this%quadrupoleMoment))
+            & this%isHybridXc, allocated(this%thirdOrd), allocated(this%solvation),&
+            & allocated(this%quadrupoleMoment))
       end if
     end if
 
@@ -1703,12 +1703,9 @@ contains
       call getDipoleMoment(this%qOutput, this%q0, this%multipoleOut%dipoleAtom, this%coord0,&
           & this%dipoleMoment(:,this%deltaDftb%iDeterminant), this%iAtInCentralRegion)
     #:block DEBUG_CODE
-      ! Turn off the test for the case when mdftb is active:
-      if (.not. allocated(this%mdftb)) then
-        call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
-            & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
-            & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%nDipole)
-      end if
+      call checkDipoleViaHellmannFeynman(env, this%rhoPrim, this%q0, this%coord0, this%ints,&
+          & this%orb, this%neighbourList, this%nNeighbourSk, this%species, this%iSparseStart,&
+          & this%img2CentCell, this%eFieldScaling, this%hamiltonianType, this%mDftb, this%nDipole)
     #:endblock DEBUG_CODE
       if (allocated(this%mdftb)) then
         call this%mdftb%addAtomicDipoleMoment(&
@@ -2299,7 +2296,7 @@ contains
     !> Data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
-    !> multipole contributions
+    !> Multipole contributions
     type(TMdftb), allocatable, intent(inout) :: mdftb
 
     !> Image atoms to their equivalent in the central cell
@@ -5708,7 +5705,8 @@ contains
 
   !> Prints dipole moment calculated by the derivative of H with respect to the external field.
   subroutine checkDipoleViaHellmannFeynman(env, rhoPrim, q0, coord0, ints, orb, neighbourList,&
-      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling, iHamiltonianType, nDipole)
+      & nNeighbourSK, species, iSparseStart, img2CentCell, eFieldScaling, iHamiltonianType, mDftb,&
+      & nDipole)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5749,6 +5747,9 @@ contains
     !> Hamiltonian type
     integer, intent(in) :: iHamiltonianType
 
+    !> DFTB multipole contributions
+    type(TMdftb), allocatable, intent(in) :: mDftb
+
     !> Number of atomic dipole moment components
     integer, intent(in) :: nDipole
 
@@ -5766,7 +5767,6 @@ contains
 
   #:block DEBUG_CODE
     if (nDipole > 0) then
-      @:ASSERT(iHamiltonianType == hamiltonianTypes%xtb)
       allocate(potentialGradDeriv(nDipole, nAtom))
     end if
   #:endblock DEBUG_CODE
@@ -5785,9 +5785,15 @@ contains
         potentialGradDeriv(:,:) = 0.0_dp
         potentialGradDeriv(iCart,:) = -eFieldScaling%scaledExtEField(1.0_dp)
 
-        call addAtomicMultipoleShift(hPrime, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
-            & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
-            & potentialGradDeriv)
+        select case(iHamiltonianType)
+        case(hamiltonianTypes%xtb)
+          call addAtomicMultipoleShift(hPrime, ints%dipoleBra, ints%dipoleKet, nNeighbourSK, &
+              & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell, &
+              & potentialGradDeriv)
+        case(hamiltonianTypes%dftb)
+          @:ASSERT(allocated(mDftb))
+
+        end select
       end if
 
       dipole(:,:) = 0.0_dp
@@ -5826,7 +5832,7 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     integer :: nAtom, ii, iAtom, jj, ll
-    real(dp) dqAtom, tmpTrace
+    real(dp) dqAtom
 
     nAtom = size(qOutput, dim=2)
     quadrupoleMoment(:,:) = 0.0_dp
@@ -5841,10 +5847,7 @@ contains
       end do
     end do
 
-    tmpTrace = (quadrupoleMoment(1,1) + quadrupoleMoment(2,2) + quadrupoleMoment(3,3)) / 3.0_dp
-    do ii = 1, 3
-      quadrupoleMoment(ii,ii) = quadrupoleMoment(ii,ii) - tmpTrace
-    end do
+    call removeTrace(quadrupoleMoment)
 
   end subroutine getQuadrupoleMoment
 
