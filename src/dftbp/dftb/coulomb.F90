@@ -28,7 +28,7 @@ module dftbp_dftb_coulomb
 #:if WITH_SCALAPACK
   use dftbp_extlibs_scalapackfx, only : blacsgrid, CSRC_, DLEN_, MB_, NB_, pblasfx_psymv, RSRC_,&
       & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape,&
-      & scalafx_indxl2g, scalafx_islocal
+      & scalafx_indxl2g, scalafx_infog2l, scalafx_islocal
 #:endif
   implicit none
 
@@ -894,6 +894,8 @@ contains
     real(dp) :: neighCoords(3, iterChunkSize_)
     integer :: neighImages(iterChunkSize_)
     integer :: iAt1, iAt2, iAt2f, iNeigh, nNeigh, jj, ii, iLoc, jLoc
+    integer :: iLocs(iterChunkSize_), jLocs(iterChunkSize_)
+    integer :: prow(iterChunkSize_), pcol(iterChunkSize_)
     logical :: tLocal
 
     @:ASSERT(volume > 0.0_dp)
@@ -908,10 +910,13 @@ contains
       nNeigh = iterChunkSize_
       do while (nNeigh == iterChunkSize_)
         call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+        call scalafx_infog2l(grid, descInvRMat, neighImages, spread(iAt1, 1, iterChunkSize_),&
+            & iLocs, jLocs, prow, pcol)
         do iNeigh = 1, nNeigh
-          iAt2f = neighImages(iNeigh)
-          call scalafx_islocal(grid, descInvRMat, iAt2f, iAt1, tLocal, iLoc, jLoc)
-          if (tLocal) then
+          if (prow(iNeigh) == grid%myrow .and. pcol(iNeigh) == grid%mycol) then
+            iLoc = iLocs(iNeigh)
+            jLoc = jLocs(iNeigh)
+            iAt2f = neighImages(iNeigh)
             invRMat(iLoc, jLoc) = invRMat(iLoc, jLoc)&
                 & + rTerm(norm2(coord(:,iAt1) - neighCoords(:,iNeigh)), alpha)
           end if
