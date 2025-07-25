@@ -76,7 +76,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs
   use dftbp_dftb_populations, only : mulliken, denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
   use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : pblasfx_psymm, pblasfx_ptran, pblasfx_pgemm, &
       & scalafx_pgetri, scalafx_pgetrf, M_, N_, pblasfx_ptranu, DLEN_,&
       & scalafx_getdescriptor, scalafx_addl2g
@@ -834,7 +834,6 @@ contains
     if (allocated(tblite)) then
       this%tblite = tblite
     end if
-    ! we assume denseDesc is allocated
     this%denseDesc = denseDesc
 
     if (inp%envType /= envTypes%constant) then
@@ -1530,7 +1529,7 @@ contains
   #:endif
 
     if (this%tRealHS) then
-      allocate(T2(nLocalRows,nLocalCols))
+      allocate(T2(nLocalRows, nLocalCols))
     end if
 
     ints%hamiltonian(:,:) = 0.0_dp
@@ -1700,10 +1699,10 @@ contains
     allocate(T3(nLocalRows, nLocalCols, this%parallelKS%nLocalKS))
     allocate(T4(nLocalRows, nLocalCols))
 
-    T1(:,:,:) = cmplx(0,0,dp)
-    T2(:,:) = cmplx(0,0,dp)
-    T3(:,:,:) = cmplx(0,0,dp)
-    T4(:,:) = cmplx(0,0,dp)
+    T1(:,:,:) = cmplx(0, 0, kind=dp)
+    T2(:,:) = cmplx(0, 0, kind=dp)
+    T3(:,:,:) = cmplx(0, 0, kind=dp)
+    T4(:,:) = cmplx(0, 0, kind=dp)
 
     pkick(1) = this%field
 
@@ -1796,7 +1795,13 @@ contains
     real(dp) :: tdfun(3)
     integer :: iStep
     type(TFileDescr) :: laserDat
+    logical :: writeLaserDat
 
+  #:if WITH_MPI
+    writeLaserDat = env%mpi%tGlobalLead
+  #:else
+    writeLaserDat = .true.
+  #:endif
     allocate(this%tdFunction(3, 0:this%nSteps))
     this%tdFunction(:,:) = 0.0_dp
 
@@ -1811,46 +1816,44 @@ contains
       E0 = 0.0_dp !this is to make sure we never sum the current field with that read from file
     end if
 
-#:if WITH_MPI
-      if (env%mpi%tGlobalLead) then
-#:endif
+    if (writeLaserDat) then
       if (this%tEnvFromFile) then
         call openFile(laserDat, "laser.dat", mode="r")
+        do iStep = 0,this%nSteps
+          read(laserDat%unit, *)time, tdfun(1), tdfun(2), tdfun(3)
+          this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
+        end do
       else
-        if (this%tVerboseDyn) call openOutputFile(this, laserDat, 'laser.dat')
+        if (this%tVerboseDyn) then 
+          call openOutputFile(this, env, laserDat, 'laser.dat')
+          write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+        end if
       end if
-      if (.not. this%tEnvFromFile .and. this%tVerboseDyn) then
-        write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
-      end if
-#:if WITH_MPI
-    end if
-#:endif
 
-    do iStep = 0,this%nSteps
-      time = iStep * this%dt + startTime
+      do iStep = 0,this%nSteps
+        time = iStep * this%dt + startTime
 
-      if (this%envType == envTypes%constant) then
-        envelope = 1.0_dp
-      else if (this%envType == envTypes%gaussian) then
-        envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
-      else if (this%envType == envTypes%sin2 .and. time >= this%time0 .and. time <= this%time1) then
-        envelope = sin(pi*(time-this%time0)/deltaT)**2
-      else
-        envelope = 0.0_dp
-      end if
+        if (this%envType == envTypes%constant) then
+          envelope = 1.0_dp
+        else if (this%envType == envTypes%gaussian) then
+          envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
+        else if (this%envType == envTypes%sin2 .and. time >= this%time0 .and. time <= this%time1) then
+          envelope = sin(pi*(time-this%time0)/deltaT)**2
+        else
+          envelope = 0.0_dp
+        end if
 
         this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
             & * this%fieldDir)
-      #:if WITH_MPI
-        if (env%mpi%tGlobalLead) then
-      #:endif
-        if (this%tVerboseDyn) write(laserDat%unit, "(5F15.8)") time * au__fs,&
+        if (writeLaserDat) then
+          if (this%tVerboseDyn) write(laserDat%unit, "(5F15.8)") time * au__fs,&
               & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
-      #:if WITH_MPI
         end if
-      #:endif
-
-    end do
+      end do
+    end if
+  #:if WITH_MPI
+    call mpifx_bcast(env%mpi%globalComm, this%tdFunction)
+  #:endif
 
   end subroutine getTDFunction
 
@@ -2400,10 +2403,10 @@ contains
   #:endif
 
     if (this%tRealHS) then
-      allocate(T2(nLocalRows,nLocalCols))
-      allocate(T3(nLocalRows,nLocalCols))
+      allocate(T2(nLocalRows, nLocalCols))
+      allocate(T3(nLocalRows, nLocalCols))
     else
-      allocate(T4(nLocalRows,nLocalCols))
+      allocate(T4(nLocalRows, nLocalCols))
     end if
 
     if (.not. this%tReadRestart) then
@@ -2446,7 +2449,7 @@ contains
         else
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
-          T4(:,:) = cmplx(0,0,dp)
+          T4(:,:) = cmplx(0, 0, kind=dp)
           call unpackHS(T4, ints%overlap, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call adjointLowerTriangle(T4)
@@ -2501,11 +2504,9 @@ contains
       allocate(EiginvAdj(nLocalRows, nLocalCols, this%parallelKS%nLocalKS))
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
-          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), errStatus,&
-              & eigvecsReal(:,:,iKS))
+          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigvecsReal(:,:,iKS))
         else
-          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), errStatus,&
-              & eigvecsCplx=eigvecsCplx(:,:,iKS))
+          call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigvecsCplx=eigvecsCplx(:,:,iKS))
         end if
       end do
     end if
@@ -2738,10 +2739,10 @@ contains
 
     nLocalRows = size(rho, dim=1)
     nLocalCols = size(rho, dim=2)
-    allocate(T1R(nLocalRows,nLocalCols))
-    allocate(T2R(nLocalRows,nLocalCols))
-    allocate(T3R(nLocalRows,nLocalCols))
-    allocate(T4R(nLocalRows,nLocalCols))
+    allocate(T1R(nLocalRows, nLocalCols))
+    allocate(T2R(nLocalRows, nLocalCols))
+    allocate(T3R(nLocalRows, nLocalCols))
+    allocate(T4R(nLocalRows, nLocalCols))
 
     T2R(:,:) = real(H1)
     T1R(:,:) = real(rho)
@@ -2810,7 +2811,7 @@ contains
 
     nLocalRows = size(rho, dim=1)
     nLocalCols = size(rho, dim=2)
-    allocate(T1(nLocalRows,nLocalCols))
+    allocate(T1(nLocalRows, nLocalCols))
 
     T1(:,:) = 0.0_dp
     call pblasfx_pgemm(Sinv, this%denseDesc%blacsOrbSqr, H1, this%denseDesc%blacsOrbSqr,&
@@ -3268,7 +3269,7 @@ contains
 
   !> Initialize matrices for populations
   !! Note, this will need to get generalised for complex eigenvectors
-  subroutine tdPopulInit(this, Eiginv, EiginvAdj,errStatus, eigvecsReal, eigvecsCplx)
+  subroutine tdPopulInit(this, Eiginv, EiginvAdj, eigvecsReal, eigvecsCplx)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -3285,11 +3286,7 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(in), optional :: eigvecsCplx(:,:)
 
-    !> Error status
-    type(TStatus), intent(out) :: errStatus
-
     complex(dp), allocatable :: T1(:,:), T2(:,:), T3(:,:)
-
     integer, allocatable  :: ipiv(:)
     integer :: mm, nn
     integer :: iOrb
@@ -3303,9 +3300,9 @@ contains
     nLocalCols = this%denseDesc%fullSize
   #:endif
 
-    allocate(T1(nLocalRows,nLocalCols))
-    allocate(T2(nLocalRows,nLocalCols))
-    allocate(T3(nLocalRows,nLocalCols))
+    allocate(T1(nLocalRows, nLocalCols))
+    allocate(T2(nLocalRows, nLocalCols))
+    allocate(T3(nLocalRows, nLocalCols))
 
   #:if WITH_SCALAPACK
     if (this%tRealHS) then
@@ -3409,9 +3406,9 @@ contains
       @:PROPAGATE_ERROR(errStatus)
       if (this%tRealHS) then
         T2(:,:) = real(T1, dp)
-        call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), errStatus,T2 )
+        call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigVecsReal=T2)
       else
-        call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), errStatus, eigvecsCplx=T1)
+        call tdPopulInit(this, Eiginv(:,:,iKS), EiginvAdj(:,:,iKS), eigvecsCplx=T1)
       end if
     end do
 
@@ -3624,7 +3621,7 @@ contains
     ! Velocities should actually be v(t+0.5*dt), not v(t),
     ! like this: this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
     coordNew(:,:) = coord
-    coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) + this%movedVelo(:,:) * this%dt
+    coordNew(:,this%indMovedAtom) = coordNew(:,this%indMovedAtom) + this%movedVelo * this%dt
 
     ! This re-initializes the velocity Verlet propagator with coordNew
     if (this%nDynamicsInit == 0) then
@@ -4357,7 +4354,7 @@ contains
       end do
     #:if WITH_SCALAPACK
       if (env%mpi%tGlobalLead) then
-      write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
+        write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
       end if
     #:else
       write(fdBondPopul%unit) time * au__fs, sum(bondWork), bondWork
@@ -4576,12 +4573,12 @@ contains
     nLocalCols = this%denseDesc%fullSize
   #:endif
 
-    allocate(this%trho(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
-    allocate(this%trhoOld(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
-    allocate(this%Ssqr(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
-    allocate(this%Sinv(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
-    allocate(this%H1(nLocalRows,nLocalCols,this%parallelKS%nLocalKS))
-    allocate(this%RdotSprime(nLocalRows,nLocalCols))
+    allocate(this%trho(nLocalRows, nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%trhoOld(nLocalRows, nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%Ssqr(nLocalRows, nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%Sinv(nLocalRows, nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%H1(nLocalRows, nLocalCols,this%parallelKS%nLocalKS))
+    allocate(this%RdotSprime(nLocalRows, nLocalCols))
 
     if (this%nDipole > 0) then
       allocate(this%Dsqr(this%nDipole,this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -5298,7 +5295,7 @@ contains
   !> gets diagonal elements of the distributed density matrix (occupations)
   !! TODO: there is a more direct and faster way of getting these elements,
   !! this can be improved in the future if it is a bottleneck.
-  subroutine unpackTDpopulBlacs(iNeighbour, nNeighbourSK, mOrb, iSparseStart, img2CentCell, T1_R,&
+  subroutine unpackTDpopulBlacs(iNeighbour, nNeighbourSK, mOrb, iSparseStart, img2CentCell, T1R,&
       & rhoPrim, env, occ, this, iKS, desc)
 
     !> Environment settings
@@ -5334,12 +5331,12 @@ contains
     !> Dense matrix description
     type(TDenseDescr), intent(in) :: desc
 
-    real(dp), intent(in) :: T1_R(:,:)
+    real(dp), intent(in) :: T1R(:,:)
 
     real(dp), allocatable :: popSparse(:)
     real(dp), allocatable :: arrayMO(:,:)
-    integer :: iNeigh, iSpin, iOrb1, iOrig, nOrb1, iK, ii
-    integer :: rhoDim, iAtom1, jj
+    integer :: iNeigh, iSpin, iOrb1, iOrig, nOrb, iK, ii
+    integer :: rhoDim, iAtom, jj
 
     rhoDim = size(rhoPrim, dim=1)
     allocate(popSparse(rhoDim))
@@ -5347,23 +5344,21 @@ contains
 
     popSparse(:) = 0.0_dp
     ! 1. dense to sparse
-    call packRhoRealBlacs(env%blacs, this%denseDesc, T1_R, iNeighbour, nNeighbourSK, mOrb,&
+    call packRhoRealBlacs(env%blacs, this%denseDesc, T1R, iNeighbour, nNeighbourSK, mOrb,&
         & iSparseStart, img2CentCell, popSparse)
 
     ! 2. collect all the elements of the sparse DM
     call mpifx_allreduceip(env%mpi%globalComm, popSparse, MPI_SUM)
 
     ! 3. get the diagonal blocks and then the diagonal elements
-    do iAtom1 = 1, this%nAtom
+    do iAtom = 1, this%nAtom
       arrayMO(:,:) = 0.0_dp
-      ii = desc%iAtomStart(iAtom1)
-      nOrb1 = desc%iAtomStart(iAtom1+1) - ii
+      ii = desc%iAtomStart(iAtom)
+      nOrb = desc%iAtomStart(iAtom+1) - ii
       iNeigh = 0
-      iOrig = iSparseStart(iNeigh, iAtom1) + 1
-      arrayMO(1:nOrb1, 1:nOrb1) = reshape(popSparse(iOrig:iOrig+nOrb1*nOrb1-1), [nOrb1, nOrb1])
-      do jj = 1, nOrb1
-        occ(ii+jj-1) = arrayMO(jj,jj)
-      end do
+      iOrig = iSparseStart(iNeigh, iAtom) + 1
+      ! Diagonal =  every (nOrb + 1)th element in the flat form of an nOrb1 x nOrb1 matrix
+      occ(ii : ii + nOrb - 1) = popSparse(iOrig : iOrig + nOrb * nOrb - 1 : nOrb + 1)
     end do
 
   end subroutine unpackTDpopulBlacs
