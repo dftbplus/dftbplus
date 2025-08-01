@@ -180,6 +180,7 @@ contains
     @:ASSERT(size(shift,dim=4)>=nSpin)
 
     if (isInputZero) then
+      ham(:,:) = 0.0_dp
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
     else
       !> If input is not zero everywhere, we have to compute in serial here, otherwise
