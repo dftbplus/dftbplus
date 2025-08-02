@@ -5289,11 +5289,6 @@ contains
     end if
 
     if (this%isLinResp) then
-      if (withMpi) then
-        if (this%tLinRespZVect) then
-          call error("Excited state gradients do not work with MPI yet")
-        end if
-      end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
       end if

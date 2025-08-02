@@ -5156,7 +5156,7 @@ contains
       & ints, eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont,&
       & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
       & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
-      & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, deltaRhoOut,&
+      & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, dRhoOut,&
       & excitedDerivs, naCouplings, occNatural, hybridXc)
 
     !> Environment settings
@@ -5262,7 +5262,7 @@ contains
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> Difference density matrix (vs. uncharged atoms) in dense form
-    real(dp), intent(inout), allocatable :: deltaRhoOut(:,:,:)
+    real(dp), intent(in), allocatable :: dRhoOut(:,:,:)
 
     !> Excited state energy derivatives per state with respect to atomic coordinates
     real(dp), intent(inout), allocatable :: excitedDerivs(:,:,:)
@@ -5276,7 +5276,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    real(dp), allocatable :: dQAtom(:,:)
+    real(dp), allocatable :: dQAtom(:,:), deltaRhoOut(:,:,:)
     real(dp), allocatable :: naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom
@@ -5291,6 +5291,10 @@ contains
     dftbEnergy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom, nSpin))
     dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
+
+    ! Avoid overwritte deltaRhoOut
+    allocate(deltaRhoOut, mold=dRhoOut)
+    deltaRhoOut = dRhoOut
 
   #:if WITH_SCALAPACK
 
@@ -5339,6 +5343,8 @@ contains
     dftbEnergy%Etotal = dftbEnergy%Etotal + dftbEnergy%Eexcited
     dftbEnergy%EMermin = dftbEnergy%EMermin + dftbEnergy%Eexcited
     dftbEnergy%EGibbs = dftbEnergy%EGibbs + dftbEnergy%Eexcited
+
+    deallocate(deltaRhoOut)
 
   end subroutine calculateLinRespExcitations
 
