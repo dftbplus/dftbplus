@@ -89,3 +89,5 @@ contributed to DFTB+ :
 * Bo Thomsen (Japan Atomic Energy Agency, Japan)
 
 * Victor Yu (Duke University, USA)
+
+* Gonzalo Díaz Mirón (International Centre for Theoretical Physics, Italy)

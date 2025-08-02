@@ -5494,11 +5494,6 @@ contains
     end if
 
     if (this%isLinResp) then
-      if (withMpi) then
-        if (this%tLinRespZVect) then
-          call error("Excited state gradients do not work with MPI yet")
-        end if
-      end if
       if (this%tLinRespZVect) then
         allocate(this%rhoSqrReal(sqrHamSize, sqrHamSize, this%nSpin))
       end if
@@ -6178,12 +6173,6 @@ contains
     character(lc) :: tmpStr
 
     @:ASSERT(allocated(input%ctrl%lrespini))
-
-    if (withMpi) then
-      if (.not. all(input%ctrl%lrespini%indNACouplings == 0)) then
-        call error("Non-adiabatic coupling vectors not available under MPI")
-      end if
-    end if
 
     if (.not. tSccCalc) then
       call error("Linear response excitation requires SCC=Yes")

@@ -6234,8 +6234,12 @@ contains
 
   end subroutine writeMdftbEnergies
 
+
   !> Write excited state forces
-  subroutine writeExcitedStateForces(fileName, derivs, excitedDerivs, indNACouplings)
+  subroutine writeExcitedStateForces(env, fileName, derivs, excitedDerivs, indNACouplings)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> File name
     character(*), intent(in) :: fileName
@@ -6251,6 +6255,10 @@ contains
 
     type(TFileDescr) :: fd
     integer :: ii, iAt, offSet
+
+  #:if WITH_MPI
+    if (.not. env%mpi%tGlobalLead) return
+  #:endif
 
     offSet = indNACouplings(1)
     call openFile(fd, fileName, mode="w")
@@ -6276,6 +6284,7 @@ contains
     enddo
 
     call closeFile(fd)
+
   end subroutine writeExcitedStateForces
   
 end module dftbp_dftbplus_mainio

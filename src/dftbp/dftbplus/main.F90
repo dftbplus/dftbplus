@@ -137,6 +137,7 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_mpifx, only : MPI_MAX, MPI_SUM, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, pblasfx_phemm, pblasfx_psymm,&
       & pblasfx_ptran, pblasfx_ptranc, scalafx_pposv
+  use dftbp_math_scalafxext, only : phermatinv, psymmatinv, distrib2replicated
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
@@ -1753,7 +1754,7 @@ contains
               & this%naCouplings, this%energiesCasida)
         else if (this%tCasidaForces) then
           if(this%linearResponse%tNaCoupling) then
-            call writeExcitedStateForces(excFrcOut, this%derivs, this%excitedDerivs, &
+            call writeExcitedStateForces(env, excFrcOut, this%derivs, this%excitedDerivs, &
                 & this%linearResponse%indNACouplings)
           else
             this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)        
@@ -4095,9 +4096,22 @@ contains
       ! delta-density, therefore we store it separately for now)
       if (allocated(rhoSqrReal)) then
         if (.not. allocated(densityMatrix%deltaRhoOut)) then
-          rhoSqrReal(:,:, iSpin) = work
+        #:if WITH_SCALAPACK
+          call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+               &  work(:,:), rhoSqrReal(:,:,iSpin))
+        #:else
+          rhoSqrReal(:,:, iSpin) = work(:,:)
+        #:endif
+
         else
+
+        #:if WITH_SCALAPACK
+          call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+              & densityMatrix%deltaRhoOut(:,:,iSpin), rhoSqrReal(:,:,iSpin))
+        #:else
           rhoSqrReal(:,:, iSpin) = densityMatrix%deltaRhoOut(:,:,iSpin)
+        #:endif
+
         end if
       end if
 
@@ -5705,7 +5719,7 @@ contains
       & ints, eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont,&
       & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
       & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
-      & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, deltaRhoOut,&
+      & tPrintExcEigvecsTxt, nonSccDeriv, dftbEnergy, energies, work, rhoSqrReal, dRhoOut,&
       & excitedDerivs, naCouplings, occNatural, hybridXc)
 
     !> Environment settings
@@ -5811,7 +5825,7 @@ contains
     real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
 
     !> Difference density matrix (vs. uncharged atoms) in dense form
-    real(dp), intent(inout), allocatable :: deltaRhoOut(:,:,:)
+    real(dp), intent(in), allocatable :: dRhoOut(:,:,:)
 
     !> Excited state energy derivatives per state with respect to atomic coordinates
     real(dp), intent(inout), allocatable :: excitedDerivs(:,:,:)
@@ -5825,8 +5839,7 @@ contains
     !> Data for hybrid xc-functional calculation
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
-    real(dp), allocatable :: dQAtom(:,:)
-    real(dp), allocatable :: naturalOrbs(:,:,:)
+    real(dp), allocatable :: deltaRhoOut(:,:,:), dQAtom(:,:), naturalOrbs(:,:,:)
     integer, pointer :: pSpecies0(:)
     integer :: iSpin, nSpin, nAtom
     logical :: tSpin
@@ -5840,6 +5853,11 @@ contains
     dftbEnergy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom, nSpin))
     dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
+
+    ! Avoid overwriting deltaRhoOut
+    if (allocated(dRhoOut)) then
+        deltaRhoOut = dRhoOut
+    endif
 
   #:if WITH_SCALAPACK
 
@@ -5856,11 +5874,6 @@ contains
     if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call adjointLowerTriangle(rhoSqrReal(:,:,iSpin))
-      end do
-    end if
-    if (tForces .and. allocated(hybridXc)) then
-      do iSpin = 1, nSpin
-        call adjointLowerTriangle(deltaRhoOut(:,:, iSpin))
       end do
     end if
     if (tWriteAutotest) then
