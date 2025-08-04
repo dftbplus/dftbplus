@@ -823,8 +823,17 @@ contains
 
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
-                call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                allocate(VecGlb(norb,norb))
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin),&
+                                        & VecGlb(:,:))
+
+                call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
+
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr,&
+                                        & VecGlb)
+
+                call getExcMulliken(denseDesc, pc(:,:,iSpin), VecGlb, dqex(:,iSpin))
+                deallocate(VecGlb)
               end do
 
               ! For 0-n couplings, the standard force routine can be used, where
@@ -865,8 +874,17 @@ contains
 
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
-                call makeSimilarityTrans(pc(:,:,iSpin), grndEigVecs(:,:,iSpin))
-                call getExcMulliken(denseDesc, pc(:,:,iSpin), SSqr, dqex(:,iSpin))
+                allocate(VecGlb(norb,norb))
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin),&
+                                        & VecGlb(:,:))
+
+                call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
+
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr,&
+                                        & VecGlb)
+
+                call getExcMulliken(denseDesc, pc(:,:,iSpin), VecGlb, dqex(:,iSpin))
+                deallocate(VecGlb)
               end do
 
               call addNadiaGradients(env, orb, this, rpa, transChrg, hybridXc, denseDesc, sym,&
@@ -2538,6 +2556,7 @@ contains
     Dens(:,:) = sum(DensGlobal, dim=3)
     deallocate(DensGlobal)
 
+    ! NOTE: probably this is not necessary, we need to check
     ! Symmetrize RhoSqr
     do mu = 1, size(Dens, dim=1)
       do nu = mu + 1, size(Dens, dim=2)
@@ -2559,6 +2578,8 @@ contains
       allocate(xpyqds(lr%nAtom))
       allocate(tmp11(nSpin))
 
+      !FIXME: here nOrb is the global value but rhoSqr has dimension of nOrb local
+      !TODO: The test NH forces does not run even for single process.
       allocate(SpinDens(nOrb,nOrb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
@@ -2602,10 +2623,6 @@ contains
           deltaRhoGlobal(mu,nu,:) = deltaRhoGlobal(nu,mu,:)
         end do
       end do
-
-      ! GDM: I've commented this method since species is assigned but never used.
-      !      species should be already initialized in hybridXc
-      ! call hybridXc%getCentralCellSpecies(species)
 
       ! Compute long-range gamma derivative
       call distributeRangeInChunks(env, 1, lr%nAtom, iGlobal, fGlobal)
@@ -3983,10 +4000,9 @@ contains
     real(dp), intent(out) :: woo(:,:)
 
     real(dp), allocatable :: p(:), vecHoo(:)
-    integer :: soo(2), i, a, s, ias, j, ij, ijs, nSpin, nOrb
+    integer :: soo(2), i, a, s, ias, j, ij, ijs, nSpin, iGlobal, fGlobal
 
 
-    nOrb = size(ovrXev, dim=1)
     nSpin = size(rpa%nocc_ud)
 
     allocate(p(rpa%nxov_rd))
@@ -3999,9 +4015,12 @@ contains
     wov(:) = 0.0_dp
     woo(:,:) = 0.0_dp
 
+    ! MPI distribution indexes
+    call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
+
     ! "Fake" density matrix for non-adiabatic coupling [Furche JCP 132 044107 (2010)]
     ! Restricted KS: P = 2 P^up ; (X+Y) = sqrt(2) (X+Y)^up
-    do ias = 1, rpa%nxov_rd
+    do ias = iGlobal, fGlobal
       call indxov(rpa%win, ias, rpa%getIA, i, a, s)
       p(ias) = sqrt(2.0_dp) * xpy(ias)
       wov(ias) = grndEigVal(i, s) * p(ias) + omega * xmy(ias) / sqrt(2.0_dp)
@@ -4009,16 +4028,22 @@ contains
 
     ! Define P symmetrically (similar to treatment of excited state gradients)
     pc(:,:,:) = 0.0_dp
-    do ias = 1, rpa%nxov_rd
+    do ias = iGlobal, fGlobal
       call indxov(rpa%win, ias, rpa%getIA, i, a, s)
       pc(i,a,s) = 0.5_dp * p(ias)
       pc(a,i,s) = 0.5_dp * p(ias)
     end do
+
+    call assembleChunks(env,p)
+    call assembleChunks(env,pc)
+    call assembleChunks(env,wov)
+
     call getHplusXYfr(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev, grndEigVecs,&
         & frGamma, p, vecHoo=vecHoo)
 
     do s = 1, nSpin
-      do ij = 1, rpa%nxoo_ud(s)
+      call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+      do ij = iGlobal, fGlobal
         i = rpa%getIJ(ij + soo(s), 1)
         j = rpa%getIJ(ij + soo(s), 2)
         ijs = rpa%iaTrans(i, j, s)
@@ -4031,7 +4056,8 @@ contains
       call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, p, vecHoo)
 
       do s = 1, nSpin
-        do ij = 1, rpa%nxoo_ud(s)
+        call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+        do ij = iGlobal, fGlobal
           i = rpa%getIJ(ij + soo(s), 1)
           j = rpa%getIJ(ij + soo(s), 2)
           ijs = rpa%iaTrans(i, j, s)
@@ -4042,7 +4068,8 @@ contains
 
     ! Divide diagonal elements of W_ij by 2.
     do s = 1, nSpin
-      do ij = 1, rpa%nxoo_ud(s)
+      call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+      do ij = iGlobal, fGlobal
         i = rpa%getIJ(ij + soo(s), 1)
         j = rpa%getIJ(ij + soo(s), 2)
         if (i == j) then
@@ -4050,6 +4077,7 @@ contains
         end if
       end do
     end do
+    call assembleChunks(env,woo)
 
   end subroutine grndToExcDensityMatrices
 
@@ -4136,12 +4164,12 @@ contains
     real(dp), allocatable :: vecHvvXorY(:), vecHooXorY(:), vecHovT(:), vecHvvT(:)
     real(dp), allocatable :: vecHvvXpY(:), vecHvvXmY(:), vecHooXpY(:), vecHooXmY(:)
     real(dp), allocatable :: vecHooT(:)
-    integer :: nxov
+    integer :: nxov, iGlobal, fGlobal
     integer :: i, j, a, b, ias, ibs, abs, ij, ab, jas, ijs, s, nSpin, soo(2), svv(2), nOrb
     real(dp) :: ptmp1, ptmp2, tmp3, tmp4, tmp1
 
     nxov = size(rhs)
-    nOrb = size(ovrXev, dim=1)
+    nOrb = orb%nOrb
 
     allocate(xpyq(lr%nAtom))
     allocate(qTr(lr%nAtom))
@@ -4169,10 +4197,12 @@ contains
       allocate(gamxpyqds(lr%nAtom))
     end if
 
+    call distributeRangeInChunks(env, 1, nxov, iGlobal, fGlobal)
+
     ! Build state-to-state 1TDM and W (eq. 42 in Furche PCCP)
     ! We are symmetrizing the non-symmetric T of Furche
     ! Factor 1 / (1 + delta_ab) for W follows later
-    do ias = 1, nxov
+    do ias = iGlobal, fGlobal
       call indxov(rpa%win, ias, rpa%getIA, i, a, s)
 
       ! BA: is T_aa = 0?
@@ -4227,11 +4257,13 @@ contains
 
     end do
 
+    call assembleChunks(env, t)
+
     ! Terms for (P+-Q) of form (X+Y)^m_ib H^+_ab[(X+Y)^n]
     call getHplusXYfr(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev, grndEigVecs,&
         & gammaMat, xpyn, vecHoo=vecHooXorY, vecHvv=vecHvvXorY)
 
-    do ias = 1, nxov
+    do ias = iGlobal, fGlobal
       call indxov(rpa%win, ias, rpa%getIA, i, a, s)
       do b = rpa%nocc_ud(s) + 1, a
         abs = rpa%iaTrans(a, b, s)
@@ -4264,7 +4296,7 @@ contains
     call getHplusXYfr(env, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev, grndEigVecs,&
         & gammaMat, xpym, vecHoo=vecHooXorY, vecHvv=vecHvvXorY)
 
-    do ias = 1, nxov
+    do ias = iGlobal, fGlobal
       call indxov(rpa%win, ias, rpa%getIA, i, a, s)
       do b = rpa%nocc_ud(s) + 1, a
         abs = rpa%iaTrans(a, b, s)
@@ -4301,14 +4333,15 @@ contains
     call getHplusMfr(env, lr, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs, gammaMat,&
         & 3, t, vecHovT)
 
-    rhs = rhs - vecHovT
+    rhs(iGlobal:fGlobal) = rhs(iGlobal:fGlobal) - vecHovT(iGlobal:fGlobal)
 
     ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later
     call getHplusMfr(env, lr, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs, gammaMat,&
         & 1, t, vecHooT)
 
     do s = 1, nSpin
-      do ij = 1, rpa%nxoo_ud(s)
+      call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+      do ij = iGlobal, fGlobal
         ijs = ij + soo(s)
         woo(ij,s) = woo(ij,s) + vecHooT(ijs)
       end do
@@ -4334,7 +4367,8 @@ contains
       call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmyn,&
           & vecHooXmY)
 
-      do ias = 1, nxov
+      call distributeRangeInChunks(env, 1, nxov, iGlobal, fGlobal)
+      do ias = iGlobal, fGlobal
 
         call indXov(rpa%win, ias, rpa%getIA, i, a, s)
         do b = rpa%nocc_ud(s) + 1, nOrb
@@ -4380,7 +4414,7 @@ contains
       call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmym,&
           & vecHooXmY)
 
-      do ias = 1, nxov
+      do ias = iGlobal, fGlobal
 
         call indXov(rpa%win, ias, rpa%getIA, i, a, s)
         do b = rpa%nocc_ud(s) + 1, nOrb
@@ -4414,19 +4448,25 @@ contains
       ! -RHS^+ += - H^+_ia[T^+]
       call getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHovT)
 
-      rhs(:) = rhs - cExchange * vecHovT
+      rhs(iGlobal:fGlobal) = rhs(iGlobal:fGlobal) - cExchange * vecHovT(iGlobal:fGlobal)
 
       ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later
       call getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHooT)
 
       do s = 1, nSpin
-        do ij = 1, rpa%nxoo_ud(s)
+        call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+        do ij = iGlobal, fGlobal
           ijs = ij + soo(s)
           woo(ij, s) = woo(ij, s) + cExchange * vecHooT(ijs)
         end do
       end do
 
     endif
+
+    call assembleChunks(env, rhs)
+    call assembleChunks(env, woo)
+    call assembleChunks(env, wov)
+    call assembleChunks(env, wvv)
 
   end subroutine getNadiaZvectorEqRHS
 
@@ -4579,13 +4619,14 @@ contains
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:,:)
     real(dp), allocatable :: XS(:,:,:,:), SXS(:,:,:,:), SY(:,:,:,:), YS(:,:,:,:), SYS(:,:,:,:)
+    real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:), DensGlobal(:,:,:)
     real(dp), allocatable :: xpy(:,:), xmy(:,:)
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
     integer, allocatable :: species(:)
     integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, iAt1, iAt2, ka
     integer :: indalpha, indalpha1, indbeta, indbeta1, soo(2), svv(2)
-    integer :: iSp1, iSp2, iSpin, nSpin, iState, nOrb
+    integer :: iSp1, iSp2, iSpin, nSpin, iState, nOrb, iGlobal, fGlobal
 
     nSpin = size(grndEigVecs, dim=3)
     nOrb = orb%nOrb
@@ -4608,8 +4649,13 @@ contains
     xmy(:,1) = xmyn
     xmy(:,2) = xmym
 
-    allocate(Dens(nOrb, nOrb))
-    Dens(:,:) = sum(rhoSqr, dim=3)
+    allocate(Dens(nOrb, nOrb), DensGlobal(nOrb,nOrb,size(rhoSqr,dim=3)))
+    do iSpin = 1, size(rhoSqr, dim=3)
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                           &  rhoSqr(:,:,iSpin), DensGlobal(:,:,iSpin))
+    enddo
+    Dens(:,:) = sum(DensGlobal, dim=3)
+    deallocate(DensGlobal)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -4626,6 +4672,9 @@ contains
       xpyqds = 0.0_dp
       allocate(tmp11(nSpin))
 
+      ! FIXME: here nOrb is the global value but rhoSqr has dimension of nOrb local
+      ! TODO: nOrb is the global but rhoSqr has the dimension of nOrb local
+      !      The test NH forces does not run even for single process.
       allocate(SpinDens(nOrb, nOrb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
@@ -4653,17 +4702,27 @@ contains
       allocate(lrGammaOrb(nOrb, nOrb))
       allocate(gammaLongRangePrime(3, lr%nAtom, lr%nAtom))
 
-      ! Symmetrize deltaRho
-      do mu = 1, nOrb
-        do nu = mu + 1, nOrb
-          deltaRho(mu,nu,:) = deltaRho(nu,mu,:)
+      ! Convert local arrays to global
+      allocate(deltaRhoGlobal(norb,norb,size(deltaRho,dim=3)))
+      allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
+      do iSpin = 1, nSpin
+        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                             &  deltaRho(:,:,iSpin), deltaRhoGlobal(:,:,iSpin))
+        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                             &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
+      enddo
+
+      ! Symmetrize deltaRhoGlobal
+      do mu = 1, size(deltaRhoGlobal, dim=1)
+        do nu = mu + 1, size(deltaRhoGlobal, dim=2)
+          deltaRhoGlobal(mu,nu,:) = deltaRhoGlobal(nu,mu,:)
         end do
       end do
 
       ! Compute long-range gamma derivative
+      call distributeRangeInChunks(env, 1, lr%nAtom, iGlobal, fGlobal)
       gammaLongRangePrime(:,:,:) = 0.0_dp
-      call hybridXc%getCentralCellSpecies(species)
-      do iAt1 = 1, lr%nAtom
+      do iAt1 = iGlobal, fGlobal
         do iAt2 = 1, lr%nAtom
           if (iAt1 /= iAt2) then
             call getDirectionalCamGammaPrimeValue(hybridXc, tmpVec, iAt1, iAt2)
@@ -4671,6 +4730,7 @@ contains
           end if
         end do
       end do
+      call assembleChunks(env,gammaLongRangePrime)
 
       ! Symmetrize S (can't we get S from caller?)
       call getSqrS(coord0, lr%nAtom, skOverCont, orb, denseDesc%iAtomStart, species0, overlap)
@@ -4717,19 +4777,21 @@ contains
       !
       ! xpycc(mu,nu) = sum_ia (X+Y)_ia grndEigVecs(mu,i) grndEigVecs(nu,a)
       ! xpycc(mu, nu) += sum_ia (X+Y)_ia grndEigVecs(mu,a) grndEigVecs(nu,i)
+      call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
       xpycc(:,:,:,iState) = 0.0_dp
-      do ia = 1, rpa%nxov_rd
+      do ia = iGlobal, fGlobal
         call indxov(rpa%win, ia, rpa%getIA, i, a, iSpin)
         ! Should replace with DSYR2 call:
         do nu = 1, nOrb
           do mu = 1, nOrb
             xpycc(mu,nu,iSpin,iState) = xpycc(mu,nu,iSpin,iState) + xpy(ia,iState)&
-                & * (grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
-                & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin))
+                & * (grndEigVecsGlobal(mu,i,iSpin)*grndEigVecsGlobal(nu,a,iSpin)&
+                & + grndEigVecsGlobal(mu,a,iSpin)*grndEigVecsGlobal(nu,i,iSpin))
           end do
         end do
       end do
     end do
+    call assembleChunks(env, xpycc)
 
     if (rpa%tHybridXc) then
 
@@ -4737,23 +4799,27 @@ contains
       xpyas(:,:,:,:) = 0.0_dp
       xmyas(:,:,:,:) = 0.0_dp
 
+      call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
       do iState = 1,2
         ! Asymmetric contribution: xmycc_as = sum_ias (X-Y)_ias c_mas c_nis
-        do ia = 1, rpa%nxov_rd
+        do ia = iGlobal, fGlobal
           call indxov(rpa%win, ia, rpa%getIA, i, a, iSpin)
           ! Should replace with DSYR2 call:
           do nu = 1, nOrb
             do mu = 1, nOrb
                xmycc(mu,nu,iSpin,iState) = xmycc(mu,nu,iSpin,iState) + xmy(ia,iState) *&
-                & ( grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)&
-                & + grndEigVecs(mu,a,iSpin) * grndEigVecs(nu,i,iSpin) )
+                & ( grndEigVecsGlobal(mu,i,iSpin) * grndEigVecsGlobal(nu,a,iSpin)&
+                & + grndEigVecsGlobal(mu,a,iSpin) * grndEigVecsGlobal(nu,i,iSpin) )
                xpyas(mu,nu,iSpin,iState) = xpyas(mu,nu,iSpin,iState) + xpy(ia,iState) *&
-                & grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
+                & grndEigVecsGlobal(mu,i,iSpin) * grndEigVecsGlobal(nu,a,iSpin)
                xmyas(mu,nu,iSpin,iState) = xmyas(mu,nu,iSpin,iState) + xmy(ia,iState) *&
-                & grndEigVecs(mu,i,iSpin) * grndEigVecs(nu,a,iSpin)
+                & grndEigVecsGlobal(mu,i,iSpin) * grndEigVecsGlobal(nu,a,iSpin)
             end do
           end do
         end do
+        call assembleChunks(env, xmycc(:,:,:,iState))
+        call assembleChunks(env, xpyas(:,:,:,iState))
+        call assembleChunks(env, xmyas(:,:,:,iState))
 
         ! Account for normalization of S/T versus spin-polarized X+/-Y
         ! We have (X+Y)^S = 1/sqrt(2) [(X+Y)_up + (X+Y)_dn]
@@ -4766,7 +4832,7 @@ contains
         do iSpin = 1, nSpin
           call symm(PS(:,:,iSpin), 'R', overlap, pc(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
           call symm(SPS(:,:,iSpin), 'L', overlap, PS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
-          call symm(DS(:,:,iSpin), 'R', overlap, deltaRho(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb,&
+          call symm(DS(:,:,iSpin), 'R', overlap, deltaRhoGlobal(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb,&
               & nOrb)
           call symm(SDS(:,:,iSpin), 'L', overlap, DS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
           call symm(XS(:,:,iSpin,iState), 'R', overlap, xpyas(:,:,iSpin,iState), 'U', 1.0_dp,&
@@ -4793,52 +4859,53 @@ contains
 
     ! Calculate the occ-occ part
     wcc(:,:,:) = 0.0_dp
-
     do iSpin = 1, nSpin
-      do ij = 1, rpa%nxoo_ud(iSpin)
+      call distributeRangeInChunks(env, 1, rpa%nxoo_ud(iSpin), iGlobal, fGlobal)
+      do ij = iGlobal, fGlobal
         i = rpa%getIJ(ij + soo(iSpin), 1)
         j = rpa%getIJ(ij + soo(iSpin), 2)
         ! Replace with DSYR2 call:
         do mu = 1, nOrb
           do nu = 1, nOrb
             wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + woo(ij,iSpin) *&
-                & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,j,iSpin)&
-                & + grndEigVecs(mu,j,iSpin)*grndEigVecs(nu,i,iSpin) )
+                & ( grndEigVecsGlobal(mu,i,iSpin)*grndEigVecsGlobal(nu,j,iSpin)&
+                & + grndEigVecsGlobal(mu,j,iSpin)*grndEigVecsGlobal(nu,i,iSpin) )
           end do
         end do
-
       end do
     end do
 
     ! Calculate the occ-virt part: the same way as for xpycc
-    do ia = 1, rpa%nxov_rd
+    call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
+    do ia = iGlobal, fGlobal
       call indxov(rpa%win, ia, rpa%getIA, i, a, iSpin)
       ! Again replace with DSYR2 call:
       do nu = 1, nOrb
         do mu = 1, nOrb
           wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wov(ia) *&
-              & ( grndEigVecs(mu,i,iSpin)*grndEigVecs(nu,a,iSpin)&
-              & + grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,i,iSpin) )
+              & ( grndEigVecsGlobal(mu,i,iSpin)*grndEigVecsGlobal(nu,a,iSpin)&
+              & + grndEigVecsGlobal(mu,a,iSpin)*grndEigVecsGlobal(nu,i,iSpin) )
         end do
       end do
     end do
 
     ! Calculate the virt - virt part
     do iSpin = 1, nSpin
-      do ab = 1, rpa%nxvv_ud(iSpin)
+      call distributeRangeInChunks(env, 1, rpa%nxvv_ud(iSpin), iGlobal, fGlobal)
+      do ab = iGlobal, fGlobal
         a = rpa%getAB(ab + svv(iSpin), 1)
         b = rpa%getAB(ab + svv(iSpin), 2)
         ! Replace with DSYR2 call:
         do mu = 1, nOrb
           do nu = 1, nOrb
             wcc(mu,nu,iSpin) = wcc(mu,nu,iSpin) + wvv(ab,iSpin) *&
-                & ( grndEigVecs(mu,a,iSpin)*grndEigVecs(nu,b,iSpin)&
-                & + grndEigVecs(mu,b,iSpin)*grndEigVecs(nu,a,iSpin) )
+                & ( grndEigVecsGlobal(mu,a,iSpin)*grndEigVecsGlobal(nu,b,iSpin)&
+                & + grndEigVecsGlobal(mu,b,iSpin)*grndEigVecsGlobal(nu,a,iSpin) )
           end do
         end do
-
       end do
     end do
+    call assembleChunks(env, wcc)
 
     ! Now calculating the force complexity : nOrb * nOrb * 3
 
@@ -4901,8 +4968,8 @@ contains
                 tmprs = tmprs +&
                     & ( 2.0_dp * (PS(mu,nu,iSpin) * DS(nu,mu,iSpin)&
                     & + PS(nu,mu,iSpin) * DS(mu,nu,iSpin))&
-                    & + SPS(mu,nu,iSpin) * deltaRho(mu,nu,iSpin)&
-                    & + SPS(nu,mu,iSpin) * deltaRho(nu,mu,iSpin)&
+                    & + SPS(mu,nu,iSpin) * deltaRhoGlobal(mu,nu,iSpin)&
+                    & + SPS(nu,mu,iSpin) * deltaRhoGlobal(nu,mu,iSpin)&
                     & + pc(mu,nu,iSpin) * SDS(mu,nu,iSpin)&
                     & + pc(nu,mu,iSpin) * SDS(nu,mu,iSpin) )
 
@@ -5013,8 +5080,8 @@ contains
                   tmprs = 0.0_dp
                   do ka = 1, nOrb
                     tmprs = tmprs + (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) *&
-                        & ( PS(mu,ka,iSpin) * deltaRho(nu,ka,iSpin)&
-                        & + PS(nu,ka,iSpin) * deltaRho(mu,ka,iSpin)&
+                        & ( PS(mu,ka,iSpin) * deltaRhoGlobal(nu,ka,iSpin)&
+                        & + PS(nu,ka,iSpin) * deltaRhoGlobal(mu,ka,iSpin)&
                         & + pc(mu,ka,iSpin) * DS(nu,ka,iSpin)&
                         & + pc(nu,ka,iSpin) * DS(mu,ka,iSpin) )
                     tmprs = tmprs + 0.5_dp * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) *&
@@ -5123,7 +5190,7 @@ contains
     !> Output vector H[V] virtual-virtual
     real(dp), optional, intent(out) :: vecHvv(:)
 
-    integer :: nSpin, ab, s, abs, svv(2), ij, ijs, soo(2)
+    integer :: nSpin, ab, s, abs, svv(2), ij, ijs, soo(2), iGlobal, fGlobal
     real(dp) :: fact
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
 
@@ -5150,13 +5217,15 @@ contains
       if (sym == "S") then
         call hemv(gamxpyq, frGamma, xpyq)
         if (present(vecHvv)) then
-          do ab = 1, rpa%nxvv_ud(1)
+          call distributeRangeInChunks(env, 1, rpa%nxvv_ud(1), iGlobal, fGlobal)
+          do ab = iGlobal, fGlobal
             qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * gamxpyq)
           end do
         end if
         if (present(vecHoo)) then
-          do ij = 1, rpa%nxoo_ud(1)
+          call distributeRangeInChunks(env, 1, rpa%nxoo_ud(1), iGlobal, fGlobal)
+          do ij = iGlobal, fGlobal
             qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
             ! vecHoo(ij) = sum_kb K_ij,kb (X+Y)_kb
             vecHoo(ij) = 2.0_dp * sum(qTr * gamxpyq)
@@ -5164,13 +5233,15 @@ contains
         end if
       else ! Triplet case
         if (present(vecHvv)) then
-          do ab = 1, rpa%nxvv_ud(1)
+          call distributeRangeInChunks(env, 1, rpa%nxvv_ud(1), iGlobal, fGlobal)
+          do ab = iGlobal, fGlobal
             qTr(:) = transChrg%qTransAB(ab, env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
             vecHvv(ab) = 2.0_dp * sum(qTr * xpyq * lr%spinW(species0))
           end do
         end if
         if (present(vecHoo)) then
-          do ij = 1, rpa%nxoo_ud(1)
+          call distributeRangeInChunks(env, 1, rpa%nxoo_ud(1), iGlobal, fGlobal)
+          do ij = iGlobal, fGlobal
             qTr(:) = transChrg%qTransIJ(ij, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
             vecHoo(ij) = 2.0_dp * sum(qTr * xpyq * lr%spinW(species0))
           end do
@@ -5193,7 +5264,8 @@ contains
           fact = -1.0_dp
         end if
         if (present(vecHvv)) then
-          do ab = 1, rpa%nxvv_ud(s)
+          call distributeRangeInChunks(env, 1, rpa%nxvv_ud(s), iGlobal, fGlobal)
+          do ab = iGlobal, fGlobal
             abs = ab + svv(s)
             qTr(:) = transChrg%qTransAB(abs, env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
             vecHvv(abs) = sum(qTr * gamxpyq)
@@ -5202,7 +5274,8 @@ contains
           end do
         end if
         if (present(vecHoo)) then
-          do ij = 1, rpa%nxoo_ud(s)
+          call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+          do ij = iGlobal, fGlobal
             ijs = ij + soo(s)
             qTr(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
             vecHoo(ijs) = sum(qTr * gamxpyq)
@@ -5212,6 +5285,13 @@ contains
         end if
       end do
 
+    end if
+
+    if (present(vecHoo)) then
+      call assembleChunks(env, vecHoo)
+    end if
+    if (present(vecHvv)) then
+      call assembleChunks(env, vecHvv)
     end if
 
   end subroutine getHplusXYfr
@@ -5263,7 +5343,7 @@ contains
     !> Output vector H[M]
     real(dp), intent(out) :: vecH(:)
 
-    integer :: nSpin, ab, i, j, a, b, s, svv(2), ij, soo(2), ias
+    integer :: nSpin, ab, i, j, a, b, s, svv(2), ij, soo(2), ias, iGlobal, fGlobal
     real(dp), dimension(2) :: spinFactor = [1.0_dp, -1.0_dp]
     real(dp), allocatable  :: xpyq(:), gamxpyq(:), qTr(:), xpyqds(:), gamxpyqds(:)
     real(dp), allocatable  :: gamqt(:)
@@ -5296,7 +5376,8 @@ contains
     end if
 
     do s = 1, nSpin
-      do ij = 1, rpa%nxoo_ud(s)
+      call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+      do ij = iGlobal, fGlobal
         i = rpa%getIJ(ij + soo(s), 1)
         j = rpa%getIJ(ij + soo(s), 2)
         qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
@@ -5313,8 +5394,9 @@ contains
         end if
       end do
 
+      call distributeRangeInChunks(env, 1, rpa%nxvv_ud(s), iGlobal, fGlobal)
       ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) M_ab
-      do ab = 1, rpa%nxvv_ud(s)
+      do ab = iGlobal, fGlobal
         a = rpa%getAB(ab + svv(s), 1)
         b = rpa%getAB(ab + svv(s), 2)
         qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
@@ -5334,8 +5416,9 @@ contains
 
     end do
 
+    call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
     ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) M_ia
-    do ias = 1, rpa%nxov_rd
+    do ias = iGlobal, fGlobal
       i = rpa%getIA(ias, 1)
       a = rpa%getIA(ias, 2)
       s = rpa%getIA(ias, 3)
@@ -5346,12 +5429,18 @@ contains
       end if
     end do
 
+    call assembleChunks(env, gamxpyq)
+    if (lr%tSpin) then
+      call assembleChunks(env, gamxpyqds)
+    end if
+
     ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
     call hemv(gamqt, frGamma, gamxpyq)
 
     if (iMode == 1) then
       do s = 1, nSpin
-        do ij = 1, rpa%nxoo_ud(s)
+        call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
+        do ij = iGlobal, fGlobal
           i = rpa%getIJ(ij + soo(s), 1)
           j = rpa%getIJ(ij + soo(s), 2)
           qTr(:) = transChrg%qTransIJ(ij + soo(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
@@ -5366,7 +5455,8 @@ contains
       end do
     else if (iMode == 2) then
       do s = 1, nSpin
-        do ab = 1, rpa%nxvv_ud(s)
+        call distributeRangeInChunks(env, 1, rpa%nxvv_ud(s), iGlobal, fGlobal)
+        do ab = iGlobal, fGlobal
           a = rpa%getAB(ab + svv(s), 1)
           b = rpa%getAB(ab + svv(s), 2)
           qTr(:) = transChrg%qTransAB(ab + svv(s), env, denseDesc, ovrXev, grndEigVecs, rpa%getAB)
@@ -5380,7 +5470,8 @@ contains
         end do
       end do
     else
-      do ias = 1, rpa%nxov_rd
+      call distributeRangeInChunks(env, 1, rpa%nxov_rd, iGlobal, fGlobal)
+      do ias = iGlobal, fGlobal
         i = rpa%getIA(ias, 1)
         a = rpa%getIA(ias, 2)
         s = rpa%getIA(ias, 3)
@@ -5394,6 +5485,7 @@ contains
         end if
       end do
     end if
+    call assembleChunks(env, vecH)
 
   end subroutine getHplusMfr
 
