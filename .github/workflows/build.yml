@@ -8,6 +8,7 @@ on:
       - 'external/**'
       - 'src/**'
       - 'test/**'
+      - 'config.cmake'
       - 'CMakeLists.txt'
   pull_request:
     paths:
@@ -17,6 +18,7 @@ on:
       - 'external/**'
       - 'src/**'
       - 'test/**'
+      - 'config.cmake'
       - 'CMakeLists.txt'
 
 env:
