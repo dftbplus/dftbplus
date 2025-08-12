@@ -14,6 +14,7 @@
 !**************************************************************************
 module dftbp_poisson_parameters
   use dftbp_common_accuracy, only : dp, mc
+  use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
 
   implicit none
 
@@ -108,30 +109,6 @@ module dftbp_poisson_parameters
   logical, public :: fixed_renorm
 
   character(:), allocatable, public :: scratchfolder
-
-  !> Enumerator containing possible Poisson boundary conditions
-  type, private :: TBCPoissonEnum_
-
-    !> Unset
-    integer :: unset = -1
-
-    !> Periodic on face
-    integer :: periodic = 0
-
-    !> Potential specified at the cell edge
-    integer :: dirichlet = 1
-
-    !> Derivative specified at the cell edge
-    integer :: neumann = 2
-
-  end type TBCPoissonEnum_
-
-  !> Actual instance of the boundary condition enumerator
-  type(TBCPoissonEnum_), parameter, public :: poissonBCsEnum = TBCPoissonEnum_()
-
-  ! Note, order corresponds to TBCPoissonEnum_
-  character(10), parameter, public :: bcPoissonNames(-1:2) =&
-      & [ character(10) :: "Unset", "Periodic", "Dirichlet", "Neumann" ]
 
   contains
 
