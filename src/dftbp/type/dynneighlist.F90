@@ -248,6 +248,10 @@ contains
     real(dp) :: dist2
     integer :: maxNeighs
 
+    neighCoords(:) = 0.0_dp
+    img2CentCellTmp(:) = 0
+    coordsTmp(:,:) = 0.0_dp
+    distsTmp(:) = 0.0_dp
     maxNeighs = nNeighbourSK
     nNeighbourSK = 0
     if (this%tFinished) then
