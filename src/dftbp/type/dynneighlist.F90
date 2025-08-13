@@ -248,6 +248,9 @@ contains
     real(dp) :: dist2
     integer :: maxNeighs
 
+    if (present(coords)) coords(:,:) = 0.0_dp
+    if (present(dists)) dists(:) = 0.0_dp
+    if (present(img2CentCell)) img2CentCell(:) = 0
     neighCoords(:) = 0.0_dp
     img2CentCellTmp(:) = 0
     coordsTmp(:,:) = 0.0_dp
