@@ -128,7 +128,7 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_mpifx, only : MPI_SUM, MPI_MAX, mpifx_allreduceip, mpifx_bcast
   use dftbp_extlibs_scalapackfx, only : pblasfx_phemm, pblasfx_psymm, pblasfx_ptran,&
       & pblasfx_ptranc, blacsfx_gemr2d
-  use dftbp_math_scalafxext, only : phermatinv, psymmatinv
+  use dftbp_math_scalafxext, only : phermatinv, psymmatinv, distrib2replicated
 #:endif
 #:if WITH_SOCKETS
   use dftbp_dftbplus_mainio, only : receiveGeometryFromSocket
@@ -3750,9 +3750,11 @@ contains
       ! delta-density, therefore we store it separately for now)
       if (allocated(rhoSqrReal)) then
         if (.not. allocated(densityMatrix%deltaRhoOut)) then
+          !NOTE: I did not test when the code goes for this way
           rhoSqrReal(:,:, iSpin) = work
         else
-          rhoSqrReal(:,:, iSpin) = densityMatrix%deltaRhoOut(:,:,iSpin)
+          call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+               &  densityMatrix%deltaRhoOut(:,:,iSpin), rhoSqrReal(:,:,iSpin))
         end if
       end if
 
@@ -5311,11 +5313,6 @@ contains
     if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call adjointLowerTriangle(rhoSqrReal(:,:,iSpin))
-      end do
-    end if
-    if (tForces .and. allocated(hybridXc)) then
-      do iSpin = 1, nSpin
-        call adjointLowerTriangle(deltaRhoOut(:,:, iSpin))
       end do
     end if
     if (tWriteAutotest) then

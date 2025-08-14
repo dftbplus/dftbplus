@@ -2527,7 +2527,7 @@ contains
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:)
     real(dp), allocatable :: XS(:,:,:), SXS(:,:,:), SY(:,:,:), YS(:,:,:), SYS(:,:,:)
-    real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:), DensGlobal(:,:,:)
+    real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:)
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
     integer, allocatable :: species(:)
@@ -2548,13 +2548,8 @@ contains
     allocate(tmp5(nSpin))
     allocate(tmp7(nSpin))
 
-    allocate(Dens(nOrb, nOrb), DensGlobal(nOrb,nOrb,size(rhoSqr,dim=3)))
-    do iSpin = 1, size(rhoSqr, dim=3)
-      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
-                           &  rhoSqr(:,:,iSpin), DensGlobal(:,:,iSpin))
-    enddo
-    Dens(:,:) = sum(DensGlobal, dim=3)
-    deallocate(DensGlobal)
+    allocate(Dens(nOrb, nOrb))
+    Dens(:,:) = sum(rhoSqr, dim=3)
 
     ! NOTE: probably this is not necessary, we need to check
     ! Symmetrize RhoSqr
@@ -2580,6 +2575,7 @@ contains
 
       !FIXME: here nOrb is the global value but rhoSqr has dimension of nOrb local
       !TODO: The test NH forces does not run even for single process.
+      ! NOTE: I think now, with the last BUGFIX, this should be correct
       allocate(SpinDens(nOrb,nOrb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
@@ -4619,7 +4615,7 @@ contains
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: PS(:,:,:), DS(:,:,:), SPS(:,:,:), SDS(:,:,:), SX(:,:,:,:)
     real(dp), allocatable :: XS(:,:,:,:), SXS(:,:,:,:), SY(:,:,:,:), YS(:,:,:,:), SYS(:,:,:,:)
-    real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:), DensGlobal(:,:,:)
+    real(dp), allocatable :: deltaRhoGlobal(:,:,:), grndEigVecsGlobal(:,:,:)
     real(dp), allocatable :: xpy(:,:), xmy(:,:)
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp6, tmp8, tmp9, tmp10, rab
     real(dp) :: diffvec(3), dgab(3), tmpVec(3), tmp3a, tmp3b, tmprs, tmprs2, tmps(2)
@@ -4649,13 +4645,8 @@ contains
     xmy(:,1) = xmyn
     xmy(:,2) = xmym
 
-    allocate(Dens(nOrb, nOrb), DensGlobal(nOrb,nOrb,size(rhoSqr,dim=3)))
-    do iSpin = 1, size(rhoSqr, dim=3)
-      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
-                           &  rhoSqr(:,:,iSpin), DensGlobal(:,:,iSpin))
-    enddo
-    Dens(:,:) = sum(DensGlobal, dim=3)
-    deallocate(DensGlobal)
+    allocate(Dens(nOrb, nOrb))
+    Dens(:,:) = sum(rhoSqr, dim=3)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -4675,6 +4666,7 @@ contains
       ! FIXME: here nOrb is the global value but rhoSqr has dimension of nOrb local
       ! TODO: nOrb is the global but rhoSqr has the dimension of nOrb local
       !      The test NH forces does not run even for single process.
+      ! NOTE: I think now, with the last BUGFIX, this should be correct
       allocate(SpinDens(nOrb, nOrb))
       SpinDens(:,:) = rhoSqr(:,:,1) - rhoSqr(:,:,2)
 
