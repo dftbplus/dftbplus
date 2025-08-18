@@ -1711,8 +1711,6 @@ contains
       end if
     #:endblock DEBUG_CODE
       if (allocated(this%mdftb)) then
-        call this%mdftb%addAtomicDipoleMoment(&
-            & this%dipoleMoment(:,this%deltaDftb%iDeterminant))
         call getQuadrupoleMoment(this%qOutput, this%q0, this%coord, this%quadrupoleMoment,&
             & this%iAtInCentralRegion)
         call this%mdftb%addAtomicQuadrupoleMoment(this%quadrupoleMoment)
@@ -5701,7 +5699,6 @@ contains
         dipoleMoment(:) = dipoleMoment(:) - dipAtom(:, iAtom, 1)
       end do
     end if
-
 
   end subroutine getDipoleMoment
 
