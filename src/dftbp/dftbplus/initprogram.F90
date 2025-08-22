@@ -546,6 +546,9 @@ module dftbp_dftbplus_initprogram
     !> Static polarisability
     logical :: isEResp = .false.
 
+    !> Derivatives with respect to atomic positions
+    logical :: isAtomCoordPerturb = .false.
+
     !> Dynamic polarisability at finite frequencies
     real(dp), allocatable :: dynRespEFreq(:)
 
@@ -1966,29 +1969,15 @@ contains
       call error("Invalid force evaluation method for non-SCC calculations.")
     end if
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
-       call error("This ForceEvaluation method requires the electron temperature to be zero")
-     end if
-     if (this%isLinResp) then
-       tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
-     else
-       tRequireDerivator = this%tForces
-     end if
-     if (.not. tRequireDerivator .and. this%isElecDyn) then
-       tRequireDerivator = input%ctrl%elecDynInp%tIons
-     end if
-     if (tRequireDerivator) then
-      select case(input%ctrl%iDerivMethod)
-      case (diffTypes%finiteDiff)
-        ! set step size from input
-        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
-          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
-              & input%ctrl%deriv1stDelta
-          call error(tmpStr)
-        end if
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
-      case (diffTypes%richardson)
-        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
-      end select
+      call error("This ForceEvaluation method requires the electron temperature to be zero")
+    end if
+    if (this%isLinResp) then
+      tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
+    else
+      tRequireDerivator = this%tForces
+    end if
+    if (.not. tRequireDerivator .and. this%isElecDyn) then
+      tRequireDerivator = input%ctrl%elecDynInp%tIons
     end if
 
     call this%getDenseDescCommon()
@@ -2454,6 +2443,12 @@ contains
           call error("RPA option only relevant for SCC calculations of response kernel")
         end if
       end if
+
+      this%isAtomCoordPerturb = input%ctrl%perturbInp%isAtomCoordPerturb
+      if (this%isAtomCoordPerturb .and. withMpi) then
+        call error("Coordinate derivative perturbations do not work with MPI enabled DFTB+ yet")
+      end if
+      tRequireDerivator = tRequireDerivator .or. this%isAtomCoordPerturb
 
       if (this%iDistribFn /= fillingTypes%Fermi) then
         call error("Choice of filling function currently incompatible with perturbation&
@@ -3943,6 +3938,22 @@ contains
         call error ("Third order DFTB is not currently compatible with linear response excitations")
       end if
 
+    end if
+
+
+    if (tRequireDerivator) then
+      select case(input%ctrl%iDerivMethod)
+      case (diffTypes%finiteDiff)
+        ! set step size from input
+        if (input%ctrl%deriv1stDelta < epsilon(1.0_dp)) then
+          write(tmpStr, "(A,E12.4)") 'Too small value for finite difference step :',&
+              & input%ctrl%deriv1stDelta
+          call error(tmpStr)
+        end if
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%finiteDiff, input%ctrl%deriv1stDelta)
+      case (diffTypes%richardson)
+        call NonSccDiff_init(this%nonSccDeriv, diffTypes%richardson)
+      end select
     end if
 
     ! Electron dynamics stuff
