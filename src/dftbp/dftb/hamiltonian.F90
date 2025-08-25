@@ -71,12 +71,9 @@ contains
     else
       potential%extGrad(:,:) = 0.0_dp
     end if
-    if (allocated(potential%extOnSiteAtom)) then
-      potential%extOnSiteAtom(:,:) = 0.0_dp
-    end if
-    if (allocated(potential%extDipoleAtom)) then
-      potential%extDipoleAtom(:, :) = 0.0_dp
-    end if
+    if (allocated(potential%extOnSiteAtom)) potential%extOnSiteAtom(:,:) = 0.0_dp
+    if (allocated(potential%extDipoleAtom)) potential%extDipoleAtom(:, :) = 0.0_dp
+    if (allocated(potential%extQuadrupoleAtom)) potential%extQuadrupoleAtom(:, :) = 0.0_dp
 
   end subroutine resetExternalPotentials
 
@@ -97,6 +94,9 @@ contains
     call totalShift(potential%extBlock, potential%extShell, orb, species)
     if (allocated(potential%extDipoleAtom)) then
       potential%extDipoleAtom(:,:) = potential%extDipoleAtom + potential%extGrad
+    end if
+    if (allocated(potential%extQuadrupoleAtom)) then
+    !  potential%extQuadrupoleAtom(:,:) = potential%extQuadrupoleAtom + potential%extGrad2
     end if
 
   end subroutine mergeExternalPotentials
@@ -330,7 +330,7 @@ contains
 
   !> Returns the Hamiltonian for the given scc iteration
   subroutine getSccHamiltonian(env, H0, ints, nNeighbourSK, neighbourList, species, orb,&
-      & iSparseStart, img2CentCell, potential, mdftb, isREKS, ham, iHam)
+      & iSparseStart, img2CentCell, potential, mDftb, isREKS, ham, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -368,14 +368,14 @@ contains
     !> Is this DFTB/SSR formalism
     logical, intent(in) :: isREKS
 
-    !> Resulting hamitonian (sparse)
+    !> Resulting hamiltonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
     !> Imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom
-    real(dp), allocatable :: dipoleAtom(:,:)
+    real(dp), allocatable :: atomFieldDeriv(:,:)
 
     nAtom = size(orb%nOrbAtom)
 
@@ -390,6 +390,7 @@ contains
       ham(:,1) = ham(:,1) + h0
     end if
 
+    ! Field
     if (allocated(potential%intOnSiteAtom)) then
       call addOnSiteShift(ham, ints%overlap, species, orb, iSparseStart, nAtom,&
           & potential%intOnSiteAtom)
@@ -399,20 +400,40 @@ contains
           & potential%extOnSiteAtom)
     end if
 
+    ! Field first derivative (gradient / dipole)
     if (allocated(potential%dipoleAtom)) then
-      dipoleAtom = potential%dipoleAtom
-      if (allocated(potential%extDipoleAtom)) then
-        dipoleAtom(:,:) = dipoleAtom + potential%extDipoleAtom
+      atomFieldDeriv = potential%dipoleAtom
+    end if
+    if (allocated(potential%extDipoleAtom)) then
+      if (allocated(atomFieldDeriv)) then
+        atomFieldDeriv(:,:) = atomFieldDeriv + potential%extDipoleAtom
+      else
+        atomFieldDeriv = potential%extDipoleAtom
       end if
+    end if
+    if (allocated(atomFieldDeriv)) then
       call addAtomicMultipoleShift(ham, ints%dipoleBra, ints%dipoleKet, nNeighbourSK,&
-          & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell,&
-          & dipoleAtom)
+        & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell,&
+        & atomFieldDeriv)
+      deallocate(atomFieldDeriv)
     end if
 
+    ! Field second derivative (quadrupole)
     if (allocated(potential%quadrupoleAtom)) then
+      atomFieldDeriv = potential%quadrupoleAtom
+    end if
+    if (allocated(potential%extQuadrupoleAtom)) then
+      if (allocated(atomFieldDeriv)) then
+        atomFieldDeriv(:,:) = atomFieldDeriv + potential%extQuadrupoleAtom
+      else
+        atomFieldDeriv = potential%extQuadrupoleAtom
+      end if
+    end if
+    if (allocated(atomFieldDeriv)) then
       call addAtomicMultipoleShift(ham, ints%quadrupoleBra, ints%quadrupoleKet, nNeighbourSK,&
           & neighbourList%iNeighbour, species, orb, iSparseStart, nAtom, img2CentCell,&
-          & potential%quadrupoleAtom)
+          & atomFieldDeriv)
+      deallocate(atomFieldDeriv)
     end if
 
     if (allocated(mdftb)) then
