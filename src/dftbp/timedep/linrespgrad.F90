@@ -29,7 +29,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_math_blasroutines, only : gemm, hemv, symm, herk
   use dftbp_math_degeneracy, only : TDegeneracyFind
   use dftbp_math_eigensolver, only : heev
-  use dftbp_math_matrixops, only : orthonormalizeVectors
+  use dftbp_math_matrixops, only : adjointLowerTriangle, orthonormalizeVectors
   use dftbp_math_qm, only : makeSimilarityTrans
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
   use dftbp_timedep_linrespcommon, only : excitedDipoleOut, excitedQOut, twothird,&
@@ -742,31 +742,30 @@ contains
           omega = sqrt(eval(iLev))
 
           ! solve for Z and W to get excited state density matrix
-          call getZVectorEqRHS(env, orb, this, rpa, transChrg, sym, denseDesc, species0, grndEigVal,&
-            & ovrXev, grndEigVecs, gammaMat, lrGamma, omega, xpy(:,iLev), xmy(:,iLev), rhs, t, wov,&
-            & woo, wvv)
+          call getZVectorEqRHS(env, orb, this, rpa, transChrg, sym, denseDesc, species0,&
+              & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omega, xpy(:,iLev),&
+              & xmy(:,iLev), rhs, t, wov, woo, wvv)
 
           call solveZVectorPrecond(env, orb, this, rpa, transChrg, denseDesc, species0, ovrXev,&
-            & grndEigVecs, gammaMat, lrGamma, rhs)
+              & grndEigVecs, gammaMat, lrGamma, rhs)
 
-          call calcWVectorZ(env, orb, this, rpa, transChrg, denseDesc, species0, ovrXev, grndEigVecs,&
-            & grndEigVal, gammaMat, lrGamma, rhs, wov, woo, wvv)
+          call calcWVectorZ(env, orb, this, rpa, transChrg, denseDesc, species0, ovrXev,&
+              & grndEigVecs, grndEigVal, gammaMat, lrGamma, rhs, wov, woo, wvv)
 
           call calcPMatrix(env, rpa, t, rhs, pc)
 
           call writeCoeffs(pc, grndEigVecs, filling, this%writeCoeffs, this%tGrndState, occNatural,&
-            & naturalOrbs)
+              & naturalOrbs)
 
           do iSpin = 1, nSpin
             ! Make MO to AO transformation of the excited density matrix
             allocate(VecGlb(norb,norb))
-            call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin),&
-                                    & VecGlb(:,:))
+            call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+                & grndEigVecs(:,:,iSpin), VecGlb(:,:))
 
             call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
 
-            call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr,&
-                                    & VecGlb)
+            call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr, VecGlb)
 
             call getExcMulliken(denseDesc, pc(:,:,iSpin), VecGlb, dqex(:,iSpin))
             deallocate(VecGlb)
@@ -821,20 +820,19 @@ contains
               xpym(:) = xpy(:,mCoupLev)
               xmym(:) = xmy(:,mCoupLev)
               omegaDif = sqrt(eval(mCoupLev))
-              call grndToExcDensityMatrices(env, orb, this, rpa, transChrg, denseDesc, sym, species0,&
-                  & ovrXev, grndEigVecs, grndEigVal, gammaMat, lrGamma, omegaDif, pc, xpym, xmym,&
-                  & wov, woo)
+              call grndToExcDensityMatrices(env, orb, this, rpa, transChrg, denseDesc, sym,&
+                  & species0, ovrXev, grndEigVecs, grndEigVal, gammaMat, lrGamma, omegaDif, pc,&
+                  & xpym, xmym, wov, woo)
 
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 allocate(VecGlb(norb,norb))
-                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin),&
-                                        & VecGlb(:,:))
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+                    & grndEigVecs(:,:,iSpin), VecGlb(:,:))
 
                 call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
 
-                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr,&
-                                        & VecGlb)
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr, VecGlb)
 
                 call getExcMulliken(denseDesc, pc(:,:,iSpin), VecGlb, dqex(:,iSpin))
                 deallocate(VecGlb)
@@ -879,13 +877,12 @@ contains
               do iSpin = 1, nSpin
                 ! Make MO to AO transformation of the excited density matrix
                 allocate(VecGlb(norb,norb))
-                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, grndEigVecs(:,:,iSpin),&
-                                        & VecGlb(:,:))
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+                    & grndEigVecs(:,:,iSpin), VecGlb(:,:))
 
                 call makeSimilarityTrans(pc(:,:,iSpin), VecGlb(:,:))
 
-                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr,&
-                                        & VecGlb)
+                call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, SSqr, VecGlb)
 
                 call getExcMulliken(denseDesc, pc(:,:,iSpin), VecGlb, dqex(:,iSpin))
                 deallocate(VecGlb)
@@ -1968,12 +1965,14 @@ contains
       call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmy,&
           & vecHooXmY)
 
-      call getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHovT)
+      call getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+          & vecHovT)
 
       !TODO: i can not parallelized this because i had to do the assemble of rhs before
       ! in order to get gamqt (see before), if i dont do the assemble then gamqt is wrong.
       ! A possible solution is to move all the block of gamqt and the rhs before that to the end
-      ! after the hybridxc section, then do the assemble of rsh and then calculate gamqt and the other eq of rhs
+      ! after the hybridxc section, then do the assemble of rsh and then calculate gamqt and the
+      ! other eq of rhs
       ! call distributeRangeInChunks(env, 1, nxov, iGlobal, fGlobal)
 
       do ias = 1, nxov
@@ -2007,7 +2006,8 @@ contains
 
       end do
 
-      call getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHooT)
+      call getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+          & vecHooT)
 
       call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
 
@@ -2140,7 +2140,8 @@ contains
       ! action of matrix on vector
       apk = 0.0_dp
       call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, 'S', denseDesc, species0,&
-          & ovrXev, grndEigVecs, gammaMat, .true., pkm1(iGlobal:fGlobal), apk(iGlobal:fGlobal), lrGamma)
+          & ovrXev, grndEigVecs, gammaMat, .true., pkm1(iGlobal:fGlobal), apk(iGlobal:fGlobal),&
+          & lrGamma)
 
       call assembleChunks(env, apk)
 
@@ -2561,11 +2562,7 @@ contains
 
     ! NOTE: probably this is not necessary, we need to check
     ! Symmetrize RhoSqr
-    do mu = 1, size(Dens, dim=1)
-      do nu = mu + 1, size(Dens, dim=2)
-        Dens(mu,nu) = Dens(nu,mu)
-      end do
-    end do
+    call adjointLowerTriangle(Dens)
 
     allocate(dH0(orb%mOrb, orb%mOrb, 3))
     allocate(dSo(orb%mOrb, orb%mOrb, 3))
@@ -2742,7 +2739,8 @@ contains
       do iSpin = 1, nSpin
         call symm(PS(:,:,iSpin), 'R', overlap, pc(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
         call symm(SPS(:,:,iSpin), 'L', overlap, PS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
-        call symm(DS(:,:,iSpin), 'R', overlap, deltaRhoGlobal(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+        call symm(DS(:,:,iSpin), 'R', overlap, deltaRhoGlobal(:,:,iSpin), 'U', 1.0_dp, 0.0_dp,&
+            & nOrb, nOrb)
         call symm(SDS(:,:,iSpin), 'L', overlap, DS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
         call symm(XS(:,:,iSpin), 'R', overlap, xpyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
         call symm(SX(:,:,iSpin), 'L', overlap, xpyas(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
@@ -2867,30 +2865,39 @@ contains
           do iSpin = 1, nSpin
             do mu = indAlpha, indAlpha1
               do nu = indBeta, indBeta1
-                tmprs = tmprs +&
-          & ( 2.0_dp * (PS(mu,nu,iSpin) * DS(nu,mu,iSpin) + PS(nu,mu,iSpin) * DS(mu,nu,iSpin)) +&
-          &   SPS(mu,nu,iSpin) * deltaRhoGlobal(mu,nu,iSpin) + SPS(nu,mu,iSpin) * deltaRhoGlobal(nu,mu,iSpin) +&
-          &   pc(mu,nu,iSpin) * SDS(mu,nu,iSpin) + pc(nu,mu,iSpin) * SDS(nu,mu,iSpin) )
+                tmprs = tmprs&
+                    & + 2.0_dp * (PS(mu,nu,iSpin) * DS(nu,mu,iSpin)&
+                    & + PS(nu,mu,iSpin) * DS(mu,nu,iSpin))&
+                    & + SPS(mu,nu,iSpin) * deltaRhoGlobal(mu,nu,iSpin)&
+                    & + SPS(nu,mu,iSpin) * deltaRhoGlobal(nu,mu,iSpin)&
+                    & + pc(mu,nu,iSpin) * SDS(mu,nu,iSpin) + pc(nu,mu,iSpin) * SDS(nu,mu,iSpin)
 
                 tmprs = tmprs + 2.0_dp *&
-          & ( xpyas(mu,nu,iSpin) * SXS(mu,nu,iSpin) + xpyas(nu,mu,iSpin) * SXS(nu,mu,iSpin) +&
-          &   SX(mu,nu,iSpin) * XS(mu,nu,iSpin) + SX(nu,mu,iSpin) * XS(nu,mu,iSpin) )
+                    & ( xpyas(mu,nu,iSpin) * SXS(mu,nu,iSpin)&
+                    & + xpyas(nu,mu,iSpin) * SXS(nu,mu,iSpin)&
+                    & + SX(mu,nu,iSpin) * XS(mu,nu,iSpin)&
+                    & + SX(nu,mu,iSpin) * XS(nu,mu,iSpin) )
 
                 tmprs = tmprs +&
-          & ( XS(mu,nu,iSpin) * XS(nu,mu,iSpin) + XS(nu,mu,iSpin) * XS(mu,nu,iSpin) +&
-          &   SXS(mu,nu,iSpin) * xpyas(nu,mu,iSpin) + SXS(nu,mu,iSpin) * xpyas(mu,nu,iSpin) +&
-          &   xpyas(mu,nu,iSpin) * SXS(nu,mu,iSpin) + xpyas(nu,mu,iSpin) * SXS(mu,nu,iSpin) +&
-          &   SX(mu,nu,iSpin) * SX(nu,mu,iSpin) + SX(nu,mu,iSpin) * SX(mu,nu,iSpin) )
+                    & ( XS(mu,nu,iSpin) * XS(nu,mu,iSpin) + XS(nu,mu,iSpin) * XS(mu,nu,iSpin)&
+                    & + SXS(mu,nu,iSpin) * xpyas(nu,mu,iSpin)&
+                    & + SXS(nu,mu,iSpin) * xpyas(mu,nu,iSpin)&
+                    & + xpyas(mu,nu,iSpin) * SXS(nu,mu,iSpin)&
+                    & + xpyas(nu,mu,iSpin) * SXS(mu,nu,iSpin)&
+                    & + SX(mu,nu,iSpin) * SX(nu,mu,iSpin) + SX(nu,mu,iSpin) * SX(mu,nu,iSpin) )
 
                 tmprs = tmprs + 2.0_dp *&
-          & ( xmyas(mu,nu,iSpin) * SYS(mu,nu,iSpin) + xmyas(nu,mu,iSpin) * SYS(nu,mu,iSpin) +&
-          &   SY(mu,nu,iSpin) * YS(mu,nu,iSpin) + SY(nu,mu,iSpin) * YS(nu,mu,iSpin) )
+                    & ( xmyas(mu,nu,iSpin) * SYS(mu,nu,iSpin)&
+                    & + xmyas(nu,mu,iSpin) * SYS(nu,mu,iSpin)&
+                    & + SY(mu,nu,iSpin) * YS(mu,nu,iSpin) + SY(nu,mu,iSpin) * YS(nu,mu,iSpin) )
 
                 tmprs = tmprs -&
-          & ( YS(mu,nu,iSpin) * YS(nu,mu,iSpin) + YS(nu,mu,iSpin) * YS(mu,nu,iSpin) +&
-          &   SYS(mu,nu,iSpin) * xmyas(nu,mu,iSpin) + SYS(nu,mu,iSpin) * xmyas(mu,nu,iSpin) +&
-          &   xmyas(mu,nu,iSpin) * SYS(nu,mu,iSpin) + xmyas(nu,mu,iSpin) * SYS(mu,nu,iSpin) +&
-          &   SY(mu,nu,iSpin) * SY(nu,mu,iSpin) + SY(nu,mu,iSpin) * SY(mu,nu,iSpin) )
+                    & ( YS(mu,nu,iSpin) * YS(nu,mu,iSpin) + YS(nu,mu,iSpin) * YS(mu,nu,iSpin)&
+                    & + SYS(mu,nu,iSpin) * xmyas(nu,mu,iSpin)&
+                    & + SYS(nu,mu,iSpin) * xmyas(mu,nu,iSpin)&
+                    & + xmyas(mu,nu,iSpin) * SYS(nu,mu,iSpin)&
+                    & + xmyas(nu,mu,iSpin) * SYS(mu,nu,iSpin)&
+                    & + SY(mu,nu,iSpin) * SY(nu,mu,iSpin) + SY(nu,mu,iSpin) * SY(mu,nu,iSpin) )
               end do
             end do
           end do
@@ -2939,25 +2946,35 @@ contains
                   tmprs = 0.0_dp
                   do ka = 1, nOrb
                     tmprs = tmprs +&
-            & ( PS(mu,ka,iSpin) * deltaRhoGlobal(nu,ka,iSpin) + PS(nu,ka,iSpin) * deltaRhoGlobal(mu,ka,iSpin) +&
-            &   pc(mu,ka,iSpin) * DS(nu,ka,iSpin) + pc(nu,ka,iSpin) * DS(mu,ka,iSpin) ) *&
-            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                        & ( PS(mu,ka,iSpin) * deltaRhoGlobal(nu,ka,iSpin)&
+                        & + PS(nu,ka,iSpin) * deltaRhoGlobal(mu,ka,iSpin)&
+                        & + pc(mu,ka,iSpin) * DS(nu,ka,iSpin) + pc(nu,ka,iSpin) * DS(mu,ka,iSpin) )&
+                        & * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                     tmprs = tmprs +&
-            & ( xpyas(mu,ka,iSpin) * XS(nu,ka,iSpin) + xpyas(ka,mu,iSpin) * SX(ka,nu,iSpin) +&
-            &   xpyas(nu,ka,iSpin) * XS(mu,ka,iSpin) + xpyas(ka,nu,iSpin) * SX(ka,mu,iSpin) )*&
-            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                        & ( xpyas(mu,ka,iSpin) * XS(nu,ka,iSpin)&
+                        & + xpyas(ka,mu,iSpin) * SX(ka,nu,iSpin)&
+                        & + xpyas(nu,ka,iSpin) * XS(mu,ka,iSpin)&
+                        & + xpyas(ka,nu,iSpin) * SX(ka,mu,iSpin) )&
+                        & * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                     tmprs = tmprs +&
-            & ( xmyas(mu,ka,iSpin) * YS(nu,ka,iSpin) + xmyas(ka,mu,iSpin) * SY(ka,nu,iSpin) +&
-            &   xmyas(nu,ka,iSpin) * YS(mu,ka,iSpin) + xmyas(ka,nu,iSpin) * SY(ka,mu,iSpin) ) *&
-            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                        & ( xmyas(mu,ka,iSpin) * YS(nu,ka,iSpin)&
+                        & + xmyas(ka,mu,iSpin) * SY(ka,nu,iSpin)&
+                        & + xmyas(nu,ka,iSpin) * YS(mu,ka,iSpin)&
+                        & + xmyas(ka,nu,iSpin) * SY(ka,mu,iSpin) )&
+                        & * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+
                     tmprs = tmprs +&
-            & ( XS(mu,ka,iSpin) * xpyas(ka,nu,iSpin) + XS(nu,ka,iSpin) * xpyas(ka,mu,iSpin) +&
-            &   xpyas(mu,ka,iSpin) * SX(ka,nu,iSpin) + xpyas(nu,ka,iSpin) * SX(ka,mu,iSpin)) *&
-            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                        & ( XS(mu,ka,iSpin) * xpyas(ka,nu,iSpin)&
+                        & + XS(nu,ka,iSpin) * xpyas(ka,mu,iSpin)&
+                        & + xpyas(mu,ka,iSpin) * SX(ka,nu,iSpin)&
+                        & + xpyas(nu,ka,iSpin) * SX(ka,mu,iSpin))&
+                        & * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                     tmprs = tmprs -&
-            & ( YS(mu,ka,iSpin) * xmyas(ka,nu,iSpin) + YS(nu,ka,iSpin) * xmyas(ka,mu,iSpin) +&
-            &   xmyas(mu,ka,iSpin) * SY(ka,nu,iSpin) + xmyas(nu,ka,iSpin) * SY(ka,mu,iSpin)) *&
-            &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
+                        & ( YS(mu,ka,iSpin) * xmyas(ka,nu,iSpin)&
+                        & + YS(nu,ka,iSpin) * xmyas(ka,mu,iSpin)&
+                        & + xmyas(mu,ka,iSpin) * SY(ka,nu,iSpin)&
+                        & + xmyas(nu,ka,iSpin) * SY(ka,mu,iSpin))&
+                        & * (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))
                   end do
                   ! Factor of 2 for spin-polarized calculations
                   tmprs2 = tmprs2 + cExchange * nSpin * dSo(n,m,xyz) * tmprs
@@ -3363,8 +3380,8 @@ contains
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !! Here p/q are virtual orbitals and V is either X+Y or X-Y
-  subroutine getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, ipm, XorY,&
-      & vecHvv)
+  subroutine getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, ipm,&
+      & XorY, vecHvv)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3457,8 +3474,8 @@ contains
 
   !> Computes H^+/-_pq [V] as defined in Furche JCP 117 7433 (2002) eq. 20
   !! Here p/q are occupied orbitals and V is either X+Y or X-Y
-  subroutine getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, ipm, XorY,&
-      & vecHoo)
+  subroutine getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, ipm,&
+      & XorY, vecHoo)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3552,7 +3569,8 @@ contains
 
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !! Here p is an occupied MO and q is a virtual one, T is the relaxed difference density
-  subroutine getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHovT)
+  subroutine getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+      & vecHovT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3675,7 +3693,8 @@ contains
 
   !> Computes H^+/-_pq [T] as defined in Furche JCP 117 7433 (2002) eq. 20
   !! Here p/q are occupied MO, T is the relaxed difference density
-  subroutine getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHooT)
+  subroutine getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+      & vecHooT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3947,8 +3966,8 @@ contains
   !! See TCA 140 34 (2020) and JCP 132 044107 (2010)
   !! Actually omega * W is computed
   !! TODO: Spin-polarized systems
-  subroutine grndToExcDensityMatrices(env, orb, lr, rpa, transChrg, denseDesc, sym, species0, ovrXev,&
-      & grndEigVecs, grndEigVal, frGamma, lrGamma, omega, pc, xpy, xmy, wov, woo)
+  subroutine grndToExcDensityMatrices(env, orb, lr, rpa, transChrg, denseDesc, sym, species0,&
+      & ovrXev, grndEigVecs, grndEigVal, frGamma, lrGamma, omega, pc, xpy, xmy, wov, woo)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4061,7 +4080,8 @@ contains
     end do
 
     if (rpa%tHybridXc) then
-      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, p, vecHoo)
+      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, p,&
+          & vecHoo)
 
       do s = 1, nSpin
         call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
@@ -4094,9 +4114,9 @@ contains
   !! do not depend on Z. Modified version of getZVectorEqRHS for state-to-state NA couplings.
   !! Furche PCCP 21 18999 (2019)
   !! Here the + (symmetric) part of RHS, T and (omega_m-omega_n) * W (stored as W) is computed.
-  subroutine getNadiaZVectorEqRHS(env, orb, lr, rpa, transChrg, sym, denseDesc, species0, grndEigVal,&
-      & ovrXev, grndEigVecs, gammaMat, lrGamma, omegaAvg, xpyn, xmyn, xpym, xmym, rhs, t, wov, woo,&
-      & wvv)
+  subroutine getNadiaZVectorEqRHS(env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
+      & grndEigVal, ovrXev, grndEigVecs, gammaMat, lrGamma, omegaAvg, xpyn, xmyn, xpym, xmym, rhs,&
+      & t, wov, woo, wvv)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4363,17 +4383,17 @@ contains
       allocate(vecHooXmY(sum(rpa%nxoo_ud)))
 
       ! Long-range part of H^+[(X+Y)^n] or H^-[(X-Y)^n] for occ-occ and vir-vir comp. of H
-      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpyn,&
-          & vecHvvXpY)
+      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1,&
+          & xpyn, vecHvvXpY)
 
-      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmyn,&
-          & vecHvvXmY)
+      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1,&
+          & xmyn, vecHvvXmY)
 
-      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpyn,&
-          & vecHooXpY)
+      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1,&
+          & xpyn, vecHooXpY)
 
-      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmyn,&
-          & vecHooXmY)
+      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1,&
+          & xmyn, vecHooXmY)
 
       call distributeRangeInChunks(env, 1, nxov, iGlobal, fGlobal)
       do ias = iGlobal, fGlobal
@@ -4413,14 +4433,14 @@ contains
       call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, 1, xpym,&
           & vecHvvXpY)
 
-      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmym,&
-          & vecHvvXmY)
+      call getHvvXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1,&
+          & xmym, vecHvvXmY)
 
-      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1, xpym,&
-          & vecHooXpY)
+      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma,  1,&
+          & xpym, vecHooXpY)
 
-      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1, xmym,&
-          & vecHooXmY)
+      call getHooXY(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, -1,&
+          & xmym, vecHooXmY)
 
       do ias = iGlobal, fGlobal
 
@@ -4454,12 +4474,14 @@ contains
       end do
 
       ! -RHS^+ += - H^+_ia[T^+]
-      call getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHovT)
+      call getHovT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+          & vecHovT)
 
       rhs(iGlobal:fGlobal) = rhs(iGlobal:fGlobal) - cExchange * vecHovT(iGlobal:fGlobal)
 
       ! Woo^+ += 0.5 * H^+_ij[T+Z] / Omega_mn, Z part computed later
-      call getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t, vecHooT)
+      call getHooT(env, orb, lr, rpa, transChrg, denseDesc, ovrXev, grndEigVecs, lrGamma, t,&
+          & vecHooT)
 
       do s = 1, nSpin
         call distributeRangeInChunks(env, 1, rpa%nxoo_ud(s), iGlobal, fGlobal)
@@ -4840,8 +4862,8 @@ contains
         do iSpin = 1, nSpin
           call symm(PS(:,:,iSpin), 'R', overlap, pc(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
           call symm(SPS(:,:,iSpin), 'L', overlap, PS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
-          call symm(DS(:,:,iSpin), 'R', overlap, deltaRhoGlobal(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb,&
-              & nOrb)
+          call symm(DS(:,:,iSpin), 'R', overlap, deltaRhoGlobal(:,:,iSpin), 'U', 1.0_dp, 0.0_dp,&
+              & nOrb, nOrb)
           call symm(SDS(:,:,iSpin), 'L', overlap, DS(:,:,iSpin), 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
           call symm(XS(:,:,iSpin,iState), 'R', overlap, xpyas(:,:,iSpin,iState), 'U', 1.0_dp,&
               & 0.0_dp, nOrb, nOrb)
