@@ -171,6 +171,9 @@ Added
 
 - Dual American and British English spelling for various input keywords
 
+- Dispersion (for some models) with transport calculations
+
+- Printing of atom-resolved dispersion energies in detailed.out
 
 Fixed
 -----
