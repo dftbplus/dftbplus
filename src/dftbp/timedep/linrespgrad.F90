@@ -1757,8 +1757,8 @@ contains
           qgamxpyq(ab, s) = qgamxpyq(ab, s) + fact * sum(qTr * xpyqds * lr%spinW(species0))
         end do
 
-        call assembleChunks(env, qgamxpyq(:,s))
       end do
+      call assembleChunks(env, qgamxpyq)
 
     end if
 
@@ -1817,8 +1817,9 @@ contains
           !magnetization part
           qgamxpyq(ij, s) = qgamxpyq(ij, s) + fact * sum(qTr * xpyqds * lr%spinW(species0))
         end do
-        call assembleChunks(env, qgamxpyq(:,s))
       end do
+
+      call assembleChunks(env, qgamxpyq)
 
     end if
 
@@ -1909,6 +1910,7 @@ contains
 
     ! gamqt(iAt1) = sum_iAt2 gamma_iAt1,iAt2 gamxpyq(iAt2)
     call hemv(gamqt, gammaMat, gamxpyq)
+
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     if (.not. tSpin) then

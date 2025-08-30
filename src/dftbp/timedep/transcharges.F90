@@ -624,7 +624,7 @@ contains
   !> minus Transition charges left produced with a vector Q * v for spin down
   !> sum_ias q_ias V_ias delta_s,  where delta_s = 1 for spin up and delta_s = -1 for spin down
   subroutine TTransCharges_qMatVecDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
-      & win, vector, qProduct)
+      & win, vector, qProduct, indexOffSet)
 
     !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
@@ -653,29 +653,55 @@ contains
     !> Product on exit
     real(dp), intent(inout) :: qProduct(:)
 
+    !> Offset of vector index (optional) which determines orbital pair
+    integer, intent(in), optional :: indexOffSet
+
     real(dp), allocatable :: qij(:)
-    integer :: ii, jj, ij, kk
+    integer :: ii, jj, ij, kk, iOff, iGlb, fGlb
     logical :: updwn
 
-    allocate(qij(this%nAtom))
+    ! RPA vectors are distributed for MPI: size(vector) < nOcc*nVir
+    if (present(indexOffSet)) then
+      iOff = indexOffSet
+    else
+      iOff = 0
+    endif
+    iGlb = iOff + 1
+    fGlb = iOff + size(vector)
 
-    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
-    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
-    do ij = 1, this%nTransitions
-      kk = win(ij)
-      ii = getia(kk, 1)
-      jj = getia(kk, 2)
-      updwn = (kk <= this%nMatUp)
-      qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
-      if (updwn) then
-        qProduct(:) = qProduct + qij * vector(ij)
-      else
-        qProduct(:) = qProduct - qij * vector(ij)
-      end if
-    end do
-    !!$OMP END PARALLEL DO
+    if (this%tCacheChargesOccVir) then
+      do ij = 1, size(vector)
+        kk = win(iOff+ij)
+        updwn = (kk <= this%nMatUp)
 
-    deallocate(qij)
+        if (updwn) then
+          qProduct(:) = qProduct + this%qCacheOccVir(:,ij) * vector(ij)
+        else
+          qProduct(:) = qProduct - this%qCacheOccVir(:,ij) * vector(ij)
+        end if
+      end do
+
+    else
+      allocate(qij(this%nAtom))
+
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
+      !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
+      do ij = 1, this%nTransitions
+        kk = win(iOff+ij)
+        ii = getia(kk, 1)
+        jj = getia(kk, 2)
+        updwn = (kk <= this%nMatUp)
+        qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+        if (updwn) then
+          qProduct(:) = qProduct + qij * vector(ij)
+        else
+          qProduct(:) = qProduct - qij * vector(ij)
+        end if
+      end do
+      !!$OMP END PARALLEL DO
+
+      deallocate(qij)
+    endif
 
   end subroutine TTransCharges_qMatVecDs
 
@@ -684,7 +710,7 @@ contains
   !> and negative transition charges right produced with a vector v * Q for spin down
   !> R_ias = delta_s sum_A q_A^(ias) V_A,  where delta_s = 1 for spin up and delta_s = -1 for spin down
   subroutine TTransCharges_qVecMatDs(this, env, denseDesc, sTimesGrndEigVecs, grndEigVecs, getia,&
-      & win, vector, qProduct)
+      & win, vector, qProduct, indexOffSet)
 
     !> Instance of the transition charge object
     class(TTransCharges), intent(in) :: this
@@ -713,29 +739,58 @@ contains
     !> Product on exit
     real(dp), intent(inout) :: qProduct(:)
 
+    !> Offset of vector index (optional) which determines orbital pair
+    integer, intent(in), optional :: indexOffSet
+
     real(dp), allocatable :: qij(:)
-    integer :: ii, jj, ij, kk
+    integer :: ii, jj, ij, kk, iOff, iGlb, fGlb
     logical :: updwn
 
-    allocate(qij(this%nAtom))
+    ! RPA vectors are distributed for MPI: size(vector) < nOcc*nVir
+    if (present(indexOffSet)) then
+      iOff = indexOffSet
+    else
+      iOff = 0
+    end if
+    iGlb = iOff + 1
+    fGlb = iOff + size(qProduct)
 
-    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
-    !!$OMP& SCHEDULE(RUNTIME)
-    do ij = 1, this%nTransitions
-      kk = win(ij)
-      ii = getia(kk, 1)
-      jj = getia(kk, 2)
-      updwn = (kk <= this%nMatUp)
-      qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
-      if (updwn) then
-        qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
-      else
-        qProduct(ij) = qProduct(ij) - dot_product(qij, vector)
-      end if
-    end do
-    !!$OMP END PARALLEL DO
+    if (this%tCacheChargesOccVir) then
 
-    deallocate(qij)
+      do ij = 1, this%nTransitions
+        kk = win(iOff+ij)
+        updwn = (kk <= this%nMatUp)
+
+        if (updwn) then
+          qProduct(ij) = qProduct(ij) + dot_product(this%qCacheOccVir(:,ij), vector)
+        else
+          qProduct(ij) = qProduct(ij) - dot_product(this%qCacheOccVir(:,ij), vector)
+        end if
+      end do
+
+    else
+
+      allocate(qij(this%nAtom))
+
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
+      !!$OMP& SCHEDULE(RUNTIME)
+      do ij = 1, this%nTransitions
+        kk = win(iOff+ij)
+        ii = getia(kk, 1)
+        jj = getia(kk, 2)
+        updwn = (kk <= this%nMatUp)
+        qij(:) = transq(ii, jj, env, denseDesc, updwn, sTimesGrndEigVecs, grndEigVecs)
+        if (updwn) then
+          qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
+        else
+          qProduct(ij) = qProduct(ij) - dot_product(qij, vector)
+        end if
+      end do
+      !!$OMP END PARALLEL DO
+
+      deallocate(qij)
+
+    endif
 
   end subroutine TTransCharges_qVecMatDs
 
