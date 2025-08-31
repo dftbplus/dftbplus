@@ -84,6 +84,7 @@ module dftbp_dftbplus_main
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_final
   use dftbp_extlibs_tblite, only : TTBLite
   use dftbp_geoopt_geoopt, only : next, reset, TGeoOpt
+  use dftbp_io_charmanip, only : toupper
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLDual, getLOnsite
@@ -222,6 +223,10 @@ contains
       ! DFTB Determinant Loop
       ! Will pass though loop once, unless specified in input to perform multiple determinants
       lpDets : do iDet = 1, this%nDets
+
+        if (this%nDets > 1) then
+          write(stdOut, "(1X,A,A)")"Determinant ", toupper(this%deltaDftb%determinantName(iDet))
+        end if
 
         this%deltaDftb%iDeterminant = iDet
 
