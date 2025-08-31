@@ -52,7 +52,7 @@ module dftbp_io_charmanip
   !> Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
 
-  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c
+  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, toupper, i2c
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
@@ -412,6 +412,28 @@ contains
 
   end function tolower
 
+
+  !> Returns an uppercase string
+  elemental function toupper(str) result(upper)
+
+    !> String to convert to uppercase
+    character(len=*), intent(in) :: str
+
+    !> Uppercase string
+    character(len=len(str)) :: upper
+
+    integer :: ii, iTmp
+
+    do ii = 1, len(str)
+      iTmp = iachar(str(ii:ii))
+      if (97 <= iTmp .and. iTmp <= 122) then
+        upper(ii:ii) = achar(iTmp - 32)
+      else
+        upper(ii:ii) = str(ii:ii)
+      end if
+    end do
+
+  end function toupper
 
 
   !> Converts an integer to a character string
