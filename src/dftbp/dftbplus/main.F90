@@ -3750,8 +3750,8 @@ contains
       ! delta-density, therefore we store it separately for now)
       if (allocated(rhoSqrReal)) then
         if (.not. allocated(densityMatrix%deltaRhoOut)) then
-          !NOTE: I did not test when the code goes for this way
-          rhoSqrReal(:,:, iSpin) = work
+          call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+               &  work(:,:), rhoSqrReal(:,:,iSpin))
         else
           call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
                &  densityMatrix%deltaRhoOut(:,:,iSpin), rhoSqrReal(:,:,iSpin))
@@ -5295,8 +5295,10 @@ contains
     dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
 
     ! Avoid overwritte deltaRhoOut
-    allocate(deltaRhoOut, mold=dRhoOut)
-    deltaRhoOut = dRhoOut
+    if (allocated(dRhoOut)) then
+        allocate(deltaRhoOut, mold=dRhoOut)
+        deltaRhoOut = dRhoOut
+    endif
 
   #:if WITH_SCALAPACK
 
@@ -5341,7 +5343,7 @@ contains
     dftbEnergy%EMermin = dftbEnergy%EMermin + dftbEnergy%Eexcited
     dftbEnergy%EGibbs = dftbEnergy%EGibbs + dftbEnergy%Eexcited
 
-    deallocate(deltaRhoOut)
+    if (allocated(deltaRhoOut)) deallocate(deltaRhoOut)
 
   end subroutine calculateLinRespExcitations
 

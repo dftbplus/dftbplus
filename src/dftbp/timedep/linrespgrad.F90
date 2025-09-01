@@ -2019,9 +2019,9 @@ contains
         end do
       end do
 
-      call assembleChunks(env, woo)
-
     endif
+
+    call assembleChunks(env, woo)
 
   end subroutine getZVectorEqRHS
 
@@ -2587,6 +2587,13 @@ contains
       dm(:) = dq_ud(:,2)
     end if
 
+    ! Convert local arrays to global
+    allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
+    do iSpin = 1, nSpin
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                           &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
+    enddo
+
     if (rpa%tHybridXc) then
       allocate(xmycc(nOrb, nOrb, nSpin))
       allocate(xpyas(nOrb, nOrb, nSpin))
@@ -2607,12 +2614,9 @@ contains
 
       ! Convert local arrays to global
       allocate(deltaRhoGlobal(norb,norb,size(deltaRho,dim=3)))
-      allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
       do iSpin = 1, nSpin
         call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                              &  deltaRho(:,:,iSpin), deltaRhoGlobal(:,:,iSpin))
-        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
-                             &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
       enddo
 
       ! Symmetrize deltaRhoGlobal
@@ -4678,6 +4682,13 @@ contains
       dm(:) = dq_ud(:,2)
     end if
 
+    ! Convert local arrays to global
+    allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
+    do iSpin = 1, nSpin
+      call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                           &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
+    enddo
+
     if (rpa%tHybridXc) then
       allocate(xmycc(nOrb, nOrb, nSpin, 2))
       allocate(xpyas(nOrb, nOrb, nSpin, 2))
@@ -4698,12 +4709,9 @@ contains
 
       ! Convert local arrays to global
       allocate(deltaRhoGlobal(norb,norb,size(deltaRho,dim=3)))
-      allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
       do iSpin = 1, nSpin
         call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                              &  deltaRho(:,:,iSpin), deltaRhoGlobal(:,:,iSpin))
-        call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
-                             &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
       enddo
 
       ! Symmetrize deltaRhoGlobal
