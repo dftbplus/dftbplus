@@ -2066,8 +2066,12 @@ contains
     !> On entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
 
-    integer :: nxov, iGlobal, fGlobal
-    integer :: ia, kk, i, a, s, iis, aas
+    ! NOTE: For very large systems, nxov (or nxov**2) may exceed the 32-bit
+    ! integer range. To avoid integer overflow I use 64-bit integers.
+    integer(kind=8) :: kk, nxov
+
+    integer :: iGlobal, fGlobal
+    integer :: ia, i, a, s, iis, aas
     real(dp), allocatable :: qTr(:), qTmp(:), P(:)
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: rs, alphakm1, tmp1, tmp2, bkm1
