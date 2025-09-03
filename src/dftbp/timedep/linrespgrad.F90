@@ -673,6 +673,8 @@ contains
 
     ! Calculate Furche vectors and transition density matrix for various properties
     if (tZVector) then
+      write(stdOut,'(A)')
+      write(stdOut,'(A)') '>> Excited State gradient calculation'
 
       call env%globalTimer%startTimer(globalTimers%lrZVector)
 
@@ -791,6 +793,8 @@ contains
       end if
 
       if (this%tNaCoupling) then
+        write(stdOut,'(A)') ' '
+        write(stdOut,'(A)') '>> Non Adiabatic Coupling Vectors calculation'
 
         call env%globalTimer%startTimer(globalTimers%lrNAC)
 
