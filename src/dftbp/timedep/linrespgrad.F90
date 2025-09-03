@@ -920,8 +920,6 @@ contains
 
     end if
 
-    call env%globalTimer%stopTimer(globalTimers%lrZVector)
-
     ! Omega has possibly been overwritten for CI optimization or NA couplings, but should always
     ! refer to nstat
     if (nstat == 0) then
