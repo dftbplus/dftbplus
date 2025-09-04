@@ -11,7 +11,10 @@
 module dftbp_elecsolvers_elecsolvers
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpa, TElpaInp
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
+  use dftbp_extlibs_elpa, only : withElpa
+  use dftbp_extlibs_elsiiface, only: withElsi
   implicit none
 
   private
@@ -28,6 +31,9 @@ module dftbp_elecsolvers_elecsolvers
     !> Input for the ELSI solver
     type(TElsiSolverInp), allocatable :: elsi
 
+    !> Input for the ELPA solver
+    type(TElpaInp), allocatable :: elpa
+
   end type TElectronicSolverInp
 
 
@@ -40,6 +46,9 @@ module dftbp_elecsolvers_elecsolvers
 
     !> Whether it is an ELSI solver
     logical, public :: isElsiSolver = .false.
+
+    !> Whether we use ELPA without ELSI
+    logical, public :: isElpaStandalone
 
     !> Whether the solver provides eigenvalues
     logical, public :: providesEigenvals = .false.
@@ -59,6 +68,9 @@ module dftbp_elecsolvers_elecsolvers
 
     !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
+
+    !> Data for ELPA solver
+    type(TElpa), public, allocatable :: elpa
 
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: hasCholesky(:)
@@ -89,22 +101,39 @@ module dftbp_elecsolvers_elecsolvers
 contains
 
   !> Initializes an electronic solver
-  subroutine TElectronicSolver_init(this, iSolver, nCholesky)
+  subroutine TElectronicSolver_init(this, solverInp, nCholesky)
 
     !> Instance.
     type(TElectronicSolver), intent(out) :: this
 
-    !> Solver type to be used.
-    integer, intent(in) :: iSolver
+    !> Input data for the solver.
+    type(TElectronicSolverInp), intent(in) :: solverInp
 
     !> Number of Cholesky-decompositions which will be buffered.
     integer, intent(in) :: nCholesky
 
-    this%iSolver = iSolver
+    logical :: preferElsi
+
+    this%iSolver = solverInp%iSolver
 
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
+
+    preferElsi = .false.
+    if (allocated(solverInp%elpa)) then
+      preferElsi = solverInp%elpa%preferElsi
+    end if
+
+    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa .and.&
+        & .not. (withElsi .and. preferElsi)) then
+      !> If ELPA should be used and we have the ELPA library included directly (without ELSI),
+      !> do not call ELSI.
+      this%isElsiSolver = .false.
+      this%isElpaStandalone = .true.
+    else
+      this%isElpaStandalone = .false.
+    end if
 
     !> Eigenvalues for hamiltonian available
     this%providesEigenvals = providesEigenvalues(this%iSolver)
@@ -142,6 +171,10 @@ contains
 
     if (this%isElsiSolver) then
       allocate(this%elsi)
+    end if
+
+    if (this%isElpaStandalone) then
+      allocate(this%elpa)
     end if
 
   end subroutine TElectronicSolver_init
@@ -217,6 +250,9 @@ contains
 
     case(electronicSolverTypes%magmaGvd)
       write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
+
+    case(electronicSolverTypes%elpa)
+      write(buffer, "(A)") "ELPA"
 
     case default
       write(buffer, "(A,I0,A)") "Invalid electronic solver! (iSolver = ", this%iSolver, ")"
