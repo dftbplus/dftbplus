@@ -34,6 +34,10 @@ Added
 
 - Pairwise bond populations, bond energies and Mayer bond orders
 
+- Direct integration of ELPA (requires version 2022.05.001 or later)
+  with optional MPI redistribution to a lower number of ranks for all
+  ELPA calls
+
 
 Changed
 -------
