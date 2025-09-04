@@ -98,6 +98,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_PEXSI)
   endif()
 
+  if(WITH_ELPA)
+    list(APPEND _fyppflags -DWITH_ELPA)
+  endif()
+
   if(WITH_GPU)
     list(APPEND _fyppflags -DWITH_GPU)
   endif()
@@ -203,8 +207,12 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
   endif()
 
-  if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
-    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
+  if(WITH_ELPA AND NOT WITH_MPI)
+    message(FATAL_ERROR "Building with ELPA requires MPI-parallel build enabled")
+  endif()
+
+  if(WITH_GPU AND WITH_MPI AND (NOT WITH_ELSI) AND (NOT WITH_ELPA))
+    message(FATAL_ERROR "GPU support in MPI-parallelized applications requires ELSI or ELPA (built with GPU support)")
   endif()
 
   if(INSTANCE_SAFE_BUILD)

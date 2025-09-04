@@ -14,9 +14,9 @@ module dftbp_extlibs_scalapackfx
       & DLEN_, linecomm, M_, MB_, N_, NB_, pblasfx_pgemm, pblasfx_phemm, pblasfx_psymm,&
       & pblasfx_psymv, pblasfx_ptran, pblasfx_ptranc, pblasfx_ptranu, RSRC_, scalafx_addg2l, scalafx_addl2g,&
       & scalafx_cpg2l, scalafx_cpl2g, scalafx_getdescriptor, scalafx_getlocalshape,&
-      & scalafx_indxl2g, scalafx_infog2l, scalafx_islocal, scalafx_pgetri, scalafx_pgetrf, scalafx_phegv,&
-      & scalafx_phegvd, scalafx_phegvr, scalafx_pposv, scalafx_ppotrf, scalafx_ppotri,&
-      & scalafx_psygv, scalafx_psygvd, scalafx_psygvr, size
+      & scalafx_indxl2g, scalafx_infog2l, scalafx_islocal, scalafx_numroc, scalafx_pgetri,&
+      & scalafx_pgetrf, scalafx_phegv, scalafx_phegvd, scalafx_phegvr, scalafx_pposv,&
+      & scalafx_ppotrf, scalafx_ppotri, scalafx_psygv, scalafx_psygvd, scalafx_psygvr, size
 #:endif
   implicit none
   public

@@ -78,8 +78,10 @@ module dftbp_dftbplus_initprogram
   use dftbp_elecsolvers_dmsolvertypes, only : densityMatrixTypes
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, TElectronicSolver,&
       & TElectronicSolver_init
+  use dftbp_elecsolvers_elpa, only : TElpa_final, TElpa_init
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver_final, TElsiSolver_init
   use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only : withELSI
   use dftbp_extlibs_plumed, only : TPlumedCalc, TPlumedCalc_init, withPlumed
   use dftbp_extlibs_poisson, only : TPoissonInput
@@ -2028,12 +2030,17 @@ contains
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       this%tWriteHS = .false.
 
-      call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi, env,&
-          & this%denseDesc%fullSize, this%nEl, this%iDistribFn, this%nSpin,&
-          & this%parallelKS%localKS(2, 1), this%nKPoint, this%parallelKS%localKS(1, 1),&
+      call TElsiSolver_init(this%electronicSolver%elsi, input%ctrl%solver%elsi,&
+          & input%ctrl%solver%elpa, env, this%denseDesc%fullSize, this%nEl, this%iDistribFn,&
+          & this%nSpin, this%parallelKS%localKS(2, 1), this%nKPoint, this%parallelKS%localKS(1, 1),&
           & this%kWeight(this%parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
           & this%electronicSolver%providesElectronEntropy)
 
+    end if
+
+    if (this%electronicSolver%isElpaStandalone) then
+      call TElpa_init(this%electronicSolver%elpa, env, input%ctrl%solver%elpa,&
+          & this%denseDesc%fullSize, input%ctrl%timingLevel)
     end if
 
     if (this%deltaDftb%isNonAufbau .and. .not.this%electronicSolver%providesEigenvals) then
@@ -4969,6 +4976,10 @@ contains
       call TElsiSolver_final(this%electronicSolver%elsi)
     end if
 
+    if (this%electronicSolver%isElpaStandalone) then
+      call TElpa_final(this%electronicSolver%elpa)
+    end if
+
     if (this%tProjEigenvecs) then
       call destruct(this%iOrbRegion)
       call destruct(this%regionLabels)
@@ -5771,11 +5782,17 @@ contains
           & This should be fixed soon.")
     end if
 
+    if (iSolver == electronicSolverTypes%elpa .and. .not. withElpa .and. .not. withELSI) then
+      call error("This binary was not compiled with ELSI or ELPA support enabled")
+    end if
+
     tElsiSolver = any(iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
     if (.not. withELSI .and. tElsiSolver) then
-      call error("This binary was not compiled with ELSI support enabled")
+      if (iSolver /= electronicSolverTypes%elpa .or. .not. withElpa) then
+        call error("This binary was not compiled with ELSI support enabled")
+      end if
     end if
 
     nKPoint = size(kPoints, dim=2)

@@ -124,6 +124,13 @@ if(WITH_ELSI)
   endif()
 endif()
 
+if(WITH_ELPA)
+  target_link_libraries(dftbplus PUBLIC elpa::elpa)
+  if(WITH_GPU)
+    target_link_directories(dftbplus PUBLIC ${CUDAToolkit_LIBRARY_DIR})
+  endif()
+endif()
+
 if(WITH_PLUMED)
   target_link_libraries(dftbplus PRIVATE Plumed::Plumed)
 endif()

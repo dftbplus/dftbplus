@@ -111,6 +111,15 @@ else()
   list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
 endif()
 
+if(WITH_ELPA AND NOT TARGET elpa::elpa)
+  set(ELPA_MIN_VERSION "2025.01.001")
+  find_package(elpa ${ELPA_MIN_VERSION} REQUIRED)
+
+  if(WITH_GPU)
+    find_package(CUDAToolkit REQUIRED)
+  endif()
+endif()
+
 if(WITH_PLUMED)
   find_package(CustomPlumed REQUIRED)
   list(APPEND PKG_CONFIG_REQUIRES plumed)

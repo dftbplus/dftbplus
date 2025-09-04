@@ -18,8 +18,10 @@ option(WITH_GPU "Whether DFTB+ should support GPU-acceleration" FALSE)
 # requires the ELSI library built with GPU support.
 
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
-# Works only with MPI-parallel build. If WITH_GPU was selected above, the ELSI library must be
-# enabled (and must have been built with GPU support).
+# Works only with MPI-parallel build.
+
+option(WITH_ELPA "Whether DFTB+ with MPI-parallelism should use the ELPA library" FALSE)
+# Works only with MPI-parallel build.
 
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
