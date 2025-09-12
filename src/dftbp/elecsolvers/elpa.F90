@@ -20,8 +20,12 @@ module dftbp_elecsolvers_elpa
 #:else
   use dftbp_extlibs_elpa, only : elpa_autotune_t, elpa_t
 #:endif
+#:if WITH_MPI
+  use dftbp_extlibs_mpifx, only : mpifx_bcast, mpifx_comm
+#:endif
 #:if WITH_SCALAPACK
-  use dftbp_extlibs_scalapackfx, only : scalafx_numroc
+  use dftbp_extlibs_scalapackfx, only : blacsfx_gemr2d, blacsgrid, scalafx_getdescriptor,&
+      & scalafx_numroc, CTXT_, DLEN_
 #:endif
   use dftbp_io_message, only : error
   implicit none
@@ -42,6 +46,9 @@ module dftbp_elecsolvers_elpa
 
     !> Enable GPU usage in ELPA
     logical :: gpu = .false.
+
+    !> On what fraction of the original number of ranks to redistribute the matrix
+    integer :: redistributeFactor = 1
 
   end type TElpaInp
 
@@ -68,6 +75,57 @@ module dftbp_elecsolvers_elpa
     !> Whether we are currently autotuning
     logical :: autotuning = .false.
 
+    !> Whether we should redistribute the matrix each call
+    logical :: redistributing = .false.
+
+    !> Whether the current process holds parts of the redistributed matrix and joins ELPA calls
+    logical :: joinElpaCalls = .true.
+
+    !> Global size of the square matrix
+    integer :: matrixSize
+
+    !> Number of rows in the local matrix
+    integer :: matrixLocalRows = 1
+
+    !> Number of columns in the local matrix
+    integer :: matrixLocalColumns = 1
+
+    !> BLACS grid to use for redistribution
+    type(blacsgrid) :: redistributeGrid
+
+    !> MPI communicator to use for redistribution
+    type(mpifx_comm) :: redistributeComm
+
+    !> MPI communicator of all ranks in the current group
+    type(mpifx_comm) :: groupComm
+
+    !> BLACS context
+    integer :: contextOrig
+
+    !> Original  descriptor of the matrix
+    integer :: descOrig(DLEN_)
+
+    !> Descriptor to be used in ELPA, possibly redistributed
+    integer :: desc(DLEN_)
+
+    !> First matrix used for redistribution
+    real(dp), allocatable :: matrixReal1(:,:)
+
+    !> Second matrix used for redistribution
+    real(dp), allocatable :: matrixReal2(:,:)
+
+    !> Eigenvector storage used for redistribution
+    real(dp), allocatable :: eigenvectorsReal(:,:)
+
+    !> First matrix used for redistribution
+    complex(dp), allocatable :: matrixComplex1(:,:)
+
+    !> Second matrix used for redistribution
+    complex(dp), allocatable :: matrixComplex2(:,:)
+
+    !> Eigenvector storage used for redistribution
+    complex(dp), allocatable :: eigenvectorsComplex(:,:)
+
   contains
 
     procedure, private :: TElpa_solveReal
@@ -75,6 +133,8 @@ module dftbp_elecsolvers_elpa
     generic :: solve => TElpa_solveReal, TElpa_solveComplex
     procedure :: reset => TElpa_reset
     procedure, private :: setConfig => Telpa_setConfig
+    procedure, private :: initConfig => Telpa_initConfig
+    procedure, private :: initRedistribute => Telpa_initRedistribute
 
   end type TElpa
 
@@ -85,7 +145,7 @@ contains
   subroutine TElpa_init(this, env, inp, nBasisFn, timingLevel)
 
     !> Instance
-    class(TElpa), intent(out) :: this
+    type(TElpa), intent(out) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -104,14 +164,29 @@ contains
 
   #:if WITH_ELPA
 
-    na_rows = scalafx_numroc(nBasisFn, env%blacs%rowBlockSize, env%blacs%orbitalGrid%myrow,&
-        & env%blacs%orbitalGrid%leadrow, env%blacs%orbitalGrid%nrow)
-    na_cols = scalafx_numroc(nBasisFn, env%blacs%columnBlockSize, env%blacs%orbitalGrid%mycol,&
-        & env%blacs%orbitalGrid%leadcol, env%blacs%orbitalGrid%ncol)
+    this%matrixSize = nBasisFn
+    this%contextOrig = env%blacs%orbitalGrid%ctxt
+
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, this%matrixSize, this%matrixSize,&
+        & env%blacs%rowBlockSize, env%blacs%columnBlockSize, this%descOrig)
+
+    if (env%blacs%rowBlockSize /= env%blacs%columnBlockSize) then
+      call error("Error during ELPA initialization: different block sizes for rows and columns")
+    end if
 
     status = elpa_init(20250131) ! corresponds to ELPA version 2025.01.001
     if (status /= ELPA_OK) then
       call error("ELPA error: elpa_init failed")
+    end if
+
+    if (inp%redistributeFactor /= 1) then
+      call this%initRedistribute(inp%redistributeFactor, env%mpi%groupComm)
+
+      if (.not. this%joinElpaCalls) then
+        this%desc(:) = 0
+        this%desc(CTXT_) = -1
+        return
+      end if
     end if
 
     this%handle => elpa_allocate(status)
@@ -119,24 +194,24 @@ contains
       call error("ELPA error: elpa_allocate failed")
     end if
 
-    call this%setConfig("na", nBasisFn)
-    call this%setConfig("nev", nBasisFn)
-    call this%setConfig("nblk", env%blacs%rowBlockSize)
-    call this%setConfig("local_nrows", na_rows)
-    call this%setConfig("local_ncols", na_cols)
-    call this%setConfig("mpi_comm_parent", env%mpi%groupComm%id)
-    call this%setConfig("blacs_context", env%blacs%orbitalGrid%ctxt)
-    call this%setConfig("process_row", env%blacs%orbitalGrid%myrow)
-    call this%setConfig("process_col", env%blacs%orbitalGrid%mycol)
+    if (this%redistributing) then
+      call this%initConfig(this%redistributeGrid, this%redistributeComm, env%blacs%rowBlockSize)
+    else
+      call this%initConfig(env%blacs%orbitalGrid, env%mpi%groupComm, env%blacs%rowBlockSize)
+    end if
 
     if (timingLevel < 0) then
       call this%setConfig("timings", 1)
-      this%printTimings = env%mpi%globalComm%lead
+      if (this%redistributing) then
+        this%printTimings = this%redistributeComm%lead
+      else
+        this%printTimings = env%mpi%groupComm%lead
+      end if
     end if
 
     status = this%handle%setup()
     if (status /= elpa_ok) then
-      call error("elpa error: elpa_setup failed")
+      call error("ELPA error: elpa_setup failed")
     end if
 
     if (inp%gpu) then
@@ -167,6 +242,102 @@ contains
   #:endif
 
   end subroutine TElpa_init
+
+
+  !> Initialize ELPA settings
+  subroutine TElpa_initConfig(this, grid, comm, nblk)
+
+    !> Instance
+    class(TElpa), intent(inout) :: this
+
+    !> BLACS grid to use in ELPA
+    type(blacsgrid), intent(in) :: grid
+
+    !> MPI communicator to use in ELPA
+    type(mpifx_comm), intent(in) :: comm
+
+    !> BLACS block size
+    integer, intent(in) :: nblk
+
+    call scalafx_getdescriptor(grid, this%matrixSize, this%matrixSize, nblk, nblk, this%desc)
+
+    this%matrixLocalRows = scalafx_numroc(this%matrixSize, nblk, grid%myrow, grid%leadrow,&
+        & grid%nrow)
+    this%matrixLocalColumns = scalafx_numroc(this%matrixSize, nblk, grid%mycol, grid%leadcol,&
+        & grid%ncol)
+
+    call this%setConfig("na", this%matrixSize)
+    call this%setConfig("nev", this%matrixSize)
+    call this%setConfig("nblk", nblk)
+    call this%setConfig("local_nrows", this%matrixLocalRows)
+    call this%setConfig("local_ncols", this%matrixLocalColumns)
+    call this%setConfig("mpi_comm_parent", comm%id)
+    call this%setConfig("blacs_context", grid%ctxt)
+    call this%setConfig("process_row", grid%myrow)
+    call this%setConfig("process_col", grid%mycol)
+
+  end subroutine TElpa_initConfig
+
+
+  !> Initialize matrix redistribution
+  subroutine TElpa_initRedistribute(this, nprocStep, groupComm)
+
+    !> Instance
+    class(TElpa), intent(inout) :: this
+
+    !> How many processes to choose from the group communicator
+    !> nprocStep == 2 means: select every second rank
+    integer, intent(in) :: nprocStep
+
+    !> Group communicator from which a new communicator will be created
+    type(mpifx_comm), intent(in) :: groupComm
+
+    integer :: np_rows, np_cols, row, col
+    integer :: nprocs, proc, splitkey, rankkey
+    integer :: status
+    integer, allocatable :: gridmap(:,:)
+
+    if (nprocStep < 1 .or. modulo(groupComm%size, nprocStep) /= 0) then
+      call error("Invalid value for number of processes in ELPA redistribution")
+    end if
+    nprocs = groupComm%size / nprocStep
+
+    do np_rows = nint(sqrt(real(nprocs))), 2, -1
+      if (mod(nprocs, np_rows) == 0) exit
+    enddo
+    np_cols = nprocs / np_rows
+
+    allocate(gridmap(np_rows, np_cols))
+
+    splitkey = 0
+    rankkey = 0
+    proc = 0
+    do row = 1, np_rows
+      do col = 1, np_cols
+        gridmap(row, col) = proc
+        if (proc == groupComm%rank) then
+          splitkey = 1
+        end if
+        proc = proc + nprocStep
+      end do
+    end do
+
+    call this%redistributeGrid%initmappedgrids(gridmap)
+
+    if (splitkey == 1) then
+      rankkey = this%redistributeGrid%iproc
+    end if
+
+    call groupComm%split(splitkey, rankkey, this%redistributeComm, status)
+    if (status /= 0) then
+      call error("Error during communicator setup for ELPA redistribution")
+    end if
+
+    this%joinElpaCalls = splitkey == 1
+    this%redistributing = .true.
+    this%groupComm = groupComm
+
+  end subroutine TElpa_initRedistribute
 
 
   !> Reset the solver state when the geometry has changed
@@ -214,8 +385,28 @@ contains
 
   #:if WITH_ELPA
 
-    if (this%printTimings) then
-      call this%handle%print_times("ELPA")
+    if (this%redistributing) then
+      call this%redistributeGrid%destruct()
+      call this%redistributeComm%free()
+
+      if (allocated(this%matrixReal1)) then
+        deallocate(this%matrixReal1)
+      end if
+      if (allocated(this%matrixReal2)) then
+        deallocate(this%matrixReal2)
+      end if
+      if (allocated(this%eigenvectorsReal)) then
+        deallocate(this%eigenvectorsReal)
+      end if
+      if (allocated(this%matrixComplex1)) then
+        deallocate(this%matrixComplex1)
+      end if
+      if (allocated(this%matrixComplex2)) then
+        deallocate(this%matrixComplex2)
+      end if
+      if (allocated(this%eigenvectorsComplex)) then
+        deallocate(this%eigenvectorsComplex)
+      end if
     end if
 
     if (associated(this%autotune)) then
@@ -226,6 +417,13 @@ contains
     end if
 
     if (associated(this%handle)) then
+      if (this%printTimings) then
+        call this%handle%print_times("ELPA generalized_eigenvectors")
+        if (this%redistributing) then
+          call this%handle%print_times("ELPA redistribute")
+        end if
+      end if
+
       call elpa_deallocate(this%handle, status)
       if (status /= ELPA_OK) then
         call error("ELPA error: elpa_deallocate failed")
@@ -268,7 +466,7 @@ contains
 
   #:if WITH_ELPA
 
-    if (this%autotuning) then
+    if (this%autotuning .and. this%joinElpaCalls) then
       if (.not. associated(this%autotune)) then
         if (this%gpu) then
           this%autotune => this%handle%autotune_setup(ELPA_AUTOTUNE_MEDIUM,&
@@ -302,16 +500,64 @@ contains
       end if
     end if
 
-    call this%handle%timer_start("ELPA")
-    call this%handle%generalized_eigenvectors(HSqr, SSqr, eigenVals, eigenVecs,&
-        & .not. this%firstCall, status)
-    call this%handle%timer_stop("ELPA")
+    if (this%redistributing) then
+      if (.not. allocated(this%matrix${NAME}$1)) then
+        allocate(this%matrix${NAME}$1(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+      if (.not. allocated(this%matrix${NAME}$2)) then
+        allocate(this%matrix${NAME}$2(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+      if (.not. allocated(this%eigenvectors${NAME}$)) then
+        allocate(this%eigenvectors${NAME}$(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("ELPA redistribute")
+      end if
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, HSqr, 1, 1, this%descOrig,&
+          & this%matrix${NAME}$1, 1, 1, this%desc, this%contextOrig)
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, SSqr, 1, 1, this%descOrig,&
+          & this%matrix${NAME}$2, 1, 1, this%desc, this%contextOrig)
+      if (this%joinElpaCalls) then
+        call this%handle%timer_stop("ELPA redistribute")
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("ELPA generalized_eigenvectors")
+        call this%handle%generalized_eigenvectors(this%matrix${NAME}$1, this%matrix${NAME}$2,&
+            & eigenVals, this%eigenvectors${NAME}$, .not. this%firstCall, status)
+        call this%handle%timer_stop("ELPA generalized_eigenvectors")
+
+        if (status /= ELPA_OK) then
+          call error("ELPA error: generalized_eigenvectors failed")
+        end if
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("ELPA redistribute")
+      end if
+      if (this%firstCall) then
+        call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%matrix${NAME}$2, 1, 1,&
+            & this%desc, SSqr, 1, 1, this%descOrig, this%contextOrig)
+      end if
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%eigenvectors${NAME}$, 1, 1,&
+          & this%desc, eigenVecs, 1, 1, this%descOrig, this%contextOrig)
+      call mpifx_bcast(this%groupComm, eigenVals)
+      if (this%joinElpaCalls) then
+        call this%handle%timer_stop("ELPA redistribute")
+      end if
+    else
+      call this%handle%timer_start("ELPA generalized_eigenvectors")
+      call this%handle%generalized_eigenvectors(HSqr, SSqr, eigenVals, eigenVecs,&
+          & .not. this%firstCall, status)
+      call this%handle%timer_stop("ELPA generalized_eigenvectors")
+
+      if (status /= ELPA_OK) then
+        call error("ELPA error: generalized_eigenvectors failed")
+      end if
+    end if
 
     this%firstCall = .false.
-
-    if (status /= ELPA_OK) then
-      call error("ELPA error: generalized_eigenvectors failed")
-    end if
 
   #:else
     eigenVals(:) = 0._dp
@@ -321,5 +567,6 @@ contains
 
   end subroutine TElpa_solve${NAME}$
 #:endfor
+
 
 end module dftbp_elecsolvers_elpa

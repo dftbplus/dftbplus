@@ -2695,6 +2695,14 @@ contains
               & the GPU acceleration for the ELPA solver")
         end if
       #:endif
+      call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
+          & child=child)
+      #:if not WITH_ELPA
+        if (ctrl%solver%elpa%redistributeFactor /= 1) then
+          call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
+              & included without using the ELSI interface")
+        end if
+      #:endif
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
