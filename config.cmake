@@ -17,6 +17,9 @@ option(WITH_GPU "Whether DFTB+ should support GPU-acceleration" FALSE)
 # For serial builds, the GPU support requires the MAGMA library. For MPI parallel builds it
 # requires the ELSI library built with GPU support.
 
+option(WITH_CUDA "Whether CUDA support should be enabled" FALSE)
+# Enable offloading support for Wavegrids MO calculations
+
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build. If WITH_GPU was selected above, the ELSI library must be
 # enabled (and must have been built with GPU support).
@@ -161,6 +164,10 @@ set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
 #
 # Fetch: Fetch the source into the build folder and build the dependency as part of the build
 #     process (works also in cases where the source tree is not a Git repository)
+
+
+set(CMAKE_CUDA_ARCHITECTURES "native" CACHE STRING
+    "CUDA architectures for Wavegrid GPU acceleration (e.g. native/all/70;75;80).")
 
 
 #
