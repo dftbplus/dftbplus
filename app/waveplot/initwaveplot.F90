@@ -9,9 +9,8 @@
 
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
-  use waveplot_gridcache, only : TGridCache, TGridCache_init
-  use waveplot_molorb, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use waveplot_slater, only : TSlaterOrbital_init
+  use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
+  use waveplot_gridcache, only : TGridCache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, setDefaultBinaryAccess, TFileDescr
@@ -19,8 +18,7 @@ module waveplot_initwaveplot
   use dftbp_common_release, only : releaseYear
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : lengthUnits
-  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
-      & TBoundaryConds_init
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
   use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
   use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&
       & getNodeName, string
@@ -55,7 +53,7 @@ module waveplot_initwaveplot
     integer :: nOrb
 
     !> True, if eigenvectors/hamiltonian is real-valued
-    logical :: tRealHam
+    logical :: isRealHam
 
     !> Occupations
     real(dp), allocatable :: occupations(:,:,:)
@@ -82,43 +80,43 @@ module waveplot_initwaveplot
     integer, allocatable :: plottedSpins(:)
 
     !> If box should filled with folded atoms
-    logical :: tFillBox
+    logical :: doFillBox
 
     !> If coords should be folded to unit cell
-    logical :: tFoldCoords
+    logical :: doFoldCoords
 
     !> If program should be verbose
-    logical :: tVerbose
+    logical :: beVerbose
 
     !> If total charge should be plotted
-    logical :: tPlotTotChrg
+    logical :: doPlotTotChrg
 
     !> If total charge should be calculated
-    logical :: tCalcTotChrg
+    logical :: doCalcTotChrg
 
     !> If total spin pol. to be plotted
-    logical :: tPlotTotSpin
+    logical :: doPlotTotSpin
 
     !> If total charge difference to be plotted
-    logical :: tPlotTotDiff
+    logical :: doPlotTotDiff
 
     !> If atomic densities to be plotted
-    logical :: tPlotAtomDens
+    logical :: doPlotAtomDens
 
     !> If atomic densities to be calculated
-    logical :: tCalcAtomDens
+    logical :: doCalcAtomDens
 
     !> If charge for orbitals to be plotted
-    logical :: tPlotChrg
+    logical :: doPlotChrg
 
     !> If charge difference for orbs. to be plotted
-    logical :: tPlotChrgDiff
+    logical :: doPlotChrgDiff
 
     !> If real part of the wfcs to plot.
-    logical :: tPlotReal
+    logical :: doPlotReal
 
     !> If imaginary part of the wfcs to plot
-    logical :: tPlotImag
+    logical :: doPlotImag
 
     !> Box vectors for the plotted region
     real(dp) :: boxVecs(3,3)
@@ -131,6 +129,9 @@ module waveplot_initwaveplot
 
     !> List of levels to plot, whereby insignificant occupations were filtered out
     integer, allocatable :: levelIndex(:,:)
+
+    !> Whether to enable GPU offloading.
+    logical :: useGPU
 
     !> File access types
     character(20) :: binaryAccessTypes(2)
@@ -146,6 +147,9 @@ module waveplot_initwaveplot
 
     !> Resolution of the radial wfcs
     real(dp) :: basisResolution
+
+    !> Non perturbed occupations for each species
+    real(dp), allocatable :: referenceOccupations(:,:)
 
   end type TBasis
 
@@ -226,7 +230,7 @@ module waveplot_initwaveplot
 
 
   !> Program version
-  character(len=*), parameter :: version = "0.3"
+  character(len=*), parameter :: version = "0.4"
 
   !> Root node name of the input tree
   character(len=*), parameter :: rootTag = "waveplot"
@@ -240,6 +244,9 @@ module waveplot_initwaveplot
   !> Version of the input document
   integer, parameter :: parserVersion = 3
 
+  !> Maximum possible angular momentum in the basis set
+  !! Safe value, used for referenceOccupations array size
+  integer, parameter :: maxExpectedAngMom = 5
 contains
 
 
@@ -270,11 +277,11 @@ contains
     !! Nr. of spins
     integer :: nSpin
 
-    !! Wether to look for ground state occupations (True) or excited (False)
+    !! Whether to look for ground state occupations (True) or excited (False)
     logical :: tGroundState
 
     !! If grid should shifted by a half cell
-    logical :: tShiftGrid
+    logical :: doShiftGrid
 
     !! K-points and weights
     real(dp), allocatable :: kPointsWeights(:,:)
@@ -325,7 +332,7 @@ contains
 
     ! Read options
     call getChild(root, "Options", tmp)
-    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, tShiftGrid)
+    call readOptions(this, tmp, this%eig%nState, nKPoint, nSpin, nCached, doShiftGrid)
 
     ! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, .true.)
@@ -356,7 +363,7 @@ contains
     do ii = 1, 3
       this%loc%gridVec(:, ii) = this%opt%boxVecs(:, ii) / real(this%opt%nPoints(ii), dp)
     end do
-    if (tShiftGrid) then
+    if (doShiftGrid) then
       this%opt%gridOrigin(:) = this%opt%origin(:) + 0.5_dp * sum(this%loc%gridVec, dim=2)
     else
       this%opt%gridOrigin(:) = this%opt%origin(:)
@@ -376,12 +383,22 @@ contains
     allocate(this%loc%molOrb)
     this%loc%pMolOrb => this%loc%molOrb
     call TMolecularOrbital_init(this%loc%molOrb, this%input%geo, this%boundaryCond,&
-        & this%basis%basis)
+        & this%basis%basis, this%opt%origin, this%loc%gridVec)
+    
+    ! Dont run multiple MPI processes on the same GPU.
+    ! This avoids cuda memory allocation race conditions in dftbp_wavegrid.
+    #:if WITH_MPI
+      print *, "Waveplot running with MPI using", env%mpi%globalComm%size, "processes"
+      if(this%opt%useGPU .and. env%mpi%globalComm%size > 1) then
+        call error("Cannot use GPU with multiple MPI processes, please run with only one process")
+      end if
+    #:endif
 
-    call TGridCache_init(this%loc%grid, env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
-        & nKPoint, nSpin, nCached, this%opt%nPoints, this%opt%tVerbose, eigVecBin,&
-        & this%loc%gridVec, this%opt%gridOrigin, kPointsWeights(1:3, :), this%input%tRealHam,&
-        & this%loc%pMolOrb)
+
+    call this%loc%grid%init(env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
+        & nKPoint, nSpin, nCached, this%opt%nPoints, this%opt%beVerbose, eigVecBin,&
+        & this%loc%gridVec, this%opt%gridOrigin, kPointsWeights(1:3, :), this%input%isRealHam,&
+        & this%loc%pMolOrb, this%opt%useGPU)
 
   end subroutine TProgramVariables_init
 
@@ -420,7 +437,7 @@ contains
     call getChild(detailed, "Geometry", tmp)
     call readGeometry(this%input%geo, tmp)
 
-    call getChildValue(detailed, "Real", this%input%tRealHam)
+    call getChildValue(detailed, "Real", this%input%isRealHam)
     call getChildValue(detailed, "NrOfKPoints", nKPoint)
     call getChildValue(detailed, "NrOfSpins", nSpin)
     call getChildValue(detailed, "NrOfStates", nState)
@@ -499,7 +516,7 @@ contains
 
 
   !> Interpret the options.
-  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, tShiftGrid)
+  subroutine readOptions(this, node, nLevel, nKPoint, nSpin, nCached, doShiftGrid)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
@@ -520,7 +537,7 @@ contains
     integer, intent(out) :: nCached
 
     !> If grid should be shifted by half a cell
-    logical, intent(out) :: tShiftGrid
+    logical, intent(out) :: doShiftGrid
 
     !! Pointer to the nodes, containing the information
     type(fnode), pointer :: subnode, field, value
@@ -535,7 +552,7 @@ contains
     integer :: curId
 
     !! If current level is found be calculated explicitely
-    logical :: tFound
+    logical :: wasFound
 
     !! Warning issued, if the detailed.xml id does not match the eigenvector id
     character(len=63) :: warnId(3) = [&
@@ -555,31 +572,31 @@ contains
       call warning(warnId)
     end if
 
-    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
+    call getChildValue(node, "TotalChargeDensity", this%opt%doPlotTotChrg, .false.)
 
     if (nSpin == 2) then
       call renameChildren(node, "TotalSpinPolarization", "TotalSpinPolarisation")
-      call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, .false.)
+      call getChildValue(node, "TotalSpinPolarisation", this%opt%doPlotTotSpin, .false.)
     else
-      this%opt%tPlotTotSpin = .false.
+      this%opt%doPlotTotSpin = .false.
     end if
 
-    call getChildValue(node, "TotalChargeDifference", this%opt%tPlotTotDiff, .false., child=field)
-    call getChildValue(node, "TotalAtomicDensity", this%opt%tPlotAtomDens, .false.)
-    call getChildValue(node, "ChargeDensity", this%opt%tPlotChrg, .false.)
-    call getChildValue(node, "ChargeDifference", this%opt%tPlotChrgDiff, .false.)
+    call getChildValue(node, "TotalChargeDifference", this%opt%doPlotTotDiff, .false., child=field)
+    call getChildValue(node, "TotalAtomicDensity", this%opt%doPlotAtomDens, .false.)
+    call getChildValue(node, "ChargeDensity", this%opt%doPlotChrg, .false.)
+    call getChildValue(node, "ChargeDifference", this%opt%doPlotChrgDiff, .false.)
 
-    this%opt%tCalcTotChrg = this%opt%tPlotTotChrg .or. this%opt%tPlotTotSpin&
-        & .or. this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff
-    this%opt%tCalcAtomDens = this%opt%tPlotTotDiff .or. this%opt%tPlotChrgDiff&
-        & .or. this%opt%tPlotAtomDens
+    this%opt%doCalcTotChrg = this%opt%doPlotTotChrg .or. this%opt%doPlotTotSpin&
+        & .or. this%opt%doPlotTotDiff .or. this%opt%doPlotChrgDiff
+    this%opt%doCalcAtomDens = this%opt%doPlotTotDiff .or. this%opt%doPlotChrgDiff&
+        & .or. this%opt%doPlotAtomDens
 
-    call getChildValue(node, "RealComponent", this%opt%tPlotReal, .false.)
-    call getChildValue(node, "ImagComponent", this%opt%tPlotImag, .false., child=field)
+    call getChildValue(node, "RealComponent", this%opt%doPlotReal, .false.)
+    call getChildValue(node, "ImagComponent", this%opt%doPlotImag, .false., child=field)
 
-    if (this%opt%tPlotImag .and. this%input%tRealHam) then
+    if (this%opt%doPlotImag .and. this%input%isRealHam) then
       call detailedWarning(field, "Wave functions are real, no imaginary part will be plotted")
-      this%opt%tPlotImag = .false.
+      this%opt%doPlotImag = .false.
     end if
 
     call getChildValue(node, "PlottedLevels", buffer, child=field, multiple=.true.)
@@ -601,13 +618,13 @@ contains
     do iSpin = 1, nSpin
       do iKPoint = 1, nKPoint
         do iLevel = 1, nLevel
-          tFound = any(this%opt%plottedLevels == iLevel)&
+          wasFound = any(this%opt%plottedLevels == iLevel)&
               & .and. any(this%opt%plottedKPoints == iKPoint)&
               & .and. any(this%opt%plottedSpins == iSpin)
-          if ((.not. tFound) .and. this%opt%tCalcTotChrg) then
-            tFound = this%input%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
+          if ((.not. wasFound) .and. this%opt%doCalcTotChrg) then
+            wasFound = this%input%occupations(iLevel, iKPoint, iSpin) > 1e-08_dp
           end if
-          if (tFound) then
+          if (wasFound) then
             call append(indexBuffer, [iLevel, iKPoint, iSpin])
           end if
         end do
@@ -623,6 +640,9 @@ contains
     call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
+
+    ! SubdivisionFactor
+    call getChildValue(node, "useGPU", this%opt%useGPU, .false., child=field)
 
     if (nCached < 1 .and. nCached /= -1) then
       call detailedError(field, "Value must be -1 or greater than zero.")
@@ -670,7 +690,10 @@ contains
       end if
       allocate(mcutoffs(this%input%geo%nSpecies))
       do iSpecies = 1 , this%input%geo%nSpecies
-        mcutoffs(iSpecies) = maxval(this%basis%basis(iSpecies)%cutoffs)
+        mCutoffs(iSpecies) = -1
+        do ii = 1, this%basis%basis(iSpecies)%nOrb
+          mCutoffs(iSpecies) = sqrt(max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%stos(ii)%cutoffSq))
+        end do
       end do
       minvals = this%input%geo%coords(:,1)
       maxvals = this%input%geo%coords(:,1)
@@ -718,15 +741,15 @@ contains
       call detailedError(field, "Specified numbers must be greater than zero")
     end if
 
-    call getChildValue(node, "ShiftGrid", tShiftGrid, default=.true.)
+    call getChildValue(node, "ShiftGrid", doShiftGrid, default=.true.)
 
     if (this%input%geo%tPeriodic) then
-      call getChildValue(node, "FoldAtomsToUnitCell", this%opt%tFoldCoords, default=.false.)
-      call getChildValue(node, "FillBoxWithAtoms", this%opt%tFillBox, default=.false.)
-      this%opt%tFoldCoords = this%opt%tFoldCoords .or. this%opt%tFillBox
+      call getChildValue(node, "FoldAtomsToUnitCell", this%opt%doFoldCoords, default=.false.)
+      call getChildValue(node, "FillBoxWithAtoms", this%opt%doFillBox, default=.false.)
+      this%opt%doFoldCoords = this%opt%doFoldCoords .or. this%opt%doFillBox
     else
-      this%opt%tFillBox = .false.
-      this%opt%tFoldCoords = .false.
+      this%opt%doFillBox = .false.
+      this%opt%doFoldCoords = .false.
     end if
 
     call getChildValue(node, "RepeatBox", this%opt%repeatBox, default=[1, 1, 1], child=field)
@@ -735,7 +758,7 @@ contains
       call detailedError(field, "Indexes must be greater than zero")
     end if
 
-    call getChildValue(node, "Verbose", this%opt%tVerbose, default=.false.)
+    call getChildValue(node, "Verbose", this%opt%beVerbose, default=.false.)
 
     call readBinaryAccessTypes(node, this%opt%binaryAccessTypes)
 
@@ -762,7 +785,6 @@ contains
 
     !! Total number of species in the system
     integer :: nSpecies
-
     !! Auxiliary variable
     integer :: ii
 
@@ -774,11 +796,14 @@ contains
 
     allocate(this%basis%basis(nSpecies))
     allocate(this%aNr%atomicNumbers(nSpecies))
+    
+    allocate(this%basis%referenceOccupations(maxExpectedAngMom + 1, nSpecies), source=0.0_dp)
 
     do ii = 1, nSpecies
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
-      call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii))
+      call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii), &
+        & this%basis%referenceOccupations(:, ii))
       this%aNr%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
     end do
 
@@ -786,7 +811,7 @@ contains
 
 
   !> Read in basis function for a species.
-  subroutine readSpeciesBasis(node, basisResolution, spBasis)
+  subroutine readSpeciesBasis(node, basisResolution, spBasis, atomicOcc)
 
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
@@ -796,6 +821,9 @@ contains
 
     !> Contains the basis on return
     type(TSpeciesBasis), intent(out) :: spBasis
+
+    !> Atomic occupations for the species
+    real(dp), intent(out) :: atomicOcc(maxExpectedAngMom + 1)
 
     !! Input node instances, containing the information
     type(fnode), pointer :: tmpNode, child
@@ -811,6 +839,7 @@ contains
 
     !! Auxiliary variable
     integer :: ii
+    real(dp) :: cutoff
 
     call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
     call getChildren(node, "Orbital", children)
@@ -820,16 +849,16 @@ contains
       call detailedError(node, "Missing orbital definitions")
     end if
 
-    allocate(spBasis%angMoms(spBasis%nOrb))
-    allocate(spBasis%occupations(spBasis%nOrb))
     allocate(spBasis%stos(spBasis%nOrb))
-    allocate(spBasis%cutoffs(spBasis%nOrb))
 
     do ii = 1, spBasis%nOrb
       call getItem1(children, ii, tmpNode)
-      call getChildValue(tmpNode, "AngularMomentum", spBasis%angMoms(ii))
-      call getChildValue(tmpNode, "Occupation", spBasis%occupations(ii))
-      call getChildValue(tmpNode, "Cutoff", spBasis%cutoffs(ii))
+      call getChildValue(tmpNode, "AngularMomentum", spBasis%stos(ii)%angMom)
+      @:ASSERT(spBasis%stos(ii)%angMom == ii - 1)
+
+      call getChildValue(tmpNode, "Occupation", atomicOcc(ii), child=child)
+      call getChildValue(tmpNode, "Cutoff", cutoff)
+      !spBasis%stos(ii)%cutoffSq = cutoff ** 2
       call init(bufferExps)
 
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
@@ -850,8 +879,8 @@ contains
       allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
       call destruct(bufferCoeffs)
-      call TSlaterOrbital_init(spBasis%stos(ii), reshape(coeffs, [size(coeffs) / size(exps),&
-          & size(exps)]), exps, ii - 1, basisResolution, spBasis%cutoffs(ii))
+      call spBasis%stos(ii)%init(reshape(coeffs, [size(coeffs) / size(exps),&
+          & size(exps)]), exps, ii - 1, basisResolution, cutoff, useRadialLut=.true.)
       deallocate(exps, coeffs)
     end do
 
