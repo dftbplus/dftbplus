@@ -128,7 +128,7 @@ contains
   subroutine TConfiguredTest_real_totChrg_run(this)
     class(TConfiguredTest_real_totChrg), intent(in) :: this
     type(TMolecularOrbital) :: molorb
-    real(dp) :: valueOnGrid(100,100,100,1)
+    real(dp), allocatable :: valueOnGrid(:,:,:,:)
     real(dp) :: gridVol, actual, expected
     integer :: i, idx(4)
     type(TSpotCheckReal) :: spotChecks(6) = [ &
@@ -144,12 +144,14 @@ contains
     gridVol = abs(determinant33(molorb%system%gridVecs))
 
     ! Main calculation
+    allocate(valueOnGrid(100,100,100,1))
     call getTotalChrg(molorb, eigVecsReal, valueOnGrid, occupationVecH2O, this%config%useGPU)
+
     ! CheckReal sum over grid
     expected = 8.0040445629655839_dp
     actual = sum(valueOnGrid) * gridVol
-    print *, "Total charge:", actual
     @:CHECK(is_close(actual, expected, rtol=rtol))
+
     ! Spot check values
     do i = 1, size(spotChecks)
       idx = spotChecks(i)%idx
@@ -163,7 +165,7 @@ contains
   subroutine TConfiguredTest_real_atomDens_run(this)
     class(TConfiguredTest_real_atomDens), intent(in) :: this
     type(TMolecularOrbital) :: molorb
-    real(dp) :: valueOnGrid(100,100,100,1)
+    real(dp), allocatable :: valueOnGrid(:,:,:,:)
     real(dp) :: gridVol, actual, expected
     integer :: i, idx(4)
     type(TSpotCheckReal) :: spotChecks(6) = [ &
@@ -179,12 +181,14 @@ contains
     gridVol = abs(determinant33(molorb%system%gridVecs))
 
     ! Main calculation
+    allocate(valueOnGrid(100,100,100,1))
     call getAtomicDensities(molorb, occupationAtomDens, valueOnGrid, this%config%useGPU)
+
     ! CheckReal sum over grid
     expected = 8.004352_dp
     actual = sum(valueOnGrid) * gridVol
-    print *, "Total charge:", actual
     @:CHECK(is_close(actual, expected, rtol=rtol))
+
     ! Spot check values
     do i = 1, size(spotChecks)
       idx = spotChecks(i)%idx
@@ -198,7 +202,7 @@ contains
   subroutine TConfiguredTest_real_allStates_run(this)
     class(TConfiguredTest_real_allStates), intent(in) :: this
     type(TMolecularOrbital) :: molorb
-    real(dp) :: valueOnGrid(100,100,100,4)
+    real(dp), allocatable :: valueOnGrid(:,:,:,:)
     real(dp) :: gridVol, actual, expected
     integer :: i, idx(4)
     ! 2 randomly chosen points per state.
@@ -218,12 +222,14 @@ contains
     gridVol = abs(determinant33(molorb%system%gridVecs))
     
     ! Main calculation
+    allocate(valueOnGrid(100,100,100,4))
     call getValue(molorb, eigVecsReal, valueOnGrid, this%config%useGPU)
+
     ! CheckReal sum over grid
     expected = -11.36846731051559_dp
     actual = sum(valueOnGrid) * gridVol
-    print *, "Total charge:", actual
     @:CHECK(is_close(actual, expected, rtol=rtol))
+
     ! Spot check values
     do i = 1, size(spotChecks)
       idx = spotChecks(i)%idx
@@ -239,7 +245,7 @@ contains
   subroutine TConfiguredTest_complex_totChrg_run(this)
     class(TConfiguredTest_complex_totChrg), intent(in) :: this
     type(TMolecularOrbital) :: molorb
-    real(dp) :: valueOnGrid(100,100,100,1)
+    real(dp), allocatable :: valueOnGrid(:,:,:,:)
     real(dp) :: gridVol, actual, expected
     integer :: i, idx(4)
     ! Randomly chosen points.
@@ -252,15 +258,19 @@ contains
         TSpotCheckReal([68, 17, 95, 1], 0.1144197239608134E-04_dp), & 
         TSpotCheckReal([39, 88, 09, 1], 0.7705316328219835E-05_dp) & 
     ]
+
     call initMolorbHchain(molorb, this%config%useRadialLut)
     gridVol = abs(determinant33(molorb%system%gridVecs))
+
     ! Main calculation
+    allocate(valueOnGrid(100,100,100,1))
     call getTotalChrg(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, occupationVecHchain, this%config%useGPU)
+
     ! CheckReal sum over grid
     expected = 6.637263751554149_dp
     actual = sum(valueOnGrid) * gridVol
-    print *, "Total charge:", actual
     @:CHECK(is_close(actual, expected, rtol=rtol))
+
     ! Spot check values
     do i = 1, size(spotChecks)
       idx = spotChecks(i)%idx
@@ -275,7 +285,7 @@ contains
   subroutine TConfiguredTest_complex_allStates_run(this)
     class(TConfiguredTest_complex_allStates), intent(in) :: this
     type(TMolecularOrbital) :: molorb
-    complex(dp) :: valueOnGrid(100,100,100,4)
+    complex(dp), allocatable :: valueOnGrid(:,:,:,:)
     real(dp) :: gridVol
     complex(dp) :: actual, expected
     integer :: i, idx(4)
@@ -294,12 +304,14 @@ contains
 
     call initMolorbHchain(molorb, this%config%useRadialLut)
     gridVol = abs(determinant33(molorb%system%gridVecs))
+
     ! Main calculation
+    allocate(valueOnGrid(100,100,100,4))
     call getValue(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, this%config%useGPU)
+
     ! CheckReal sum over grid
     expected = (113.9831688331955_dp, 45.30115350686194_dp)
     actual = sum(valueOnGrid) * gridVol
-    print *, "Total charge:", actual
     @:CHECK(is_close(real(actual), real(expected), rtol=rtol))
     @:CHECK(is_close(aimag(actual), aimag(expected), rtol=rtol))
 
