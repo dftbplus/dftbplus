@@ -1240,7 +1240,7 @@ contains
     type(TFire), allocatable :: pFireLat
 
     ! MD related local variables
-    class(TThermostat), allocatable :: pThermostat
+    class(TThermostat), allocatable :: thermostat
 
     type(TVelocityVerlet), allocatable :: pVelocityVerlet
     type(TTempProfile), pointer :: pTempProfile
@@ -2686,7 +2686,7 @@ contains
       end if
 
       ! Create thermostat
-      call createThermostat(pThermostat, input%ctrl%thermostatInp, this%tempAtom,&
+      call createThermostat(thermostat, input%ctrl%thermostatInp, this%tempAtom,&
           & this%mass(this%indMovedAtom), randomThermostat, this%pMDFrame, pTempProfile,&
           & this%deltaT)
 
@@ -2694,19 +2694,19 @@ contains
       allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
         if (this%tBarostat) then
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, this%BarostatStrength, this%extPressure,&
               & input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
         if (this%tBarostat) then
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & this%BarostatStrength, this%extPressure, input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), pThermostat,&
+          call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, .false., .false.)
         end if
       end if

@@ -429,7 +429,7 @@ module dftbp_timedep_timeprop
     logical :: tVerboseDyn = .true.
 
     !> Thermostat
-    class(TThermostat), allocatable :: pThermostat
+    class(TThermostat), allocatable :: thermostat
 
     !> Molecular dynamics integrator
     type(TMDIntegrator), allocatable :: pMDIntegrator
@@ -914,7 +914,7 @@ contains
       allocate(pDummyTherm)
       call TDummyTherm_init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat,&
           & pMDFrame)
-      call move_alloc(pDummyTherm, this%pThermostat)
+      call move_alloc(pDummyTherm, this%thermostat)
       allocate(this%derivator, source=nonSccDeriv)
     else
       if (this%tForces) then
@@ -3107,10 +3107,10 @@ contains
 
     if (this%nDynamicsInit == 0) then
       if (this%tReadRestart) then
-        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%thermostat,&
             & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       else
-        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%thermostat,&
             & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       end if
       this%initialVelocities(:, this%indMovedAtom) = this%movedVelo

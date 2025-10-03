@@ -35,7 +35,7 @@ module dftbp_md_velocityverlet
     real(dp), allocatable :: velocities(:,:)
 
     !> Thermostat
-    class(TThermostat), allocatable :: pThermostat
+    class(TThermostat), allocatable :: thermostat
 
     !> do we have the v(t-.5) internal velocity state?
     logical :: vHalfPresent = .false.
@@ -91,7 +91,7 @@ contains
 
 
   !> Creates a VelocityVerlet object from the thermostat settings and optional starting velocity
-  subroutine VelocityVerlet_init(this, deltaT, positions, pThermostat, velocities, tSetVelocities,&
+  subroutine VelocityVerlet_init(this, deltaT, positions, thermostat, velocities, tSetVelocities,&
       & tHalfVelocities)
 
     !> Initialised object on exit.
@@ -104,7 +104,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    class(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: thermostat
 
     !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
     !> these are the internal velocities, either at current time or t=-.5 depending on setting of
@@ -120,7 +120,7 @@ contains
 
     @:ASSERT(.not.this%tInitialised)
     @:ASSERT(size(positions, dim=1) == 3)
-    @:ASSERT(allocated(pThermostat))
+    @:ASSERT(allocated(thermostat))
 
     this%nAtom = size(positions, dim=2)
     allocate(this%velocities(3, this%nAtom))
@@ -128,7 +128,7 @@ contains
 
     this%deltaT = deltaT
     this%positions(:,:) = positions(:,:)
-    call move_alloc(pThermostat, this%pThermostat)
+    call move_alloc(thermostat, this%thermostat)
 
     if (tSetVelocities) then
       if (.not.allocated(velocities)) then
@@ -136,7 +136,7 @@ contains
       end if
       this%velocities(:,:) = velocities
     else
-      call this%pThermostat%getInitVelocities(this%velocities)
+      call this%thermostat%getInitVelocities(this%velocities)
     end if
 
     if (allocated(velocities)) then
@@ -153,7 +153,7 @@ contains
 
 
   !> Creates a VelocityVerlet object from the thermostat settings and isotropic pressure
-  subroutine VV_thermostats_pressure(this, deltaT, positions, pThermostat, &
+  subroutine VV_thermostats_pressure(this, deltaT, positions, thermostat, &
       & Barostat, Pressure, tIsotropic)
 
     !> Initialised object on exit.
@@ -166,7 +166,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    class(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: thermostat
 
     !> Coupling strength.
     real(dp), intent(in) :: Barostat
@@ -188,9 +188,9 @@ contains
 
     this%deltaT = deltaT
     this%positions(:,:) = positions(:,:)
-    call move_alloc(pThermostat, this%pThermostat)
+    call move_alloc(thermostat, this%thermostat)
 
-    call this%pThermostat%getInitVelocities(this%velocities)
+    call this%thermostat%getInitVelocities(this%velocities)
 
     this%vHalfPresent = .true. ! yes we have the t-.5 velocities
 
@@ -211,7 +211,7 @@ contains
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
   !> means later we have to reconstruct the Vel. Verlet t+.5 velocities and barostat isotropic
   !> pressure
-  subroutine VV_velocities_pressure(this, deltaT, positions, pThermostat, &
+  subroutine VV_velocities_pressure(this, deltaT, positions, thermostat, &
       & velocities, Barostat, Pressure, tIsotropic)
 
     !> Initialised object on exit.
@@ -224,7 +224,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat.
-    class(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: thermostat
 
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
@@ -249,7 +249,7 @@ contains
 
     this%deltaT = deltaT
     this%positions(:,:) = positions(:,:)
-    call move_alloc(pThermostat, this%pThermostat)
+    call move_alloc(thermostat, this%thermostat)
 
     this%velocities(:,:) = velocities(:,:)
 
@@ -327,8 +327,8 @@ contains
     newCoord(:,:) = this%positions(:,:) + this%velocities(:,:) * this%deltaT
     this%positions(:,:) = newCoord(:,:)
 
-    if (allocated(this%pThermostat)) then
-      call this%pThermostat%updateVelocities(this%velocities)
+    if (allocated(this%thermostat)) then
+      call this%thermostat%updateVelocities(this%velocities)
     end if
 
   end subroutine VelocityVerlet_next
@@ -401,8 +401,8 @@ contains
     @:ASSERT(this%tInitialised)
 
     if (present(fd)) then
-      if (allocated(this%pThermostat)) then
-        call this%pThermostat%writeState(fd)
+      if (allocated(this%thermostat)) then
+        call this%thermostat%writeState(fd)
       end if
     end if
 
