@@ -8,25 +8,36 @@
 #:include 'common.fypp'
 
 !> Berendsen thermostat - warning non-canonical distribution!
-!> If you do not know about the flying icecube do not use this
-!> thermostat!
+!>
+!> If you do not know about the flying icecube do not use this thermostat!
 !> Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
+!>
 module dftbp_md_berendsentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : evalkT, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
+  use dftbp_md_thermostat, only : TThermostat
   implicit none
 
   private
-  public :: TBerendsenThermostat
-  public :: init, getInitVelocities, updateVelocities, state
+  public :: TBerendsenThermInput
+  public :: TBerendsenTherm, TBerendsenTherm_init
 
 
-  !> Data for the Berendsen thermostat
-  type TBerendsenThermostat
+  !> Thermostat specific input data for the Berendsen thermostat
+  type :: TBerendsenThermInput
+
+    !> Coupling parameter for the thermostat.
+    real(dp) :: coupling
+
+  end type TBerendsenThermInput
+
+
+  !> Berendsen thermostat
+  type, extends(TThermostat) :: TBerendsenTherm
     private
 
     !> Nr. of atoms
@@ -46,41 +57,26 @@ module dftbp_md_berendsentherm
 
     !> MD Framework.
     type(TMDCommon) :: pMDFrame
-  end type TBerendsenThermostat
 
+  contains
 
-  !> initialise object
-  interface init
-    module procedure Berendsen_init
-  end interface
+    procedure :: getInitVelocities => TBerendsenTherm_getInitVelocities
+    procedure :: updateVelocities => TBerendsenTherm_updateVelocities
+    procedure :: writeState => TBerendsenTherm_writeState
 
-
-  !> initial thermal velocities if needed
-  interface getInitVelocities
-    module procedure Berendsen_getInitVelos
-  end interface
-
-
-  !> update velocities according to the thermostat
-  interface updateVelocities
-    module procedure Berendsen_updateVelos
-  end interface
-
-
-  !> write state of the thermostat
-  interface state
-    module procedure Berendsen_state
-  end interface
+  end type TBerendsenTherm
 
 contains
 
 
-  !> Creates an Berendsen thermostat instance.
-  subroutine Berendsen_init(this, pRanlux, masses, tempProfile, &
-      & couplingParameter, pMDFrame)
+  !> Initializes a Berendsen thermostat instance
+  subroutine TBerendsenTherm_init(this, input, pRanlux, masses, tempProfile, pMDFrame)
 
     !> Initialised instance on exit.
-    type(TBerendsenThermostat), intent(out) :: this
+    type(TBerendsenTherm), intent(out) :: this
+
+    !> Thermostat specific input data
+    type(TBerendsenThermInput), intent(in) :: input
 
     !> Pointer to the random generator.
     type(TRanlux), allocatable, intent(inout) :: pRanlux
@@ -91,28 +87,24 @@ contains
     !> Temperature profile object.
     type(TTempProfile), pointer, intent(in) :: tempProfile
 
-    !> Coupling parameter for the thermostat.
-    real(dp), intent(in) :: couplingParameter
-
     !> Molecular dynamics generic framework
     type(TMDCommon), intent(in) :: pMDFrame
 
     call move_alloc(pRanlux, this%pRanlux)
     this%nAtom = size(masses)
-    allocate(this%mass(this%nAtom))
-    this%mass(:) = masses(:)
+    this%mass = masses
     this%pTempProfile => tempProfile
-    this%couplingParameter = couplingParameter
+    this%couplingParameter = input%coupling
     this%pMDFrame = pMDFrame
 
-  end subroutine Berendsen_init
+  end subroutine TBerendsenTherm_init
 
 
   !> Returns the initial velocities.
-  subroutine Berendsen_getInitVelos(this, velocities)
+  subroutine TBerendsenTherm_getInitVelocities(this, velocities)
 
-    !> BerendsenThermostat instance.
-    type(TBerendsenThermostat), intent(inout) :: this
+    !> Instance
+    class(TBerendsenTherm), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -120,7 +112,7 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= [3, this%nAtom]))
 
     call this%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
@@ -132,43 +124,43 @@ contains
     call restFrame(this%pMDFrame, velocities, this%mass)
     call rescaleTokT(this%pMDFrame, velocities, this%mass, kT)
 
-  end subroutine Berendsen_getInitVelos
+  end subroutine TBerendsenTherm_getInitVelocities
 
 
   !> Updates the provided velocities according the current temperature.
   !> Shifts to rest frame coordinates if required - this removes some of the flying icecube effect.
-  subroutine Berendsen_updateVelos(this, velocities)
+  subroutine TBerendsenTherm_updateVelocities(this, velocities)
 
-    !> Thermostat instance.
-    type(TBerendsenThermostat), intent(inout) :: this
+    !> Instance
+    class(TBerendsenTherm), intent(inout) :: this
 
-    !> Updated velocities on exit.
+    !> Updated velocities on exit
     real(dp), intent(inout) :: velocities(:,:)
 
     real(dp) :: kTCurrent, kTTarget, scaling
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= [3, this%nAtom]))
 
     call this%pTempProfile%getTemperature(kTTarget)
     call evalkT(this%pMDFrame, kTCurrent,velocities,this%mass)
-    scaling = sqrt(1.0_dp + this%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
-    velocities(:,:) = scaling * velocities(:,:)
+    scaling = sqrt(1.0_dp + this%couplingParameter * (kTTarget / kTCurrent - 1.0_dp))
+    velocities(:,:) = scaling * velocities
     call restFrame(this%pMDFrame, velocities, this%mass)
 
-  end subroutine Berendsen_updateVelos
+  end subroutine TBerendsenTherm_updateVelocities
 
 
-  !> Outputs internals of thermostat
-  subroutine Berendsen_state(this, fd)
+  !> Writes internals of thermostat
+  subroutine TBerendsenTherm_writeState(this, fd)
 
     !> thermostat object
-    type(TBerendsenThermostat), intent(in) :: this
+    class(TBerendsenTherm), intent(in) :: this
 
     !> file unit
     integer,intent(in) :: fd
 
     ! no internal state, nothing to do
 
-  end subroutine Berendsen_state
+  end subroutine TBerendsenTherm_writeState
 
 end module dftbp_md_berendsentherm
