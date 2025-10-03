@@ -10,6 +10,7 @@ set(sources-fpp
   ${curdir}/nhctherm.F90
   ${curdir}/tempprofile.F90
   ${curdir}/thermostat.F90
+  ${curdir}/thermostats.F90
   ${curdir}/velocityverlet.F90
   ${curdir}/xlbomd.F90)
 
