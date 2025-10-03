@@ -70,6 +70,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_message, only : error, warning
   use dftbp_math_simplealgebra, only : cross3, determinant33, diagonal
   use dftbp_md_tempprofile, only : identifyTempProfile
+  use dftbp_md_thermostats, only : thermostatTypes
   use dftbp_md_xlbomd, only : TXlbomdInp
 #:if  WITH_POISSON
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum, bcPoissonNames
@@ -468,7 +469,6 @@ contains
 
     ctrl%iGeoOpt = geoOptTypes%none
     ctrl%tMD = .false.
-    ctrl%iThermostat = 0
     ctrl%tForces = .false.
     ctrl%tSetFillingTemp = .false.
 
@@ -648,113 +648,121 @@ contains
           &child=field)
       call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
+      allocate(ctrl%thermostatInp)
       call getChildValue(node, "Thermostat", value1, child=child)
       call getNodeName(value1, buffer2)
 
       thermostat: select case(char(buffer2))
       case ("berendsen")
-        ctrl%iThermostat = 2
-        ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
-        call getNodeName(value2, buffer)
 
-        select case(char(buffer))
-        case (textNodeName)
-          call readTemperature(child2, ctrl)
-        case ("temperatureprofile")
-          call readTemperatureProfile(value2, char(modifier), ctrl)
-        case default
-          call detailedError(value2, "Invalid method name.")
-        end select
+        ctrl%thermostatInp%thermostatType = thermostatTypes%berendsen
+        allocate(ctrl%thermostatInp%berendsen)
 
-        !call getChildValue(value1, "CouplingStrength", ctrl%wvScale)
-        call getChild(value1, "CouplingStrength", child=child2, &
-            & requested=.false.)
-        if (associated(child2)) then
-          call getChildValue(child2, "", ctrl%wvScale)
-          call getChild(value1, "Timescale",child=child2,modifier=modifier,&
-              &requested=.false.)
-          if (associated(child2)) call error("Only Coupling strength OR &
-              &Timescale can be set for Berendsen thermostats.")
-        else
-          call getChild(value1, "Timescale",child=child2,modifier=modifier,&
-              &requested=.false.)
+        associate (inp => ctrl%thermostatInp%berendsen)
+
+          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
+          call getNodeName(value2, buffer)
+          select case(char(buffer))
+          case (textNodeName)
+            call readTemperature(child2, ctrl)
+          case ("temperatureprofile")
+            call readTemperatureProfile(value2, char(modifier), ctrl)
+          case default
+            call detailedError(value2, "Invalid method name.")
+          end select
+
+          call getChild(value1, "CouplingStrength", child=child2, requested=.false.)
           if (associated(child2)) then
-            call getChildValue(child2, "", ctrl%wvScale, &
-                & modifier=modifier, child=child3)
-            call convertUnitHsd(char(modifier), timeUnits, child3, &
-                & ctrl%wvScale)
-            ctrl%wvScale = ctrl%deltaT / ctrl%wvScale
+            call getChildValue(child2, "", inp%coupling)
+            call getChild(value1, "Timescale", child=child2, modifier=modifier, requested=.false.)
+            if (associated(child2)) then
+              call error("Only Coupling strength OR Timescale can be set for Berendsen&
+                  & thermostats.")
+            end if
           else
-            call error("Either CouplingStrength or Timescale must be set&
-                & for Berendsen thermostats.")
+            call getChild(value1, "Timescale", child=child2, modifier=modifier, requested=.false.)
+            if (associated(child2)) then
+              call getChildValue(child2, "", inp%coupling, modifier=modifier, child=child3)
+              call convertUnitHsd(char(modifier), timeUnits, child3, inp%coupling)
+              inp%coupling = ctrl%deltaT / inp%coupling
+            else
+              call error("Either CouplingStrength or Timescale must be set for Berendsen&
+                  & thermostats.")
+            end if
           end if
-        end if
+
+        end associate
 
       case ("nosehoover")
-        ctrl%iThermostat = 3
-        ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
-        call getNodeName(value2, buffer)
 
-        select case(char(buffer))
-        case (textNodeName)
-          call readTemperature(child2, ctrl)
-        case ("temperatureprofile")
-          call readTemperatureProfile(value2, char(modifier), ctrl)
-        case default
-          call detailedError(value2, "Invalid method name.")
-        end select
+        ctrl%thermostatInp%thermostatType = thermostatTypes%nhc
+        allocate(ctrl%thermostatInp%nhc)
 
-        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, modifier=modifier, child=field)
-        call convertUnitHsd(char(modifier), freqUnits, field, ctrl%wvScale)
+        associate (inp => ctrl%thermostatInp%nhc)
 
-        call getChildValue(value1, "ChainLength", ctrl%nh_npart, 3)
-        call getChildValue(value1, "Order", ctrl%nh_nys, 3)
-        call getChildValue(value1, "IntegratorSteps", ctrl%nh_nc, 1)
+          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
+          call getNodeName(value2, buffer)
+          select case(char(buffer))
+          case (textNodeName)
+            call readTemperature(child2, ctrl)
+          case ("temperatureprofile")
+            call readTemperatureProfile(value2, char(modifier), ctrl)
+          case default
+            call detailedError(value2, "Invalid method name.")
+          end select
 
-        call getChild(value1, "Restart",  child=child3, requested=.false.)
-        if (associated(child3)) then
-          allocate(ctrl%xnose(ctrl%nh_npart))
-          allocate(ctrl%vnose(ctrl%nh_npart))
-          allocate(ctrl%gnose(ctrl%nh_npart))
-          call getChildValue(child3,"x",ctrl%xnose)
-          call getChildValue(child3,"v",ctrl%vnose)
-          call getChildValue(child3,"g",ctrl%gnose)
-          ctrl%tInitNHC = .true.
-        else
-          ctrl%tInitNHC = .false.
-        end if
+          call getChildValue(value1, "CouplingStrength", inp%coupling, modifier=modifier,&
+              & child=field)
+          call convertUnitHsd(char(modifier), freqUnits, field, inp%coupling)
+
+          call getChildValue(value1, "ChainLength", inp%nPart, 3)
+          call getChildValue(value1, "Order", inp%nYs, 3)
+          call getChildValue(value1, "IntegratorSteps", inp%nC, 1)
+
+          call getChild(value1, "Restart",  child=child3, requested=.false.)
+          if (associated(child3)) then
+            allocate(inp%xnose(inp%nPart))
+            allocate(inp%vnose(inp%nPart))
+            allocate(inp%gnose(inp%nPart))
+            call getChildValue(child3,"x",inp%xnose)
+            call getChildValue(child3,"v",inp%vnose)
+            call getChildValue(child3,"g",inp%gnose)
+          end if
+
+        end associate
 
       case ("andersen")
-        ctrl%iThermostat = 1
-        ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
-        call getNodeName(value2, buffer)
 
-        select case(char(buffer))
-        case (textNodeName)
-          call readTemperature(child2, ctrl)
-        case ("temperatureprofile")
-          call readTemperatureProfile(value2, char(modifier), ctrl)
-        case default
-          call detailedError(value2, "Invalid method name.")
-        end select
+        ctrl%thermostatInp%thermostatType = thermostatTypes%andersen
+        allocate(ctrl%thermostatInp%andersen)
 
-        call getChildValue(value1, "ReselectProbability", ctrl%wvScale, &
-            &child=child3)
-        if (ctrl%wvScale <= 0.0_dp .or. ctrl%wvScale > 1.0_dp) then
-          call detailedError(child3, &
-              &"ReselectProbability must be in the range (0,1]!")
-        end if
-        call getChildValue(value1, "ReselectIndividually", ctrl%tRescale)
+        associate (inp => ctrl%thermostatInp%andersen)
+
+          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
+          call getNodeName(value2, buffer)
+
+          select case(char(buffer))
+          case (textNodeName)
+            call readTemperature(child2, ctrl)
+          case ("temperatureprofile")
+            call readTemperatureProfile(value2, char(modifier), ctrl)
+          case default
+            call detailedError(value2, "Invalid method name.")
+          end select
+
+          call getChildValue(value1, "ReselectProbability", inp%wvScale, child=child3)
+          if (inp%wvScale <= 0.0_dp .or. inp%wvScale > 1.0_dp) then
+            call detailedError(child3, "ReselectProbability must be in the range (0,1]!")
+          end if
+          call getChildValue(value1, "ReselectIndividually", inp%rescaleIndiv)
+
+        end associate
 
       case ("none")
-        ctrl%iThermostat = 0
+
+        ctrl%thermostatInp%thermostatType = thermostatTypes%dummy
         allocate(ctrl%tempSteps(1))
         allocate(ctrl%tempValues(1))
-
         if (ctrl%tReadMDVelocities) then
           ! without a thermostat, if we know the initial velocities, we do not
           ! need a temperature, so just set it to something 'safe'
@@ -762,9 +770,11 @@ contains
         else
           call readMDInitTemp(value1, ctrl%tempAtom, minTemp)
         end if
+
       case default
         call getNodeHSDName(value1, buffer2)
         call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
+
       end select thermostat
 
       if (ctrl%maxRun < -1) then
@@ -5742,7 +5752,7 @@ contains
       end if
 
       if (ctrl%tMD) then
-        if (ctrl%iThermostat /= 0) then
+        if (ctrl%thermostatInp%thermostatType /= thermostatTypes%dummy) then
           call getChildValue(driverNode, "Thermostat", child, child=child2)
           if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
             call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)

@@ -30,6 +30,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_md_mdcommon, only : TMDOutput
+  use dftbp_md_thermostats, only : TThermostatInput
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_mixer_factory, only : TMixerInput
   use dftbp_reks_reks, only : TReksInp
@@ -334,16 +335,6 @@ module dftbp_dftbplus_inputdata
     real(dp) :: deltaT = 0.0_dp
 
     real(dp) :: tempAtom = 0.0_dp
-    integer :: iThermostat = 0
-
-    !> Whether to initialize internal state of the Nose-Hoover thermostat from input
-    logical :: tInitNHC = .false.
-
-    !> Internal state variables for the Nose-Hoover chain thermostat
-    real(dp), allocatable :: xnose(:)
-    real(dp), allocatable :: vnose(:)
-    real(dp), allocatable :: gnose(:)
-
 
     !> Whether to shift to a co-moving frame for MD
     logical :: tMDstill
@@ -358,16 +349,8 @@ module dftbp_dftbplus_inputdata
     real(dp), allocatable :: Ef(:)
     logical :: tFillKSep = .false.
     integer :: iDistribFn = fillingTypes%Fermi
-    real(dp) :: wvScale = 0.0_dp
 
-    !> Default chain length for Nose-Hoover
-    integer :: nh_npart = 3
-
-    !> Default order of NH integration
-    integer :: nh_nys = 3
-
-    !> Default multiple time steps for N-H propagation
-    integer :: nh_nc = 1
+    type(TThermostatInput), allocatable :: thermostatInp
 
     integer :: maxRun = -2
 

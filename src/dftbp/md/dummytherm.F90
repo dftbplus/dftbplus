@@ -12,15 +12,15 @@ module dftbp_md_dummytherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
+  use dftbp_md_thermostat, only : TThermostat
   implicit none
 
   private
-  public :: TDummythermostat
-  public :: init, getInitVelocities, state
+  public :: TDummyTherm, TDummyTherm_init
 
 
-  !> Data for dummy thermostat
-  type TDummythermostat
+  !> Dummy thermostat
+  type, extends(TThermostat) :: TDummyTherm
     private
 
     !> Nr. of atoms
@@ -37,37 +37,28 @@ module dftbp_md_dummytherm
 
     !> MD Framwork
     type(TMDCommon) :: pMDFrame
-  end type TDummythermostat
 
+  contains
 
-  !> Initialise thermostat object
-  interface init
-    module procedure DummyThermostat_init
-  end interface
+    procedure :: getInitVelocities => TDummyTherm_getInitVelocities
+    procedure :: updateVelocities => TDummyTherm_updateVelocities
+    procedure :: writeState => TDummyTherm_writeState
 
-
-  !> Velocities at start of calculation
-  interface getInitVelocities
-    module procedure DummyThermostat_getInitVelos
-  end interface
-
-
-  !> write state to disc
-  interface state
-    module procedure DummyThermostat_state
-  end interface
+  end type TDummyTherm
 
 contains
 
 
   !> Creates a DummyThermostat instance.
-  subroutine DummyThermostat_init(this, kT, mass, pRanlux, pMDFrame)
-    type(TDummythermostat), intent(out) :: this
+  subroutine TDummyTherm_init(this, kT, mass, pRanlux, pMDFrame)
 
-    !> Initialised DummyThermostat instance on return.
+    !> Initialized instance on exit
+    type(TDummyTherm), intent(out) :: this
+
+    !> Temperature
     real(dp), intent(in) :: kT
 
-    !> Temperature of the thermostat
+    !> Mass of the atoms
     real(dp), intent(in) :: mass(:)
 
     !> Random generator
@@ -83,26 +74,25 @@ contains
     call move_alloc(pRanlux, this%pRanlux)
     this%pMDFrame = pMDFrame
 
-  end subroutine DummyThermostat_init
+  end subroutine TDummyTherm_init
 
 
   !> Returns the initial velocities.
-  subroutine DummyThermostat_getInitVelos(this, velocities)
+  subroutine TDummyTherm_getInitVelocities(this, velocities)
 
-    !> Thermostat instance.
-    type(TDummythermostat), intent(inout) :: this
+    !> Instance
+    class(TDummyTherm), intent(inout) :: this
 
-    !> Contains the velocities on return.
+    !> Velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) >= (/ 3, this%nAtom /)))
+    @:ASSERT(all(shape(velocities) >= [3, this%nAtom]))
 
     if (this%kT > minTemp) then
       do ii = 1, this%nAtom
-        call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), this%kT, &
-            & this%pRanlux)
+        call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), this%kT, this%pRanlux)
       end do
       call restFrame(this%pMDFrame, velocities(:,:), this%mass)
       call rescaleTokT(this%pMDFrame, velocities(:,:), this%mass, this%kT)
@@ -110,18 +100,30 @@ contains
       velocities(:,:) = 0.0_dp
     end if
 
-  end subroutine DummyThermostat_getInitVelos
+  end subroutine TDummyTherm_getInitVelocities
 
 
-  !> no internal state, nothing to do
-  subroutine DummyThermostat_state(this, fd)
+  !> Updates velocities (does nothing in this case)
+  subroutine TDummyTherm_updateVelocities(this, velocities)
 
-    !> thermostat object
-    type(TDummythermostat), intent(in) :: this
+    !> Instance
+    class(TDummyTherm), intent(inout) :: this
 
-    !> file unit
-    integer,intent(in) :: fd
+    !> Updated velocities on exit.
+    real(dp), intent(inout) :: velocities(:,:)
 
-  end subroutine DummyThermostat_state
+  end subroutine TDummyTherm_updateVelocities
+
+
+  !> Writes internals of thermostat (does nothing in this case)
+  subroutine TDummyTherm_writeState(this, fd)
+
+    !> instance of thermostat
+    class(TDummyTherm), intent(in) :: this
+
+    !> File handle to write state out to
+    integer, intent(in) :: fd
+
+  end subroutine TDummyTherm_writeState
 
 end module dftbp_md_dummytherm

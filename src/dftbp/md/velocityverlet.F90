@@ -11,7 +11,7 @@
 module dftbp_md_velocityverlet
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
-  use dftbp_md_thermostat, only : getInitVelocities, init, state, TThermostat, updateVelocities
+  use dftbp_md_thermostat, only : TThermostat
   implicit none
 
   private
@@ -35,7 +35,7 @@ module dftbp_md_velocityverlet
     real(dp), allocatable :: velocities(:,:)
 
     !> Thermostat
-    type(TThermostat), allocatable :: pThermostat
+    class(TThermostat), allocatable :: pThermostat
 
     !> do we have the v(t-.5) internal velocity state?
     logical :: vHalfPresent = .false.
@@ -104,7 +104,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    type(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
     !> these are the internal velocities, either at current time or t=-.5 depending on setting of
@@ -136,7 +136,7 @@ contains
       end if
       this%velocities(:,:) = velocities
     else
-      call getInitVelocities(this%pThermostat, this%velocities)
+      call this%pThermostat%getInitVelocities(this%velocities)
     end if
 
     if (allocated(velocities)) then
@@ -166,7 +166,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    type(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> Coupling strength.
     real(dp), intent(in) :: Barostat
@@ -190,7 +190,7 @@ contains
     this%positions(:,:) = positions(:,:)
     call move_alloc(pThermostat, this%pThermostat)
 
-    call getInitVelocities(this%pThermostat, this%velocities)
+    call this%pThermostat%getInitVelocities(this%velocities)
 
     this%vHalfPresent = .true. ! yes we have the t-.5 velocities
 
@@ -224,7 +224,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat.
-    type(TThermostat), allocatable, intent(inout) :: pThermostat
+    class(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
@@ -328,7 +328,7 @@ contains
     this%positions(:,:) = newCoord(:,:)
 
     if (allocated(this%pThermostat)) then
-      call updateVelocities(this%pThermostat, this%velocities)
+      call this%pThermostat%updateVelocities(this%velocities)
     end if
 
   end subroutine VelocityVerlet_next
@@ -402,7 +402,7 @@ contains
 
     if (present(fd)) then
       if (allocated(this%pThermostat)) then
-        call state(this%pThermostat,fd)
+        call this%pThermostat%writeState(fd)
       end if
     end if
 
