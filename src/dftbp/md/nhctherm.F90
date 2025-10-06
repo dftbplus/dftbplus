@@ -24,6 +24,7 @@ module dftbp_md_nhctherm
   public :: TNhcThermInput
   public :: TNhcTherm, TNhcTherm_init
 
+
   !> Thermostat specific input data for the NHC thermostat
   type :: TNhcThermInput
 
@@ -31,13 +32,13 @@ module dftbp_md_nhctherm
     real(dp) :: coupling
 
     !> Number of Nose-Hoover particles in the chain
-    integer :: nPart
+    integer :: chainLength
 
-    !> Order of the Nose-Hoover operator (3 or 5)
-    integer :: nYs
+    !> Order of expansion (3 or 5) when expanding NHC part of evolution operator (n_ys)
+    integer :: expOrder
 
-    !> Number of time steps to expand propagator of NHC part of evolution operator
-    integer :: nC
+    !> Number of time steps when expanding NHC part of evolution operator (n_e)
+    integer :: nExpSteps
 
     !> Internal chain positions (only needed when restarting the thermostat)
     real(dp), allocatable :: xnose(:)
@@ -154,19 +155,19 @@ contains
     this%deltaT = deltaT
 
     ! pg 1124 'For typical simulations, nc can be taken to be one.'
-    this%nresn = input%nC
+    this%nresn = input%nExpSteps
     if (this%nresn < 1) then
       call error('Nose-Hoover propagation steps must be at least 1.')
     end if
 
     ! particles in the chain
-    this%nnos = input%nPart
+    this%nnos = input%chainLength
     if (this%nnos < 1) then
       call error('Nose-Hoover chains must contain at least one mass.')
     end if
 
     ! current choice of order
-    this%nyosh = input%nYs
+    this%nyosh = input%expOrder
     allocate(this%w(this%nyosh))
     select case (this%nyosh)
     case (3)

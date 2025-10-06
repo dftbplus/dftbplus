@@ -3513,7 +3513,7 @@ contains
       end if
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%andersen) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&
-            & input%ctrl%thermostatInp%andersen%wvScale
+            & input%ctrl%thermostatInp%andersen%rescaleProb
       end if
     end if
 

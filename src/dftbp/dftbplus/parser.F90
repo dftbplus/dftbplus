@@ -715,15 +715,15 @@ contains
               & child=field)
           call convertUnitHsd(char(modifier), freqUnits, field, inp%coupling)
 
-          call getChildValue(value1, "ChainLength", inp%nPart, 3)
-          call getChildValue(value1, "Order", inp%nYs, 3)
-          call getChildValue(value1, "IntegratorSteps", inp%nC, 1)
+          call getChildValue(value1, "ChainLength", inp%chainLength, 3)
+          call getChildValue(value1, "Order", inp%expOrder, 3)
+          call getChildValue(value1, "IntegratorSteps", inp%nExpSteps, 1)
 
           call getChild(value1, "Restart",  child=child3, requested=.false.)
           if (associated(child3)) then
-            allocate(inp%xnose(inp%nPart))
-            allocate(inp%vnose(inp%nPart))
-            allocate(inp%gnose(inp%nPart))
+            allocate(inp%xnose(inp%chainLength))
+            allocate(inp%vnose(inp%chainLength))
+            allocate(inp%gnose(inp%chainLength))
             call getChildValue(child3,"x",inp%xnose)
             call getChildValue(child3,"v",inp%vnose)
             call getChildValue(child3,"g",inp%gnose)
@@ -750,8 +750,8 @@ contains
             call detailedError(value2, "Invalid method name.")
           end select
 
-          call getChildValue(value1, "ReselectProbability", inp%wvScale, child=child3)
-          if (inp%wvScale <= 0.0_dp .or. inp%wvScale > 1.0_dp) then
+          call getChildValue(value1, "ReselectProbability", inp%rescaleProb, child=child3)
+          if (inp%rescaleProb <= 0.0_dp .or. inp%rescaleProb > 1.0_dp) then
             call detailedError(child3, "ReselectProbability must be in the range (0,1]!")
           end if
           call getChildValue(value1, "ReselectIndividually", inp%rescaleIndiv)

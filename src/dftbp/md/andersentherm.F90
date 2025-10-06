@@ -34,7 +34,7 @@ module dftbp_md_andersentherm
     logical :: rescaleIndiv
 
     !> Rescaling probability.
-    real(dp) :: wvScale
+    real(dp) :: rescaleProb
 
   end type TAndersenThermInput
 
@@ -56,10 +56,10 @@ module dftbp_md_andersentherm
     type(TTempProfile), pointer :: pTempProfile
 
     !> Rescale velocities individually?
-    logical :: tRescaleIndiv
+    logical :: rescaleIndiv
 
     !> Rescaling probability
-    real(dp) :: wvScale
+    real(dp) :: rescaleProb
 
     !> MD framework
     type(TMDCommon) :: pMDFramework
@@ -100,8 +100,8 @@ contains
     this%nAtom = size(masses)
     this%mass = masses
     this%pTempProfile => tempProfile
-    this%tRescaleIndiv = input%rescaleIndiv
-    this%wvScale = input%wvScale
+    this%rescaleIndiv = input%rescaleIndiv
+    this%rescaleProb = input%rescaleProb
     this%pMDFramework = pMDFramework
 
   end subroutine TAndersenTherm_init
@@ -150,10 +150,10 @@ contains
     @:ASSERT(all(shape(velocities) <= [3, this%nAtom]))
 
     call this%pTempProfile%getTemperature(kT)
-    if (this%tRescaleIndiv) then
+    if (this%rescaleIndiv) then
       do ii = 1, this%nAtom
         call getRandom(this%pRanlux, rescaleChance)
-        if (rescaleChance <= this%wvScale) then
+        if (rescaleChance <= this%rescaleProb) then
           call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end if
       end do
@@ -161,7 +161,7 @@ contains
     else
       ! all atoms re-set at random
       call getRandom(this%pRanlux, rescaleChance)
-      if (rescaleChance <= this%wvScale) then
+      if (rescaleChance <= this%rescaleProb) then
         do ii = 1, this%nAtom
           call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end do
