@@ -52,8 +52,8 @@ module dftbp_md_berendsentherm
     !> Temperature generator
     type(tTempProfile), pointer :: pTempProfile
 
-    !> coupling strength to friction term
-    real(dp) :: couplingParameter
+    !> Coupling strength to friction term
+    real(dp) :: coupling
 
     !> MD Framework.
     type(TMDCommon) :: pMDFrame
@@ -94,7 +94,7 @@ contains
     this%nAtom = size(masses)
     this%mass = masses
     this%pTempProfile => tempProfile
-    this%couplingParameter = input%coupling
+    this%coupling = input%coupling
     this%pMDFrame = pMDFrame
 
   end subroutine TBerendsenTherm_init
@@ -143,7 +143,7 @@ contains
 
     call this%pTempProfile%getTemperature(kTTarget)
     call evalkT(this%pMDFrame, kTCurrent,velocities,this%mass)
-    scaling = sqrt(1.0_dp + this%couplingParameter * (kTTarget / kTCurrent - 1.0_dp))
+    scaling = sqrt(1.0_dp + this%coupling * (kTTarget / kTCurrent - 1.0_dp))
     velocities(:,:) = scaling * velocities
     call restFrame(this%pMDFrame, velocities, this%mass)
 
