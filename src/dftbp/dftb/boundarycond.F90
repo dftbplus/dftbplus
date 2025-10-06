@@ -357,8 +357,8 @@ contains
         do iAt = 1, nAtom
           frac(:nDir) = matmul(transpose(invLatVecs(:,:nDir)), coord(:,iAt))
           tmp3(:) = coord(:,iAt) - matmul(latVec(:,:nDir), frac(:nDir))
-          frac(:nDir) = frac(:nDir) - real(int(frac(:nDir)), dp)
-          where (abs(vecLen(:nDir)*(1.0_dp - frac(:nDir))) < epsilon(0.0_dp)) frac(:nDir) = 0.0_dp
+          frac(:nDir) = frac(:nDir) - real(floor(frac(:nDir)), dp)
+          where (abs(vecLen(:nDir) * (1.0_dp - frac(:nDir))) < epsilon(0.0_dp)) frac(:nDir) = 0.0_dp
           coord(:, iAt) = tmp3 + matmul(latVec(:,:nDir), frac(:nDir))
         end do
         !$OMP END PARALLEL DO
@@ -371,8 +371,8 @@ contains
         !$OMP& DEFAULT(SHARED) PRIVATE(frac) SCHEDULE(RUNTIME)
         do iAt = 1, nAtom
           frac(:) = matmul(invLatVecs, coord(:,iAt))
-          frac(:) = frac - real(int(frac), dp)
-          where (abs(vecLen*(1.0_dp - frac)) < epsilon(0.0_dp)) frac = 0.0_dp
+          frac(:) = frac - real(floor(frac), dp)
+          where (abs(vecLen * (1.0_dp - frac)) < epsilon(0.0_dp)) frac = 0.0_dp
           coord(:, iAt) = matmul(latVec, frac)
         end do
         !$OMP END PARALLEL DO
