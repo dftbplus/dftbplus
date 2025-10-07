@@ -15,19 +15,46 @@ module dftbp_md_tempprofile
 
   private
   public :: TTempProfile, TempProfile_init, identifyTempProfile
+  public :: TTempProfileInput
+  public :: tempProfileTypes
 
-  ! Internal constants for the different profiles:
-  !> Constant temperature
-  integer, parameter :: constProf = 1
-  !> linear change in profile
-  integer, parameter :: linProf = 2
-  !> exponentially changing profile
-  integer, parameter :: expProf = 3
+
+  !> Helper type for defining temperature profile types
+  type :: TTempProfileTypes
+
+    !> Constant temperature
+    integer :: constant = 1
+
+    !> Linear temperature change
+    integer :: linear = 2
+
+    !> Exponential temperature change
+    integer :: exponential = 3
+
+  end type TTempProfileTypes
+
+
+  !> Temperature profile types
+  type(TTempProfileTypes), parameter :: tempProfileTypes = TTempProfileTypes()
+
+
+  !> Input for defining a temperature profiles
+  type :: TTempProfileInput
+
+    !> The annealing method for each interval.
+    integer, allocatable :: tempMethods(:)
+
+    !> The length of the intervals (in MD steps)
+    integer, allocatable :: tempInts(:)
+
+    !> Target temperature for each interval (zeroth entry is dummy with staring temperature)
+    real(dp), allocatable :: tempValues(:)
+
+  end type TTempProfileInput
 
 
   !> Data for the temperature profile.
-  type TTempProfile
-
+  type :: TTempProfile
     private
 
     !> The annealing method for each interval.
@@ -44,9 +71,6 @@ module dftbp_md_tempprofile
 
     !> Index for current temperature value
     integer :: iInt
-
-    !> Number of intervals in total
-    integer :: nInt
 
     !> Current interval
     integer :: iStep
@@ -68,40 +92,32 @@ contains
 
 
   !> Creates a TempProfile instance.
-  subroutine TempProfile_init(this, tempMethods, tempInts, tempValues)
+  subroutine TempProfile_init(this, input)
 
     !> TempProfile instane on return.
     type(TTempProfile), intent(out) :: this
 
-    !> The annealing method for each interval.
-    integer, intent(in) :: tempMethods(:)
-
-    !> The length of the intervals (in steps)
-    integer, intent(in) :: tempInts(:)
-
-    !> Target temperature for each interval. This temperature will be reached after the specified
-    !> number of steps, using the specified profile (constant, linear, exponential)
-    real(dp), intent(in) :: tempValues(:)
+    !> Input data
+    type(TTempProfileInput), intent(in) :: input
 
     integer :: ii, iTmp
 
-    @:ASSERT(all(tempMethods == constProf .or. tempMethods == linProf&
-        & .or. tempMethods == expProf))
-    @:ASSERT(size(tempInts) > 0)
-    @:ASSERT(size(tempInts) == size(tempValues) .and. size(tempInts) == size(tempMethods))
-    @:ASSERT(all(tempInts >= 0))
-    @:ASSERT(all(tempValues >= 0.0_dp))
+    @:ASSERT(all(input%tempMethods == tempProfileTypes%constant&
+        & .or. input%tempMethods == tempProfileTypes%linear&
+        & .or. input%tempMethods == tempProfileTypes%exponential))
+    @:ASSERT(size(input%tempInts) > 0)
+    @:ASSERT(size(input%tempInts) == size(input%tempValues))
+    @:ASSERT(size(input%tempInts) == size(input%tempMethods))
+    @:ASSERT(all(input%tempInts >= 0))
+    @:ASSERT(all(input%tempValues >= 0.0_dp))
 
-    this%nInt = size(tempInts)
-    allocate(this%tempInts(0:this%nInt))
-    allocate(this%tempValues(0:this%nInt))
-    allocate(this%tempMethods(this%nInt))
-    this%tempInts(0) = 0
-    this%tempInts(1:) = tempInts(:)
-    this%tempValues(1:) = tempValues(:)
-    this%tempMethods(:) = tempMethods(:)
+
+    this%tempInts = [0, input%tempInts]
+    this%tempValues = [startingTemp_, input%tempValues]
+    this%tempMethods = [tempProfileTypes%constant, input%tempMethods]
+    ! Convert temperature interval lengths to absolute step numbers
     iTmp = this%tempInts(1)
-    do ii = 2, this%nInt
+    do ii = 2, size(this%tempInts)
       iTmp = iTmp + this%tempInts(ii)
       this%tempInts(ii) = iTmp
     end do
@@ -111,12 +127,10 @@ contains
     do while (this%tempInts(this%iInt) == 0)
       this%iInt = this%iInt + 1
     end do
-    if (this%tempMethods(this%iInt) == constProf) then
-      this%tempValues(0) = this%tempValues(1)
-    else
-      this%tempValues(0) = startingTemp_
+    if (this%tempMethods(this%iInt) == tempProfileTypes%constant) then
+      this%tempValues(this%iInt - 1) = this%tempValues(this%iInt)
     end if
-    this%curTemp = this%tempValues(0)
+    this%curTemp = this%tempValues(this%iInt - 1)
 
   end subroutine TempProfile_init
 
@@ -131,7 +145,7 @@ contains
     integer :: sub, sup
 
     this%iStep = this%iStep + 1
-    if (this%iStep > this%tempInts(this%nInt)) then
+    if (this%iStep > this%tempInts(size(this%tempInts))) then
       return
     end if
     ! Looking for the next interval which contains the relevant information
@@ -144,17 +158,18 @@ contains
     subVal = this%tempValues(this%iInt-1)
 
     select case (this%tempMethods(this%iInt))
-    case (constProf)
+    case (tempProfileTypes%constant)
       this%curTemp = this%tempValues(this%iInt)
-    case (linProf)
+    case (tempProfileTypes%linear)
       this%incr = (supVal - subVal) / real(sup - sub, dp)
       this%curTemp = subVal + this%incr * real(this%iStep - sub, dp)
-    case (expProf)
+    case (tempProfileTypes%exponential)
       this%tempValues(this%iInt) = supVal
       this%tempValues(this%iInt-1) = subVal
       this%incr = log(supVal/subVal) / real(sup - sub, dp)
       this%curTemp = subVal * exp(this%incr * real(this%iStep - sub, dp))
     end select
+    print *, "TempProfile:", this%iStep, this%curTemp
 
   end subroutine next
 
@@ -188,11 +203,11 @@ contains
     success = .true.
     select case (tolower(trim(profileName)))
     case ("constant")
-      iProfile = constProf
+      iProfile = tempProfileTypes%constant
     case ("linear")
-      iProfile = linProf
+      iProfile = tempProfileTypes%linear
     case ("exponential")
-      iProfile = expProf
+      iProfile = tempProfileTypes%exponential
     case default
       success = .false.
     end select

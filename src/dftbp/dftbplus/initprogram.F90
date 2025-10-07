@@ -379,9 +379,6 @@ module dftbp_dftbplus_initprogram
     !> Choice of electron distribution function, defaults to Fermi
     integer :: iDistribFn = fillingTypes%Fermi
 
-    !> Atomic kinetic temperature
-    real(dp) :: tempAtom
-
     !> MD stepsize
     real(dp) :: deltaT
 
@@ -1854,7 +1851,6 @@ contains
         & this%nDipole, this%nQuadrupole)
     allocate(this%iSparseStart(0, this%nAtom))
 
-    this%tempAtom = input%ctrl%tempAtom
     this%deltaT = input%ctrl%deltaT
 
     ! Orbital equivalency relations
@@ -2675,20 +2671,13 @@ contains
       allocate(this%pMDFrame)
       call init(this%pMDFrame, this%nMovedAtom, this%nAtom, input%ctrl%tMDstill)
 
-      ! Create temperature profile, if thermostat is not the dummy one
-      if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%dummy) then
-        allocate(this%temperatureProfile)
-        call TempProfile_init(this%temperatureProfile, input%ctrl%tempMethods,&
-            & input%ctrl%tempSteps, input%ctrl%tempValues)
-        pTempProfile => this%temperatureProfile
-      else
-        nullify(pTempProfile)
-      end if
+      allocate(this%temperatureProfile)
+      call TempProfile_init(this%temperatureProfile, input%ctrl%tempProfileInp)
+      pTempProfile => this%temperatureProfile
 
       ! Create thermostat
-      call createThermostat(thermostat, input%ctrl%thermostatInp, this%tempAtom,&
-          & this%mass(this%indMovedAtom), randomThermostat, this%pMDFrame, pTempProfile,&
-          & this%deltaT)
+      call createThermostat(thermostat, input%ctrl%thermostatInp, this%mass(this%indMovedAtom),&
+          & randomThermostat, this%pMDFrame, pTempProfile, this%deltaT)
 
       ! Create MD integrator
       allocate(pVelocityVerlet)
@@ -3509,7 +3498,7 @@ contains
       write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%dummy&
           & .and. .not.input%ctrl%tReadMDVelocities) then
-        write(stdOut, "(A,':',T30,E14.6)") "Temperature", this%tempAtom
+        write(stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
       end if
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%andersen) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability",&

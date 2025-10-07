@@ -69,8 +69,8 @@ module dftbp_dftbplus_parser
       & splitModifier
   use dftbp_io_message, only : error, warning
   use dftbp_math_simplealgebra, only : cross3, determinant33, diagonal
-  use dftbp_md_tempprofile, only : identifyTempProfile
-  use dftbp_md_thermostats, only : thermostatTypes
+  use dftbp_md_tempprofile, only : identifyTempProfile, tempProfileTypes, TTempProfileInput
+  use dftbp_md_thermostats, only : thermostatTypes, TThermostatInput
   use dftbp_md_xlbomd, only : TXlbomdInp
 #:if  WITH_POISSON
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum, bcPoissonNames
@@ -648,134 +648,8 @@ contains
           &child=field)
       call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
-      allocate(ctrl%thermostatInp)
-      call getChildValue(node, "Thermostat", value1, child=child)
-      call getNodeName(value1, buffer2)
-
-      thermostat: select case(char(buffer2))
-      case ("berendsen")
-
-        ctrl%thermostatInp%thermostatType = thermostatTypes%berendsen
-        allocate(ctrl%thermostatInp%berendsen)
-
-        associate (inp => ctrl%thermostatInp%berendsen)
-
-          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
-          call getNodeName(value2, buffer)
-          select case(char(buffer))
-          case (textNodeName)
-            call readTemperature(child2, ctrl)
-          case ("temperatureprofile")
-            call readTemperatureProfile(value2, char(modifier), ctrl)
-          case default
-            call detailedError(value2, "Invalid method name.")
-          end select
-
-          call getChild(value1, "CouplingStrength", child=child2, requested=.false.)
-          if (associated(child2)) then
-            call getChildValue(child2, "", inp%coupling)
-            call getChild(value1, "Timescale", child=child2, modifier=modifier, requested=.false.)
-            if (associated(child2)) then
-              call error("Only Coupling strength OR Timescale can be set for Berendsen&
-                  & thermostats.")
-            end if
-          else
-            call getChild(value1, "Timescale", child=child2, modifier=modifier, requested=.false.)
-            if (associated(child2)) then
-              call getChildValue(child2, "", inp%coupling, modifier=modifier, child=child3)
-              call convertUnitHsd(char(modifier), timeUnits, child3, inp%coupling)
-              inp%coupling = ctrl%deltaT / inp%coupling
-            else
-              call error("Either CouplingStrength or Timescale must be set for Berendsen&
-                  & thermostats.")
-            end if
-          end if
-
-        end associate
-
-      case ("nosehoover")
-
-        ctrl%thermostatInp%thermostatType = thermostatTypes%nhc
-        allocate(ctrl%thermostatInp%nhc)
-
-        associate (inp => ctrl%thermostatInp%nhc)
-
-          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
-          call getNodeName(value2, buffer)
-          select case(char(buffer))
-          case (textNodeName)
-            call readTemperature(child2, ctrl)
-          case ("temperatureprofile")
-            call readTemperatureProfile(value2, char(modifier), ctrl)
-          case default
-            call detailedError(value2, "Invalid method name.")
-          end select
-
-          call getChildValue(value1, "CouplingStrength", inp%coupling, modifier=modifier,&
-              & child=field)
-          call convertUnitHsd(char(modifier), freqUnits, field, inp%coupling)
-
-          call getChildValue(value1, "ChainLength", inp%chainLength, 3)
-          call getChildValue(value1, "Order", inp%expOrder, 3)
-          call getChildValue(value1, "IntegratorSteps", inp%nExpSteps, 1)
-
-          call getChild(value1, "Restart",  child=child3, requested=.false.)
-          if (associated(child3)) then
-            allocate(inp%xnose(inp%chainLength))
-            allocate(inp%vnose(inp%chainLength))
-            allocate(inp%gnose(inp%chainLength))
-            call getChildValue(child3,"x",inp%xnose)
-            call getChildValue(child3,"v",inp%vnose)
-            call getChildValue(child3,"g",inp%gnose)
-          end if
-
-        end associate
-
-      case ("andersen")
-
-        ctrl%thermostatInp%thermostatType = thermostatTypes%andersen
-        allocate(ctrl%thermostatInp%andersen)
-
-        associate (inp => ctrl%thermostatInp%andersen)
-
-          call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
-          call getNodeName(value2, buffer)
-
-          select case(char(buffer))
-          case (textNodeName)
-            call readTemperature(child2, ctrl)
-          case ("temperatureprofile")
-            call readTemperatureProfile(value2, char(modifier), ctrl)
-          case default
-            call detailedError(value2, "Invalid method name.")
-          end select
-
-          call getChildValue(value1, "ReselectProbability", inp%rescaleProb, child=child3)
-          if (inp%rescaleProb <= 0.0_dp .or. inp%rescaleProb > 1.0_dp) then
-            call detailedError(child3, "ReselectProbability must be in the range (0,1]!")
-          end if
-          call getChildValue(value1, "ReselectIndividually", inp%rescaleIndiv)
-
-        end associate
-
-      case ("none")
-
-        ctrl%thermostatInp%thermostatType = thermostatTypes%dummy
-        allocate(ctrl%tempSteps(1))
-        allocate(ctrl%tempValues(1))
-        if (ctrl%tReadMDVelocities) then
-          ! without a thermostat, if we know the initial velocities, we do not
-          ! need a temperature, so just set it to something 'safe'
-          ctrl%tempAtom = minTemp
-        else
-          call readMDInitTemp(value1, ctrl%tempAtom, minTemp)
-        end if
-
-      case default
-        call getNodeHSDName(value1, buffer2)
-        call detailedError(child, "Invalid thermostat '" // char(buffer2) // "'")
-
-      end select thermostat
+      call parseThermostat(node, ctrl%deltaT, ctrl%tReadMDVelocities, ctrl%maxRun,&
+          & ctrl%thermostatInp, ctrl%tempProfileInp)
 
       if (ctrl%maxRun < -1) then
         call getChildValue(node, "Steps", ctrl%maxRun)
@@ -4975,44 +4849,39 @@ contains
 #:endif
 
   !> reads in value of temperature for MD with correctness checking of the input
-  subroutine readTemperature(node, ctrl)
+  subroutine readTemperature(node, tempProfInp)
 
-    !> data to parse
+    !> Temperature node
     type(fnode), pointer :: node
 
-    !> control data coming back
-    type(TControl), intent(inout) :: ctrl
+    !> Temperature profile input data on exit
+    type(TTempProfileInput), intent(out) :: tempProfInp
 
     type(string) :: modifier
+    real(dp) :: temp
 
-    allocate(ctrl%tempSteps(1))
-    allocate(ctrl%tempValues(1))
-    allocate(ctrl%tempMethods(1))
-    ctrl%tempMethods(1) = 1
-    ctrl%tempSteps(1) = 1
-    call getChildValue(node, "", ctrl%tempValues(1), modifier=modifier)
-    call convertUnitHsd(char(modifier), energyUnits, node, ctrl%tempValues(1))
-    if (ctrl%tempValues(1) < 0.0_dp) then
-      call detailedError(node, "Negative temperature.")
-    end if
-    if (ctrl%tempValues(1) < minTemp) then
-      ctrl%tempValues(1) = minTemp
-    end if
+    call getChildValue(node, "", temp, modifier=modifier)
+    call convertUnitHsd(char(modifier), energyUnits, node, temp)
+    if (temp < 0.0_dp) call detailedError(node, "Negative temperature.")
+    temp = max(minTemp, temp)
+    tempProfInp%tempInts = [huge(1)]
+    tempProfInp%tempValues = [temp]
+    tempProfInp%tempMethods = [tempProfileTypes%constant]
 
   end subroutine readTemperature
 
 
   !> reads a temperature profile for MD with correctness checking of the input
-  subroutine readTemperatureProfile(node, modifier, ctrl)
+  subroutine readTemperatureProfile(node, modifier, tempProfInp)
 
-    !> parser node containing the relevant part of the user input
+    !> Temperature profile node
     type(fnode), pointer :: node
 
-    !> unit modifier for the profile
+    !> unit modifier of the node
     character(len=*), intent(in) :: modifier
 
-    !> Control structure to populate
-    type(TControl), intent(inout) :: ctrl
+    !> Temperature profile input data on exit
+    type(TTempProfileInput), intent(out) :: tempProfInp
 
     type(TListString) :: ls
     type(TListIntR1) :: li1
@@ -5026,47 +4895,42 @@ contains
     call init(lr1)
     call getChildValue(node, "", ls, 1, li1, 1, lr1)
     if (len(ls) < 1) then
-      call detailedError(node, "At least one annealing step must be &
-          &specified.")
+      call detailedError(node, "At least one annealing step must be specified.")
     end if
     allocate(tmpC1(len(ls)))
-    allocate(ctrl%tempSteps(len(li1)))
-    allocate(ctrl%tempValues(len(lr1)))
+    allocate(tempProfInp%tempInts(len(li1)))
+    allocate(tempProfInp%tempValues(len(lr1)))
     call asArray(ls, tmpC1)
-    call asVector(li1, ctrl%tempSteps)
-    call asVector(lr1, ctrl%tempValues)
+    call asVector(li1, tempProfInp%tempInts)
+    call asVector(lr1, tempProfInp%tempValues)
     call destruct(ls)
     call destruct(li1)
     call destruct(lr1)
-    allocate(ctrl%tempMethods(size(tmpC1)))
+    allocate(tempProfInp%tempMethods(size(tmpC1)))
     do ii = 1, size(tmpC1)
-      call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
+      call identifyTempProfile(tempProfInp%tempMethods(ii), tmpC1(ii), success)
       if (success) then
         cycle
       end if
       call detailedError(node, "Invalid annealing method name '" // trim(tmpC1(ii)) // "'.")
     end do
 
-    if (any(ctrl%tempSteps < 0)) then
+    if (any(tempProfInp%tempInts < 0)) then
       call detailedError(node, "Step values must not be negative.")
     end if
 
-    ii = sum(ctrl%tempSteps)
-    if (ii < 1) then
-      call detailedError(node, "Sum of steps in the profile must be &
-          &greater than zero.")
+    if (sum(tempProfInp%tempInts) == 0) then
+      call detailedError(node, "Sum of steps in the profile must be greater than zero.")
     end if
-    ctrl%maxRun = ii - 1
 
-    if (any(ctrl%tempValues < 0.0_dp)) then
+    if (any(tempProfInp%tempValues < 0.0_dp)) then
       call detailedError(node, "Negative temperature.")
     end if
 
-    call convertUnitHsd(modifier, energyUnits, node, ctrl%tempValues)
-    if (any(ctrl%tempValues < minTemp)) then
-      ctrl%tempValues = max(ctrl%tempValues, minTemp)
+    call convertUnitHsd(modifier, energyUnits, node, tempProfInp%tempValues)
+    if (any(tempProfInp%tempValues < minTemp)) then
+      tempProfInp%tempValues = max(tempProfInp%tempValues, minTemp)
     end if
-    deallocate(tmpC1)
 
   end subroutine readTemperatureProfile
 
@@ -8503,11 +8367,137 @@ contains
         call error("Could not find ChIMES parameter file '" // chimesFile // "'")
       end if
     #:else
-      call detailedError(chimes, "ChIMES repuslive correction requested, but code was compiled&
+      call detailedError(chimes, "ChIMES repulsive correction requested, but code was compiled&
           & without ChIMES support")
     #:endif
 
   end subroutine parseChimes
+
+
+  subroutine parseThermostat(node, deltaT, hasInitVelocities, maxRun, thermostatInp, tempProfileInp)
+    type(fnode), pointer, intent(in) :: node
+    real(dp), intent(in) :: deltaT
+    logical, intent(in) :: hasInitVelocities
+    integer, intent(inout) :: maxRun
+    type(TThermostatInput), allocatable, intent(out) :: thermostatInp
+    type(TTempProfileInput), allocatable, intent(out) :: tempProfileInp
+
+    type(fnode), pointer :: thermNode, child, child2, child3
+    type(string) :: thermName, modifier
+
+    allocate(thermostatInp, tempProfileInp)
+    call getChildValue(node, "Thermostat", thermNode, child=child)
+    call getNodeName(thermNode, thermName)
+
+    select case(char(thermName))
+
+    case ("berendsen")
+
+      thermostatInp%thermostatType = thermostatTypes%berendsen
+      allocate(thermostatInp%berendsen)
+      associate (inp => thermostatInp%berendsen)
+        call readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
+        call getChild(thermNode, "CouplingStrength", child=child2, requested=.false.)
+        if (associated(child2)) then
+          call getChildValue(child2, "", inp%coupling)
+          call getChild(thermNode, "Timescale", child=child2, modifier=modifier, requested=.false.)
+          if (associated(child2)) then
+            call error("Only Coupling strength OR Timescale can be set for Berendsen thermostats.")
+          end if
+        else
+          call getChild(thermNode, "Timescale", child=child2, modifier=modifier, requested=.false.)
+          if (associated(child2)) then
+            call getChildValue(child2, "", inp%coupling, modifier=modifier, child=child3)
+            call convertUnitHsd(char(modifier), timeUnits, child3, inp%coupling)
+            inp%coupling = deltaT / inp%coupling
+          else
+            call error("Either CouplingStrength or Timescale must be set for Berendsen thermostats.")
+          end if
+        end if
+      end associate
+
+    case ("nosehoover")
+
+      thermostatInp%thermostatType = thermostatTypes%nhc
+      allocate(thermostatInp%nhc)
+      associate (inp => thermostatInp%nhc)
+        call readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
+        call getChildValue(thermNode, "CouplingStrength", inp%coupling, modifier=modifier,&
+            & child=child2)
+        call convertUnitHsd(char(modifier), freqUnits, child2, inp%coupling)
+
+        call getChildValue(thermNode, "ChainLength", inp%chainLength, 3)
+        call getChildValue(thermNode, "Order", inp%expOrder, 3)
+        call getChildValue(thermNode, "IntegratorSteps", inp%nExpSteps, 1)
+        call getChild(thermNode, "Restart",  child=child2, requested=.false.)
+        if (associated(child2)) then
+          allocate(inp%xnose(inp%chainLength))
+          allocate(inp%vnose(inp%chainLength))
+          allocate(inp%gnose(inp%chainLength))
+          call getChildValue(child2,"x",inp%xnose)
+          call getChildValue(child2,"v",inp%vnose)
+          call getChildValue(child2,"g",inp%gnose)
+        end if
+      end associate
+
+    case ("andersen")
+
+      thermostatInp%thermostatType = thermostatTypes%andersen
+      allocate(thermostatInp%andersen)
+      associate (inp => thermostatInp%andersen)
+        call readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
+        call getChildValue(thermNode, "ReselectProbability", inp%rescaleProb, child=child2)
+        if (inp%rescaleProb <= 0.0_dp .or. inp%rescaleProb > 1.0_dp) then
+          call detailedError(child2, "ReselectProbability must be in the range (0,1]!")
+        end if
+        call getChildValue(thermNode, "ReselectIndividually", inp%rescaleIndiv)
+      end associate
+
+    case ("none")
+
+      ! Create a fake thermostat with a single constant temperature value
+      ! It will only used to generate the initial velocities for the MD anyway.
+      thermostatInp%thermostatType = thermostatTypes%dummy
+      tempProfileInp%tempInts = [huge(1)]
+      tempProfileInp%tempMethods = [tempProfileTypes%constant]
+      tempProfileInp%tempValues = [minTemp]
+      if (.not. hasInitVelocities) then
+        ! Initial velocities had not been provided, overwrite 'safe' default value (minTemp)
+        ! by reading the temperature explicitly (needed for generating the initial velocities)
+        call readMDInitTemp(thermNode, tempProfileInp%tempValues(1), minTemp)
+      end if
+
+    case default
+      call getNodeHSDName(thermNode, thermName)
+      call detailedError(child, "Invalid thermostat '" // char(thermName) // "'")
+
+    end select
+
+  contains
+
+    subroutine readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
+      type(fnode), pointer, intent(in) :: thermNode
+      integer, intent(inout) :: maxRun
+      type(TTempProfileInput), intent(out) :: tempProfileInp
+
+      type(fnode), pointer :: value, child
+      type(string) :: buffer, modifier
+
+      call getChildValue(thermNode, "Temperature", value, modifier=modifier, child=child)
+      call getNodeName(value, buffer)
+      select case(char(buffer))
+      case (textNodeName)
+        call readTemperature(child, tempProfileInp)
+      case ("temperatureprofile")
+        call readTemperatureProfile(value, char(modifier), tempProfileInp)
+        maxRun = sum(tempProfileInp%tempInts) - 1
+      case default
+        call detailedError(value, "Invalid method name.")
+      end select
+
+    end subroutine readTempOrTempProfile_
+
+  end subroutine parseThermostat
 
 
   !> Returns parser version for a given input version or throws an error if not possible.
@@ -8530,6 +8520,5 @@ contains
     end do
 
   end function parserVersionFromInputVersion
-
 
 end module dftbp_dftbplus_parser

@@ -30,6 +30,7 @@ module dftbp_dftbplus_inputdata
   use dftbp_extlibs_poisson, only : TPoissonInfo
   use dftbp_extlibs_tblite, only : TTBLiteInput
   use dftbp_md_mdcommon, only : TMDOutput
+  use dftbp_md_tempprofile, only : TTempProfileInput
   use dftbp_md_thermostats, only : TThermostatInput
   use dftbp_md_xlbomd, only : TXLBOMDInp
   use dftbp_mixer_factory, only : TMixerInput
@@ -334,14 +335,9 @@ module dftbp_dftbplus_inputdata
     real(dp), allocatable :: initialVelocities(:,:)
     real(dp) :: deltaT = 0.0_dp
 
-    real(dp) :: tempAtom = 0.0_dp
-
     !> Whether to shift to a co-moving frame for MD
     logical :: tMDstill
     logical :: tRescale = .false.
-    integer, allocatable :: tempMethods(:)
-    integer, allocatable :: tempSteps(:)
-    real(dp), allocatable :: tempValues(:)
     logical :: tSetFillingTemp = .false.
 
     real(dp) :: tempElec = 0.0_dp
@@ -351,6 +347,7 @@ module dftbp_dftbplus_inputdata
     integer :: iDistribFn = fillingTypes%Fermi
 
     type(TThermostatInput), allocatable :: thermostatInp
+    type(TTempProfileInput), allocatable :: tempProfileInp
 
     integer :: maxRun = -2
 
