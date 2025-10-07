@@ -22,9 +22,11 @@ module dftbp_md_thermostats
 
   private
   public :: thermostatTypes
-  public :: TThermostatInput
-  public :: createThermostat
-  public :: TThermostat
+  public :: createThermostat, TThermostat, TThermostatInput
+  public :: TAndersenTherm, TAndersenTherm_init, TAndersenThermInput
+  public :: TBerendsenTherm, TBerendsenTherm_init, TBerendsenThermInput
+  public :: TDummyTherm, TDummyTherm_init
+  public :: TNhcTherm, TNhcTherm_init, TNhcThermInput
 
 
   type :: TThermostatTypes_
