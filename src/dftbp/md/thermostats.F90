@@ -50,17 +50,14 @@ contains
 
 
   !> Creates a thermostat instance based on the provided input data
-  subroutine createThermostat(thermostat, input, tempAtom, masses, randomThermostat, pMDFrame,&
-    & pTempProfile, deltaT)
+  subroutine createThermostat(thermostat, input, masses, randomThermostat, pMDFrame,&
+        & pTempProfile, deltaT)
 
     !> Created thermostat instance on exit
     class(TThermostat), allocatable, intent(out) :: thermostat
 
     !> Thermostat input data
     type(TThermostatInput), intent(in) :: input
-
-    !> Target temperature for the atoms
-    real(dp), intent(in) :: tempAtom
 
     !> Masses of the thermostated atoms
     real(dp), intent(in) :: masses(:)
@@ -81,6 +78,7 @@ contains
     type(TAndersenTherm), allocatable :: andersenTherm
     type(TBerendsenTherm), allocatable :: berendsenTherm
     type(TNHCTherm), allocatable :: nhcTherm
+    real(dp) :: tempAtom
 
     @:ASSERT(input%thermostatType >= 0 .and. input%thermostatType <= 3)
     @:ASSERT(all(&
@@ -93,6 +91,7 @@ contains
     select case (input%thermostatType)
     case (thermostatTypes%dummy)
       allocate(dummyTherm)
+      call pTempProfile%getTemperature(tempAtom)
       call TDummyTherm_init(dummyTherm, tempAtom, masses, randomThermostat, pMdFrame)
       call move_alloc(dummyTherm, thermostat)
     case (thermostatTypes%andersen)
