@@ -3750,15 +3750,22 @@ contains
       ! delta-density, therefore we store it separately for now)
       if (allocated(rhoSqrReal)) then
         if (.not. allocated(densityMatrix%deltaRhoOut)) then
+        #:if WITH_SCALAPACK
           call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
                &  work(:,:), rhoSqrReal(:,:,iSpin))
+        #:else
+          rhoSqrReal(:,:, iSpin) = work(:,:)
+        #:endif
+
         else
+
         #:if WITH_SCALAPACK
           call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
               & densityMatrix%deltaRhoOut(:,:,iSpin), rhoSqrReal(:,:,iSpin))
         #:else
           rhoSqrReal(:,:, iSpin) = densityMatrix%deltaRhoOut(:,:,iSpin)
         #:endif
+
         end if
       end if
 
@@ -5298,7 +5305,9 @@ contains
     dQAtom(:,:) = sum(qOutput(:,:,:) - q0(:,:,:), dim=1)
 
     ! Avoid overwriting deltaRhoOut
-    deltaRhoOut = dRhoOut
+    if (allocated(dRhoOut)) then
+        deltaRhoOut = dRhoOut
+    endif
 
   #:if WITH_SCALAPACK
 

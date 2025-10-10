@@ -2607,10 +2607,16 @@ contains
 
     ! Convert local arrays to global
     allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
+  #:if WITH_SCALAPACK
+
     do iSpin = 1, nSpin
       call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                            &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
     enddo
+  #:else
+
+    grndEigVecsGlobal = grndEigVecs
+  #:endif
 
     if (rpa%tHybridXc) then
       allocate(xmycc(nOrb, nOrb, nSpin))
@@ -2631,12 +2637,17 @@ contains
       allocate(gammaLongRangePrime(3, lr%nAtom, lr%nAtom))
 
       ! Convert local arrays to global
-    #:if WITH_SCALAPACK
       allocate(deltaRhoGlobal(norb,norb,size(deltaRho,dim=3)))
+    #:if WITH_SCALAPACK
+
       do iSpin = 1, nSpin
         call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                              &  deltaRho(:,:,iSpin), deltaRhoGlobal(:,:,iSpin))
       enddo
+    #:else
+
+      deltaRhoGlobal = deltaRho
+    #:endif
 
       ! Symmetrize deltaRhoGlobal
       do mu = 1, size(deltaRhoGlobal, dim=1)
@@ -2644,14 +2655,6 @@ contains
           deltaRhoGlobal(mu,nu,:) = deltaRhoGlobal(nu,mu,:)
         end do
       end do
-    #:else
-      ! Symmetrize deltaRho
-      do mu = 1, nOrb
-        do nu = mu + 1, nOrb
-          deltaRho(mu,nu,:) = deltaRho(nu,mu,:)
-        end do
-      end do
-    #:endif
 
       ! Compute long-range gamma derivative
       call distributeRangeInChunks(env, 1, lr%nAtom, iGlobal, fGlobal)
@@ -4736,10 +4739,16 @@ contains
 
     ! Convert local arrays to global
     allocate(grndEigVecsGlobal(norb,norb,size(grndEigVecs,dim=3)))
+  #:if WITH_SCALAPACK
+
     do iSpin = 1, nSpin
       call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                            &  grndEigVecs(:,:,iSpin), grndEigVecsGlobal(:,:,iSpin))
     enddo
+  #:else
+
+    grndEigVecsGlobal = grndEigVecs
+  #:endif
 
     if (rpa%tHybridXc) then
       allocate(xmycc(nOrb, nOrb, nSpin, 2))
@@ -4759,13 +4768,18 @@ contains
       allocate(lrGammaOrb(nOrb, nOrb))
       allocate(gammaLongRangePrime(3, lr%nAtom, lr%nAtom))
 
-    #:if WITH_SCALAPACK
-      ! Convert local arrays to global
       allocate(deltaRhoGlobal(norb,norb,size(deltaRho,dim=3)))
+    #:if WITH_SCALAPACK
+
+      ! Convert local arrays to global
       do iSpin = 1, nSpin
         call distrib2replicated(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                              &  deltaRho(:,:,iSpin), deltaRhoGlobal(:,:,iSpin))
       enddo
+    #:else
+
+      deltaRhoGlobal = deltaRho
+    #:endif
 
       ! Symmetrize deltaRhoGlobal
       do mu = 1, size(deltaRhoGlobal, dim=1)
@@ -4773,17 +4787,6 @@ contains
           deltaRhoGlobal(mu,nu,:) = deltaRhoGlobal(nu,mu,:)
         end do
       end do
-
-    #:else
-
-      ! Symmetrize deltaRho
-      do mu = 1, nOrb
-        do nu = mu + 1, nOrb
-          deltaRho(mu,nu,:) = deltaRho(nu,mu,:)
-        end do
-      end do
-
-    #:endif
 
       ! Compute long-range gamma derivative
       call distributeRangeInChunks(env, 1, lr%nAtom, iGlobal, fGlobal)
