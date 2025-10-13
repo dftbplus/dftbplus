@@ -167,7 +167,7 @@ set(HYBRID_CONFIG_METHODS "Submodule;Find;Fetch" CACHE STRING
 
 
 set(CMAKE_CUDA_ARCHITECTURES "native" CACHE STRING
-    "CUDA architectures for Wavegrid GPU acceleration (e.g. native/all/70;75;80).")
+    "Which CUDA architecture wavegrid GPU acceleration will be compiled for (e.g. native/all/70;75;80;...).")
 
 
 #
