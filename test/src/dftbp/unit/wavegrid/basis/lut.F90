@@ -7,9 +7,9 @@
 
 #:include "fortuno_serial.fypp"
 
-module test_wavegrid_radial
+module test_wavegrid_basis_lut
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
-  use dftbp_wavegrid_basis, only : TRadialTableOrbital
+  use dftbp_wavegrid_basis, only : TRadialTableOrbital, TSlaterOrbital
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -19,7 +19,6 @@ module test_wavegrid_radial
 
   !> Allow 0.001% relative error
   real(dp), parameter :: rtol = 1.0e-5_dp
-
 
 
 contains
@@ -57,12 +56,33 @@ contains
   $:END_TEST()
 
 
+  !> Check resampling of existing analytical orbital to LUT
+  $:TEST("TRadialTableOrbital_initFromOrbital")
+    type(TSlaterOrbital) :: sto_1s
+    type(TRadialTableOrbital) :: lut
+    real(dp), parameter :: aa(1,1) = reshape([2.0_dp], [1,1])
+    real(dp), parameter :: alpha(1) = [1.0_dp]
+    real(dp) :: resolution, r, valSto, valLut
+
+    call sto_1s%init(aa=aa, alpha=alpha, angMom=0, cutoff=15.0_dp)
+
+    resolution = 0.01_dp
+    call lut%initFromOrbital(sto_1s, resolution)
+
+    ! Check if an interpolated point is close to the original function
+    r = 3.5_dp * resolution
+    valSto = sto_1s%getRadial(r)
+    valLut = lut%getRadial(r)
+    @:CHECK(is_close(valSto, valLut, rtol=1.0e-4_dp))
+  $:END_TEST()
+
+
   !> Register test cases with Fortuno
   function tests()
     type(test_list) :: tests
 
     tests = test_list([&
-        suite("radial", test_list([&
+        suite("lut", test_list([&
             $:TEST_ITEMS()
         ]))&
     ])
@@ -70,4 +90,4 @@ contains
 
   end function tests
 
-end module test_wavegrid_radial
+end module test_wavegrid_basis_lut

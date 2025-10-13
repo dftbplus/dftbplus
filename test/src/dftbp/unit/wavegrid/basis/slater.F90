@@ -7,11 +7,9 @@
 
 #:include "fortuno_serial.fypp"
 
-module test_wavegrid_spharmonics
+module test_wavegrid_basis_slater
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
-  use test_wavegrid_spharmonics_ref, only : spotCheck, spotChecks_l0, spotChecks_l1, &
-    & spotChecks_l2, spotChecks_l3, spotChecks_l4, atol
-  use dftbp_wavegrid_basis, only : realTessY
+  use dftbp_wavegrid_basis, only : TSlaterOrbital
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -19,40 +17,34 @@ module test_wavegrid_spharmonics
   private
   public :: tests
 
+  !> Allow 0.001% relative error
+  real(dp), parameter :: rtol = 1.0e-5_dp
+
+
 contains
 
-  subroutine checkBatch(spotChecks)
-    type(spotCheck), intent(in) :: spotChecks(:)
-    real(dp) :: ylm, inv_r
-    type(spotCheck) :: c
-    integer :: ii
 
-    do ii = 1, size(spotChecks)
-      c = spotChecks(ii)
-      inv_r = 1.0_dp / sqrt(c%x**2 + c%y**2 + c%z**2)
-      ylm = realTessY(c%l, c%m, [c%x, c%y, c%z], inv_r)
-      @:CHECK(is_close(ylm, c%expected, atol=atol))
-    end do 
-  end subroutine checkBatch
+  $:TEST("TSlaterOrbital_getRadial")
+    type(TSlaterOrbital) :: sto_1s, sto_2p
+    real(dp) :: cutoff, val, expected
+    real(dp), parameter :: aa(1,1) = reshape([2.0_dp], [1,1])
+    real(dp), parameter :: alpha(1) = [1.0_dp]
 
-  $:TEST("spharmonicsl0")
-    call checkBatch(spotChecks_l0)
-  $:END_TEST()
+    cutoff = 20.0_dp
 
-  $:TEST("spharmonicsl1")
-    call checkBatch(spotChecks_l1)
-  $:END_TEST()
+    call sto_1s%init(aa=aa, alpha=alpha, angMom=0, cutoff=cutoff)
+    val = sto_1s%getRadial(1.0_dp)
+    expected = 2.0_dp * exp(-1.0_dp)
+    @:CHECK(is_close(val, expected, rtol=rtol))
 
-  $:TEST("spharmonicsl2")
-    call checkBatch(spotChecks_l2)
-  $:END_TEST()
+    call sto_2p%init(aa=reshape([1.0_dp], [1,1]), alpha=alpha, angMom=1, cutoff=cutoff)
+    val = sto_2p%getRadial(1.0_dp)
+    expected = 1.0_dp * exp(-1.0_dp)
+    @:CHECK(is_close(val, expected, rtol=rtol))
 
-  $:TEST("spharmonicsl3")
-    call checkBatch(spotChecks_l3)
-  $:END_TEST()
-
-  $:TEST("spharmonicsl4")
-    call checkBatch(spotChecks_l4)
+    val = sto_2p%getRadial(0.0_dp)
+    expected = 0.0_dp
+    @:CHECK(is_close(val, expected, atol=1e-15_dp))
   $:END_TEST()
 
 
@@ -61,7 +53,7 @@ contains
     type(test_list) :: tests
 
     tests = test_list([&
-        suite("spharmonics", test_list([&
+        suite("slater", test_list([&
             $:TEST_ITEMS()
         ]))&
     ])
@@ -69,4 +61,4 @@ contains
 
   end function tests
 
-end module test_wavegrid_spharmonics
+end module test_wavegrid_basis_slater

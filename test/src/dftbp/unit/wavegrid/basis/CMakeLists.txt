@@ -1,12 +1,15 @@
-set(test-collection "wavegrid")
+set(test-collection "wavegrid-basis")
 
 if (NOT WITH_MPI)
 
-  set(sources-f90 testapp.f90)
+  set(sources-f90
+    testapp.f90
+    refharmonics.f90)
 
   set(sources-fypp
-    initmolorb.F90
-    spotcheck.F90)
+    lut.F90
+    slater.F90
+    spharmonics.F90)
 
   set(sources-fypp-f90)
 
@@ -22,5 +25,3 @@ if (NOT WITH_MPI)
   add_test(NAME ${unit-test-prefix}/${test-collection} COMMAND ${testapp})
 
 endif ()
-
-add_subdirectory(basis)
