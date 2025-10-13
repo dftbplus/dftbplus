@@ -10,6 +10,7 @@
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
+  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital
   use waveplot_gridcache, only : TGridCache
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -640,8 +641,6 @@ contains
     call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
-
-    ! SubdivisionFactor
     call getChildValue(node, "useGPU", this%opt%useGPU, .false., child=field)
 
     if (nCached < 1 .and. nCached /= -1) then
@@ -691,8 +690,8 @@ contains
       allocate(mcutoffs(this%input%geo%nSpecies))
       do iSpecies = 1 , this%input%geo%nSpecies
         mCutoffs(iSpecies) = -1
-        do ii = 1, this%basis%basis(iSpecies)%nOrb
-          mCutoffs(iSpecies) = sqrt(max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%stos(ii)%cutoffSq))
+        do ii = 1, size(this%basis%basis(iSpecies)%orbitals)
+          mCutoffs(iSpecies) = sqrt(max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%cutoffSq))
         end do
       end do
       minvals = this%input%geo%coords(:,1)
@@ -786,7 +785,7 @@ contains
     !! Total number of species in the system
     integer :: nSpecies
     !! Auxiliary variable
-    integer :: ii
+    integer :: ii, atomicNumber
 
     nSpecies = size(speciesNames)
 
@@ -803,20 +802,20 @@ contains
       speciesName = speciesNames(ii)
       call getChild(node, speciesName, speciesNode)
       call readSpeciesBasis(speciesNode, this%basis%basisResolution, this%basis%basis(ii), &
-        & this%basis%referenceOccupations(:, ii))
-      this%aNr%atomicNumbers(ii) = this%basis%basis(ii)%atomicNumber
+        & this%basis%referenceOccupations(:, ii), atomicNumber)
+      this%aNr%atomicNumbers(ii) = atomicNumber
     end do
 
   end subroutine readBasis
 
 
   !> Read in basis function for a species.
-  subroutine readSpeciesBasis(node, basisResolution, spBasis, atomicOcc)
+  subroutine readSpeciesBasis(node, basisResolution, spBasis, atomicOcc, atomicNumber)
 
     !> Node containing the basis definition for a species
     type(fnode), pointer :: node
 
-    !> Grid distance for discretising the basis functions
+    !> Grid distance for discretising the basis functions (negative to disable)
     real(dp), intent(in) :: basisResolution
 
     !> Contains the basis on return
@@ -824,6 +823,9 @@ contains
 
     !> Atomic occupations for the species
     real(dp), intent(out) :: atomicOcc(maxExpectedAngMom + 1)
+
+    !> Atomic number of the species
+    integer, intent(out) :: atomicNumber
 
     !! Input node instances, containing the information
     type(fnode), pointer :: tmpNode, child
@@ -837,28 +839,47 @@ contains
     !! Basis coefficients and exponents
     real(dp), allocatable :: coeffs(:), exps(:)
 
-    !! Auxiliary variable
-    integer :: ii
+    !! Auxiliary variables
+    integer :: ii, nOrbitals, angMom
     real(dp) :: cutoff
+    logical :: useTabulatedRadial
+    type(string) :: orbitalType
+    ! Orbitals
+    type(TSlaterOrbital) :: sto
+    type(TRadialTableOrbital) :: lut
 
-    call getChildValue(node, "AtomicNumber", spBasis%atomicNumber)
+    useTabulatedRadial = basisResolution > 0.0_dp
+
+    call getChildValue(node, "AtomicNumber", atomicNumber)
     call getChildren(node, "Orbital", children)
-    spBasis%nOrb = getLength(children)
+    nOrbitals = getLength(children)
 
-    if (spBasis%nOrb < 1) then
+    if (nOrbitals < 1) then
       call detailedError(node, "Missing orbital definitions")
     end if
 
-    allocate(spBasis%stos(spBasis%nOrb))
-
-    do ii = 1, spBasis%nOrb
+    do ii = 1, nOrbitals
       call getItem1(children, ii, tmpNode)
-      call getChildValue(tmpNode, "AngularMomentum", spBasis%stos(ii)%angMom)
-      @:ASSERT(spBasis%stos(ii)%angMom == ii - 1)
+      call getChildValue(tmpNode, "Type", orbitalType, "TSlaterOrbital")
+      
+      ! Allocate orbital of the correct type
+      if (.not. allocated(spBasis%orbitals)) then
+        if (useTabulatedRadial) then
+          allocate(TRadialTableOrbital :: spBasis%orbitals(nOrbitals))
+        else
+          select case (unquote(char(orbitalType)))
+          case ("TSlaterOrbital")
+            allocate(TSlaterOrbital :: spBasis%orbitals(nOrbitals))
+          case default
+            call detailedError(tmpNode, "Unknown orbital type")
+          end select
+        end if
+      end if
+
+      call getChildValue(tmpNode, "AngularMomentum", angMom)
+      call getChildValue(tmpNode, "Cutoff", cutoff)
 
       call getChildValue(tmpNode, "Occupation", atomicOcc(ii), child=child)
-      call getChildValue(tmpNode, "Cutoff", cutoff)
-      !spBasis%stos(ii)%cutoffSq = cutoff ** 2
       call init(bufferExps)
 
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
@@ -879,8 +900,18 @@ contains
       allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
       call destruct(bufferCoeffs)
-      call spBasis%stos(ii)%init(reshape(coeffs, [size(coeffs) / size(exps),&
-          & size(exps)]), exps, ii - 1, basisResolution, cutoff, useRadialLut=.true.)
+      
+      select case (unquote(char(orbitalType)))
+      case ("TSlaterOrbital")
+        call sto%init(reshape(coeffs, [size(coeffs)/size(exps), size(exps)]), exps, angMom, cutoff)
+        if (useTabulatedRadial) then
+          call lut%initFromOrbital(sto, basisResolution)
+          spBasis%orbitals(ii) = lut
+        else
+          spBasis%orbitals(ii) = sto
+        end if
+      end select
+
       deallocate(exps, coeffs)
     end do
 

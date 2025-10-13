@@ -7,9 +7,9 @@
 
 #:include "fortuno_serial.fypp"
 
-module test_wavegrid_slater
+module test_wavegrid_radial
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
-  use dftbp_wavegrid, only : TSlaterOrbital
+  use dftbp_wavegrid_basis, only : TRadialTableOrbital
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -25,8 +25,8 @@ module test_wavegrid_slater
 contains
   !> Check if initialisation from LUT and subsequent 
   !! Access works as expected.
-  $:TEST("slater_fromLut")
-    type(TSlaterOrbital) :: sto
+  $:TEST("TRadialTableOrbital_initFromArray")
+    type(TRadialTableOrbital) :: sto
     real(dp) :: r, val, expected
     integer :: i
     integer, parameter :: angMom = 0 ! Only relevant for realTessY
@@ -45,7 +45,7 @@ contains
       ], [2,7])
 
 
-    call sto%initFromLut(gridValue, gridDist, angMom)
+    call sto%initFromArray(gridValue, gridDist, angMom)
     @:ASSERT(sto%angMom == angMom)
 
     do i = 1, size(checkedPairs, 2)
@@ -62,7 +62,7 @@ contains
     type(test_list) :: tests
 
     tests = test_list([&
-        suite("slater", test_list([&
+        suite("radial", test_list([&
             $:TEST_ITEMS()
         ]))&
     ])
@@ -70,4 +70,4 @@ contains
 
   end function tests
 
-end module test_wavegrid_slater
+end module test_wavegrid_radial

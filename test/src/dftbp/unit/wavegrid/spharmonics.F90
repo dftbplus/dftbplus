@@ -11,7 +11,7 @@ module test_wavegrid_spharmonics
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
   use test_wavegrid_spharmonics_ref, only : spotCheck, spotChecks_l0, spotChecks_l1, &
     & spotChecks_l2, spotChecks_l3, spotChecks_l4, atol
-  use dftbp_wavegrid, only : realTessY
+  use dftbp_wavegrid_basis, only : realTessY
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none

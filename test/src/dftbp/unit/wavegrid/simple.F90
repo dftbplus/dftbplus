@@ -43,11 +43,10 @@ module test_wavegrid_simple
     logical :: useGPU = .false. 
   end type
 
-  !> All 4 combinations of LUT/Direct STO and CPU/GPU
-  #:set configCount = 4 if WITH_CUDA else 2
+  !> All 3 combinations of CPU LUT/Direct abd GPU LUT.
+  #:set configCount = 3 if WITH_CUDA else 2
   type(TLaunchConfig), parameter :: launchConfigs(${configCount}$) = [ &
     #:if WITH_CUDA
-      TLaunchConfig(.false., .true.), & ! Direct GPU
       TLaunchConfig(.true.,  .true.), & ! LUT GPU
     #:endif
       TLaunchConfig(.false., .false.), & ! Direct CPU

@@ -10,7 +10,7 @@
 
 !> Real spherical harmonics up to l=4.
 !! See also: spharmonics.cuh
-module dftbp_wavegrid_molorb_spharmonics
+module dftbp_wavegrid_basis_spharmonics
   use dftbp_common_accuracy, only : dp
   implicit none
 
@@ -133,4 +133,4 @@ contains
   end function realTessY
 
 
-end module dftbp_wavegrid_molorb_spharmonics
+end module dftbp_wavegrid_basis_spharmonics
