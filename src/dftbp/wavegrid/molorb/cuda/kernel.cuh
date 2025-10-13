@@ -48,21 +48,12 @@ typedef struct {
 
 // Basis parameters describing orbitals
 typedef struct {
-    const bool useRadialLut;
-    const int  nStos;
-    const int  nLutPoints;
-
+    const int     nOrbitals;
+    const int     nLutPoints;
     const double  inverseLutStep;
-    const double* lutGridValues;  // [nStos][nLutPoints]
-
-    const int     maxNPows;
-    const int     maxNAlphas;
-    const int*    angMoms;    // [nStos]
-    const int*    nPows;      // [nStos]
-    const int*    nAlphas;    // [nStos]
-    const double* cutoffsSq;  // [nStos]
-    const double* coeffs;     // [maxNPows][maxNAlphas][nStos]
-    const double* alphas;     // [maxNAlphas][nStos]
+    const double* lutGridValues;  // [nOrbitals][nLutPoints]
+    const int*    angMoms;        // [nOrbitals]
+    const double* cutoffsSq;      // [nOrbitals]
 } StoBasisParams;
 
 // Coefficient Input and Control Flags

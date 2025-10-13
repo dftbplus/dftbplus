@@ -113,21 +113,21 @@ class DeviceBuffer {
 /*
  * We implement the LUT as a 2D texture with a single float channel.
  * The radial Functions are stored row-wise.
- * We assume identical radial grids for all STOs.
+ * We assume identical radial grids for all Orbitals.
  * GPUs have dedicated hardware for texture access & interpolation.
  */
 class GpuLutTexture {
    public:
-    GpuLutTexture(const double* lutData, int nPoints, int nStos) {
+    GpuLutTexture(const double* lutData, int nPoints, int nOrbitals) {
         // Convert the Fortran passed doubles to floats
-        size_t             totalValues = (size_t)nStos * nPoints;
+        size_t             totalValues = (size_t)nOrbitals * nPoints;
         std::vector<float> lutFloats(totalValues);
         for (size_t i = 0; i < totalValues; ++i)
             lutFloats[i] = static_cast<float>(lutData[i]);
 
         // Allocate memory on device
         cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
-        CHECK_CUDA(cudaMallocArray(&_lutArray, &channelDesc, nPoints, nStos, 0));
+        CHECK_CUDA(cudaMallocArray(&_lutArray, &channelDesc, nPoints, nOrbitals, 0));
 
         // Copy data to array
         CHECK_CUDA(cudaMemcpy2DToArray(_lutArray,  // dst array
@@ -136,7 +136,7 @@ class GpuLutTexture {
             lutFloats.data(),         // src pointer
             nPoints * sizeof(float),  // src pitch (for alignment, bytes to next row)
             nPoints * sizeof(float),  // width in bytes
-            nStos,                    // height (number of cached stos)
+            nOrbitals,                    // height (number of cached orbitals)
             cudaMemcpyHostToDevice));
 
         // Prepare texture object properties
@@ -146,7 +146,7 @@ class GpuLutTexture {
 
         cudaTextureDesc texDesc{};
         // OOB access clamped to edge values
-        // (Should not occur if sto_cutoffs are set correctly)
+        // (Should not occur if orb_cutoffs are set correctly)
         texDesc.addressMode[0] = cudaAddressModeClamp;
         texDesc.addressMode[1] = cudaAddressModeClamp;
         // Enable linear interpolation
@@ -192,15 +192,11 @@ struct DeviceData {
     DeviceBuffer<int>      kIndexes;
     DeviceBuffer<complexd> phases;
 
-    // STO Basis
-    DeviceBuffer<int>    sto_angMoms;
-    DeviceBuffer<int>    sto_nPows;
-    DeviceBuffer<int>    sto_nAlphas;
-    DeviceBuffer<double> sto_cutoffsSq;
-    DeviceBuffer<double> sto_coeffs;
-    DeviceBuffer<double> sto_alphas;
+    // Basis
+    DeviceBuffer<int>    orb_angMoms;
+    DeviceBuffer<double> orb_cutoffsSq;
     // Texture for radial LUT
-    std::unique_ptr<GpuLutTexture> sto_lut;
+    std::unique_ptr<GpuLutTexture> orb_lut;
 
     // Eigenvectors
     DeviceBuffer<double>   eigVecsReal;
@@ -218,19 +214,11 @@ struct DeviceData {
           coords(system->coords, (size_t)3 * system->nAtom * system->nCell),
           species(system->species, system->nAtom),
           iStos(system->iStos, system->nSpecies + 1),
-          sto_angMoms(basis->angMoms, basis->nStos),
-          sto_cutoffsSq(basis->cutoffsSq, basis->nStos) {
-        if (basis->useRadialLut) {
-            if (DEBUG) printf("Using radial LUT with %d points for %d STOs\n", basis->nLutPoints, basis->nStos);
-            sto_lut = std::unique_ptr<GpuLutTexture>(
-                new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nStos));
-        } else {
-            if (DEBUG) printf("Using direct STO evaluation for %d STOs\n", basis->nStos);
-            sto_nPows.assign(basis->nPows, basis->nStos);
-            sto_nAlphas.assign(basis->nAlphas, basis->nStos);
-            sto_coeffs.assign(basis->coeffs, (size_t)basis->maxNPows * basis->maxNAlphas * basis->nStos);
-            sto_alphas.assign(basis->alphas, (size_t)basis->maxNAlphas * basis->nStos);
-        }
+          orb_angMoms(basis->angMoms, basis->nOrbitals),
+          orb_cutoffsSq(basis->cutoffsSq, basis->nOrbitals) {
+        if (DEBUG) printf("Using radial LUT with %d points for %d orbitals\n", basis->nLutPoints, basis->nOrbitals);
+        orb_lut = std::unique_ptr<GpuLutTexture>(
+            new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals));
 
         if (calc->isRealInput) {
             eigVecsReal.assign(calc->eigVecsReal, (size_t)system->nOrb * calc->nEigIn);
@@ -272,18 +260,13 @@ struct DeviceKernelParams {
     const int*      kIndexes;
     const complexd* phases;
 
-    // STO Basis
-    int nStos, maxNPows, maxNAlphas;
+    // Basis
+    int nOrbitals, maxNPows, maxNAlphas;
     // Texture LUTs
     cudaTextureObject_t lutTex;
     double              inverseLutStep;
-    // STO parameters
-    const int*    sto_angMoms;
-    const int*    sto_nPows;
-    const int*    sto_nAlphas;
-    const double* sto_cutoffsSq;
-    const double* sto_coeffs;
-    const double* sto_alphas;
+    const int*          orb_angMoms;
+    const double*       orb_cutoffsSq;
 
     // Eigenvectors
     int             nEig, nEig_per_pass;
@@ -314,22 +297,12 @@ struct DeviceKernelParams {
         species = data.species.get();
         iStos   = data.iStos.get();
 
-        // STO Basis
-        nStos         = basis->nStos;
-        sto_angMoms   = data.sto_angMoms.get();
-        sto_cutoffsSq = data.sto_cutoffsSq.get();
-
-        if (basis->useRadialLut) {
-            lutTex         = data.sto_lut->get();
-            inverseLutStep = basis->inverseLutStep;
-        } else {
-            maxNPows    = basis->maxNPows;
-            maxNAlphas  = basis->maxNAlphas;
-            sto_nPows   = data.sto_nPows.get();
-            sto_nAlphas = data.sto_nAlphas.get();
-            sto_coeffs  = data.sto_coeffs.get();
-            sto_alphas  = data.sto_alphas.get();
-        }
+        // Basis
+        nOrbitals      = basis->nOrbitals;
+        orb_angMoms    = data.orb_angMoms.get();
+        orb_cutoffsSq  = data.orb_cutoffsSq.get();
+        lutTex         = data.orb_lut->get();
+        inverseLutStep = basis->inverseLutStep;
 
         // Periodic boundary conditions
         isPeriodic = periodic->isPeriodic;

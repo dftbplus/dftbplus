@@ -13,7 +13,7 @@
 module dftbp_wavegrid_molorb
   use dftbp_wavegrid_molorb_parallel, only : evaluateParallel
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
-  use dftbp_wavegrid_slater, only : TSlaterOrbital
+  use dftbp_wavegrid_basis, only : TOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
   use dftbp_dftb_boundarycond, only : TBoundaryConds
@@ -32,7 +32,7 @@ module dftbp_wavegrid_molorb
     !> Periodic boundary conditions
     type(TPeriodicParams) :: periodic
     !> Basis set in AoS format
-    type(TSlaterOrbital), allocatable :: stos(:)
+    class(TOrbital), allocatable :: orbitals(:)
     !> Boundary conditions handler for coordinate recalculation
     type(TBoundaryConds) :: boundaryCond
 
@@ -47,14 +47,10 @@ module dftbp_wavegrid_molorb
     procedure :: initPeriodic
   end type TMolecularOrbital
 
-  !> Data type containing information about the basis for a species.
+  !> Basis set for one species
   type TSpeciesBasis
-    !> Atomic number of the species
-    integer :: atomicNumber
-    !> Nr. of orbitals
-    integer :: nOrb
-    !> STO for each orbital
-    type(TSlaterOrbital), allocatable :: stos(:)
+    !> Array of orbitals for this species
+    class(TOrbital), allocatable :: orbitals(:)
   end type TSpeciesBasis
 
   !> Returns the value of one or more molecular orbitals on a grid
@@ -101,7 +97,7 @@ contains
     
     call this%initSpeciesMapping(geometry, basisInput)
     call this%flattenBasis(basisInput)
-    call this%initPeriodic(geometry, maxCutoff(this%stos))
+    call this%initPeriodic(geometry, sqrt(maxval(this%orbitals%cutoffSq)))
     call this%updateCoords(geometry)
 
     this%isInitialised = .true.
@@ -109,7 +105,7 @@ contains
 
 
   !> Initialises non-geometric system parameters 
-  !! Counts total number of orbitals and STOs and creates index maps.
+  !! Counts total number of orbitals and Orbitals and creates index maps.
   subroutine initSpeciesMapping(this, geometry, basis)
     class(TMolecularOrbital), intent(inout) :: this
     type(TGeometry), intent(in) :: geometry
@@ -125,12 +121,12 @@ contains
     this%system%species(:) = geometry%species
 
 
-    ! Create STO index map: iStos(i) points to the first STO of species i
+    ! Create Orbital index map: iStos(i) points to the first Orbital of species i
     allocate(this%system%iStos(this%system%nSpecies + 1))
     ind = 1
     do iSpec = 1, this%system%nSpecies
       this%system%iStos(iSpec) = ind
-      ind = ind + basis(iSpec)%nOrb
+      ind = ind + size(basis(iSpec)%orbitals)
     end do
     this%system%iStos(this%system%nSpecies + 1) = ind
 
@@ -138,8 +134,8 @@ contains
     nOrbTotal = 0
     do iAtom = 1, this%system%nAtom
       iSpec = this%system%species(iAtom)
-      do iOrb = 1, basis(iSpec)%nOrb
-        angMom = basis(iSpec)%stos(iOrb)%angMom
+      do iOrb = 1, size(basis(iSpec)%orbitals)
+        angMom = basis(iSpec)%orbitals(iOrb)%angMom
         nOrbTotal = nOrbTotal + 1 + 2 * angMom
       end do
     end do
@@ -149,19 +145,28 @@ contains
   end subroutine initSpeciesMapping
 
 
-  !> Flattens the basis set into an array of STOs. 
+  !> Flattens the basis set into an array of Orbitals. 
   subroutine flattenBasis(this, basisInput)
     class(TMolecularOrbital), intent(inout) :: this
     type(TSpeciesBasis), intent(in) :: basisInput(:)
-    integer :: iSpec, ind, nStos
-    nStos = sum(basisInput(:)%nOrb)
+    integer :: iSpec, iOrb, ind, nOrbitals
+    
+    ! Count total number of Orbitals
+    nOrbitals = 0
+    do iSpec = 1, this%system%nSpecies
+      nOrbitals = nOrbitals + size(basisInput(iSpec)%orbitals)
+    end do
 
-    ! Flatten the basis array
-    allocate(this%stos(nStos))
+    ! Allocate flat array
+    allocate(this%orbitals(nOrbitals), mold=basisInput(1)%orbitals(1))
+
+    ! Copy all Orbitals into array
     ind = 1
     do iSpec = 1, this%system%nSpecies
-      this%stos(ind:ind+basisInput(iSpec)%nOrb-1) = basisInput(iSpec)%stos(:)
-      ind = ind + basisInput(iSpec)%nOrb
+      do iOrb = 1, size(basisInput(iSpec)%orbitals)
+        this%orbitals(ind) = basisInput(iSpec)%orbitals(iOrb)
+        ind = ind + 1
+      end do
     end do
   end subroutine flattenBasis
 
@@ -258,7 +263,7 @@ contains
   subroutine TMolecularOrbital_getValue_real(this, eigVecsReal, valueOnGrid, useGPU)
     !> MolecularOrbital data instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
@@ -274,7 +279,7 @@ contains
   subroutine TMolecularOrbital_getTotalChrg_real(this, eigVecsReal, valueOnGrid, occupationVec, useGPU)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
@@ -288,11 +293,11 @@ contains
   end subroutine TMolecularOrbital_getTotalChrg_real
 
 
-  !> Calculates the atomic densities by squaring each STO *before* summation.
+  !> Calculates the atomic densities by squaring each Orbital *before* summation.
   subroutine TMolecularOrbital_getAtomicDensities_real(this, eigVecsReal, valueOnGrid, useGPU)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
@@ -308,7 +313,7 @@ contains
   subroutine TMolecularOrbital_getValue_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, useGPU)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -330,7 +335,7 @@ contains
   subroutine TMolecularOrbital_getTotalChrg_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, occupationVec, useGPU)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -358,7 +363,7 @@ contains
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
@@ -380,6 +385,7 @@ contains
 
     @:ASSERT(this%isInitialised)
     @:ASSERT(all(shape(valueOnGrid) > [0, 0, 0, 0]))
+    print *, this%system%nOrb, "orbitals,", size(eigVecsReal, dim=1), "states"
     @:ASSERT(size(eigVecsReal, dim=1) == this%system%nOrb)
     @:ASSERT(.not. (ctx%calcAtomicDensity .and. ctx%calcTotalChrg))
 
@@ -390,7 +396,7 @@ contains
       @:ASSERT(size(eigVecsReal, dim=2) == size(valueOnGrid, dim=4))
     end if
 
-    call evaluateParallel(this%system, this%periodic, kIndexes, phases, this%stos, &
+    call evaluateParallel(this%system, this%periodic, kIndexes, phases, this%orbitals, &
         & ctx, eigVecsReal, eigVecsCmpl, valueOnGrid, valueCmpl, occupationVec)
 
   end subroutine TMolecularOrbital_getValue_real_generic
@@ -402,7 +408,7 @@ contains
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
-    !> Summation coefficients for the STOs
+    !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -450,25 +456,11 @@ contains
       phases(1,:) = (1.0_dp, 0.0_dp)
     end if
 
-    call evaluateParallel(this%system, this%periodic, kIndexes, phases, this%stos, &
+    call evaluateParallel(this%system, this%periodic, kIndexes, phases, this%orbitals, &
       & ctx, eigVecsReal, eigVecsCmpl, valueOutReal, valueOutCmplx, occupationVec)
 
   end subroutine TMolecularOrbital_getValue_cmpl_generic
 
 
-  function maxCutoff(stos) result(maxCut)
-    type(TSlaterOrbital), intent(in) :: stos(:)
-    real(dp) :: maxCut
-    real(dp) :: maxCutSq
-    integer :: iSto
-
-    maxCutSq = 0.0_dp
-    do iSto = 1, size(stos)
-      if (stos(iSto)%cutoffSq > maxCutSq) then
-        maxCutSq = stos(iSto)%cutoffSq
-      end if
-    end do
-    maxCut = sqrt(maxCutSq)
-  end function maxCutoff
 
 end module dftbp_wavegrid_molorb

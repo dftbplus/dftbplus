@@ -29,3 +29,45 @@
 // Enable additional print statements
 #define DEBUG 0
 
+/**
+ * @brief Multiplies a 3x3 matrix with a 3D vector.
+ * @param mat    The 3x3 matrix.
+ * @param vec    The 3D vector.
+ * @param result The resulting 3D vector after multiplication.
+ */
+__device__ __forceinline__ void matmul3x3_vec(const double mat[3][3], const double vec[3], double result[3]) {
+    for (int i = 0; i < 3; i++) {
+        result[i] = mat[i][0] * vec[0] + mat[i][1] * vec[1] + mat[i][2] * vec[2];
+    }
+}
+
+/**
+ * @brief Multiplies a 3D vector with a 3x3 matrix.
+ * @param vec    The 3D vector.
+ * @param mat    The 3x3 matrix. 
+ * @param result The resulting 3D vector after multiplication.
+ */
+__device__ __forceinline__ void vecmul3x3_mat(const double vec[3], const double mat[3][3], double result[3]) {
+    for (int i = 0; i < 3; i++) {
+        result[i] = vec[0] * mat[0][i] + vec[1] * mat[1][i] + vec[2] * mat[2][i];
+    }
+}
+
+
+/**
+ * @brief Folds coordinates into the unit cell by discarding non-fractional part in lattice vector multiples.
+ * @param xyz         The 3D coordinates to be folded (input and output).
+ * @param latVecs     The lattice vectors (3x3 matrix).
+ * @param recVecs2p   Inverse of the lattice vecs (3x3 matrix, reciprocal lattice vectors divided by 2pi)
+ */
+__device__ __forceinline__ void foldCoordsIntoCell(
+    double xyz[3], const double latVecs[3][3], const double recVecs2p[3][3]) {
+    double frac[3];
+    vecmul3x3_mat(xyz, recVecs2p, frac);
+
+    for (int i = 0; i < 3; i++) {
+        frac[i] -= floor(frac[i]);
+    }
+
+    matmul3x3_vec(latVecs, frac, xyz);
+}

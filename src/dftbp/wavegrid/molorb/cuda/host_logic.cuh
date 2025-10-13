@@ -35,7 +35,6 @@ class GpuLaunchConfig {
     const bool isRealInput;
     const bool calcAtomicDensity;
     const bool calcTotalChrg;
-    const bool useRadialLut;
 
 
     /** 
@@ -45,15 +44,13 @@ class GpuLaunchConfig {
      * @param numGpus       Total number of GPUs used for splitting the work.
      * @param grid          Pointer to the GridParams structure containing grid dimensions.
      * @param calc          Pointer to the CalculationParams structure containing calculation flags.
-     * @param useRadialLut  Flag indicating whether to use radial lookup table for sto evaluation.
      * @return A GpuLaunchConfig structure with the calculated parameters for the specified GPU.
      */
-    GpuLaunchConfig(int deviceId, int numGpus, const GridParams* grid, const CalculationParams* calc, bool useRadialLut):
+    GpuLaunchConfig(int deviceId, int numGpus, const GridParams* grid, const CalculationParams* calc):
         deviceId(deviceId),
         isRealInput(calc->isRealInput),
         calcAtomicDensity(calc->calcAtomicDensity),
-        calcTotalChrg(calc->calcTotalChrg),
-        useRadialLut(useRadialLut)
+        calcTotalChrg(calc->calcTotalChrg)
     {
         // Evenly split Z-slices among GPUs
         distribute_z_slices(deviceId, numGpus, grid);

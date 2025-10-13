@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains private data types for bundling input parameters to the molecular orbital calculator.
+!> Contains private internal data types for bundling input parameters to the molecular orbital calculator.
 module dftbp_wavegrid_molorb_types
   use dftbp_common_accuracy, only : dp
 

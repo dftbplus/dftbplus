@@ -14,7 +14,6 @@
 #include "kernel.cuh"
 #include "host_logic.cuh"
 #include "device_params.cuh"
-#include "slater.cuh"
 #include "spharmonics.cuh"
 #include "utils.cuh"
 
@@ -27,16 +26,15 @@ using complexd = thrust::complex<double>;
  * @brief Main Molorb CUDA Kernel
  *
  * The kernel calculation closely follows the (easier to read) CPU implementation in parallel.F90.
+ * To simplify maintenance, the radial functions are calculated in Fortran and passed as a lookup table.
  * Main differences arise due to the GPU architecture:
  * - We use shared memory to accumulate results per thread, which is much faster than global memory.
  * - Because shared memory is limited, we have to chunk the eigenstates into nEig_per_pass pieces.
  *   This means the spatial calculation is repeated for each chunk, but the accumulation is fast.
- * - The radial function lookup table uses hardware accelerated texture interpolation (if enabled).
- * - To avoid branching (dropped at compile time), we template the kernel 16 ways on boolean flags:
+ * - The radial function lookup table uses hardware accelerated texture memory interpolation.
+ * - To avoid branching (dropped at compile time), we template the kernel on boolean flags:
  *
  * @tparam isRealInput       whether real/complex eigenvectors are used (and adds phases).
- * @tparam useRadialLut      whether to use texture memory interpolation for the STO radial functions.
- * @tparam isPeriodic        enables folding of coords into the unit cell.
  * @tparam calcAtomicDensity squares the basis wavefunction contributions. In this case, the
  *                           occupation should be passed as the eigenvector.
  * @tparam calcTotalChrg     accumulates the density over all states in valueReal_out of shape (x,y,z,1).
@@ -44,7 +42,7 @@ using complexd = thrust::complex<double>;
  *
  * @param p The DeviceKernelParams struct containing all necessary parameters for the kernel.
  */
-template <bool isRealInput, bool calcAtomicDensity, bool calcTotalChrg, bool useRadialLut>
+template <bool isRealInput, bool calcAtomicDensity, bool calcTotalChrg>
 __global__ void evaluateKernel(const DeviceKernelParams p) {
     using AccumT = typename std::conditional<(isRealInput), double, complexd>::type;
 
@@ -98,22 +96,17 @@ __global__ void evaluateKernel(const DeviceKernelParams p) {
                 double rr = diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
 
                 for (int iOrb = p.iStos[iSpecies] - 1; iOrb < p.iStos[iSpecies + 1] - 1; ++iOrb) {
-                    int iL = p.sto_angMoms[iOrb];
+                    int iL = p.orb_angMoms[iOrb];
                     // Skip calculating all -l...+l orbitals if outside cutoff
-                    if (rr > p.sto_cutoffsSq[iOrb]) {
+                    if (rr > p.orb_cutoffsSq[iOrb]) {
                         orbital_idx_counter += 2 * iL + 1;
                         continue;
                     }
                     double r = sqrt(rr);
 
-                    double radialVal;
-                    if constexpr (useRadialLut) {
-                        double lut_pos = 0.5 + r * p.inverseLutStep; // Add 0.5 to adress texel center (imagine pixels)
-                        radialVal      = (double)tex2D<float>(p.lutTex, lut_pos, (float)iOrb + 0.5f);
-                    } else {
-                        radialVal = getRadialValue(r, iL, iOrb, p.sto_nPows[iOrb], p.sto_nAlphas[iOrb], p.sto_coeffs,
-                            p.sto_alphas, p.maxNPows, p.maxNAlphas);
-                    }
+                    double lut_pos   = 0.5 + r * p.inverseLutStep; // Add 0.5 to adress texel center (imagine pixels)
+                    double radialVal = (double)tex2D<float>(p.lutTex, lut_pos, (float)iOrb + 0.5f);
+
 
                     // precompute inverse used across several realTessY calls
                     double inv_r  = (r < INV_R_EPSILON) ? 0.0 : 1.0 / r;
@@ -180,13 +173,12 @@ __global__ void evaluateKernel(const DeviceKernelParams p) {
  * @param grid_size Total number of thread blocks to launch.
  */
 void dispatchKernel(const DeviceKernelParams* params, GpuLaunchConfig config, int grid_size) {
-#define CALL_KERNEL(isReal, doAtomic, doChrg, useLut) \
-    evaluateKernel<isReal, doAtomic, doChrg, useLut><<<grid_size, THREADS_PER_BLOCK, config.shared_mem_for_pass>>>(*params);
+#define CALL_KERNEL(isReal, doAtomic, doChrg) \
+    evaluateKernel<isReal, doAtomic, doChrg><<<grid_size, THREADS_PER_BLOCK, config.shared_mem_for_pass>>>(*params);
 
     int idx = (config.isRealInput       ? 1 : 0)
             + (config.calcAtomicDensity ? 2 : 0)
-            + (config.calcTotalChrg     ? 4 : 0)
-            + (config.useRadialLut      ? 8 : 0);
+            + (config.calcTotalChrg     ? 4 : 0);
 
     // Refrain from compiling invalid combinations
     if(config.calcAtomicDensity && config.calcTotalChrg)
@@ -195,16 +187,11 @@ void dispatchKernel(const DeviceKernelParams* params, GpuLaunchConfig config, in
         throw std::runtime_error("Error: calcAtomicDensity requires real input vectors.\n");
 
     switch (idx) {
-        case 0:  CALL_KERNEL(false, false, false, false); break;
-        case 1:  CALL_KERNEL(true,  false, false, false); break;
-        case 3:  CALL_KERNEL(true,  true,  false, false); break;
-        case 4:  CALL_KERNEL(false, false, true,  false); break;
-        case 5:  CALL_KERNEL(true,  false, true,  false); break;
-        case 8:  CALL_KERNEL(false, false, false, true); break;
-        case 9:  CALL_KERNEL(true,  false, false, true); break;
-        case 11: CALL_KERNEL(true,  true,  false, true); break;
-        case 12: CALL_KERNEL(false, false, true,  true); break;
-        case 13: CALL_KERNEL(true,  false, true,  true); break;
+        case 0:  CALL_KERNEL(false, false, false); break;
+        case 1:  CALL_KERNEL(true,  false, false); break;
+        case 3:  CALL_KERNEL(true,  true,  false); break;
+        case 4:  CALL_KERNEL(false, false, true ); break;
+        case 5:  CALL_KERNEL(true,  false, true ); break;
         default: throw std::runtime_error("Error: invalid kernel configuration index.\n");
     }
 #undef CALL_KERNEL
@@ -229,8 +216,6 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
     const StoBasisParams* basis, const CalculationParams* calc) {
     try {
         // We currently assume a hardcoded maximum for the number of powers.
-        if (!basis->useRadialLut && basis->maxNPows > STO_MAX_POWS)
-            throw std::runtime_error("Error: STO basis maxNPows exceeds STO_MAX_POWS.\n");
         if (calc->nEigIn * grid->nPointsX * grid->nPointsY * grid->nPointsZ == 0)
             throw std::runtime_error("Error: Zero-sized dimension in input parameters.\n");
         if (calc->calcTotalChrg && calc->nEigOut != 1)
@@ -259,8 +244,12 @@ extern "C" void evaluate_on_device_c(const GridParams* grid, const SystemParams*
         #pragma omp parallel num_threads(numGpus)
         {
             int deviceId = omp_get_thread_num();
-            GpuLaunchConfig config(deviceId, numGpus, grid, calc, basis->useRadialLut);
-            if(DEBUG) config.print_summary(grid, calc);
+            GpuLaunchConfig config(deviceId, numGpus, grid, calc);
+
+            if(DEBUG) {
+                #pragma omp critical
+                config.print_summary(grid, calc);
+            }
 
             threadTimings = runBatchOnDevice(config, grid, system, periodic, basis, calc);
             if (deviceId == 0) timings = threadTimings;
