@@ -1930,7 +1930,7 @@ contains
     if (allocated(input%ctrl%electricField)) then
       allocate(this%eField%EFieldStrength)
       this%eField%EFieldStrength = input%ctrl%electricField%EFieldStrength
-      this%eField%EfieldVector(:) = input%ctrl%electricField%EfieldVector(:)
+      this%eField%EfieldVector(:) = input%ctrl%electricField%EfieldVector
       this%eField%isTDEfield = input%ctrl%electricField%isTDEfield
       this%eField%EfieldOmega = input%ctrl%electricField%EfieldOmega
       this%eField%EfieldPhase = input%ctrl%electricField%EfieldPhase

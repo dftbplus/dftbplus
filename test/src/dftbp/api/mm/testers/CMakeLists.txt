@@ -44,6 +44,9 @@ target_link_libraries(test_extpot2 dftbplus)
 add_executable(test_extcharges test_extcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_extcharges dftbplus)
 
+add_executable(test_extefield test_extefield.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_extefield dftbplus)
+
 add_executable(test_intcharges test_intcharges.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_intcharges dftbplus)
 
