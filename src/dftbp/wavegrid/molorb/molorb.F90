@@ -225,9 +225,9 @@ contains
   end subroutine TMolecularOrbital_updateCoords
 
   !> Bundles input flags / flattens optional arguments into a calculation context struct.
-  function bundleFlags(isRealInput, addAtomicDensities, useGPU, occupationVec) result(ctx)
+  function bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec) result(ctx)
     logical, intent(in) :: isRealInput
-    logical, intent(in), optional :: addAtomicDensities, useGPU
+    logical, intent(in), optional :: addAtomicDensities, useGpu
     real(dp), intent(in), optional :: occupationVec(:)
     type(TCalculationContext) :: ctx
 
@@ -244,12 +244,12 @@ contains
     end if
     
     ctx%runOnGPU = .false.
-    if (present(useGPU)) then
+    if (present(useGpu)) then
       #:if WITH_CUDA
-        ctx%runOnGPU = useGPU
+        ctx%runOnGPU = useGpu
       #:else
-      if (useGPU) then
-        call error("GPU offloading requested (useGPU=.true.), but not available in this build. (missing WITH_CUDA)")
+      if (useGpu) then
+        call error("GPU offloading requested (useGpu=.true.), but not available in this build. (missing WITH_CUDA)")
       end if
       #:endif
     end if
@@ -260,7 +260,7 @@ contains
 
 
   !> Returns molecular orbitals on a real grid. 
-  subroutine TMolecularOrbital_getValue_real(this, eigVecsReal, valueOnGrid, useGPU)
+  subroutine TMolecularOrbital_getValue_real(this, eigVecsReal, valueOnGrid, useGpu)
     !> MolecularOrbital data instance
     type(TMolecularOrbital), intent(in) :: this
     !> Summation coefficients for the Orbitals
@@ -268,15 +268,15 @@ contains
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
   
-    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGPU)
+    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGpu)
   end subroutine TMolecularOrbital_getValue_real
 
 
   !> Returns the total charge density on a grid.
   !> This squares each state and sums them up weighted by occupationVec.
-  subroutine TMolecularOrbital_getTotalChrg_real(this, eigVecsReal, valueOnGrid, occupationVec, useGPU)
+  subroutine TMolecularOrbital_getTotalChrg_real(this, eigVecsReal, valueOnGrid, occupationVec, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
     !> Summation coefficients for the Orbitals
@@ -286,15 +286,15 @@ contains
     !> Calculate total charge. Coefficients for each squared state.
     real(dp), intent(in) :: occupationVec(:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
   
-    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGPU, &
+    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGpu, &
         & addAtomicDensities=.false., occupationVec=occupationVec)
   end subroutine TMolecularOrbital_getTotalChrg_real
 
 
   !> Calculates the atomic densities by squaring each Orbital *before* summation.
-  subroutine TMolecularOrbital_getAtomicDensities_real(this, eigVecsReal, valueOnGrid, useGPU)
+  subroutine TMolecularOrbital_getAtomicDensities_real(this, eigVecsReal, valueOnGrid, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
     !> Summation coefficients for the Orbitals
@@ -302,15 +302,15 @@ contains
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
 
-    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGPU, &
+    call TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGpu, &
         & addAtomicDensities=.true.)
   end subroutine TMolecularOrbital_getAtomicDensities_real
 
 
   !> Returns molecular orbitals on a complex grid.
-  subroutine TMolecularOrbital_getValue_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, useGPU)
+  subroutine TMolecularOrbital_getValue_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
     !> Summation coefficients for the Orbitals
@@ -322,17 +322,17 @@ contains
     !> Molecular orbitals on grid on exit.
     complex(dp), intent(out) :: valueOnGrid(:,:,:,:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
     ! Dummy real arrays
     real(dp) :: dummyReal(0,0,0,0)
 
-    call TMolecularOrbital_getValue_cmpl_generic(this, eigVecsCmpl, kPoints, kIndexes, dummyReal, valueOnGrid, useGPU)
+    call TMolecularOrbital_getValue_cmpl_generic(this, eigVecsCmpl, kPoints, kIndexes, dummyReal, valueOnGrid, useGpu)
 
   end subroutine TMolecularOrbital_getValue_cmpl
 
 
   !> Returns the total charge density on a grid.
-  subroutine TMolecularOrbital_getTotalChrg_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, occupationVec, useGPU)
+  subroutine TMolecularOrbital_getTotalChrg_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, occupationVec, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
     !> Summation coefficients for the Orbitals
@@ -346,11 +346,11 @@ contains
     !> Calculate total charge. Coefficients for each squared state.
     real(dp), intent(in) :: occupationVec(:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
     ! Dummy complex arrays
     complex(dp) :: dummyCmplx(0,0,0,0)
 
-    call TMolecularOrbital_getValue_cmpl_generic(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, dummyCmplx, useGPU, &
+    call TMolecularOrbital_getValue_cmpl_generic(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, dummyCmplx, useGpu, &
         & occupationVec)
 
   end subroutine TMolecularOrbital_getTotalChrg_cmpl
@@ -358,7 +358,7 @@ contains
 
   !> Bundles calls to addAtomicDensities, getTotalChrg and the regular molorb to allow for 
   !> Cleaner public interfaces.
-  subroutine TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGPU, &
+  subroutine TMolecularOrbital_getValue_real_generic(this, eigVecsReal, valueOnGrid, useGpu, &
       & addAtomicDensities, occupationVec)
 
     !> MolecularOrbital instance
@@ -368,7 +368,7 @@ contains
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
     !> Add densities instead of wave functions
     logical, intent(in), optional :: addAtomicDensities
     !> if present, calculate total charge. Coefficients for each squared state
@@ -381,7 +381,7 @@ contains
     logical, parameter :: isRealInput = .true.
     type(TCalculationContext) :: ctx
 
-    ctx = bundleFlags(isRealInput, addAtomicDensities, useGPU, occupationVec)
+    ctx = bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec)
 
     @:ASSERT(this%isInitialised)
     @:ASSERT(all(shape(valueOnGrid) > [0, 0, 0, 0]))
@@ -404,7 +404,7 @@ contains
 
   !> Bundles calls to getValue_cmpl and getTotalChrg_cmpl to allow for cleaner public interfaces.
   subroutine TMolecularOrbital_getValue_cmpl_generic(this, eigVecsCmpl, kPoints, kIndexes, &
-      &  valueOutReal, valueOutCmplx, useGPU, occupationVec)
+      &  valueOutReal, valueOutCmplx, useGpu, occupationVec)
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
@@ -419,7 +419,7 @@ contains
     !> Complex Molecular orbital output grid
     complex(dp), intent(out) :: valueOutCmplx(:,:,:,:)
     !> Enable GPU offloading?
-    logical, intent(in), optional :: useGPU
+    logical, intent(in), optional :: useGpu
     !> Calculate total charge. Coefficients for each squared state
     real(dp), intent(in), optional :: occupationVec(:)
     ! Dummy real arrays
@@ -430,7 +430,7 @@ contains
     logical, parameter :: isRealInput = .false.
     type(TCalculationContext) :: ctx
 
-    ctx = bundleFlags(isRealInput, addAtomicDensities, useGPU, occupationVec)
+    ctx = bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec)
 
     @:ASSERT(this%isInitialised)
     @:ASSERT(.not. (ctx%calcAtomicDensity .and. ctx%calcTotalChrg))

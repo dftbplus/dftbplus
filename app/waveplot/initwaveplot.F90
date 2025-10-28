@@ -11,7 +11,7 @@
 module waveplot_initwaveplot
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
   use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital
-  use waveplot_gridcache, only : TGridCache
+  use waveplot_gridcache, only : TGridCache, TGridCache_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, setDefaultBinaryAccess, TFileDescr
@@ -132,7 +132,7 @@ module waveplot_initwaveplot
     integer, allocatable :: levelIndex(:,:)
 
     !> Whether to enable GPU offloading.
-    logical :: useGPU
+    logical :: useGpu
 
     !> File access types
     character(20) :: binaryAccessTypes(2)
@@ -390,16 +390,16 @@ contains
     ! This avoids cuda memory allocation race conditions in dftbp_wavegrid.
     #:if WITH_MPI
       print *, "Waveplot running with MPI using", env%mpi%globalComm%size, "processes"
-      if(this%opt%useGPU .and. env%mpi%globalComm%size > 1) then
+      if(this%opt%useGpu .and. env%mpi%globalComm%size > 1) then
         call error("Cannot use GPU with multiple MPI processes, please run with only one process")
       end if
     #:endif
 
 
-    call this%loc%grid%init(env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
+    call TGridCache_init(this%loc%grid, env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
         & nKPoint, nSpin, nCached, this%opt%nPoints, this%opt%beVerbose, eigVecBin,&
         & this%loc%gridVec, this%opt%gridOrigin, kPointsWeights(1:3, :), this%input%isRealHam,&
-        & this%loc%pMolOrb, this%opt%useGPU)
+        & this%loc%pMolOrb, this%opt%useGpu)
 
   end subroutine TProgramVariables_init
 
@@ -641,7 +641,7 @@ contains
     call destruct(indexBuffer)
 
     call getChildValue(node, "NrOfCachedGrids", nCached, 1, child=field)
-    call getChildValue(node, "useGPU", this%opt%useGPU, .false., child=field)
+    call getChildValue(node, "useGpu", this%opt%useGpu, .false., child=field)
 
     if (nCached < 1 .and. nCached /= -1) then
       call detailedError(field, "Value must be -1 or greater than zero.")

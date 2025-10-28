@@ -24,7 +24,7 @@ module waveplot_gridcache
   implicit none
 
   private
-  public :: TGridCache
+  public :: TGridCache, TGridCache_init
 
   !> Contains the data for a grid cache.
   type TGridCache
@@ -87,7 +87,7 @@ module waveplot_gridcache
     integer :: nCached
 
     !> Whether to enable GPU offloading.
-    logical :: useGPU
+    logical :: useGpu
 
     !> Cache for real grids
     real(dp), allocatable :: gridCacheReal(:,:,:,:)
@@ -107,8 +107,7 @@ module waveplot_gridcache
     procedure :: TGridCache_next_real
     procedure :: TGridCache_next_cmpl
     generic :: next => TGridCache_next_real, TGridCache_next_cmpl
-    procedure :: init => TGridCache_init
-    procedure :: loadEigenvecs
+    procedure :: loadEigenvecs => TGridCache_loadEigenvecs
 
   end type TGridCache
 
@@ -118,10 +117,10 @@ contains
   !> Initialises a GridCache instance.
   !! Caveat: Level index is not allowed to contain duplicate entries!
   subroutine TGridCache_init(this, env, levelIndexAll, nOrb, nAllLevel, nAllKPoint, nAllSpin, nCached,&
-      & nPoints, beVerbose, eigvecBin, gridVec, origin, kPointCoords, isReal, molorb, useGPU)
+      & nPoints, beVerbose, eigvecBin, gridVec, origin, kPointCoords, isReal, molorb, useGpu)
 
     !> Structure to initialise
-    class(TgridCache), intent(out) :: this
+    class(TGridCache), intent(out) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -169,7 +168,7 @@ contains
     type(TMolecularOrbital), pointer, intent(in) :: molorb
 
     !> Whether to enable GPU offloading
-    logical, intent(in) :: useGPU
+    logical, intent(in) :: useGpu
 
     !! Contains indexes (spin, kpoint, state) to be calculated by the current MPI process
     integer, allocatable :: levelIndex(:,:)
@@ -218,7 +217,7 @@ contains
     this%kPoints(:,:) = 2.0_dp * pi * kPointCoords
     this%nCached = nCached
     this%isReal = isReal
-    this%useGPU = useGPU
+    this%useGpu = useGpu
     this%nPoints = nPoints
 
     if (this%isReal) then
@@ -268,7 +267,7 @@ contains
   subroutine TGridCache_next_real(this, gridValReal, levelIndex, isFinished)
 
     !> Gridcache instance
-    class(TgridCache), intent(inout) :: this
+    class(TGridCache), intent(inout) :: this
 
     !> Contains the molecular orbital on the grid on exit
     real(dp), pointer :: gridValReal(:,:,:)
@@ -290,7 +289,7 @@ contains
   subroutine TGridCache_next_cmpl(this, gridValCmpl, levelIndex, isFinished)
 
     !> Gridcache instance
-    class(TgridCache), intent(inout) :: this
+    class(TGridCache), intent(inout) :: this
 
     !> Contains the molecular orbital on the grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
@@ -308,9 +307,9 @@ contains
   end subroutine TGridCache_next_cmpl
   
   !> Loads the Eigenvectors from disk
-  subroutine loadEigenvecs(this, iEnd)
+  subroutine TGridCache_loadEigenvecs(this, iEnd)
     !> Gridcache instance
-    class(TgridCache), intent(inout) :: this
+    class(TGridCache), intent(inout) :: this
     !> Nr. of eigenvectors to read
     integer, intent(in) :: iEnd
     integer :: iStartAbs
@@ -340,7 +339,7 @@ contains
         end if
       end if
     end do
-  end subroutine loadEigenvecs
+  end subroutine TGridCache_loadEigenvecs
 
 
 
@@ -348,7 +347,7 @@ contains
   subroutine localNext(this, gridValReal, gridValCmpl, levelIndex, isFinished)
 
     !> Gridcache instance
-    type(TgridCache), intent(inout), target :: this
+    type(TGridCache), intent(inout), target :: this
 
     !> Contains the real grid onexit
     real(dp), pointer :: gridValReal(:,:,:)
@@ -386,7 +385,7 @@ contains
       iEndAbs = this%iGrid + iEnd - 1
 
       if (this%nReadEigVec < iEndAbs) then
-        call loadEigenvecs(this, iEnd)
+        call this%loadEigenvecs(iEnd)
       end if
 
       ! Get molecular orbital for that eigenvector
@@ -395,11 +394,11 @@ contains
       end if
       if (this%isReal) then
         eigReal => this%eigenvecReal(:, :iEnd)
-        call getValue(this%molorb, eigReal, this%gridCacheReal(:,:,:,:iEnd), useGPU=this%useGPU)
+        call getValue(this%molorb, eigReal, this%gridCacheReal(:,:,:,:iEnd), useGpu=this%useGpu)
       else
         eigCmpl => this%eigenvecCmpl(:, :iEnd)
         call getValue(this%molorb, eigCmpl, this%kPoints,&
-            & this%levelIndex(2, iStartAbs:iEndAbs), this%gridCacheCmpl(:,:,:,:iEnd), useGPU=this%useGPU)
+            & this%levelIndex(2, iStartAbs:iEndAbs), this%gridCacheCmpl(:,:,:,:iEnd), useGpu=this%useGpu)
       end if
     end if
 

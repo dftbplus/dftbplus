@@ -40,7 +40,7 @@ module test_wavegrid_spotcheck
   !> Launch config for molorb tests
   type :: TLaunchConfig
     logical :: useRadialLut = .false.
-    logical :: useGPU = .false. 
+    logical :: useGpu = .false. 
   end type
 
   !> All 3 combinations of CPU LUT/Direct and GPU LUT.
@@ -144,7 +144,7 @@ contains
 
     ! Main calculation
     allocate(valueOnGrid(100,100,100,1))
-    call getTotalChrg(molorb, eigVecsReal, valueOnGrid, occupationVecH2O, this%config%useGPU)
+    call getTotalChrg(molorb, eigVecsReal, valueOnGrid, occupationVecH2O, this%config%useGpu)
 
     ! CheckReal sum over grid
     expected = 8.0040445629655839_dp
@@ -181,7 +181,7 @@ contains
 
     ! Main calculation
     allocate(valueOnGrid(100,100,100,1))
-    call getAtomicDensities(molorb, occupationAtomDens, valueOnGrid, this%config%useGPU)
+    call getAtomicDensities(molorb, occupationAtomDens, valueOnGrid, this%config%useGpu)
 
     ! CheckReal sum over grid
     expected = 8.004352_dp
@@ -222,7 +222,7 @@ contains
     
     ! Main calculation
     allocate(valueOnGrid(100,100,100,4))
-    call getValue(molorb, eigVecsReal, valueOnGrid, this%config%useGPU)
+    call getValue(molorb, eigVecsReal, valueOnGrid, this%config%useGpu)
 
     ! CheckReal sum over grid
     expected = -11.36846731051559_dp
@@ -263,7 +263,7 @@ contains
 
     ! Main calculation
     allocate(valueOnGrid(100,100,100,1))
-    call getTotalChrg(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, occupationVecHchain, this%config%useGPU)
+    call getTotalChrg(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, occupationVecHchain, this%config%useGpu)
 
     ! CheckReal sum over grid
     expected = 6.637263751554149_dp
@@ -306,7 +306,7 @@ contains
 
     ! Main calculation
     allocate(valueOnGrid(100,100,100,4))
-    call getValue(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, this%config%useGPU)
+    call getValue(molorb, eigVecsComplex, kPointsHchain, kIndexesHchain, valueOnGrid, this%config%useGpu)
 
     ! CheckReal sum over grid
     expected = (113.9831688331955_dp, 45.30115350686194_dp)
@@ -341,7 +341,7 @@ contains
     else
       name = trim(name) // "_Direct"
     end if
-    if (launchConfig%useGPU) then
+    if (launchConfig%useGpu) then
       name = trim(name) // "_GPU"
     else
       name = trim(name) // "_CPU"
