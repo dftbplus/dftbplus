@@ -564,7 +564,7 @@ contains
     !! Auxiliary variables
     integer :: ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     real(dp) :: tmpvec(3), minvals(3), maxvals(3)
-    real(dp), allocatable :: mcutoffs(:)
+    real(dp), allocatable :: mCutoffs(:)
     real(dp) :: minEdge
 
     ! Warning, if processed input is read in, but eigenvectors are different
@@ -687,19 +687,20 @@ contains
       if (minEdge < 0.0_dp) then
         call detailedError(field, "Minimal edge length must be positive")
       end if
-      allocate(mcutoffs(this%input%geo%nSpecies))
+      allocate(mCutoffs(this%input%geo%nSpecies))
       do iSpecies = 1 , this%input%geo%nSpecies
-        mCutoffs(iSpecies) = -1
+        mCutoffs(iSpecies) = -1.0_dp
         do ii = 1, size(this%basis%basis(iSpecies)%orbitals)
-          mCutoffs(iSpecies) = sqrt(max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%cutoffSq))
+          mCutoffs(iSpecies) = max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%cutoffSq)
         end do
       end do
+      mCutoffs = sqrt(mCutoffs)
       minvals = this%input%geo%coords(:,1)
       maxvals = this%input%geo%coords(:,1)
       do iAtom = 1, this%input%geo%nAtom
         iSpecies = this%input%geo%species(iAtom)
-        maxvals(:) = max(maxvals, this%input%geo%coords(:, iAtom) + mcutoffs(iSpecies))
-        minvals(:) = min(minvals, this%input%geo%coords(:, iAtom) - mcutoffs(iSpecies))
+        maxvals(:) = max(maxvals, this%input%geo%coords(:, iAtom) + mCutoffs(iSpecies))
+        minvals(:) = min(minvals, this%input%geo%coords(:, iAtom) - mCutoffs(iSpecies))
       end do
       this%opt%origin(:) = minvals(:)
       tmpvec(:) = maxvals(:) - minvals(:)
