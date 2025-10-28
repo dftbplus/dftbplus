@@ -17,12 +17,11 @@ if(WITH_CUDA)
     add_library(wavegrid_cuda_objlib OBJECT ${sources_lib_cuda})
 
     if(WITH_OMP)
+        # Tell nvcc to pass -fopenmp to the host compiler (e.g. gcc)
         target_compile_options(wavegrid_cuda_objlib PRIVATE "-Xcompiler=-fopenmp")
+        # Tell Cmake that if anyone uses this objlib, to also link OpenMP_CXX
+        # (Alternatively, linking in OpenMP_CXX elsewhere would also work)
         target_link_libraries(wavegrid_cuda_objlib PRIVATE OpenMP::OpenMP_CXX)
     endif()
 endif()
 
-
-
-
-# Add the CUDA object files directly into dftbplus
