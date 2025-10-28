@@ -7,7 +7,7 @@
 
 #:include "fortuno_serial.fypp"
 module test_wavegrid_initmolorb
-  use dftbp_wavegrid, only : TMolecularOrbital, TSpeciesBasis
+  use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
   use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
@@ -207,7 +207,7 @@ contains
     call TBoundaryConds_init(bconds, boundaryCondsEnum%pbc3d, errStatus=status)
     @:ASSERT(status%isOk())
 
-    call molorb%init(geometry, bconds, speciesBasis, gridOrigin, gridVecs)
+    call TMolecularOrbital_init(molorb, geometry, bconds, speciesBasis, gridOrigin, gridVecs)
   end subroutine initMolorbHchain
 
 
@@ -231,7 +231,7 @@ contains
     call TBoundaryConds_init(bconds, boundaryCondsEnum%cluster, errStatus=status)
     @:ASSERT(status%isOk())
 
-    call molorb%init(geometry, bconds, speciesBasis, gridOrigin, gridVecs)
+    call TMolecularOrbital_init(molorb, geometry, bconds, speciesBasis, gridOrigin, gridVecs)
   end subroutine initMolorbH2O
 
 end module test_wavegrid_initmolorb

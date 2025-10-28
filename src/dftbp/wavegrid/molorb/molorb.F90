@@ -39,7 +39,6 @@ module dftbp_wavegrid_molorb
     logical :: isInitialised = .false.
   contains
     private
-    procedure, public :: init => TMolecularOrbital_init
     procedure, public :: updateCoords => TMolecularOrbital_updateCoords
 
     procedure :: initSpeciesMapping
