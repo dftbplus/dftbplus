@@ -66,6 +66,17 @@ module dftbp_wavegrid_molorb_offloaded
     type(c_ptr) :: valueReal_out, valueCmpl_out
   end type
 
+  !> C binding for the evaluation kernel, passing all of the above structs.
+  interface
+    subroutine evaluate_on_device_c(grid, system, periodic, basis, calc) bind(C, name ='evaluate_on_device_c')
+      import
+      type(TGridParamsC), intent(in) :: grid
+      type(TSystemParamsC), intent(in) :: system
+      type(TPeriodicParamsC), intent(in) :: periodic
+      type(TOrbitalC), intent(in) :: basis
+      type(TCalculationParamsC), intent(in) :: calc
+    end subroutine evaluate_on_device_c
+  end interface
 
 contains
 #:if WITH_CUDA
@@ -74,34 +85,35 @@ contains
 
     !> System
     type(TSystemParams), intent(in), target :: system
+
     !> Basis set
     class(TOrbital), intent(in), target :: orbitals(:)
+
     !> Periodic boundary conditions
     type(TPeriodicParams), intent(in), target :: periodic
+
+    !> K-point indexes
     integer, intent(in), target :: kIndexes(:)
+
+    !> Phase factors
     complex(dp), intent(in), target :: phases(:, :)
+
     !> Calculation flags
     type(TCalculationContext), intent(in) :: ctx
-    !> Eigenvectors
+
+    !> Real Eigenvectors
     real(dp), intent(in), target :: eigVecsReal(:, :)
+
+    !> Complex Eigenvectors (if not real)
     complex(dp), intent(in), target :: eigVecsCmpl(:, :)
-    !> Output grids
+
+    !> Real output grid
     real(dp), intent(out), target :: valueReal(:, :, :, :)
+
+    !> Complex output grid (if not real)
     complex(dp), intent(out), target :: valueCmpl(:, :, :, :)
 
-    interface
-      subroutine evaluate_on_device_c(grid, system, periodic, basis, calc) bind(C, name ='evaluate_on_device_c')
-        import
-        type(TGridParamsC), intent(in) :: grid
-        type(TSystemParamsC), intent(in) :: system
-        type(TPeriodicParamsC), intent(in) :: periodic
-        type(TOrbitalC), intent(in) :: basis
-        type(TCalculationParamsC), intent(in) :: calc
-      end subroutine evaluate_on_device_c
-    end interface
-
     type(TBasisParams), target :: basis
-
     type(TGridParamsC) :: grid_p
     type(TSystemParamsC) :: system_p
     type(TPeriodicParamsC) :: periodic_p
@@ -180,8 +192,13 @@ contains
   !> Resamples to identical resolution (highest) and cutoff (largest).
   !> Merges all Luts into a single 2D array.
   subroutine prepareBasisSet(this, orbitals)
+
+    !> Output basis set data
     type(TBasisParams), intent(out) :: this
+
+    !> Input orbitals to resample
     class(TOrbital), intent(in) :: orbitals(:)
+
     integer :: iOrb
     real(dp) :: cutoff, resolution
     type(TRadialTableOrbital) :: lut
