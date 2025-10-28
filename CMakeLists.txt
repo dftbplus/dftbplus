@@ -47,6 +47,7 @@ if(WITH_CUDA)
     cmake_policy(SET CMP0104 NEW)
     enable_language(CXX)
     enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
 endif()
 
 if(WITH_OMP)
@@ -111,7 +112,7 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
     message(STATUS "ELSI v2.5.0")
   endif()
 
-  if(WITH_GPU OR WITH_CUDA)
+  if(WITH_GPU)
     find_package(CUDAToolkit REQUIRED)
   endif()
 
