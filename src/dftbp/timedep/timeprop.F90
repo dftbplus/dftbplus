@@ -2648,9 +2648,9 @@ contains
       #:endif
       else
         ! The following line is commented to make the fast propagate work since it needs a real H
-        !H1(:,:,iKS) = imag * H1(:,:,iKS)
       #:if WITH_SCALAPACK
-        call propagateRhoRealHBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS),&
+        H1(:,:,iKS) = imag * H1(:,:,iKS)
+        call propagateRhoBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS),&
             & Sinv(:,:,iKS), step)
       #:else
         call propagateRhoRealH(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
@@ -4999,7 +4999,8 @@ contains
       #:endif
       else
       #:if WITH_SCALAPACK
-        call propagateRhoRealHBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
+        this%H1(:,:,iKS) = imag * this%H1(:,:,iKS)
+        call propagateRhoBlacs(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
             & this%H1(:,:,iKS), this%Sinv(:,:,iKS), 2.0_dp * this%dt)
       #:else
         call propagateRhoRealH(this, this%rhoOld(:,:,iKS), this%rho(:,:,iKS),&
