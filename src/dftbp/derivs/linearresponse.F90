@@ -1976,7 +1976,7 @@ contains
     ! the elements
     do iFilled = 1, nFilled(iS, iK)
       do iEmpty = nEmpty(iS, iK), nLevels
-        if (.not.transform%degenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
+        if (.not.transform%isDegenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
           workOut(iEmpty, iFilled) = workIn(iEmpty, iFilled)&
               & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
               & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)
@@ -2039,7 +2039,7 @@ contains
     ! the elements at frequency (plus imaginary constant) eta
     do iFilled = 1, nFilled(iS, iK)
       do iEmpty = nEmpty(iS, iK), nLevels
-        if (.not.transform%degenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
+        if (.not.transform%isDegenerate(iFilled,iEmpty) .or. iEmpty == iFilled) then
           workOut(iEmpty, iFilled) = workIn(iEmpty, iFilled)&
               & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
               & * invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec,&
