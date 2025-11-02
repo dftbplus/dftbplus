@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 !> This module defines TOrbital, which, aside from holding the angular momentum,
 !! may be subclassed by one of three concrete radial function implementations:
-!! Slater Type Orbitals (STO), Gaussian Type Orbitals (GTO) or a radial lookup table (LUT),
-!! allowing arbitrary radial functions to be used. Any orbital may be resampled onto a LUT
-!! with a new chosen resolution and cutoff.
+!! Slater Type Orbitals (STO), Gaussian Type Orbitals (GTO) or a radial lookup table,
+!! allowing arbitrary radial functions to be used. Any orbital may be resampled onto 
+!! a lookup table with a new chosen resolution and cutoff.
 
 #:include 'common.fypp'
 

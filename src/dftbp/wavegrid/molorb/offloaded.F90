@@ -21,7 +21,7 @@ module dftbp_wavegrid_molorb_offloaded
   public :: evaluateCuda
 #:endif
   
-  !> Default LUT step size if no orbital specifies one.
+  !> Default lookup table step size if no orbital specifies one.
   real(dp), parameter :: defaultLutStep = 0.01_dp
 
   !> Data for the basis set in SoA format
@@ -156,7 +156,7 @@ contains
     basis_p%nOrbitals = basis%nOrbitals
     basis_p%angMoms = c_loc(basis%angMoms)
     basis_p%cutoffsSq = c_loc(basis%cutoffsSq)
-    ! LUT data
+    ! Lookup table data
     basis_p%nLutPoints = basis%nLutPoints
     basis_p%inverseLutStep = basis%invLutStep
     basis_p%lutGridValues = c_loc(basis%lutGridValues)
@@ -189,7 +189,7 @@ contains
   end subroutine evaluateCuda
 
 
-  !> Convert the basis Set to LUTs (TRadialTable).
+  !> Convert the basis Set to lookup tables (TRadialTable).
   !> Resamples to identical resolution (highest) and cutoff (largest).
   !> Merges all Luts into a single 2D array.
   subroutine prepareBasisSet(this, orbitals)

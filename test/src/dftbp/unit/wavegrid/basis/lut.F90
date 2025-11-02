@@ -23,7 +23,7 @@ module test_wavegrid_basis_lut
 
 
 contains
-  !> Check if initialisation from LUT and subsequent 
+  !> Check if initialisation from existing lookup table and subsequent 
   !! Access works as expected.
   $:TEST("TRadialTableOrbital_initFromArray")
     type(TRadialTableOrbital) :: sto
@@ -33,7 +33,7 @@ contains
     real(dp), parameter :: gridDist = 1.0_dp
     ! f(x)=x^2
     real(dp), parameter :: gridValue(5) = [0.0_dp, 1.0_dp, 4.0_dp, 9.0_dp, 16.0_dp]
-    ! Lut access is simple linear interpolation 
+    ! Lookup table access is simple linear interpolation 
     real(dp), parameter :: checkedPairs(2,7) = reshape([&
         0.0_dp, 0.0_dp, &
         0.5_dp, 0.5_dp, &
@@ -57,7 +57,7 @@ contains
   $:END_TEST()
 
 
-  !> Check resampling of existing analytical orbital to LUT
+  !> Check resampling of existing analytical orbital to lookup table.
   $:TEST("TRadialTableOrbital_initFromOrbital")
     type(TSlaterOrbital) :: sto_1s
     type(TRadialTableOrbital) :: lut

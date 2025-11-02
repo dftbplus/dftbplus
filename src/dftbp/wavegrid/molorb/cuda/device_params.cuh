@@ -111,7 +111,7 @@ class DeviceBuffer {
 };
 
 /*
- * We implement the LUT as a 2D texture with a single float channel.
+ * We implement the lookup table as a 2D texture with a single float channel.
  * The radial Functions are stored row-wise.
  * We assume identical radial grids for all Orbitals.
  * GPUs have dedicated hardware for texture access & interpolation.
@@ -195,7 +195,7 @@ struct DeviceData {
     // Basis
     DeviceBuffer<int>    orb_angMoms;
     DeviceBuffer<double> orb_cutoffsSq;
-    // Texture for radial LUT
+    // Texture for radial lookup table
     std::unique_ptr<GpuLutTexture> orb_lut;
 
     // Eigenvectors
@@ -216,7 +216,7 @@ struct DeviceData {
           iStos(system->iStos, system->nSpecies + 1),
           orb_angMoms(basis->angMoms, basis->nOrbitals),
           orb_cutoffsSq(basis->cutoffsSq, basis->nOrbitals) {
-        if (DEBUG) printf("Using radial LUT with %d points for %d orbitals\n", basis->nLutPoints, basis->nOrbitals);
+        if (DEBUG) printf("Using radial lookup table with %d points for %d orbitals\n", basis->nLutPoints, basis->nOrbitals);
         orb_lut = std::unique_ptr<GpuLutTexture>(
             new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals));
 
@@ -262,7 +262,7 @@ struct DeviceKernelParams {
 
     // Basis
     int nOrbitals, maxNPows, maxNAlphas;
-    // Texture LUTs
+    // Texture lookup tables
     cudaTextureObject_t lutTex;
     double              inverseLutStep;
     const int*          orb_angMoms;
