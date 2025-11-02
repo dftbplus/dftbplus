@@ -24,8 +24,10 @@ module dftbp_wavegrid_basis_lut
   type, extends(TOrbital) :: TRadialTableOrbital
     !> Grid spacing (resolution)
     real(dp) :: gridDist
+
     !> Inverse of the grid spacing
     real(dp) :: invLutStep
+
     !> Orbital values on the grid
     real(dp), allocatable :: gridValue(:)
   contains
@@ -37,10 +39,18 @@ contains
 
   !> Initialises using a verbatim array of values.
   subroutine TRadialTableOrbital_initFromArray(this, gridValue, gridDist, angMom)
+    !> TRadialTableOrbital instance to initialise
     type(TRadialTableOrbital), intent(out) :: this
+
+    !> To be interpolated radial value array
     real(dp), intent(in) :: gridValue(:)
+
+    !> Grid spacing (resolution)
     real(dp), intent(in) :: gridDist
+
+    !> Angular momentum of the orbital (l)
     integer, intent(in) :: angMom
+
     real(dp) :: cutoff
 
     this%angMom = angMom
@@ -54,11 +64,17 @@ contains
 
   end subroutine TRadialTableOrbital_initFromArray
 
-  !> Resamples another orbital onto a LUT with given resolution.
+  !> Resamples another orbital onto a lookup table with given resolution.
   subroutine TRadialTableOrbital_initFromOrbital(this, other, resolution, newCutoff)
+    !> TRadialTableOrbital instance to initialise
     type(TRadialTableOrbital), intent(out) :: this
+
+    !> Orbital to resample
     class(TOrbital), intent(in) :: other
+
+    !> Desired resolution of the lookup table
     real(dp), intent(in) :: resolution
+
     !> New cutoff, required to be larger than original cutoff.
     real(dp), intent(in), optional :: newCutoff
 
@@ -80,10 +96,10 @@ contains
     this%gridDist = resolution
     this%invLutStep = 1.0_dp / resolution
     
-    ! Allocate LUT grid
+    ! Allocate lookup table grid
     allocate(this%gridValue(floor(cutoff / resolution) + 2))
 
-    ! Populate LUT by sampling the other orbital
+    ! Populate lookup table by sampling the other orbital
     do iGrid = 1, size(this%gridValue)
       r = real(iGrid - 1, dp) * resolution
       this%gridValue(iGrid) = other%getRadial(r)
@@ -103,7 +119,7 @@ contains
     !> Distance, where value should be calculated
     real(dp), intent(in) :: r
 
-    !> Contains the value of the function on return
+    !> interpolated function value
     real(dp) :: sto
 
     integer :: ind
