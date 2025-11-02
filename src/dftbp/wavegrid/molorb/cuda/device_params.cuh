@@ -203,8 +203,8 @@ struct DeviceData {
     DeviceBuffer<complexd> eigVecsCmpl;
 
     // Output (per-GPU batch buffer)
-    DeviceBuffer<complexd> d_valueCmpl_out_batch;
-    DeviceBuffer<double>   d_valueReal_out_batch;
+    DeviceBuffer<complexd> valueCmpl_out_batch;
+    DeviceBuffer<double>   valueReal_out_batch;
 
     // Constructor handles all H2D allocation and copy
     DeviceData(const GridParams* grid, const SystemParams* system, const PeriodicParams* periodic,
@@ -232,9 +232,9 @@ struct DeviceData {
         // Per-GPU batch buffer for the output
         size_t batch_buffer_size_elems = (size_t)grid->nPointsX * grid->nPointsY * z_per_batch * calc->nEigOut;
         if (calc->isRealOutput) {
-            d_valueReal_out_batch = DeviceBuffer<double>(batch_buffer_size_elems);
+            valueReal_out_batch = DeviceBuffer<double>(batch_buffer_size_elems);
         } else {
-            d_valueCmpl_out_batch = DeviceBuffer<complexd>(batch_buffer_size_elems);
+            valueCmpl_out_batch = DeviceBuffer<complexd>(batch_buffer_size_elems);
         }
     }
 };
@@ -321,8 +321,8 @@ struct DeviceKernelParams {
         eigVecsCmpl = data.eigVecsCmpl.get();
 
         // Output batch buffers
-        valueReal_out_batch = data.d_valueReal_out_batch.get();
-        valueCmpl_out_batch = data.d_valueCmpl_out_batch.get();
+        valueReal_out_batch = data.valueReal_out_batch.get();
+        valueCmpl_out_batch = data.valueCmpl_out_batch.get();
 
         nEig_per_pass = nEig_per_pass_in;
         // Batch-specific kernel config to be updated in the loop
