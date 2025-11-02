@@ -11,7 +11,6 @@
 !! with a new chosen resolution and cutoff.
 
 #:include 'common.fypp'
-#:set pure = "" if defined('WITH_ASSERT') else "pure"
 
 module dftbp_wavegrid_basis_orbital
   use dftbp_common_accuracy, only : dp
@@ -37,7 +36,7 @@ module dftbp_wavegrid_basis_orbital
   end type TOrbital
 
   abstract interface
-    ${pure}$ function IGetRadial(this, r) result(val)
+    function IGetRadial(this, r) result(val)
       import :: TOrbital, dp
       class(TOrbital), intent(in) :: this
       real(dp), intent(in) :: r

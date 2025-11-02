@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-#:set pure = "" if defined('WITH_ASSERT') else "pure"
 !> Holds TSlaterOrbital, a concrete implementation of TOrbital.
 module dftbp_wavegrid_basis_slater
   use dftbp_common_accuracy, only : dp
@@ -68,7 +67,7 @@ contains
 
 
   !> Calculates the value of an STO analytically.
-  ${pure}$ function TSlaterOrbital_getRadial(this, r) result(sto)
+  function TSlaterOrbital_getRadial(this, r) result(sto)
 
     !> SlaterOrbital instance
     class(TSlaterOrbital), intent(in) :: this

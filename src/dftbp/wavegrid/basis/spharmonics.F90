@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-#:set pure = "" if defined('WITH_ASSERT') else "pure"
 
 !> Real spherical harmonics up to l=4.
 !! See also: spharmonics.cuh
@@ -53,7 +52,7 @@ contains
   !> https://en.wikipedia.org/wiki/Table_of_spherical_harmonics#Real_spherical_harmonics
   !> See also (general set):
   !> https://winter.group.shef.ac.uk/orbitron/atomic_orbitals/4f/4f_equations.html
-  ${pure}$ function realTessY(l, m, coord, inv_r) result(rty)
+  function realTessY(l, m, coord, inv_r) result(rty)
 
     !> Orbital quantum number (0 <= l <= 4)
     integer, intent(in) :: l

@@ -6,7 +6,6 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-#:set pure = "" if defined('WITH_ASSERT') else "pure"
 !> Holds TRadialTableOrbital, a concrete implementation of TOrbital utilising a 1d interpolated lookup table.
 !> This allows for arbitrary radial functions.
 module dftbp_wavegrid_basis_lut
@@ -108,7 +107,7 @@ contains
 
 
   !> Returns the value of the stored radial function at a given point.
-  ${pure}$ function TRadialTableOrbital_getRadial(this, r) result(sto)
+  function TRadialTableOrbital_getRadial(this, r) result(sto)
 
     !> RadialTable instance
     class(TRadialTableOrbital), intent(in) :: this
