@@ -31,7 +31,6 @@ module dftbp_wavegrid_basis_slater
     real(dp), allocatable :: alpha(:)
   contains
     procedure :: getRadial => TSlaterOrbital_getRadial
-    procedure, pass(lhs) :: assign => TSlaterOrbital_assign
   end type TSlaterOrbital
 
 contains
@@ -105,27 +104,6 @@ contains
     end do
 
   end function TSlaterOrbital_getRadial
-  
-  !> Assignment operator
-  subroutine TSlaterOrbital_assign(lhs, rhs)
-    class(TSlaterOrbital), intent(out) :: lhs
-    class(TOrbital), intent(in) :: rhs
 
-
-    select type (rhs)
-      type is (TSlaterOrbital)
-        lhs%angMom = rhs%angMom
-        lhs%cutoffSq = rhs%cutoffSq
-        lhs%nPow = rhs%nPow
-
-        if (allocated(lhs%alpha)) deallocate(lhs%alpha)
-        if (allocated(lhs%aa)) deallocate(lhs%aa)
-
-        allocate(lhs%alpha, source=rhs%alpha)
-        allocate(lhs%aa, source=rhs%aa)
-      class default
-        call error("Cannot assign non-Slater orbital to Slater orbital.")
-    end select
-  end subroutine TSlaterOrbital_assign
 
 end module dftbp_wavegrid_basis_slater

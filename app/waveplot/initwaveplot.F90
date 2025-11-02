@@ -10,8 +10,8 @@
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital, TSlaterOrbital_init, &
-      & TRadialTableOrbital_initFromOrbital
+  use dftbp_wavegrid_basis, only : TSlaterOrbital, TRadialTableOrbital, TSlaterOrbital_init, &
+      & TRadialTableOrbital_initFromOrbital, TOrbitalWrapper_getMaxCutoff
   use waveplot_gridcache, only : TGridCache, TGridCache_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -690,12 +690,8 @@ contains
       end if
       allocate(mCutoffs(this%input%geo%nSpecies))
       do iSpecies = 1 , this%input%geo%nSpecies
-        mCutoffs(iSpecies) = -1.0_dp
-        do ii = 1, size(this%basis%basis(iSpecies)%orbitals)
-          mCutoffs(iSpecies) = max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%o%cutoffSq)
-        end do
+        mCutoffs(iSpecies) = TOrbitalWrapper_getMaxCutoff(this%basis%basis(iSpecies)%orbitals)
       end do
-      mCutoffs = sqrt(mCutoffs)
       minvals = this%input%geo%coords(:,1)
       maxvals = this%input%geo%coords(:,1)
       do iAtom = 1, this%input%geo%nAtom
@@ -901,11 +897,9 @@ contains
         call TSlaterOrbital_init(sto, reshape(coeffs, [size(coeffs)/size(exps), size(exps)]), exps, angMom, cutoff)
         if (useTabulatedRadial) then
           call TRadialTableOrbital_initFromOrbital(lut, sto, basisResolution)
-          ! spBasis%orbitals(ii)%o = lut
-          allocate(spBasis%orbitals(ii)%o, source=lut)
+          spBasis%orbitals(ii)%o = lut
         else
-          ! spBasis%orbitals(ii)%o = sto
-          allocate(spBasis%orbitals(ii)%o, source=sto)
+          spBasis%orbitals(ii)%o = sto
         end if
       end select
 

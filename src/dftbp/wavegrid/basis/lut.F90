@@ -32,7 +32,6 @@ module dftbp_wavegrid_basis_lut
     real(dp), allocatable :: gridValue(:)
   contains
     procedure :: getRadial => TRadialTableOrbital_getRadial
-    procedure, pass(lhs) :: assign => TRadialTableOrbital_assign
   end type TRadialTableOrbital
 
 contains
@@ -136,26 +135,6 @@ contains
     end if
 
   end function TRadialTableOrbital_getRadial
-
-  !> Assignment operator for TRadialTableOrbital
-  subroutine TRadialTableOrbital_assign(lhs, rhs)
-    class(TRadialTableOrbital), intent(out) :: lhs
-    class(TOrbital), intent(in) :: rhs
-
-    select type (rhs)
-      type is (TRadialTableOrbital)
-        lhs%angMom = rhs%angMom
-        lhs%cutoffSq = rhs%cutoffSq
-        lhs%gridDist = rhs%gridDist
-        lhs%invLutStep = rhs%invLutStep
-
-        if (allocated(lhs%gridValue)) deallocate(lhs%gridValue)
-        allocate(lhs%gridValue, source=rhs%gridValue)
-      class default
-        call error("Implicit conversion to TRadialTableOrbital not allowed, use initFromOrbital instead.")
-    end select
-
-  end subroutine TRadialTableOrbital_assign
 
 
 end module dftbp_wavegrid_basis_lut

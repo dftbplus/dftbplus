@@ -18,7 +18,7 @@ module dftbp_wavegrid_basis_orbital
   implicit none
 
 
-  public :: TOrbital, TOrbitalWrapper
+  public :: TOrbital, TOrbitalWrapper, TOrbitalWrapper_getMaxCutoff
 
   !> Wraps an TOrbital to allow mixed arrays allocations/assignments.
   type :: TOrbitalWrapper
@@ -34,8 +34,6 @@ module dftbp_wavegrid_basis_orbital
     real(dp) :: cutoffSq
   contains
     procedure(IGetRadial), deferred :: getRadial
-    procedure(IAssign), deferred, pass(lhs) :: assign
-    generic, public :: assignment(=) => assign
   end type TOrbital
 
   abstract interface
@@ -45,13 +43,23 @@ module dftbp_wavegrid_basis_orbital
       real(dp), intent(in) :: r
       real(dp) :: val
     end function IGetRadial
-
-    subroutine IAssign(lhs, rhs)
-      import :: TOrbital
-      class(TOrbital), intent(out) :: lhs
-      class(TOrbital), intent(in) :: rhs
-    end subroutine IAssign
   end interface
+
+contains
+
+  !> Returns the maximum cutoff of the wrapped orbitals.
+  pure function TOrbitalWrapper_getMaxCutoff(orbitals) result(maxCutoff)
+    type(TOrbitalWrapper), intent(in) :: orbitals(:)
+    real(dp) :: maxCutoff
+    integer :: i
+
+    maxCutoff = 0.0_dp
+    do i = 1, size(orbitals)
+      if (sqrt(orbitals(i)%o%cutoffSq) > maxCutoff) then
+        maxCutoff = sqrt(orbitals(i)%o%cutoffSq)
+      end if
+    end do
+  end function TOrbitalWrapper_getMaxCutoff
 
 end module dftbp_wavegrid_basis_orbital
 
