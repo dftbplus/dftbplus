@@ -53,8 +53,8 @@ elapsedTime_ms runBatchOnDevice(const GpuLaunchConfig& config, const GridParams*
         kernel_timer.stop();
 
         d2h_timer.start();
-        copyD2H(calc->isRealOutput ? (void*)device_data.d_valueReal_out_batch.get()
-                                   : (void*)device_data.d_valueCmpl_out_batch.get(),
+        copyD2H(calc->isRealOutput ? (void*)device_data.valueReal_out_batch.get()
+                                   : (void*)device_data.valueCmpl_out_batch.get(),
             calc->isRealOutput ? (void*)calc->valueReal_out : (void*)calc->valueCmpl_out, grid->nPointsX,
             grid->nPointsY, grid->nPointsZ, deviceParams.z_per_batch, deviceParams.z_offset_global, calc);
         d2h_timer.stop();

@@ -63,12 +63,12 @@ contains
   end subroutine TRadialTableOrbital_initFromArray
 
   !> Resamples another orbital onto a lookup table with given resolution.
-  subroutine TRadialTableOrbital_initFromOrbital(this, other, resolution, newCutoff)
+  subroutine TRadialTableOrbital_initFromOrbital(this, source, resolution, newCutoff)
     !> TRadialTableOrbital instance to initialise
     type(TRadialTableOrbital), intent(out) :: this
 
     !> Orbital to resample
-    class(TOrbital), intent(in) :: other
+    class(TOrbital), intent(in) :: source
 
     !> Desired resolution of the lookup table
     real(dp), intent(in) :: resolution
@@ -82,25 +82,25 @@ contains
     @:ASSERT(resolution > 0.0_dp)
 
     ! Optionally enlarge cutoff
-    cutoff = sqrt(other%cutoffSq)
+    cutoff = sqrt(source%cutoffSq)
     if (present(newCutoff)) then
       @:ASSERT(newCutoff >= cutoff)
       cutoff = newCutoff
     end if
 
     ! Set parameters
-    this%angMom = other%angMom
-    this%cutoffSq = other%cutoffSq
+    this%angMom = source%angMom
+    this%cutoffSq = source%cutoffSq
     this%gridDist = resolution
     this%invLutStep = 1.0_dp / resolution
     
     ! Allocate lookup table grid
     allocate(this%gridValue(floor(cutoff / resolution) + 2))
 
-    ! Populate lookup table by sampling the other orbital
+    ! Populate lookup table by sampling the source orbital
     do iGrid = 1, size(this%gridValue)
       r = real(iGrid - 1, dp) * resolution
-      this%gridValue(iGrid) = other%getRadial(r)
+      this%gridValue(iGrid) = source%getRadial(r)
     end do
 
   end subroutine TRadialTableOrbital_initFromOrbital
