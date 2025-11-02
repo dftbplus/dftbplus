@@ -256,7 +256,7 @@ contains
       do iAtom = 1, wp%input%geo%nAtom
         iSpecies = wp%input%geo%species(iAtom)
         do iOrb = 1, size(wp%basis%basis(iSpecies)%orbitals)
-          iL = wp%basis%basis(iSpecies)%orbitals(iOrb)%angMom
+          iL = wp%basis%basis(iSpecies)%orbitals(iOrb)%o%angMom
           mAng = 2 * iL + 1
           orbitalOcc(ind:ind + mAng - 1,1) = wp%basis%referenceOccupations(iOrb, iSpecies) &
               & / real(mAng, dp)

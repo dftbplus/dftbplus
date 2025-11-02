@@ -11,7 +11,7 @@
 module dftbp_wavegrid_molorb_offloaded
   use, intrinsic :: iso_c_binding, only : c_bool, c_double, c_int, c_loc, c_ptr
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
-  use dftbp_wavegrid_basis, only : TOrbital, TRadialTableOrbital, TRadialTableOrbital_initFromOrbital
+  use dftbp_wavegrid_basis, only : TOrbitalWrapper, TRadialTableOrbital, TRadialTableOrbital_initFromOrbital
   use dftbp_common_accuracy, only : dp
   implicit none
   private
@@ -87,7 +87,7 @@ contains
     type(TSystemParams), intent(in), target :: system
 
     !> Basis set
-    class(TOrbital), intent(in), target :: orbitals(:)
+    type(TOrbitalWrapper), intent(in), target :: orbitals(:)
 
     !> Periodic boundary conditions
     type(TPeriodicParams), intent(in), target :: periodic
@@ -197,19 +197,19 @@ contains
     type(TBasisParams), intent(out) :: this
 
     !> Input orbitals to resample
-    class(TOrbital), intent(in) :: orbitals(:)
+    type(TOrbitalWrapper), intent(in) :: orbitals(:)
 
     integer :: iOrb
     real(dp) :: cutoff, resolution
     type(TRadialTableOrbital) :: lut
 
     ! Determine largest cutoff
-    cutoff = sqrt(maxval(orbitals%cutoffSq))
+    cutoff = 10.0_dp ! sqrt(maxval(orbitals%o%cutoffSq))
 
     ! Determine finest resolution
     resolution = defaultLutStep
     do iOrb = 1, size(orbitals)
-      associate (orb=>orbitals(iOrb))
+      associate (orb=>orbitals(iOrb)%o)
       select type(orb)
         type is (TRadialTableOrbital)
           resolution = min(resolution, orb%gridDist)
@@ -229,9 +229,9 @@ contains
 
 
     do iOrb = 1, this%nOrbitals
-      this%angMoms(iOrb) = orbitals(iOrb)%angMom
-      this%cutoffsSq(iOrb) = orbitals(iOrb)%cutoffSq
-      call TRadialTableOrbital_initFromOrbital(lut, orbitals(iOrb), resolution, cutoff)
+      this%angMoms(iOrb) = orbitals(iOrb)%o%angMom
+      this%cutoffsSq(iOrb) = orbitals(iOrb)%o%cutoffSq
+      call TRadialTableOrbital_initFromOrbital(lut, orbitals(iOrb)%o, resolution, cutoff)
 
       @:ASSERT(this%nLutPoints == size(lut%gridValue))
       @:ASSERT(abs(lut%invLutStep - this%invLutStep) < 1.0e-12_dp)

@@ -18,8 +18,14 @@ module dftbp_wavegrid_basis_orbital
   implicit none
 
 
-  public :: TOrbital
-  
+  public :: TOrbital, TOrbitalWrapper
+
+  !> Wraps an TOrbital to allow mixed arrays allocations/assignments.
+  type :: TOrbitalWrapper
+    class(TOrbital), allocatable :: o
+  end type TOrbitalWrapper
+
+  !> Abstract base class for atomic orbitals.
   type, abstract :: TOrbital
     !> Angular momentum (l)
     integer :: angMom = -1

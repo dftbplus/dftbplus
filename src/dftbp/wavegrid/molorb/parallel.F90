@@ -9,7 +9,7 @@
 !> Dispatches to either the GPU or CPU implementation, and contains the OMP parallel CPU implementation.
 module dftbp_wavegrid_molorb_parallel
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
-  use dftbp_wavegrid_basis, only: TOrbital, realTessY
+  use dftbp_wavegrid_basis, only: TOrbitalWrapper, realTessY
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
 #:if WITH_CUDA
@@ -41,7 +41,7 @@ contains
     complex(dp), intent(in) :: phases(:,:)
 
     !> Basis set data in AoS format
-    class(TOrbital), intent(in) :: orbitals(:)
+    type(TOrbitalWrapper), intent(in) :: orbitals(:)
 
     !> Calculation control flags
     type(TCalculationContext), intent(in) :: ctx
@@ -100,7 +100,7 @@ contains
     type(TSystemParams), intent(in) :: system
 
     !> Basis set
-    class(TOrbital), intent(in) :: orbitals(:)
+    type(TOrbitalWrapper), intent(in) :: orbitals(:)
 
     !> Periodic boundary conditions
     type(TPeriodicParams), intent(in) :: periodic
@@ -191,15 +191,15 @@ contains
                 rSq = dot_product(diff, diff)
 
                 lpOrb: do iOrb = system%iStos(iSpecies), system%iStos(iSpecies + 1) - 1
-                  iL = orbitals(iOrb)%angMom
+                  iL = orbitals(iOrb)%o%angMom
                   ! Calculate wave function only if atom is inside the cutoff
-                  if (rSq > orbitals(iOrb)%cutoffSq) then
+                  if (rSq > orbitals(iOrb)%o%cutoffSq) then
                     ind = ind + 2*iL + 1
                     cycle lpOrb
                   end if
                   r = sqrt(rSq)
 
-                  radialVal = orbitals(iOrb)%getRadial(r)
+                  radialVal = orbitals(iOrb)%o%getRadial(r)
                   
                   ! Only calculate inverse once
                   invR = 0.0_dp

@@ -8,8 +8,8 @@
 #:include "fortuno_serial.fypp"
 module test_wavegrid_initmolorb
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital, TSlaterOrbital_init, & 
-    & TRadialTableOrbital_initFromOrbital
+  use dftbp_wavegrid_basis, only : TOrbitalWrapper, TSlaterOrbital, TRadialTableOrbital, &
+    & TSlaterOrbital_init, TRadialTableOrbital_initFromOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
@@ -23,7 +23,7 @@ module test_wavegrid_initmolorb
 contains
 
   subroutine initOrbitalHydrogenS(orbital, useRadialLut)
-    class(TOrbital), intent(out) :: orbital
+    type(TOrbitalWrapper), intent(out) :: orbital
     logical, intent(in) :: useRadialLut
     ! STO parameters
     integer, parameter :: angMom = 0
@@ -42,16 +42,18 @@ contains
 
     if (useRadialLut) then
       call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
-      orbital = lut
+      ! orbital%o = lut
+      allocate(orbital%o, source=lut)
     else
-      orbital = sto
+      ! orbital%o = sto
+      allocate(orbital%o, source=sto)
     end if
 
   end subroutine initOrbitalHydrogenS
 
 
   subroutine initOrbitalOxygenS(orbital, useRadialLut)
-    class(TOrbital), intent(out) :: orbital
+    type(TOrbitalWrapper), intent(out) :: orbital
     logical, intent(in) :: useRadialLut
     ! STO parameters
     integer, parameter :: angMom = 0
@@ -70,15 +72,17 @@ contains
 
     if (useRadialLut) then
       call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
-      orbital = lut
+      ! orbital%o = lut
+      allocate(orbital%o, source=lut)
     else
-      orbital = sto
+      ! orbital%o = sto
+      allocate(orbital%o, source=sto)
     end if
   end subroutine initOrbitalOxygenS
 
 
   subroutine initOrbitalOxygenP(orbital, useRadialLut)
-    class(TOrbital), intent(out) :: orbital
+    type(TOrbitalWrapper), intent(out) :: orbital
     logical, intent(in) :: useRadialLut
     ! STO parameters
     integer, parameter :: angMom = 1
@@ -92,14 +96,15 @@ contains
     ! Temporary orbitals
     type(TSlaterOrbital) :: sto
     type(TRadialTableOrbital) :: lut
-
     call TSlaterOrbital_init(sto, aa, alpha, angMom, cutoff)
 
     if (useRadialLut) then
       call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
-      orbital = lut
+      ! orbital%o = lut
+      allocate(orbital%o, source=lut)
     else
-      orbital = sto
+      ! orbital%o = sto
+      allocate(orbital%o, source=sto)
     end if
   end subroutine initOrbitalOxygenP
 
@@ -108,11 +113,7 @@ contains
     logical, intent(in) :: useRadialLut
 
     ! Hydrogen
-    if (useRadialLut) then
-      allocate(TRadialTableOrbital :: speciesBasis(1)%orbitals(1))
-    else
-      allocate(TSlaterOrbital :: speciesBasis(1)%orbitals(1))
-    end if
+    allocate(speciesBasis(1)%orbitals(1))
     call initOrbitalHydrogenS(speciesBasis(1)%orbitals(1), useRadialLut)
 
   end subroutine initSpeciesBasisH
@@ -122,20 +123,12 @@ contains
     logical, intent(in) :: useRadialLut
   
     ! Oxygen
-    if (useRadialLut) then
-      allocate(TRadialTableOrbital :: speciesBasis(1)%orbitals(2))
-    else
-      allocate(TSlaterOrbital :: speciesBasis(1)%orbitals(2))
-    end if
+    allocate(speciesBasis(1)%orbitals(2))
     call initOrbitalOxygenS(speciesBasis(1)%orbitals(1), useRadialLut)
     call initOrbitalOxygenP(speciesBasis(1)%orbitals(2), useRadialLut)
     
     ! Hydrogen 
-    if (useRadialLut) then
-      allocate(TRadialTableOrbital :: speciesBasis(2)%orbitals(1))
-    else
-      allocate(TSlaterOrbital :: speciesBasis(2)%orbitals(1))
-    end if
+    allocate(speciesBasis(2)%orbitals(1))
     call initOrbitalHydrogenS(speciesBasis(2)%orbitals(1), useRadialLut)
 
   end subroutine initSpeciesBasisH2O

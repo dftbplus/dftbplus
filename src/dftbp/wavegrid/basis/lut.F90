@@ -108,18 +108,16 @@ contains
   end subroutine TRadialTableOrbital_initFromOrbital
 
 
-  !> Returns the value of the RadialFunction at a given point.
-  !! Builds a 1d cache grid across which the result is interpolated
-  !! in order to speed up evaluation for subsequent calls.
+  !> Returns the value of the stored radial function at a given point.
   ${pure}$ function TRadialTableOrbital_getRadial(this, r) result(sto)
 
     !> RadialTable instance
     class(TRadialTableOrbital), intent(in) :: this
 
-    !> Distance, where value should be calculated
+    !> Distance at which value should be calculated
     real(dp), intent(in) :: r
 
-    !> interpolated function value
+    !> Interpolated function value
     real(dp) :: sto
 
     integer :: ind

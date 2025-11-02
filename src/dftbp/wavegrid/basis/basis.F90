@@ -8,7 +8,7 @@
 module dftbp_wavegrid_basis
   use dftbp_common_accuracy, only : dp
   use dftbp_wavegrid_basis_spharmonics, only: realTessY
-  use dftbp_wavegrid_basis_orbital, only: TOrbital
+  use dftbp_wavegrid_basis_orbital, only: TOrbital, TOrbitalWrapper
   use dftbp_wavegrid_basis_slater, only: TSlaterOrbital, TSlaterOrbital_init
   use dftbp_wavegrid_basis_lut, only: TRadialTableOrbital, TRadialTableOrbital_initFromArray, &
        & TRadialTableOrbital_initFromOrbital
@@ -17,7 +17,7 @@ module dftbp_wavegrid_basis
   private
 
   public :: realTessY
-  public :: TOrbital
+  public :: TOrbital, TOrbitalWrapper
   public :: TSlaterOrbital, TRadialTableOrbital
 
   public :: TSlaterOrbital_init

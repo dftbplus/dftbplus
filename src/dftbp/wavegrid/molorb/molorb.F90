@@ -13,7 +13,7 @@
 module dftbp_wavegrid_molorb
   use dftbp_wavegrid_molorb_parallel, only : evaluateParallel
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
-  use dftbp_wavegrid_basis, only : TOrbital
+  use dftbp_wavegrid_basis, only : TOrbital, TOrbitalWrapper
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
   use dftbp_dftb_boundarycond, only : TBoundaryConds
@@ -34,7 +34,7 @@ module dftbp_wavegrid_molorb
     type(TPeriodicParams) :: periodic
 
     !> Basis set in AoS format
-    class(TOrbital), allocatable :: orbitals(:)
+    type(TOrbitalWrapper), allocatable :: orbitals(:)
 
     !> Boundary conditions handler for coordinate recalculation
     type(TBoundaryConds) :: boundaryCond
@@ -51,7 +51,7 @@ module dftbp_wavegrid_molorb
   !> Basis set for one species
   type TSpeciesBasis
     !> Array of orbitals for this species
-    class(TOrbital), allocatable :: orbitals(:)
+    type(TOrbitalWrapper), allocatable :: orbitals(:)
   end type TSpeciesBasis
 
   !> Returns the value of one or more molecular orbitals on a grid
@@ -108,7 +108,7 @@ contains
     
     call this%initSpeciesMapping(geometry, basisInput)
     call this%flattenBasis(basisInput)
-    call this%initPeriodic(geometry, sqrt(maxval(this%orbitals%cutoffSq)))
+    call this%initPeriodic(geometry, 10.0_dp)!sqrt(maxval(this%orbitals%o%cutoffSq)))
     call this%updateCoords(geometry)
 
     this%isInitialised = .true.
@@ -151,7 +151,7 @@ contains
     do iAtom = 1, this%system%nAtom
       iSpec = this%system%species(iAtom)
       do iOrb = 1, size(basis(iSpec)%orbitals)
-        angMom = basis(iSpec)%orbitals(iOrb)%angMom
+        angMom = basis(iSpec)%orbitals(iOrb)%o%angMom
         nOrbTotal = nOrbTotal + 1 + 2 * angMom
       end do
     end do
@@ -178,13 +178,14 @@ contains
     end do
 
     ! Allocate flat array
-    allocate(this%orbitals(nOrbitals), mold=basisInput(1)%orbitals(1))
+    allocate(this%orbitals(nOrbitals))
 
     ! Copy all Orbitals into array
     ind = 1
     do iSpec = 1, this%system%nSpecies
       do iOrb = 1, size(basisInput(iSpec)%orbitals)
-        this%orbitals(ind) = basisInput(iSpec)%orbitals(iOrb)
+        ! this%orbitals(ind)%o = basisInput(iSpec)%orbitals(iOrb)%o
+        allocate(this%orbitals(ind)%o, source=basisInput(iSpec)%orbitals(iOrb)%o)
         ind = ind + 1
       end do
     end do

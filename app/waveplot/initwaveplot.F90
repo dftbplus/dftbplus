@@ -692,7 +692,7 @@ contains
       do iSpecies = 1 , this%input%geo%nSpecies
         mCutoffs(iSpecies) = -1.0_dp
         do ii = 1, size(this%basis%basis(iSpecies)%orbitals)
-          mCutoffs(iSpecies) = max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%cutoffSq)
+          mCutoffs(iSpecies) = max(mCutoffs(iSpecies), this%basis%basis(iSpecies)%orbitals(ii)%o%cutoffSq)
         end do
       end do
       mCutoffs = sqrt(mCutoffs)
@@ -860,45 +860,38 @@ contains
       call detailedError(node, "Missing orbital definitions")
     end if
 
+    allocate(spBasis%orbitals(nOrbitals))
+
     do ii = 1, nOrbitals
       call getItem1(children, ii, tmpNode)
       call getChildValue(tmpNode, "Type", orbitalType, "TSlaterOrbital")
-      
-      ! Allocate orbital of the correct type
-      if (.not. allocated(spBasis%orbitals)) then
-        if (useTabulatedRadial) then
-          allocate(TRadialTableOrbital :: spBasis%orbitals(nOrbitals))
-        else
-          select case (unquote(char(orbitalType)))
-          case ("TSlaterOrbital")
-            allocate(TSlaterOrbital :: spBasis%orbitals(nOrbitals))
-          case default
-            call detailedError(tmpNode, "Unknown orbital type")
-          end select
-        end if
-      end if
-
       call getChildValue(tmpNode, "AngularMomentum", angMom)
       call getChildValue(tmpNode, "Cutoff", cutoff)
-
       call getChildValue(tmpNode, "Occupation", atomicOcc(ii), child=child)
+      
+      !! Read exponents
       call init(bufferExps)
-
       call getChildValue(tmpNode, "Exponents", bufferExps, child=child)
       if (len(bufferExps) == 0) then
         call detailedError(child, "Missing exponents")
       end if
+      
+      !! Read coefficients
       call init(bufferCoeffs)
       call getChildValue(tmpNode, "Coefficients", bufferCoeffs, child=child)
       if (len(bufferCoeffs) == 0) then
         call detailedError(child, "Missing coefficients")
       end if
+
+      ! Basic sanity check 
       if (mod(len(bufferCoeffs), len(bufferExps)) /= 0) then
         call detailedError(child, "Number of coefficients incompatible with number of exponents")
       end if
+
       allocate(exps(len(bufferExps)))
       call asArray(bufferExps, exps)
       call destruct(bufferExps)
+
       allocate(coeffs(len(bufferCoeffs)))
       call asArray(bufferCoeffs, coeffs)
       call destruct(bufferCoeffs)
@@ -908,9 +901,11 @@ contains
         call TSlaterOrbital_init(sto, reshape(coeffs, [size(coeffs)/size(exps), size(exps)]), exps, angMom, cutoff)
         if (useTabulatedRadial) then
           call TRadialTableOrbital_initFromOrbital(lut, sto, basisResolution)
-          spBasis%orbitals(ii) = lut
+          ! spBasis%orbitals(ii)%o = lut
+          allocate(spBasis%orbitals(ii)%o, source=lut)
         else
-          spBasis%orbitals(ii) = sto
+          ! spBasis%orbitals(ii)%o = sto
+          allocate(spBasis%orbitals(ii)%o, source=sto)
         end if
       end select
 
