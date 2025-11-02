@@ -371,9 +371,11 @@ contains
 
     !! Allocate the grid cache if not done yet
     if (this%isReal .and. .not. allocated(this%gridCacheReal)) then
-      allocate(this%gridCacheReal(this%nPoints(1), this%nPoints(2), this%nPoints(3), this%nCached))
+      allocate(this%gridCacheReal(this%nPoints(1), this%nPoints(2), this%nPoints(3), this%nCached), &
+          & source=0.0_dp)
     else if (.not. this%isReal .and. .not. allocated(this%gridCacheCmpl)) then
-      allocate(this%gridCacheCmpl(this%nPoints(1), this%nPoints(2), this%nPoints(3), this%nCached))
+      allocate(this%gridCacheCmpl(this%nPoints(1), this%nPoints(2), this%nPoints(3), this%nCached), &
+          & source=(0.0_dp, 0.0_dp))
     end if
 
 
