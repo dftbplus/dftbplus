@@ -29,10 +29,13 @@ module dftbp_wavegrid_molorb
   type TMolecularOrbital
     !> System composition and coordinates
     type(TSystemParams) :: system
+
     !> Periodic boundary conditions
     type(TPeriodicParams) :: periodic
+
     !> Basis set in AoS format
     class(TOrbital), allocatable :: orbitals(:)
+
     !> Boundary conditions handler for coordinate recalculation
     type(TBoundaryConds) :: boundaryCond
 
@@ -40,10 +43,9 @@ module dftbp_wavegrid_molorb
   contains
     private
     procedure, public :: updateCoords => TMolecularOrbital_updateCoords
-
-    procedure :: initSpeciesMapping
-    procedure :: flattenBasis
-    procedure :: initPeriodic
+    procedure :: initPeriodic => TMolecularOrbital_initPeriodic
+    procedure :: initSpeciesMapping => TMolecularOrbital_initSpeciesMapping
+    procedure :: flattenBasis => TMolecularOrbital_flattenBasis
   end type TMolecularOrbital
 
   !> Basis set for one species
@@ -81,10 +83,20 @@ contains
   subroutine TMolecularOrbital_init(this, geometry, boundaryCond, basisInput, origin, gridVecs)
     !> TMolecularOrbital data object to initialise
     class(TMolecularOrbital), intent(out) :: this
+
+    !> System geometry
     type(TGeometry), intent(in) :: geometry
+
+    !> Boundary conditions
     type(TBoundaryConds), intent(in) :: boundaryCond
+
+    !> Basis set for all species
     type(TSpeciesBasis), intent(in) :: basisInput(:)
+
+    !> Output grid origin
     real(dp), intent(in) :: origin(3)
+
+    !> Output grid vectors
     real(dp), intent(in) :: gridVecs(3,3)
 
     @:ASSERT(.not. this%isInitialised)
@@ -105,9 +117,14 @@ contains
 
   !> Initialises non-geometric system parameters 
   !! Counts total number of orbitals and Orbitals and creates index maps.
-  subroutine initSpeciesMapping(this, geometry, basis)
+  subroutine TMolecularOrbital_initSpeciesMapping(this, geometry, basis)
+    !> TMolecularOrbital data object to initialise
     class(TMolecularOrbital), intent(inout) :: this
+
+    !> System geometry
     type(TGeometry), intent(in) :: geometry
+
+    !> Basis set for all species
     type(TSpeciesBasis), intent(in) :: basis(:)
 
     integer :: nOrbTotal, iSpec, iAtom, ind, iOrb, angMom
@@ -141,13 +158,17 @@ contains
     this%system%nOrb = nOrbTotal
 
     this%system%speciesInitialised = .true.
-  end subroutine initSpeciesMapping
+  end subroutine TMolecularOrbital_initSpeciesMapping
 
 
   !> Flattens the basis set into an array of Orbitals. 
-  subroutine flattenBasis(this, basisInput)
+  subroutine TMolecularOrbital_flattenBasis(this, basisInput)
+    !> TMolecularOrbital data object to initialise
     class(TMolecularOrbital), intent(inout) :: this
+
+    !> Basis set for all species
     type(TSpeciesBasis), intent(in) :: basisInput(:)
+
     integer :: iSpec, iOrb, ind, nOrbitals
     
     ! Count total number of Orbitals
@@ -167,13 +188,18 @@ contains
         ind = ind + 1
       end do
     end do
-  end subroutine flattenBasis
+  end subroutine TMolecularOrbital_flattenBasis
 
 
   !> Initializes periodic parameters
-  subroutine initPeriodic(this, geometry, maxCutoff)
+  subroutine TMolecularOrbital_initPeriodic(this, geometry, maxCutoff)
+    !> TMolecularOrbital data object to initialise
     class(TMolecularOrbital), intent(inout) :: this
+
+    !> System geometry
     type(TGeometry), intent(in) :: geometry
+
+    !> Maximum cutoff radius for images to include
     real(dp), intent(in) :: maxCutoff
   
     this%periodic%isPeriodic = geometry%tPeriodic
@@ -197,37 +223,51 @@ contains
       this%periodic%rCellVec(:,:) = 0.0_dp
     end if
     this%periodic%isInitialized = .true.
-  end subroutine initPeriodic
+  end subroutine TMolecularOrbital_initPeriodic
 
 
   !> Initializes coordinates including periodic images.
   ! Depends on initPeriodic having run first.
   subroutine TMolecularOrbital_updateCoords(this, geometry)
-      class(TMolecularOrbital), intent(inout) :: this
-      type(TGeometry), intent(in) :: geometry
-      integer :: iCell, iAtom
+    !> TMolecularOrbital data object to initialise
+    class(TMolecularOrbital), intent(inout) :: this
 
-      @:ASSERT(this%system%speciesInitialised)
-      @:ASSERT(this%periodic%isInitialized)
-      allocate(this%system%coords(3, this%system%nAtom, this%periodic%nCell))
-      this%system%coords(:,:,1) = geometry%coords
+    ! System geometry
+    type(TGeometry), intent(in) :: geometry
 
-      if (this%periodic%isPeriodic) then
-        call this%boundaryCond%foldCoordsToCell(this%system%coords(:,:,1), this%periodic%latVecs)
-        do iCell = 2, this%periodic%nCell
-          do iAtom = 1, this%system%nAtom
-            this%system%coords(:, iAtom, iCell) = this%system%coords(:, iAtom, 1) + this%periodic%rCellVec(:, iCell)
-          end do
+    integer :: iCell, iAtom
+
+    @:ASSERT(this%system%speciesInitialised)
+    @:ASSERT(this%periodic%isInitialized)
+    allocate(this%system%coords(3, this%system%nAtom, this%periodic%nCell))
+    this%system%coords(:,:,1) = geometry%coords
+
+    if (this%periodic%isPeriodic) then
+      call this%boundaryCond%foldCoordsToCell(this%system%coords(:,:,1), this%periodic%latVecs)
+      do iCell = 2, this%periodic%nCell
+        do iAtom = 1, this%system%nAtom
+          this%system%coords(:, iAtom, iCell) = this%system%coords(:, iAtom, 1) + this%periodic%rCellVec(:, iCell)
         end do
-      end if
-      this%system%coordsInitialised = .true.
+      end do
+    end if
+    this%system%coordsInitialised = .true.
   end subroutine TMolecularOrbital_updateCoords
 
   !> Bundles input flags / flattens optional arguments into a calculation context struct.
   function bundleFlags(isRealInput, addAtomicDensities, useGpu, occupationVec) result(ctx)
+    !> Is the input eigenvector in eigVecsReal and not in eigVecsCmpl?
     logical, intent(in) :: isRealInput
-    logical, intent(in), optional :: addAtomicDensities, useGpu
+
+    !> Calculate atomic densities (squared basis contributions) instead of wave functions?
+    logical, intent(in), optional :: addAtomicDensities
+
+    !> Enable CUDA GPU offloading?
+    logical, intent(in), optional :: useGpu
+    
+    !> If present, calculate total charge density instead of wave functions.
     real(dp), intent(in), optional :: occupationVec(:)
+    
+    !> Bundled output flag struc
     type(TCalculationContext) :: ctx
 
     ctx%isRealInput = isRealInput
@@ -262,10 +302,13 @@ contains
   subroutine TMolecularOrbital_getValue_real(this, eigVecsReal, valueOnGrid, useGpu)
     !> MolecularOrbital data instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
   
@@ -278,12 +321,16 @@ contains
   subroutine TMolecularOrbital_getTotalChrg_real(this, eigVecsReal, valueOnGrid, occupationVec, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Calculate total charge. Coefficients for each squared state.
     real(dp), intent(in) :: occupationVec(:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
   
@@ -296,10 +343,13 @@ contains
   subroutine TMolecularOrbital_getAtomicDensities_real(this, eigVecsReal, valueOnGrid, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
 
@@ -312,16 +362,22 @@ contains
   subroutine TMolecularOrbital_getValue_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
+
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Index of the k-points in kPoints for every mol.orbital
     integer, intent(in) :: kIndexes(:)
+
     !> Molecular orbitals on grid on exit.
     complex(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
+
     ! Dummy real arrays
     real(dp) :: dummyReal(0,0,0,0)
 
@@ -334,18 +390,25 @@ contains
   subroutine TMolecularOrbital_getTotalChrg_cmpl(this, eigVecsCmpl, kPoints, kIndexes, valueOnGrid, occupationVec, useGpu)
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
+
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Index of the k-points in kPoints for every mol.orbital
     integer, intent(in) :: kIndexes(:)
+
     !> Molecular orbitals on grid on exit.
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Calculate total charge. Coefficients for each squared state.
     real(dp), intent(in) :: occupationVec(:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
+
     ! Dummy complex arrays
     complex(dp) :: dummyCmplx(0,0,0,0)
 
@@ -362,14 +425,19 @@ contains
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Molecular orbitals on a grid
     real(dp), intent(out) :: valueOnGrid(:,:,:,:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
+
     !> Add densities instead of wave functions
     logical, intent(in), optional :: addAtomicDensities
+
     !> if present, calculate total charge. Coefficients for each squared state
     real(dp), intent(in), optional :: occupationVec(:)
 
@@ -407,20 +475,28 @@ contains
 
     !> MolecularOrbital instance
     type(TMolecularOrbital), intent(in) :: this
+
     !> Summation coefficients for the Orbitals
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
+
     !> Array of k-points
     real(dp), intent(in) :: kPoints(:,:)
+
     !> Index of the k-points in kPoints for every mol.orbital
     integer, intent(in) :: kIndexes(:)
+
     !> Density output grid (if calcTotalChrg)
     real(dp), intent(out) :: valueOutReal(:,:,:,:)
+
     !> Complex Molecular orbital output grid
     complex(dp), intent(out) :: valueOutCmplx(:,:,:,:)
+
     !> Enable GPU offloading?
     logical, intent(in), optional :: useGpu
+
     !> Calculate total charge. Coefficients for each squared state
     real(dp), intent(in), optional :: occupationVec(:)
+
     ! Dummy real arrays
     real(dp) :: eigVecsReal(0,0)
 

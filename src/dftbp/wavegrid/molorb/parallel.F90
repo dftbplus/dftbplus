@@ -33,8 +33,10 @@ contains
 
     !> Periodic boundary conditions data
     type(TPeriodicParams), intent(in) :: periodic
+
     !> Index of the k-points for each orbital in kPoints
     integer, intent(in) :: kIndexes(:)
+
     !> Phase factors for periodic images
     complex(dp), intent(in) :: phases(:,:)
 
@@ -46,11 +48,13 @@ contains
 
     !> Real eigenvectors, or null-array
     real(dp), intent(in) :: eigVecsReal(:,:)
+
     !> Complex eigenvectors, or null-array
     complex(dp), intent(in) :: eigVecsCmpl(:,:)
 
     !> Contains the real grid on exit
     real(dp), intent(out) :: valueReal(:,:,:,:)
+
     !> Contains the complex grid on exit
     complex(dp), intent(out) :: valueCmpl(:,:,:,:)
 
@@ -80,7 +84,7 @@ contains
       #:if WITH_OMP
         print *, "Wavegrid: running OMP parallel on CPU"
       #:else
-      print *, "Wavegrid: missing OMP, running serially on CPU"
+        print *, "Wavegrid: missing OMP, running serially on CPU"
       #:endif
       call evaluateOMP(system, orbitals, periodic, kIndexes, phases, ctx, &
             & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)
@@ -94,20 +98,34 @@ contains
 
     !> System
     type(TSystemParams), intent(in) :: system
+
     !> Basis set
     class(TOrbital), intent(in) :: orbitals(:)
+
     !> Periodic boundary conditions
     type(TPeriodicParams), intent(in) :: periodic
+    
+    !> K-point indexes (for phase factor selection)
     integer, intent(in) :: kIndexes(:)
+
+    !> Phase factors
     complex(dp), intent(in) :: phases(:, :)
+
     !> Calculation flags
     type(TCalculationContext), intent(in) :: ctx
-    !> Eigenvectors
+
+    !> Real Eigenvectors
     real(dp), intent(in) :: eigVecsReal(:, :)
+
+    !> Complex Eigenvectors (if not real)
     complex(dp), intent(in) :: eigVecsCmpl(:, :)
-    !> Output grids
+
+    !> Real output grid (if real input or total charge calculation)
     real(dp), intent(out) :: valueReal(:, :, :, :)
+
+    !> Complex output grid (if complex input)
     complex(dp), intent(out) :: valueCmpl(:, :, :, :)
+
     !! Thread private variables
     integer ::  ind, iSpecies
     real(dp) :: xyz(3), diff(3), frac(3)
