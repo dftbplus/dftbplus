@@ -10,7 +10,8 @@
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital
+  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital, TSlaterOrbital_init, &
+      & TRadialTableOrbital_initFromOrbital
   use waveplot_gridcache, only : TGridCache, TGridCache_init
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -904,9 +905,9 @@ contains
       
       select case (unquote(char(orbitalType)))
       case ("TSlaterOrbital")
-        call sto%init(reshape(coeffs, [size(coeffs)/size(exps), size(exps)]), exps, angMom, cutoff)
+        call TSlaterOrbital_init(sto, reshape(coeffs, [size(coeffs)/size(exps), size(exps)]), exps, angMom, cutoff)
         if (useTabulatedRadial) then
-          call lut%initFromOrbital(sto, basisResolution)
+          call TRadialTableOrbital_initFromOrbital(lut, sto, basisResolution)
           spBasis%orbitals(ii) = lut
         else
           spBasis%orbitals(ii) = sto

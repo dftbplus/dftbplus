@@ -23,6 +23,7 @@ module dftbp_wavegrid_basis_orbital
   type, abstract :: TOrbital
     !> Angular momentum (l)
     integer :: angMom = -1
+
     !> Square of the Cutoff, after which the orbital is assumed to be zero
     real(dp) :: cutoffSq
   contains

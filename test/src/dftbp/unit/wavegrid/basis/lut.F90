@@ -9,7 +9,8 @@
 
 module test_wavegrid_basis_lut
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
-  use dftbp_wavegrid_basis, only : TRadialTableOrbital, TSlaterOrbital
+  use dftbp_wavegrid_basis, only : TRadialTableOrbital, TSlaterOrbital, TRadialTableOrbital_initFromArray, &
+       TRadialTableOrbital_initFromOrbital, TSlaterOrbital_init
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -44,7 +45,7 @@ contains
       ], [2,7])
 
 
-    call sto%initFromArray(gridValue, gridDist, angMom)
+    call TRadialTableOrbital_initFromArray(sto, gridValue, gridDist, angMom)
     @:ASSERT(sto%angMom == angMom)
 
     do i = 1, size(checkedPairs, 2)
@@ -64,10 +65,10 @@ contains
     real(dp), parameter :: alpha(1) = [1.0_dp]
     real(dp) :: resolution, r, valSto, valLut
 
-    call sto_1s%init(aa=aa, alpha=alpha, angMom=0, cutoff=15.0_dp)
+    call TSlaterOrbital_init(sto_1s, aa, alpha, angMom=0, cutoff=15.0_dp)
 
     resolution = 0.01_dp
-    call lut%initFromOrbital(sto_1s, resolution)
+    call TRadialTableOrbital_initFromOrbital(lut, sto_1s, resolution)
 
     ! Check if an interpolated point is close to the original function
     r = 3.5_dp * resolution

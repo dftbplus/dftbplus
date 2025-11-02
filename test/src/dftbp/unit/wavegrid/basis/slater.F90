@@ -9,7 +9,7 @@
 
 module test_wavegrid_basis_slater
   use fortuno_serial, only : is_close, suite => serial_suite_item, test_list
-  use dftbp_wavegrid_basis, only : TSlaterOrbital
+  use dftbp_wavegrid_basis, only : TSlaterOrbital, TSlaterOrbital_init
   use dftbp_common_accuracy, only : dp
   $:FORTUNO_SERIAL_IMPORTS()
   implicit none
@@ -32,12 +32,12 @@ contains
 
     cutoff = 20.0_dp
 
-    call sto_1s%init(aa=aa, alpha=alpha, angMom=0, cutoff=cutoff)
+    call TSlaterOrbital_init(sto_1s, aa=aa, alpha=alpha, angMom=0, cutoff=cutoff)
     val = sto_1s%getRadial(1.0_dp)
     expected = 2.0_dp * exp(-1.0_dp)
     @:CHECK(is_close(val, expected, rtol=rtol))
 
-    call sto_2p%init(aa=reshape([1.0_dp], [1,1]), alpha=alpha, angMom=1, cutoff=cutoff)
+    call TSlaterOrbital_init(sto_2p, aa=reshape([1.0_dp], [1,1]), alpha=alpha, angMom=1, cutoff=cutoff)
     val = sto_2p%getRadial(1.0_dp)
     expected = 1.0_dp * exp(-1.0_dp)
     @:CHECK(is_close(val, expected, rtol=rtol))

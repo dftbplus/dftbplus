@@ -8,7 +8,8 @@
 #:include "fortuno_serial.fypp"
 module test_wavegrid_initmolorb
   use dftbp_wavegrid, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
-  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital
+  use dftbp_wavegrid_basis, only : TOrbital, TSlaterOrbital, TRadialTableOrbital, TSlaterOrbital_init, & 
+    & TRadialTableOrbital_initFromOrbital
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds, TBoundaryConds_init
@@ -37,10 +38,10 @@ contains
     type(TSlaterOrbital) :: sto
     type(TRadialTableOrbital) :: lut
     
-    call sto%init(aa, alpha, angMom, cutoff)
+    call TSlaterOrbital_init(sto, aa, alpha, angMom, cutoff)
 
     if (useRadialLut) then
-      call lut%initFromOrbital(sto, lutResolution)
+      call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
       orbital = lut
     else
       orbital = sto
@@ -65,10 +66,10 @@ contains
     type(TSlaterOrbital) :: sto
     type(TRadialTableOrbital) :: lut
 
-    call sto%init(aa, alpha, angMom, cutoff)
+    call TSlaterOrbital_init(sto, aa, alpha, angMom, cutoff)
 
     if (useRadialLut) then
-      call lut%initFromOrbital(sto, lutResolution)
+      call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
       orbital = lut
     else
       orbital = sto
@@ -92,10 +93,10 @@ contains
     type(TSlaterOrbital) :: sto
     type(TRadialTableOrbital) :: lut
 
-    call sto%init(aa, alpha, angMom, cutoff)
+    call TSlaterOrbital_init(sto, aa, alpha, angMom, cutoff)
 
     if (useRadialLut) then
-      call lut%initFromOrbital(sto, lutResolution)
+      call TRadialTableOrbital_initFromOrbital(lut, sto, lutResolution)
       orbital = lut
     else
       orbital = sto

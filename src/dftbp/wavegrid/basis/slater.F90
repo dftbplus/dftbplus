@@ -31,7 +31,6 @@ module dftbp_wavegrid_basis_slater
     real(dp), allocatable :: alpha(:)
   contains
     procedure :: getRadial => TSlaterOrbital_getRadial
-    procedure :: init => TSlaterOrbital_init
     procedure, pass(lhs) :: assign => TSlaterOrbital_assign
   end type TSlaterOrbital
 
@@ -41,7 +40,7 @@ contains
   subroutine TSlaterOrbital_init(this, aa, alpha, angMom, cutoff)
 
     !> TSlaterOrbital instance to initialise
-    class(TSlaterOrbital), intent(out) :: this
+    type(TSlaterOrbital), intent(out) :: this
 
     !> Summation coefficients. Shape: [nCoeffPerAlpha, nAlpha]
     real(dp), intent(in) :: aa(:,:)

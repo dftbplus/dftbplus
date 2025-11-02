@@ -11,7 +11,7 @@
 module dftbp_wavegrid_molorb_offloaded
   use, intrinsic :: iso_c_binding, only : c_bool, c_double, c_int, c_loc, c_ptr
   use dftbp_wavegrid_molorb_types, only : TCalculationContext, TPeriodicParams, TSystemParams
-  use dftbp_wavegrid_basis, only : TOrbital, TRadialTableOrbital
+  use dftbp_wavegrid_basis, only : TOrbital, TRadialTableOrbital, TRadialTableOrbital_initFromOrbital
   use dftbp_common_accuracy, only : dp
   implicit none
   private
@@ -231,7 +231,7 @@ contains
     do iOrb = 1, this%nOrbitals
       this%angMoms(iOrb) = orbitals(iOrb)%angMom
       this%cutoffsSq(iOrb) = orbitals(iOrb)%cutoffSq
-      call lut%initFromOrbital(orbitals(iOrb), resolution, cutoff)
+      call TRadialTableOrbital_initFromOrbital(lut, orbitals(iOrb), resolution, cutoff)
 
       @:ASSERT(this%nLutPoints == size(lut%gridValue))
       @:ASSERT(abs(lut%invLutStep - this%invLutStep) < 1.0e-12_dp)

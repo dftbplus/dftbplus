@@ -17,7 +17,7 @@ module dftbp_wavegrid_basis_lut
 
   private
 
-  public :: TRadialTableOrbital
+  public :: TRadialTableOrbital, TRadialTableOrbital_initFromArray, TRadialTableOrbital_initFromOrbital
   
   !> Concrete class for an orbital represented by a linearly
   !! interpolated lookup table.
@@ -30,8 +30,6 @@ module dftbp_wavegrid_basis_lut
     real(dp), allocatable :: gridValue(:)
   contains
     procedure :: getRadial => TRadialTableOrbital_getRadial
-    procedure :: initFromArray => TRadialTableOrbital_initFromArray
-    procedure :: initFromOrbital => TRadialTableOrbital_initFromOrbital
     procedure, pass(lhs) :: assign => TRadialTableOrbital_assign
   end type TRadialTableOrbital
 
@@ -39,7 +37,7 @@ contains
 
   !> Initialises using a verbatim array of values.
   subroutine TRadialTableOrbital_initFromArray(this, gridValue, gridDist, angMom)
-    class(TRadialTableOrbital), intent(out) :: this
+    type(TRadialTableOrbital), intent(out) :: this
     real(dp), intent(in) :: gridValue(:)
     real(dp), intent(in) :: gridDist
     integer, intent(in) :: angMom
@@ -58,7 +56,7 @@ contains
 
   !> Resamples another orbital onto a LUT with given resolution.
   subroutine TRadialTableOrbital_initFromOrbital(this, other, resolution, newCutoff)
-    class(TRadialTableOrbital), intent(out) :: this
+    type(TRadialTableOrbital), intent(out) :: this
     class(TOrbital), intent(in) :: other
     real(dp), intent(in) :: resolution
     !> New cutoff, required to be larger than original cutoff.
