@@ -517,8 +517,8 @@ contains
             & iSparseStart, img2CentCell)
         call symm(work2Local, 'l', dRho, eigvecsTransformed)
         work2Local(:,:) = work2Local * eigvecsTransformed
-        call weight_dx(workLocal, work2Local, nFilled, nOrb, 1, iS, degenTransform,&
-            & eigvals, filling, maxFill)
+        call weight_dx(workLocal, work2Local, nFilled, nOrb, 1, iS, degenTransform, eigvals,&
+            & filling, maxFill)
 
         ! calculate the derivatives of the eigenvectors
         workLocal = matmul(eigvecsTransformed, workLocal)

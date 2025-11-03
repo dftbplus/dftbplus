@@ -1718,7 +1718,7 @@ contains
 
     allocate(degenTransform(parallelKS%nLocalKS))
     do ii = 1, size(degenTransform)
-      call TRotateDegen_init(degenTransform(ii), tolDegen)
+      call TRotateDegen_init(degenTransform(ii), tolerance=tolDegen)
     end do
 
     if (allocated(hybridXc)) then
@@ -1864,7 +1864,7 @@ contains
     real(dp), intent(in) :: sccTol
 
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital
-    !> blocks (if tDFTBU or onsite corrections)
+    !! blocks (if tDFTBU or onsite corrections)
     integer, intent(in) :: nMixElements
 
     !> nr. of inequivalent charges
@@ -1904,7 +1904,7 @@ contains
     class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
-    !> functional
+    !! functional
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> Charge mixing object
@@ -2056,9 +2056,18 @@ contains
         & eigvals, tempElec, Ef, kWeight)
 
     if (any(tMetallic)) then
-      @:RAISE_ERROR(errStatus, -1, "Metallic system atom derivative perturbations are not currently&
-          & supported")
+      @:RAISE_ERROR(errStatus, -1, "Atom derivative perturbations are not currently supported for&
+          & metallic systems")
     end if
+
+    do iKS = 1, parallelKS%nLocalKS
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
+      if (degenTransform(iKS)%isAnyDegenerate(eigvals(:, iK, iS))) then
+        @:RAISE_ERROR(errStatus, -1, "Atom derivative perturbations are not currently supported for&
+            & high-symmetry/degenerate systems")
+      end if
+    end do
 
     allocate(dEi(nOrbs, 1, nSpin, 3, nAtom))
     allocate(dEiTmp(nOrbs, 1, nSpin))
