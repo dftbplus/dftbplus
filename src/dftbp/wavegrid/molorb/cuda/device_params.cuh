@@ -29,8 +29,10 @@ using complexd = thrust::complex<double>;
 template <typename T>
 class DeviceBuffer {
    public:
+    // Allocate nothing
     DeviceBuffer() = default;
 
+    // Allocate only
     explicit DeviceBuffer(size_t count) { allocate(count); }
 
     // Allocate and copy from host
@@ -39,30 +41,17 @@ class DeviceBuffer {
         copy_to_device(host_ptr, count);
     }
 
-    // Destructor automatically frees the memory
+    // Destructor frees memory on device
     ~DeviceBuffer() { deallocate(); }
 
-    void deallocate() {
-        if (_devicePtr) {
-            CHECK_CUDA(cudaFree(_devicePtr));
-            _devicePtr = nullptr;
-            _count     = 0;
-        }
-    }
-
-    // Assign a new size and copy from host
-    void assign(const T* host_ptr, size_t count) {
-        deallocate();
-        allocate(count);
-        copy_to_device(host_ptr, count);
-    }
-
-    // Disable copy semantics
+    // Disable copy constructor, assignment
     DeviceBuffer(const DeviceBuffer&)            = delete;
     DeviceBuffer& operator=(const DeviceBuffer&) = delete;
 
     // Enable move semantics
-    DeviceBuffer(DeviceBuffer&& other) noexcept : _devicePtr(other._devicePtr), _count(other._count) {
+    DeviceBuffer(DeviceBuffer&& other) noexcept :
+        _devicePtr(other._devicePtr),
+        _count(other._count) {
         other._devicePtr = nullptr;
         other._count     = 0;
     }
@@ -106,6 +95,13 @@ class DeviceBuffer {
             _devicePtr = nullptr;
         }
     }
+    void deallocate() {
+        if (_devicePtr) {
+            CHECK_CUDA(cudaFree(_devicePtr));
+            _devicePtr = nullptr;
+            _count     = 0;
+        }
+    }
     T*     _devicePtr = nullptr;
     size_t _count     = 0;
 };
@@ -129,14 +125,16 @@ class GpuLutTexture {
         cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<float>();
         CHECK_CUDA(cudaMallocArray(&_lutArray, &channelDesc, nPoints, nOrbitals, 0));
 
-        // Copy data to array
+        // Copy data to array.
+        // We cannot use a 1d copy since our _lutArray is not a simple pointer
+        // to contiguous global memory.
         CHECK_CUDA(cudaMemcpy2DToArray(_lutArray,  // dst array
             0,                        // no offset in dst
             0,                        // no offset in dst
             lutFloats.data(),         // src pointer
             nPoints * sizeof(float),  // src pitch (for alignment, bytes to next row)
             nPoints * sizeof(float),  // width in bytes
-            nOrbitals,                    // height (number of cached orbitals)
+            nOrbitals,                // height (number of cached orbitals)
             cudaMemcpyHostToDevice));
 
         // Prepare texture object properties
@@ -161,16 +159,17 @@ class GpuLutTexture {
         CHECK_CUDA(cudaCreateTextureObject(&_textureObject, &resDesc, &texDesc, nullptr));
     }
 
+    cudaTextureObject_t get() const { return _textureObject; }
+
     ~GpuLutTexture() {
         if (_textureObject) cudaDestroyTextureObject(_textureObject);
         if (_lutArray) cudaFreeArray(_lutArray);
     }
 
-    // Disable copy
+    // Disable copy constructor, assignment
     GpuLutTexture(const GpuLutTexture&)            = delete;
     GpuLutTexture& operator=(const GpuLutTexture&) = delete;
 
-    cudaTextureObject_t get() const { return _textureObject; }
 
    private:
     cudaArray_t         _lutArray      = nullptr;
@@ -221,15 +220,14 @@ struct DeviceData {
             new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals));
 
         if (calc->isRealInput) {
-            eigVecsReal.assign(calc->eigVecsReal, (size_t)system->nOrb * calc->nEigIn);
+            eigVecsReal = DeviceBuffer<double>(calc->eigVecsReal, (size_t)system->nOrb * calc->nEigIn);
         } else {
-            eigVecsCmpl.assign(
-                reinterpret_cast<const complexd*>(calc->eigVecsCmpl), (size_t)system->nOrb * calc->nEigIn);
-            phases.assign(reinterpret_cast<const complexd*>(periodic->phases), (size_t)system->nCell * calc->nEigIn);
-            kIndexes.assign(periodic->kIndexes, calc->nEigIn);
+            eigVecsCmpl = DeviceBuffer<complexd>(reinterpret_cast<const complexd*>(calc->eigVecsCmpl), (size_t)system->nOrb * calc->nEigIn);
+            phases      = DeviceBuffer<complexd>(reinterpret_cast<const complexd*>(periodic->phases), (size_t)system->nCell * calc->nEigIn);
+            kIndexes    = DeviceBuffer<int>(periodic->kIndexes, calc->nEigIn);
         }
 
-        // Per-GPU batch buffer for the output
+        // Allocate the per-GPU batch output array
         size_t batch_buffer_size_elems = (size_t)grid->nPointsX * grid->nPointsY * z_per_batch * calc->nEigOut;
         if (calc->isRealOutput) {
             valueReal_out_batch = DeviceBuffer<double>(batch_buffer_size_elems);
