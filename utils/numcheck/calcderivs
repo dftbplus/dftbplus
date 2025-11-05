@@ -13,6 +13,7 @@ Calculates forces and lattice derivatives with finite differences.
 import argparse
 from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
+import os
 import re
 import subprocess
 import shutil
@@ -44,6 +45,7 @@ CHARGE_PATTERN = re.compile(r"gross_atomic_charges\s*:[^:]*:[^:]*:\d+\s*"
     r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)",
     re.MULTILINE)
 
+TAGGED_RESULTS = 'results.tag'
 REFERENCE_RESULTS = 'results0.tag'
 CHARGES_FILE = "charges.bin"
 
@@ -68,9 +70,12 @@ def main():
         reffile = args.ref
     else:
         reffile = None
+    if (exists(TAGGED_RESULTS) and reffile != TAGGED_RESULTS):
+        print(f"Removing pre-existing tagged file, {TAGGED_RESULTS}, before calculations")
+        os.remove(TAGGED_RESULTS)
     disp = args.disp * AA__BOHR
     binary = args.binary
-    print("BINARY:", binary)
+    print(f"DFTB+ BINARY: {binary}")
 
     if args.calcref:
         calculate_reference(binary, reffile, coords, specienames, species,
@@ -132,7 +137,7 @@ def parse_arguments():
     parser.add_argument("-r", "--reference", dest="ref", help=msg)
 
     msg = "Calculate reference system (and compare derivatives with it),"\
-          " resulting results file will be saved as 'results0.tag'"
+          f" resulting results file will be saved as '{REFERENCE_RESULTS}'"
     parser.add_argument("-c", "--calc-reference", dest="calcref",
                         action="store_true", default=False, help=msg)
 
@@ -212,7 +217,7 @@ def calculate_reference(binary, reffile, coords, specienames, species, origin,
     if (charge_restart):
         shutil.copy2(charge_restart.name, CHARGES_FILE)
     subprocess.call([binary])
-    shutil.move("results.tag", reffile)
+    shutil.move(TAGGED_RESULTS, reffile)
 
 
 def calculate_forces(binary, disp, coords, specienames, species, origin,
@@ -233,7 +238,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
-                fp = open("results.tag", "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
@@ -242,7 +247,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                     energy[jj] = float(match.group("value"))
                     print("energy:", energy[jj])
                 else:
-                    raise ValueError("No energy match found in results.tag!")
+                    raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
             forces[aa][ii] = (energy[0] - energy[1]) / (2.0 * disp)
     return forces
 
@@ -268,7 +273,7 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary,])
-                fp = open("results.tag", "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
@@ -277,7 +282,7 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 if match:
                     energy[kk] = float(match.group("value"))
                 else:
-                    raise ValueError("No energy match found in results.tag!")
+                    raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
             latderivs[jj][ii] = (energy[1] - energy[0]) / (2.0 * disp)
     return latderivs
 
@@ -300,7 +305,7 @@ def calculate_born(binary, disp, coords, specienames, species, origin,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
-                fp = open("results.tag", "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = DIPOLE_PATTERN.search(txt)
@@ -311,7 +316,7 @@ def calculate_born(binary, disp, coords, specienames, species, origin,
                     dipole[jj][2] = float(match.group("dipoleZ"))
                     print("dipole:", dipole[jj][0], dipole[jj][1], dipole[jj][2])
                 else:
-                    raise ValueError("No dipole match found in results.tag!")
+                    raise ValueError(f"No dipole match found in {TAGGED_RESULTS}!")
             for jj in range(3):
                 born[iat][ii][jj] = (dipole[0][jj] - dipole[1][jj]) / (2.0 * disp)
     return born
@@ -335,7 +340,7 @@ def calculate_charges(binary, disp, coords, specienames, species, origin,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
-                fp = open("results.tag", "r")
+                fp = open({TAGGED_RESULTS}, "r")
                 txt = fp.read()
                 fp.close()
                 match = CHARGE_PATTERN.search(txt)
@@ -345,7 +350,7 @@ def calculate_charges(binary, disp, coords, specienames, species, origin,
                                 sep=" ")
                     gross[jj][:] = tmp
                 else:
-                    raise ValueError("No gross charges match found in results.tag!")
+                    raise ValueError(f"No gross charges match found in {TAGGED_RESULTS}!")
             charges[iat][ii][:] = (gross[0] - gross[1]) / (2.0 * disp)
     return charges
 
