@@ -90,23 +90,29 @@ module dftbp_elecsolvers_elpa
     !> Number of columns in the local matrix
     integer :: matrixLocalColumns = 1
 
+  #:if WITH_SCALAPACK
     !> BLACS grid to use for redistribution
     type(blacsgrid) :: redistributeGrid
+  #:endif
 
+  #:if WITH_MPI
     !> MPI communicator to use for redistribution
     type(mpifx_comm) :: redistributeComm
 
     !> MPI communicator of all ranks in the current group
     type(mpifx_comm) :: groupComm
+  #:endif
 
     !> BLACS context
     integer :: contextOrig
 
+  #:if WITH_SCALAPACK
     !> Original  descriptor of the matrix
     integer :: descOrig(DLEN_)
 
     !> Descriptor to be used in ELPA, possibly redistributed
     integer :: desc(DLEN_)
+  #:endif
 
     !> First matrix used for redistribution
     real(dp), allocatable :: matrixReal1(:,:)
@@ -132,9 +138,11 @@ module dftbp_elecsolvers_elpa
     procedure, private :: TElpa_solveComplex
     generic :: solve => TElpa_solveReal, TElpa_solveComplex
     procedure :: reset => TElpa_reset
+  #:if WITH_ELPA
     procedure, private :: setConfig => Telpa_setConfig
     procedure, private :: initConfig => Telpa_initConfig
     procedure, private :: initRedistribute => Telpa_initRedistribute
+  #:endif
 
   end type TElpa
 
@@ -244,6 +252,7 @@ contains
   end subroutine TElpa_init
 
 
+#:if WITH_ELPA
   !> Initialize ELPA settings
   subroutine TElpa_initConfig(this, grid, comm, nblk)
 
@@ -338,6 +347,7 @@ contains
     this%groupComm = groupComm
 
   end subroutine TElpa_initRedistribute
+#:endif
 
 
   !> Reset the solver state when the geometry has changed
@@ -351,6 +361,7 @@ contains
   end subroutine TElpa_reset
 
 
+#:if WITH_ELPA
   !> Set ELPA flags with error handling
   subroutine TElpa_setConfig(this, name, val)
 
@@ -365,14 +376,13 @@ contains
 
     integer(kind=c_int) :: status
 
-  #:if WITH_ELPA
     call this%handle%set(name, int(val, kind=c_int), status)
     if (status /= ELPA_OK) then
       call error("Error during ELPA initialization: setting " // name // " failed")
     end if
-  #:endif
 
   end subroutine TElpa_setConfig
+#:endif
 
 
   !> Finalize the ELPA solver
