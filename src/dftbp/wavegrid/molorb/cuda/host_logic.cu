@@ -84,11 +84,10 @@ elapsedTime_ms runBatchOnDevice(const GpuLaunchConfig& config, const GridParams*
  */
 void copyD2H(void* d_src_ptr, void* h_dest_ptr, int nPointsX, int nPointsY, int nPointsZ, int z_per_batch,
     int z_offset_global, const CalculationParams* calc) {
-    size_t output_num_size = calc->isRealOutput ? sizeof(double) : sizeof(complexd);
-    size_t host_plane_size    = (size_t)nPointsZ * nPointsY * nPointsX * output_num_size;
-    size_t device_plane_size  = (size_t)z_per_batch * nPointsY * nPointsX * output_num_size;
+    size_t output_num_size   = calc->isRealOutput ? sizeof(double) : sizeof(complexd);
+    size_t host_plane_size   = (size_t)nPointsZ * nPointsY * nPointsX * output_num_size;
+    size_t device_plane_size = (size_t)z_per_batch * nPointsY * nPointsX * output_num_size;
 
-    // Strided Memcpy3D could be used to squash this loop.
     for (int iEig = 0; iEig < calc->nEigOut; ++iEig) {
         // From: iEig-th slice of GPU batch buffer
         ptrdiff_t d_offset_bytes = (ptrdiff_t)(iEig * device_plane_size);
