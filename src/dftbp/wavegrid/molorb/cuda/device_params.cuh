@@ -161,17 +161,36 @@ class GpuLutTexture {
 
     cudaTextureObject_t get() const { return _textureObject; }
 
-    ~GpuLutTexture() {
-        if (_textureObject) cudaDestroyTextureObject(_textureObject);
-        if (_lutArray) cudaFreeArray(_lutArray);
-    }
+    ~GpuLutTexture() { deallocate(); }
 
     // Disable copy constructor, assignment
     GpuLutTexture(const GpuLutTexture&)            = delete;
     GpuLutTexture& operator=(const GpuLutTexture&) = delete;
 
+    // Enable move semantics
+    GpuLutTexture(GpuLutTexture&& other) noexcept :
+        _lutArray(other._lutArray), _textureObject(other._textureObject) {}
+
+    GpuLutTexture& operator=(GpuLutTexture&& other) noexcept {
+        if (this != &other) {
+            deallocate();
+            _lutArray = other._lutArray;
+            _textureObject = other._textureObject;
+            other._lutArray = nullptr;
+            other._textureObject = 0;
+        }
+
+        return *this;
+        
+    }
+
+
 
    private:
+    void deallocate() {
+        if (_textureObject) cudaDestroyTextureObject(_textureObject);
+        if (_lutArray) cudaFreeArray(_lutArray);
+    }
     cudaArray_t         _lutArray      = nullptr;
     cudaTextureObject_t _textureObject = 0;
 };
@@ -195,7 +214,7 @@ struct DeviceData {
     DeviceBuffer<int>    orb_angMoms;
     DeviceBuffer<double> orb_cutoffsSq;
     // Texture for radial lookup table
-    std::unique_ptr<GpuLutTexture> orb_lut;
+    GpuLutTexture orb_lut;
 
     // Eigenvectors
     DeviceBuffer<double>   eigVecsReal;
@@ -215,7 +234,7 @@ struct DeviceData {
           iStos(system->iStos, system->nSpecies + 1),
           orb_angMoms(basis->angMoms, basis->nOrbitals),
           orb_cutoffsSq(basis->cutoffsSq, basis->nOrbitals),
-          orb_lut(std::unique_ptr<GpuLutTexture>(new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals)))
+          orb_lut(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals)
     {
         if (DEBUG) printf("Using radial lookup table with %d points for %d orbitals\n", basis->nLutPoints, basis->nOrbitals);
 
@@ -300,7 +319,7 @@ struct DeviceKernelParams {
         nOrbitals(basis->nOrbitals),
         orb_angMoms(data.orb_angMoms.get()),
         orb_cutoffsSq(data.orb_cutoffsSq.get()),
-        lutTex(data.orb_lut->get()),
+        lutTex(data.orb_lut.get()),
         inverseLutStep(basis->inverseLutStep),
         // Periodic boundary conditions
         isPeriodic(periodic->isPeriodic),
