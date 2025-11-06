@@ -115,10 +115,10 @@ class DeviceBuffer {
 class GpuLutTexture {
    public:
     GpuLutTexture(const double* lutData, int nPoints, int nOrbitals) {
-        // Convert the Fortran passed doubles to floats
-        size_t             totalValues = (size_t)nOrbitals * nPoints;
-        std::vector<float> lutFloats(totalValues);
-        for (size_t i = 0; i < totalValues; ++i)
+        // Convert the Fortran passed doubles to floats.
+        // (hardware limitation)
+        std::vector<float> lutFloats((size_t)nOrbitals * nPoints);
+        for (size_t i = 0; i < lutFloats.size(); ++i)
             lutFloats[i] = static_cast<float>(lutData[i]);
 
         // Allocate memory on device
@@ -169,7 +169,11 @@ class GpuLutTexture {
 
     // Enable move semantics
     GpuLutTexture(GpuLutTexture&& other) noexcept :
-        _lutArray(other._lutArray), _textureObject(other._textureObject) {}
+        _lutArray(other._lutArray),
+        _textureObject(other._textureObject) {
+            other._lutArray = nullptr;
+            other._textureObject = 0;
+        }
 
     GpuLutTexture& operator=(GpuLutTexture&& other) noexcept {
         if (this != &other) {
@@ -179,12 +183,8 @@ class GpuLutTexture {
             other._lutArray = nullptr;
             other._textureObject = 0;
         }
-
         return *this;
-        
     }
-
-
 
    private:
     void deallocate() {
@@ -241,6 +241,7 @@ struct DeviceData {
         if (calc->isRealInput) {
             eigVecsReal = DeviceBuffer<double>(calc->eigVecsReal, (size_t)system->nOrb * calc->nEigIn);
         } else {
+            // Cast to complexd (C++) since C interface (kernel.cuh) uses cuDoubleComplex (C) for compatibility.
             eigVecsCmpl = DeviceBuffer<complexd>(reinterpret_cast<const complexd*>(calc->eigVecsCmpl), (size_t)system->nOrb * calc->nEigIn);
             phases      = DeviceBuffer<complexd>(reinterpret_cast<const complexd*>(periodic->phases), (size_t)system->nCell * calc->nEigIn);
             kIndexes    = DeviceBuffer<int>(periodic->kIndexes, calc->nEigIn);
