@@ -214,10 +214,10 @@ struct DeviceData {
           species(system->species, system->nAtom),
           iStos(system->iStos, system->nSpecies + 1),
           orb_angMoms(basis->angMoms, basis->nOrbitals),
-          orb_cutoffsSq(basis->cutoffsSq, basis->nOrbitals) {
+          orb_cutoffsSq(basis->cutoffsSq, basis->nOrbitals),
+          orb_lut(std::unique_ptr<GpuLutTexture>(new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals)))
+    {
         if (DEBUG) printf("Using radial lookup table with %d points for %d orbitals\n", basis->nLutPoints, basis->nOrbitals);
-        orb_lut = std::unique_ptr<GpuLutTexture>(
-            new GpuLutTexture(basis->lutGridValues, basis->nLutPoints, basis->nOrbitals));
 
         if (calc->isRealInput) {
             eigVecsReal = DeviceBuffer<double>(calc->eigVecsReal, (size_t)system->nOrb * calc->nEigIn);
@@ -240,7 +240,7 @@ struct DeviceData {
 // Kernel parameters struct to simplify the argument list
 struct DeviceKernelParams {
     // Grid
-    int           nPointsX, nPointsY, z_per_batch, z_offset_global;
+    const int     nPointsX, nPointsY;
     const double* origin;
     const double* gridVecs;
 
@@ -252,22 +252,22 @@ struct DeviceKernelParams {
     const int*    iStos;
 
     // Periodic boundary cond.
-    bool            isPeriodic;
+    const bool      isPeriodic;
     double          latVecs[3][3];
     double          recVecs2pi[3][3];
     const int*      kIndexes;
     const complexd* phases;
 
     // Basis
-    int nOrbitals, maxNPows, maxNAlphas;
+    const int nOrbitals;
     // Texture lookup tables
     cudaTextureObject_t lutTex;
-    double              inverseLutStep;
+    const double        inverseLutStep;
     const int*          orb_angMoms;
     const double*       orb_cutoffsSq;
 
     // Eigenvectors
-    int             nEig, nEig_per_pass;
+    const int       nEig, nEig_per_pass;
     const double*   eigVecsReal;
     const complexd* eigVecsCmpl;
 
@@ -275,57 +275,53 @@ struct DeviceKernelParams {
     double*   valueReal_out_batch;
     complexd* valueCmpl_out_batch;
 
+    // batch offsets modified on each loop iteration
+    int z_per_batch = 0;
+    int z_offset_global = 0;
+
     // Constructor to initialize the parameters from host data
-    // Batch-specific parameters are initialized to zero or nullptr,
-    // and need to be set in the loop before kernel launch.
+    // Batch-specific z-slices set to 0, need to be set in the loop before kernel launch.
     DeviceKernelParams(DeviceData& data, const GridParams* grid, const SystemParams* system,
         const PeriodicParams* periodic, const StoBasisParams* basis, const CalculationParams* calc,
-        int nEig_per_pass_in) {
+        int nEig_per_pass_in) :
         // Grid
-        origin   = data.origin.get();
-        gridVecs = data.gridVecs.get();
-        nPointsX = grid->nPointsX;
-        nPointsY = grid->nPointsY;
-
+        origin(data.origin.get()),
+        gridVecs(data.gridVecs.get()),
+        nPointsX(grid->nPointsX),
+        nPointsY(grid->nPointsY),
         // System
-        nAtom   = system->nAtom;
-        nCell   = system->nCell;
-        nOrb    = system->nOrb;
-        coords  = data.coords.get();
-        species = data.species.get();
-        iStos   = data.iStos.get();
-
+        nAtom(system->nAtom),
+        nCell(system->nCell),
+        nOrb(system->nOrb),
+        coords(data.coords.get()),
+        species(data.species.get()),
+        iStos(data.iStos.get()),
         // Basis
-        nOrbitals      = basis->nOrbitals;
-        orb_angMoms    = data.orb_angMoms.get();
-        orb_cutoffsSq  = data.orb_cutoffsSq.get();
-        lutTex         = data.orb_lut->get();
-        inverseLutStep = basis->inverseLutStep;
-
+        nOrbitals(basis->nOrbitals),
+        orb_angMoms(data.orb_angMoms.get()),
+        orb_cutoffsSq(data.orb_cutoffsSq.get()),
+        lutTex(data.orb_lut->get()),
+        inverseLutStep(basis->inverseLutStep),
         // Periodic boundary conditions
-        isPeriodic = periodic->isPeriodic;
-        kIndexes   = data.kIndexes.get();
-        phases     = data.phases.get();
+        isPeriodic(periodic->isPeriodic),
+        kIndexes(data.kIndexes.get()),
+        phases(data.phases.get()),
+        // Eigenvectors
+        nEig(calc->nEigIn),
+        eigVecsReal(data.eigVecsReal.get()),
+        eigVecsCmpl(data.eigVecsCmpl.get()),
+        // Output batch buffers
+        valueReal_out_batch(data.valueReal_out_batch.get()),
+        valueCmpl_out_batch(data.valueCmpl_out_batch.get()),
+        nEig_per_pass(nEig_per_pass_in)
+    {
+        // Periodic boundary conditions
         if (isPeriodic)
             for (int i = 0; i < 3; ++i)
                 for (int j = 0; j < 3; ++j) {
                     latVecs[i][j]    = periodic->latVecs[IDX2F(i, j, 3)];
                     recVecs2pi[i][j] = periodic->recVecs2pi[IDX2F(i, j, 3)];
             }
-
-        // Eigenvectors
-        nEig        = calc->nEigIn;
-        eigVecsReal = data.eigVecsReal.get();
-        eigVecsCmpl = data.eigVecsCmpl.get();
-
-        // Output batch buffers
-        valueReal_out_batch = data.valueReal_out_batch.get();
-        valueCmpl_out_batch = data.valueCmpl_out_batch.get();
-
-        nEig_per_pass = nEig_per_pass_in;
-        // Batch-specific kernel config to be updated in the loop
-        z_per_batch     = 0;
-        z_offset_global = 0;
     }
 };
 
