@@ -90,6 +90,9 @@ Fixed
 - COSMO solvent models had a bug leading to the energy showing a
   dependence on the ordering of the atoms in the system.
 
+- The GBSA model had a bug, leading to differences for various
+  GFN models from xTB results (also affects DFTB hamiltonians).
+
 - Solvents where RadiiScaling was specified with a unit conversion
   were scaled by the square of the conversion. Affects calculations
   using constructs of the form:
