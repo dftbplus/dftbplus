@@ -2308,7 +2308,7 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%GBInp, &
               & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
-        this%areSolventNeighboursSym = .false.
+        this%areSolventNeighboursSym = .true.
       else if (allocated(input%ctrl%solvInp%CosmoInp)) then
         if (this%tPeriodic) then
           call createSolvationModel(this%solvation, input%ctrl%solvInp%CosmoInp, &
@@ -2326,7 +2326,7 @@ contains
           call createSolvationModel(this%solvation, input%ctrl%solvInp%SASAInp, &
               & this%nAtom, this%species0, this%speciesName, errStatus)
         end if
-        this%areSolventNeighboursSym = .false.
+        this%areSolventNeighboursSym = .true.
       end if
       if (errStatus%hasError()) then
         call error(errStatus%message)
