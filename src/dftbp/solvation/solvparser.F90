@@ -105,8 +105,8 @@ contains
     character(len=:), allocatable :: paramFile, paramTmp
 
     if (geo%tPeriodic .or. geo%tHelical) then
-      call detailedError(node, "Generalised Born model currently not available with the&
-         & selected boundary conditions")
+      call detailedError(node, "Generalised Born model currently not available with the selected&
+          & boundary conditions")
     end if
 
     call getChild(node, "ParamFile", value1, requested=.false.)
@@ -145,16 +145,15 @@ contains
 
     ! shift value for the free energy (usually fitted)
     if (allocated(defaults)) then
-      call getChildValue(node, "FreeEnergyShift", shift, defaults%freeEnergyShift, &
+      call getChildValue(node, "FreeEnergyShift", shift, defaults%freeEnergyShift,&
           & modifier=modifier, child=field)
     else
-      call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
-          & child=field)
+      call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, child=field)
     end if
     call convertUnitHsd(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
-    call getChildValue(node, "Temperature", temperature, ambientTemperature, &
+    call getChildValue(node, "Temperature", temperature, ambientTemperature,&
         & modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), energyUnits, field, temperature)
 
@@ -163,7 +162,7 @@ contains
 
     if (allocated(defaults)) then
       call getChildValue(node, "BornScale", input%bornScale, defaults%bornScale)
-      call getChildValue(node, "BornOffset", input%bornOffset, defaults%bornOffset, &
+      call getChildValue(node, "BornOffset", input%bornOffset, defaults%bornOffset,&
           & modifier=modifier, child=field)
     else
       call getChildValue(node, "BornScale", input%bornScale)
@@ -203,8 +202,8 @@ contains
       call readSpeciesList(value1, geo%speciesNames, input%descreening)
     end select
 
-    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
     call getChild(node, "SASA", value1, requested=.false.)
@@ -214,15 +213,14 @@ contains
         call setChild(node, "SASA", value1)
       end if
       if (allocated(defaults)) then
-        call readSolvSASA(value1, geo, input%sasaInput, defaults%sasaInput%probeRad, &
+        call readSolvSASA(value1, geo, input%sasaInput, defaults%sasaInput%probeRad,&
             & defaults%sasaInput%surfaceTension)
       else
         call readSolvSASA(value1, geo, input%sasaInput)
       end if
 
       if (allocated(defaults)) then
-        call getChildValue(node, "HBondCorr", tHBondCorr, &
-            & allocated(defaults%hBondPar), child=child)
+        call getChildValue(node, "HBondCorr", tHBondCorr, allocated(defaults%hBondPar), child=child)
       else
         call getChildValue(node, "HBondCorr", tHBondCorr, child=child)
       end if
@@ -276,8 +274,8 @@ contains
     type(TSolventData) :: solvent
 
     if (geo%tPeriodic .or. geo%tHelical) then
-      call detailedError(node, "COSMO solvation currently not available with the&
-         & selected boundary conditions")
+      call detailedError(node, "COSMO solvation currently not available with the selected boundary&
+          & conditions")
     end if
 
     call readSolvent(node, solvent)
@@ -285,13 +283,12 @@ contains
     input%keps = 0.5_dp * (1.0_dp - 1.0_dp/solvent%dielectricConstant)
 
     ! shift value for the free energy (usually zero)
-    call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, &
-      & child=field)
+    call getChildValue(node, "FreeEnergyShift", shift, 0.0_dp, modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
-    call getChildValue(node, "Temperature", temperature, ambientTemperature, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "Temperature", temperature, ambientTemperature, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), energyUnits, field, temperature)
 
     call readReferenceState(node, solvent, temperature, shift, input%freeEnergyShift)
@@ -328,6 +325,7 @@ contains
   end subroutine readSolvCosmo
 
 
+  !> Read domain settings for the COSMO solver
   subroutine readDomainDecomposition(node, input)
 
     !> Node to process
@@ -368,16 +366,16 @@ contains
     type(fnode), pointer :: child, value1, field
 
     if (geo%tPeriodic .or. geo%tHelical) then
-      call detailedError(node, "SASA model currently not available with the&
-         & selected boundary conditions")
+      call detailedError(node, "SASA model currently not available with the selected boundary&
+          & conditions")
     end if
 
-    call getChildValue(node, "ProbeRadius", input%probeRad, probeRadDefault, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "ProbeRadius", input%probeRad, probeRadDefault, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%probeRad)
 
-    call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%smoothingPar)
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
@@ -406,8 +404,8 @@ contains
       call readSpeciesList(value1, geo%speciesNames, input%surfaceTension)
     end select
 
-    call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%sOffset)
 
   end subroutine readSolvSASA
@@ -429,8 +427,8 @@ contains
     type(string) :: buffer, modifier
     real(dp), allocatable :: atomicRadDefault(:)
 
-    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
-      & modifier=modifier, child=field)
+    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, modifier=modifier,&
+        & child=field)
     call convertUnitHsd(char(modifier), inverseLengthUnits, field, input%alpha)
 
     allocate(input%atomicRad(geo%nSpecies))
@@ -452,13 +450,13 @@ contains
       call detailedError(value1, "Atomic radii must be positive for all species")
     end if
 
-    call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
-        & modifier=modifier, child=field)
+    call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readCM5
 
 
+  !> Read the input data for the solvent model
   subroutine readSolvent(node, solvent)
 
     !> Node to process
@@ -493,11 +491,10 @@ contains
       else
          call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
       end if
-      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
-        & modifier=modifier, child=field)
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass, modifier=modifier,&
+          & child=field)
       call convertUnitHsd(char(modifier), massUnits, field, solvent%molecularMass)
-      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
-        & child=field)
+      call getChildValue(value1, "Density", solvent%density, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), massDensityUnits, field, solvent%density)
     end select
 
@@ -536,17 +533,18 @@ contains
       freeEnergyShift = shift
     case("reference") ! gsolv=reference option in cosmotherm
       ! RT * ln(ideal gas mol volume) + ln(rho/M)
-      freeEnergyShift = shift + temperature &
-          & * (log(idealGasMolVolume * temperature / ambientTemperature) &
+      freeEnergyShift = shift + temperature&
+          & * (log(idealGasMolVolume * temperature / ambientTemperature)&
           & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
     case("mol1bar")
       ! RT * ln(ideal gas mol volume)
-      freeEnergyShift = shift + temperature &
+      freeEnergyShift = shift + temperature&
           & * log(idealGasMolVolume * temperature / ambientTemperature)
     end select
   end subroutine readReferenceState
 
 
+  !> Read the atomic radii from a choice of various sources
   subroutine readVanDerWaalsRad(node, geo, vdwRad)
 
     !> Node to process
@@ -558,7 +556,7 @@ contains
     !> Van-der-Waals Radii
     real(dp), allocatable, intent(out) :: vdwRad(:)
 
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     type(fnode), pointer :: child, value1, dummy
     real(dp), allocatable :: vdwRadDefault(:)
 
@@ -593,6 +591,7 @@ contains
   end subroutine readVanDerWaalsRad
 
 
+  !> Reads settings for angular integration grid
   subroutine readAngularGrid(node, angGrid, default)
 
     !> Node to process
@@ -615,9 +614,9 @@ contains
       call detailedError(child, "Illegal number of grid points for numerical integration")
     end if
     if (gridSize(angGrid) /= gridPoints) then
-      write(errorStr, '(a, *(1x, i0, 1x, a))') &
-          & "No angular integration grid with", gridPoints, &
-          & "points available, using",  gridSize(angGrid), "points instead"
+      write(errorStr, '(a, *(1x, i0, 1x, a))')&
+          & "No angular integration grid with", gridPoints, "points available, using",&
+          &  gridSize(angGrid), "points instead"
       call detailedWarning(child, trim(errorStr))
     end if
 
