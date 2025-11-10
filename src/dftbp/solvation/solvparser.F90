@@ -328,6 +328,7 @@ contains
   end subroutine readSolvCosmo
 
 
+  !> Read domain settings for the COSMO solver
   subroutine readDomainDecomposition(node, input)
 
     !> Node to process
@@ -459,6 +460,7 @@ contains
   end subroutine readCM5
 
 
+  !> Read the input data for the solvent model
   subroutine readSolvent(node, solvent)
 
     !> Node to process
@@ -547,6 +549,7 @@ contains
   end subroutine readReferenceState
 
 
+  !> Read the atomic radii from a choice of various sources
   subroutine readVanDerWaalsRad(node, geo, vdwRad)
 
     !> Node to process
@@ -593,6 +596,7 @@ contains
   end subroutine readVanDerWaalsRad
 
 
+  !> Reads settings for angular integration grid
   subroutine readAngularGrid(node, angGrid, default)
 
     !> Node to process
@@ -615,9 +619,9 @@ contains
       call detailedError(child, "Illegal number of grid points for numerical integration")
     end if
     if (gridSize(angGrid) /= gridPoints) then
-      write(errorStr, '(a, *(1x, i0, 1x, a))') &
-          & "No angular integration grid with", gridPoints, &
-          & "points available, using",  gridSize(angGrid), "points instead"
+      write(errorStr, '(a, *(1x, i0, 1x, a))')&
+          & "No angular integration grid with", gridPoints, "points available, using",&
+          &  gridSize(angGrid), "points instead"
       call detailedWarning(child, trim(errorStr))
     end if
 
