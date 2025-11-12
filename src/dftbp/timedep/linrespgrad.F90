@@ -28,7 +28,7 @@ module dftbp_timedep_linrespgrad
   use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : gemm, hemv, symm
-  use dftbp_math_degeneracy, only : TDegeneracyFind
+  use dftbp_math_degeneracy, only : TDegeneracyFind, TDegeneracyFind_init
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_matrixops, only : calcMatrixSqrt, makeSimilarityTrans, orthonormalizeVectors
   use dftbp_math_sorting, only : index_heap_sort, merge_sort
@@ -3109,7 +3109,7 @@ contains
 
     if (fdTagged%isConnected()) then
 
-      call degeneracyFind%init(elecTolMax)
+      call TDegeneracyFind_init(degeneracyFind, elecTolMax)
       call degeneracyFind%degeneracyTest(eval, tDegenerate)
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged%unit, tagLabels%excEgy, eval)

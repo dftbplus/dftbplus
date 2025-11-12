@@ -88,7 +88,7 @@ module dftbp_dftbplus_mainio
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
-  public :: writeCurrentGeometry, writeFinalDriverStatus
+  public :: writeCurrentGeometry, writeExtendedGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printSccHeader, printElecConstrHeader
   public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
@@ -4384,7 +4384,7 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities, coord, extendedGeomFile, species)
+      & iLatGeoStep, nSpin, qOutput, velocities)
 
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4440,15 +4440,6 @@ contains
     !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
-    !> Coordinates of all atoms (including images, if extended)
-    real(dp), allocatable, intent(inout) :: coord(:,:)
-
-    !> If the extended structure outside of the central cell be outputed, name of file prefix
-    character(lc), intent(in) :: extendedGeomFile
-
-    !> Species for each atom (in whole structure, if extended)
-    integer, intent(in) :: species(:)
-
     integer :: nAtom
     integer :: ii, jj
     character(lc) :: comment, fname
@@ -4463,14 +4454,8 @@ contains
     end if
 
     fname = trim(geoOutFile) // ".xyz"
-    if (tLatOpt) then
-      write(comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
-          & iLatGeoStep
-    elseif (tMD) then
-      write(comment, "(A, I0)") 'MD iter: ', iGeoStep
-    else
-      write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
-    end if
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
     if (tPrintMulliken) then
       ! For non-colinear spin without velocities write magnetisation into the velocity field
@@ -4489,12 +4474,78 @@ contains
           & comment=comment, append=tAppendGeo)
     end if
 
-    if (len(trim(extendedGeomFile)) > 0) then
-      call writeXYZFormat(trim(extendedGeomFile), coord, species, speciesName,&
-          & comment=comment, append=tAppendGeo)
+  end subroutine writeCurrentGeometry
+
+
+  !> Write geometry including periodic images to disc
+  subroutine writeExtendedGeometry(geoOutFile, tLatOpt, tMd, tAppendGeo, speciesName, iGeoStep,&
+      & iLatGeoStep, coord, species)
+
+    !> File for geometry output
+    character(*), intent(in) :: geoOutFile
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Should the geometry be added to the end, or the file cleared first
+    logical, intent(in) :: tAppendGeo
+
+    !> Label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    !> Coordinates of all atoms (including images, if extended)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Species for each atom (in whole structure, if extended)
+    integer, intent(in) :: species(:)
+
+    character(lc) :: comment
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    call writeXYZFormat(trim(geoOutFile), coord, species, speciesName, comment=comment,&
+        & append=tAppendGeo)
+
+  end subroutine writeExtendedGeometry
+
+
+  !> Internal routine to set up comment line text for xyz format
+  subroutine geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    !> Resulting comment line
+    character(lc), intent(out) :: comment
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    if (tLatOpt) then
+      write(comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
+          & iLatGeoStep
+    elseif (tMD) then
+      write(comment, "(A, I0)") 'MD iter: ', iGeoStep
+    else
+      write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
     end if
 
-  end subroutine writeCurrentGeometry
+  end subroutine geometryComment_
 
 
   !> Write out final status of the geometry driver.

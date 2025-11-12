@@ -12,7 +12,7 @@ module dftbp_math_degeneracy
   implicit none
 
   private
-  public :: TDegeneracyFind
+  public :: TDegeneracyFind, TDegeneracyFind_init
 
   type :: TDegeneracyFind
 
@@ -34,9 +34,6 @@ module dftbp_math_degeneracy
 
   contains
 
-    !> Initialises instance and set some optional parameters
-    procedure :: init
-
     !> Set up degeneracy test on levels
     procedure :: degeneracyTest
 
@@ -57,11 +54,11 @@ module dftbp_math_degeneracy
 contains
 
 
-  !> Initialise the structure
-  subroutine init(this, tolerance)
+  !> Initialise the degeneracy structure
+  subroutine TDegeneracyFind_init(this, tolerance)
 
     !> Instance
-    class(TDegeneracyFind), intent(out) :: this
+    type(TDegeneracyFind), intent(out) :: this
 
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tolerance
@@ -72,7 +69,7 @@ contains
       this%tolerance = toleranceDefault
     end if
 
-  end subroutine init
+  end subroutine TDegeneracyFind_init
 
 
   !> Set up bookeeping
