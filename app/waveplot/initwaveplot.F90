@@ -93,6 +93,9 @@ module waveplot_initwaveplot
     !> If total charge should be plotted
     logical :: tPlotTotChrg
 
+    !> Are fractionally occupied orbitals being retained
+    logical :: isFOD = .false.
+
     !> If total charge should be calculated
     logical :: tCalcTotChrg
 
@@ -270,8 +273,8 @@ contains
     !! Nr. of spins
     integer :: nSpin
 
-    !! Wether to look for ground state occupations (True) or excited (False)
-    logical :: tGroundState
+    !! Whether to look for ground state occupations (True) or excited (False)
+    logical :: isGroundState
 
     !! If grid should shifted by a half cell
     logical :: tShiftGrid
@@ -304,13 +307,17 @@ contains
           &// i2c(parserVersion) // ") do not match")
     end if
 
-    call getChildValue(root, "GroundState", tGroundState, .true.)
+    call getChildValue(root, "GroundState", isGroundState, .true.)
+
+    ! Read early options
+    call getChild(root, "Options", tmp)
+    call readEarlyOptions(this, isGroundState, tmp)
 
     ! Read data from detailed.xml
     call getChildValue(root, "DetailedXML", strBuffer)
     call readHSDAsXML(unquote(char(strBuffer)), tmp)
     call getChild(tmp, "detailedout", detailed)
-    call readDetailed(this, detailed, tGroundState, kPointsWeights)
+    call readDetailed(this, detailed, isGroundState, kPointsWeights)
     call destroyNode(tmp)
 
     nKPoint = size(kPointsWeights, dim=2)
@@ -387,7 +394,7 @@ contains
 
 
   !> Interpret the information stored in detailed.xml.
-  subroutine readDetailed(this, detailed, tGroundState, kPointsWeights)
+  subroutine readDetailed(this, detailed, isGroundState, kPointsWeights)
 
     !> Container of program variables
     type(TProgramVariables), intent(inout) :: this
@@ -395,14 +402,14 @@ contains
     !> Pointer to the node, containing the information
     type(fnode), pointer :: detailed
 
-    !> Wether to look for ground state occupations (True) or excited (False)
-    logical, intent(in) :: tGroundState
+    !> Whether to look for ground state occupations (True) or excited (False)
+    logical, intent(in) :: isGroundState
 
     !> The k-points and weights
     real(dp), intent(out), allocatable :: kPointsWeights(:,:)
 
     !! Pointers to input nodes
-    type(fnode), pointer :: tmp, occ, spin
+    type(fnode), pointer :: tmp, occ, spin, efermi, band
 
     !! Nr. of K-points
     integer :: nKPoint
@@ -414,7 +421,9 @@ contains
     integer :: nState
 
     !! Auxiliary variables
-    integer :: iSpin, iKpoint
+    integer :: iSpin, iKpoint, iLev
+    real(dp) :: maxOccupations
+    real(dp), allocatable :: Ef(:), ei(:,:,:)
 
     call getChildValue(detailed, "Identity", this%input%identity)
     call getChild(detailed, "Geometry", tmp)
@@ -431,17 +440,13 @@ contains
 
     call getChildValue(detailed, "KPointsAndWeights", kPointsWeights)
 
-    if (tGroundState) then
+    if (isGroundState) then
       call getChild(detailed, "Occupations", occ)
       do iSpin = 1, nSpin
         call getChild(occ, "spin" // i2c(iSpin), spin)
         do iKpoint = 1, nKPoint
           call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
         end do
-      end do
-      do iKpoint = 1, nKPoint
-        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
-            & * kPointsWeights(4, iKpoint)
       end do
     else
       call getChild(detailed, "ExcitedOccupations", occ)
@@ -451,11 +456,44 @@ contains
           call getChildValue(spin, "k" // i2c(iKpoint), this%input%occupations(:, iKpoint, iSpin))
         end do
       end do
-      do iKpoint = 1, nKPoint
-        this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
-            & * kPointsWeights(4, iKpoint)
+    end if
+
+    if (this%opt%isFOD) then
+      allocate(ei(nState, nKPoint, nSpin))
+      call getChild(detailed, "band", band)
+      do iSpin = 1, nSpin
+        call getChild(band, "spin" // i2c(iSpin), spin)
+        do iKpoint = 1, nKPoint
+          call getChildValue(spin, "k" // i2c(iKpoint), ei(:, iKpoint, iSpin))
+        end do
+      end do
+      select case(nSpin)
+      case (2)
+        maxOccupations = 1.0_dp
+        allocate(Ef(2))
+      case (1)
+        maxOccupations = 2.0_dp
+        allocate(Ef(1))
+      end select
+      call getChild(detailed, "efermi", efermi)
+      do iSpin = 1, nSpin
+        call getChildValue(efermi, "spin" // i2c(iSpin), ef(iSpin))
+      end do
+      do iSpin = 1, nSpin
+        do iKpoint = 1, nKPoint
+          do iLev = 1, size(this%input%occupations, dim=1)
+            if (ei(iLev, iKpoint, iSpin) < Ef(iSpin)) then
+              this%input%occupations(iLev, iKpoint, iSpin) =&
+                  & maxOccupations - this%input%occupations(iLev, iKpoint, iSpin)
+            end if
+          end do
+        end do
       end do
     end if
+    do iKpoint = 1, nKPoint
+      this%input%occupations(:, iKpoint, :) = this%input%occupations(:, iKpoint, :)&
+          & * kPointsWeights(4, iKpoint)
+    end do
 
   end subroutine readDetailed
 
@@ -496,6 +534,26 @@ contains
     end select
 
   end subroutine readGeometry
+
+
+  !> Interpret the options.
+  subroutine readEarlyOptions(this, isGroundState, node)
+
+    !> Container of program variables
+    type(TProgramVariables), intent(inout) :: this
+
+    !! Whether to look for ground state occupations (True) or excited (False)
+    logical :: isGroundState
+
+    !> Node containing the information
+    type(fnode), pointer :: node
+
+    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
+    if (this%opt%tPlotTotChrg .and. isGroundState) then
+      call getChildValue(node, "FOD", this%opt%isFOD, .false.)
+    end if
+
+  end subroutine readEarlyOptions
 
 
   !> Interpret the options.
@@ -555,7 +613,7 @@ contains
       call warning(warnId)
     end if
 
-    call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
+    !call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
 
     if (nSpin == 2) then
       call renameChildren(node, "TotalSpinPolarization", "TotalSpinPolarisation")
