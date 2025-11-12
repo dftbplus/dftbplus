@@ -68,12 +68,12 @@ module dftbp_dftbplus_main
       & printPressureAndFreeEnergy, printReksSccHeader, printReksSccInfo, printSccHeader,&
       & printSccInfo, printVolume, readEigenVecs, writeAutotestTag, writebandout,&
       & writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile, writeCplxEigVecs,&
-      & writeCurrentGeometry, writeDerivBandOut, writeDetailedOut1, writeDetailedOut10,&
-      & writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3, writeDetailedOut4,&
-      & writeDetailedOut5, writeDetailedOut6, writeDetailedOut7, writeDetailedOut8,&
-      & writeDetailedOut9, writeDetailedXml, writeEigenVectors, writeEsp, writeFinalDriverstatus,&
-      & writeHessianout, writehsandstop, writeMdOut1, writeMdOut2, writeProjectedEigenvectors,&
-      & writeRealEigvecs, writeReksDetailedOut1, writeResultsTag
+      & writeCurrentGeometry, writeExtendedGeometry, writeDerivBandOut, writeDetailedOut1,&
+      & writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3,&
+      & writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7,&
+      & writeDetailedOut8, writeDetailedOut9, writeDetailedXml, writeEigenVectors, writeEsp,&
+      & writeFinalDriverstatus, writeHessianout, writehsandstop, writeMdOut1, writeMdOut2,&
+      & writeProjectedEigenvectors, writeRealEigvecs, writeReksDetailedOut1, writeResultsTag
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
       & derivEBandOut, fCharges, fShifts, fStopDriver, fStopScc, hessianOut, mdOut, resultsTag,&
       & userOut
@@ -1725,9 +1725,13 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
             & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
             & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
-            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities, this%coord,&
-            & this%extendedGeomFile, this%species)
+            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
       endif
+    end if
+    if (len(trim(this%extendedGeomFile)) > 0) then
+      call writeExtendedGeometry(trim(this%extendedGeomFile), this%tLatOpt, this%tMd,&
+          & this%tAppendGeo.and.iGeoStep>0, this%speciesName, iGeoStep, iLatGeoStep, this%coord,&
+          & this%species)
     end if
 
     if (this%tForces) then
@@ -2035,7 +2039,11 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
-            & this%qOutput, this%velocities, this%coord, this%extendedGeomFile, this%species)
+            & this%qOutput, this%velocities)
+      end if
+      if (len(trim(this%extendedGeomFile)) > 0) then
+        call writeExtendedGeometry(trim(this%extendedGeomFile), .false., .true., .true.,&
+            & this%speciesName, iGeoStep, iLatGeoStep, this%coord, this%species)
       end if
       this%coord0(:,:) = this%newCoords
       if (this%tWriteDetailedOut  .and. this%deltaDftb%nDeterminant() == 1) then

@@ -53,14 +53,16 @@ module dftbp_derivs_rotatedegen
     !> Sub-range of states if needed
     integer :: eiRange(2)
 
-    !> Denominator for fraction of states in a degenerate group before the using dense transforms
-    integer :: minDegenerateFraction
+    !> Maximum fraction of total states in a single degenerate group before instead using dense
+    !> transform on the whole matrix
+    real(dp) :: maxDegenerateFraction
 
-    !> Minimum number of states in a degenerate group before the using dense transforms
-    integer :: minDegenerateStates
+    !> Maximum number of states in a degenerate group before instead using dense transforms on the
+    !> whole matrix
+    integer :: maxDegenerateStates
 
     !> Should the order of states (derivatives) be reversed compared to the eigensolver return
-    logical :: tReverseOrder = .false.
+    logical :: areEigvalsReversed = .false.
 
     ! redundant variables (could test from allocation status and size), but makes code simpler to
     ! read in a few places:
@@ -68,19 +70,11 @@ module dftbp_derivs_rotatedegen
     !> Number of groups of degenerate orbitals
     integer :: nGrp = -1
 
-    !> Stores data structure for a real unitary transform
-    logical :: tReal = .false.
-
-    !> Stores data structure for a complex unitary transform
-    logical :: tComplx = .false.
-
-    !> Is any storage allocated
-    logical :: tAllocateStorage = .false.
-
     !> Order of matrix
     integer :: nOrb = -1
 
-    logical :: tFullUMatrix = .false.
+    !> Is it efficient to treat the full matrix, or sub-blocks
+    logical :: isFullMatrixProcessed = .false.
 
   contains
 
@@ -103,19 +97,13 @@ module dftbp_derivs_rotatedegen
   #:endif
 
     !> Are a pair of states in the same degenerate group
-    procedure :: degenerate
+    procedure :: isDegenerate
 
     !> Release memory and cleans up
     procedure :: destroy
 
   end type TRotateDegen
 
-
-#:if WITH_SCALAPACK
-#:else
-  !> Fraction of total matrix at which to use full U instead of blocked form
-  integer, parameter :: maxBlockFraction = 4
-#:endif
 
 contains
 
@@ -132,21 +120,21 @@ contains
     integer, intent(in), optional :: smallestBlock
 
     !> Smallest fraction of the matrix at which the dense algorithm should be used
-    integer, intent(in), optional :: smallestFraction
+    real, intent(in), optional :: smallestFraction
 
     !> Sub-range of states if needed, for example for metallic finite temperature in parallel gauge
     integer, intent(in), optional :: eiRange(2)
 
     if (present(smallestBlock)) then
-      self%minDegenerateStates = smallestBlock
+      self%maxDegenerateStates = smallestBlock
     else
-      self%minDegenerateStates = 500
+      self%maxDegenerateStates = 500
     end if
 
     if (present(smallestFraction)) then
-      self%minDegenerateFraction = smallestFraction
+      self%maxDegenerateFraction = smallestFraction
     else
-      self%minDegenerateFraction = 4 ! a quarter of the matrix
+      self%maxDegenerateFraction = 0.25_dp
     end if
 
     ! Tolerance for degeneracy detection
@@ -168,7 +156,7 @@ contains
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
   !! orthogonal under the action of the matrix. This is the ${TYPE}$ case.
   subroutine generate${LABEL}$Unitary(self, env, matrixToProcess, ei, eigVecs, denseDesc,&
-      & tTransformed, errStatus)
+      & areVectorsTransformed, errStatus)
 
     !> Instance
     class(TRotateDegen), intent(inout) :: self
@@ -189,7 +177,7 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> Are and vectors from degenerate eigenvalues, so transformed
-    logical, intent(out) :: tTransformed
+    logical, intent(out) :: areVectorsTransformed
 
     !> Status of routine
     type(TStatus), intent(out) :: errStatus
@@ -238,7 +226,7 @@ contains
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
 
-    if (maxRange > self%minDegenerateStates) then
+    if (maxRange > self%maxDegenerateStates) then
       @:RAISE_ERROR(errStatus, -1, "Degenerate group exceeds reasonable size for one node to&
           & process")
       ! should add a dense case to cope with this -- blank out non-degenerate elements, diagonalise
@@ -248,10 +236,10 @@ contains
     allocate(eigenvals(maxRange))
 
     if (maxRange == 1) then
-      tTransformed = .false.
+      areVectorsTransformed = .false.
       return
     end if
-    tTransformed = .true.
+    areVectorsTransformed = .true.
 
     call communicator%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
@@ -296,7 +284,7 @@ contains
       if (env%mpi%tGroupLead) then
         call heev(localMatrix(:nInBlock, :nInBlock), eigenvals(:nInBlock), 'L', 'V')
 
-        if (self%tReverseOrder) then
+        if (self%areEigvalsReversed) then
           localMatrix(:nInBlock, :nInBlock) = localMatrix(:nInBlock, nInBlock:1:-1)
         end if
 
@@ -335,7 +323,7 @@ contains
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
   !! orthogonal under the action of the matrix. This is the ${TYPE}$ case.
-  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei, errStatus, tDegenerate)
+  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei, errStatus, areStatesDegenerate)
 
     !> Instance
     class(TRotateDegen), intent(inout) :: self
@@ -350,7 +338,7 @@ contains
     type(TStatus), intent(out) :: errStatus
 
     !> Are degenerate pairs present requiring transformation
-    logical, intent(out), optional :: tDegenerate
+    logical, intent(out), optional :: areStatesDegenerate
 
     integer :: ii, iGrp, maxRange, nInBlock, iStart, iEnd
     ${TYPE}$(dp), allocatable :: subBlock(:,:)
@@ -395,24 +383,24 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
-    if (present(tDegenerate)) then
-      tDegenerate = .false.
+    if (present(areStatesDegenerate)) then
+      areStatesDegenerate = .false.
     end if
     if (maxRange == 1) then
       ! no transformations required
       ! also nGrp == nOrb
       return
     end if
-    if (present(tDegenerate)) then
-      tDegenerate = .true.
+    if (present(areStatesDegenerate)) then
+      areStatesDegenerate = .true.
     end if
 
     ! decide if the full matrix or sub-blocks are to be used
-    self%tFullUMatrix = maxRange < self%nOrb / self%minDegenerateFraction&
-        & .or. maxRange > self%minDegenerateStates
+    self%isFullMatrixProcessed = maxRange < self%maxDegenerateFraction * real(self%nOrb)&
+        & .or. maxRange > self%maxDegenerateStates
 
     ! memory set-up if needed and set to unit matrix for transformation
-    if (self%tFullUMatrix) then
+    if (self%isFullMatrixProcessed) then
 
       ! make whole matrix as U
 
@@ -466,14 +454,14 @@ contains
       end if
       subBlock(:nInBlock, :nInBlock) = matrixToProcess(iStart:iEnd, iStart:iEnd)
       call heev(subBlock(:nInBlock, :nInBlock), eigenvals(:nInBlock), 'L', 'V')
-      if (self%tFullUMatrix) then
-        if (self%tReverseOrder) then
+      if (self%isFullMatrixProcessed) then
+        if (self%areEigvalsReversed) then
           self%${LABEL}$U(iStart:iEnd, iStart:iEnd) = subBlock(:nInBlock, nInBlock:1:-1)
         else
           self%${LABEL}$U(iStart:iEnd, iStart:iEnd) = subBlock(:nInBlock, :nInBlock)
         end if
       else
-        if (self%tReverseOrder) then
+        if (self%areEigvalsReversed) then
           self%${LABEL}$UBlock(iGrp)%data = subBlock(:nInBlock, nInBlock:1:-1)
         else
           self%${LABEL}$UBlock(iGrp)%data = subBlock(:nInBlock, :nInBlock)
@@ -496,7 +484,7 @@ contains
 
     integer :: iGrp, iStart, iEnd, ii, jj
 
-    if (self%tFullUMatrix) then
+    if (self%isFullMatrixProcessed) then
 
       call makeSimilarityTrans(matrixToProcess, self%${LABEL}$U, 'R')
 
@@ -564,7 +552,7 @@ contains
 
     integer :: iGrp, iStart, iEnd
 
-    if (self%tFullUMatrix) then
+    if (self%isFullMatrixProcessed) then
 
       #:if TYPE == 'real'
         matrixToProcess(:,:) = matmul(matrixToProcess, self%RealU)
@@ -615,7 +603,7 @@ contains
       deallocate(self%degenerateGroup)
     end if
 
-    if (self%tFullUMatrix) then
+    if (self%isFullMatrixProcessed) then
 
     #:for _, _, LABEL in FLAVOURS
       if (allocated(self%${LABEL}$U)) then
@@ -640,7 +628,7 @@ contains
 
 
   !> Returns whether states are in the same degenerate group
-  pure function degenerate(self, ii, jj)
+  pure function isDegenerate(self, ii, jj)
 
     !> Instance
     class(TRotateDegen), intent(in) :: self
@@ -652,11 +640,11 @@ contains
     integer, intent(in) :: jj
 
     !> Resulting test
-    logical :: degenerate
+    logical :: isDegenerate
 
-    degenerate = (self%degenerateGroup(ii) == self%degenerateGroup(jj))
+    isDegenerate = (self%degenerateGroup(ii) == self%degenerateGroup(jj))
 
-  end function degenerate
+  end function isDegenerate
 
 
   !> Find which groups of eigenvales are degenerate to within a tolerance

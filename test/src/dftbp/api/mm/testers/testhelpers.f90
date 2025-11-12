@@ -22,7 +22,7 @@ contains
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
       & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, &
-      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff)
+      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff, groundDipole)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -65,6 +65,9 @@ contains
 
     !> Cutoff distance
     real(dp), optional, intent(in) :: cutOff
+
+    !> Ground state dipole
+    real(dp), optional, intent(in) :: groundDipole(:)
 
     type(TTaggedWriter) :: taggedWriter
     type(TFileDescr) :: autotestTag
@@ -113,6 +116,9 @@ contains
     end if
     if (present(cutOff)) then
       call taggedWriter%write(autotestTag%unit, "cutoff", cutOff)
+    end if
+    if (present(groundDipole)) then
+      call taggedWriter%write(autotestTag%unit, "ground_dipole", groundDipole)
     end if
     call closeFile(autotestTag)
 

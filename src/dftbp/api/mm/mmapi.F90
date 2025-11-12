@@ -21,8 +21,9 @@ module dftbp_mmapi
       & getAtomicMasses, getCM5Charges, getCutOff, getElStatPotential, getEnergy,&
       & getExtChargeGradients, getGradients, getGrossCharges, getRefCharges, getStressTensor,&
       & getTdForces, initializeTimeProp, nrOfAtoms, nrOfKPoints, setExternalCharges,&
-      & setExternalPotential, setGeometry, setNeighbourList, setQDepExtPotProxy, setRefCharges,&
-      & setTdCoordsAndVelos, setTdElectricField, updateDataDependentOnSpeciesOrdering
+      & setExternalEfield, setExternalPotential, setGeometry, setNeighbourList,&
+      & setQDepExtPotProxy, setRefCharges, setTdCoordsAndVelos, setTdElectricField,&
+      & updateDataDependentOnSpeciesOrdering
   use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -91,6 +92,8 @@ module dftbp_mmapi
     procedure :: setNeighbourList => TDftbPlus_setNeighbourList
     !> Add an external potential to a calculator
     procedure :: setExternalPotential => TDftbPlus_setExternalPotential
+    !> Add an external electric field to a calculator
+    procedure :: setExternalEfield => TDftbPlus_setExternalEfield
     !> Add external charges to a calculator
     procedure :: setExternalCharges => TDftbPlus_setExternalCharges
     !> Add reactive external charges to a calculator
@@ -529,6 +532,23 @@ contains
 
   end subroutine TDftbPlus_setExternalPotential
 
+  !> Sets an external electric field.
+  subroutine TDftbPlus_setExternalEfield(this, EFieldStr, EfieldVec)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Electric field amplitude
+    real(dp), intent(in) :: EFieldStr
+
+    !> Unitary electric field vector. Shape: (3)
+    real(dp), intent(in) :: EfieldVec(:)
+
+    call this%checkInit()
+
+    call setExternalEfield(this%main, EFieldStr, EfieldVec)
+
+  end subroutine TDftbPlus_setExternalEfield
 
   !> Sets external point charges.
   subroutine TDftbPlus_setExternalCharges(this, chargeCoords, chargeQs, blurWidths)

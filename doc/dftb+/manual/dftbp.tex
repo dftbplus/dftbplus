@@ -5902,6 +5902,7 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
   \kw{WriteBondPopulation} & l & & No & \\
   \kw{WriteAtomicEnergies} & l & & No & \\
   \kw{FillingsFromFile} & l & & No & \\
+  \kw{VerboseDynamics} & l & & Yes & \\
 \end{ptable}
 
 \begin{description}
@@ -6033,6 +6034,8 @@ shpuld be written to the \verb|atomenergies.dat| file.
     channel (starting with all of the orbitals for the first spin channel). For
     spin-polarized calculations with collinear spin, the occupations for the
     second spin channel should follow sequentially, while for non-collinear/spin-orbit calculations all orbitals should be listed in ascending energy.
+
+\item[\is{VerboseDynamics}] If outputs are printed for Ehrenfest or electron dynamics.
 
 \end{description}
 

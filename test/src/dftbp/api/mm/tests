@@ -7,6 +7,7 @@
 extcharges          #? not WITH_MPI
 extpot              #? not WITH_MPI
 extpot2             #? not WITH_MPI
+extefield           #? not WITH_MPI
 timeprop            #? not WITH_MPI
 ehrenfest           #? not WITH_MPI
 ehrenfest_ext_ions  #? not WITH_MPI
