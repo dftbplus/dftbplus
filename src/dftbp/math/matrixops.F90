@@ -327,7 +327,7 @@ contains
   end function product_real
 
 
-  !> unitary transformation of a matrix X' = U X U^T or X' = U^T X U
+  !> unitary (or projective) transformation of a matrix X' = U X U^T or X' = U^T X U
   subroutine makeSimilarityTrans_real(xx, uu, side)
 
     !> matrix in original basis, U X U^T* on return.
@@ -366,7 +366,7 @@ contains
   end subroutine makeSimilarityTrans_real
 
 
-  !> unitary transformation of a matrix X' = U X U^T* or X' = U^T* X U
+  !> unitary (or projective) transformation of a matrix X' = U X U^T* or X' = U^T* X U
   subroutine makeSimilarityTrans_cmplx(xx, uu, side)
 
     !> matrix in original basis, U X U^T* on return.
