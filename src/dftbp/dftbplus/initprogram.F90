@@ -144,8 +144,8 @@ module dftbp_dftbplus_initprogram
 #:if WITH_TRANSPORT
   use dftbp_dftbplus_inputdata, only : TNEGFInfo
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init, transportPeriodicSetup
-  use dftbp_transport_negfvars, only : TTransPar
 #:endif
+  use dftbp_transport_negfvars, only : TTransPar
   implicit none
 
   private
@@ -1062,9 +1062,9 @@ module dftbp_dftbplus_initprogram
 
   #:if WITH_TRANSPORT
     !> Transport variables
-    type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
   #:endif
+    type(TTransPar) :: transpar
 
     !> Transport interface (may be dummy placeholder, if built without transport)
     type(TNegfInt) :: negfInt
@@ -1391,10 +1391,14 @@ contains
       call error("Colinear spin polarization required for shared Ef over spin channels")
     end if
 
-    call initGeometry_(input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
+  #:if WITH_MPI
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
+
+    call initGeometry_(env, input, this%nAtom, this%nType, this%tPeriodic, this%tHelical,&
         & this%boundaryCond, this%coord0, this%species0, this%tCoordsChanged, this%tLatticeChanged,&
         & this%latVec, this%origin, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
-        & errStatus)
+        & input%transpar, errStatus)
     if (errStatus%hasError()) call error(errStatus%message)
 
     ! Get species names and output file
@@ -1493,8 +1497,6 @@ contains
     if (input%ctrl%parallelOpts%nGroup > 1 .and. this%isLinResp) then
       call error("Multiple MPI groups not available for excited state calculations")
     end if
-
-    call env%initMpi(input%ctrl%parallelOpts%nGroup)
 
     if (this%isHybridXc) then
       if ((.not. this%tRealHS)&
@@ -2198,10 +2200,10 @@ contains
 
       if (allocated(input%ctrl%dispInp%slakirk)) then
         allocate(slaKirk)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, this%latVec)
         else if (this%tHelical) then
-          call error("Slater-Kirkwood incompatible with helical boundary conditions")
+          call error("Slater-Kirkwood currently incompatible with helical boundary conditions")
         else
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
@@ -2209,7 +2211,7 @@ contains
 
       elseif (allocated(input%ctrl%dispInp%uff)) then
         allocate(uff)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom, this%species0, this%latVec)
         else
           call DispUff_init(uff, input%ctrl%dispInp%uff, this%nAtom)
@@ -2220,7 +2222,7 @@ contains
         block
           type(TSDFTD3), allocatable :: dftd3
           allocate(dftd3)
-          if (this%tPeriodic) then
+          if (this%tPeriodic .and. this%transpar%nCont == 0) then
             call TSDFTD3_init(dftd3, input%ctrl%dispInp%dftd3, this%nAtom, this%species0, &
                 & this%speciesName, this%coord0, this%latVec)
           else
@@ -2232,13 +2234,14 @@ contains
 
       else if (allocated(input%ctrl%dispInp%sdftd3)) then
         allocate(sdftd3)
-        if (this%tPeriodic) then
+        if (this%tPeriodic .and. this%transpar%nCont == 0) then
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName,&
               & this%latVec)
         else
           call init(sdftd3, input%ctrl%dispInp%sdftd3, this%nAtom, this%species0, this%speciesName)
         end if
         call move_alloc(sdftd3, this%dispersion)
+
       else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (allocated(this%reks)) then
@@ -2246,6 +2249,9 @@ contains
             call error("Calculation of self-consistent dftd4 is not currently compatible with&
                 & force calculation in REKS")
           end if
+        end if
+        if (this%transpar%nCont /= 0) then
+          call error("DFTD4 model not currently supported for transport calculations")
         end if
         if (this%tPeriodic) then
           call init(dftd4, input%ctrl%dispInp%dftd4, this%nAtom, this%speciesName, this%latVec)
@@ -2264,6 +2270,8 @@ contains
             call error("Calculation of self-consistent MBD/TS is not currently compatible with&
                 & force calculation in REKS")
           end if
+        else if (this%transpar%nCont /= 0) then
+          call error("MBD model not currently supported for transport calculations")
         end if
         allocate (mbd)
         associate (inp => input%ctrl%dispInp%mbd)
@@ -2282,9 +2290,11 @@ contains
               & which may result in long gradient calculation times for large systems")
         end if
     #:endif
+
       end if
 
       this%cutOff%mCutOff = max(this%cutOff%mCutOff, this%dispersion%getRCutOff())
+
     #:if WITH_TRANSPORT
       if (this%transpar%nCont > 0 .or. this%isAContactCalc) then
         if (allocated(this%dispersion)) then
@@ -2293,6 +2303,7 @@ contains
         end if
       end if
     #:endif
+
     end if
 
     this%areSolventNeighboursSym = .false.
@@ -6800,9 +6811,12 @@ contains
 
 
   !> Initializes the variables directly related to the user specified geometry.
-  subroutine initGeometry_(input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
+  subroutine initGeometry_(env, input, nAtom, nType, tPeriodic, tHelical, boundaryCond, coord0,&
       & species0, tCoordsChanged, tLatticeChanged, latVec, origin, recVec, invLatVec, cellVol,&
-      & recCellVol, errStatus)
+      & recCellVol, transpar, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Input variables to use for setput
     type(TInputData), intent(in) :: input
@@ -6852,8 +6866,16 @@ contains
     !> Volume of the reciprocal space unit cell
     real(dp), intent(out) :: recCellVol
 
+    !> Transport calculation parameters
+    type(TTransPar), intent(in) :: transpar
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
+
+    real(dp), allocatable :: tmpCoords0(:,:)
+    integer, allocatable :: tmpSpecies0(:), nExtraContAtoms(:)
+    integer :: iCont, nContAts, iStart, iEnd, iStart2, iStructOffSet, iAt
+    real(dp) :: contactVector(3)
 
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
@@ -6878,6 +6900,45 @@ contains
 
     coord0 = input%geom%coords
     species0 = input%geom%species
+
+    if (transpar%ncont > 0) then
+      ! Extend contact regions for dispersion interaction distance, note that this introduces a
+      ! truncation error, so should not be currently used
+      allocate(nExtraContAtoms(transpar%ncont), source=0)
+      do iCont = 1, transpar%ncont
+        nExtraContAtoms(iCont) = transpar%contacts(iCont)%idxrange(2) + 1&
+            & - transpar%contacts(iCont)%idxrange(1)
+      end do
+      allocate(tmpCoords0(3, nAtom + sum(nExtraContAtoms)))
+      allocate(tmpSpecies0(nAtom + sum(nExtraContAtoms)))
+      tmpCoords0(:, :nAtom) = coord0
+      tmpSpecies0(:nAtom) = species0
+      iStructOffSet = nAtom
+      do iCont = 1, transpar%ncont
+        iStart = transpar%contacts(iCont)%idxrange(1)
+        iEnd = transpar%contacts(iCont)%idxrange(2)
+        iStart2 = iStart + (iEnd - iStart + 1) / 2
+        ! Vector pointing into contact, away from device:
+        contactVector(:) = 2.0_dp * (coord0(:,iStart2) - coord0(:,iStart))
+        tmpSpecies0(iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
+            & species0(transpar%contacts(iCont)%idxrange(1) : transpar%contacts(iCont)%idxrange(2))
+        tmpCoords0(:, iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
+            & coord0(:,transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(2))
+        do iAt = iStructOffSet+1, iStructOffSet+nExtraContAtoms(iCont)
+          tmpCoords0(:, iAt) = tmpCoords0(:, iAt) + contactVector
+        end do
+        iStructOffSet = iStructOffSet + nExtraContAtoms(iCont)
+      end do
+      block
+        use dftbp_io_formatout, only : writeXYZFormat
+        if (env%tGlobalLead) then
+          call writeXYZFormat("contactedTmp.xyz", tmpCoords0, tmpSpecies0, input%geom%speciesNames)
+        end if
+      end block
+      deallocate(tmpCoords0)
+      deallocate(tmpSpecies0)
+    end if
+
     tCoordsChanged = .true.
 
     tLatticeChanged = .false.
