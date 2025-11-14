@@ -119,14 +119,14 @@ module dftbp_plugins_plugin
     end function call_updateSKIntegrals_c
 
     !> Call the implemented function with the neighbour list
-    subroutine call_readNeighbourList_c(handle, nAtoms, nAtomsCent, coords, img2CentCell,&
-          & iNeighbour, neightDist2) bind(C, name='call_readNeighbourList')
+    subroutine call_readNeighbourList_c(handle, nAtoms, nNeighbours, nAtomsCent, coords,&
+          & img2CentCell, iNeighbour, neighDist2) bind(C, name='call_readNeighbourList')
       import c_handle, c_double, c_int
       type(c_handle), value, intent(in) :: handle
-      integer(c_int), value, intent(in) :: nAtoms, nAtomsCent
+      integer(c_int), value, intent(in) :: nAtoms, nNeighbours, nAtomsCent
       real(c_double), intent(in) :: coords(*)
       integer(c_int), intent(in) :: img2CentCell(*), iNeighbour(*)
-      real(c_double), intent(in) :: neightDist2(*)
+      real(c_double), intent(in) :: neighDist2(*)
     end subroutine call_readNeighbourList_c
 
     !> Call the implemented function with the atomic self energy
@@ -260,7 +260,7 @@ contains
   end function TPlugin_updateSKIntegrals
 
   !> Sets the neighbour list
-  subroutine TPlugin_readNeighbourList(this, coords, img2CentCell, iNeighbour, neightDist2)
+  subroutine TPlugin_readNeighbourList(this, coords, img2CentCell, iNeighbour, neighDist2)
 
     !> Instance
     class(TPlugin), intent(in) :: this
@@ -275,7 +275,7 @@ contains
     integer, intent(in) :: iNeighbour(:,:)
 
     !> neighbour distances
-    real(dp), intent(in) :: neightDist2(:,:)
+    real(dp), intent(in) :: neighDist2(:,:)
 
     if (.not. this%initialized) then
       call error("Trying to call a function in an uninitialized plugin")
@@ -284,8 +284,8 @@ contains
       call error("Trying to call a function not provided by the plugin")
     end if
 
-    call call_readNeighbourList_c(this%handle, size(img2CentCell, dim=1), size(iNeighbour, dim=2),&
-        & coords, img2CentCell, iNeighbour, neightDist2)
+    call call_readNeighbourList_c(this%handle, size(img2CentCell, dim=1), size(iNeighbour, dim=1),&
+        & size(iNeighbour, dim=2), coords, img2CentCell, iNeighbour, neighDist2)
 
   end subroutine TPlugin_readNeighbourList
 

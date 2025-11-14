@@ -26,7 +26,7 @@ int provides(typeof (capabilities) *cap) {
     return 1;
 }
 
-void readNeighbourList(int n, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
+void readNeighbourList(int n, int nNeighbours, int nAtomsCent, double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
     nAtoms = n;
 }
 

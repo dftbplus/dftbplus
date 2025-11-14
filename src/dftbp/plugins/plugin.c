@@ -64,12 +64,12 @@ int call_updateSKIntegrals(void *handle, int nSkgrid, int nSkIntg, double *skTab
   return 0;
 }
 
-void call_readNeighbourList(void *handle, int nAtoms, int nAtomsCent, double *coords,
-    int *img2CentCell, int *iNeighbour, double *neightDist2) {
-  int (*func)(int, int, double *, int *, int *, double *);
+void call_readNeighbourList(void *handle, int nAtoms, int nNeighbours, int nAtomsCent,
+    double *coords, int *img2CentCell, int *iNeighbour, double *neightDist2) {
+  int (*func)(int, int, int, double *, int *, int *, double *);
   func = dlsym(handle, "readNeighbourList");
   if (func != NULL) {
-    (*func)(nAtoms, nAtomsCent, coords, img2CentCell, iNeighbour, neightDist2);
+    (*func)(nAtoms, nNeighbours, nAtomsCent, coords, img2CentCell, iNeighbour, neightDist2);
   }
 }
 

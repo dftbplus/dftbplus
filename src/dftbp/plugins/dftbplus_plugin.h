@@ -25,7 +25,7 @@ int provides(typeof (capabilities) *);
 
 int updateSKIntegrals(int, int, double*, double, int, int, int, int, int, double);
 
-void readNeighbourList(int, int, double*, int*, int*, double*);
+void readNeighbourList(int, int, int, double*, int*, int*, double*);
 
 void readAtomSelfEnergy(int, int, double*);
 
