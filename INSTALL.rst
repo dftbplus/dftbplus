@@ -535,7 +535,7 @@ Relevant CMake options
 |-DLCOV_REPORT      |N             |Generate coverage reports if using        |
 |                   |              |gfortran and lcov is available.           |
 +-------------------+--------------+------------------------------------------+
-|-CMAKE_BUILD_TYPE  |RelWithDebInfo|Can generate a binary with extra checking |
+|-DCMAKE_BUILD_TYPE |RelWithDebInfo|Can generate a binary with extra checking |
 |                   |              |or profiling enabled.                     |
 +-------------------+--------------+------------------------------------------+
 |-DWITH_UNIT_TESTS  |N             |Build additional checking tests for       |
