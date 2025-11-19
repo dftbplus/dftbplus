@@ -86,14 +86,14 @@ contains
       #:else
         print *, "Wavegrid: missing OMP, running serially on CPU"
       #:endif
-      call evaluateOMP(system, orbitals, periodic, kIndexes, phases, ctx, &
+      call evaluateOmp(system, orbitals, periodic, kIndexes, phases, ctx, &
             & coeffVecsReal, coeffVecsCmpl, valueReal, valueCmpl)
     end if
 
   end subroutine evaluateParallel
 
 
-  subroutine evaluateOMP(system, orbitals, periodic, kIndexes, phases, ctx, &
+  subroutine evaluateOmp(system, orbitals, periodic, kIndexes, phases, ctx, &
       & eigVecsReal, eigVecsCmpl, valueReal, valueCmpl)
 
     !> System
@@ -250,7 +250,7 @@ contains
         deallocate(orbValsPerPointCmpl)
     end if
     !$omp end parallel
-  end subroutine evaluateOMP
+  end subroutine evaluateOmp
 
 
 
