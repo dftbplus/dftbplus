@@ -94,25 +94,25 @@ contains
     type(TPeriodicParams), intent(in), target :: periodic
 
     !> K-point indexes
-    integer, intent(in), target :: kIndexes(:)
+    integer, intent(in), target, contiguous :: kIndexes(:)
 
     !> Phase factors
-    complex(dp), intent(in), target :: phases(:, :)
+    complex(dp), intent(in), target, contiguous :: phases(:, :)
 
     !> Calculation flags
     type(TCalculationContext), intent(in) :: ctx
 
     !> Real Eigenvectors
-    real(dp), intent(in), target :: eigVecsReal(:, :)
+    real(dp), intent(in), target, contiguous :: eigVecsReal(:, :)
 
     !> Complex Eigenvectors (if not real)
-    complex(dp), intent(in), target :: eigVecsCmpl(:, :)
+    complex(dp), intent(in), target, contiguous :: eigVecsCmpl(:, :)
 
     !> Real output grid
-    real(dp), intent(out), target :: valueReal(:, :, :, :)
+    real(dp), intent(out), target, contiguous :: valueReal(:, :, :, :)
 
     !> Complex output grid (if not real)
-    complex(dp), intent(out), target :: valueCmpl(:, :, :, :)
+    complex(dp), intent(out), target, contiguous :: valueCmpl(:, :, :, :)
 
     type(TBasisParams), target :: basis
     type(TGridParamsC) :: grid_p
