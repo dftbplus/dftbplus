@@ -6,6 +6,7 @@ set(sources-fpp
   ${curdir}/chimes.F90
   ${curdir}/ddcosmo.F90
   ${curdir}/dftd4refs.F90
+  ${curdir}/dnaoad.F90
   ${curdir}/elsiiface.F90
   ${curdir}/lapack.F90
   ${curdir}/lebedev.F90
