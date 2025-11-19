@@ -17,6 +17,7 @@
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_OMP = defined('WITH_OMP')
 #:set WITH_GPU = defined('WITH_GPU')
+#:set WITH_CUDA = defined('WITH_CUDA')
 #:set WITH_MAGMA = defined('WITH_MAGMA')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
