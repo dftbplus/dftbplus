@@ -77,9 +77,9 @@ contains
 
 
   !> Distributes a ranges in a double loop in chunks over processes within a process group.
-  !>
-  !> It will chop the loop with the wider range into chunks and leave the other intact.
-  !>
+  !!
+  !! It will chop the loop with the wider range into chunks and leave the other intact.
+  !!
   subroutine distributeRangeInChunks2(env, globalFirst1, globalLast1, globalFirst2, globalLast2,&
       & localFirst1, localLast1, localFirst2, localLast2)
 
@@ -133,7 +133,7 @@ contains
 
 
   !> Distributes a range among processes within a process group
-  !> and take into account that each item may have a different workload
+  !! and take into account that each item may have a different workload
   subroutine distributeRangeWithWorkload(env, globalFirst, globalLast, workload, indices)
 
     !> Computational environment settings
@@ -263,7 +263,7 @@ contains
   end subroutine getChunkRanges
 
 
-  !> Calculate the indices for a given MPI-communicator considerung different workload
+  !> Calculate the indices for a given MPI-communicator considering different workload
   subroutine getIndicesWithWorkload(groupSize, myRank, globalFirst, globalLast, workload, indices)
 
     !> Size of the group over which the chunks should be distributed
@@ -287,11 +287,9 @@ contains
     integer :: numIndices, rank, ii
     integer, allocatable :: rankWorkload(:), indices_(:)
 
-    allocate(indices_(globalLast - globalFirst + 1))
-    allocate(rankWorkload(groupSize))
+    allocate(indices_(globalLast - globalFirst + 1), source=0)
+    allocate(rankWorkload(groupSize), source=0)
 
-    rankWorkload(:) = 0
-    indices_(:) = 0
     numIndices = 0
 
     do ii = globalFirst, globalLast
@@ -322,10 +320,10 @@ contains
     integer, intent(out) :: iStart, iEnd
 
   #:if WITH_MPI
-    !! Size of split index regions
+    ! Size of split index regions
     integer :: splitSize
 
-    !! Number of elements that exceed integer times nProcs
+    ! Number of elements that exceed integer times nProcs
     integer :: offset
   #:endif
 
