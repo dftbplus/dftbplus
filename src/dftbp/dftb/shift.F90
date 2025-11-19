@@ -90,11 +90,18 @@ contains
     @:ASSERT(size(iPair,dim=1)>=(maxval(nNeighbour)+1))
     @:ASSERT(size(iPair,dim=2)==nAtom)
     @:ASSERT(size(shift,dim=1)==nAtom)
-    @:ASSERT(isInputZero)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     @:ASSERT(size(shift,dim=2)==nSpin)
 
-    call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
+    if (isInputZero) then
+      ham(:,:) = 0.0_dp
+      call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
+    else
+      ! If input is not zero everywhere, we have to compute in serial here, otherwise the call to
+      ! 'assembleChunks' will mess up the array.
+      allocate(iterIndices(nAtom))
+      iterIndices(:) = [(iIter, iIter = 1, nAtom)]
+    end if
 
     do iSpin = 1, nSpin
       do iIter = 1, size(iterIndices)
@@ -115,13 +122,13 @@ contains
       end do
     end do
 
-    call assembleChunks(env, ham)
+    if (isInputZero) call assembleChunks(env, ham)
 
   end subroutine addShift_atom
 
 
   !> Shift depending on occupation-matrix like potentials. To use this for lm-dependent potentials,
-  !> use a diagonal shift matrix
+  !! use a diagonal shift matrix
   subroutine addShift_block(env, ham, over, nNeighbour, iNeighbour, species, orb, iPair, nAtom,&
       & img2CentCell, shift, isInputZero)
 
@@ -183,8 +190,8 @@ contains
       ham(:,:) = 0.0_dp
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbour, iterIndices)
     else
-      !> If input is not zero everywhere, we have to compute in serial here, otherwise
-      !> the call of 'assembleChunks' will mess up the array.
+      ! If input is not zero everywhere, we have to compute in serial here, otherwise the call to
+      ! 'assembleChunks' will mess up the array.
       allocate(iterIndices(nAtom))
       iterIndices(:) = [(iIter, iIter = 1, nAtom)]
     end if
