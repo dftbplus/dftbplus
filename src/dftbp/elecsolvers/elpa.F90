@@ -58,10 +58,10 @@ module dftbp_elecsolvers_elpa
     private
 
     !> Handle of the ELPA instance
-    class(elpa_t), pointer :: handle
+    class(elpa_t), pointer :: handle => null()
 
     !> Handle of the ELPA autotuning
-    class(elpa_autotune_t), pointer :: autotune
+    class(elpa_autotune_t), pointer :: autotune => null()
 
     !> Whether GPUs are enabled
     logical :: gpu = .false.
