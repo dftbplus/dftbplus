@@ -319,14 +319,15 @@ contains
         if (this%isEResp) then
           call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
               & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
-              & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
-              & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
-              & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
-              & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
-              & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-              & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
-              & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
-              & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
+              & this%boundaryCond, this%orb, this%nAtom, this%species, this%neighbourList,&
+              & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell,&
+              & this%coord, this%coord0, this%scc, this%maxPerturbIter, this%perturbSccTol,&
+              & this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
+              & this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+              & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
+              & this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+              & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus,&
+              & this%dynRespEFreq)
           if (errStatus%hasError()) then
             call error(errStatus%message)
           end if
@@ -358,6 +359,7 @@ contains
         exit geoOpt
       end if
       call env%globalTimer%stopTimer(globalTimers%postSCC)
+
     end do geoOpt
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
@@ -490,19 +492,20 @@ contains
 
   #:endif
 
-    if (this%doPerturbation) then
+    if (this%doPerturbation .and. .not. this%doPerturbEachGeom) then
 
       if (this%isEResp) then
         call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
             & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
-            & this%orb, this%nAtom, this%species, this%neighbourList, this%nNeighbourSK,&
-            & this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord, this%scc,&
-            & this%maxPerturbIter, this%perturbSccTol, this%isPerturbConvRequired,&
-            & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
-            & this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
-            & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
-            & this%kPoint, this%kWeight, this%iCellVec, this%cellVec, this%polarisability,&
-            & this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus, this%dynRespEFreq)
+            & this%boundaryCond, this%orb, this%nAtom, this%species, this%neighbourList,&
+            & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord,&
+            & this%coord0, this%scc, this%maxPerturbIter, this%perturbSccTol,&
+            & this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
+            & this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+            & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
+            & this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+            & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus,&
+            & this%dynRespEFreq)
         if (errStatus%hasError()) then
           call error(errStatus%message)
         end if
@@ -512,7 +515,7 @@ contains
         if (env%tGlobalLead .and. this%tWriteDetailedOut) then
           call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
           call writeDetailedOut10(this%fdDetailedOut%unit, this%orb, this%polarisability,&
-              & this%dqOut, this%dEfdE)
+              & this%dqOut, this%dEfdE, this%dynRespEFreq)
         end if
       end if
 
@@ -1180,7 +1183,7 @@ contains
     if (this%tCoordsChanged .and. isFirstDet) then
       call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
           & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tRealHS, this%tHelical,&
-          & this%scc, this%tblite, this%repulsive, this%dispersion,this%solvation,&
+          & this%scc, this%tblite, this%repulsive, this%dispersion, this%solvation,&
           & this%areSolventNeighboursSym, this%thirdOrd, this%hybridXc, this%reks, this%mdftb,&
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%symNeighbourList,&
           & this%nAllAtom, this%coord0Fold, this%coord, this%species, this%cellVec, this%rCellVec,&
@@ -1950,11 +1953,10 @@ contains
     !> Whether geometry optimisation should be stop
     logical, intent(out) :: tExitGeoOpt
 
-
-    !> Difference between last calculated and new geometry.
+    ! Difference between last calculated and new geometry.
     real(dp) :: diffGeo
 
-    !> Has this completed?
+    ! Has this completed?
     logical :: tCoordEnd, converged
 
     ! initially assume that coordinates and lattice vectors won't be updated
@@ -1963,11 +1965,13 @@ contains
 
     tExitGeoOpt = .false.
     if (this%tDerivs) then
-      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, &
-           & this%indDerivAtom, this%coord0, tGeomEnd)
+
+      call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, this%indDerivAtom,&
+          & this%coord0, tGeomEnd)
       if (tGeomEnd) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         tExitGeoOpt = .true.
+
         return
       end if
       this%tCoordsChanged = .true.

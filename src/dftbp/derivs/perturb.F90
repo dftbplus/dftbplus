@@ -23,6 +23,7 @@ module dftbp_derivs_perturb
       & dRhoFermiChangeReal, dRhoPauli, dRhoReal
   use dftbp_derivs_rotatedegen, only : TRotateDegen, TRotateDegen_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_dftbplusu, only : plusUFunctionals, TDftbU
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
@@ -37,7 +38,7 @@ module dftbp_derivs_perturb
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_spin, only : getSpinShift, qm2ud, ud2qm
   use dftbp_dftb_thirdorder, only : TThirdOrder
-  use dftbp_dftbplus_mainio, only : writeDerivBandOut
+  use dftbp_dftbplus_mainio, only : writeDerivBandOut, permitivityPrint
   use dftbp_dftbplus_outputfiles, only : derivVBandOut
   use dftbp_io_commonformats, only : format2U
   use dftbp_io_message, only : warning
@@ -50,8 +51,6 @@ module dftbp_derivs_perturb
   use dftbp_dftb_populations, only : denseMullikenRealBlacs
   use dftbp_extlibs_mpifx, only : mpifx_allreduceip, mpifx_bcast, MPI_SUM
   use dftbp_extlibs_scalapackfx, only : DLEN_, blocklist, scalafx_getdescriptor, size
-#:else
-  use dftbp_dftb_sparse2dense, only : unpackHS
 #:endif
   use dftbp_dftb_sparse2dense, only : unpackHS
   implicit none
@@ -180,11 +179,11 @@ contains
 
   !> Perturbation at q=0 with respect to a static electric field
   subroutine wrtEField(this, env, parallelKS, filling, eigvals, eigVecsReal, eigVecsCplx, ham,&
-      & over, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-      & img2CentCell, coord, sccCalc, maxSccIter, sccTol, isSccConvRequired, nMixElements,&
-      & nIneqMixElements, iEqOrbitals, tempElec, Ef, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
-      & iEqBlockOnSite, hybridXc, nNeighbourCam, chrgMixerReal, kPoint, kWeight, iCellVec, cellVec,&
-      & polarisability, dEi, dqOut, neFermi, dEfdE, errStatus, omega)
+      & over, boundaryCond, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc,&
+      & iSparseStart, img2CentCell, coord, coord0, sccCalc, maxSccIter, sccTol, isSccConvRequired,&
+      & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, spinW, thirdOrd, dftbU,&
+      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, hybridXc, nNeighbourCam, chrgMixerReal, kPoint,&
+      & kWeight, iCellVec, cellVec, polarisability, dEi, dqOut, neFermi, dEfdE, errStatus, omega)
 
     !> Instance
     class(TResponse), intent(in) :: this
@@ -213,6 +212,9 @@ contains
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
+    !> Boundary conditions on the calculation
+    type(TBoundaryConds), intent(in) :: boundaryCond
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
@@ -239,6 +241,9 @@ contains
 
     !> Atomic coordinates
     real(dp), intent(in) :: coord(:,:)
+
+    !> Atomic coordinates in central cell
+    real(dp), intent(in) :: coord0(:,:)
 
     !> SCC module internal variables
     type(TScc), intent(inout), allocatable :: sccCalc
@@ -308,7 +313,7 @@ contains
     integer, intent(in) :: iCellVec(:)
 
     !> Electric polarisability
-    real(dp), intent(out) :: polarisability(:,:,:)
+    real(dp), allocatable, intent(inout) :: polarisability(:,:,:)
 
     !> Derivatives of eigenvalues, if required
     real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
@@ -329,7 +334,6 @@ contains
     real(dp), intent(in) :: omega(:)
 
     integer :: iAt, iCart
-
     integer :: nSpin, nKpts, nOrbs, nIndepHam
 
     ! maximum allowed number of electrons in a single particle state
@@ -365,7 +369,7 @@ contains
     type(TRotateDegen), allocatable :: degenTransform(:)
 
     write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of electric polarisability'
+    write(stdOut,*)'Perturbation calculation with respect to applied electric field'
     write(stdOut,*)
 
     call init_perturbation(parallelKS, this%tolDegen, nOrbs, nKpts, nSpin, nIndepHam, maxFill,&
@@ -404,11 +408,13 @@ contains
 
     dqOut(:,:,:,:) = 0.0_dp
 
-    ! polarisation direction
+    ! Electric field polarisation direction
     ! note: could MPI parallelise over this in principle
     lpCart: do iCart = 1, 3
 
-      write(stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
+      if (boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
+        write(stdOut,*)"Polarisabilty for field along ", trim(quaternionName(iCart+1))
+      end if
 
       ! set outside loop, as in time dependent case if adjacent frequencies are similar this should
       ! converge a bit faster
@@ -424,7 +430,7 @@ contains
 
       ! derivative wrt to electric field as a perturbation
       do iAt = 1, nAtom
-        dPotential%extAtom(iAt,1) = coord(iCart,iAt)
+        dPotential%extAtom(iAt,1) = coord0(iCart,iAt)
       end do
       call totalShift(dPotential%extShell, dPotential%extAtom, orb, species)
       call totalShift(dPotential%extBlock, dPotential%extShell, orb, species)
@@ -436,16 +442,28 @@ contains
         end if
 
         dEiTmp(:,:,:) = 0.0_dp
-        call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
-            & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
-            & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements, nIneqMixElements,&
-            & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
-            & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
-            & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, degenTransform, dEiTmp, dEfdETmp,&
-            & filling, Ef, this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi,&
-            & nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
-            & dPsiReal, dPsiCmplx, coord, errStatus, omega(iOmega),&
-            & dDipole=polarisability(:, iCart, iOmega), eta=this%eta)
+        if (allocated(polarisability)) then
+          call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
+              & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
+              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements, nIneqMixElements,&
+              & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
+              & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
+              & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, degenTransform, dEiTmp, dEfdETmp,&
+              & filling, Ef, this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi,&
+              & nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
+              & dPsiReal, dPsiCmplx, coord, errStatus, omega(iOmega),&
+              & dDipole=polarisability(:, iCart, iOmega), eta=this%eta)
+        else
+          call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
+              & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
+              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements, nIneqMixElements,&
+              & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
+              & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
+              & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, degenTransform, dEiTmp, dEfdETmp,&
+              & filling, Ef, this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi,&
+              & nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
+              & dPsiReal, dPsiCmplx, coord, errStatus, omega(iOmega), eta=this%eta)
+        end if
         @:PROPAGATE_ERROR(errStatus)
 
         if (allocated(dEfdE)) then
@@ -472,21 +490,9 @@ contains
     end if
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*)'Polarisability (a.u.)'
-    do iOmega = 1, size(omega)
-      write(stdOut,*)
-      if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-        write(stdOut, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
-            & omega(iOmega) * Hartree__eV, ' eV'
-      else
-        write(stdOut, "(A)")"Static polarisability:"
-      end if
-      do iCart = 1, 3
-        write(stdOut,"(3E20.12)")polarisability(:, iCart, iOmega)
-      end do
-    end do
-    write(stdOut,*)
+    if (boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
+      call permitivityPrint(stdOut, polarisability, omega)
+    end if
 
   end subroutine wrtEField
 
@@ -523,7 +529,7 @@ contains
     character(*), intent(in) :: resultsTagFile
 
     !> Tagged writer object
-    type(TTaggedWriter), intent(inout) :: taggedWriter
+    type(TTaggedWriter), intent(inout), optional :: taggedWriter
 
     !> Should eigenvalue (band) data derivatives be written to disc
     logical, intent(in) :: isBandWritten
@@ -1530,6 +1536,7 @@ contains
     end if
 
     if (present(dDipole)) then
+      ! Note, this is origin dependent for periodic geometries:
       dDipole(:) = -matmul(coord(:,:nAtom),sum(dqOut(:,:nAtom,1),dim=1))
     end if
 
@@ -1871,7 +1878,7 @@ contains
     integer, intent(in) :: nIneqMixElements
 
     !> Equivalence relations between orbitals
-    integer, intent(in) :: iEqOrbitals(:,:,:)
+    integer, allocatable, intent(in) :: iEqOrbitals(:,:,:)
 
     !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
@@ -1908,7 +1915,7 @@ contains
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> Charge mixing object
-    class(TMixerReal), intent(inout) :: chrgMixerReal
+    class(TMixerReal), allocatable, intent(inout) :: chrgMixerReal
 
     !> Should eigenvalue (band) data derivatives be written to disc
     logical, intent(in) :: isBandWritten
@@ -2550,56 +2557,82 @@ contains
     end if
 
     if (tMulliken .or. tSccCalc) then
-      write(stdOut, *)
-      write(stdOut, *)'Derivatives of atomic Mulliken charges with atom positions'
-      do iAt = 1, nAtom
-        write(stdOut,"(A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
-        do iS = 1, nSpin
-          do jAt = 1, nAtom
-            write(stdOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:, jAt, iS, :, iAt), dim=1) * AA__Bohr
-          end do
-          write(stdOut, *)
-        end do
-      end do
-      write(stdOut, *)
 
-      if (isTagResultsWritten) then
-        allocate(bornCharges(3, 3, nAtom))
+      if (tWriteDetailedOut) then
+        write(fdDetailedOut, *)'Derivatives of atomic Mulliken charges with atom positions'
+        do iAt = 1, nAtom
+          write(fdDetailedOut,"(A,I0,T10,A,T26,A,T42,A)")"At",iAt,"x","y","z"
+          do iS = 1, nSpin
+            do jAt = 1, nAtom
+              write(fdDetailedOut, "(1X,I0,T4,3F16.8)")jAt, -sum(dqOut(:, jAt, iS, :, iAt), dim=1)&
+                  & * AA__Bohr
+            end do
+            write(fdDetailedOut, *)
+          end do
+        end do
+        write(fdDetailedOut, *)
       end if
-      write(stdOut, *)'Born effective charges (a.u.)'
-      ! i.e. derivative of dipole moment wrt to atom positions, i.e. (d/dx) (q-q0) x, or
-      ! equivalently derivative of forces wrt to a homogeneous electric field
 
-      do iAt = 1, nAtom
-        do iCart = 1, 3
-          dDipole(:) = 0.0_dp
-          do jCart = 1, 3
-            dDipole(jCart) = sum(sum(dqOut(:, : , 1, iCart, iAt), dim=1) * coord(jCart, :))
-          end do
-          dDipole(iCart) = dDipole(iCart) + sum(qOrb(:,iAt,1) - q0(:,iAt,1))
-          write(stdOut,"(3F16.8)")dDipole
-          if (isTagResultsWritten) then
+      if (tWriteDetailedOut .or. isTagResultsWritten) then
+
+        allocate(bornCharges(3, 3, nAtom))
+        do iAt = 1, nAtom
+          do iCart = 1, 3
+            dDipole(:) = 0.0_dp
+            do jCart = 1, 3
+              dDipole(jCart) = sum(sum(dqOut(:, : , 1, iCart, iAt), dim=1) * coord(jCart, :))
+            end do
+            dDipole(iCart) = dDipole(iCart) + sum(qOrb(:,iAt,1) - q0(:,iAt,1))
             bornCharges(:, iCart, iAt) = dDipole
-          end if
+          end do
         end do
-        write(stdOut, *)
-      end do
-      write(stdOut, *)
+      end if
 
-    end if
+      call writeBorn(fdDetailedOut, bornCharges)
+      call writeBorn(stdOut, bornCharges)
 
-    if (isAutotestWritten) then
-      open(newunit=fdResults, file=autoTestTagFile, position="append")
-      call taggedWriter%write(fdResults, tagLabels%dqdx, dqOut)
-      close(fdResults)
-    end if
-    if (isTagResultsWritten) then
-      open(newunit=fdResults, file=taggedResultsFile, position="append")
-      call taggedWriter%write(fdResults, tagLabels%dqdx, dqOut)
-      call taggedWriter%write(fdResults, tagLabels%borncharges, bornCharges)
-      close(fdResults)
+      if (isAutotestWritten) then
+        open(newunit=fdResults, file=autoTestTagFile, position="append")
+        call taggedWriter%write(fdResults, tagLabels%dqdx, dqOut)
+        close(fdResults)
+      end if
+      if (isTagResultsWritten) then
+        open(newunit=fdResults, file=taggedResultsFile, position="append")
+        call taggedWriter%write(fdResults, tagLabels%dqdx, dqOut)
+        call taggedWriter%write(fdResults, tagLabels%borncharges, bornCharges)
+        close(fdResults)
+      end if
+
     end if
 
   end subroutine dxAtom
+
+
+  !> Print the Born effective charges
+  subroutine writeBorn(fd, bornCharges)
+
+    !> File id for data
+    integer, intent(in) :: fd
+
+    !> Born effective charges
+    real(dp), intent(in) :: bornCharges(:,:,:)
+
+    integer :: iAt, iCart, nAtom
+
+    nAtom = size(bornCharges, dim=3)
+
+    write(fd, *)'Born effective charges (a.u.)'
+    write(fd, *)
+    ! i.e. derivative of dipole moment wrt to atom positions, i.e. (d/dx) (q-q0) x, or
+    ! equivalently derivative of forces wrt to a homogeneous electric field
+    do iAt = 1, nAtom
+      do iCart = 1, 3
+        write(fd, "(3F16.8)")bornCharges(:, iCart, iAt)
+      end do
+      write(fd, *)
+    end do
+    write(fd, *)
+
+  end subroutine writeBorn
 
 end module dftbp_derivs_perturb
