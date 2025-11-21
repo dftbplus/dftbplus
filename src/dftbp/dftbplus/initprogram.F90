@@ -546,7 +546,7 @@ module dftbp_dftbplus_initprogram
     !> Response property calculations
     type(TResponse), allocatable :: response
 
-    !> Static polarisability
+    !> Response wrt to external electric field
     logical :: isEResp = .false.
 
     !> Derivatives with respect to atomic positions
@@ -2533,8 +2533,12 @@ contains
       end if
 
       if (this%isEResp) then
-        allocate(this%polarisability(3, 3, size(this%dynRespEFreq)))
-        this%polarisability(:,:,:) = 0.0_dp
+        if (this%boundaryCond%iBoundaryCondition == boundaryCondsEnum%cluster) then
+          allocate(this%polarisability(3, 3, size(this%dynRespEFreq)), source=0.0_dp)
+        else
+          call warning("Electric field polarisability not currently available for this boundary&
+              & condition")
+        end if
         if (input%ctrl%tWriteBandDat) then
           ! only one frequency at the moment if dynamic!
           allocate(this%dEidE(this%denseDesc%fullSize, this%nKpoint, this%nIndepSpin, 3))
