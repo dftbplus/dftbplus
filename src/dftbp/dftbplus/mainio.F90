@@ -84,7 +84,7 @@ module dftbp_dftbplus_mainio
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
-  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10, permitivityPrint
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
@@ -3890,7 +3890,7 @@ contains
 
 
   !> Tenth group of data for detailed.out (derivatives with respect to an external electric field)
-  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE)
+  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE, omega)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3906,6 +3906,9 @@ contains
 
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), allocatable, intent(in) :: omega(:)
 
     integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
 
@@ -3955,17 +3958,44 @@ contains
     end if
 
     if (allocated(polarisability)) then
-      write(fd,*)
-      write(fd,"(A)")'Electric polarisability (a.u.)'
-      do iOmega = 1, size(polarisability, dim=3)
-        do iCart = 1, 3
-          write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
-        end do
-      end do
-      write(fd,*)
+      @:ASSERT(allocated(omega))
+      call permitivityPrint(fd, polarisability, omega)
     end if
 
   end subroutine writeDetailedOut10
+
+
+  !> Print the electric field polarisability
+  subroutine permitivityPrint(fd, polarisability, omega)
+
+    !> File id for data
+    integer, intent(in) :: fd
+
+    !> Electric polarisability
+    real(dp), intent(in) :: polarisability(:,:,:)
+
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), intent(in) :: omega(:)
+
+    integer :: iCart, iOmega
+
+    write(fd,*)
+    write(fd,*)'Electric field polarisability (a.u.)'
+    do iOmega = 1, size(omega)
+      write(fd,*)
+      if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
+        write(fd, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
+            & omega(iOmega) * Hartree__eV, ' eV'
+      else
+        write(fd, *)"Static polarisability:"
+      end if
+      do iCart = 1, 3
+        write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
+      end do
+    end do
+    write(fd,*)
+
+  end subroutine permitivityPrint
 
 
   !> First group of output data during molecular dynamics
