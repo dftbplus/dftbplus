@@ -1519,7 +1519,7 @@ contains
   #:for LABEL, VTYPE, VPREC, NAME in [('real', 'real', 'rsp', 'ssyr2k'),&
   & ('cmplx', 'complex', 'rsp', 'cher2k'), ('dble', 'real', 'rdp', 'dsyr2k'),&
   & ('dblecmplx', 'complex', 'rdp', 'zher2k')]
-  !> Rank-k update
+  !> Rank-2k update
   subroutine her2k_${LABEL}$(C,A,B,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated
