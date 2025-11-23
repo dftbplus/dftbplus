@@ -16,6 +16,7 @@ module dftbp_dftb_populations
   use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sparse2dense, only : unpackHS
+  use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_integral, only : TIntegral
@@ -1206,19 +1207,15 @@ contains
     allocate(tmpD(nAOs,nAOs))
 
     ! Symmetrize overlap
-    tmpS(:,:) = overSqr + transpose(overSqr)
-    do ii = 1, nAOs
-      tmpS(ii,ii) = overSqr(ii,ii)
-    end do
+    tmpS(:,:) = overSqr
+    call adjointLowerTriangle(tmpS)
 
     qq(:,:,:,:) = 0.0_dp
     do iSpin = 1, nSpin
 
       ! Symmetrize density matrix for spin channel
-      tmpD(:,:) = rhoSqr(:,:,iSpin) + transpose(rhoSqr(:,:,iSpin))
-      do ii = 1, nAOs
-        tmpD(ii,ii) = rhoSqr(ii,ii,iSpin)
-      end do
+      tmpD(:,:) = rhoSqr(:,:,iSpin)
+      call adjointLowerTriangle(tmpD)
 
       do iAt = 1, nAtom
         ii = iSquare(iAt)
