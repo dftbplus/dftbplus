@@ -5157,25 +5157,27 @@ contains
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
       call renameChildren(child, "Diagonalizer", "Diagonaliser")
-      call getChildValue(child, "Diagonaliser", child2, "", allowEmptyValue=.true.)
-      call getNodeName(child2, buffer)
-      select case(char(buffer))
-      case ("arpack")
-        if (.not. withArpack) then
-          call detailedError(child2, 'This DFTB+ binary has been compiled without support for&
-              & linear response calculations using the ARPACK/ngARPACK library.')
-        end if
-        call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
-        call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
-        ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Arpack
-      case ("stratmann")
-        ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
-        call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
-      case ("")
-        call detailedError(child2, "Missing diagonaliser method")
-      case default
-        call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
-      end select
+      call getChildValue(child, "Diagonaliser", child2, allowEmptyValue=.true.)
+      if (associated(child2)) then
+        call getNodeName(child2, buffer)
+        select case(char(buffer))
+        case ("arpack")
+          if (.not. withArpack) then
+            call detailedError(child2, 'This DFTB+ binary has been compiled without support for&
+                & linear response calculations using the ARPACK/ngARPACK library.')
+          end if
+          call getChildValue(child2, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
+          call getChildValue(child2, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
+          ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Arpack
+        case ("stratmann")
+          ctrl%lrespini%iLinRespSolver = linRespSolverTypes%Stratmann
+          call getChildValue(child2, "SubSpaceFactor", ctrl%lrespini%subSpaceFactorStratmann, 20)
+        case default
+          call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
+        end select
+      else
+        call detailedError(child, "Missing diagonaliser method")
+      end if
 
       call renameChildren(child, "OptimizerCI", "OptimiserCI")
       call getChild(child, "OptimiserCI", child2, requested=.false.)
