@@ -6,7 +6,8 @@ if (NOT WITH_MPI)
     testapp.f90)
 
   set(sources-fypp
-    matrixops.F90)
+    matrixops.F90
+    lapacksvd.F90)
 
   set(sources-fypp-f90)
   foreach(source-fypp IN LISTS sources-fypp)

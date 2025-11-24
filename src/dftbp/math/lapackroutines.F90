@@ -837,206 +837,114 @@ contains
   end subroutine larnv_dblecplx
 
 
-  !> real svd decomposition of matrix A into left and right vectors and singular values
-  subroutine sgesvd_real(A,u,sigma,vt)
+#:for TYPE, KIND, LABEL, PRF, NAME in [('real', 'rsp', 'real', 'sgesvd', 'Real'),&
+  & ('real', 'rdp', 'dble', 'dgesvd', 'Double precision'),&
+  & ('complex', 'rsp', 'cplx', 'cgesvd', 'Complex'),&
+  & ('complex', 'rdp', 'dblecplx', 'zgesvd', 'Double complex')]
 
-    !> matrix to decompose, warning the matrix is over-written by the routine
-    real(rsp), intent(inout) :: A(:,:)
+  !> ${NAME}$ SVD decomposition of matrix A into left and right vectors and singular values
+  subroutine ${PRF}$_${LABEL}$(A, u, sigma, vt, jobu, jobvt, n, m)
 
-    !> first min(m,n) columns of u hold the left singular vector on return
-    real(rsp), intent(out) :: u(:,:)
+    !> Matrix to decompose, warning the matrix is over-written by the routine
+    ${TYPE}$(${KIND}$), intent(inout) :: A(:,:)
 
-    !> holds the singular values on return
-    real(rsp), intent(out) :: sigma(:)
+    !> Hold the left singular vector on return
+    ${TYPE}$(${KIND}$), intent(out) :: u(:,:)
 
-    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
-    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
-    !> zero!
-    real(rsp), intent(out) :: vt(:,:)
+    !> Holds the singular values on return
+    ${TYPE}$(${KIND}$), intent(out) :: sigma(:)
 
-    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
-    real(rsp), allocatable :: work(:)
+    !> Warning this matrix is returned transpose(conjugated())
+    ${TYPE}$(${KIND}$), intent(out) :: vt(:,:)
+
+    !> Optional choice of left singular values to retun ('A'll, 'S'sub set, 'O'verwrite A matrix
+    !! with subset, 'N'one). Sets the requirement for size of U. Default of 'S'
+    character, intent(in), optional :: jobu
+
+    !> Optional choice of right singular values to retun ('A'll, 'S'sub set, 'O'verwrite A matrix
+    !! with subset, 'N'one). Sets the requirement for size of Vt. Default of 'S'
+    character, intent(in), optional :: jobvt
+
+    !> Rows of A to consider. If absent, take all rows.
+    integer, intent(in), optional :: n
+
+    !> Columns of A to consider. If absent, take all columns.
+    integer, intent(in), optional :: m
+
+    integer :: n0, m0, mn, lda, lwork, ldu, ldvt, info
+    ${TYPE}$(${KIND}$), allocatable :: work(:)
+    character :: jobu0, jobvt0
     character(len=100) :: error_string
 
-    m = size(A,dim=1)
-    n = size(A,dim=2)
-    mn = min(m,n)
     lda = size(A,dim=1)
     ldu = size(U,dim=1)
     ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/mn,n/)))
-    @:ASSERT(size(sigma) == mn)
 
-    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
+    ! S and S as default
+    jobu0 = 'S'
+    if (present(jobu)) jobu0 = jobu
+    @:ASSERT(any(jobu0 == ['A', 'S', 'O', 'N']))
+    jobvt0 = 'S'
+    if (present(jobvt)) jobvt0 = jobvt
+    @:ASSERT(any(jobvt0 == ['A', 'S', 'O', 'N']))
+    @:ASSERT(.not. (jobu0 == 'O' .and. jobvt0 == 'O') )
 
-    allocate(work(lwork))
+    m0 = size(A,dim=1)
+    if (present(m)) m0 = m
+    @:ASSERT(m0 >= 0)
+    n0 = size(A,dim=2)
+    if (present(n)) n0 = n
+    @:ASSERT(n0 >= 0)
 
-    ! get only the minimum(m,n) singular vectors
-    call sgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+    mn = min(m0,n0)
 
+    @:ASSERT(lda >= max(1,m0))
+  #:block DEBUG_CODE
+    select case(jobu0)
+    case ('A')
+      @:ASSERT(all(shape(u) >= [m0,m0]))
+    case ('S')
+      @:ASSERT(all(shape(u) >= [m0,mn]))
+    end select
+    select case(jobvt0)
+    case ('A')
+      @:ASSERT(all(shape(vt) >= [n0,n0]))
+    case ('S')
+      @:ASSERT(all(shape(vt) >= [n0,mn]))
+    end select
+  #:endblock DEBUG_CODE
+    @:ASSERT(size(sigma) >= mn)
+
+    allocate(work(1))
+    call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, -1, info)
     if (info /= 0) then
-      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      write(error_string, "(A,I10)") "SVD (${PRF}$) memory size request failed. Info: ", info
       call error(error_string)
     end if
 
+  #:if TYPE == 'complex'
+    lwork = nint(real(work(1)))
+  #:else
+    lwork = nint(work(1))
+  #:endif
     deallocate(work)
-
-  end subroutine sgesvd_real
-
-
-  !> double precision svd decomposition of matrix A into left and right vectors and singular values
-  subroutine dgesvd_dble(A,u,sigma,vt)
-
-    !> matrix to decompose, warning the matrix is over-written by the routine
-    real(rdp), intent(inout) :: A(:,:)
-
-    !> first min(m,n) columns of u hold the left singular vector on return
-    real(rdp), intent(out) :: u(:,:)
-
-    !> holds the singular values on return
-    real(rdp), intent(out) :: sigma(:)
-
-    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
-    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
-    !> zero!
-    real(rdp), intent(out) :: vt(:,:)
-
-    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
-    real(rdp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    m = size(A,dim=1)
-    n = size(A,dim=2)
-    mn = min(m,n)
-    lda = size(A,dim=1)
-    ldu = size(U,dim=1)
-    ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/mn,n/)))
-    @:ASSERT(size(sigma) == mn)
-
-    lwork = max(1,3*min(m,n)+max(m,n),5*min(m,n))
-
     allocate(work(lwork))
 
-    ! get only the minimum(m,n) singular vectors
-    call dgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
+    call ${PRF}$(jobu0, jobvt0, m0, n0, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, info)
 
     if (info /= 0) then
-      write(error_string, "(A,I10)") "SVD failed. Info: ", info
+      write(error_string, "(A,I10)") "SVD (${PRF}$) failed. Info: ", info
       call error(error_string)
     end if
 
-    deallocate(work)
+  end subroutine ${PRF}$_${LABEL}$
 
-  end subroutine dgesvd_dble
-
-  !> complex svd decomposition of matrix A into left and right vectors and singular values
-  subroutine cgesvd_cplx(A,u,sigma,vt)
-
-    !> matrix to decompose, warning the matrix is over-written by the routine
-    complex(rsp), intent(inout) :: A(:,:)
-
-    !> first min(m,n) columns of u hold the left singular vector on return
-    complex(rsp), intent(out) :: u(:,:)
-
-    !> holds the singular values on return
-    real(rsp), intent(out) :: sigma(:)
-
-    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
-    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
-    !> zero!
-    complex(rsp), intent(out) :: vt(:,:)
-
-    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
-    real(rsp), allocatable :: rwork(:)
-    complex(rsp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    m = size(A,dim=1)
-    n = size(A,dim=2)
-    mn = min(m,n)
-    lda = size(A,dim=1)
-    ldu = size(U,dim=1)
-    ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/mn,n/)))
-    @:ASSERT(size(sigma) == mn)
-
-    lwork = 2*min(m,n)+max(m,n)
-
-    allocate(rwork(5*mn))
-    allocate(work(lwork))
-
-    ! get only the minimum(m,n) singular vectors
-    call cgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
-
-    if (info /= 0) then
-      write(error_string, "(A,I10)") "SVD failed. Info: ", info
-      call error(error_string)
-    end if
-
-    deallocate(rwork)
-    deallocate(work)
-
-  end subroutine cgesvd_cplx
-
-
-  !> double complex svd decomposition of matrix A into left and right vectors and singular values
-  subroutine zgesvd_dblecplx(A,u,sigma,vt)
-
-    !> matrix to decompose, warning the matrix is over-written by the routine
-    complex(rdp), intent(inout) :: A(:,:)
-
-    !> first min(m,n) columns of u hold the left singular vector on return
-    complex(rdp), intent(out) :: u(:,:)
-
-    !> holds the singular values on return
-    real(rdp), intent(out) :: sigma(:)
-
-    !> first min(m,n) columns of vt hold the right singular vector on return - warning this matrix
-    !> is returned transpose(conjugated()) i.e. A = u.s.vt and all non-returned singular vectors are
-    !> zero!
-    complex(rdp), intent(out) :: vt(:,:)
-
-    integer :: n, m, mn, lda, lwork, ldu, ldvt, info
-    real(rdp), allocatable :: rwork(:)
-    complex(rdp), allocatable :: work(:)
-    character(len=100) :: error_string
-
-    m = size(A,dim=1)
-    n = size(A,dim=2)
-    mn = min(m,n)
-    lda = size(A,dim=1)
-    ldu = size(U,dim=1)
-    ldvt = size(Vt,dim=1)
-    @:ASSERT(all(shape(u) == (/m,mn/)))
-    @:ASSERT(all(shape(vt) == (/mn,n/)))
-    @:ASSERT(size(sigma) == mn)
-
-    lwork = 2*min(m,n)+max(m,n)
-
-    allocate(rwork(5*mn))
-    allocate(work(lwork))
-
-    ! get only the minimum(m,n) singular vectors
-    call zgesvd('S', 'S', m, n, A, lda, sigma, u, ldu, vt, ldvt, work, lwork, rwork, info)
-
-    if (info /= 0) then
-      write(error_string, "(A,I10)") "SVD failed. Info: ", info
-      call error(error_string)
-    end if
-
-    deallocate(rwork)
-    deallocate(work)
-
-  end subroutine zgesvd_dblecplx
+#:endfor
 
 
 #:for suffix, kind in REAL_KIND_PARAMS
 
-  !> Choleskii factorization of a matrix
+  !> Cholesky factorization of a matrix
   subroutine ${kind}$potrf_${suffix}$(b, uplo, info)
 
     !> Matrix to be factorised, over-written on return
