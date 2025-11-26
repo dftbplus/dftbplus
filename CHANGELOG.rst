@@ -112,6 +112,7 @@ Fixed
 
 - Geometry error for periodic structures with open boundary contacts
 
+- Enable CI test cases and fix a parser bug
 
 24.1 (2024-02-12)
 =================
