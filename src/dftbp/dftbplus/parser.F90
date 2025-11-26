@@ -5178,8 +5178,10 @@ contains
         call detailedError(child2, "Invalid diagonaliser method '" // char(buffer) // "'")
       end select
 
-      call getChildValue(child, "OptimiserCI", child2, "", child=child3, allowEmptyValue=.true.)
+      call renameChildren(child, "OptimizerCI", "OptimiserCI")
+      call getChild(child, "OptimiserCI", child2, requested=.false.)
       if (associated(child2)) then
+        call getChildValue(child, "OptimiserCI", child2, child=child3)
         call getNodeName(child2, buffer)
         select case(char(buffer))
         case ("bearpark")

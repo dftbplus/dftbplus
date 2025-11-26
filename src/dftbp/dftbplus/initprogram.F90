@@ -5278,6 +5278,12 @@ contains
             allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
         this%isCIopt = this%linearResponse%isCIopt
+        if (this%isCIopt) then
+          ! Currently always using Bearpark algorithm:
+          write(stdOut, "('Conical Intersection finder:',T30,A)") 'Bearpark'
+          write(stdOut, format2Ue) "CI finder level shift", this%linearResponse%energyShiftCI, 'H',&
+              & Hartree__eV * this%linearResponse%energyShiftCI, 'eV'
+        end if
       end if
     end if
 
