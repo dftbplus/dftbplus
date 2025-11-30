@@ -5289,6 +5289,7 @@ calculation and/or calculate properties.
   \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
   \pref{sec:dftbp.rperturb} \\
   \kw{CoordDerivatives} & l & & No & \\
+  \kw{PrintLatticeInformation} & l & Periodic = Yes & Yes & \\
 \end{ptable}
 
 \begin{description}
@@ -5336,6 +5337,9 @@ calculation and/or calculate properties.
   and serial calculations for non-SCC or SCC DFTB). Derivatives of the band
   structure are written to \verb|dBand_dx.out|, and Born effective
   charges are evaluated.
+
+\item[\is{PrintLatticeInformation}] Print information about the
+  lattice vectors whenever they are updated (periodic geometries only).
 
 \end{description}
 
