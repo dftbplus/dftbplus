@@ -503,6 +503,8 @@ contains
 
       call getChildValue(node, "AppendGeometries", ctrl%tAppendGeo, .false.)
 
+      ! Geometry optimisation drivers
+      ctrl%iGeoOpt = geoOptTypes%geometryoptimisation
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
 

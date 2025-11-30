@@ -36,7 +36,7 @@ module dftbp_dftbplus_input_geoopt
     type(TOptTolerance) :: tolerance
 
     !> Number of allowed geometry optimization steps
-    integer :: nGeoSteps = huge(1) - 1
+    integer :: nGeoSteps
 
     !> Prefix of the output file name
     character(len=:), allocatable :: outFile
