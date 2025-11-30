@@ -70,7 +70,7 @@ module dftbp_dftbplus_main
       & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo,&
       & printLatticeForceNorm, printMaxForce, printMaxLatticeForce, printMdInfo,&
       & printPressureAndFreeEnergy, printReksSccHeader, printReksSccInfo, printSccHeader,&
-      & printSccInfo, printVolume, readEigenVecs, writeAutotestTag, writebandout,&
+      & printSccInfo, printCellInfo, readEigenVecs, writeAutotestTag, writebandout,&
       & writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile, writeCplxEigVecs,&
       & writeCurrentGeometry, writeExtendedGeometry, writeDerivBandOut, writeDetailedOut1,&
       & writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3,&
@@ -270,8 +270,6 @@ contains
       end if
 
       if (this%tStress) then
-
-        call printVolume(this%cellVol)
 
         ! MD case includes the atomic kinetic energy contribution, so print that later
         if (.not. (this%tMD .or. this%tHelical)) then
@@ -1079,6 +1077,9 @@ contains
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
+      if (this%tStress) then
+        call printCellInfo(this%fdDetailedOut%unit, this%latVec, this%cellVol)
+      end if
       call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
           & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
           & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
@@ -2271,6 +2272,8 @@ contains
        mCutoff = max(mCutOff, cm5Cont%getRCutOff())
     end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, invLatVecs, mCutOff, boundaryCond)
+
+    call printCellInfo(stdOut, latVecs, cellVol)
 
   end subroutine handleLatticeChange
 
