@@ -61,6 +61,7 @@ module dftbp_geoopt_geoopt
     integer :: diis = 3
     integer :: lbfgs = 4
     integer :: fire = 5
+    integer :: geometryoptimisation = 6
   end type TGeoOptTypesEnum
 
   type(TGeoOptTypesEnum), parameter :: geoOptTypes = TGeoOptTypesEnum()

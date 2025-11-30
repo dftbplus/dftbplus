@@ -2093,6 +2093,9 @@ contains
       this%displ(:) = 0.0_dp
       this%elast = 0.0_dp
       this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps
+      if (this%nGeoSteps == -1) then
+        this%nGeoSteps = huge(1)
+      end if
       this%geoOutFile = input%ctrl%geoOpt%outFile
     end if
 
@@ -3318,7 +3321,9 @@ contains
       case default
         call error("Unknown thermostat mode")
       end select
-    elseif (this%isGeoOpt) then
+
+    elseif (this%isGeoOpt .or. allocated(this%geoOpt)) then
+
       if (allocated(this%conAtom)) then
         strTmp = "with constraints"
       else
@@ -3338,6 +3343,8 @@ contains
       case (geoOptTypes%fire)
         write(stdout, "('Mode:',T30,A)") 'FIRE relaxation' // trim(strTmp)
         tGeoOptRequiresEgy = .false.
+      case (geoOptTypes%geometryoptimisation)
+        write(stdout, "('Mode:',T30,A)") 'Geometry optimisation relaxation'
       case default
         call error("Unknown optimisation mode")
       end select
@@ -3492,8 +3499,14 @@ contains
     if (this%tCoordOpt) then
       write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
+    if (this%isGeoOpt .or. allocated(this%geoOpt)) then
+      if (this%nGeoSteps == huge(1)) then
+        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
+      else
+        write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
+      end if
+    end if
     if (this%isGeoOpt) then
-      write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
