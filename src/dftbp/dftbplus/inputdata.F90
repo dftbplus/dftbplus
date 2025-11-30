@@ -209,6 +209,9 @@ module dftbp_dftbplus_inputdata
     !> Maximum possible linesearch step
     real(dp) :: maxLatDisp = 0.2_dp
 
+    !> Is lattice information printed
+    logical :: isLatInfoPrinted = .false.
+
     !> Add new geometries at the end of files
     logical :: tAppendGeo = .false.
 
