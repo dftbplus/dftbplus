@@ -199,10 +199,6 @@ contains
       call this%elsi%reset()
     end if
 
-    if (this%isElpaStandalone) then
-      call this%elpa%reset()
-    end if
-
     ! The electronic Helmholtz free energy of the system is available (U - TS + mu N_elec). Note
     ! that chemical potential logical can be re-defined.
     this%providesFreeEnergy =  this%providesElectronEntropy .and. this%elecChemPotAvailable
