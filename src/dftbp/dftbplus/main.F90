@@ -1173,14 +1173,15 @@ contains
       call writeMdOut1(this%fdMd%unit, iGeoStep, this%pMDIntegrator)
     end if
 
-    if (this%tLatticeChanged .and. isFirstDet) then
+    if (this%tLatticeChanged) then
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
           & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
           & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
           & this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
+      this%tLatticeChanged = .false.
     end if
 
-    if (this%tCoordsChanged .and. isFirstDet) then
+    if (this%tCoordsChanged) then
       call handleCoordinateChange(env, this%boundaryCond, this%coord0, this%latVec, this%invLatVec,&
           & this%species0, this%cutOff, this%orb, this%tPeriodic, this%tRealHS, this%tHelical,&
           & this%scc, this%tblite, this%repulsive, this%dispersion, this%solvation,&
@@ -1191,6 +1192,7 @@ contains
           & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
           & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
       @:PROPAGATE_ERROR(errStatus)
+      this%tCoordsChanged = .false.
     end if
 
   #:if WITH_TRANSPORT
