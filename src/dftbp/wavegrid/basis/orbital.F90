@@ -1,0 +1,64 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+!> This module defines TOrbital, which, aside from holding the angular momentum,
+!! may be subclassed by one of three concrete radial function implementations:
+!! Slater Type Orbitals (STO), Gaussian Type Orbitals (GTO) or a radial lookup table,
+!! allowing arbitrary radial functions to be used. Any orbital may be resampled onto 
+!! a lookup table with a new chosen resolution and cutoff.
+
+#:include 'common.fypp'
+
+module dftbp_wavegrid_basis_orbital
+  use dftbp_common_accuracy, only : dp
+  implicit none
+
+
+  public :: TOrbital, TOrbitalWrapper, TOrbitalWrapper_getMaxCutoff
+
+  !> Wraps an TOrbital to allow mixed arrays allocations/assignments.
+  type :: TOrbitalWrapper
+    class(TOrbital), allocatable :: o
+  end type TOrbitalWrapper
+
+  !> Abstract base class for atomic orbitals.
+  type, abstract :: TOrbital
+    !> Angular momentum (l)
+    integer :: angMom = -1
+
+    !> Square of the Cutoff, after which the orbital is assumed to be zero
+    real(dp) :: cutoffSq
+  contains
+    procedure(IGetRadial), deferred :: getRadial
+  end type TOrbital
+
+  abstract interface
+    function IGetRadial(this, r) result(val)
+      import :: TOrbital, dp
+      class(TOrbital), intent(in) :: this
+      real(dp), intent(in) :: r
+      real(dp) :: val
+    end function IGetRadial
+  end interface
+
+contains
+
+  !> Returns the maximum cutoff of the wrapped orbitals.
+  pure function TOrbitalWrapper_getMaxCutoff(orbitals) result(maxCutoff)
+    type(TOrbitalWrapper), intent(in) :: orbitals(:)
+    real(dp) :: maxCutoff
+    integer :: i
+
+    maxCutoff = 0.0_dp
+    do i = 1, size(orbitals)
+      if (sqrt(orbitals(i)%o%cutoffSq) > maxCutoff) then
+        maxCutoff = sqrt(orbitals(i)%o%cutoffSq)
+      end if
+    end do
+  end function TOrbitalWrapper_getMaxCutoff
+
+end module dftbp_wavegrid_basis_orbital
+
