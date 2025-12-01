@@ -66,9 +66,6 @@ module dftbp_elecsolvers_elpa
     !> Whether GPUs are enabled
     logical :: gpu = .false.
 
-    !> Whether the solver is called for the first time for the current geometry
-    logical :: firstCall = .true.
-
     !> Whether to print ELPA's timing information an the end
     logical :: printTimings = .false.
 
@@ -137,7 +134,6 @@ module dftbp_elecsolvers_elpa
     procedure, private :: TElpa_solveReal
     procedure, private :: TElpa_solveComplex
     generic :: solve => TElpa_solveReal, TElpa_solveComplex
-    procedure :: reset => TElpa_reset
   #:if WITH_ELPA
     procedure, private :: setConfig => Telpa_setConfig
     procedure, private :: initConfig => Telpa_initConfig
@@ -223,7 +219,7 @@ contains
     end if
 
     if (inp%gpu) then
-      call this%setConfig("nvidia-gpu", 1)
+      call this%setConfig("amd-gpu", 1)
 
       status = this%handle%setup_gpu()
       if (status /= ELPA_OK) then
@@ -347,21 +343,8 @@ contains
     this%groupComm = groupComm
 
   end subroutine TElpa_initRedistribute
-#:endif
 
 
-  !> Reset the solver state when the geometry has changed
-  subroutine TElpa_reset(this)
-
-    !> Instance
-    class(TElpa), intent(inout) :: this
-
-    this%firstCall = .true.
-
-  end subroutine TElpa_reset
-
-
-#:if WITH_ELPA
   !> Set ELPA flags with error handling
   subroutine TElpa_setConfig(this, name, val)
 
@@ -454,7 +437,7 @@ contains
 
 #:for DTYPE, NAME in [('complex', 'Complex'), ('real', 'Real')]
   !> Solve the eigenproblem (${DTYPE}$ case)
-  subroutine TElpa_solve${NAME}$(this, HSqr, SSqr, eigenVals, eigenVecs)
+  subroutine TElpa_solve${NAME}$(this, HSqr, SSqr, eigenVals, eigenVecs, hasCholesky)
 
     !> Instance
     class(TElpa), intent(inout) :: this
@@ -470,6 +453,9 @@ contains
 
     !> Eigenvectors
     ${DTYPE}$(dp), intent(out) :: eigenVecs(:,:)
+
+    !> Whether the S matrix already contains the Cholesky decomposition
+    logical, intent(in) :: hasCholesky
 
     integer(kind=c_int) :: status
     logical :: unfinished
@@ -535,7 +521,7 @@ contains
       if (this%joinElpaCalls) then
         call this%handle%timer_start("ELPA generalized_eigenvectors")
         call this%handle%generalized_eigenvectors(this%matrix${NAME}$1, this%matrix${NAME}$2,&
-            & eigenVals, this%eigenvectors${NAME}$, .not. this%firstCall, status)
+            & eigenVals, this%eigenvectors${NAME}$, hasCholesky, status)
         call this%handle%timer_stop("ELPA generalized_eigenvectors")
 
         if (status /= ELPA_OK) then
@@ -546,7 +532,7 @@ contains
       if (this%joinElpaCalls) then
         call this%handle%timer_start("ELPA redistribute")
       end if
-      if (this%firstCall) then
+      if (.not. hasCholesky) then
         call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%matrix${NAME}$2, 1, 1,&
             & this%desc, SSqr, 1, 1, this%descOrig, this%contextOrig)
       end if
@@ -558,16 +544,14 @@ contains
       end if
     else
       call this%handle%timer_start("ELPA generalized_eigenvectors")
-      call this%handle%generalized_eigenvectors(HSqr, SSqr, eigenVals, eigenVecs,&
-          & .not. this%firstCall, status)
+      call this%handle%generalized_eigenvectors(HSqr, SSqr, eigenVals, eigenVecs, hasCholesky,&
+          & status)
       call this%handle%timer_stop("ELPA generalized_eigenvectors")
 
       if (status /= ELPA_OK) then
         call error("ELPA error: generalized_eigenvectors failed")
       end if
     end if
-
-    this%firstCall = .false.
 
   #:else
     eigenVals(:) = 0._dp

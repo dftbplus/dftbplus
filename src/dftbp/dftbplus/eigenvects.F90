@@ -243,7 +243,8 @@ contains
           & skipchol=electronicSolver%hasCholesky(iCholesky))
     case(electronicSolverTypes%elpa)
       if (electronicSolver%isElpaStandalone) then
-        call electronicSolver%elpa%solve(HSqr, SSqr, eigenVals, eigenVecs)
+        call electronicSolver%elpa%solve(HSqr, SSqr, eigenVals, eigenVecs,&
+            & electronicSolver%hasCholesky(iCholesky))
       else
         if (electronicSolver%elsi%tWriteHS) then
           call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqr)
@@ -333,7 +334,8 @@ contains
 
     case(electronicSolverTypes%elpa)
       if (electronicSolver%isElpaStandalone) then
-        call electronicSolver%elpa%solve(HSqr, SSqr, eigenVals, eigenVecs)
+        call electronicSolver%elpa%solve(HSqr, SSqr, eigenVals, eigenVecs,&
+            & electronicSolver%hasCholesky(iCholesky))
       else
         if (electronicSolver%elsi%tWriteHS) then
           call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplx.bin", HSqr)
