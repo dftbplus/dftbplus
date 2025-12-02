@@ -254,7 +254,7 @@ contains
 
     if (tReadAnalysis) then
       ! Analysis of properties
-      call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
+      call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true.,&
           & allowEmptyValue=.true., dummyValue=.true.)
 
     #:if WITH_TRANSPORT
@@ -268,14 +268,14 @@ contains
 
     end if
 
-    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
     ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
-    call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "Options", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl, input%geom)
 
@@ -1140,8 +1140,8 @@ contains
     integer :: nVelocities
     real(dp), allocatable :: tmpVelocities(:,:)
 
-    call getChildValue(node, "Velocities", value1, "", child=child, &
-        & modifier=modifier, allowEmptyValue=.true.)
+    call getChildValue(node, "Velocities", value1, "", child=child, modifier=modifier,&
+        & allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
       ctrl%tReadMDVelocities = .false.
@@ -1424,8 +1424,8 @@ contains
 
     ! Which repulsive is defined by polynomial? (Default: None)
     allocate(repPoly(geo%nSpecies, geo%nSpecies))
-    call getChildValue(node, "PolynomialRepulsive", value1, "", child=child, &
-        &list=.true., allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "PolynomialRepulsive", value1, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dummyValue=.true.)
     call getNodeName2(value1, buffer)
     select case (char(buffer))
     case ("")
@@ -1715,8 +1715,8 @@ contains
     end if
 
     ! Solvation
-    call getChildValue(node, "Solvation", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "Solvation", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
@@ -1886,8 +1886,8 @@ contains
       call ctrl%tbliteInp%setupCalculator(method)
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
-      call getChildValue(node, "ParameterFile", value1, "", child=child, &
-          &allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(node, "ParameterFile", value1, "", child=child, allowEmptyValue=.true.,&
+          & dummyValue=.true.)
       if (associated(value1)) then
         call getChildValue(child, "", buffer)
         paramFile = trim(unquote(char(buffer)))
@@ -1973,16 +1973,16 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
-    call getChildValue(node, "Dispersion", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
-    call getChildValue(node, "Solvation", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "Solvation", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geo, ctrl%solvInp)
@@ -2431,8 +2431,7 @@ contains
     type(string) :: buffer
 
     call renameChildren(node, "SpinPolarization", "SpinPolarisation")
-    call getChildValue(node, "SpinPolarisation", value1, "", child=child, &
-        &allowEmptyValue=.true.)
+    call getChildValue(node, "SpinPolarisation", value1, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     select case(char(buffer))
     case ("")
@@ -3487,8 +3486,8 @@ contains
     real(dp) :: rTmp
     integer :: ii, jj, iAt
 
-    call getChildValue(node, "InitialCharges", val, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildValue(node, "InitialCharges", val, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
 
     ! Read either all atom charges, or individual atom specifications
     call getChild(child, "AllAtomCharges", child2, requested=.false.)
@@ -3546,8 +3545,8 @@ contains
 
     @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
-    call getChildValue(node, "InitialSpins", val, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildValue(node, "InitialSpins", val, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
 
     ! Read either all atom spins, or individual spin specifications
     call getChild(child, "AllAtomSpins", child2, requested=.false.)
@@ -5294,8 +5293,8 @@ contains
 
     if (tHaveEigenDecomposition) then
 
-      call getChildValue(node, "ProjectStates", val, "", child=child, &
-          & allowEmptyValue=.true., list=.true.)
+      call getChildValue(node, "ProjectStates", val, "", child=child, allowEmptyValue=.true.,&
+          & list=.true.)
       call getChildren(child, "Region", children)
       nReg = getLength(children)
       ctrl%tProjEigenvecs = (nReg > 0)
@@ -6221,8 +6220,8 @@ contains
     integer :: nVelocities
     real(dp), pointer :: tmpVelocities(:,:)
 
-    call getChildValue(node, "Velocities", value1, "", child=child, &
-         & modifier=modifier, allowEmptyValue=.true.)
+    call getChildValue(node, "Velocities", value1, "", child=child, modifier=modifier,&
+        & allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
        input%tReadMDVelocities = .false.
@@ -7008,8 +7007,8 @@ contains
       call readElPh(child, tundos%elph, geom, orb, tp)
     end if
 
-    call getChildValue(node, "BuettikerProbes", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(node, "BuettikerProbes", value1, "", child=child, allowEmptyValue=.true.,&
+       & dummyValue=.true.)
     if (associated(value1)) then
       tp%tDephasingBP = .true.
       call readDephasingBP(child, tundos%bp, geom, orb, tp)
@@ -7180,8 +7179,8 @@ contains
 
     elph%orbsperatm = orb%nOrbAtom(atm_range(1):atm_range(2))
 
-    call getChildValue(node, "Coupling", val, "", child=child, &
-        & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
+    call getChildValue(node, "Coupling", val, "", child=child, allowEmptyValue=.true.,&
+        & modifier=modifier, dummyValue=.true., list=.false.)
 
     call getNodeName(val, method)
 
@@ -8436,8 +8435,8 @@ contains
     integer :: nAtom, iType
     real(dp), allocatable :: tmpTuning(:,:)
 
-    call getChildValue(node, "SpinTuning", value1, "", child=child, &
-        & modifier=modifier, allowEmptyValue=.true.)
+    call getChildValue(node, "SpinTuning", value1, "", child=child, modifier=modifier,&
+        & allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
       ! no 'SpinTuning' block in REKS input
