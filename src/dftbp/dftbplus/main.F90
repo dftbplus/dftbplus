@@ -1186,10 +1186,11 @@ contains
           & this%scc, this%tblite, this%repulsive, this%dispersion, this%solvation,&
           & this%areSolventNeighboursSym, this%thirdOrd, this%hybridXc, this%reks, this%mdftb,&
           & this%img2CentCell, this%iCellVec, this%neighbourList, this%symNeighbourList,&
-          & this%nAllAtom, this%coord0Fold, this%coord, this%species, this%cellVec, this%rCellVec,&
-          & this%denseDesc, this%nNeighbourSk, this%nNeighbourCam, this%nNeighbourCamSym,&
-          & this%ints, this%H0, this%rhoPrim, this%iRhoPrim, this%ERhoPrim, this%iSparseStart,&
-          & this%cm5Cont, this%skOverCont, this%areNeighSetExternal, errStatus)
+          & this%extndDisprtnNeighbourList, this%nAllAtom, this%coord0Fold, this%coord,&
+          & this%species, this%cellVec, this%rCellVec, this%denseDesc, this%nNeighbourSk,&
+          & this%nNeighbourCam, this%nNeighbourCamSym, this%ints, this%H0, this%rhoPrim,&
+          & this%iRhoPrim, this%ERhoPrim, this%iSparseStart, this%cm5Cont, this%skOverCont,&
+          & this%areNeighSetExternal, errStatus)
       @:PROPAGATE_ERROR(errStatus)
     end if
 
@@ -2274,9 +2275,10 @@ contains
   subroutine handleCoordinateChange(env, boundaryCond, coord0, latVec, invLatVec, species0, cutOff,&
       & orb, tPeriodic, tRealHS, tHelical, sccCalc, tblite, repulsive, dispersion, solvation,&
       & areSolventNeighboursSym, thirdOrd, hybridXc, reks, mdftb, img2CentCell, iCellVec,&
-      & neighbourList, symNeighbourList, nAllAtom, coord0Fold, coord, species, cellVec, rCellVec,&
-      & denseDescr, nNeighbourSK, nNeighbourCam, nNeighbourCamSym, ints, H0, rhoPrim, iRhoPrim,&
-      & ERhoPrim, iSparseStart, cm5Cont, skOverCont, areNeighSetExternal, errStatus)
+      & neighbourList, symNeighbourList, extndDisprtnNeighbourList, nAllAtom, coord0Fold, coord,&
+      & species, cellVec, rCellVec, denseDescr, nNeighbourSK, nNeighbourCam, nNeighbourCamSym,&
+      & ints, H0, rhoPrim, iRhoPrim, ERhoPrim, iSparseStart, cm5Cont, skOverCont,&
+      & areNeighSetExternal, errStatus)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -2352,6 +2354,9 @@ contains
 
     !> List of neighbouring atoms (symmetric version)
     type(TAuxNeighbourList), intent(inout), allocatable :: symNeighbourList
+
+    !> List of neighbouring atoms (extended geometry for transport and dispersion)
+    type(TAuxNeighbourList), intent(inout), allocatable :: extndDisprtnNeighbourList
 
     !> Total number of atoms including images
     integer, intent(out) :: nAllAtom
@@ -2460,6 +2465,16 @@ contains
       end if
     end if
 
+    if (allocated(extndDisprtnNeighbourList)) then
+      extndDisprtnNeighbourList%coord0(:,:size(coord0Fold, dim=2)) = coord0Fold
+      call updateNeighbourListAndSpecies(env, extndDisprtnNeighbourList%coord,&
+          & extndDisprtnNeighbourList%species, extndDisprtnNeighbourList%img2CentCell,&
+          & extndDisprtnNeighbourList%iCellVec, extndDisprtnNeighbourList%neighbourList,&
+          & extndDisprtnNeighbourList%nAllAtom, coord0Fold, species0,&
+          & extndDisprtnNeighbourList%cutOff, rCellVec, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(env, coord0, coord, species, neighbourList)
     end if
@@ -2477,7 +2492,13 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0, errStatus)
+      if (allocated(extndDisprtnNeighbourList)) then
+        call dispersion%updateCoords(env, extndDisprtnNeighbourList%neighbourList,&
+            & extndDisprtnNeighbourList%img2CentCell, extndDisprtnNeighbourList%coord,&
+            & extndDisprtnNeighbourList%species0, errStatus)
+      else
+        call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0, errStatus)
+      end if
       @:PROPAGATE_ERROR(errStatus)
     end if
     if (allocated(solvation)) then
