@@ -1741,6 +1741,9 @@ contains
         call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
             & this%boundaryCond%iBoundaryCondition, coulombInput)
       end if
+      if (allocated(input%ctrl%dipoleCorrInput) .and. abs(this%nrChrg) > epsilon(1.0_dp)) then
+        call error("Dipole corrections not currently supported for charged systems")
+      end if
       call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
           & coulombInput, shortGammaInput, poissonInput, input%ctrl%dipoleCorrInput, this%scc)
 
