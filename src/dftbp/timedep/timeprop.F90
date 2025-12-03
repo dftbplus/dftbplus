@@ -4068,7 +4068,8 @@ contains
           & img2CentCell, iSparseStart, orb, potential%intBlock)
     end if
     if (allocated(this%sccCalc)) then
-      call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, q0)
+      call this%sccCalc%updateCharges(env, qq, orb, this%speciesAll, errStatus, q0)
+      @:PROPAGATE_ERROR(errStatus)
       call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour,&
           & img2CentCell)
     end if
@@ -4235,13 +4236,16 @@ contains
 
 
   !> Updates SCC module with lattice vectors
-  subroutine initLatticeVectors(this, boundarycond)
+  subroutine initLatticeVectors(this, boundarycond, errStatus)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout), target :: this
 
     !> Boundary conditions on the calculation
     type(TBoundaryConds), intent(in) :: boundaryCond
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3)
 
@@ -4251,7 +4255,8 @@ contains
     recVecs2p = transpose(recVecs2p)
     recVecs = 2.0_dp * pi * recVecs2p
     if (allocated(this%sccCalc)) then
-      call this%sccCalc%updateLatVecs(this%latVec, recVecs, boundaryCond, cellVol)
+      call this%sccCalc%updateLatVecs(this%latVec, recVecs, boundaryCond, cellVol, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       this%cutoff%mCutoff = max(this%cutoff%mCutoff, this%sccCalc%getCutOff())
     end if
     if (allocated(this%tblite)) then
@@ -4747,7 +4752,8 @@ contains
     @:PROPAGATE_ERROR(errStatus)
 
     if (this%tPeriodic) then
-      call initLatticeVectors(this, boundaryCond)
+      call initLatticeVectors(this, boundaryCond, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call initTDOutput(this, env, this%dipoleDat, this%qDat, this%energyDat, this%populDat,&
@@ -5316,7 +5322,8 @@ contains
     call reallocateTDSparseArrays(this, ints, ham0, rhoPrim, ErhoPrim)
 
     if (this%tPeriodic) then
-      call initLatticeVectors(this, boundaryCond)
+      call initLatticeVectors(this, boundaryCond, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
     if (allocated(this%sccCalc)) then
       call this%sccCalc%updateCoords(env, coord, coordAll, this%speciesAll, neighbourList)

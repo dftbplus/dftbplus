@@ -6,15 +6,18 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_dftb_scc
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, minNeighDist
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
   use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
+  use dftbp_dftb_dipolecorr, only : TDipoleCorr, TDipoleCorr_init, TDipoleCorrInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
@@ -59,6 +62,9 @@ module dftbp_dftb_scc
 
     !> Poisson solver for calculating electrostatics (instead of shortGamma + coulombCalc)
     type(TPoissonInput), allocatable :: poissonInput
+
+    !> Input for the slab dipole correction
+    type(TDipoleCorrInput), allocatable :: dipoleCorrInput
 
     !> Boundary condition of the system
     integer :: boundaryCond = boundaryCondsEnum%unknown
@@ -136,6 +142,9 @@ module dftbp_dftb_scc
 
     !> Which electrostatic solver should be used?
     integer :: elstatType
+
+    !> Dipole correction calculator
+    type(TDipoleCorr), allocatable :: dipoleCorr
 
   contains
 
@@ -299,6 +308,11 @@ contains
     allocate(this%deltaQShell(this%mShell, this%nAtom))
     allocate(this%deltaQAtom(this%nAtom))
 
+    if (allocated(input%dipoleCorrInput)) then
+      allocate(this%dipoleCorr)
+      call TDipoleCorr_init(this%dipoleCorr, input%dipoleCorrInput)
+    end if
+
     this%tInitialised = .true.
 
   end subroutine TScc_init
@@ -368,11 +382,15 @@ contains
       call this%extCharges%setCoordinates(env, coord(:, 1:this%nAtom), this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCoords(coord0)
+    end if
+
   end subroutine updateCoords
 
 
   !> Updates the SCC module, if the lattice vectors had been changed
-  subroutine updateLatVecs(this, latVec, recVec, boundaryConds, vol)
+  subroutine updateLatVecs(this, latVec, recVec, boundaryConds, vol, errStatus)
 
     !> Instance
     class(TScc), intent(inout) :: this
@@ -389,6 +407,9 @@ contains
     !> New volume
     real(dp), intent(in) :: vol
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
 
@@ -396,6 +417,9 @@ contains
 
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
+      if (this%volume <= minNeighDist**3) then
+        @:RAISE_FORMATTED_ERROR(errStatus, -1, "('Unit cell volume too small:', E20.12)", vol)
+      end if
       call this%coulomb%updateLatVecs(latVec, recVec, vol)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
@@ -407,11 +431,16 @@ contains
       call this%extCharges%setLatticeVectors(latVec, boundaryConds)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateLatVecs(latVec, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
   end subroutine updateLatVecs
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, orb, species, q0)
+  subroutine updateCharges(this, env, qOrbital, orb, species, errStatus, q0)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -427,6 +456,9 @@ contains
 
     !> Species of the atoms (should not change during run). Shape: [nSpecies]
     integer, intent(in) :: species(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
 
     !> Reference charge distribution (neutral atoms). Shape: [mOrb, nAtom, nSpin]
     real(dp), intent(in), optional :: q0(:,:,:)
@@ -445,6 +477,11 @@ contains
         call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
       #:endblock
     end select
+
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%updateCharges(this%deltaQAtom, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
 
   end subroutine updateCharges
 
@@ -725,6 +762,10 @@ contains
       call this%thirdOrder%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addEnergyPerAtom(this%deltaQAtom, eScc)
+    end if
+
   end subroutine getEnergyPerAtom
 
 
@@ -839,6 +880,10 @@ contains
           & this%deltaQAtom, this%coulomb)
     end if
 
+    if (allocated(this%dipoleCorr)) then
+      call this%dipoleCorr%addForceDc(force, this%deltaQAtom)
+    end if
+
   end subroutine addForceDc
 
 
@@ -897,6 +942,7 @@ contains
     logical, intent(in), optional :: isOnlyInternalShifts
 
     logical :: isAll
+    real(dp), allocatable :: tmpShift(:)
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
@@ -911,6 +957,7 @@ contains
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
     end if
+
     if (isAll) then
       if (allocated(this%extCharges)) then
         call this%extCharges%addShiftPerAtom(shift)
@@ -918,6 +965,12 @@ contains
       if (this%tChrgPenalty) then
         call this%chrgPenalties%addShiftPerAtom(shift)
       end if
+    end if
+
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpShift(size(shift)))
+      call this%dipoleCorr%getShiftPerAtom(tmpShift)
+      shift(:) = shift + tmpShift
     end if
 
   end subroutine getShiftPerAtom
@@ -1075,6 +1128,8 @@ contains
     !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
+    real(dp), allocatable :: tmpPot(:)
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(pot)]))
     #:block DEBUG_CODE
@@ -1090,6 +1145,11 @@ contains
     pot(:) = 0.0_dp
     call this%coulomb%getPotential(env, locations, this%coord, this%deltaQAtom, pot,&
         & epsSoften=epsSoften)
+    if (allocated(this%dipoleCorr)) then
+      allocate(tmpPot(size(pot)))
+      call this%dipoleCorr%getPotential(locations, tmpPot)
+      pot(:) = pot + tmpPot
+    end if
 
     if (present(gradients)) then
       gradients(:,:) = 0.0_dp

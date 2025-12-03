@@ -1160,7 +1160,9 @@ contains
       call handleLatticeChange(this%latVec, this%scc, this%tblite, this, this%tStress,&
           & this%extPressure, this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation,&
           & this%cm5Cont, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
-          & this%extLatDerivs, this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
+          & this%extLatDerivs, this%cellVec, this%rCellVec, this%boundaryCond, this%transpar,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       this%tLatticeChanged = .false.
     end if
 
@@ -1824,7 +1826,8 @@ contains
               & this%skOverCont, this%repulsive, this%neighbourList, this%nNeighbourSk,&
               & this%species, this%img2CentCell, this%iSparseStart, this%orb,&
               & this%dispersion, this%coord, this%q0, this%invLatVec, this%cellVol,&
-              & this%totalStress, this%totalLatDeriv, this%intPressure, this%reks)
+              & this%totalStress, this%totalLatDeriv, this%intPressure, this%reks, errStatus)
+          @:PROPAGATE_ERROR(errStatus)
         else
           call getStress(env, this%scc, this%tblite, this%thirdOrd, this%isExtField,&
               & this%nonSccDeriv, this%rhoPrim, this%ERhoPrim, this%qOutput, this%q0,&
@@ -2309,7 +2312,7 @@ contains
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tblite, this, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, invLatVecs, cellVol, recCellVol,&
-      & extLatDerivs, cellVecs, rCellVecs, boundaryCond, transpar)
+      & extLatDerivs, cellVecs, rCellVecs, boundaryCond, transpar, errStatus)
 
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -2371,13 +2374,17 @@ contains
     !> Transport settings
     type(TTransPar), intent(in) :: transpar
 
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
     call boundaryCond%handleBoundaryChanges(latVecs, invLatVecs, recVecs, cellVol, recCellVol)
     if (tStress) then
       call derivDeterminant33(extLatDerivs, latVecs)
       extLatDerivs(:,:) = extPressure * extLatDerivs
     end if
     if (allocated(sccCalc)) then
-      call sccCalc%updateLatVecs(latVecs, recVecs, boundaryCond, cellVol)
+      call sccCalc%updateLatVecs(latVecs, recVecs, boundaryCond, cellVol, errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
     if (allocated(tblite)) then
@@ -8983,7 +8990,8 @@ contains
       end if
 
       ! Calculate correct charge contribution for each microstate
-      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), orb, species, q0)
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), orb, species, errStatus, q0)
+      @:PROPAGATE_ERROR(errStatus)
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
       if (allocated(thirdOrd)) then

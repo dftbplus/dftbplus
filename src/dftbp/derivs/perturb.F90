@@ -1865,7 +1865,8 @@ contains
           vdgamma(:,:,:) = 0.0_dp
           vAt(:,:) = 0.0_dp
           call sccCalc%updateCoords(env, coord, coord, species, neighbourList)
-          call sccCalc%updateCharges(env, qOrb, orb, species, q0)
+          call sccCalc%updateCharges(env, qOrb, orb, species, errStatus, q0)
+          @:PROPAGATE_ERROR(errStatus)
           call sccCalc%addPotentialDeriv(env, vAt(:,1), vdgamma, species, neighbourList%iNeighbour,&
               & img2CentCell, coord, orb, iCart, iAt)
 
@@ -1935,7 +1936,8 @@ contains
           !  dPotential%orbitalBlock(:,:,:,:) = 0.0_dp
           !end if
           if (tSccCalc .and. iSCCiter>1) then
-            call sccCalc%updateCharges(env, dqIn + dqNonVariational, orb, species)
+            call sccCalc%updateCharges(env, dqIn + dqNonVariational, orb, species, errStatus)
+            @:PROPAGATE_ERROR(errStatus)
             call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
             ! Note, should ommit external charge and constraint shifts
             call sccCalc%getShiftPerAtom(dPotential%intAtom(:,1), isOnlyInternalShifts=.true.)
@@ -2693,7 +2695,8 @@ contains
       end if
 
       if (tSccCalc .and. iSCCiter>1) then
-        call sccCalc%updateCharges(env, dqIn, orb, species)
+        call sccCalc%updateCharges(env, dqIn, orb, species, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
 
         ! Note, should ommit external charge and constraint shifts

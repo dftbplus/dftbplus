@@ -25,6 +25,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_dispersions, only : getUffValues, TDispDftD4Inp, TDispersionInp, TDispSlaKirkInp,&
       & TDispUffInp, TSimpleDftD3Input
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
@@ -1727,6 +1728,8 @@ contains
     end if
 
     call readCustomisedHubbards(node, geom, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
+
+    call readDipoleCorrection_(node, geom, ctrl%dipoleCorrInput)
 
   end subroutine readDFTBHam
 
@@ -6023,6 +6026,52 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
+
+
+  !> Data for the dipole correction of Freysoldt et al. doi: 10.1103/PhysRevB.102.045403
+  subroutine readDipoleCorrection_(root, geom, input)
+
+    !> Input data to parse
+    type(fnode), pointer, intent(in) :: root
+
+    !> Atomic geometry of the system
+    type(TGeometry), intent(in) :: geom
+
+    !> Data structure for the correction input settings
+    type(TDipoleCorrInput), allocatable, intent(out) :: input
+
+    type(fnode), pointer :: node, child
+    type(string) :: modifier
+    real(dp) :: defaultZ
+    real(dp) :: zProj(3)
+    integer :: ii, iComp
+
+    call getChild(root, "DipoleCorrection", node, requested=.false.)
+    if (.not. associated(node)) return
+    if (.not. geom%tPeriodic) then
+      call detailedError(node, "Dipole correction can only be applied to periodic systems")
+    end if
+    zProj(:) = abs(matmul(geom%latVecs, [0.0_dp, 0.0_dp, 1.0_dp]))
+    if (count(zProj > 1E-12_dp) /= 1) then
+      call detailedError(node, "Dipole correction only applicable, if only one lattice vector&
+          & (the slab normal vector) has non-zero z-component")
+    end if
+    allocate(input)
+    input%iNormalVec = maxloc(zProj, dim=1)
+    input%iNormalComp = 3
+    do ii = 1, 2
+      iComp = modulo(input%iNormalComp + ii - 1, 3) + 1
+      if (abs(geom%latVecs(iComp, input%iNormalVec)) > 1E-12_dp) then
+        call detailedError(node, "Dipole correction only applicable if the slab normal vector has&
+            & vanishing components apart of the normal direction")
+      end if
+    end do
+    defaultZ = -geom%latVecs(input%iNormalComp, input%iNormalVec) / 2.0_dp
+    call getChildValue(node, "DipoleLayerPos", input%z0, default=defaultZ, modifier=modifier,&
+        & child=child)
+    call convertUnitHsd(char(modifier), lengthUnits, child, input%z0)
+
+  end subroutine readDipoleCorrection_
 
 
   !> Reads the electron dynamics block

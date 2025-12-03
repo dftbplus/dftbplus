@@ -32,6 +32,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants, TDftbDeterminants_init
   use dftbp_dftb_dftbplusu, only : TDftbU, TDftbU_init
+  use dftbp_dftb_dipolecorr, only : ensureCorrRequirements, TDipoleCorrInput
   use dftbp_dftb_dispdftd4, only : writeDftD4Info
   use dftbp_dftb_dispersions, only : DispSlaKirk_init, DispUff_init, init, TDispDftD4,&
       & TDispersionIface, TDispSlaKirk, TDispUFF, TSimpleDftD3
@@ -1818,8 +1819,13 @@ contains
         call initCoulombInput_(env, input%ctrl%ewaldAlpha, input%ctrl%tolEwald,&
             & this%boundaryCond%iBoundaryCondition, coulombInput)
       end if
+
+      if (allocated(input%ctrl%dipoleCorrInput)) then
+        call ensureCorrREquirements(input%ctrl%dipoleCorrInput, errStatus, this%latVec, this%nrChrg)
+        if (errStatus%hasError()) call error(errStatus%message)
+      end if
       call initSccCalculator_(env, this%orb, input%ctrl, this%boundaryCond%iBoundaryCondition,&
-          & coulombInput, shortGammaInput, poissonInput, this%scc)
+          & coulombInput, shortGammaInput, poissonInput, input%ctrl%dipoleCorrInput, this%scc)
 
       ! Stress calculation does not work if external charges are involved
       this%nExtChrg = input%ctrl%nExtChrg
@@ -7401,7 +7407,7 @@ contains
 
   !> Initializes the scc calculator
   subroutine initSccCalculator_(env, orb, ctrl, boundaryCond, coulombInput, shortGammaInput,&
-      & poissonInput, sccCalc)
+      & poissonInput, dipoleCorrInput, sccCalc)
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -7421,8 +7427,11 @@ contains
     !> Short-range gamma input
     type(TShortGammaInput), allocatable, intent(inout) :: shortGammaInput
 
-    !> Poisson solver inout
+    !> Poisson solver input
     type(TPoissonInput), allocatable, intent(inout) :: poissonInput
+
+    !> Dipole correction input
+    type(TDipoleCorrInput), allocatable, intent(inout) :: dipoleCorrInput
 
     !> Self-consistent calculator object
     type(TScc), allocatable, intent(out) :: sccCalc
@@ -7432,6 +7441,7 @@ contains
     call move_alloc(coulombInput, sccInput%coulombInput)
     call move_alloc(shortGammaInput, sccInput%shortGammaInput)
     call move_alloc(poissonInput, sccInput%poissonInput)
+    call move_alloc(dipoleCorrInput, sccInput%dipoleCorrInput)
 
     sccInput%boundaryCond = boundaryCond
     if (boundaryCond == boundaryCondsEnum%helical) then
