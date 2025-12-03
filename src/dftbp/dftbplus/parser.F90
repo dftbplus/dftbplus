@@ -26,6 +26,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftb_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_dftb_dispersions, only : getUffValues, TDispDftD4Inp, TDispersionInp, TDispSlaKirkInp,&
       & TDispUffInp, TSimpleDftD3Input
+  use dftbp_dftb_dipolecorr, only : TDipoleCorrInput
   use dftbp_dftb_elecconstraints, only : readElecConstraintInput
   use dftbp_dftb_encharges, only : TEeqInput
   use dftbp_dftb_etemp, only : fillingTypes
@@ -1822,6 +1823,8 @@ contains
     end if
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
+
+    call readDipoleCorrection_(node, geo, ctrl%dipoleCorrInput)
 
   end subroutine readDFTBHam
 
@@ -5912,6 +5915,45 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
+
+
+  subroutine readDipoleCorrection_(root, geo, input)
+    type(fnode), pointer, intent(in) :: root
+    type(TGeometry), intent(in) :: geo
+    type(TDipoleCorrInput), allocatable, intent(out) :: input
+
+    type(fnode), pointer :: node, child
+    type(string) :: modifier
+    real(dp) :: defaultZ
+    real(dp) :: zProj(3)
+    integer :: ii, iComp
+
+    call getChild(root, "DipoleCorrection", node, requested=.false.)
+    if (.not. associated(node)) return
+    if (.not. geo%tPeriodic) then
+      call detailedError(node, "Dipole correction can only be applied to periodic systems")
+    end if
+    zProj(:) = abs(matmul(geo%latVecs, [0.0_dp, 0.0_dp, 1.0_dp]))
+    if (count(zProj > 1e-12_dp) /= 1) then
+      call detailedError(node, "Dipole correction only applicable, if only one lattice vector&
+          & (the slab normal vector) has non-zero z-component")
+    end if
+    allocate(input)
+    input%iNormalVec = maxloc(zProj, dim=1)
+    input%iNormalComp = 3
+    do ii = 1, 2
+      iComp = modulo(input%iNormalComp + ii - 1, 3) + 1
+      if (abs(geo%latVecs(iComp, input%iNormalVec)) > 1e-12_dp) then
+        call detailedError(node, "Dipole correction only applicable if the slab normal vector has&
+            & vanishing components apart of the normal direction")
+      end if
+    end do
+    defaultZ = -geo%latVecs(input%iNormalComp, input%iNormalVec) / 2.0_dp
+    call getChildValue(node, "DipoleLayerPos", input%z0, default=defaultZ, modifier=modifier,&
+        & child=child)
+    call convertUnitHsd(char(modifier), lengthUnits, child, input%z0)
+
+  end subroutine readDipoleCorrection_
 
 
   !> Reads the electron dynamics block
