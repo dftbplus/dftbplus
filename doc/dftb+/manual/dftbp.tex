@@ -5606,7 +5606,7 @@ available for range separated calculations.
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
     \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - &\\
-    \kw{Diagonaliser}           & m & & \{\} & \pref{sec:dftbp.casdiag}\\
+    \kw{Diagonaliser}           & m & & - & \pref{sec:dftbp.casdiag}\\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
@@ -5737,9 +5737,9 @@ available for range separated calculations.
 
   \subsubsection{Diagonaliser / Diagonalizer}
   \label{sec:dftbp.casdiag}
-  Specifies which iterative diagonaliser should be used to solve the Casida
-  equations. The keyword expects either a \iscb{Arpack} or \iscb{Stratmann}
-  block.
+  Specifies which iterative diagonaliser should be used to solve the
+  Casida equations. The keyword is required and expects either an
+  \iscb{Arpack} or \iscb{Stratmann} block.
   \begin{ptable}
     \kw{Arpack}    & p & \is{RangeSeparated} = \is{No} & & \\
     \kw{Stratmann} & p & & & \\
@@ -5775,15 +5775,15 @@ available for range separated calculations.
     restarted with an increased value of \is{SubSpaceFactor}.
   \end{description}
 
-\subsubsection{OptimizerCI}
+\subsubsection{OptimiserCI / OptimizerCI}
 \label{sec:dftbp.ciopt}
 
 Invokes search for conical intersections (CI) between the two states indicated
 by the \is{StateCouplings} keyword. Note that the two states must be
 direct neighbours (i.e., $n = m + 1$). There is currently one
-optimizer available.
+optimiser available.
 
-The \iscb{Bearpark} optimizer (see \cite{Bearpark1994}) minimizes a gradient that
+The \iscb{Bearpark} optimiser (see \cite{Bearpark1994}) minimises a gradient that
 is based on the non-adiabatic coupling vector and the difference
 gradient of the two potential energy surfaces in question.  The parameters given
 in the \is{GeometryOptimisation} block control the optimization as
