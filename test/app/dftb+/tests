@@ -301,6 +301,7 @@ scc/H2O2_3rdfull-damp                  #? MPI_PROCS <= 1
 scc/H3                                 #? MPI_PROCS <= 1
 scc/H3_skipcheck                       #? MPI_PROCS <= 1
 spin/H2                                #? MPI_PROCS <= 1
+scc/H2O-dipolecorr                     #? MPI_PROCS <= 1
 
 scc/CH4_nonconverged                   #? MPI_PROCS <= 1
 
