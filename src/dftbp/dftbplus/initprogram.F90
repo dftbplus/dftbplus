@@ -10,7 +10,8 @@
 
 !> Global variables and initialization for the main program.
 module dftbp_dftbplus_initprogram
-  use dftbp_common_accuracy, only : dp, elecTolMax, lc, mc, minTemp, sc, tolEfEquiv, tolSameDist
+  use dftbp_common_accuracy, only : dp, elecTolMax, lc, mc, minTemp, sc, tolEfEquiv, tolSameDist,&
+      & hugeIterations
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_constants, only : amu__au, au__ps, Bohr__AA, Bohr__nm, Boltzmann, Hartree__eV,&
@@ -2063,7 +2064,7 @@ contains
     this%nMovedCoord = 3 * this%nMovedAtom
 
     if (input%ctrl%maxRun == -1) then
-      this%nGeoSteps = huge(1)
+      this%nGeoSteps = hugeIterations
     else
       this%nGeoSteps = input%ctrl%maxRun
     end if
@@ -2094,7 +2095,7 @@ contains
       this%elast = 0.0_dp
       this%nGeoSteps = input%ctrl%geoOpt%nGeoSteps
       if (this%nGeoSteps == -1) then
-        this%nGeoSteps = huge(1)
+        this%nGeoSteps = hugeIterations
       end if
       this%geoOutFile = input%ctrl%geoOpt%outFile
     end if
@@ -3500,7 +3501,7 @@ contains
       write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
     if (this%isGeoOpt .or. allocated(this%geoOpt)) then
-      if (this%nGeoSteps == huge(1)) then
+      if (this%nGeoSteps == hugeIterations) then
         write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
       else
         write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps

@@ -129,4 +129,7 @@ module dftbp_common_accuracy
   !> Tolerance for electron chemical potential differences being considered equivalent (1E-6 eV)
   real(dp), parameter :: tolEfEquiv = 3.675E-7_dp
 
+  !> Overflow safe upper size for very long loops
+  integer, parameter :: hugeIterations = huge(1) - 1
+
 end module dftbp_common_accuracy

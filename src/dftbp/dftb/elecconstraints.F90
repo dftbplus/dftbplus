@@ -9,7 +9,7 @@
 
 !> Module to impose constraints on the electronic ground state.
 module dftbp_dftb_elecconstraints
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, hugeIterations
   use dftbp_dftbplus_input_geoopt, only : readOptimizerInput
   use dftbp_extlibs_xmlf90, only : char, destroyNodeList, fnode, fnodeList, getItem1, getLength,&
       & string
@@ -307,7 +307,7 @@ contains
     call createOptimizer(input%optimiser, this%nConstr, this%optimizer)
 
     if (input%nConstrIter == -1) then
-      this%nConstrIter = huge(1)
+      this%nConstrIter = hugeIterations
     else
       this%nConstrIter = input%nConstrIter
     end if
