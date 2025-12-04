@@ -6,11 +6,14 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
 module dftbp_dftb_slakoeqgrid
   use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp
+  use dftbp_common_status, only : TStatus
+  use dftbp_extlibs_dnaoad
   use dftbp_io_message, only : error
   use dftbp_math_interpolation, only : freeCubicSpline, poly5ToZero, polyInterUniform
   implicit none
@@ -66,10 +69,10 @@ module dftbp_dftb_slakoeqgrid
 
   ! Nr. of grid points to use for the polynomial interpolation
 
-  !> Historical choice
+  !> Historical choice of points to interpolate over
   integer, parameter :: nInterOld_ = 3
 
-  !> Present choice
+  !> Present choice of points to interpolate over
   integer, parameter :: nInterNew_ = 8
 
   ! Nr. of grid points on the right of the interpolated point.
@@ -87,6 +90,11 @@ module dftbp_dftb_slakoeqgrid
 
   !> Displacement for deriving interpolated polynomials
   real(dp), parameter :: deltaR_ = 1e-5_dp
+
+  interface SlakoEqGrid_interNew_
+    module procedure SlakoEqGrid_interNew_real
+    module procedure SlakoEqGrid_interNew_dual
+  end interface SlakoEqGrid_interNew_
 
 contains
 
@@ -180,7 +188,7 @@ contains
 
 
   !> Inter- and extrapolation for SK-tables, new method.
-  subroutine SlakoEqGrid_interNew_(this, dd, rr)
+  subroutine SlakoEqGrid_interNew_real(this, dd, rr)
 
     !> SlakoEqGrid table on equiv. grid
     type(TSlakoEqGrid), intent(in) :: this
@@ -241,7 +249,77 @@ contains
       end do
     end if
 
-  end subroutine SlakoEqGrid_interNew_
+  end subroutine SlakoEqGrid_interNew_real
+
+
+  !> Inter- and extrapolation for SK-tables, new method.
+  subroutine SlakoEqGrid_interNew_dual(this, dd, rr, errStatus)
+
+    !> SlakoEqGrid table on equiv. grid
+    type(TSlakoEqGrid), intent(in) :: this
+
+    !> Output table of interpolated values.
+    type(dual_real64), intent(out) :: dd(:)
+
+    !> Distance between two atoms of interest
+    type(dual_real64), intent(in) :: rr
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(this%nInteg,nInterNew_), y1, y1p, y1pp
+    real(dp) :: incr, rMax
+    integer :: leng, ind, iLast, ii, order
+    real(dp), parameter :: invdistFudge = -1.0_dp / distFudge
+    type(dual_real64) :: dr, y(this%nInteg), dx
+
+    leng = this%nGrid
+    incr = this%dist
+    rMax = real(leng, dp) * incr + distFudge
+    ind = floor(rr%get_derivative(0) / incr)
+
+    !! Consistency check, does the SK-table contain enough entries?
+    if (leng < nInterNew_ + 1) then
+      @:RAISE_ERROR(errStatus, -1, "SlakoEqGrid: Not enough points in the SK-table for&
+          & interpolation!")
+    end if
+
+    order = rr%order()
+    call initialize_dual(dd, order)
+
+    if (rr%get_derivative(0) >= rMax) then
+      !! Beyond last grid point + distFudge => no interaction
+      dd(:) = 0.0_dp
+    elseif (ind < leng) then
+      !! Closer to origin than last grid point => polynomial fit
+      iLast = min(leng, ind + nRightInterNew_)
+      iLast = max(iLast, nInterNew_)
+      do ii = 1, nInterNew_
+        xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
+      end do
+      yb = transpose(this%skTab(iLast-nInterNew_+1:iLast,:this%nInteg))
+      dd(:this%nInteg) = polyInterUniform(xa, yb, rr)
+    else
+      !! Beyond the grid => extrapolation with a polynomial of 5th order
+      call initialize_dual(dr, order)
+      call initialize_dual(y, order)
+      dr = rr - rMax
+      iLast = leng
+      do ii = 1, nInterNew_
+        xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
+      end do
+
+      yb = transpose(this%skTab(iLast-nInterNew_+1:iLast,:this%nInteg))
+      ! need at least 2nd order derivative of the polynomial for the smooth tail
+      call initialize_dual(dx, 2)
+      dx = xa(nInterNew_)
+      y = polyInterUniform(xa, yb, dx)
+      do ii = 1, this%nInteg
+        dd(ii) = poly5ToZero(y(ii), dr, -1.0_dp * distFudge, invDistFudge)
+      end do
+    end if
+
+  end subroutine SlakoEqGrid_interNew_dual
 
 
   !> Inter- and extra-polation for SK-tables equivalent to the old DFTB code.
