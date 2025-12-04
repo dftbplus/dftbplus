@@ -108,6 +108,7 @@ module dftbp_common_unitconversion
       & TUnit("ry                  ", 0.5_dp),&
       & TUnit("electronvolt        ", eV__Hartree),&
       & TUnit("ev                  ", eV__Hartree),&
+      & TUnit("mev                 ", 0.001_dp * eV__Hartree),&
       & TUnit("kcal/mol            ", kcal_mol__Hartree),&
       & TUnit("kelvin              ", Boltzmann),&
       & TUnit("k                   ", Boltzmann),&

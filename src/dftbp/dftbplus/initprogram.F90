@@ -22,6 +22,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : create, TNumDerivs
+  use dftbp_derivs_dielectric, only : TDielectricSettings
   use dftbp_derivs_perturb, only : responseSolverTypes, TResponse, TResponse_init
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
@@ -502,6 +503,9 @@ module dftbp_dftbplus_initprogram
 
     !> Are forces being returned
     logical :: tPrintForces
+
+    !> Should the dielectric function be calculated?
+    type(TDielectricSettings), allocatable :: evaluateDielectricFn
 
     !> Number of moved atoms
     integer :: nMovedAtom
@@ -2435,6 +2439,26 @@ contains
           & spin orbit calculations")
     end if
 
+    if (allocated(input%ctrl%evaluateDielectricFn)) then
+      if (this%maxSccIter > 1) then
+        call warning("Dielectric function evaluation will occur at every SCC step")
+      end if
+      if (this%isHybridXc .and. .not.input%ctrl%tReadChrg) then
+        call error("Hybrid calculations of a dielectric function currently requires a restarted&
+            & calculation")
+      end if
+      this%evaluateDielectricFn = input%ctrl%evaluateDielectricFn
+    end if
+    if (allocated(this%evaluateDielectricFn)) then
+      if (this%t2Component .and. this%nSpin > 2) then
+        call error("Dielectric function evaluation not yet available for spin-orbit/non-collinear&
+            & calculations")
+      end if
+      if (.not. this%tPeriodic) then
+        call error("Dielectric function evaluation currently only for periodic systems")
+      end if
+    end if
+
     this%doPerturbation = allocated(input%ctrl%perturbInp)
     this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
 
@@ -2905,10 +2929,10 @@ contains
     ! initial run is only known after invoking this%initializeCharges(). Inferring the Coulomb
     ! truncation cutoff, therefore calling getHybridXcCutoff(), needs this information.
     if (this%isHybridXc .and. this%tReadChrg) then
-
       ! First, check if supercell folding matrix is identical to the previous run, if it is
       ! specified in the input
-      if (allocated(input%ctrl%supercellFoldingMatrix)) then
+      !if (allocated(input%ctrl%supercellFoldingMatrix)) then
+      if (allocated(input%ctrl%supercellFoldingMatrix)  .and. this%maxSccIter > 1) then
         if (any(abs(input%ctrl%supercellFoldingMatrix&
             & - this%supercellFoldingMatrix) > 1e-06_dp)) then
           write(tmpStr, "(A,3I5,A,3I5,A,3I5,A,3F10.6)")&

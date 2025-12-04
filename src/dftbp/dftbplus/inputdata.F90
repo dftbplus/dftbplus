@@ -11,6 +11,7 @@
 module dftbp_dftbplus_inputdata
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
+  use dftbp_derivs_dielectric, only : TDielectricSettings
   use dftbp_derivs_perturb, only : TPerturbInp
   use dftbp_dftb_dftbplusu, only : TDftbUInp
   use dftbp_dftb_dispersions, only : TDispersionInp
@@ -238,6 +239,9 @@ module dftbp_dftbplus_inputdata
 
     !> Localise electronic states
     logical :: tLocalise = .false.
+
+    !> Optical matrix elements
+    type(TDielectricSettings), allocatable :: evaluateDielectricFn
 
     !> Input data for Pipek-Mezey localisation
     type(TPipekMezeyInp), allocatable :: pipekMezeyInp

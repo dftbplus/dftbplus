@@ -11,7 +11,8 @@
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc, minTemp, sc
-  use dftbp_common_constants, only : Bohr__AA, boltzmann, maxL, pi, shellNames, symbolToNumber
+  use dftbp_common_constants, only : Bohr__AA, boltzmann, eV__Hartree, maxL, pi, shellNames,&
+      & symbolToNumber
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
   use dftbp_common_globalenv, only : abortProgram, stdout, withMpi, withScalapack
@@ -2971,13 +2972,14 @@ contains
     if (ctrl%poorKSampling .and. ctrl%tSCC .and. .not.ctrl%tReadChrg) then
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
+    ctrl%checkStopHybridCalc = ctrl%checkStopHybridCalc .or. (ctrl%maxSccIter == 1)
 
     ! Check if hybrid calculation needs to be stopped due to invalid k-point sampling
     if (ctrl%checkStopHybridCalc) then
       if (ctrl%maxSccIter == 1) then
         call warning("Restarting a hybrid xc-functional run with what appears to be&
-            & a poor k-point sampling that does probably" // NEW_LINE('A') // " not match the&
-            & original sampling (however fine for bandstructure calculations).")
+            & a k-point sampling that probably does" // NEW_LINE('A') // " not match the&
+            & original sampling (however this is fine for bandstructure calculations).")
       else
         call error("Error while parsing k-point sampling for a hybrid xc-functional&
             & run." // NEW_LINE('A') // "   Only allowed for bandstructure calculations,&
@@ -3206,7 +3208,7 @@ contains
 
     ! Catch problematic k-point sampling in case this is a hybrid calculation
     ctrl%checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
-        & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
+        & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg .and. ctrl%maxSccIter > 1
 
     ! Check for hybrid xc-functional requirements
     tGammaOnly = isGammaOnly(ctrl%nKPoint, ctrl%kPoint, ctrl%kWeight)
@@ -5335,6 +5337,35 @@ contains
         end do
       end if
       call destroyNodeList(children)
+
+      call getChild(node, "DielectricFunction", child, requested=.false.)
+      if (associated(child)) then
+        allocate(ctrl%evaluateDielectricFn)
+        call getChildValue(child, "Eta", ctrl%evaluateDielectricFn%eta, 1.0E-6_dp * eV__Hartree,&
+            & modifier=modifier, child=child2)
+        call convertUnitHsd(char(modifier), energyUnits, child2, ctrl%evaluateDielectricFn%eta)
+        if (ctrl%evaluateDielectricFn%eta < 0.0_dp)&
+            & call detailedError(child, "Negative eta for Kramers-Kronig")
+        if (ctrl%evaluateDielectricFn%eta < epsilon(0.0_dp))&
+            & call detailedError(child, "Too small eta for Kramers-Kronig")
+        call getChildValue(child, "GridSpacing", ctrl%evaluateDielectricFn%gridSpacing,&
+            & 0.01_dp * eV__Hartree, modifier=modifier, child=child2)
+        call convertUnitHsd(char(modifier), energyUnits, child2,&
+            & ctrl%evaluateDielectricFn%gridSpacing)
+        if (ctrl%evaluateDielectricFn%gridSpacing < 0.0_dp)&
+            & call detailedError(child, "Negative GridSpacing for dielectric function grid")
+        if (ctrl%evaluateDielectricFn%gridSpacing < epsilon(0.0_dp))&
+            & call detailedError(child, "Too small GridSpacing for dielectric function grid")
+        call getChildValue(child, "Sigma", ctrl%evaluateDielectricFn%sigma, 0.1_dp * eV__Hartree,&
+            & modifier=modifier, child=child2)
+        call convertUnitHsd(char(modifier), energyUnits, child2, ctrl%evaluateDielectricFn%sigma)
+        if (ctrl%evaluateDielectricFn%sigma < 0.0_dp)&
+            & call detailedError(child, "Negative sigma for dielectric broadening")
+        if (ctrl%evaluateDielectricFn%sigma < epsilon(0.0_dp))&
+            & call detailedError(child, "Too small sigma for dielectric broadening")
+        call getChildValue(child, "AtomDipole", ctrl%evaluateDielectricFn%isAtomicDipoleIncluded,&
+            & .false.)
+      end if
 
       call renameChildren(node, "Localize", "Localise")
       call getChild(node, "Localise", child=val, requested=.false.)

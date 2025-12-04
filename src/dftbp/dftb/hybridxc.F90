@@ -26,7 +26,7 @@ module dftbp_dftb_hybridxc
       & getHfAnalyticalGammaValue_workhorse, getLrAnalyticalGammaValue_workhorse
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : getUnpackedOverlapPrime_kpts, getUnpackedOverlapPrime_real,&
-      & unpackHS
+      & unpackHS, unpackHSdk
   use dftbp_math_blasroutines, only : gemm, hemm, symm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
@@ -283,6 +283,8 @@ module dftbp_dftb_hybridxc
 
     procedure :: addCamHamiltonian_real
     procedure :: getCamHamiltonian_kpts
+
+    procedure :: getCamHamiltonian_dkpts
 
   #:if WITH_MPI
     procedure :: addCamHamiltonianMatrix_cmplx_blacs
@@ -7244,5 +7246,113 @@ contains
     gamma = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2), dist)
 
   end function getHfAnalyticalGammaValue
+
+
+  !> Interface routine for obtaining numerical derivative of CAM range-separated contributions to
+  !! the Hamiltonian with respect to crystal momentum (k)
+  subroutine getCamHamiltonian_dkpts(this, env, denseDesc, orb, ints, densityMatrix, neighbourList,&
+      & nNeighbourSK, symNeighbourList, nNeighbourCamSym, iCellVec, cellVecs, rCellVecs,&
+      & iSparseStart, img2CentCell, kPoints, kWeights, HSqrCplxCam_dk, errStatus)
+
+    !> Class instance
+    class(THybridXcFunc), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Integral container
+    type(TIntegral), intent(in) :: ints
+
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(in) :: densityMatrix
+
+    !> List of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of neighbours for each atom (symmetric version)
+    type(TAuxNeighbourList), intent(in) :: symNeighbourList
+
+    !> Nr. of neighbours for each atom.
+    integer, intent(in) :: nNeighbourCamSym(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVecs(:,:)
+
+    !> Vectors to neighboring unit cells in absolute units
+    real(dp), intent(in) :: rCellVecs(:,:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> The k-points in relative coordinates to calculate delta H(k) for
+    real(dp), intent(in) :: kPoints(:,:)
+
+    !> The k-point weights
+    real(dp), intent(in) :: kWeights(:)
+
+    !> Square (unpacked) Hamiltonian for all k-point/spin composite indices to be updated
+    complex(dp), intent(out), allocatable :: HSqrCplxCam_dk(:,:,:,:)
+
+    !> Error status
+    type(TStatus), intent(inout) :: errStatus
+
+    !! Temporary displaced k-points for evaluation
+    real(dp), allocatable :: kPointsDelta(:,:)
+
+    !! Finite difference step
+    real(dp), parameter :: delta = epsilon(1.0_dp)**0.25_dp
+
+    complex(dp), allocatable :: work(:,:,:)
+    integer :: ii, iDir
+
+    @:ASSERT(allocated(densityMatrix%kPointPrime))
+
+    call env%globalTimer%startTimer(globalTimers%hybridXcH)
+
+    do iDir = 1, 3
+
+      do ii = -1, 1, 2
+
+        kPointsDelta = kPoints
+        kPointsDelta(iDir, :) = kPointsDelta(iDir, :) + real(ii,dp) * delta
+
+        call getCamHamiltonian_kpts(this, env, denseDesc, orb, ints, densityMatrix, neighbourList,&
+            & nNeighbourSK, symNeighbourList, nNeighbourCamSym, iCellVec, cellVecs, rCellVecs,&
+            & iSparseStart, img2CentCell, kPointsDelta, kWeights, work, errStatus)
+        @:PROPAGATE_ERROR(errStatus)
+        if (iDir == 1 .and. ii == -1) then
+          allocate(HSqrCplxCam_dk(size(work,dim=1), size(work,dim=2), size(work,dim=3), 3))
+        end if
+        if (ii == -1) then
+          HSqrCplxCam_dk(:,:,:,iDir) = -work
+        else
+          HSqrCplxCam_dk(:,:,:,iDir) = HSqrCplxCam_dk(:,:,:,iDir) + work
+        end if
+        deallocate(work)
+
+      end do
+
+    end do
+
+    HSqrCplxCam_dk(:, :, :, :) = HSqrCplxCam_dk / (2.0_dp * delta)
+
+    call env%globalTimer%stopTimer(globalTimers%hybridXcH)
+
+  end subroutine getCamHamiltonian_dkpts
 
 end module dftbp_dftb_hybridxc
