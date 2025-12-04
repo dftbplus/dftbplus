@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Contains the interface for thermostats
+!> Contains the abstract interface that can provide any of the thermostats
 module dftbp_md_thermostat
   use dftbp_common_accuracy, only : dp
   implicit none

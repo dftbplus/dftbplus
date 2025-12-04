@@ -7,7 +7,7 @@
 
 #:include "common.fypp"
 
-!> Provides all thermostats and the generic thermostat interface
+!> Provides all the thermostats to the generic thermostat interface
 module dftbp_md_thermostats
   use dftbp_md_mdcommon, only : TMDCommon
   use dftbp_math_ranlux, only : TRanlux
