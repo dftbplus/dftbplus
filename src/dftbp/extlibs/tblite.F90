@@ -437,16 +437,19 @@ contains
     !> Parametrisation data
     type(xtb_calculator), intent(out) :: calc
 
+    type(error_type), allocatable :: err
+
     select case(method)
     case default
       call error("Unknown method selector")
     case(tbliteMethod%gfn2xtb)
-      call new_gfn2_calculator(calc, mol)
+      call new_gfn2_calculator(calc, mol, err)
     case(tbliteMethod%gfn1xtb)
-      call new_gfn1_calculator(calc, mol)
+      call new_gfn1_calculator(calc, mol, err)
     case(tbliteMethod%ipea1xtb)
-      call new_ipea1_calculator(calc, mol)
+      call new_ipea1_calculator(calc, mol, err)
     end select
+    if (allocated(err)) call error(err%message)
 
   end subroutine getCalculator
 #:endif
