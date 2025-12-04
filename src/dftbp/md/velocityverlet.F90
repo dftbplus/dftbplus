@@ -208,9 +208,11 @@ contains
   end subroutine VV_thermostats_pressure
 
 
-  !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
-  !> means later we have to reconstruct the Vel. Verlet t+.5 velocities and barostat isotropic
-  !> pressure
+  !> Creates a VelocityVerlet object from given external velocities for the t-th time step.
+  !!
+  !! Note: this means later we have to reconstruct the Vel. Verlet t+.5 velocities and barostat
+  !! isotropic pressure
+  !!
   subroutine VV_velocities_pressure(this, deltaT, positions, thermostat, &
       & velocities, Barostat, Pressure, tIsotropic)
 

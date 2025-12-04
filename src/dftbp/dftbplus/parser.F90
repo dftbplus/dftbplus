@@ -8374,12 +8374,25 @@ contains
   end subroutine parseChimes
 
 
+  !> Parser the thermostat information from the HSD input
   subroutine parseThermostat(node, deltaT, hasInitVelocities, maxRun, thermostatInp, tempProfileInp)
+
+    !> Parent node of the thermostat node
     type(fnode), pointer, intent(in) :: node
+    
+    !> Time step
     real(dp), intent(in) :: deltaT
+    
+    !> Whether initial velocities had been specified for the MD run
     logical, intent(in) :: hasInitVelocities
+    
+    !> Number of MD timesteps, will be updated by adding up the steps in the temperature profile
     integer, intent(inout) :: maxRun
+    
+    !> Thermostat input filled up from the HSD data
     type(TThermostatInput), allocatable, intent(out) :: thermostatInp
+    
+    !> Temperature profile input filled up from the HSD data
     type(TTempProfileInput), allocatable, intent(out) :: tempProfileInp
 
     type(fnode), pointer :: thermNode, child, child2, child3
@@ -8427,7 +8440,10 @@ contains
         call convertUnitHsd(char(modifier), freqUnits, child2, inp%coupling)
 
         call getChildValue(thermNode, "ChainLength", inp%chainLength, 3)
-        call getChildValue(thermNode, "Order", inp%expOrder, 3)
+        call getChildValue(thermNode, "Order", inp%expOrder, 3, child=child2)
+        if (.not. any(inp%expOrder == [3, 5])) then
+          call detailedError(child2, "Order of Nose-Hoover thermostat must be either 3 or 5")
+        end if
         call getChildValue(thermNode, "IntegratorSteps", inp%nExpSteps, 1)
         call getChild(thermNode, "Restart",  child=child2, requested=.false.)
         if (associated(child2)) then
@@ -8475,6 +8491,7 @@ contains
 
   contains
 
+    !> Reads the temperature or the temperature profile
     subroutine readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
       type(fnode), pointer, intent(in) :: thermNode
       integer, intent(inout) :: maxRun

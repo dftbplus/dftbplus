@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Nose-Hoover Chain thermostat
-!>
-!> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
-!>
+!!
+!! Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
+!!
 module dftbp_md_nhctherm
   use dftbp_common_accuracy, only : dp, lc, minTemp
   use dftbp_io_message, only : error
@@ -193,9 +193,9 @@ contains
       this%vnose(1:this%nnos) = input%vnose
       this%gnose(1:this%nnos) = input%gnose
     else
-      this%xnose(1:this%nnos)= 1.0_dp
-      this%vnose(1:this%nnos)= 0.0_dp
-      this%gnose(1:this%nnos)= 0.0_dp
+      this%xnose(1:this%nnos) = 1.0_dp
+      this%vnose(1:this%nnos) = 0.0_dp
+      this%gnose(1:this%nnos) = 0.0_dp
     end if
 
   end subroutine TNhcTherm_init
@@ -229,9 +229,9 @@ contains
 
 
   !> Updates the provided velocities according the current temperature.
-  !>
-  !> routines based on NHCINT from reference
-  !>
+  !!
+  !! routines based on NHCINT from reference
+  !!
   subroutine TNhcTherm_updateVelocities(this, velocities)
 
     !> NHCThermostat instance.
@@ -315,7 +315,7 @@ contains
     !> Instance
     class(TNhcTherm), intent(in) :: this
 
-    !> File handle to write out to
+    !> File unit to write thermostat state out to
     integer, intent(in) :: fd
 
     write(fd,"(a)") 'Nose-Hoover chain variables'

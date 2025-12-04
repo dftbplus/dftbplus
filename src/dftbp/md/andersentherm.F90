@@ -8,11 +8,12 @@
 #:include 'common.fypp'
 
 !> Implements the Andersen thermostat
-!>
-!> Two versions of the Andersen thermostat are implemented, either the global re-select or per atom
-!> reselect of velocities from the Maxwell-Boltzmann distribution See Andersen J. Chem. Phys. 72.
-!> 2384 (1980)
-!>
+!!
+!! Two versions of the Andersen thermostat are implemented, either the global re-select or per atom
+!! reselect of velocities from the Maxwell-Boltzmann distribution See Andersen J. Chem. Phys. 72.
+!! 2384 (1980)
+!!
+!!
 module dftbp_md_andersentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
@@ -176,11 +177,11 @@ contains
   !> Writes internals of thermostat
   subroutine TAndersenTherm_writeState(this, fd)
 
-    !> instance of thermostat
+    !> Instance
     class(TAndersenTherm), intent(in) :: this
 
-    !> filehandle to write out to
-    integer,intent(in) :: fd
+    !> File unit to write thermostat state out to
+    integer, intent(in) :: fd
 
     ! no internal state, nothing to do
 

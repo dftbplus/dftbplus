@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Berendsen thermostat - warning non-canonical distribution!
-!>
-!> If you do not know about the flying icecube do not use this thermostat!
-!> Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
-!> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
-!>
+!!
+!! If you do not know about the flying icecube do not use this thermostat!
+!! Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
+!! Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
+!!
 module dftbp_md_berendsentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
@@ -153,11 +153,11 @@ contains
   !> Writes internals of thermostat
   subroutine TBerendsenTherm_writeState(this, fd)
 
-    !> thermostat object
+    !> Instance
     class(TBerendsenTherm), intent(in) :: this
 
-    !> file unit
-    integer,intent(in) :: fd
+    !> File unit to write thermostat state out to
+    integer, intent(in) :: fd
 
     ! no internal state, nothing to do
 

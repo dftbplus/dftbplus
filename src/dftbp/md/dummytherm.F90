@@ -118,10 +118,10 @@ contains
   !> Writes internals of thermostat (does nothing in this case)
   subroutine TDummyTherm_writeState(this, fd)
 
-    !> instance of thermostat
+    !> Instance
     class(TDummyTherm), intent(in) :: this
 
-    !> File handle to write state out to
+    !> File unit to write thermostat state out to
     integer, intent(in) :: fd
 
   end subroutine TDummyTherm_writeState
