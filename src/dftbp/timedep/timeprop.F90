@@ -58,8 +58,8 @@ module dftbp_timedep_timeprop
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  use dftbp_md_dummytherm, only : TDummyThermostat
-  use dftbp_md_mdcommon, only : TMDCommon
+  use dftbp_md_dummytherm, only : TDummyTherm, TDummyTherm_init
+  use dftbp_md_mdcommon, only : TMDCommon, init
   use dftbp_md_mdintegrator, only : init, next, reset, state, TMDIntegrator
   use dftbp_md_thermostat, only : TThermostat
   use dftbp_md_velocityverlet, only : TVelocityVerlet
@@ -429,7 +429,7 @@ module dftbp_timedep_timeprop
     logical :: tVerboseDyn = .true.
 
     !> Thermostat
-    type(TThermostat), allocatable :: pThermostat
+    class(TThermostat), allocatable :: thermostat
 
     !> Molecular dynamics integrator
     type(TMDIntegrator), allocatable :: pMDIntegrator
@@ -743,7 +743,7 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> Dummy thermostat object
-    type(TDummyThermostat), allocatable :: pDummyTherm
+    type(TDummyTherm), allocatable :: pDummyTherm
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -909,12 +909,12 @@ contains
       allocate(this%coordNew(3, nAtom))
       allocate(this%movedAccel(3, this%nMovedAtom))
 
-      allocate(this%pThermostat)
       allocate(pMDFrame)
       call init(pMDFrame, this%nMovedAtom, nAtom, tMDstill)
       allocate(pDummyTherm)
-      call init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat, pMDFrame)
-      call init(this%pThermostat, pDummyTherm)
+      call TDummyTherm_init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat,&
+          & pMDFrame)
+      call move_alloc(pDummyTherm, this%thermostat)
       allocate(this%derivator, source=nonSccDeriv)
     else
       if (this%tForces) then
@@ -3107,10 +3107,10 @@ contains
 
     if (this%nDynamicsInit == 0) then
       if (this%tReadRestart) then
-        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%thermostat,&
             & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       else
-        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%thermostat,&
             & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       end if
       this%initialVelocities(:, this%indMovedAtom) = this%movedVelo
