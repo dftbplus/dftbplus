@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 
-!> Contains routines for
+!> Contains routines for projecting out components of vectors attached to multiple atoms
 module dftbp_geometry_projectvectors
   use dftbp_common_accuracy, only : dp
   use dftbp_math_eigensolver, only : heev

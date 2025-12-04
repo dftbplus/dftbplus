@@ -100,9 +100,6 @@ contains
     !> Atomic coordinates
     !real(dp) :: coords(:,:)
 
-    !> If system should be transformed to rotational rest frame
-    !logical :: isRotationRemoved
-
     integer :: nDegrees
 
     @:ASSERT(nMovedAtom <= nAllAtom)
@@ -117,7 +114,7 @@ contains
 
 
   !> Shift velocities so the total velocity is 0
-  subroutine  MDCommon_restFrame(sf, velocity, mass) !, coords)
+  subroutine  MDCommon_restFrame(sf, velocity, mass)
 
     !> MD Framework instance.
     type(TMDCommon), intent(inout) :: sf
