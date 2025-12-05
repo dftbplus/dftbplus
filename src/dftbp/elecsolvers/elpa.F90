@@ -50,6 +50,9 @@ module dftbp_elecsolvers_elpa
     !> On what fraction of the original number of ranks to redistribute the matrix
     integer :: redistributeFactor = 1
 
+    !> Explicit list of ranks to be used for redistribution
+    integer, allocatable :: redistributeRanks(:)
+
   end type TElpaInp
 
 
@@ -99,6 +102,9 @@ module dftbp_elecsolvers_elpa
     !> MPI communicator of all ranks in the current group
     type(mpifx_comm) :: groupComm
   #:endif
+
+    !> MPI rank number of redistributeComm%leadrank in the groupComm communicator
+    integer :: redistributeLead
 
     !> BLACS context
     integer :: contextOrig
@@ -155,7 +161,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Input structure read from config file
-    type(TElpaInp), intent(in) :: inp
+    type(TElpaInp), intent(inout) :: inp
 
     !> Number of orbitals in the system
     integer, intent(in) :: nBasisFn
@@ -183,8 +189,8 @@ contains
       call error("ELPA error: elpa_init failed")
     end if
 
-    if (inp%redistributeFactor /= 1) then
-      call this%initRedistribute(inp%redistributeFactor, env%mpi%groupComm)
+    if (inp%redistributeFactor /= 1 .or. allocated(inp%redistributeRanks)) then
+      call this%initRedistribute(inp%redistributeFactor, inp%redistributeRanks, env%mpi%groupComm)
 
       if (.not. this%joinElpaCalls) then
         this%desc(:) = 0
@@ -285,7 +291,7 @@ contains
 
 
   !> Initialize matrix redistribution
-  subroutine TElpa_initRedistribute(this, nprocStep, groupComm)
+  subroutine TElpa_initRedistribute(this, nprocStep, ranks, groupComm)
 
     !> Instance
     class(TElpa), intent(inout) :: this
@@ -294,18 +300,37 @@ contains
     !> nprocStep == 2 means: select every second rank
     integer, intent(in) :: nprocStep
 
+    !> Which processes to choose from the group communicator
+    integer, allocatable, intent(inout) :: ranks(:)
+
     !> Group communicator from which a new communicator will be created
     type(mpifx_comm), intent(in) :: groupComm
 
     integer :: np_rows, np_cols, row, col
-    integer :: nprocs, proc, splitkey, rankkey
+    integer :: nprocs, splitkey, rankkey, iproc
     integer :: status
     integer, allocatable :: gridmap(:,:)
 
-    if (nprocStep < 1 .or. modulo(groupComm%size, nprocStep) /= 0) then
-      call error("Invalid value for number of processes in ELPA redistribution")
+    if (.not. allocated(ranks)) then
+      if (nprocStep < 1 .or. modulo(groupComm%size, nprocStep) /= 0) then
+        call error("Invalid value for number of processes in ELPA redistribution")
+      end if
+
+      nprocs = groupComm%size / nprocStep
+      allocate(ranks(nprocs))
+      ranks(1) = groupComm%leadrank
+      do iproc = 2, nprocs
+        ranks(iproc) = ranks(iproc - 1) + nprocStep
+      end do
     end if
-    nprocs = groupComm%size / nprocStep
+
+    nprocs = size(ranks)
+
+    do iproc = 1, nprocs
+      if (ranks(iproc) < 0 .or. ranks(iproc) >= groupComm%size) then
+        call error("Invalid value for rank in ELPA redistribution")
+      end if
+    end do
 
     do np_rows = nint(sqrt(real(nprocs))), 2, -1
       if (mod(nprocs, np_rows) == 0) exit
@@ -316,14 +341,14 @@ contains
 
     splitkey = 0
     rankkey = 0
-    proc = 0
+    iproc = 1
     do row = 1, np_rows
       do col = 1, np_cols
-        gridmap(row, col) = proc
-        if (proc == groupComm%rank) then
+        gridmap(row, col) = ranks(iproc)
+        if (ranks(iproc) == groupComm%rank) then
           splitkey = 1
         end if
-        proc = proc + nprocStep
+        iproc = iproc + 1
       end do
     end do
 
@@ -340,6 +365,7 @@ contains
 
     this%joinElpaCalls = splitkey == 1
     this%redistributing = .true.
+    this%redistributeLead = ranks(1)
     this%groupComm = groupComm
 
   end subroutine TElpa_initRedistribute
@@ -538,7 +564,7 @@ contains
       end if
       call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%eigenvectors${NAME}$, 1, 1,&
           & this%desc, eigenVecs, 1, 1, this%descOrig, this%contextOrig)
-      call mpifx_bcast(this%groupComm, eigenVals)
+      call mpifx_bcast(this%groupComm, eigenVals, this%redistributeLead)
       if (this%joinElpaCalls) then
         call this%handle%timer_stop("ELPA redistribute")
       end if

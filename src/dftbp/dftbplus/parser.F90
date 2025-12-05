@@ -2649,6 +2649,7 @@ contains
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
+    type(TListInt) :: elpaRedistributeRanks
 
     integer :: iTmp
 
@@ -2703,6 +2704,23 @@ contains
               & included without using the ELSI interface")
         end if
       #:endif
+
+      call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
+      if (associated(child)) then
+      #:if not WITH_ELPA
+        call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
+            & included without using the ELSI interface")
+      #:endif
+        if (ctrl%solver%elpa%redistributeFactor /= 1) then
+          call detailedError(child, "RedistributeFactor and RedistributeRanks must not be specified&
+              & at the same time")
+        end if
+        call init(elpaRedistributeRanks)
+        call getChildValue(child, "", elpaRedistributeRanks)
+        allocate(ctrl%solver%elpa%redistributeRanks(len(elpaRedistributeRanks)))
+        call asArray(elpaRedistributeRanks, ctrl%solver%elpa%redistributeRanks)
+        call destruct(elpaRedistributeRanks)
+      end if
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
