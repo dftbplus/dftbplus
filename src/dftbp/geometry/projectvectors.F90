@@ -41,12 +41,13 @@ contains
     nAtom = size(atoms)
     centreOfMass(:) = 0.0_dp
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt) SCHEDULE(RUNTIME) REDUCTION(+:centreOfMass)
+    ! Workaround: ifort (IFORT) 2021.5.0 20211109 Internal compiler error for the OMP version
+    ! !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAt) SCHEDULE(RUNTIME) REDUCTION(+:centreOfMass)
     do ii = 1, nAtom
       iAt = atoms(ii)
       centreOfMass(:) = centreOfMass + coords(:, iAt) * masses(iAt)
     end do
-    !$OMP END PARALLEL DO
+    ! !$OMP END PARALLEL DO
     centreOfMass(:) = centreOfMass / sum(masses(atoms))
 
   end function getCentreOfMass
