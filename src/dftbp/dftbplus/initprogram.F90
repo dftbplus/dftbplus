@@ -83,6 +83,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_extlibs_poisson, only : TPoissonInput
   use dftbp_extlibs_sdftd3, only : TSDFTD3, TSDFTD3_init, writeSDFTD3Info
   use dftbp_extlibs_tblite, only : TTBLite, TTBLite_init, writeTBLiteInfo
+  use dftbp_geometry_control, only : TGeomChanges
   use dftbp_geoopt_conjgrad, only : TConjGrad
   use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr
   use dftbp_geoopt_filter, only : TFilter, TFilter_init
@@ -338,9 +339,6 @@ module dftbp_dftbplus_initprogram
     !> External pressure if periodic
     real(dp) :: extPressure
 
-    !> Barostat used if MD and periodic
-    logical :: tBarostat
-
     !> Barostat coupling strength
     real(dp) :: BarostatStrength
 
@@ -419,32 +417,11 @@ module dftbp_dftbplus_initprogram
     !> Common Fermi level across spin channels
     logical :: tSpinSharedEf
 
-    !> Geometry optimisation needed?
-    logical :: isGeoOpt
-
-    !> Optimise coordinates inside unit cell (periodic)?
-    logical :: tCoordOpt
-
-    !> Optimise lattice constants?
-    logical :: tLatOpt
-
-    !> Fix angles between lattice vectors when optimising?
-    logical :: tLatOptFixAng
-
-    !> Fix length of specified lattice vectors when optimising?
-    logical :: tLatOptFixLen(3)
-
-    !> Optimise lattice isotropically
-    logical :: tLatOptIsotropic
-
-    !> Is this a MD calculation?
-    logical :: tMD
+    !> Options for geometric change in the system
+    type(TGeomChanges) :: geometryChanges
 
     !> Output options for molecular dynamics data
     type(TMDOutput), allocatable :: mdOutput
-
-    !> Is this a derivatives calc?
-    logical :: tDerivs
 
     !> Do we need Mulliken charges?
     logical :: tMulliken
@@ -1870,21 +1847,22 @@ contains
     end if
 
     ! initialise in cases where atoms move
-    this%isGeoOpt = input%ctrl%isGeoOpt
-    this%tCoordOpt = input%ctrl%tCoordOpt
-    this%tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
-    if (this%tLatOpt) then
+    this%geometryChanges%isGeoOpt = input%ctrl%isGeoOpt
+    this%geometryChanges%tCoordOpt = input%ctrl%tCoordOpt
+    this%geometryChanges%tLatOpt = (input%ctrl%tLatOpt .and. this%tPeriodic)
+    if (this%geometryChanges%tLatOpt) then
       if (this%tExtChrg) then
         ! Stop as not sure, what to do with the coordinates of the
         ! external charges, when the lattice changes.
         call error("External charges and lattice optimisation can not be used together.")
       end if
     end if
-    if (this%tLatOpt) then
-      this%tLatOptFixAng = input%ctrl%tLatOptFixAng
-      this%tLatOptFixLen = input%ctrl%tLatOptFixLen
-      this%tLatOptIsotropic = input%ctrl%tLatOptIsotropic
-      if (this%tLatOptFixAng .or. any(this%tLatOptFixLen) .or. this%tLatOptIsotropic) then
+    if (this%geometryChanges%tLatOpt) then
+      this%geometryChanges%tLatOptFixAng = input%ctrl%tLatOptFixAng
+      this%geometryChanges%tLatOptFixLen = input%ctrl%tLatOptFixLen
+      this%geometryChanges%tLatOptIsotropic = input%ctrl%tLatOptIsotropic
+      if (this%geometryChanges%tLatOptFixAng .or. any(this%geometryChanges%tLatOptFixLen)&
+          & .or. this%geometryChanges%tLatOptIsotropic) then
         this%origLatVec(:,:) = this%latVec(:,:)
         do ii = 1, 3
            this%normOrigLatVec(:,ii) = this%origLatVec(:,ii) / sqrt(sum(this%origLatVec(:,ii)**2))
@@ -1892,7 +1870,7 @@ contains
       end if
     end if
     this%extPressure = input%ctrl%pressure
-    this%tBarostat = input%ctrl%tBarostat
+    this%geometryChanges%tBarostat = input%ctrl%tBarostat
     this%BarostatStrength = input%ctrl%BarostatStrength
 
   #:if WITH_SOCKETS
@@ -1901,8 +1879,8 @@ contains
       input%ctrl%socketInput%nAtom = this%nAtom
       call this%initSocket(env, input%ctrl%socketInput)
       this%tForces = .true.
-      this%isGeoOpt = .false.
-      this%tMD = .false.
+      this%geometryChanges%isGeoOpt = .false.
+      this%geometryChanges%tMd = .false.
     end if
   #:else
     this%tSocket = .false.
@@ -1910,9 +1888,9 @@ contains
 
     this%tAppendGeo = input%ctrl%tAppendGeo
     this%isSccConvRequired = input%ctrl%isSccConvRequired
-    this%tMD = input%ctrl%tMD
-    if (this%tMD) this%mdOutput = input%ctrl%mdOutput
-    this%tDerivs = input%ctrl%tDerivs
+    this%geometryChanges%tMd = input%ctrl%tMD
+    if (this%geometryChanges%tMd) this%mdOutput = input%ctrl%mdOutput
+    this%geometryChanges%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
     this%tWriteCosmoFile = input%ctrl%tWriteCosmoFile .and. isIoProc
 
@@ -1928,11 +1906,11 @@ contains
       this%eField%isTDEfield = input%ctrl%electricField%isTDEfield
       this%eField%EfieldOmega = input%ctrl%electricField%EfieldOmega
       this%eField%EfieldPhase = input%ctrl%electricField%EfieldPhase
-      if (this%eField%isTDEfield .and. .not. this%tMD) then
+      if (this%eField%isTDEfield .and. .not. this%geometryChanges%tMd) then
         call error("Time dependent electric fields only possible for MD!")
       end if
       ! parser should catch all of these:
-      @:ASSERT(.not.this%eField%isTDEfield .or. this%tMD)
+      @:ASSERT(.not.this%eField%isTDEfield .or. this%geometryChanges%tMd)
     end if
 
     this%tMulliken = input%ctrl%tMulliken .or. this%tPrintMulliken .or. this%isExtField .or.&
@@ -2089,7 +2067,7 @@ contains
     end if
 
     allocate(this%pGeoCoordOpt)
-    if (this%tCoordOpt) then
+    if (this%geometryChanges%tCoordOpt) then
       allocate(tmpCoords(this%nMovedCoord))
       tmpCoords(1:this%nMovedCoord) = reshape(this%coord0(:, this%indMovedAtom),&
           & (/ this%nMovedCoord /))
@@ -2127,7 +2105,7 @@ contains
     end if
 
     allocate(this%pGeoLatOpt)
-    if (this%tLatOpt) then
+    if (this%geometryChanges%tLatOpt) then
       select case (input%ctrl%iGeoOpt)
       case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(9))
@@ -2151,11 +2129,11 @@ contains
         call TFire_init(pFireLat, 9, input%ctrl%maxForce, input%ctrl%deltaT)
         call init(this%pGeoLatOpt, pFireLat)
       end select
-      if (this%tLatOptIsotropic ) then
+      if (this%geometryChanges%tLatOptIsotropic ) then
         ! optimisation uses scaling factor of unit cell
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
-      else if (this%tLatOptFixAng) then
+      else if (this%geometryChanges%tLatOptFixAng) then
         ! optimisation uses scaling factor of lattice vectors
         call reset(this%pGeoLatOpt,&
             & (/1.0_dp,1.0_dp,1.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp,0.0_dp/))
@@ -2164,7 +2142,8 @@ contains
       end if
     end if
 
-    if (.not.(this%isGeoOpt.or.this%tMD.or.this%tSocket.or.allocated(this%geoOpt))) then
+    if (.not.(this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd .or. this%tSocket .or.&
+        & allocated(this%geoOpt))) then
       this%nGeoSteps = 0
     end if
 
@@ -2425,7 +2404,7 @@ contains
     end if
 
     this%doPerturbation = allocated(input%ctrl%perturbInp)
-    this%doPerturbEachGeom = this%tDerivs .and. this%doPerturbation ! needs work
+    this%doPerturbEachGeom = this%geometryChanges%tDerivs .and. this%doPerturbation ! needs work
 
     if (this%doPerturbation .or. this%doPerturbEachGeom) then
 
@@ -2646,7 +2625,7 @@ contains
       end if
     #:endif
 
-      if (this%isGeoOpt .or. this%tMD .or. this%tSocket) then
+      if (this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd .or. this%tSocket) then
         call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
             & the (N-2) electron ground state system do not match the targeted system for the&
             & excited states")
@@ -2667,7 +2646,7 @@ contains
 
 
     ! MD stuff
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       ! Create MD framework.
       allocate(this%pMDFrame)
       call init(this%pMDFrame, this%nMovedAtom, this%nAtom, input%ctrl%tMDstill)
@@ -2683,7 +2662,7 @@ contains
       ! Create MD integrator
       allocate(pVelocityVerlet)
       if (input%ctrl%tReadMDVelocities) then
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & input%ctrl%initialVelocities, this%BarostatStrength, this%extPressure,&
               & input%ctrl%tIsotropic)
@@ -2692,7 +2671,7 @@ contains
               & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           call init(pVelocityVerlet, this%deltaT, this%coord0(:,this%indMovedAtom), thermostat,&
               & this%BarostatStrength, this%extPressure, input%ctrl%tIsotropic)
         else
@@ -2704,13 +2683,13 @@ contains
       call init(this%pMDIntegrator, pVelocityVerlet)
     end if
 
-    call this%initPlumed(env, input%ctrl%tPlumed, this%tMD, this%plumedCalc)
+    call this%initPlumed(env, input%ctrl%tPlumed, this%geometryChanges%tMd, this%plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     if (this%isXlbomd) then
       if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%dummy) then
         call error("XLBOMD does not work with thermostats yet")
-      elseif (this%tBarostat) then
+      elseif (this%geometryChanges%tBarostat) then
         call error("XLBOMD does not work with barostats yet")
       elseif (this%nSpin /= 1 .or. allocated(this%dftbU) .or. allocated(this%onSiteElements)) then
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
@@ -2740,7 +2719,7 @@ contains
           & this%sccTol)
     end if
 
-    if (this%tDerivs) then
+    if (this%geometryChanges%tDerivs) then
       allocate(tmp3Coords(3,this%nMovedAtom))
       tmp3Coords = this%coord0(:,this%indMovedAtom)
       call create(this%derivDriver, tmp3Coords, size(this%indDerivAtom), input%ctrl%deriv2ndDelta,&
@@ -2973,7 +2952,7 @@ contains
     this%restartFreq = input%ctrl%restartFreq
 
   #:if WITH_TRANSPORT
-    if (this%tLatOpt .and. this%tNegf) then
+    if (this%geometryChanges%tLatOpt .and. this%tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
   #:endif
@@ -3000,8 +2979,8 @@ contains
     if (allocated(this%reks)) then
       call checkReksConsistency(input%ctrl%reksInp, this%solvation, this%onSiteElements,&
           & this%kPoint, this%nEl, this%nKPoint, this%tSccCalc, this%tSpin, this%tSpinOrbit,&
-          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic, this%tLatOpt,&
-          & this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
+          & allocated(this%dftbU), this%isExtField, this%isLinResp, this%tPeriodic,&
+          & this%geometryChanges%tLatOpt, this%tReadChrg, this%tPoisson, input%ctrl%tShellResolved)
       ! here, this%nSpin changes to 2 for REKS
       call TReksCalc_init(this%reks, input%ctrl%reksInp, this%electronicSolver, this%orb,&
           & this%spinW, this%nEl, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth,&
@@ -3233,10 +3212,10 @@ contains
 
     call checkStackSize(env)
 
-    if (input%ctrl%tMD) then
+    if (input%ctrl%tMd) then
       select case(input%ctrl%thermostatInp%thermostatType)
       case (thermostatTypes%dummy)
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. "NPE" ensemble)'
         else
@@ -3244,7 +3223,7 @@ contains
               & '(a.k.a. NVE ensemble)'
         end if
       case (thermostatTypes%andersen)
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with re-selection of velocities according to temperature",&
               & "(a.k.a. NPT ensemble using Andersen thermostating + Berensen barostat)"
@@ -3254,7 +3233,7 @@ contains
               & "(a.k.a. NVT ensemble using Andersen thermostating)"
         end if
       case(thermostatTypes%berendsen)
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")&
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVP ensemble using Berendsen thermostating and barostat)"
@@ -3264,7 +3243,7 @@ contains
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
       case(thermostatTypes%nhc)
-        if (this%tBarostat) then
+        if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&
               & "Nose-Hoover-Chain thermostat + Berensen barostat"
         else
@@ -3276,7 +3255,7 @@ contains
         call error("Unknown thermostat mode")
       end select
 
-    elseif (this%isGeoOpt .or. allocated(this%geoOpt)) then
+    elseif (this%geometryChanges%isGeoOpt .or. allocated(this%geoOpt)) then
 
       if (allocated(this%conAtom)) then
         strTmp = "with constraints"
@@ -3306,7 +3285,7 @@ contains
         call warning("This geometry optimisation method requires force related energies for&
             & accurate minimisation.")
       end if
-    elseif (this%tDerivs) then
+    elseif (this%geometryChanges%tDerivs) then
       write(stdOut, "('Mode:',T30,A)") "2nd derivatives calculation"
       write(stdOut, "('Mode:',T30,A)") "Calculated for atoms:"
       write(stdOut, *) this%indDerivAtom
@@ -3385,13 +3364,13 @@ contains
 
     if (this%tPeriodic) then
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "Yes"
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
         write(stdOut, "(A,':',T30,f12.6)") "Pressure", this%extPressure
       end if
     else if (this%tHelical) then
       write (stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         write (stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
       end if
     else
@@ -3450,17 +3429,17 @@ contains
       write(stdOut, "(A,':',T30,I14)") "Max. SCC-cycles", this%maxSccIter
     end if
 
-    if (this%tCoordOpt) then
+    if (this%geometryChanges%tCoordOpt) then
       write(stdOut, "(A,':',T30,I14)") "Nr. of moved atoms", this%nMovedAtom
     end if
-    if (this%isGeoOpt .or. allocated(this%geoOpt)) then
+    if (this%geometryChanges%isGeoOpt .or. allocated(this%geoOpt)) then
       if (this%nGeoSteps == hugeIterations) then
         write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", -1
       else
         write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", this%nGeoSteps
       end if
     end if
-    if (this%isGeoOpt) then
+    if (this%geometryChanges%isGeoOpt) then
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
       if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", this%deltaT
@@ -3495,7 +3474,7 @@ contains
             & Hartree__eV * this%tempElec, 'eV'
       end if
     end if
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
       if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%dummy&
           & .and. .not.input%ctrl%tReadMDVelocities) then
@@ -3772,7 +3751,8 @@ contains
     if (this%tPrintMulliken) then
       write(stdOut, "(T30,A)") "Mulliken analysis"
     end if
-    if (this%tPrintForces .and. .not. (this%tMD .or. this%isGeoOpt .or. this%tDerivs)) then
+    if (this%tPrintForces .and. .not. (this%geometryChanges%tMd .or. this%geometryChanges%isGeoOpt&
+        & .or. this%geometryChanges%tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
     if (this%tForces) then
@@ -3932,10 +3912,10 @@ contains
     end if
 
     if (.not.this%tStress) then
-      if (this%tBarostat) then
+      if (this%geometryChanges%tBarostat) then
         call error("Sorry, MD with a barostat requires stress evaluation")
       end if
-      if (this%tLatOpt) then
+      if (this%geometryChanges%tLatOpt) then
         call error("Sorry, lattice optimisation requires stress tensor evaluation")
       end if
     end if
@@ -4003,7 +3983,7 @@ contains
         call error("Electron dynamics does not work with spin shared Fermi levels yet")
       end if
 
-      if (this%tMD) then
+      if (this%geometryChanges%tMd) then
         call error("Electron dynamics does not work with MD")
       end if
 
@@ -5161,16 +5141,16 @@ contains
       end if
     end if
 
-    if (this%tDerivs) then
+    if (this%geometryChanges%tDerivs) then
       call clearFile(hessianOut)
     end if
     if (this%tWriteDetailedOut) then
       call clearFile(userOut)
     end if
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       call clearFile(mdOut)
     end if
-    if (this%isGeoOpt .or. this%tMD) then
+    if (this%geometryChanges%isGeoOpt .or. this%geometryChanges%tMd) then
       call clearFile(trim(this%geoOutFile) // ".gen")
       call clearFile(trim(this%geoOutFile) // ".xyz")
     end if
@@ -5298,7 +5278,7 @@ contains
 
     allocate(this%coord0Fold(3, this%nAtom))
 
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       allocate(this%newCoords(3, this%nAtom))
     end if
 
@@ -5354,7 +5334,7 @@ contains
       allocate(this%occNatural(this%orb%nOrb))
     end if
 
-    if (this%tMD) then
+    if (this%geometryChanges%tMd) then
       allocate(this%velocities(3, this%nAtom))
       allocate(this%movedVelo(3, this%nMovedAtom))
       allocate(this%movedAccel(3, this%nMovedAtom))
