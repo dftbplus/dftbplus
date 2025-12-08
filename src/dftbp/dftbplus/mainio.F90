@@ -36,6 +36,7 @@ module dftbp_dftbplus_mainio
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
       & xml_NewElement, xml_OpenFile, xmlf_t
+  use dftbp_geometry_control, only : TGeomChanges
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
       & formatBorn, formatdBorn, formatGeoOut, formatHessian
@@ -91,9 +92,9 @@ module dftbp_dftbplus_mainio
   public :: writeCurrentGeometry, writeExtendedGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printSccHeader, printElecConstrHeader
-  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printCellInfo
+  public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printForceNorm, printLatticeForceNorm
+  public :: printForceNorm, printLatticeForceNorm, printLatticeInfo
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
@@ -4932,11 +4933,14 @@ contains
   end subroutine printEnergies
 
 
-  !> Prints cell information
-  subroutine printCellInfo(fd, latVec, cellVol)
+  !> Prints periodic cell information
+  subroutine printLatticeInfo(fd, geoControl, latVec, cellVol)
 
     !> File ID
     integer, intent(in) :: fd
+
+    !> Geometry change control
+    type(TGeomChanges), intent(in) :: geoControl
 
     !> Lattice vectors
     real(dp), intent(in) :: latVec(:,:)
@@ -4949,9 +4953,9 @@ contains
 
     write(fd,"(A)")'Lattice vectors (AA)'
     do ii = 1, 3
-      mag = sqrt(sum(latVec(:,ii)**2))
-      norm(:,ii) = latVec(:,ii) / mag
-      write(fd, "(3F20.6,' :',E14.6)")latVec(:,ii) * Bohr__AA, mag * Bohr__AA
+      mag = sqrt(sum(latvec(:,ii)**2))
+      norm(:,ii) = latvec(:,ii) / mag
+      write(fd, "(3F20.6,' :',E14.6)")latvec(:,ii) * Bohr__AA, mag * Bohr__AA
     end do
     write(fd,"(A)")'Angles (degrees) between lattice vectors'
     do ii = 1, 3
@@ -4963,7 +4967,7 @@ contains
 
     write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
 
-  end subroutine printCellInfo
+  end subroutine printLatticeInfo
 
 
   !> Prints pressure and free energy.

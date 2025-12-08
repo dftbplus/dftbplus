@@ -445,24 +445,25 @@ contains
         if (allocated(polarisability)) then
           call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
               & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
-              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements, nIneqMixElements,&
-              & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
-              & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
-              & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, degenTransform, dEiTmp, dEfdETmp,&
-              & filling, Ef, this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi,&
-              & nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
-              & dPsiReal, dPsiCmplx, coord, errStatus, omega(iOmega),&
-              & dDipole=polarisability(:, iCart, iOmega), eta=this%eta)
+              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements,&
+              & nIneqMixElements, dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal,&
+              & dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU,&
+              & iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals,&
+              & degenTransform, dEiTmp, dEfdETmp, filling, Ef, this%isEfFixed, dHam, idHam, dRho,&
+              & idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
+              & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus,&
+              & omega(iOmega), dDipole=polarisability(:, iCart, iOmega), eta=this%eta)
         else
           call response(env, parallelKS, dPotential, nAtom, orb, species, neighbourList,&
               & nNeighbourSK, img2CentCell, iSparseStart, denseDesc, over, iEqOrbitals, sccCalc,&
-              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements, nIneqMixElements,&
-              & dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal, dRhoInSqr, dRhoOutSqr,&
-              & dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU, iEqBlockDftbu, onsMEs,&
-              & iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals, degenTransform, dEiTmp, dEfdETmp,&
-              & filling, Ef, this%isEfFixed, dHam, idHam, dRho, idRho, tempElec, tMetallic, neFermi,&
-              & nFilled, nEmpty, kPoint, kWeight, cellVec, iCellVec, eigVecsReal, eigVecsCplx,&
-              & dPsiReal, dPsiCmplx, coord, errStatus, omega(iOmega), eta=this%eta)
+              & sccTol, isSccConvRequired, maxSccIter, chrgMixerReal, nMixElements,&
+              & nIneqMixElements, dqIn, dqOut(:,:,:,iCart), hybridXc, nNeighbourCam, sSqrReal,&
+              & dRhoInSqr, dRhoOutSqr, dRhoIn, dRhoOut, nSpin, maxFill, spinW, thirdOrd, dftbU,&
+              & iEqBlockDftbu, onsMEs, iEqBlockOnSite, dqBlockIn, dqBlockOut, eigVals,&
+              & degenTransform, dEiTmp, dEfdETmp, filling, Ef, this%isEfFixed, dHam, idHam, dRho,&
+              & idRho, tempElec, tMetallic, neFermi, nFilled, nEmpty, kPoint, kWeight, cellVec,&
+              & iCellVec, eigVecsReal, eigVecsCplx, dPsiReal, dPsiCmplx, coord, errStatus,&
+              & omega(iOmega), eta=this%eta)
         end if
         @:PROPAGATE_ERROR(errStatus)
 
