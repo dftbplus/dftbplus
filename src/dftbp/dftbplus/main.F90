@@ -70,7 +70,7 @@ module dftbp_dftbplus_main
       & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo,&
       & printLatticeForceNorm, printMaxForce, printMaxLatticeForce, printMdInfo,&
       & printPressureAndFreeEnergy, printReksSccHeader, printReksSccInfo, printSccHeader,&
-      & printSccInfo, printCellInfo, readEigenVecs, writeAutotestTag, writebandout,&
+      & printSccInfo, printLatticeInfo, readEigenVecs, writeAutotestTag, writebandout,&
       & writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile, writeCplxEigVecs,&
       & writeCurrentGeometry, writeExtendedGeometry, writeDerivBandOut, writeDetailedOut1,&
       & writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3,&
@@ -205,8 +205,8 @@ contains
     type(TStatus) :: errStatus
     real(dp), pointer :: pDynMatrix(:,:), pDipDerivMatrix(:,:), pPolDerivMatrix(:,:,:)
 
-    call initGeoOptParameters(this%tCoordOpt, this%nGeoSteps, tGeomEnd, tCoordStep, tStopDriver,&
-        & iGeoStep, iLatGeoStep)
+    call initGeoOptParameters(this%geometryChanges%tCoordOpt, this%nGeoSteps, tGeomEnd,&
+        & tCoordStep, tStopDriver, iGeoStep, iLatGeoStep)
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     this%tLatticeChanged = this%tPeriodic
@@ -216,11 +216,13 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, this%nGeoSteps
-      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%isGeoOpt .or.&
-          & allocated(this%geoOpt), this%tMd, iGeoStep, this%nGeoSteps, this%restartFreq)
+      tWriteRestart = env%tGlobalLead .and. needsRestartWriting(this%geometryChanges%isgeoopt .or.&
+          & allocated(this%geoOpt), this%geometryChanges%tMd, iGeoStep, this%nGeoSteps,&
+          & this%restartFreq)
 
       if (.not. this%tRestartNoSC) then
-        call printGeoStepInfo(this%tCoordOpt, this%tLatOpt, iLatGeoStep, iGeoStep)
+        call printGeoStepInfo(this%geometryChanges%tCoordOpt, this%geometryChanges%tLatOpt,&
+            & iLatGeoStep, iGeoStep)
       end if
 
       ! DFTB Determinant Loop
@@ -272,22 +274,23 @@ contains
       if (this%tStress) then
 
         ! MD case includes the atomic kinetic energy contribution, so print that later
-        if (.not. (this%tMD .or. this%tHelical)) then
+        if (.not. (this%geometryChanges%tMd .or. this%tHelical)) then
           call printPressureAndFreeEnergy(this%extPressure, this%intPressure,&
               & this%dftbEnergy(this%deltaDftb%iDeterminant)%EGibbs)
         end if
       end if
 
-      call postprocessDerivs(this%derivs, this%conAtom, this%conVec, this%tLatOpt,&
-          & this%totalLatDeriv, this%extLatDerivs, this%normOrigLatVec, this%tLatOptFixAng,&
-          & this%tLatOptFixLen, this%tLatOptIsotropic, constrLatDerivs)
+      call postprocessDerivs(this%derivs, this%conAtom, this%conVec, this%geometryChanges%tLatOpt,&
+          & this%totalLatDeriv, this%extLatDerivs, this%normOrigLatVec,&
+          & this%geometryChanges%tLatOptFixAng, this%geometryChanges%tLatOptFixLen,&
+          & this%geometryChanges%tLatOptIsotropic, constrLatDerivs)
 
       if (tExitGeoOpt) then
         exit geoOpt
       end if
 
-      call printMaxForces(this%derivs, constrLatDerivs, this%tCoordOpt, this%tLatOpt,&
-          & this%indMovedAtom)
+      call printMaxForces(this%derivs, constrLatDerivs, this%geometryChanges%tCoordOpt,&
+          & this%geometryChanges%tLatOpt, this%indMovedAtom)
     #:if WITH_SOCKETS
       if (this%tSocket) then
         call sendEnergyAndForces(env, this%socket, this%dftbEnergy(this%deltaDftb%iFinal),&
@@ -296,7 +299,7 @@ contains
     #:endif
 
       tWriteCharges = allocated(this%qInput) .and. tWriteRestart .and. this%tMulliken&
-          & .and. this%tSccCalc .and. .not. this%tDerivs&
+          & .and. this%tSccCalc .and. .not. this%geometryChanges%tDerivs&
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1&
           & .and. this%tWriteCharges
     #:if WITH_SCALAPACK
@@ -342,7 +345,7 @@ contains
         end if
       end if
 
-      if (this%tWriteDetailedOut .and. this%tMd) then
+      if (this%tWriteDetailedOut .and. this%geometryChanges%tMd) then
         call writeDetailedOut6(this%fdDetailedOut%unit, this%dftbEnergy(this%deltaDftb%iFinal),&
             & tempIon)
       end if
@@ -373,26 +376,27 @@ contains
       call TPlumedCalc_final(this%plumedCalc)
     end if
 
-    tGeomEnd = this%tMD .or. tGeomEnd .or. this%tDerivs
+    tGeomEnd = this%geometryChanges%tMd .or. tGeomEnd .or. this%geometryChanges%tDerivs
 
     if (env%tGlobalLead) then
       if (this%tWriteDetailedOut) then
         call writeDetailedOut7(this%fdDetailedOut%unit,&
-            & this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd, this%tDerivs,&
+            & this%geometryChanges%isgeoopt .or. allocated(this%geoOpt), tGeomEnd,&
+            & this%geometryChanges%tMd, this%geometryChanges%tDerivs,&
             & this%eField, this%dipoleMoment, this%deltaDftb, this%eFieldScaling,&
             & this%dipoleMessage, this%quadrupoleMoment)
       end if
 
-      call writeFinalDriverStatus(this%isGeoOpt .or. allocated(this%geoOpt), tGeomEnd, this%tMd,&
-          & this%tDerivs)
+      call writeFinalDriverStatus(this%geometryChanges%isgeoopt .or. allocated(this%geoOpt),&
+          & tGeomEnd, this%geometryChanges%tMd, this%geometryChanges%tDerivs)
 
-      if (this%tMD) then
+      if (this%geometryChanges%tMd) then
         call closeFile(this%fdMd)
         write(stdOut, "(2A)") 'MD information accumulated in ', mdOut
       end if
     end if
 
-    if (env%tGlobalLead .and. this%tDerivs) then
+    if (env%tGlobalLead .and. this%geometryChanges%tDerivs) then
       if (this%tDipole) then
         if (this%doPerturbEachGeom) then
           call getHessianMatrix(this%derivDriver, pDynMatrix, pDipDerivMatrix, pPolDerivMatrix)
@@ -1024,9 +1028,10 @@ contains
       if (this%tNegf) call printSccHeader()
 
       tWriteSccRestart = env%tGlobalLead .and. needsSccRestartWriting(this%restartFreq,&
-          & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%tMd,&
-          & this%isGeoOpt .or. allocated(this%geoOpt),&
-          & this%tDerivs, tConverged, this%tReadChrg, tStopScc) .and. this%tWriteCharges
+          & iGeoStep, iSccIter, this%minSccIter, this%maxSccIter, this%geometryChanges%tMd,&
+          & this%geometryChanges%isgeoopt .or. allocated(this%geoOpt),&
+          & this%geometryChanges%tDerivs, tConverged, this%tReadChrg, tStopScc) .and.&
+          & this%tWriteCharges
     #:if WITH_SCALAPACK
       if (this%isHybridXc) then
         if (this%tRealHS .and. this%hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
@@ -1077,11 +1082,13 @@ contains
 
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
-      if (this%tStress) then
-        call printCellInfo(this%fdDetailedOut%unit, this%latVec, this%cellVol)
+      if (this%geometryChanges%tLatOpt .or. this%geometryChanges%tBarostat) then
+        call printLatticeInfo(this%fdDetailedOut%unit, this%geometryChanges, this%latVec,&
+            & this%cellVol)
       end if
       call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
-          & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+          & iGeoStep, this%geometryChanges%tMd, this%geometryChanges%tDerivs,&
+          & this%geometryChanges%tCoordOpt, this%geometryChanges%tLatOpt, iLatGeoStep,&
           & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
           & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
           & this%invLatVec, this%kPoint)
@@ -1168,7 +1175,7 @@ contains
     call this%electronicSolver%reset()
     tExitGeoOpt = .false.
 
-    if (this%tMD .and. tWriteRestart .and. isFirstDet) then
+    if (this%geometryChanges%tMd .and. tWriteRestart .and. isFirstDet) then
       if (iGeoStep == 0) then
         call openOutputFile(mdOut, .false., this%fdMd)
       end if
@@ -1176,10 +1183,10 @@ contains
     end if
 
     if (this%tLatticeChanged) then
-      call handleLatticeChange(this%latVec, this%scc, this%tblite, this%tStress, this%extPressure,&
-          & this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation, this%cm5Cont,&
-          & this%recVec, this%invLatVec, this%cellVol, this%recCellVol, this%extLatDerivs,&
-          & this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
+      call handleLatticeChange(this%latVec, this%scc, this%tblite, this, this%tStress,&
+          & this%extPressure, this%cutOff%mCutOff, this%repulsive, this%dispersion, this%solvation,&
+          & this%cm5Cont, this%recVec, this%invLatVec, this%cellVol, this%recCellVol,&
+          & this%extLatDerivs, this%cellVec, this%rCellVec, this%boundaryCond, this%transpar)
       this%tLatticeChanged = .false.
     end if
 
@@ -1418,17 +1425,18 @@ contains
             ! is optimized. If not, SSR state is optimized.
             call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
             call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep,&
-                & this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
-                & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
-                & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
-                & this%extPressure, this%cellVol, this%tAtomicEnergy, this%dispersion,&
-                & this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
+                & this%geometryChanges%tMd, this%geometryChanges%tDerivs,&
+                & this%geometryChanges%tCoordOpt, this%geometryChanges%tLatOpt, iLatGeoStep,&
+                & iSccIter, this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom,&
+                & this%pCoord0Out, this%q0, this%qOutput, this%orb, this%species,&
+                & this%tPrintMulliken, this%extPressure, this%cellVol, this%tAtomicEnergy,&
+                & this%dispersion, this%tPeriodic, this%tSccCalc, this%invLatVec, this%kPoint,&
                 & this%iAtInCentralRegion, this%electronicSolver, this%reks,&
                 & allocated(this%thirdOrd), this%isHybridXc, qNetAtom=this%qNetAtom,&
                 & isMdftb=allocated(this%quadrupoleMoment))
           end if
           if (this%tWriteBandDat) then
-            if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+            if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
               call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
                   & isFileAppended=this%mdOutput%bandStructure)
             else
@@ -1497,7 +1505,7 @@ contains
 
           if (this%tWriteBandDat) then
             if (this%deltaDftb%nDeterminant() == 1) then
-              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+              if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
                 ! the iGeoStep test is so that the initial step has a new file
                 call writeBandOut(bandOut, this%eigen, this%filling, this%kWeight,&
                     & isFileAppended=this%mdOutput%bandStructure)
@@ -1506,7 +1514,7 @@ contains
               end if
             else
               ! Multiple determinants
-              if (this%tMD .and. iGeoStep /= 0 .and. tWriteRestart) then
+              if (this%geometryChanges%tMd .and. iGeoStep /= 0 .and. tWriteRestart) then
                 ! the iGeoStep test is so that the initial step has a new file
                 call writeBandOut(this%deltaDftb%determinantName(this%deltaDftb%iDeterminant) //&
                     & '_' //  bandOut, this%eigen, this%filling, this%kWeight,&
@@ -1619,8 +1627,9 @@ contains
       call closeFile(this%fdDetailedOut)
       call openOutputFile(userOut, tAppendDetailedOut, this%fdDetailedOut)
       if (allocated(this%reks)) then
-        call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep, this%tMD,&
-            & this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep, iSccIter,&
+        call writeReksDetailedOut1(this%fdDetailedOut%unit, this%nGeoSteps, iGeoStep,&
+            & this%geometryChanges%tMd, this%geometryChanges%tDerivs,&
+            & this%geometryChanges%tCoordOpt, this%geometryChanges%tLatOpt, iLatGeoStep, iSccIter,&
             & this%dftbEnergy(1), diffElec, sccErrorQ, this%indMovedAtom, this%pCoord0Out,&
             & this%q0, this%qOutput, this%orb, this%species, this%tPrintMulliken,&
             & this%extPressure, this%cellVol, this%tAtomicEnergy, this%dispersion, this%tPeriodic,&
@@ -1629,7 +1638,8 @@ contains
             & qNetAtom=this%qNetAtom, isMdftb=allocated(this%quadrupoleMoment))
       else
         call writeDetailedOut1(this%fdDetailedOut%unit, this%iDistribFn, this%nGeoSteps,&
-            & iGeoStep, this%tMD, this%tDerivs, this%tCoordOpt, this%tLatOpt, iLatGeoStep,&
+            & iGeoStep, this%geometryChanges%tMd, this%geometryChanges%tDerivs,&
+            & this%geometryChanges%tCoordOpt, this%geometryChanges%tLatOpt, iLatGeoStep,&
             & iSccIter, this%dftbEnergy(this%deltaDftb%iDeterminant), diffElec, sccErrorQ,&
             & this%indMovedAtom, this%pCoord0Out, this%tPeriodic, this%tSccCalc, this%tNegf,&
             & this%invLatVec, this%kPoint)
@@ -1755,19 +1765,20 @@ contains
     end if
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
-    if ((this%isGeoOpt .or. allocated(this%geoOpt)) .and. tWriteRestart) then
+    if ((this%geometryChanges%isgeoopt .or. allocated(this%geoOpt)) .and. tWriteRestart) then
       if (.not. (this%deltaDftb%isSpinPurify .and.&
           & this%deltaDftb%iDeterminant == determinants%triplet)) then
-        call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
-            & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
-            & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
-            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
+        call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%geometryChanges%tLatOpt,&
+            & this%geometryChanges%tMd, this%tAppendGeo.and.iGeoStep>0, this%tFracCoord,&
+            & this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0, this%speciesName,&
+            & this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin, this%qOutput,&
+            & this%velocities)
       endif
     end if
     if (len(trim(this%extendedGeomFile)) > 0) then
-      call writeExtendedGeometry(trim(this%extendedGeomFile), this%tLatOpt, this%tMd,&
-          & this%tAppendGeo.and.iGeoStep>0, this%speciesName, iGeoStep, iLatGeoStep, this%coord,&
-          & this%species)
+      call writeExtendedGeometry(trim(this%extendedGeomFile), this%geometryChanges%tLatOpt,&
+          & this%geometryChanges%tMd, this%tAppendGeo.and.iGeoStep>0, this%speciesName, iGeoStep,&
+          & iLatGeoStep, this%coord, this%species)
     end if
 
     if (this%tForces) then
@@ -1853,16 +1864,18 @@ contains
     if (this%tWriteDetailedOut .and. this%deltaDftb%nDeterminant() == 1) then
       call writeDetailedOut4(this%fdDetailedOut%unit, this%tSccCalc,&
           & allocated(this%elecConstraint), tConverged, constrConverged, this%isXlbomd,&
-          & this%isLinResp, this%isGeoOpt .or. allocated(this%geoOpt), this%tMD, this%tPrintForces,&
-          & this%tStress, this%tPeriodic, this%dftbEnergy(this%deltaDftb%iDeterminant),&
-          & this%totalStress, this%totalLatDeriv, this%derivs, this%chrgForces, this%indMovedAtom,&
-          & this%cellVol, this%intPressure, this%geoOutFile, this%iAtInCentralRegion)
+          & this%isLinResp, this%geometryChanges%isgeoopt .or. allocated(this%geoOpt),&
+          & this%geometryChanges%tMd, this%tPrintForces, this%tStress, this%tPeriodic,&
+          & this%dftbEnergy(this%deltaDftb%iDeterminant), this%totalStress, this%totalLatDeriv,&
+          & this%derivs, this%chrgForces, this%indMovedAtom, this%cellVol, this%intPressure,&
+          & this%geoOutFile, this%iAtInCentralRegion)
     end if
 
     if (this%tSccCalc .and. allocated(this%electrostatPot)&
-        & .and. (.not. (this%isGeoOpt .or. allocated(this%geoOpt) .or. this%tMD)&
-        & .or. needsRestartWriting(this%isGeoOpt .or. allocated(this%geoOpt), this%tMd,&
-        & iGeoStep, this%nGeoSteps, this%restartFreq))) then
+        & .and. (.not. (this%geometryChanges%isgeoopt .or. allocated(this%geoOpt) .or.&
+        & this%geometryChanges%tMd) .or. needsRestartWriting(this%geometryChanges%isgeoopt&
+        & .or. allocated(this%geoOpt), this%geometryChanges%tMd, iGeoStep, this%nGeoSteps,&
+        & this%restartFreq))) then
       call this%electrostatPot%evaluate(env, this%scc, this%eField)
       call writeEsp(this%electrostatPot, env, iGeoStep, this%nGeoSteps)
     end if
@@ -1970,7 +1983,7 @@ contains
     this%tLatticeChanged = .false.
 
     tExitGeoOpt = .false.
-    if (this%tDerivs) then
+    if (this%geometryChanges%tDerivs) then
 
       call getNextDerivStep(this%derivDriver, this%derivs, this%indMovedAtom, this%indDerivAtom,&
           & this%coord0, tGeomEnd)
@@ -2017,13 +2030,13 @@ contains
       tGeomEnd = converged
       this%tCoordsChanged = .true.
       this%tLatticeChanged = this%tPeriodic .and. this%filter%lattice
-    else if (this%isGeoOpt) then
+    else if (this%geometryChanges%isgeoopt) then
       this%tCoordsChanged = .true.
       if (tCoordStep) then
         call getNextCoordinateOptStep(this%pGeoCoordOpt, this%dftbEnergy(this%deltaDftb%iFinal),&
             & this%derivs, this%indMovedAtom, this%coord0, diffGeo, tCoordEnd,&
             & .not. this%tCasidaForces)
-        if (.not. this%tLatOpt) then
+        if (.not. this%geometryChanges%tLatOpt) then
           tGeomEnd = tCoordEnd
         end if
         if (.not. tGeomEnd .and. tCoordEnd .and. diffGeo < tolSameDist) then
@@ -2031,11 +2044,12 @@ contains
         end if
       else
         call getNextLatticeOptStep(this%pGeoLatOpt, this%dftbEnergy(this%deltaDftb%iFinal),&
-            & constrLatDerivs, this%origLatVec, this%tLatOptFixAng, this%tLatOptFixLen,&
-            & this%tLatOptIsotropic, this%indMovedAtom, this%latVec, this%coord0, diffGeo, tGeomEnd)
+            & constrLatDerivs, this%origLatVec, this%geometryChanges%tLatOptFixAng,&
+            & this%geometryChanges%tLatOptFixLen, this%geometryChanges%tLatOptIsotropic,&
+            & this%indMovedAtom, this%latVec, this%coord0, diffGeo, tGeomEnd)
         iLatGeoStep = iLatGeoStep + 1
         this%tLatticeChanged = .true.
-        if (.not. tGeomEnd .and. this%tCoordOpt) then
+        if (.not. tGeomEnd .and. this%geometryChanges%tCoordOpt) then
           tCoordStep = .true.
           call reset(this%pGeoCoordOpt,&
               & reshape(this%coord0(:, this%indMovedAtom), [this%nMovedCoord]))
@@ -2046,17 +2060,17 @@ contains
         tExitGeoOpt = .true.
         return
       end if
-    else if (this%tMD) then
+    else if (this%geometryChanges%tMd) then
       ! New MD coordinates saved in a temporary variable, as writeCurrentGeometry() below
       ! needs the old ones to write out consistent geometries and velocities.
       this%newCoords(:,:) = this%coord0
       call getNextMdStep(this%pMdIntegrator, this%pMdFrame, this%temperatureProfile, this%derivs,&
           & this%movedMass, this%mass, this%cellVol, this%invLatVec, this%species0,&
-          & this%indMovedAtom, this%tStress, this%tBarostat,&
+          & this%indMovedAtom, this%tStress, this%geometryChanges%tBarostat,&
           & this%dftbEnergy(this%deltaDftb%iFinal), this%newCoords, this%latVec,&
           & this%intPressure, this%totalStress, this%totalLatDeriv, this%velocities, tempIon)
       this%tCoordsChanged = .true.
-      this%tLatticeChanged = this%tBarostat
+      this%tLatticeChanged = this%geometryChanges%tBarostat
       call printMdInfo(this%tSetFillingTemp, this%eField, this%tPeriodic, this%tempElec,&
           & tempIon, this%intPressure, this%extPressure,&
           & this%dftbEnergy(this%deltaDftb%iFinal))
@@ -2068,11 +2082,12 @@ contains
               & + this%extPressure * this%cellVol
         end if
         call writeMdOut2(this%fdMd%unit, this%tPeriodic, this%tPrintForces, this%tStress,&
-            & this%tBarostat, this%isLinResp, this%eField, this%tFixEf, this%tPrintMulliken,&
-            & this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs, this%totalStress,&
-            & this%cellVol, this%intPressure, this%extPressure, tempIon, this%qOutput, this%q0,&
-            & this%dipoleMoment, this%eFieldScaling, this%dipoleMessage, this%quadrupoleMoment,&
-            & this%electronicSolver, this%deltaDftb, this%iAtInCentralRegion, this%mdOutput)
+            & this%geometryChanges%tBarostat, this%isLinResp, this%eField, this%tFixEf,&
+            & this%tPrintMulliken, this%dftbEnergy, this%energiesCasida, this%latVec, this%derivs,&
+            & this%totalStress, this%cellVol, this%intPressure, this%extPressure, tempIon,&
+            & this%qOutput, this%q0, this%dipoleMoment, this%eFieldScaling, this%dipoleMessage,&
+            & this%quadrupoleMoment, this%electronicSolver, this%deltaDftb,&
+            & this%iAtInCentralRegion, this%mdOutput)
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
@@ -2180,7 +2195,7 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tblite, tStress, extPressure, mCutOff,&
+  subroutine handleLatticeChange(latVecs, sccCalc, tblite, this, tStress, extPressure, mCutOff,&
       & repulsive, dispersion, solvation, cm5Cont, recVecs, invLatVecs, cellVol, recCellVol,&
       & extLatDerivs, cellVecs, rCellVecs, boundaryCond, transpar)
 
@@ -2192,6 +2207,9 @@ contains
 
     !> Library interface handler
     type(TTBLite), allocatable, intent(inout) :: tblite
+
+    !> Global variables
+    type(TDftbPlusMain), intent(in) :: this
 
     !> Evaluate stress
     logical, intent(in) :: tStress
@@ -2273,7 +2291,7 @@ contains
     end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, invLatVecs, mCutOff, boundaryCond)
 
-    call printCellInfo(stdOut, latVecs, cellVol)
+    call printLatticeInfo(stdOut, this%geometryChanges, this%latVec, this%cellVol)
 
   end subroutine handleLatticeChange
 
