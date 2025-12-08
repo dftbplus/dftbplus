@@ -18,7 +18,7 @@
 # Fortran compiler settings
 #
 # -mismatch is necessary as libmbd calls LAPACK routines with incompatible signature
-set(Fortran_FLAGS "-ieee=full -mismatch -maxcontin=512 ${CMAKE_Fortran_FLAGS}"
+set(Fortran_FLAGS "-ieee=full -mismatch -maxcontin=1200 ${CMAKE_Fortran_FLAGS}"
   CACHE STRING "Build type independent Fortran compiler flags")
 
 set(Fortran_FLAGS_RELEASE "-O2"
