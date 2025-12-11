@@ -85,6 +85,7 @@ The following properties can be specified:
   \kw{ImagComponent} & l & \textrm{complex wavefunction} & No & \\
   \kw{FoldAtomsToUnitCell} & l & \textrm{periodic system} & No & \\
   \kw{FillBoxWithAtoms} & l & & No & \\
+  \kw{FOD} &l &\kw{GroundState}=\is{Yes} & No & \\
   \kw{NrOfCachedGrids} & i & & -1 &  \\
   \kw{Verbose} & l & & No &  \\
   \kw{RepeatBox} & 3i & & \{1 1 1\} & \\
@@ -176,6 +177,11 @@ PlottedSpins =  1 2      # Both spin-up and spin-down plotted
 \item[\is{FillBoxWithAtoms}] If true, the geometry is extended by those
   periodic images of the original atoms, which falls in the plotted
   region or on its borders.  It sets \is{FoldAtomsToUnitCell} to Yes.
+
+\item[\is{FOD}] Fractional orbital density (FOD) for ground state
+  systems~\cite{grimme2015practicable}. The initial \dftbp{}
+  calculation to generate the wave function data should be performed
+  at high temperatures, and the total charge density plotted.
 
 \item[\is{NrOfCachedGrids}] Specifies how many grids should be cached
   at the same time. The value \is{-1} stands for as many as necessary
