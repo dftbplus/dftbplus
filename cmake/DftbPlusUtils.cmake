@@ -58,6 +58,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DINTERNAL_ERFC=1)
   endif()
 
+  if(WITH_CUDA)
+      list(APPEND _fyppflags -DWITH_CUDA)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()

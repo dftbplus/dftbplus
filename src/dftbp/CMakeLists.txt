@@ -38,6 +38,7 @@ add_subdirectory(timedep)
 add_subdirectory(type)
 add_subdirectory(solvation)
 add_subdirectory(transport)
+add_subdirectory(wavegrid)
 if(WITH_API)
   add_subdirectory(api/mm)
 endif()
@@ -58,6 +59,10 @@ target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:ddcosmo_objlib>)
 
 if(WITH_SOCKETS)
   target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
+endif()
+
+if(WITH_CUDA)
+    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:wavegrid_cuda_objlib>)
 endif()
 
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
