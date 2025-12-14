@@ -858,7 +858,8 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
   \kw{Steps} &i &  & - & \\
   \kw{TimeStep} & r & & - & \\
-  \kw{KeepStationary} & l & & Yes & \\
+  \kw{RemoveTranslation} & l & & Yes & \\
+  \kw{RemoveRotation}    & l & Periodic = No & No & \\
   \kw{Thermostat} & m &  & - & \pref{sec:dftbp.Thermostat} \\
   \kw{OutputPrefix} &s & & "geo\_end" & \\
   \kw{MDRestartFrequency} & i & & 1 & \\
@@ -878,8 +879,11 @@ selection expressions, as described in appendix \ref{sec:index_selection}.
   thermostat using a \kwcb{TemperatureProfile} the number of steps is
   calculated from the profile.
 
-\item[\is{KeepStationary}] Remove translational motion from the system.
+\item[\is{RemoveTranslation}] Remove translational motion from the system.
 
+\item[\is{RemoveRotation}] Remove rotation around the centre of mass
+  from the system. This can only be applied to finite (i.e. molecular)
+  systems.
 
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   MD steps.

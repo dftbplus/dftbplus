@@ -15,7 +15,7 @@ module dftbp_md_nhctherm
   use dftbp_common_accuracy, only : dp, lc, minTemp
   use dftbp_io_message, only : error
   use dftbp_math_ranlux, only : TRanlux
-  use dftbp_md_mdcommon, only : evalKE, init, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
+  use dftbp_md_mdcommon, only : evalKE, MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
   use dftbp_md_thermostat, only : TThermostat
   implicit none
@@ -202,13 +202,16 @@ contains
 
 
   !> Returns the initial velocities.
-  subroutine TNhcTherm_getInitVelocities(this, velocities)
+  subroutine TNhcTherm_getInitVelocities(this, velocities, coord)
 
     !> NHCThermostat instance.
     class(TNhcTherm), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: kT
     integer :: ii
@@ -222,7 +225,7 @@ contains
     do ii = 1, this%nAtom
        call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(this%pMDFrame, velocities, this%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass, coord)
     call rescaleTokT(this%pMDFrame, velocities, this%mass, kT)
 
   end subroutine TNhcTherm_getInitVelocities
@@ -232,13 +235,16 @@ contains
   !!
   !! routines based on NHCINT from reference
   !!
-  subroutine TNhcTherm_updateVelocities(this, velocities)
+  subroutine TNhcTherm_updateVelocities(this, velocities, coord)
 
     !> NHCThermostat instance.
     class(TNhcTherm), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     integer :: nnos1, iresn, iyosh, inos
     real(dp) :: qmass(this%nnos)
@@ -304,7 +310,7 @@ contains
     velocities = scaling * velocities
 
     ! is this needed :
-    call restFrame(this%pMDFrame, velocities, this%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass, coord)
 
   end subroutine TNhcTherm_updateVelocities
 

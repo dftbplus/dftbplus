@@ -9,13 +9,16 @@
 
 !> Common routines for MD calculations
 module dftbp_md_mdcommon
-  use dftbp_common_accuracy, only : dp
+  use dftbp_common_accuracy, only : dp, rsp
   use dftbp_common_constants, only : pi
+  use dftbp_geometry_projectvectors, only : getCentreOfMass, getPrincipleAxes
+  use dftbp_math_lapackroutines, only : gesv
   use dftbp_math_ranlux, only : getRandom, TRanlux
+  use dftbp_math_simplealgebra, only : cross3
   implicit none
 
   private
-  public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
+  public :: TMDCommon, TMDCommon_init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann, TMDOutput
 
 
@@ -31,8 +34,14 @@ module dftbp_md_mdcommon
     !> Total number of atoms
     integer :: nAllAtom
 
-    !> Should atomic motio be transformed to rest frame?
+    !> Should atomic translation be transformed to rest frame?
     logical :: isTranslationRemoved
+
+    !> Should atomic rotation be transformed to rest frame?
+    logical :: isRotationRemoved
+
+    !> Number of degrees of freedom for rotation
+    integer :: nRotationDegrees = 0
 
   end type TMDCommon
 
@@ -53,13 +62,6 @@ module dftbp_md_mdcommon
     logical :: printAtomEnergies = .false.
 
   end type TMDOutput
-
-
-  !> initialise thermostat
-  interface init
-    module procedure MDCommon_init
-  end interface
-
 
   !> transform to co-moving frame if needed
   interface restFrame
@@ -82,8 +84,8 @@ contains
 
 
   !> Creates MD Framework.
-  subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, isTranslationRemoved)!, coords,&
-      !& isRotationRemoved)
+  subroutine TMDCommon_init(sf, nMovedAtom, nAllAtom, isTranslationRemoved, mass, coords,&
+      & isRotationRemoved)
 
     !> MD Framework instance.
     type(TMDCommon), intent(out) :: sf
@@ -95,26 +97,46 @@ contains
     integer, intent(in) :: nAllAtom
 
     !> If system should be transformed to translational rest frame
-    logical :: isTranslationRemoved
+    logical, intent(in) :: isTranslationRemoved
+
+    !> Particle masses
+    real(dp), intent(in) :: mass(:)
 
     !> Atomic coordinates
-    !real(dp) :: coords(:,:)
+    real(dp), intent(in) :: coords(:,:)
 
-    integer :: nDegrees
+    !> If system should be transformed to rotational rest frame
+    logical, intent(in) :: isRotationRemoved
+
+    integer :: ii
+    real(dp) :: cm(3), axes(3,3), moments(3)
 
     @:ASSERT(nMovedAtom <= nAllAtom)
     sf%nAllAtom = nAllAtom
     sf%nMovedAtom = nMovedAtom
     sf%isTranslationRemoved = isTranslationRemoved
-    !sf%isRotationRemoved = isRotationRemoved
+    sf%isRotationRemoved = isRotationRemoved
+
+    if (sf%isRotationRemoved) then
+      cm(:) = getCentreOfMass(coords, mass)
+      call getPrincipleAxes(axes, moments, coords, mass, cm)
+      sf%nRotationDegrees = 0
+      do ii = 1, 3
+        if (moments(ii) < epsilon(0.0_rsp)) then
+          ! zero moment of inertia - linear molecule, and this direction is along its axis
+          cycle
+        end if
+        sf%nRotationDegrees = sf%nRotationDegrees + 1
+      end do
+    end if
 
     call updateNf(sf)
 
-  end subroutine MDCommon_init
+  end subroutine TMDCommon_init
 
 
   !> Shift velocities so the total velocity is 0
-  subroutine  MDCommon_restFrame(sf, velocity, mass)
+  subroutine  MDCommon_restFrame(sf, velocity, mass, coords)
 
     !> MD Framework instance.
     type(TMDCommon), intent(inout) :: sf
@@ -126,20 +148,56 @@ contains
     real(dp), intent(in) :: mass(:)
 
     !> Particle coordinates
-    !real(dp), intent(in) :: coords(:,:)
+    real(dp), intent(in) :: coords(:,:)
 
-    real(dp) :: mv(3)
-    integer :: nDegrees
+    integer :: ii, iAt
+    real(dp) :: mv(3), cm(3), axes(3,3), moments(3), iTmp(3), rTmp(3), vTmp(3), rMag
+    real(dp) :: L(3), omega(3)
 
     if (sf%isTranslationRemoved) then
       ! calculate total momentum of the system
       mv(:) = sum(spread(mass(:), 1, 3) * velocity(:,:), dim=2)
-
       ! get the total velocity of the system
       mv(:) = mv(:) / sum(mass)
-
       ! and shift so that it is 0
       velocity(:,:) = velocity(:,:) - spread(mv(:), 2, size(mass))
+    end if
+
+    if (sf%isRotationRemoved) then
+
+      cm(:) = getCentreOfMass(coords, mass)
+      call getPrincipleAxes(axes, moments, coords, mass, cm)
+
+      sf%nRotationDegrees = 0
+      do ii = 1, 3
+        if (moments(ii) < epsilon(0.0_rsp)) then
+          ! zero moment of inertia - linear molecule, and this direction is along its axis
+          cycle
+        end if
+        sf%nRotationDegrees = sf%nRotationDegrees + 1
+      end do
+
+      L(:) = 0.0_dp
+      do iAt = 1, sf%nAllAtom
+        rTmp(:) = coords(:, iAt) - cm
+        L(:) = L + cross3(rTmp, velocity(:,iAt) * mass(iAt))
+      end do
+
+      omega(:) = 0.0_dp
+      do ii = 1, 3
+        if (moments(ii) < epsilon(0.0_rsp)) then
+          ! zero moment of inertia - linear molecule, and this direction is along its axis
+          cycle
+        end if
+        omega(:) = omega + axes(:,ii) * dot_product(L,axes(:,ii)) / moments(ii)
+      end do
+
+      do iAt = 1, sf%nAllAtom
+        rTmp(:) = coords(:, iAt) - cm
+        vTmp(:) = cross3(rTmp, omega)
+        velocity(:,iAt) = velocity(:,iAt) + vTmp
+      end do
+
     end if
 
     call updateNf(sf)
@@ -295,12 +353,14 @@ contains
 
     integer :: nDegrees
 
-    if (sf%nMovedAtom /= sf%nAllAtom .or. .not. sf%isTranslationRemoved) then
-      ! there are fixed atoms present, all moving atoms have 3 degrees of freedom
-      nDegrees = 3 * sf%nMovedAtom
-    else
-      ! translational motion is removed, total of 3n - 3 degrees of freedom
-      nDegrees = 3 * (sf%nMovedAtom - 1)
+    nDegrees = 3 * sf%nMovedAtom
+    if (sf%isTranslationRemoved) then
+      ! Translational motion is removed, total of 3n - 3 degrees of freedom
+      nDegrees = nDegrees - 3
+    end if
+    if (sf%isRotationRemoved) then
+      ! Rotational motion is removed, either 3 or 2 depending if system is linear
+      nDegrees = nDegrees - sf%nRotationDegrees
     end if
 
     sf%Nf = real(nDegrees, dp)

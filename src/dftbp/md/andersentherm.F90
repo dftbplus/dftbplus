@@ -109,13 +109,16 @@ contains
 
 
   !> Returns the initial velocities.
-  subroutine TAndersenTherm_getInitVelocities(this, velocities)
+  subroutine TAndersenTherm_getInitVelocities(this, velocities, coord)
 
     !> Instance
     class(TAndersenTherm), intent(inout) :: this
 
     !> Velocities on return.
     real(dp), intent(out) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: kT
     integer :: ii
@@ -129,20 +132,23 @@ contains
     do ii = 1, this%nAtom
       call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(this%pMDFramework, velocities, this%mass)
+    call restFrame(this%pMDFramework, velocities, this%mass, coord)
     call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
 
   end subroutine TAndersenTherm_getInitVelocities
 
 
   !> Updates the provided velocities according the current temperature.
-  subroutine TAndersenTherm_updateVelocities(this, velocities)
+  subroutine TAndersenTherm_updateVelocities(this, velocities, coord)
 
     !> Instance
     class(TAndersenTherm), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
+
+    !> Particle coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: rescaleChance
     real(dp) :: kT
@@ -158,7 +164,7 @@ contains
           call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end if
       end do
-      call restFrame(this%pMDFramework, velocities, this%mass)
+      call restFrame(this%pMDFramework, velocities, this%mass, coord)
     else
       ! all atoms re-set at random
       call getRandom(this%pRanlux, rescaleChance)
@@ -166,7 +172,7 @@ contains
         do ii = 1, this%nAtom
           call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end do
-        call restFrame(this%pMDFramework, velocities, this%mass)
+        call restFrame(this%pMDFramework, velocities, this%mass, coord)
         call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
       end if
     end if
