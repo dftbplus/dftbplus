@@ -11,6 +11,7 @@
 !> Note: parserVersion is set in parser.F90
 module dftbp_dftbplus_oldcompat
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_release, only : TVersionMap
   use dftbp_extlibs_xmlf90, only : char, destroyNode, destroyNodeList, fnode, fnodeList, getItem1,&
       & getLength, getNodeName, removeChild, string
   use dftbp_io_charmanip, only : i2c, newline, tolower
@@ -22,7 +23,23 @@ module dftbp_dftbplus_oldcompat
   implicit none
 
   private
-  public :: convertOldHSD
+  public :: convertOldHSD, minVersion, parserVersion, versionMaps
+
+
+  !> Actual input version <-> parser version maps (must be updated at every public release)
+  type(TVersionMap), parameter :: versionMaps(*) = [&
+      & TVersionMap("25.1", 14),&
+      & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
+      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
+      & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
+      & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  integer, parameter :: minVersion = 1
+
+  !> Version of the current parser (as latest version)
+  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
+
 
 contains
 
