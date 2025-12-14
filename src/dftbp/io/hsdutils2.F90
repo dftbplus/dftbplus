@@ -210,10 +210,10 @@ contains
     character(len=*), intent(in) :: name
 
     !> Whether the original HSD-name should be also updated (default: .false.)
-    !>
-    !> If set to .true., the attribute storing the original capitalized HSD-name will also be
-    !> updated if present. Otherwise, it is kept at its original value.
-    !>
+    !!
+    !! If present and set to .false., the attribute storing the original HSD-name will not be
+    !! updated. Default behaviour (i.e. if absent) is .true.
+    !!
     logical, optional, intent(in) :: updateHsdName
 
     type(string) :: buffer
@@ -221,7 +221,7 @@ contains
 
     @:ASSERT(associated(node))
 
-    updateHsdName_ = .false.
+    updateHsdName_ = .true.
     if (present(updateHsdName)) updateHsdName_ = updateHsdName
 
     call setTagName(node, tolower(name))
