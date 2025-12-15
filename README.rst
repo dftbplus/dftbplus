@@ -170,12 +170,12 @@ DFTB+ is released under the GNU Lesser General Public License. See the included
 
 
 
-.. |DFTB+ logo| image:: https://www.dftbplus.org/fileadmin/DFTBPLUS/images/DFTB-Plus-Icon_06_f_150x150.png
+.. |DFTB+ logo| image:: https://www.dftbplus.org/_assets/DFTB-Plus-Icon_06_f_150x150.png
     :alt: DFTB+ website
     :scale: 100%
     :target: https://dftbplus.org/
 
-.. |lgpl badge| image:: http://www.dftbplus.org/fileadmin/DFTBPLUS/images/license-GNU-LGPLv3-blue.svg
+.. |lgpl badge| image:: http://www.dftbplus.org/_assets/license-GNU-LGPLv3-blue.svg
     :alt: LGPL v3.0
     :scale: 100%
     :target: https://opensource.org/licenses/LGPL-3.0
