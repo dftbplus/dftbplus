@@ -16,7 +16,7 @@ module dftbp_dftb_elecconstraints
   use dftbp_geoopt_package, only : createOptimizer, TOptimizer, TOptimizerInput
   use dftbp_io_hsdutils, only : detailedError, getChild, getChildren, getChildValue,&
       & getSelectedAtomIndices
-  use dftbp_io_hsdutils2, only : renameChildren
+  use dftbp_io_hsdutils2, only : localiseName
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_typegeometry, only : TGeometry
   use dftbp_type_wrappedintr, only : TWrappedInt1, TWrappedReal2
@@ -179,7 +179,7 @@ contains
 
     type(fnode), pointer :: constrContainer, dummyNode, child1
 
-    call renameChildren(node, "Optimizer", "Optimiser")
+    call localiseName(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child1, "FIRE")
     call readOptimizerInput(child1, input%optimiser)
 
