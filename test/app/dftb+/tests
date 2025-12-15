@@ -105,6 +105,7 @@ input/unsorted_contcar                 #? MPI_PROCS <= 1
 hybrid/cluster/C18H12-force-hyb                    #? MPI_PROCS <= 4
 hybrid/cluster/C18H12-force-lc                     #? not WITH_MPI
 hybrid/cluster/C18H12-force-cam                    #? MPI_PROCS <= 4
+legacy/parser/v4                                   #? MPI_PROCS <= 4
 hybrid/cluster/C18H12-nbscreening                  #? not WITH_MPI
 hybrid/cluster/C18H12-matrix                       #? MPI_PROCS <= 4
 hybrid/cluster/CH3                                 #? not WITH_MPI

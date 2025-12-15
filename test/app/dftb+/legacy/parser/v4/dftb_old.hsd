@@ -1,0 +1,47 @@
+Geometry = GenFormat {
+  <<< "C18H12.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1.0E-008  # Extremely small
+  MaxSCCIterations = 1000
+
+  Eigensolver = Standard {}
+  Mixer = Broyden {}
+
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/hybrid/cam/HC/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  RangeSeparated = CAM {
+    Screening = MatrixBased {}
+  }
+
+}
+
+Options {
+  CalculateForces = Yes
+  WriteAutotestTag = Yes
+  MullikenAnalysis = Yes
+}
+
+ParserOptions {
+  ParserVersion = 4
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

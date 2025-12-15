@@ -118,6 +118,9 @@ Fixed
 
 - Enable CI test cases and fix a parser bug
 
+- Fix backward compatibility bug from release 22.2 which led to
+  dftb_pin.hsd files containing obsolete keywords
+
 24.1 (2024-02-12)
 =================
 
