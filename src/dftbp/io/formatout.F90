@@ -408,14 +408,14 @@ contains
     write(stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
         & verticalBar
     write(stdOut, '(2A)') verticalBar,&
-        & '  When publishing results obtained with DFTB+, please cite the following', verticalBar,&
-        & '  reference:'
+        & '  When publishing results obtained with DFTB+, please cite the following',&
+        & verticalBar, '  reference:'
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A)') verticalBar,&
-        & '  * DFTB+, a software package for efficient approximate density functional',&
+        & '    Recent Developments in DFTB+, a Software Package for Efficient Atomistic',&
         & verticalBar,&
-        & '    theory based atomistic simulations, J. Chem. Phys. 152, 124101 (2020).',&
-        & verticalBar, '    [doi: 10.1063/1.5143190]'
+        & '    Quantum Mechanical Simulations, J. Phys. Chem. A 129, 5373−5390 (2025).',&
+        & verticalBar, '    [https://doi.org/10.1021/acs.jpca.5c01146]'
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A,2(/,2A))') verticalBar,&
         & '  You should also cite additional publications crediting the parametrization',&
