@@ -21,33 +21,24 @@ Installation
 Obtaining via Conda
 -------------------
 
-The preferred way of obtaining DFTB+ is to install it via the conda package
-management framework using `Miniconda
-<https://docs.conda.io/en/latest/miniconda.html>`_ or `Anaconda
-<https://www.anaconda.com/products/individual>`_. Make sure to add/enable the
-``conda-forge`` channel in order to be able to access DFTB+, and ensure that
-the ``conda-forge`` channel is the first repository to be searched for
-packages. (Please consult the conda documentation for how to set-up your conda
-environment.)
-
-We recommend the use of the `mamba installer <https://mamba.readthedocs.io/>`_,
-as we have experienced dependency resolution problems with the original conda
-installer in the past::
-
-  conda install -n base mamba
+The preferred way of to install DFTB+ is by using the conda package management
+system. We highly suggest using the `miniforge
+<https://github.com/conda-forge/miniforge>`_ conda distribution. You can use
+any other conda distribution as well, just make sure to select the `conda-forge
+<https://conda-forge.org/>`_ channel as the (only) source for packages.
 
 We provide several build variants, choose the one suiting your needs. For
 example, by issuing ::
 
-  mamba install 'dftbplus=*=nompi_*'
+  conda install 'dftbplus=*=nompi_*'
 
 or ::
 
-  mamba install 'dftbplus=*=mpi_mpich_*'
+  conda install 'dftbplus=*=mpi_mpich_*'
 
 or ::
 
-  mamba install 'dftbplus=*=mpi_openmpi_*'
+  conda install 'dftbplus=*=mpi_openmpi_*'
 
 to get the last stable release of DFTB+ with, respectively, serial
 (OpenMP-threaded) build or with MPI-parallelized build using either the MPICH or
