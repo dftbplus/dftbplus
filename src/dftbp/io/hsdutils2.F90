@@ -32,7 +32,7 @@ module dftbp_io_hsdutils2
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
   public :: setUnprocessed, getDescendant, setProcessed
   public :: convertUnitHsd
-  public :: renameChildren
+  public :: renameChildren, localiseName
 
 
   !> Converts according to passed modifier and array of possible units by multplicating the provided
@@ -445,5 +445,23 @@ contains
     call destroyNodeList(children)
 
   end subroutine renameChildren
+
+
+  !> Alias for renameChildren, intended to be used for regional localisation spellings in the hsd
+  !> file, without substitutions to British spelling in the resulting dftb_pin file
+  subroutine localiseName(node, localName, anglicisedName)
+
+    !> Root node containing the children
+    type(fnode), pointer, intent(in) :: node
+
+    !> Old name of the children
+    character(*), intent(in) :: localName
+
+    !> New name of the children
+    character(*), intent(in) :: anglicisedName
+
+    call renameChildren(node, localName, anglicisedName, updateHsdNames=.false.)
+
+  end subroutine localiseName
 
 end module dftbp_io_hsdutils2

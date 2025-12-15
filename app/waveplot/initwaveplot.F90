@@ -29,7 +29,7 @@ module waveplot_initwaveplot
   use dftbp_io_hsdparser, only : dumpHSD, parseHSD
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
       & getChildValue, getSelectedIndices, setChild, setChildValue
-  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, renameChildren, warnUnprocessedNodes
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, localiseName, warnUnprocessedNodes
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : removeChildNodes
   use dftbp_math_simplealgebra, only : determinant33
@@ -558,7 +558,7 @@ contains
     call getChildValue(node, "TotalChargeDensity", this%opt%tPlotTotChrg, .false.)
 
     if (nSpin == 2) then
-      call renameChildren(node, "TotalSpinPolarization", "TotalSpinPolarisation")
+      call localiseName(node, "TotalSpinPolarization", "TotalSpinPolarisation")
       call getChildValue(node, "TotalSpinPolarisation", this%opt%tPlotTotSpin, .false.)
     else
       this%opt%tPlotTotSpin = .false.

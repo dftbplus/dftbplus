@@ -65,7 +65,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
       & getChildValue, getSelectedAtomIndices, setChild, setChildValue
-  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, renameChildren, setUnprocessed,&
+  use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, localiseName, setUnprocessed,&
       & splitModifier
   use dftbp_io_message, only : error, warning
   use dftbp_math_simplealgebra, only : cross3, determinant33, diagonal
@@ -480,7 +480,7 @@ contains
     end if
   #:endif
 
-    call renameChildren(parent, "GeometryOptimization", "GeometryOptimisation")
+    call localiseName(parent, "GeometryOptimization", "GeometryOptimisation")
     call getNodeName2(node, buffer)
     driver: select case (char(buffer))
     case ("")
@@ -2326,7 +2326,7 @@ contains
     type(fnode), pointer :: value1, child
     type(string) :: buffer
 
-    call renameChildren(node, "SpinPolarization", "SpinPolarisation")
+    call localiseName(node, "SpinPolarization", "SpinPolarisation")
     call getChildValue(node, "SpinPolarisation", value1, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     select case(char(buffer))
@@ -4107,7 +4107,7 @@ contains
     end if
     call getChildValue(node, "WriteHS", ctrl%tWriteHS, .false.)
     call getChildValue(node, "WriteRealHS", ctrl%tWriteRealHS, .false.)
-    call renameChildren(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
+    call localiseName(node, "MinimizeMemoryUsage", "MinimiseMemoryUsage")
     call getChildValue(node, "MinimiseMemoryUsage", ctrl%tMinMemory, .false., child=child)
     if (ctrl%tMinMemory) then
       call detailedWarning(child, "Memory minimisation is not working currently, normal calculation&
@@ -4261,7 +4261,7 @@ contains
             &modifier=modifier2, child=child3)
         call convertUnitHsd(char(modifier2), lengthUnits, child3, &
             &rCutoffs(iSp1))
-        call renameChildren(child2, "HybridPolarizations", "HybridPolarisations")
+        call localiseName(child2, "HybridPolarizations", "HybridPolarisations")
         call getChildValue(child2, "HybridPolarisations", tmp2R2(:, iSp1), &
             &modifier=modifier2, child=child3)
         if (len(modifier2) > 0) then
@@ -5042,7 +5042,7 @@ contains
       call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
       ctrl%lrespini%iLinRespSolver = linRespSolverTypes%None
 
-      call renameChildren(child, "Diagonalizer", "Diagonaliser")
+      call localiseName(child, "Diagonalizer", "Diagonaliser")
       call getChildValue(child, "Diagonaliser", child2, allowEmptyValue=.true.)
       if (associated(child2)) then
         call getNodeName(child2, buffer)
@@ -5065,7 +5065,7 @@ contains
         call detailedError(child, "Missing diagonaliser method")
       end if
 
-      call renameChildren(child, "OptimizerCI", "OptimiserCI")
+      call localiseName(child, "OptimizerCI", "OptimiserCI")
       call getChild(child, "OptimiserCI", child2, requested=.false.)
       if (associated(child2)) then
         call getChildValue(child, "OptimiserCI", child2, child=child3)
@@ -5220,7 +5220,7 @@ contains
       end if
       call destroyNodeList(children)
 
-      call renameChildren(node, "Localize", "Localise")
+      call localiseName(node, "Localize", "Localise")
       call getChild(node, "Localise", child=val, requested=.false.)
       if (associated(val)) then
         ctrl%tLocalise = .true.
@@ -5270,7 +5270,7 @@ contains
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
       ! electric field polarisability of system
-      call renameChildren(node, "Polarizability", "Polarisability")
+      call localiseName(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
         if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
@@ -5780,7 +5780,7 @@ contains
     type(fnode), pointer :: child, child2
     integer :: iSp1
 
-    call renameChildren(node, "CustomizedHubbards", "CustomisedHubbards")
+    call localiseName(node, "CustomizedHubbards", "CustomisedHubbards")
     call getChild(node, "CustomisedHubbards", child, requested=.false.)
     if (associated(child)) then
       allocate(hubbU(orb%mShell, geo%nSpecies))
@@ -5898,7 +5898,7 @@ contains
 
     case ("kick")
       input%pertType = pertTypes%kick
-      call renameChildren(value1, "PolarizationDirection", "PolarisationDirection")
+      call localiseName(value1, "PolarizationDirection", "PolarisationDirection")
       call getChildValue(value1, "PolarisationDirection", buffer2)
       input%polDir = directionConversion(unquote(char(buffer2)), value1)
 
@@ -5916,9 +5916,9 @@ contains
 
     case ("laser")
       input%pertType = pertTypes%laser
-      call renameChildren(value1, "PolarizationDirection", "PolarisationDirection")
+      call localiseName(value1, "PolarizationDirection", "PolarisationDirection")
       call getChildValue(value1, "PolarisationDirection", input%reFieldPolVec)
-      call renameChildren(value1, "ImagPolarizationDirection", "ImagPolarisationDirection")
+      call localiseName(value1, "ImagPolarizationDirection", "ImagPolarisationDirection")
       call getChildValue(value1, "ImagPolarisationDirection", input%imFieldPolVec, &
           & [0.0_dp, 0.0_dp, 0.0_dp])
       call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
@@ -7666,7 +7666,7 @@ contains
     character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
-    call renameChildren(root, "CustomizedOccupations", "CustomisedOccupations")
+    call localiseName(root, "CustomizedOccupations", "CustomisedOccupations")
     call getChild(root, "CustomisedOccupations", container, requested=.false.)
     if (.not. associated(container)) then
       return

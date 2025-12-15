@@ -22,7 +22,7 @@ module dftbp_solvation_solvparser
   use dftbp_extlibs_xmlf90, only : char, fnode, getNodeName, string
   use dftbp_io_charmanip, only : tolower, unquote
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildValue, setChild
-  use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
+  use dftbp_io_hsdutils2, only : convertUnitHsd, localiseName
   use dftbp_math_bisect, only : bisection
   use dftbp_solvation_born, only : fgbKernel, TGBInput
   use dftbp_solvation_cm5, only : TCM5Input
@@ -62,7 +62,7 @@ contains
     type(fnode), pointer :: solvModel
     type(string) :: buffer
 
-    call renameChildren(node, "GeneralizedBorn", "GeneralisedBorn")
+    call localiseName(node, "GeneralizedBorn", "GeneralisedBorn")
     call getChildValue(node, "", solvModel)
     call getNodeName(solvModel, buffer)
 
@@ -337,7 +337,7 @@ contains
     type(fnode), pointer :: child
 
     call getChildValue(node, "MaxMoment", input%lmax, child=child)
-    call renameChildren(node, "Regularization", "Regularisation")
+    call localiseName(node, "Regularization", "Regularisation")
     call getChildValue(node, "Regularisation", input%eta, 0.2_dp, child=child)
     call getChildValue(node, "Accuracy", input%conv, child=child)
 
