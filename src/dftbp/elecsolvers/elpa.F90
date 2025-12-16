@@ -44,6 +44,9 @@ module dftbp_elecsolvers_elpa
     !> Enable ELPA autotuning
     logical :: autotune = .false.
 
+    !> Name of the autotuning state file
+    character(:), allocatable :: autotuneFile
+
     !> Enable GPU usage in ELPA
     logical :: gpu = .false.
 
@@ -74,6 +77,9 @@ module dftbp_elecsolvers_elpa
 
     !> Whether we are currently autotuning
     logical :: autotuning = .false.
+
+    !> Name of the autotuning state file
+    character(:), allocatable :: autotuneFile
 
     !> Whether we should redistribute the matrix each call
     logical :: redistributing = .false.
@@ -236,6 +242,7 @@ contains
 
     if (inp%autotune) then
       this%autotuning = .true.
+      this%autotuneFile = inp%autotuneFile
     else
       select case (inp%solver)
         case (1)
@@ -507,12 +514,12 @@ contains
         call error("ELPA error: elpa_autotune_step failed")
       end if
 
-      if (.not. unfinished) then
-        call this%handle%autotune_print_state(this%autotune, status)
-        if (status /= ELPA_OK) then
-          call error("ELPA error: elpa_autotune_print_state failed")
-        end if
+      call this%handle%autotune_save_state(this%autotune, this%autotuneFile, status)
+      if (status /= ELPA_OK) then
+        call error("ELPA error: elpa_autotune_save_state failed")
+      end if
 
+      if (.not. unfinished) then
         call this%handle%autotune_set_best(this%autotune, status)
         if (status /= ELPA_OK) then
           call error("ELPA error: elpa_autotune_set_best failed")
