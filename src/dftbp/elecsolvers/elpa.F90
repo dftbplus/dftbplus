@@ -226,7 +226,7 @@ contains
     end if
 
     status = this%handle%setup()
-    if (status /= elpa_ok) then
+    if (status /= ELPA_OK) then
       call error("ELPA error: elpa_setup failed")
     end if
 
@@ -491,10 +491,11 @@ contains
     logical, intent(in) :: hasCholesky
 
     integer(kind=c_int) :: status
-    logical :: unfinished
+    logical :: unfinished, previousStateExists
 
   #:if WITH_ELPA
 
+    previousStateExists = .false.
     if (this%autotuning .and. this%joinElpaCalls) then
       if (.not. associated(this%autotune)) then
         if (this%gpu) then
@@ -504,14 +505,23 @@ contains
           this%autotune => this%handle%autotune_setup(ELPA_AUTOTUNE_FAST,&
               & ELPA_AUTOTUNE_DOMAIN_${DTYPE.upper()}$, status)
         end if
-        if (status /= elpa_ok) then
+        if (status /= ELPA_OK) then
           call error("elpa error: elpa_autotune_setup failed")
         end if
+
+        inquire(file=this%autotuneFile, exist=previousStateExists)
       end if
 
       unfinished = this%handle%autotune_step(this%autotune, status)
       if (status /= ELPA_OK) then
         call error("ELPA error: elpa_autotune_step failed")
+      end if
+
+      if (previousStateExists) then
+        call this%handle%autotune_load_state(this%autotune, this%autotuneFile, status)
+        if (status /= ELPA_OK) then
+          call error("ELPA error: elpa_autotune_load_state failed")
+        end if
       end if
 
       call this%handle%autotune_save_state(this%autotune, this%autotuneFile, status)
