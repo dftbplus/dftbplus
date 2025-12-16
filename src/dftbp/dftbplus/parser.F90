@@ -2689,6 +2689,8 @@ contains
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
       call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
+      call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
+      ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
       call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
       #:if not WITH_GPU
         if (ctrl%solver%elpa%gpu) then
