@@ -2468,22 +2468,38 @@ It accepts following options:
 \subsubsection{ELPA}
 
 The ELPA solver provides an efficient and scalable diagonaliser, which is also
-able to utilise GPUs (provided the ELSI library was compiled with GPU support).
+able to utilise GPUs. It can be included standalone or via the ELSI library.
 It accepts following options
 
 \begin{ptable}
   \kw{Autotune} & l& & No & \\
+  \kw{AutotuneFile} & s& Autotune = Yes & "elpa\_autotune\_state.out" & \\
   \kw{Gpu}    & l& & No & \\
   \kw{Mode} & i& & 2 & \\
+  \kw{RedistributeFactor} & i& & 1 & \\
+  \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
   \kw{Sparse} & l& & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{Autotune}] Whether ELPAs autotune capability should be used to
+\item[\is{Autotune}] Whether ELPA's autotune capability should be used to
   optimise performance (default: \is{No})
+\item[\is{AutotuneFile}] The ELPA autotune state is stored in this file.
+  If present at startup, the autotuning process is resumed using its previous
+  state. (default: \is{elpa\_autotune\_state.out})
 \item[\is{Gpu}] Whether ELPA should use available GPUs (default: \is{No}). Note,
   that you can only enable this option, if \dftbp{} was built with GPU support.
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
   default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
+  Mode 1 is strongly recommended if \is{Gpu = Yes}.
+\item[\is{RedistributeFactor}] Call ELPA with a reduced number of MPI ranks. The
+  total number of ranks is devided by \is{RedistributeFactor}, that is, only
+  every \is{RedistributeFactor}th rank participates in ELPA calls
+  (must be greater or equal to \is{1}, default: \is{1}). The matrix
+  will be redistributed accordingly from its full block-cyclic distribution to
+  a new distribution on the selected subset of ranks. This feature is not
+  available if ELPA is included via the ELSI library.
+\item[\is{RedistributeRanks}] Explicit list of MPI ranks to be used to call
+  ELPA, for example, \is{\{0, 2\}}. The matrix will be redistributed accordingly.
 \item[\is{Sparse}] Whether the sparse matrix interface of ELPA should be used or
   the dense one (default: dense). The sparse interface does not reduce memory
   usage and is mainly for testing purposes.
@@ -2492,7 +2508,7 @@ It accepts following options
 Example:\invparskip
 \begin{verbatim}
   Solver = ELPA {
-    Mode = 2
+    Mode = 1
     Autotune = Yes
     Gpu = Yes
   }
