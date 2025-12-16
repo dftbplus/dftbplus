@@ -2680,9 +2680,13 @@ contains
     case ("elpa")
       allocate(ctrl%solver%elsi)
       allocate(ctrl%solver%elpa)
-      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
+      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false., child=child)
       if (ctrl%solver%elsi%elsiCsr) then
         ctrl%solver%isolver = electronicSolverTypes%elpadm
+        #:if WITH_ELPA
+          call detailedError(child, "The sparse interface is not supported if ELPA is directly&
+              & included without using the ELSI interface")
+        #:endif
       else
         ctrl%solver%isolver = electronicSolverTypes%elpa
       end if
