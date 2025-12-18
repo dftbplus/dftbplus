@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,6 @@
 
 !> Contains functionality to check environment settings.
 module dftbp_common_envcheck
-
   use, intrinsic :: iso_c_binding, only : c_char, c_int
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment

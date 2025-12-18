@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,7 +8,8 @@
 !> example code for changing internal charges inside calculation
 program test_intcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus
+  use dftbplus, only : convertAtomTypesToSpecies, dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild,&
+      & getMaxAngFromSlakoFile, setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none

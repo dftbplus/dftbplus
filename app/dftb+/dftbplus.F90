@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 
 program dftbplus
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv
   use dftbp_common_release, only : releaseName, releaseYear
   use dftbp_dftbplus_hsdhelpers, only : parseHsdInput
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain

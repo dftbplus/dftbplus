@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,22 +9,19 @@
 
 !> main module for the DFTB+ API
 module dftbp_dftbplus_mainapi
-  use dftbp_common_accuracy, only : dp, mc, tolSameDist
+  use dftbp_common_accuracy, only : dp, mc
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
-  use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumber,&
+  use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&
       & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_charmanip, only : newline
   use dftbp_io_message, only : error
-  use dftbp_math_sorting, only : index_heap_sort
-  use dftbp_timedep_timeprop, only : initializeDynamics, finalizeDynamics, doTdStep
+  use dftbp_timedep_timeprop, only : doTdStep, finalizeDynamics, initializeDynamics
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_orbitals, only : TOrbitals
-  use dftbp_type_wrappedintr, only : TWrappedInt1
 #:if WITH_SCALAPACK
   use dftbp_dftbplus_initprogram, only : getDenseDescBlacs
   use dftbp_extlibs_scalapackfx, only : scalafx_getlocalshape
@@ -32,13 +29,13 @@ module dftbp_dftbplus_mainapi
   implicit none
 
   private
-  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getCM5Charges
-  public :: getElStatPotential, getStressTensor, nrOfAtoms, nrOfKPoints, getAtomicMasses, getCutOff
-  public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
-  public :: initializeTimeProp, finalizeTimeProp, doOneTdStep, setTdElectricField, setNeighbourList
-  public :: setTdCoordsAndVelos, getTdForces
-  public :: getRefCharges, setRefCharges, setElectronNumber
+  public :: checkSpeciesNames, doOneTdStep, finalizeTimeProp, getAtomicMasses, getCM5Charges
+  public :: getCutOff, getElStatPotential, getEnergy, getExtChargeGradients, getGradients
+  public :: getGrossCharges, getLocalKS, getRefCharges, getStressTensor, getTdForces
+  public :: initializeTimeProp, nrOfAtoms, nrOfKPoints, nrOfLocalKS, nrOfSpin, setElectronNumber
+  public :: setExternalCharges, setExternalEfield, setExternalPotential, setGeometry
+  public :: setNeighbourList, setQDepExtPotProxy, setRefCharges, setTdCoordsAndVelos
+  public :: setTdElectricField, updateDataDependentOnSpeciesOrdering
 
 contains
 
@@ -138,6 +135,8 @@ contains
     call setNeighbourListOrig(main%neighbourList, env, nNeighbour, iNeighbour, neighDist, cutOff,&
         & main%coord0, main%species0, coordNeighbours, neighbour2CentCell, main%rCellVec,&
         & main%nAllAtom, main%img2CentCell, main%iCellVec, main%coord, main%species)
+    main%areNeighSetExternal = .true.
+    main%tCoordsChanged = .true.
 
   end subroutine setNeighbourList
 
@@ -424,6 +423,35 @@ contains
   end subroutine setExternalPotential
 
 
+  !> Sets up an external electric field.
+  subroutine setExternalEfield(main, EfieldStr, EfieldVec)
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Electric field amplitude
+    real(dp), intent(in) :: EfieldStr
+
+    !> Unitary electric field vector. Shape: (3)
+    real(dp), intent(in) :: EfieldVec(:)
+
+    if (.not. allocated(main%eField)) then
+      call error('External electric fields not available, you must initialise the "ElectricField"&
+          & keyword in your calculator.')
+    end if
+    if (.not. allocated(main%eField)) then
+      call error('External electric fields not available, you must initialise the "External"&
+          & keyword in your calculator within the "ElectricField" block.')
+    end if
+    main%eField%EFieldStrength  = EfieldStr
+    main%eField%EfieldVector(:) = EfieldVec(:)
+    ! work around for lack (at the moment) for a flag to re-calculate ground state even if
+    ! geometries are unchanged.
+    main%tCoordsChanged = .true.
+
+  end subroutine setExternalEfield
+
+
   !> Sets up a generator for external population dependant potentials
   subroutine setQDepExtPotProxy(main, extPotProxy)
 
@@ -496,11 +524,26 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Resulting atom count
     integer :: nrOfAtoms
 
     nrOfAtoms = main%nAtom
 
   end function nrOfAtoms
+
+
+  !> Obtains number of spin channels in the system
+  function nrOfSpin(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> Spin channel count (1 for spin free, 2 conventional z-spin, 4 non-collinear)
+    integer :: nrOfSpin
+
+    nrOfSpin = main%nSpin
+
+  end function nrOfSpin
 
 
   !> Obtains number of k-points in the system (1 if not a repeating structure)
@@ -509,11 +552,41 @@ contains
     !> Instance
     type(TDftbPlusMain), intent(in) :: main
 
+    !> Number of k-points present
     integer :: nrOfKPoints
 
     nrOfKPoints = main%nKPoint
 
   end function nrOfKPoints
+
+
+  !> Obtains number of (k-point,spin chanel) pairs in current process group
+  function nrOfLocalKS(main)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> k-points and spin on the local processor group
+    integer :: nrOfLocalKS
+
+    nrOfLocalKS = main%parallelKS%nLocalKS
+
+  end function nrOfLocalKS
+
+
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine getLocalKS(main, localKS)
+
+    !> Instance
+    type(TDftbPlusMain), intent(in) :: main
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !! Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    localKS(:,:) = main%parallelKS%localKS
+
+  end subroutine getLocalKS
 
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
@@ -557,8 +630,8 @@ contains
 
 
   !> When order of atoms changes, update arrays containing atom type indices,
-  !> and all subsequent dependencies.
-  !  Updated data returned via module use statements
+  !! and all subsequent dependencies.
+  !! Updated data returned via module use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, main, inputSpecies)
 
     !> dftb+ environment
@@ -569,6 +642,9 @@ contains
 
     !> types of the atoms (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
+
+    !> Error status
+    type(TStatus) :: errStatus
 
     ! Check data is consistent across MPI processes
   #:block DEBUG_CODE
@@ -614,7 +690,10 @@ contains
         & main%qShell0)
     call initElectronNumber(main%q0, main%nrChrg, main%nrSpinPol, main%nSpin, main%orb,&
         & main%nEl0, main%nEl)
-    call main%initializeCharges()
+    call main%initializeCharges(errStatus)
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
 
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -654,14 +733,14 @@ contains
       main%electronDynamics%dt = dt
       main%electronDynamics%iCall = 1
       call initializeDynamics(main%electronDynamics, main%boundaryCond, main%coord0, main%orb,&
-          & main%neighbourList, main%nNeighbourSK, main%denseDesc%iAtomStart, main%iSparseStart,&
-          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
-          & main%H0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU,&
-          & main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling, main%rangeSep,&
-          & main%referenceN0, main%q0, main%repulsive, main%iAtInCentralRegion, main%eigvecsReal,&
+          & main%neighbourList, main%nNeighbourSK, main%symNeighbourList, main%nNeighbourCamSym,&
+          & main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell, main%skHamCont,&
+          & main%skOverCont, main%ints, env, main%coord, main%H0, main%spinW, main%tDualSpinOrbit,&
+          & main%xi, main%thirdOrd, main%dftbU, main%onSiteElements, main%refExtPot,&
+          & main%solvation, main%eFieldScaling, main%hybridXc, main%referenceN0, main%q0,&
+          & main%repulsive, main%iAtInCentralRegion, main%densityMatrix, main%eigvecsReal,&
           & main%eigvecsCplx, main%filling, main%qDepExtPot, main%tFixEf, main%Ef, main%latVec,&
-          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species,&
-          & main%electronicSolver, errStatus)
+          & main%invLatVec, main%iCellVec, main%rCellVec, main%cellVec, main%species, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
@@ -722,12 +801,13 @@ contains
 
     if (main%electronDynamics%tPropagatorsInitialized) then
       call doTdStep(main%electronDynamics, main%boundaryCond, iStep, main%coord0, main%orb,&
-          & main%neighbourList, main%nNeighbourSK,main%denseDesc%iAtomStart, main%iSparseStart,&
-          & main%img2CentCell, main%skHamCont, main%skOverCont, main%ints, env, main%coord,&
-          & main%q0, main%referenceN0, main%spinW, main%tDualSpinOrbit, main%xi, main%thirdOrd,&
-          & main%dftbU, main%onSiteElements, main%refExtPot, main%solvation, main%eFieldScaling,&
-          & main%rangeSep, main%repulsive, main%iAtInCentralRegion, main%tFixEf, main%Ef,&
-          & main%electronicSolver, main%qDepExtPot, errStatus)
+          & main%neighbourList, main%nNeighbourSK, main%symNeighbourList, main%nNeighbourCamSym,&
+          & main%denseDesc%iAtomStart, main%iSparseStart, main%img2CentCell, main%skHamCont,&
+          & main%skOverCont, main%ints, env, main%coord, main%q0, main%referenceN0, main%spinW,&
+          & main%tDualSpinOrbit, main%xi, main%thirdOrd, main%dftbU, main%onSiteElements,&
+          & main%refExtPot, main%solvation, main%eFieldScaling, main%hybridXc, main%repulsive,&
+          & main%iAtInCentralRegion, main%tFixEf, main%Ef, main%electronicSolver, main%qDepExtPot,&
+          & errStatus)
 
       if (errStatus%hasError()) then
         call error(errStatus%message)
@@ -737,7 +817,7 @@ contains
         dipole(:,:) = main%electronDynamics%dipole
       end if
       if (present(energy)) then
-        energy = main%electronDynamics%energy%eSCC
+        energy = main%electronDynamics%energy%etotal
       end if
       if (present(atomNetCharges)) then
         atomNetCharges(:,:) = main%electronDynamics%deltaQ
@@ -752,7 +832,7 @@ contains
         occ(:) = main%electronDynamics%occ
       end if
     else
-      call error("Propagators for dynamics not initialize, please call initializeTimeProp()&
+      call error("Propagators for dynamics not initialized, please call initializeTimeProp()&
           & first.")
     end if
 

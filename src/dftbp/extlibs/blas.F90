@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@
 !>
 !> ALL BLAS routines which are called from the main code must be included here.
 module dftbp_extlibs_blas
-  use dftbp_common_accuracy, only : rsp, rdp
+  use dftbp_common_accuracy, only : rdp, rsp
   public
 
   interface

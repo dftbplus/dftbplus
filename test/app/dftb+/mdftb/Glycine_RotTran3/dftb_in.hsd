@@ -1,0 +1,96 @@
+Geometry = GenFormat {
+10 C
+N C O H
+     1   1   -3.4344629304763630E+00   -3.1729725495174690E+00    4.9189563678807016E+00
+     2   2   -4.4870311639984886E+00   -2.8125788070583546E+00    5.8800065196295188E+00
+     3   2   -5.8866573741903965E+00   -3.0871368508030850E+00    5.3044746852720221E+00
+     4   3   -6.8957903727677969E+00   -2.9690640278386877E+00    5.9608716533175814E+00
+     5   3   -5.8831442609301980E+00   -3.4506552252346778E+00    4.0130670735994602E+00
+     6   4   -4.9323953758112182E+00   -3.4695964748468087E+00    3.7486770652630086E+00
+     7   4   -4.4111684093507257E+00   -3.3465587607712091E+00    6.8326872906593907E+00
+     8   4   -4.4470787840299888E+00   -1.7439243974847498E+00    6.1130236868806538E+00
+     9   4   -2.9536784222551375E+00   -4.0299483684161723E+00    5.1715208595998883E+00
+    10   4   -2.7403461750698606E+00   -2.4433659153953577E+00    4.8028168427010565E+00
+}
+
+Hamiltonian = DFTB {
+  Charge = 0
+  SCC = Yes
+  SCCTolerance = 1.0E-9
+  MaxSCCIterations = 300
+  Filling = Fermi {
+    Temperature = 0.0
+  }
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+  }
+
+  ThirdOrderFull = Yes
+  HubbardDerivs = {
+    H = -0.1857
+    C = -0.1492
+    N = -0.1535
+    O = -0.1575
+  }
+
+  Mdftb = OneCenterApproximation {
+    AtomDIntegralScalings = {
+      H = 0.0
+      C = 0.8
+      N = 0.6
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 0.0
+      C = 2.6
+      N = 3.4
+      O = 3.0
+    }
+    OneCenterAtomIntegrals = {
+      H:S|XX|S   = 0.55976
+      C:S|X|Px   = 0.79621
+      C:S|XX|S   = 0.76689
+      C:Px|XX|Px = 1.38550
+      C:Py|XX|Py = 0.46183
+      N:S|X|Px   = 0.68857
+      N:S|XX|S   = 0.57638
+      N:Px|XX|Px = 1.05308
+      N:Py|XX|Py = 0.35103
+      O:S|X|Px   = 0.60894
+      O:S|XX|S   = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+  }
+
+  SlaterKosterFiles = Type2Filenames {
+    Prefix = {slakos/origin/m3ob-test/}
+    Suffix = ".skf"
+    Separator = "-"
+  }
+}
+
+ParserOptions = {
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
+}
+
+Analysis = {
+  PrintForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+}
+
+Parallel{
+  Blacs{BlockSize=2}
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

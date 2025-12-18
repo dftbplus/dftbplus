@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -128,9 +128,10 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    url = 'https://github.com/dftbplus/testparams/archive/6165104e60efbdb3ad05d005c282ada50f12dfef.tar.gz'
+    commit_SHA='0e1d95abc70339d017fd53d40c41c041057fd03f'
+    url = f'https://github.com/dftbplus/testparams/archive/{commit_SHA}.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
-    unpackname = os.path.join(destdir, 'testparams-6165104e60efbdb3ad05d005c282ada50f12dfef')
+    unpackname = os.path.join(destdir, f'testparams-{commit_SHA}')
     targetname = os.path.join(destdir, 'origin')
     if os.path.exists(unpackname):
         shutil.rmtree(unpackname)

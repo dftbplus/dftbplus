@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 
 !> Linked list of single strings
 module dftbp_type_linkedlists0
-  use dftbp_extlibs_xmlf90, only : string, assignment(=), operator(==), len
+  use dftbp_extlibs_xmlf90, only : assignment(=), len, operator(==), string
   implicit none
 
   private

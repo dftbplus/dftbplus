@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,7 +26,7 @@ module dftbp_type_latpointiter
     !> Lattice vectors
     real(dp) :: latVecs(3, 3)
 
-    !> Index ranges necessary to obtain all lattcie points within given cutoff
+    !> Index ranges necessary to obtain all lattice points within given cutoff
     integer :: ranges(2, 3)
 
     !> Indices of the current lattice point
@@ -49,6 +49,7 @@ module dftbp_type_latpointiter
 
     !> Whether iterator has returned last point
     logical :: tFinished = .false.
+
   contains
     procedure :: getNextPoint => TLatPointIter_getNextPoint
     procedure :: getAllPoints => TLatPointIter_getAllPoints
@@ -59,7 +60,7 @@ contains
 
   !> Initialises the lattice point iterator.
   subroutine TLatPointIter_init(this, latVecs, invLatVecs, cutoff, negExtension, posExtension,&
-      & onlyInside, reduceByInversion, excludeOrigin)
+      & onlyInside, reduceByInversion, excludeOrigin, dimensions)
 
     !> Instance
     type(TLatPointIter), intent(out) :: this
@@ -88,6 +89,9 @@ contains
     !> whether to exclude the (0,0,0) point
     logical,  intent(in), optional :: excludeOrigin
 
+    !> Lattice vectors over which to generate points, if restricted from 3D
+    integer, intent(in), optional :: dimensions(:)
+
     integer :: ranges(2, 3)
 
     if (present(negExtension)) then
@@ -107,7 +111,13 @@ contains
     end if
 
     this%latVecs(:,:) = latVecs
-    call getRanges(cutoff, invLatVecs, this%posExt, this%negExt, ranges)
+    @:ASSERT(cutoff >= 0.0_dp)
+  #:block DEBUG_CODE
+    if (present(dimensions)) then
+      @:ASSERT(size(dimensions) <= 3)
+    end if
+  #:endblock DEBUG_CODE
+    call getRanges_(cutoff, invLatVecs, this%posExt, this%negExt, ranges, dimensions)
     this%ranges(1,:) = minval(ranges, dim=1)
     this%ranges(2,:) = maxval(ranges, dim=1)
     this%curPoint(:) = this%ranges(1,:)
@@ -130,6 +140,7 @@ contains
 
     real(dp) :: rr(3)
     integer :: curPoint(3)
+
 
     curPoint(:) = this%curPoint
     do
@@ -222,13 +233,13 @@ contains
 
 
   !> Calculate the range of images of the central cell that interact
-  subroutine getRanges(dist, recVec2p, posExt, negExt, ranges)
+  pure subroutine getRanges_(dist, invLatVecs, posExt, negExt, ranges, dimensions)
 
     !> distance of interaction
     real(dp), intent(in) :: dist
 
     !> reciprocal lattice vector
-    real(dp), intent(in) :: recVec2p(:,:)
+    real(dp), intent(in) :: invLatVecs(:,:)
 
     !> Extend the set along the positive lattice vectors with that many additional lattice vectors.
     integer, intent(in) :: posExt
@@ -239,16 +250,27 @@ contains
     !> Array of the two extremal points
     integer, intent(out) :: ranges(:,:)
 
-    integer :: ii, iTmp
+    !> Lattice vectors over which to generate points, if restricted from 3D
+    integer, intent(in), optional :: dimensions(:)
 
-    @:ASSERT(dist >= 0.0_dp)
+    integer :: ii, jj, iTmp
 
-    do ii = 1, 3
-      iTmp = floor(dist * sqrt(sum(recVec2p(:, ii)**2)))
-      ranges(1, ii) = -(iTmp + negExt)
-      ranges(2, ii) = iTmp + posExt
-    end do
+    if (present(dimensions)) then
+      ranges(:, :) = 0
+      do jj = 1, size(dimensions)
+        ii = dimensions(jj)
+        iTmp = floor(dist * sqrt(sum(invLatVecs(:, ii)**2)))
+        ranges(1, ii) = -(iTmp + negExt)
+        ranges(2, ii) = iTmp + posExt
+      end do
+    else
+      do ii = 1, 3
+        iTmp = floor(dist * sqrt(sum(invLatVecs(:, ii)**2)))
+        ranges(1, ii) = -(iTmp + negExt)
+        ranges(2, ii) = iTmp + posExt
+      end do
+    end if
 
-  end subroutine getRanges
+  end subroutine getRanges_
 
 end module dftbp_type_latpointiter

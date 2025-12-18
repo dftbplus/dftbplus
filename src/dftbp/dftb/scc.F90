@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,17 +11,25 @@
 module dftbp_dftb_scc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions
-  use dftbp_dftb_chargeconstr, only : TChrgConstr, TChrgConstr_init
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
+  use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coulomb, only : TCoulombInput, TCoulomb, TCoulomb_init
+  use dftbp_dftb_coulomb, only : invRPrime, TCoulomb, TCoulomb_init, TCoulombInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_shortgamma, only : TShortGammaInput, TShortGamma, TShortGamma_init
+  use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
   use dftbp_dftbplus_elstattypes, only : elstatTypes
-  use dftbp_extlibs_poisson, only : TPoissonInput, TPoisson, TPoisson_init
+  use dftbp_extlibs_poisson, only : TPoisson, TPoisson_init, TPoissonInput
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
+  
+#:if WITH_SCALAPACK
+  use mpi
+  use dftbp_extlibs_mpifx, only : mpifx_allreduceip
+  use dftbp_extlibs_scalapackfx, only : CSRC_, MB_, NB_, RSRC_, scalafx_indxl2g
+
+#:endif
+  
   implicit none
 
   private
@@ -31,16 +39,16 @@ module dftbp_dftb_scc
   !> Data necessary to initialize the SCC module
   type TSccInput
 
-    !> external charges
+    !> External charges
     real(dp), allocatable :: extCharges(:,:)
 
-    !> if broadened external charges
+    !> If broadened external charges
     real(dp), allocatable :: blurWidths(:)
 
-    !> any constraints on atomic charges
-    real(dp), allocatable :: chrgConstraints(:,:)
+    !> Any penalties on atomic charges
+    real(dp), allocatable :: chrgPenalties(:,:)
 
-    !> third order energy contributions
+    !> Third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
 
     !> Calculator for short gamma
@@ -53,12 +61,12 @@ module dftbp_dftb_scc
     type(TPoissonInput), allocatable :: poissonInput
 
     !> Boundary condition of the system
-    integer :: boundaryCond = boundaryConditions%unknown
+    integer :: boundaryCond = boundaryCondsEnum%unknown
 
   end type TSccInput
 
 
-  !> private module variables for SCC
+  !> Private module variables for SCC
   type TScc
     private
 
@@ -101,17 +109,17 @@ module dftbp_dftb_scc
     !> Is the system periodic?
     logical :: tPeriodic
 
-    !> Shifts due charge constrains?
-    logical :: tChrgConstr
+    !> Shifts due charge penalties?
+    logical :: tChrgPenalty
 
-    !> Object for charge constraints
-    type(TChrgConstr), allocatable :: chrgConstr
+    !> Object for charge penalties
+    type(TChrgPenalty), allocatable :: chrgPenalties
 
-    !> use third order contributions
+    !> Use third order contributions
     logical :: tThirdOrder
 
     !> Shifts due to 3rd order
-    type(TChrgConstr), allocatable :: thirdOrder
+    type(TChrgPenalty), allocatable :: thirdOrder
 
     !> External charges
     type(TExtCharges), allocatable :: extCharges
@@ -152,6 +160,13 @@ module dftbp_dftb_scc
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
 
+  #:if WITH_SCALAPACK
+    
+    !> Routine for returning lower triangle of atomic resolved gamma as a matrix
+    procedure :: getAtomicGammaMatrixBlacs
+
+  #:endif 
+
     !> Routine for returning lower triangle of atomic resolved gamma for specified U values
     procedure :: getAtomicGammaMatU
 
@@ -172,6 +187,9 @@ module dftbp_dftb_scc
 
     !> Returns the shift per L contribution of the SCC.
     procedure :: getShiftPerL
+
+    !> Derivative of the shift potentials with respect an atom position
+    procedure :: addPotentialDeriv
 
     !> Calculate the "double counting" force term using linearized XLBOMD form
     procedure :: addForceDcXlbomd
@@ -196,7 +214,7 @@ module dftbp_dftb_scc
 
   ! Boundary conditions the module can handle
   integer, parameter :: implementedBoundaryConds_(*) =&
-      & [boundaryConditions%cluster, boundaryConditions%pbc3d]
+      & [boundaryCondsEnum%cluster, boundaryCondsEnum%pbc3d]
 
 
 contains
@@ -247,7 +265,7 @@ contains
       #:endblock
     end select
 
-    this%tPeriodic = (input%boundaryCond == boundaryConditions%pbc3d)
+    this%tPeriodic = (input%boundaryCond == boundaryCondsEnum%pbc3d)
 
     ! Initialise external charges
     if (allocated(input%extCharges)) then
@@ -258,16 +276,16 @@ contains
           & blurWidths=input%blurWidths)
     end if
 
-    this%tChrgConstr = allocated(input%chrgConstraints)
-    if (this%tChrgConstr) then
-      allocate(this%chrgConstr)
-      call TChrgConstr_init(this%chrgConstr, input%chrgConstraints, 2)
+    this%tChrgPenalty = allocated(input%chrgPenalties)
+    if (this%tChrgPenalty) then
+      allocate(this%chrgPenalties)
+      call TChrgPenalty_init(this%chrgPenalties, input%chrgPenalties, 2)
     end if
     this%tThirdOrder = allocated(input%thirdOrderOn)
     if (this%tThirdOrder) then
       allocate(this%thirdOrder)
       ! Factor 1/6 in the energy is put into the Hubbard derivatives
-      call TChrgConstr_init(this%thirdOrder, input%thirdOrderOn / 6.0_dp, 3)
+      call TChrgPenalty_init(this%thirdOrder, input%thirdOrderOn / 6.0_dp, 3)
     end if
 
     ! Initialise arrays for charge differences
@@ -360,7 +378,7 @@ contains
     real(dp), intent(in) :: recVec(:,:)
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryConds
+    type(TBoundaryConds), intent(in) :: boundaryConds
 
     !> New volume
     real(dp), intent(in) :: vol
@@ -463,8 +481,8 @@ contains
       #:endblock
     end select
 
-    if (this%tChrgConstr) then
-      call this%chrgConstr%buildShift(this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%buildShift(this%deltaQAtom)
     end if
     if (this%tThirdOrder) then
       call this%thirdOrder%buildShift(this%deltaQAtom)
@@ -473,7 +491,7 @@ contains
   end subroutine updateShifts
 
 
-  !> set external charge field
+  !> Set external charge field
   subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
 
     !> Instance
@@ -526,26 +544,77 @@ contains
     !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
 
-    !> neighbours of atoms
+    !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index array between images and central cell
+    !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
+
+    integer :: iam, nprocs
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
     @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
 
   #:if WITH_SCALAPACK
+    
     call error("scc:getAtomicGammaMatrix does not work with MPI yet")
+    
   #:endif
-
     gammamat(:,:) = this%coulomb%invRMat
     call this%shortGamma%addAtomicMatrix(gammamat, iNeighbour, img2CentCell)
 
   end subroutine getAtomicGammaMatrix
 
+#:if WITH_SCALAPACK
 
+  !> Returns a local copy of the lower triange of the whole gamma matrix to each processor
+  subroutine getAtomicGammaMatrixBlacs(this, gammaMat, iNeighbour, img2CentCell, env)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atom resolved gamma
+    real(dp), intent(out) :: gammaMat(:,:)
+
+    !> Neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Index array between images and central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    integer :: ii, jj, iLoc, jLoc, rSrc, cSrc
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(this%elstatType == elstatTypes%gammaFunc)
+
+    gammaMat(:,:) = 0.0_dp
+    if (env%blacs%atomGrid%iproc /= -1) then
+      ! holds part of the atom grid
+      do jLoc = 1, size(this%coulomb%invRMat, dim=2)
+        jj = scalafx_indxl2g(jLoc, this%coulomb%descInvRMat_(NB_), env%blacs%atomGrid%mycol,&
+            & this%coulomb%descInvRMat_(CSRC_), env%blacs%atomGrid%ncol)
+        do iLoc = 1, size(this%coulomb%invRMat, dim=1)
+          ii = scalafx_indxl2g(iLoc, this%coulomb%descInvRMat_(MB_), env%blacs%atomGrid%myrow,&
+              & this%coulomb%descInvRMat_(RSRC_), env%blacs%atomGrid%nrow)
+          if (ii >= jj) then
+            gammaMat(ii,jj) = this%coulomb%invRMat(iLoc,jLoc)
+            call this%shortGamma%addAtomicMatrix(gammaMat, iNeighbour, img2CentCell, ii, jj)
+          end if
+        end do
+      end do
+    end if
+    ! Assemble and distribute to all processors in the global grid
+    call mpifx_allreduceip(env%mpi%globalComm, gammaMat, MPI_SUM)
+
+  end subroutine getAtomicGammaMatrixBlacs
+
+#:endif
+  
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
   !>
   !> Works only, if SCC-instance uses Gamma-electrostatics.
@@ -558,16 +627,16 @@ contains
     !> Atom resolved gamma
     real(dp), intent(out) :: gammamat(:,:)
 
-    !> ppRPA Hubbard parameters
+    !> PpRPA Hubbard parameters
     real(dp), intent(in) :: hubbU(:)
 
     !> List of the species for each atom.
     integer,  intent(in) :: species(:)
 
-    !> neighbours of atoms
+    !> Neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index array between images and central cell
+    !> Index array between images and central cell
     integer, intent(in) :: img2CentCell(:)
 
     integer  :: iAt1, iAt2
@@ -614,8 +683,8 @@ contains
       call this%extCharges%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
 
-    if (this%tChrgConstr) then
-      call this%chrgConstr%addEnergyPerAtom(eScc, this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%addEnergyPerAtom(eScc, this%deltaQAtom)
     end if
 
     if (this%tThirdOrder) then
@@ -635,19 +704,19 @@ contains
     !> Resulting module variables
     class(TScc), intent(in) :: this
 
-    !> atomic species
+    !> Atomic species
     integer, intent(in) :: species(:)
 
-    !> orbital information
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> output charges
+    !> Output charges
     real(dp), intent(in) :: qOut(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> energy contributions
+    !> Energy contributions
     real(dp), intent(out) :: eScc(:)
 
     real(dp), allocatable :: dQOut(:,:), dQOutAtom(:), dQOutShell(:,:)
@@ -673,9 +742,9 @@ contains
       !call addEnergyPerAtom_ExtChrg(this%deltaQAtom, eScc)
     end if
 
-    if (this%tChrgConstr) then
-      call error("XLBOMD not working with charge constraints yet")
-      !call addEnergyPerAtom(this%chrgConstr, eScc, this%deltaQAtom)
+    if (this%tChrgPenalty) then
+      call error("XLBOMD not working with charge penalties yet")
+      !call addEnergyPerAtom(this%chrgPenalties, eScc, this%deltaQAtom)
     end if
 
     if (this%tThirdOrder) then
@@ -696,7 +765,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> has force contribution added
+    !> Has force contribution added
     real(dp), intent(inout) :: force(:,:)
 
     !> Species for each atom.
@@ -800,8 +869,8 @@ contains
     if (allocated(this%extCharges)) then
       call this%extCharges%addShiftPerAtom(shift)
     end if
-    if (this%tChrgConstr) then
-      call this%chrgConstr%addShiftPerAtom(shift)
+    if (this%tChrgPenalty) then
+      call this%chrgPenalties%addShiftPerAtom(shift)
     end if
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
@@ -832,6 +901,59 @@ contains
   end subroutine getShiftPerL
 
 
+  !> Derivative of the shift potentials with respect to atom positions
+  subroutine addPotentialDeriv(this, env, vAt, vShell, species, iNeighbour, img2CentCell, coord,&
+      & orb, iCart, iAt)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atomic part of derivative
+    real(dp), intent(inout) :: vAt(:)
+
+    !> Shell part of derivative
+    real(dp), intent(inout) :: vShell(:,:,:)
+
+    !> Chemical species of atoms
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Cartesian component of displacement
+    integer, intent(in) :: iCart
+
+    !> Atom displaced
+    integer, intent(in) :: iAt
+
+    ! Short-range part of gamma contribution
+    call this%shortGamma%getShiftPerShellDerivative(env, iAt, iCart, orb, this%coord, species,&
+        & iNeighbour, img2CentCell, vShell)
+
+    ! 1/R contribution
+    if (this%tPeriodic) then
+      call error("Missing at moment")
+    !  call invRPrime(vAt, nAtom_, coord, nNeighEwald_, iNeighbour, img2CentCell, gLatPoint_,&
+    !      & alpha_, volume_, deltaQAtom_, iCart, iAt)
+    else
+      call invRPrime(this%nAtom, this%coord, this%deltaQAtom, iCart, iAt, vAt)
+    end if
+
+  end subroutine addPotentialDeriv
+
+
   !> Calculate the "double counting" force term using linearized XLBOMD form.
   !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
   !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
@@ -846,22 +968,22 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> atomic species
+    !> Atomic species
     integer, intent(in) :: species(:)
 
-    !> orbital information
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> neighbours surrounding each atom
+    !> Neighbours surrounding each atom
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> index from image atoms to central cell
+    !> Index from image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> output charges
+    !> Output charges
     real(dp), intent(in) :: qOrbitalOut(:,:,:)
 
-    !> reference charges
+    !> Reference charges
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Force terms are added to this
@@ -905,10 +1027,10 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
@@ -937,10 +1059,10 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
@@ -964,16 +1086,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of all atomic species
+    !> List of all atomic species
     integer, intent(in) :: species(:)
 
-    !> neighbour list for atoms
+    !> Neighbour list for atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> indexing array for periodic image atoms
+    !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> atom resolved scc gamma derivative, \gamma_{A,B}
+    !> Atom resolved scc gamma derivative, \gamma_{A,B}
     !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
     real(dp), intent(out) :: gammaDeriv(:,:,:)
 

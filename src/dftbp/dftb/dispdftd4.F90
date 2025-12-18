@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,17 +12,16 @@
 module dftbp_dftb_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi, symbolToNumber
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coordnumber, only : TCNCont, init_ => init
-  use dftbp_dftb_dftd4param, only : TDftD4Calc, TDispDftD4Inp, TDftD4Ref, &
-      & TDftD4Calculator_init, TDftD4Ref_init
+  use dftbp_dftb_coordnumber, only : init_ => init, TCNCont
+  use dftbp_dftb_dftd4param, only : TDftD4Calc, TDftD4Calculator_init, TDftD4Ref, TDftD4Ref_init,&
+      & TDispDftD4Inp
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_encharges, only : TEeqCont, init_ => init
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_encharges, only : init_ => init, TEeqCont
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
   use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
@@ -422,16 +421,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> The vector to increase by the gradients
@@ -734,7 +733,8 @@ contains
 
   !> Calculate atomic dispersion coefficients and their derivatives w.r.t.
   !> coordination number and partial charge.
-  subroutine getAtomicC6(calc, ref, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
+  subroutine getAtomicC6(calc, ref, env, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn,&
+      & dc6dq)
 
     !> DFT-D dispersion model
     type(TDftD4Calc), intent(in) :: calc

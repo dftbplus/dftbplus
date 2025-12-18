@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,14 +13,14 @@
 !> intrinsic types.
 module dftbp_io_hsdutils2
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_unitconversion, only : TUnit, unitConvStat => statusCodes, convertUnit
-  use dftbp_extlibs_xmlf90, only : fnode, fnodeList, string, trim, len, assignment(=), parsefile,&
-      & getLength, item, char, removeAttribute, getAttribute, setAttribute, setTagName,&
-      & normalize, append_to_string, destroyNodeList, removeAttribute, getItem1
-  use dftbp_io_charmanip, only : newline, tolower, i2c
-  use dftbp_io_hsdparser, only : attrName, attrModifier
-  use dftbp_io_hsdutils, only : attrProcessed, getChild, setChildValue, detailedError,&
-      & appendPathAndLine
+  use dftbp_common_unitconversion, only : convertUnit, unitConvStat => statusCodes, TUnit
+  use dftbp_extlibs_xmlf90, only : append_to_string, assignment(=), char, destroyNodeList, fnode,&
+      & fnodeList, getAttribute, getFirstChild, getItem1, getLength, getNextSibling, item, len,&
+      & normalize, parsefile, removeAttribute, setAttribute, setTagName, string, trim
+  use dftbp_io_charmanip, only : i2c, newline, tolower
+  use dftbp_io_hsdparser, only : attrModifier, attrName
+  use dftbp_io_hsdutils, only : appendPathAndLine, attrProcessed, detailedError, getChild,&
+      & setChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_xmlutils, only : getChildrenByName, getTagsWithoutAttribute, removeNodes,&
       & removeSpace
@@ -30,7 +30,7 @@ module dftbp_io_hsdutils2
   public :: getUnprocessedNodes, warnUnprocessedNodes
   public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
-  public :: setUnprocessed, getDescendant
+  public :: setUnprocessed, getDescendant, setProcessed
   public :: convertUnitHsd
   public :: renameChildren
 
@@ -65,6 +65,40 @@ contains
     end if
 
   end subroutine setUnprocessed
+
+
+  !> Sets the processed flag on a node (and eventually on all its children)
+  recursive subroutine setProcessed(node, recursive)
+
+    !> The node to process
+    type(fnode), pointer, intent(in) :: node
+
+    !> Whether also all subnodes should be recursively included
+    logical, optional, intent(in) :: recursive
+
+    if (.not. associated(node)) return
+    call setAttribute(node, attrProcessed, "")
+    if (present(recursive)) then
+      if (recursive) call setChildrenProcessed_(node)
+    end if
+
+  contains
+
+    recursive subroutine setChildrenProcessed_(node)
+      type(fnode), pointer, intent(in) :: node
+
+      type(fnode), pointer :: child
+
+      child => getFirstChild(node)
+      do while (associated(child))
+        call setAttribute(node, attrProcessed, "")
+        call setChildrenProcessed_(child)
+        child => getNextSibling(child)
+      end do
+
+    end subroutine setChildrenProcessed_
+
+  end subroutine setProcessed
 
 
   !> Prints a warning message about unprocessed nodes
@@ -176,10 +210,10 @@ contains
     character(len=*), intent(in) :: name
 
     !> Whether the original HSD-name should be also updated (default: .false.)
-    !>
-    !> If set to .true., the attribute storing the original capitalized HSD-name will also be
-    !> updated if present. Otherwise, it is kept at its original value.
-    !>
+    !!
+    !! If present and set to .false., the attribute storing the original HSD-name will not be
+    !! updated. Default behaviour (i.e. if absent) is .true.
+    !!
     logical, optional, intent(in) :: updateHsdName
 
     type(string) :: buffer
@@ -187,7 +221,7 @@ contains
 
     @:ASSERT(associated(node))
 
-    updateHsdName_ = .false.
+    updateHsdName_ = .true.
     if (present(updateHsdName)) updateHsdName_ = updateHsdName
 
     call setTagName(node, tolower(name))

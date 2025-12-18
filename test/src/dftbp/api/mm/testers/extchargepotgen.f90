@@ -1,14 +1,14 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Dummy generator for an external potential given by surrounding point charges
 module extchargepotgen
-  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   use extchargepot, only : getPointChargePotential
+  use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen
   implicit none
   private
 

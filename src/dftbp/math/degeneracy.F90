@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,11 +9,10 @@
 
 module dftbp_math_degeneracy
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   implicit none
 
   private
-  public :: TDegeneracyFind
+  public :: TDegeneracyFind, TDegeneracyFind_init
 
   type :: TDegeneracyFind
 
@@ -35,9 +34,6 @@ module dftbp_math_degeneracy
 
   contains
 
-    !> Initialises instance and set some optional parameters
-    procedure :: init
-
     !> Set up degeneracy test on levels
     procedure :: degeneracyTest
 
@@ -58,11 +54,11 @@ module dftbp_math_degeneracy
 contains
 
 
-  !> Initialise the structure
-  subroutine init(this, tolerance)
+  !> Initialise the degeneracy structure
+  subroutine TDegeneracyFind_init(this, tolerance)
 
     !> Instance
-    class(TDegeneracyFind), intent(out) :: this
+    type(TDegeneracyFind), intent(out) :: this
 
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tolerance
@@ -73,7 +69,7 @@ contains
       this%tolerance = toleranceDefault
     end if
 
-  end subroutine init
+  end subroutine TDegeneracyFind_init
 
 
   !> Set up bookeeping

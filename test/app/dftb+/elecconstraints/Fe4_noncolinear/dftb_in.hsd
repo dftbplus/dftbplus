@@ -1,0 +1,68 @@
+Geometry = GenFormat {
+    4  C
+    Fe
+    1 1      0.00020789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+    3 1      1.66468183      0.00020777      1.66468190
+    4 1      0.00020785      1.66468187      1.66468187
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    ShellResolvedSCC = Yes
+    SCCTolerance = 1.0E-7
+    Mixer = Anderson {}
+    MaxAngularMomentum = {
+        Fe = "d"
+    }
+    Charge = 0.0
+    SpinPolarisation = NonColinear { # each atom starts with a spin of ~4
+        InitialSpins = {
+            AtomSpin = {
+                Atoms = Fe
+                SpinPerAtom = {
+                    2.3 2.3 2.3
+                }
+            }
+        }
+    }
+    SpinConstants = {
+        Fe = {
+            -0.013 -0.009 -0.003
+            -0.009 -0.011 -0.001
+            -0.003 -0.001 -0.015
+        }
+    }
+    ElectronicConstraints {
+      Constraints {
+        MullikenPopulation {
+          Atoms = 1
+          Populations = 7.5
+        }
+      }
+      ConstrTolerance = 1.0E-08
+      MaxConstrIterations = 100
+      ConvergentConstrOnly = Yes
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 5.0e+2
+    }
+    SlaterKosterFiles = {
+        Prefix = "slakos/origin/pbc-0-3/"
+        Fe-Fe = "./Fe-Fe.skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 14
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

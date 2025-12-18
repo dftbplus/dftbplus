@@ -27,6 +27,7 @@ add_subdirectory(dftb)
 add_subdirectory(dftbplus)
 add_subdirectory(elecsolvers)
 add_subdirectory(extlibs)
+add_subdirectory(geometry)
 add_subdirectory(geoopt)
 add_subdirectory(io)
 add_subdirectory(math)
@@ -141,7 +142,10 @@ endif()
 target_link_libraries(dftbplus PUBLIC OpenMP::OpenMP_Fortran)
 
 if(WITH_ARPACK)
-  target_link_libraries(dftbplus PRIVATE Arpack::Arpack)
+  target_link_libraries(dftbplus PUBLIC ARPACK::ARPACK)
+  if(WITH_MPI)
+    target_link_libraries(dftbplus PUBLIC PARPACK::PARPACK)
+  endif()
 endif()
 
 target_link_libraries(dftbplus PUBLIC LAPACK::LAPACK)
@@ -161,7 +165,7 @@ endif()
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${INSTALL_MODULEDIR}")
 
-  if(WITH_API OR BUILD_SHARED_LIBS)
+  if(WITH_API)
     CONFIGURE_FILE(
       "${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h"
       "${CMAKE_CURRENT_BINARY_DIR}/dftbplus.h"

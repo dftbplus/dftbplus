@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -24,10 +24,10 @@
 
 !> Contains MPI coherence tests across a comm world
 module dftbp_common_coherence
-  use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_bcast, mpifx_allreduce
+  use dftbp_extlibs_mpifx, only : MPI_LAND, mpifx_allreduce, mpifx_bcast
 #:endif
   implicit none
 
@@ -155,7 +155,7 @@ contains
     ${TYPE}$, intent(in) :: data${SHAPE}$
   #:endif
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Error code return, 0 if no problems
@@ -251,7 +251,7 @@ contains
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> string detailing data
+    !> String detailing data
     character(len=*), intent(in) :: message
 
     !> Tolerance for comparison, if absent use eps

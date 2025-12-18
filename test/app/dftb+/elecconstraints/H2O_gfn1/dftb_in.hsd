@@ -1,0 +1,46 @@
+Geometry = GenFormat {
+ 3  C
+ O H
+    1  1   -0.3347274305E-16   -0.7435121056E+00   -0.1021414294E-01
+    2  2    0.4300510487E-16   -0.1212785834E+00    0.7604147516E+00
+    3  2   -0.9532361816E-17   -0.1352093110E+00   -0.7501906087E+00
+}
+
+Hamiltonian = xtb {
+  Method = "GFN1-xTB"
+  SCCTolerance = 1.0E-8
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.0
+  }
+  ElectronicConstraints {
+    Constraints {
+      MullikenPopulation {
+        Atoms = H
+        TotalPopulation = 1.5
+      }
+      MullikenPopulation {
+        Atoms = 2
+        Populations = 1.0
+      }
+    }
+    ConstrTolerance = 1.0E-8
+    MaxConstrIterations = 100
+    ConvergentConstrOnly = Yes
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  PrintForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 14
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

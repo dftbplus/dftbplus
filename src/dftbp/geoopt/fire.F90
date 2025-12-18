@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 !> FIRE optimiser
 module dftbp_geoopt_fire
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_geoopt_optimizer, only : TOptimizer, TOptimizerInput
+  use dftbp_io_message, only : error
   implicit none
 
   private

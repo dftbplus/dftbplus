@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,31 +16,31 @@
 module dftbp_extlibs_poisson
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
 #:if WITH_MPI
-  use libmpifx_module, only : mpifx_barrier, mpifx_bcast
+  use dftbp_extlibs_mpifx, only : mpifx_barrier, mpifx_bcast
 #:endif
 #:if WITH_POISSON
-  use dftbp_poisson_poisson, only : poiss_savepotential, poiss_updcoords, active_id, natoms,&
-      & verbose, bufferBox, deltaR_max, DoCilGate, DoGate, dR_cont, dr_eps, eps_r, fixed_renorm,&
-      & FoundBox, Gate, GateDir, GateLength_l, GateLength_t, id0, InitPot, localBC, MaxPoissIter,&
-      & numprocs, overrBulkBC, overrideBC, OxLength, period, ReadBulk, Rmin_Gate, Rmin_Ins,&
-      & SavePot, scratchfolder, uhubb, lmax, nshells, angShells, izp, dQmat, init_poissbox,&
-      & mudpack_drv, poiss_freepoisson, set_scratch, init_structure, init_skdata, init_charges,&
-      & init_defaults, set_temperature, set_ncont, set_cluster, set_mol_indeces, set_dopoisson,&
-      & set_poissonbox, set_poissongrid, set_accuracy, set_verbose, check_biasdir,&
-      & check_poisson_box, check_parameters, check_localbc, check_contacts, write_parameters,&
-      & poiss_getlatvecs
+  use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
+  use dftbp_poisson_poisson, only : active_id, angShells, bufferBox, check_biasdir, check_contacts,&
+      & check_localbc, check_parameters, check_poisson_box, deltaR_max, DoCilGate, DoGate, dQmat,&
+      & dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir, GateLength_l, GateLength_t,&
+      & id0, init_charges, init_defaults, init_poissbox, init_skdata, init_structure, InitPot, izp,&
+      & lmax, localBC, MaxPoissIter, mudpack_drv, natoms, nshells, numprocs, overrBulkBC,&
+      & overrideBC, OxLength, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
+      & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, scratchfolder, set_accuracy,&
+      & set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox, set_poissongrid,&
+      & set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
   #:if WITH_MPI
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
   #:endif
 #:endif
 #:if WITH_TRANSPORT
-  use dftbp_poisson_poisson, only : ncont, set_cont_indices, set_contdir, set_contlabels,&
-      & set_fermi, set_potentials, set_builtin
+  use dftbp_poisson_poisson, only : ncont, set_builtin, set_cont_indices, set_contdir,&
+      & set_contlabels, set_fermi, set_potentials
   use dftbp_transport_negfvars, only : TTransPar
 #:endif
   implicit none
@@ -629,8 +629,8 @@ contains
       dR_cont = poissoninfo%bufferLocBC
       bufferBox = poissoninfo%bufferBox
       SavePot = poissoninfo%savePotential
-      overrideBC = poissoninfo%overrideBC
-      overrBulkBC = poissoninfo%overrBulkBC
+      overrideBC(:) = poissoninfo%overrideBC
+      overrBulkBC(:) = poissoninfo%overrBulkBC
       !-----------------------------------------------------------------------------+
       ! Gate settings
       DoGate=.false.
@@ -667,9 +667,7 @@ contains
       if  (iErr /= 0) then
         call error("Unable to build box for Poisson solver")
       end if
-      if (any(overrideBC.ne.0)) then
-        period = .false.
-      end if
+      period = period .and. all(overrideBC == poissonBCsEnum%periodic)
       call check_parameters()
       call check_localbc()
       call write_parameters()

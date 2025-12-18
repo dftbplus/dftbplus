@@ -160,6 +160,7 @@ Hamiltonian = DFTB {
     C = "p"
   }
   SlaterKosterFiles = {
+    Prefix = {slakos/origin/pbc-0-3/}
     Si-Si = "./Si-Si.skf"
     Si-C = "./Si-C.skf"
     C-Si = "./C-Si.skf"

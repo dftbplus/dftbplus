@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -72,13 +72,11 @@ module dftbp_dftbplus_qdepextpotgen
 
 
     !> Called when DFTB needs the gradient of the external potential at the position of the atoms.
-    !>
-    !>
-    !> The routine is only called once after finishing the SCC iteration, provides the calculator has
-    !> been set up to calculate forces.
-    !> Note: External potential is defined as the external potential the electrons feel, so in case
-    !> of an electrostatic potential you would have to invert its sign.
-    !>
+    !!
+    !! The routine is only called once after finishing the SCC iteration, provides the calculator
+    !! has been set up to calculate forces.
+    !! Note: External potential is defined as the external potential the electrons feel, so in case
+    !! of an electrostatic potential you would have to invert its sign.
     subroutine getExtPotGradIface(this, chargePerAtom, chargePerShell, extPotGrad)
       import :: TQDepExtPotGen, dp
 

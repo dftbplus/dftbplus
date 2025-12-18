@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,29 +9,30 @@
 
 !> Provides DFTB+ API for MM-type high level access
 module dftbp_mmapi
-  use iso_fortran_env, only : output_unit
+  use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : initGlobalEnv, destructGlobalEnv, instanceSafeBuild, withMpi
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
-  use dftbp_dftbplus_initprogram, only: TDftbPlusMain
+  use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
-  use dftbp_dftbplus_mainapi, only : doOneTdStep, checkSpeciesNames, nrOfAtoms, nrOfKPoints,&
-      & setExternalPotential, getTdForces, setTdCoordsAndVelos, setTdElectricField,&
-      & initializeTimeProp, finalizeTimeProp, updateDataDependentOnSpeciesOrdering,&
-      & getAtomicMasses, getGrossCharges, getCM5Charges, getElStatPotential, getExtChargeGradients,&
-      & getStressTensor, getGradients, getEnergy, getCutOff, setQDepExtPotProxy,&
-      & setExternalCharges, setGeometry, setNeighbourList, getRefCharges, setRefCharges
-  use dftbp_dftbplus_parser, only : TParserFlags, rootTag, parseHsdTree, readHsdFile
+  use dftbp_dftbplus_mainapi, only : checkSpeciesNames, doOneTdStep, finalizeTimeProp,&
+      & getAtomicMasses, getCM5Charges, getCutOff, getElStatPotential, getEnergy,&
+      & getExtChargeGradients, getGradients, getGrossCharges, getLocalKS, getRefCharges,&
+      & getStressTensor, getTdForces, initializeTimeProp, nrOfAtoms, nrOfKPoints, nrOfLocalKS,&
+      & nrOfSpin, setExternalCharges, setExternalEfield, setExternalPotential, setGeometry,&
+      & setNeighbourList, setQDepExtPotProxy, setRefCharges, setTdCoordsAndVelos,&
+      & setTdElectricField, updateDataDependentOnSpeciesOrdering
+  use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_extlibs_xmlf90, only : fnode, createDocumentNode, createElement, appendChild,&
-      & destroyNode
+  use dftbp_extlibs_xmlf90, only : appendChild, createDocumentNode, createElement, destroyNode,&
+      & fnode
   use dftbp_io_charmanip, only : newline
   use dftbp_io_hsdutils, only : getChild
-  use dftbp_io_message, only: error
-  use dftbp_type_linkedlist, only : TListString, init, append, get, len, asArray
+  use dftbp_io_message, only : error
+  use dftbp_type_linkedlist, only : append, asArray, get, init, len, TListString
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
   private
@@ -44,30 +45,30 @@ module dftbp_mmapi
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
 
-  !> list of QM atoms and species for DFTB+ calculation
+  !> List of QM atoms and species for DFTB+ calculation
   type :: TDftbPlusAtomList
-    !> number of atoms
+    !> Number of atoms
     integer :: nAtom
-    !> linked list of chemical symbols of elements (species names), size=nSpecies
+    !> Linked list of chemical symbols of elements (species names), size=nSpecies
     type(TListString) :: speciesNames
-    !> array of species for each atom, size=nAtom
+    !> Array of species for each atom, size=nAtom
     integer, allocatable :: species(:)
   contains
-    !> read list of atoms
+    !> Read list of atoms
     procedure :: get => TDftbPlusAtomList_get
-    !> insert the list of atoms into the input data structure
+    !> Insert the list of atoms into the input data structure
     procedure :: add => TDftbPlusAtomList_addToInpData
   end type TDftbPlusAtomList
 
 
-  !> input tree for DFTB+ calculation
+  !> Input tree for DFTB+ calculation
   type :: TDftbPlusInput
-    !> tree for HSD format input
+    !> Tree for HSD format input
     type(fnode), pointer :: hsdTree => null()
   contains
-    !> obtain the root of the tree of input
+    !> Obtain the root of the tree of input
     procedure :: getRootNode => TDftbPlusInput_getRootNode
-    !> finaliser
+    !> Finaliser
     final :: TDftbPlusInput_final
   end type TDftbPlusInput
 
@@ -75,46 +76,73 @@ module dftbp_mmapi
   !> A DFTB+ calculation
   type :: TDftbPlus
     private
+    !> Computational environment
     type(TEnvironment), allocatable :: env
+    !> Calculation instance
     type(TDftbPlusMain), allocatable :: main
+    !> Has this been initialised and ready to use
     logical :: isInitialised = .false.
   contains
-    !> read input from a file
+    !> Read input from a file
     procedure :: getInputFromFile => TDftbPlus_getInputFromFile
-    !> get an empty input to populate
+    !> Get an empty input to populate
     procedure :: getEmptyInput => TDftbPlus_getEmptyInput
-    !> set up a DFTB+ calculator from input tree
+    !> Set up a DFTB+ calculator from input tree
     procedure :: setupCalculator => TDftbPlus_setupCalculator
-    !> set/replace the geometry of a calculator
+    !> Set/replace the geometry of a calculator
     procedure :: setGeometry => TDftbPlus_setGeometry
-    !> set/replace the neighbour list
+    !> Set/replace the neighbour list
     procedure :: setNeighbourList => TDftbPlus_setNeighbourList
-    !> add an external potential to a calculator
+    !> Add an external potential to a calculator
     procedure :: setExternalPotential => TDftbPlus_setExternalPotential
-    !> add external charges to a calculator
+    !> Add an external electric field to a calculator
+    procedure :: setExternalEfield => TDftbPlus_setExternalEfield
+    !> Add external charges to a calculator
     procedure :: setExternalCharges => TDftbPlus_setExternalCharges
-    !> add reactive external charges to a calculator
+    !> Add reactive external charges to a calculator
     procedure :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
-    !> obtain the DFTB+ energy
+    !> Obtain the DFTB+ energy
     procedure :: getEnergy => TDftbPlus_getEnergy
-    !> obtain the DFTB+ gradients
+    !> Obtain the DFTB+ gradients
     procedure :: getGradients => TDftbPlus_getGradients
-    !> obtain the DFTB+ stress tensor
+    !> Obtain the DFTB+ stress tensor
     procedure :: getStressTensor => TDftbPlus_getStressTensor
-    !> obtain the gradients of the external charges
+    !> Obtain the gradients of the external charges
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
-    !> get the gross (Mulliken) DFTB+ charges
+    !> Get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
-    !> get the CM5 DFTB+ charges
+    !> Get the CM5 DFTB+ charges
     procedure :: getCM5Charges => TDftbPlus_getCM5Charges
     !> Get the reference charges for neutral DFTB+ atoms
     procedure :: getRefCharges => TDftbPlus_getRefCharges
     !> Set the reference charges for neutral DFTB+ atoms
     procedure :: setRefCharges => TDftbPlus_setRefCharges
-    !> get electrostatic potential at specified points
+    !> Get electrostatic potential at specified points
     procedure :: getElStatPotential => TDftbPlus_getElStatPotential
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Return the number of spin channels in the system
+    procedure :: nrOfSpin => TDftbPlus_nrOfSpin
+    !> Return the number of (k-point,spin chanel) pairs in the process group
+    procedure :: nrOfLocalKS => TDftbPlus_nrOfLocalKS
+    !> get (k-point,spin chanel) pairs in current process group
+    procedure :: getLocalKS => TDftbPlus_getLocalKS
+    !> Queries weights of k-points
+    procedure :: getKWeights => TDftbPlus_getKWeights
+    !> Returns size of the basis set
+    procedure :: getBasisSize => TDftbPlus_getBasisSize
+    !> Whether the system is described with real matrices (complex otherwise)
+    procedure :: isHSReal => TDftbPlus_isHSReal
+    !> Register callback function to be invoked on each evaluation of the density matrix
+    procedure :: registerDMCallback => TDftbPlus_registerDMCallback
+    !> Register callback function to be invoked on the first evaluation of the overlap matrix
+    procedure :: registerSCallback => TDftbPlus_registerSCallback
+    !> Register callback function to be invoked to import the overlap matrix
+    procedure :: registerSetSCallback => TDftbPlus_registerSetSCallback
+    !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
+    procedure :: registerHCallback => TDftbPlus_registerHCallback
+    !> Register callback function to be invoked to import the hamiltonian matrix
+    procedure :: registerSetHCallback => TDftbPlus_registerSetHCallback
     !> Return the number of k-points in the DFTB+ calculation (1 if non-repeating)
     procedure :: nrOfKPoints => TDftbPlus_nrOfKPoints
     !> Return the number of spin channels in the DFTB+ calculation (1 if spin free, 2 for z spin
@@ -142,7 +170,7 @@ module dftbp_mmapi
     procedure :: getAtomicMasses => TDftbPlus_getAtomicMasses
     !> Return the number of basis functions for each atom in the system
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
-    !> get the maximum cutoff distance
+    !> Get the maximum cutoff distance
     procedure :: getCutOff => TDftbPlus_getCutOff
     !> Finalizer
     final :: TDftbPlus_final
@@ -180,7 +208,7 @@ contains
     !> Minor version number
     integer, intent(out) :: minor
 
-    !> patch level for API
+    !> Patch level for API
     integer, intent(out) :: patch
 
     !> Whether API is instance safe
@@ -307,12 +335,12 @@ contains
 
 
   !> Initialises a DFTB+ instance
-  !>
-  !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
-  !> initialised within one process. Therefore, this routine can not be called twice, unless the
-  !> TDftbPlus_destruct() has been called in between the inits (or the instance had already been finalized).
-  !> Otherwise the subroutine will stop.
-  !>
+  !!
+  !! Note: due to some remaining global variables in the DFTB+ core, only one instance can be
+  !! initialised within one process. Therefore, this routine can not be called twice, unless the
+  !! TDftbPlus_destruct() has been called in between the inits (or the instance had already been
+  !! finalized).  Otherwise the subroutine will stop.
+  !!
   subroutine TDftbPlus_init(this, outputUnit, mpiComm, devNull)
 
     !> Instance
@@ -330,15 +358,15 @@ contains
 
     integer :: stdOut
 
-    #:if not INSTANCE_SAFE_BUILD
-      if (nInstance_ /= 0) then
-        call error("This build does not support multiple DFTB+ instances")
-      end if
-      nInstance_ = 1
-    #:endif
+  #:if not INSTANCE_SAFE_BUILD
+    if (nInstance_ /= 0) then
+      call error("This build does not support multiple DFTB+ instances")
+    end if
+    nInstance_ = 1
+  #:endif
 
     if (present(mpiComm) .and. .not. withMpi) then
-      call error("MPI Communicator supplied to initialise serial DFTB+ instance")
+      call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
     end if
 
     if (present(outputUnit)) then
@@ -479,22 +507,22 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> number of neighbours of an atom in the central cell
+    !> Number of neighbours of an atom in the central cell
     integer, intent(in) :: nNeighbour(:)
 
-    !> references to the neighbour atoms for an atom in the central cell
+    !> References to the neighbour atoms for an atom in the central cell
     integer, intent(in) :: iNeighbour(:,:)
 
-    !> distances to the neighbour atoms for an atom in the central cell
+    !> Distances to the neighbour atoms for an atom in the central cell
     real(dp), intent(in) :: neighDist(:,:)
 
-    !> cutoff distance used for this neighbour list
+    !> Cutoff distance used for this neighbour list
     real(dp), intent(in) :: cutOff
 
-    !> coordinates of all neighbours
+    !> Coordinates of all neighbours
     real(dp), intent(in) :: coordNeighbours(:,:)
 
-    !> mapping between neighbour reference and atom index in the central cell
+    !> Mapping between neighbour reference and atom index in the central cell
     integer, intent(in) :: neighbour2CentCell(:)
 
     call this%checkInit()
@@ -528,6 +556,25 @@ contains
     call setExternalPotential(this%main, atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
+
+
+  !> Sets an external electric field.
+  subroutine TDftbPlus_setExternalEfield(this, EFieldStr, EfieldVec)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Electric field amplitude
+    real(dp), intent(in) :: EFieldStr
+
+    !> Unitary electric field vector. Shape: (3)
+    real(dp), intent(in) :: EfieldVec(:)
+
+    call this%checkInit()
+
+    call setExternalEfield(this%main, EFieldStr, EfieldVec)
+
+  end subroutine TDftbPlus_setExternalEfield
 
 
   !> Sets external point charges.
@@ -634,9 +681,9 @@ contains
 
 
   !> Returns the gradients on the external charges.
-  !>
-  !> This function may only be called if TDftbPlus_setExternalCharges was called before it
-  !>
+  !!
+  !! This function may only be called if TDftbPlus_setExternalCharges was called before it
+  !!
   subroutine TDftbPlus_getExtChargeGradients(this, gradients)
 
     !> Instance
@@ -773,6 +820,193 @@ contains
   end function TDftbPlus_nrOfAtoms
 
 
+  !> Get (k-point,spin chanel) pairs in current process group
+  subroutine TDftbPlus_getLocalKS(this, localKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !! Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
+    integer, intent(out) :: localKS(:,:)
+
+    call getLocalKS(this%main, localKS)
+
+  end subroutine TDftbPlus_getLocalKS
+
+
+  !> Queries weights of k-points
+  subroutine TDftbPlus_getKWeights(this, KWeights)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Weights of k-points
+    real(dp), intent(out) :: KWeights(:)
+
+    KWeights(:) = this%main%kweight(:)
+
+
+  end subroutine TDftbPlus_getKWeights
+
+
+  !> Returns the nr. of spin channels in the system.
+  function TDftbPlus_nrOfSpin(this) result(nSpin)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of spins channels
+    integer :: nSpin
+
+    call this%checkInit()
+
+    nSpin = nrOfSpin(this%main)
+
+  end function TDftbPlus_nrOfSpin
+
+
+  !> Return the number of (k-point,spin chanel) pairs in the process group.
+  function TDftbPlus_nrOfLocalKS(this) result(nLocalKS)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of (k-point,spin chanel) pairs
+    integer :: nLocalKS
+
+    call this%checkInit()
+
+    nLocalKS = nrOfLocalKS(this%main)
+
+  end function TDftbPlus_nrOfLocalKS
+
+
+  !> Returns size of the basis set
+  function TDftbPlus_getBasisSize(this) result(basisSize)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    integer :: basisSize
+
+    call this%checkInit()
+
+    basisSize = this%main%denseDesc%fullSize
+
+  end function TDftbPlus_getBasisSize
+
+
+  !> Whether the system is described with real matrices
+  function TDftbPlus_isHSReal(this) result(isHSReal)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    logical isHSReal
+
+    call this%checkInit()
+
+    isHSReal = this%main%tRealHS
+
+  end function TDftbPlus_isHSReal
+
+
+  !> Register callback function to be invoked on each evaluation of the density matrix
+  subroutine TDftbPlus_registerDMCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for DM export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the DM callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerDM(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerDMCallback
+
+
+  !> Register callback function to be invoked on the first evaluation of the overlap matrix
+  subroutine TDftbPlus_registerSCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the S callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerS(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSCallback
+
+
+  !> Register callback function to be invoked to import overlap matrix
+  subroutine TDftbPlus_registerSetSCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TSetDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for S import
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the S callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerSetS(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSetSCallback
+
+
+  !> Register callback function to be invoked on the first evaluation of the hamiltonian matrix
+  subroutine TDftbPlus_registerHCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for H export
+    procedure(TDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the H callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerH(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerHCallback
+
+
+  !> Register callback function to be invoked to import hamiltonian matrix
+  subroutine TDftbPlus_registerSetHCallback(this, callback, aux_ptr)
+    use dftbp_dftbplus_apicallback, only : TAPICallback, TSetDMHSCallbackFunc
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> callback function for H export
+    procedure(TSetDMHSCallbackFunc) :: callback
+
+    !> pointer to a context object for the H callback
+    class(*), pointer :: aux_ptr
+
+    call this%checkInit()
+    call this%main%apicallback%registerSetH(callback, aux_ptr)
+
+  end subroutine TDftbPlus_registerSetHCallback
+
+
   !> Returns the nr. of k-points describing the system.
   function TDftbPlus_nrOfKPoints(this) result(nKpts)
 
@@ -865,10 +1099,10 @@ contains
 
 
   !> Reads out the atomic angular momenta from an SK-file
-  !>
-  !> NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
-  !>   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
-  !>
+  !!
+  !! NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
+  !!   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
+  !!
   function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
 
     !> Instance.
@@ -941,7 +1175,11 @@ contains
 
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
+
+    !> Instance
     class(TDftbPlus),  intent(inout) :: this
+
+    !> Chemical species labels
     character(len=*), intent(in) :: inputSpeciesNames(:)
 
     logical :: tSpeciesNameChanged
@@ -985,13 +1223,13 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> time step
+    !> Time step
     real(dp), intent(in) :: dt
 
-    !> field will be provided through the API?
+    !> Field will be provided through the API?
     logical, intent(in) :: tdFieldThroughAPI
 
-    !> coords and velocities will be provided at each step through the API?
+    !> Coords and velocities will be provided at each step through the API?
     logical, intent(in) :: tdCoordsAndVelosThroughAPI
 
     call initializeTimeProp(this%env, this%main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
@@ -1017,25 +1255,25 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> present step of dynamics
+    !> Present step of dynamics
     integer, intent(in) :: iStep
 
     !> Dipole moment
     real(dp), optional, intent(out) :: dipole(:,:)
 
-    !> data type for energy components and total
+    !> Data type for energy components and total
     real(dp), optional, intent(out) :: energy
 
     !> Negative gross charge
     real(dp), optional, intent(out) :: atomNetCharges(:,:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), optional, intent(out) :: coord(:,:)
 
-    !> forces (3, nAtom)
+    !> Forces (3, nAtom)
     real(dp), optional, intent(out) :: force(:,:)
 
-    !> molecular orbital projected populations
+    !> Molecular orbital projected populations
     real(dp), optional, intent(out) :: occ(:)
 
     call doOneTdStep(this%env, this%main, iStep, dipole=dipole, energy=energy,&
@@ -1044,13 +1282,13 @@ contains
   end subroutine TDftbPlus_doOneTdStep
 
 
-  !> sets electric field for td propagation
+  !> Sets electric field for td propagation
   subroutine TDftbPlus_setTdElectricField(this, field)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> electric field components
+    !> Electric field components
     real(dp), intent(in) :: field(3)
 
     if (allocated(this%main%solvation)) then
@@ -1070,10 +1308,10 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> coordinates
+    !> Coordinates
     real(dp), intent(in) :: coords(3, this%main%nAtom)
 
-    !> velocities
+    !> Velocities
     real(dp), intent(in) :: velos(3, this%main%nAtom)
 
     call setTdCoordsAndVelos(this%main, coords, velos)
@@ -1087,7 +1325,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    !> forces (3, nAtom)
+    !> Forces (3, nAtom)
     real(dp), intent(out) :: forces(:,:)
 
     call getTdForces(this%main, forces)

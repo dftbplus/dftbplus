@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -81,7 +81,7 @@ contains
     if (present(rrOpt)) then
       rr = rrOpt
     else
-      rr = sqrt(sum(coord**2))
+      rr = norm2(coord)
     end if
 
     @:ASSERT(ll >= 0 .and. ll <= 3)

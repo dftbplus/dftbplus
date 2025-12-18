@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,12 +10,12 @@
 !> Read GBSA parametrisation data from file
 module dftbp_solvation_gbsafile
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_constants, only : amu__au, kg__au, AA__Bohr, kcal_mol__Hartree, &
-      & symbolToNumber
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_constants, only : AA__Bohr, amu__au, kcal_mol__Hartree, kg__au, symbolToNumber
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_extlibs_xmlf90, only : fnode
   use dftbp_io_charmanip, only : newline, whiteSpaces
   use dftbp_io_hsdutils, only : detailedError, detailedWarning
+  use dftbp_io_linereader, only : TLineReader
   use dftbp_io_message, only : error, warning
   use dftbp_io_tokenreader, only : getNextToken, TOKEN_OK
   use dftbp_solvation_born, only : TGBInput
@@ -26,17 +26,11 @@ module dftbp_solvation_gbsafile
   public :: readParamGBSA
 
 
-  !> Read GBSA parametrisation data
-  interface readParamGBSA
-    module procedure :: readParamGBSAFile
-  end interface readParamGBSA
-
-
 contains
 
 
   !> Read GBSA parameters from file
-  subroutine readParamGBSAFile(file, input, solvent, speciesNames, node)
+  subroutine readParamGBSA(file, input, solvent, speciesNames, node)
 
     !> Name of the parametrisation file
     character(len=*), intent(in) :: file
@@ -54,13 +48,14 @@ contains
     type(fnode), pointer, optional :: node
 
     type(TFileDescr) :: fd
+    type(TLineReader) :: lineReader
     integer, parameter :: nParam = 8
     integer, parameter :: nElem = 94
     integer :: ii, lineno, iStart, iErr, iSp, iZp, nSpecies
     real(dp) :: param(nParam)
     real(dp) :: descreening(nElem), surfaceTension(nElem), hBondPar(nElem)
-    character(len=lc) :: line, errorStr
-    character(:), allocatable :: ioMsg
+    character(len=lc) :: errorStr
+    character(:), allocatable :: line, ioMsg
 
     call openFile(fd, file, mode="r", ioStat=iErr, ioMsg=ioMsg)
     if (iErr /= 0) then
@@ -70,11 +65,12 @@ contains
         call error("Could not open '"//trim(file)//"': "//trim(ioMsg))
       end if
     end if
+    lineReader = TLineReader(fd%unit)
 
     lineno = 0
 
     do ii = 1, 8
-      call nextLine(fd%unit, line, lineno, file, node=node)
+      call nextLine(lineReader, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), param(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -101,7 +97,7 @@ contains
     end do
 
     do ii = 1, nElem
-      call nextLine(fd%unit, line, lineno, file, node=node)
+      call nextLine(lineReader, line, lineno, file, node=node)
       iStart = 1
       call getNextToken(trim(line), surfaceTension(ii), iStart, iErr)
       if (iErr /= TOKEN_OK) then
@@ -192,90 +188,39 @@ contains
 
     call closeFile(fd)
 
-  end subroutine readParamGBSAFile
+  end subroutine readParamGBSA
 
 
   !> Read a whole line from a formatted IO unit
-  subroutine nextLine(unit, line, lineno, file, iostat, node)
+  subroutine nextLine(lineReader, line, lineno, file, node)
 
-    !> IO-unit bound to the parametrisation file
-    integer, intent(in) :: unit
+    !> Line reader able to provide the next line from an open file
+    type(TLineReader), intent(inout) :: lineReader
 
     !> Line buffer
-    character(len=*), intent(inout) :: line
+    character(:), allocatable, intent(out) :: line
 
     !> Current line number, will be incremented after successful read
     integer, intent(inout) :: lineno
 
     !> Name of the parametrisation file
-    character(len=*), intent(in), optional :: file
+    character(len=*), intent(in) :: file
 
-    !> Node for error handling
-    type(fnode), pointer, optional :: node
+    !> Node (needed for generating error messages)
+    type(fnode), pointer, intent(in) :: node
 
-    !> Error code
-    integer, intent(out), optional :: iostat
-
-    integer :: length, iErr
+    integer :: iErr
     character(len=lc) :: errorStr, iomsg
 
     lineno = lineno + 1
+    call lineReader%readLine(line, iErr)
 
-    read(unit, '(a)', advance='no', iostat=iErr, iomsg=iomsg, size=length) line
-    if (length >= len(line)) then
-      if (present(file)) then
-        write(errorStr, '(a, "(", i0, "):", 1x, a)') &
-            & trim(file), lineno, "too many characters, line truncated"
-      else
-        write(errorStr, '(a, 1x, i0, ":", 1x, a)') &
-            & "line", lineno, "too many characters, line truncated"
-      end if
-      if (present(node)) then
-        call detailedWarning(node, trim(errorStr))
-      else
-        call warning(trim(errorStr))
-      end if
-      ! drop the rest of the line
-      if (.not.is_iostat_eor(iErr)) then
-        read(unit, '(a)', iostat=iErr, iomsg=iomsg)
-      end if
-    end if
-
-    ! end-of-record is an implementation detail
-    if (is_iostat_eor(iErr)) then
-      iErr = 0
-    end if
-
-    if (present(iostat)) then
-      iostat = iErr
-    else
-      if (iErr /= 0) then
-        if (is_iostat_end(iErr)) then
-          ! uncaught EOF is an error
-          if (present(file)) then
-            write(errorStr, '(a, "(", i0, "):", 1x, a)') &
-              & trim(file), lineno, "encountered end-of-file while reading"
-          else
-            write(errorStr, '(a, 1x, i0, ":", 1x, a)') &
-              & "line", lineno, "encountered end-of-file while reading"
-          end if
-          if (present(node)) then
-            call detailedError(node, trim(errorStr))
-          else
-            call error(trim(errorStr))
-          end if
-        else
-          ! unknown error, lets hope for something useful in iomsg
-          if (present(node)) then
-            call detailedError(node, trim(iomsg))
-          else
-            call error(trim(iomsg))
-          end if
-        end if
-      end if
+    if (iErr /= 0) then
+      write(errorStr, '(3a, i0)') "While reading file ", trim(file),&
+          & "an error was encountered on line ", lineno
+      call detailedError(node, trim(errorStr))
     end if
 
   end subroutine nextLine
-
 
 end module dftbp_solvation_gbsafile

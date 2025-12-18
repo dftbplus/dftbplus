@@ -1,33 +1,47 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
-!> Andersen thermostat
-!> Two versions of the Andersen thermostat are implemented, either the global
-!> re-select or per atom reselect of velocities from the Maxwell-Boltzmann
-!> distribution
-!> See Andersen J. Chem. Phys. 72. 2384 (1980)
+!> Implements the Andersen thermostat
+!!
+!! Two versions of the Andersen thermostat are implemented, either the global re-select or per atom
+!! reselect of velocities from the Maxwell-Boltzmann distribution See Andersen J. Chem. Phys. 72.
+!! 2384 (1980)
+!!
+!!
 module dftbp_md_andersentherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_io_message, only : error
-  use dftbp_math_ranlux, only : TRanlux, getRandom
-  use dftbp_md_mdcommon, only : TMDCommon, MaxwellBoltzmann, restFrame,&
-      & rescaleTokT
+  use dftbp_math_ranlux, only : getRandom, TRanlux
+  use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
   use dftbp_md_tempprofile, only : TTempProfile
+  use dftbp_md_thermostat, only : TThermostat
   implicit none
 
   private
-  public :: TAndersenThermostat
-  public :: init, getInitVelocities, updateVelocities, state
+  public :: TAndersenThermInput
+  public :: TAndersenTherm, TAndersenTherm_init
 
 
-  !> Data for the Andersen thermostat
-  type TAndersenThermostat
+  !> Thermostat specific input data for the Andersen thermostat
+  type :: TAndersenThermInput
+
+    !> If velocities should be rescaled per atom
+    logical :: rescaleIndiv
+
+    !> Rescaling probability.
+    real(dp) :: rescaleProb
+
+  end type TAndersenThermInput
+
+
+  !> Andersen thermostat
+  type, extends(TThermostat) :: TAndersenTherm
     private
 
     !> Nr. of atoms
@@ -43,49 +57,33 @@ module dftbp_md_andersentherm
     type(TTempProfile), pointer :: pTempProfile
 
     !> Rescale velocities individually?
-    logical :: tRescaleIndiv
+    logical :: rescaleIndiv
 
     !> Rescaling probability
-    real(dp) :: wvScale
+    real(dp) :: rescaleProb
 
     !> MD framework
     type(TMDCommon) :: pMDFramework
 
-  end type TAndersenThermostat
+  contains
 
+    procedure :: getInitVelocities => TAndersenTherm_getInitVelocities
+    procedure :: updateVelocities => TAndersenTherm_updateVelocities
+    procedure :: writeState => TAndersenTherm_writeState
 
-  !> Initialise thermostat object
-  interface init
-    module procedure AndersenThermostat_init
-  end interface init
-
-
-  !> Velocities at start of calculation
-  interface getInitVelocities
-    module procedure AndersenThermostat_getInitVelos
-  end interface
-
-
-  !> New atomic velocities
-  interface updateVelocities
-    module procedure AndersenThermostat_updateVelos
-  end interface
-
-
-  !> write state to disc
-  interface state
-    module procedure AndersenThermostat_state
-  end interface
+  end type TAndersenTherm
 
 contains
 
 
   !> Creates an Andersen thermostat instance.
-  subroutine AndersenThermostat_init(this, pRanlux, masses, tempProfile, &
-      &rescaleIndiv, wvScale, pMDFramework)
+  subroutine TAndersenTherm_init(this, input, pRanlux, masses, tempProfile, pMDFramework)
 
     !> Initialised instance on exit.
-    type(TAndersenThermostat), intent(out) :: this
+    type(TAndersenTherm), intent(out) :: this
+
+    !> Thermostat specific input data
+    type(TAndersenThermInput), intent(in) :: input
 
     !> Random generator
     type(TRanlux), allocatable, intent(inout) :: pRanlux
@@ -96,40 +94,33 @@ contains
     !> Pointer to a temperature profile object.
     type(TTempProfile), pointer, intent(in) :: tempProfile
 
-    !> If velocities should be rescaled per atom
-    logical, intent(in) :: rescaleIndiv
-
-    !> Rescaling probability.
-    real(dp), intent(in) :: wvScale
-
     !> Molecular dynamics general specifications
     type(TMDCommon), intent(in) :: pMDFramework
 
     call move_alloc(pRanlux, this%pRanlux)
     this%nAtom = size(masses)
-    allocate(this%mass(this%nAtom))
-    this%mass(:) = masses(:)
+    this%mass = masses
     this%pTempProfile => tempProfile
-    this%tRescaleIndiv = rescaleIndiv
-    this%wvScale = wvScale
+    this%rescaleIndiv = input%rescaleIndiv
+    this%rescaleProb = input%rescaleProb
     this%pMDFramework = pMDFramework
 
-  end subroutine AndersenThermostat_init
+  end subroutine TAndersenTherm_init
 
 
   !> Returns the initial velocities.
-  subroutine AndersenThermostat_getInitVelos(this, velocities)
+  subroutine TAndersenTherm_getInitVelocities(this, velocities)
 
-    !> AndersenThermostat instance.
-    type(TAndersenThermostat), intent(inout) :: this
+    !> Instance
+    class(TAndersenTherm), intent(inout) :: this
 
-    !> Contains the velocities on return.
+    !> Velocities on return.
     real(dp), intent(out) :: velocities(:,:)
 
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= [3, this%nAtom]))
 
     call this%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
@@ -141,14 +132,14 @@ contains
     call restFrame(this%pMDFramework, velocities, this%mass)
     call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
 
-  end subroutine AndersenThermostat_getInitVelos
+  end subroutine TAndersenTherm_getInitVelocities
 
 
   !> Updates the provided velocities according the current temperature.
-  subroutine AndersenThermostat_updateVelos(this, velocities)
+  subroutine TAndersenTherm_updateVelocities(this, velocities)
 
-    !> AndersenThermostat instance.
-    type(TAndersenThermostat), intent(inout) :: this
+    !> Instance
+    class(TAndersenTherm), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
@@ -157,45 +148,43 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= [3, this%nAtom]))
 
     call this%pTempProfile%getTemperature(kT)
-    if (this%tRescaleIndiv) then
+    if (this%rescaleIndiv) then
       do ii = 1, this%nAtom
         call getRandom(this%pRanlux, rescaleChance)
-        if (rescaleChance <= this%wvScale) then
-          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, &
-              &this%pRanlux)
+        if (rescaleChance <= this%rescaleProb) then
+          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end if
       end do
       call restFrame(this%pMDFramework, velocities, this%mass)
     else
       ! all atoms re-set at random
       call getRandom(this%pRanlux, rescaleChance)
-      if (rescaleChance <= this%wvScale) then
+      if (rescaleChance <= this%rescaleProb) then
         do ii = 1, this%nAtom
-          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, &
-              &this%pRanlux)
+          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
         end do
         call restFrame(this%pMDFramework, velocities, this%mass)
         call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
       end if
     end if
 
-  end subroutine AndersenThermostat_updateVelos
+  end subroutine TAndersenTherm_updateVelocities
 
 
-  !> Outputs internals of thermostat
-  subroutine AndersenThermostat_state(this, fd)
+  !> Writes internals of thermostat
+  subroutine TAndersenTherm_writeState(this, fd)
 
-    !> instance of thermostat
-    type(TAndersenThermostat), intent(in) :: this
+    !> Instance
+    class(TAndersenTherm), intent(in) :: this
 
-    !> filehandle to write out to
-    integer,intent(in) :: fd
+    !> File unit to write thermostat state out to
+    integer, intent(in) :: fd
 
     ! no internal state, nothing to do
 
-  end subroutine AndersenThermostat_state
+  end subroutine TAndersenTherm_writeState
 
 end module dftbp_md_andersentherm

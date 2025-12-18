@@ -1,21 +1,20 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Module to read input from HSD tree
 module dftbp_dftbplus_input_geoopt
-  use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_unitconversion, only : timeUnits, lengthUnits, energyUnits, forceUnits
-  use dftbp_extlibs_xmlf90, only : fnode, string, char, getNodeName
-  use dftbp_geoopt_package, only : TFilterInput, TOptimizerInput, TRationalFuncInput,&
-      & TLbfgsInput, TFireInput, TSteepdescInput, TOptTolerance
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_unitconversion, only : energyUnits, forceUnits, lengthUnits, timeUnits
+  use dftbp_extlibs_xmlf90, only : char, fnode, getNodeName, string
+  use dftbp_geoopt_package, only : TFilterInput, TFireInput, TLbfgsInput, TOptimizerInput,&
+      & TOptTolerance, TRationalFuncInput, TSteepdescInput
   use dftbp_io_charmanip, only : unquote
-  use dftbp_io_hsdutils, only : getChild, getChildValue, setChild, detailedError, detailedWarning,&
-      & getSelectedAtomIndices
+  use dftbp_io_hsdutils, only : detailedError, getChild, getChildValue, getSelectedAtomIndices,&
+      & setChild
   use dftbp_io_hsdutils2, only : convertUnitHsd, renameChildren
   use dftbp_type_typegeometry, only : TGeometry
   implicit none
@@ -37,7 +36,7 @@ module dftbp_dftbplus_input_geoopt
     type(TOptTolerance) :: tolerance
 
     !> Number of allowed geometry optimization steps
-    integer :: nGeoSteps = huge(1) - 1
+    integer :: nGeoSteps
 
     !> Prefix of the output file name
     character(len=:), allocatable :: outFile
@@ -72,7 +71,10 @@ contains
 
     call readFilterInput(node, geom, input%filter, atomsRange)
 
-    call getChildValue(node, "Convergence", value1, "", child=child, allowEmptyValue=.true.)
+    call getChild(node, "Convergence", child, requested=.false.)
+    if (.not.associated(child)) then
+      call setChild(node, "Convergence", child)
+    end if
     call readOptTolerance(child, input%tolerance)
 
     call getChildValue(node, "MaxSteps", input%nGeoSteps, 20*geom%nAtom)

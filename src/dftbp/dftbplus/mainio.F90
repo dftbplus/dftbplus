@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,51 +14,54 @@
 
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
-  use dftbp_common_accuracy, only : dp, mc, sc, lc
-  use dftbp_common_constants, only : Hartree__eV, Bohr__AA, au__pascal, au__V_m, au__fs, au__Debye,&
-      & Boltzmann, gfac, spinName, quaternionName
+  use dftbp_common_accuracy, only : dp, lc, mc, sc
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
+      & Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut, destructGlobalEnv, abortProgram
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
+  use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_densitymatrix, only : TDensityMatrix
   use dftbp_dftb_determinants, only : TDftbDeterminants
   use dftbp_dftb_dispersions, only : TDispersionIface
-  use dftbp_dftb_elecconstraints, only: TElecConstraint
+  use dftbp_dftb_elecconstraints, only : TElecConstraint
   use dftbp_dftb_elstatpot, only : TElStatPotentials
   use dftbp_dftb_energytypes, only : TEnergies
+  use dftbp_dftb_etemp, only : fillingTypes
   use dftbp_dftb_extfields, only : TEField
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_sccinit, only : writeQToFile
   use dftbp_dftb_sparse2dense, only : unpackHS, unpackSPauli
   use dftbp_dftb_spin, only : qm2ud
-  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_extlibs_xmlf90, only : xmlf_t, xml_OpenFile, xml_ADDXMLDeclaration, xml_NewElement,&
-      & xml_EndElement, xml_Close
+  use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
+  use dftbp_extlibs_xmlf90, only : xml_ADDXMLDeclaration, xml_Close, xml_EndElement,&
+      & xml_NewElement, xml_OpenFile, xmlf_t
   use dftbp_io_charmanip, only : i2c
-  use dftbp_io_commonformats, only : formatHessian, formatBorn, formatdBorn, formatGeoOut,&
-      & format1U, format2U, format1Ue, format2Ue, format1U1e
-  use dftbp_io_formatout, only : writeXYZFormat, writeGenFormat, writeSparse, writeSparseAsSquare
+  use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
+      & formatBorn, formatdBorn, formatGeoOut, formatHessian
+  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare, writeXYZFormat
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
-  use dftbp_io_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : hemv
   use dftbp_math_eigensolver, only : heev
-  use dftbp_md_mdintegrator, only : TMdIntegrator, state
-  use dftbp_reks_reks, only : TReksCalc, reksTypes, setReksTargetEnergy
+  use dftbp_md_mdcommon, only : TMDOutput
+  use dftbp_md_mdintegrator, only : state, TMdIntegrator
+  use dftbp_reks_reks, only : reksTypes, setReksTargetEnergy, TReksCalc
   use dftbp_solvation_cm5, only : TChargeModel5
   use dftbp_solvation_cosmo, only : TCosmo
   use dftbp_solvation_fieldscaling, only : TScaleExtEField
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals, TParallelKS
   use dftbp_type_densedescr, only : TDenseDescr
-  use dftbp_type_linkedlist, only : TListCharLc, TListIntR1, len, get, elemShape, intoArray
+  use dftbp_type_linkedlist, only : elemShape, get, intoArray, len, TListCharLc, TListIntR1
   use dftbp_type_multipole, only : TMultipole
-  use dftbp_type_orbitals, only : orbitalNames, getShellNames
+  use dftbp_type_orbitals, only : getShellNames, orbitalNames
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : mpifx_recv, mpifx_send, mpifx_bcast
+  use dftbp_extlibs_mpifx, only : mpifx_bcast, mpifx_recv, mpifx_send
 #:endif
 #:if WITH_SCALAPACK
-  use dftbp_dftb_sparse2dense, only :unpackSPauliBlacs, unpackHSCplxBlacs, unpackHSRealBlacs
+  use dftbp_dftb_sparse2dense, only : unpackHSCplxBlacs, unpackHSRealBlacs, unpackSPauliBlacs
   use dftbp_extlibs_scalapackfx, only : linecomm, pblasfx_phemm, pblasfx_psymm
 #:endif
 #:if WITH_SOCKETS
@@ -81,11 +84,11 @@ module dftbp_dftbplus_mainio
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
-  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10, permitivityPrint
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
-  public :: writeCurrentGeometry, writeFinalDriverStatus
+  public :: writeCurrentGeometry, writeExtendedGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
   public :: printSccHeader, printElecConstrHeader
   public :: printGeoStepInfo, printSccInfo, printElecConstrInfo, printEnergies, printVolume
@@ -164,13 +167,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -242,7 +245,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -316,13 +319,13 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Whether eigenvectors should be also written in text form
@@ -387,7 +390,7 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
@@ -458,7 +461,7 @@ contains
     !> Id of the current program run.
     integer, intent(in) :: runId
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> optional alternative file prefix, to appear as "fileName".bin
@@ -499,7 +502,7 @@ contains
     !> Square Hamiltonian (or work array)
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -641,7 +644,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -695,7 +698,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -853,7 +856,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -915,7 +918,7 @@ contains
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Orbital information
@@ -1077,7 +1080,7 @@ contains
     !> Sparse overlap matrix.
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> K point coordinates
@@ -1163,7 +1166,7 @@ contains
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights for k-points
@@ -1172,7 +1175,7 @@ contains
     !> Orbital regions to project
     type(TListIntR1), intent(inout) :: iOrbRegion
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Storage for eigenvectors (real)
@@ -1249,7 +1252,7 @@ contains
     !> Eigenvectors
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Sparse overlap
@@ -1369,7 +1372,7 @@ contains
     !> Sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Square Hamiltonian (or work array)
@@ -1435,10 +1438,10 @@ contains
     !> Eigenvectors
     complex(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1584,7 +1587,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigen vectors
@@ -1655,10 +1658,10 @@ contains
     !> Basis orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> K-points
+    !> The k-points
     real(dp), intent(in) :: kPoints(:,:)
 
     !> Weights of the k-points
@@ -1814,7 +1817,7 @@ contains
     !> KPoints weights
     real(dp), intent(in) :: kWeights(:)
 
-    !> K-points and spins to process
+    !> The k-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
     !> Eigenvectors
@@ -1858,20 +1861,6 @@ contains
   end subroutine writeProjPauliEigvecsSerial
 
 #:endif
-
-
-  !> Open an output file and clear it
-  subroutine initOutputFile(fileName)
-
-    !> File name
-    character(*), intent(in) :: fileName
-
-    type(TFileDescr) :: fd
-
-    call openFile(fd, fileName, mode="w")
-    call closeFile(fd)
-
-  end subroutine initOutputFile
 
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
@@ -2050,7 +2039,7 @@ contains
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, pBornMatrix, tPeriodic, cellVol,&
       & tMulliken, qOutput, q0, taggedWriter, cm5Cont, polarisability, dEidE, dqOut, neFermi,&
-      & dEfdE, dipoleMoment, multipole, eFieldScaling)
+      & dEfdE, dipoleMoment, multipole, eFieldScaling, reks)
 
     !> Name of output file
     character(len=*), intent(in) :: fileName
@@ -2136,12 +2125,17 @@ contains
     !> Any dielectric environment scaling
     class(TScaleExtEField), intent(in) :: eFieldScaling
 
+    !> Data type for REKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
+
     real(dp), allocatable :: qOutputUpDown(:,:,:), qDiff(:,:,:)
     type(TFileDescr) :: fd
 
     call openFile(fd, fileName, mode="a")
 
-    call taggedWriter%write(fd%unit, tagLabels%egyTotal, energy%ETotal)
+    if (allocated(reks)) then
+      call taggedWriter%write(fd%unit, tagLabels%egyAvg, energy%Eavg)
+    end if
     if (electronicSolver%elecChemPotAvailable) then
       call taggedWriter%write(fd%unit, tagLabels%fermiLvl, Ef)
     end if
@@ -2282,7 +2276,7 @@ contains
     !> Number of atomic orbitals (may not match nStates if non-collinear)
     integer, intent(in) :: nOrb
 
-    !> k-points in the system
+    !> The k-points in the system
     real(dp), intent(in) :: kPoint(:,:)
 
     !> Weights of the k-points
@@ -2355,7 +2349,7 @@ contains
 
 
   !> Write the band structure data out
-  subroutine writeBandOut(fileName, eigen, filling, kWeight)
+  subroutine writeBandOut(fileName, eigen, filling, kWeight, isFileAppended)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2369,16 +2363,33 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> If true, append onto the file, if false replace the file
+    logical, intent(in), optional :: isFileAppended
+
     type(TFileDescr) :: fd
+    character(1) :: fileMode
+    logical :: isFileAppended_
     integer :: iSpin, iK, iEgy
 
-    call openFile(fd, fileName, mode="w")
+    if (present(isFileAppended)) then
+      isFileAppended_ = isFileAppended
+    else
+      isFileAppended_ = .false.
+    end if
+
+    if (isFileAppended_) then
+      fileMode = "a"
+    else
+      fileMode = "w"
+    end if
+
+    call openFile(fd, fileName, mode=fileMode)
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
         write(fd%unit, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
         do iEgy = 1, size(eigen, dim=1)
           ! meV accuracy for eigenvalues
-          write(fd%unit, "(I6, F10.3, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
+          write(fd%unit, "(I6, F12.4, F9.5)") iEgy, Hartree__eV * eigen(iEgy, iK, iSpin),&
               & filling(iEgy, iK, iSpin)
         end do
         write(fd%unit, *)
@@ -2512,7 +2523,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialHessian = .false.
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (size(pDynMatrix, dim=2) /= 3*size(indMovedAtoms)) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrect number of rows of dynamical Matrix")
     end if
@@ -2547,7 +2558,7 @@ contains
   end subroutine writeHessianOut
 
 
-  !> Write the dipole derivative wrt.coordinates matrix/Born charges
+  !> Write the dipole derivative wrt.coordinates matrix (i.e. Born charges)
   subroutine writeBornChargesOut(fileName, pBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
@@ -2570,7 +2581,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pBornMatrix) /= [3,3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -2601,13 +2612,13 @@ contains
   end subroutine writeBornChargesOut
 
 
-  !> Write the Derivatives of the polarizability
+  !> Write the Derivatives of the polarizability with respect to atom positions
   subroutine writeBornDerivs(fileName, pdBornMatrix, indMovedAtoms, nDerivAtoms, errStatus)
 
     !> File name
     character(*), intent(in) :: fileName
 
-    !> Born (dipole derivatives or force wrt electric field)
+    !> Born matrix (dipole derivatives wrt positions or forces wrt external electric field)
     real(dp), intent(in) :: pdBornMatrix(:, :, :)
 
     !> Indices of moved atoms
@@ -2625,7 +2636,7 @@ contains
     character(10) :: suffix1, suffix2
     logical :: tPartialMatrix
 
-    ! Sanity check in case some bug is introduced
+    ! Consistency check in case some bug is introduced
     if (any(shape(pdBornMatrix) /= [3, 3, 3*size(indMovedAtoms)])) then
       @:RAISE_ERROR(errStatus, -1, "Internal error: incorrectly shaped Born Matrix")
     end if
@@ -2734,7 +2745,7 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
     integer :: nKPoint, nMovedAtom, iAt, iK
@@ -2748,10 +2759,11 @@ contains
       select case(iDistribFn)
       case(0)
         write(fd,*) 'Fermi distribution function'
-      case(1)
+      case(fillingTypes%Methfessel)
         write(fd,*) 'Gaussian distribution function'
       case default
-        write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
+        write(fd,*) 'Methfessel-Paxton distribution function order',&
+            & iDistribFn-fillingTypes%Methfessel
       end select
       write(fd,*)
     end if
@@ -3211,7 +3223,7 @@ contains
   subroutine writeDetailedOut3(fd, qInput, qOutput, energy, species, tDFTBU, tPrintMulliken, Ef,&
       & pressure, cellVol, tAtomicEnergy, dispersion, isExtField, tPeriodic, nSpin, tSpin,&
       & tSpinOrbit, tScc, tOnSite, iAtInCentralRegion, electronicSolver, tHalogenX,&
-      & tRangeSep, t3rd, tSolv)
+      & tHybridXc, t3rd, tSolv, isMdftb)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3280,13 +3292,16 @@ contains
     logical, intent(in) :: tHalogenX
 
     !> Is this a range separation calculation?
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: tHybridXc
 
     !> Is this a 3rd order scc calculation?
     logical, intent(in) :: t3rd
 
     !> Is this a solvation model used?
     logical, intent(in) :: tSolv
+
+    !> Are there energy contributions from mdftb?
+    logical, intent(in) :: isMdftb
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:)
     integer :: nSpinHams
@@ -3350,9 +3365,14 @@ contains
       if (t3rd) then
         write(fd, format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV, 'eV'
       end if
-      if (tRangeSep) then
+      if (tHybridXc) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
+
+      if (isMdftb) then
+        call writeMdftbEnergies(energy, fd)
+      end if
+
       if (tDFTBU) then
         write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
       end if
@@ -3407,7 +3427,7 @@ contains
     write(fd, *)
 
     if (tAtomicEnergy) then
-      write(fd, "(A)") 'Atom resolved electronic energies '
+      write(fd, "(A)") 'Atom resolved electronic energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
@@ -3415,19 +3435,30 @@ contains
       end do
       write(fd, *)
 
-      write(fd, "(A)") 'Atom resolved repulsive energies '
+      write(fd, "(A)") 'Atom resolved repulsive energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
-      write(fd, "(A)") 'Atom resolved total energies '
+      write(fd, "(A)") 'Atom resolved total energies'
       do ii = 1, size(iAtInCentralRegion)
         iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
+      if (allocated(dispersion)) then
+        if (dispersion%energyAvailable()) then
+          write(fd, *)
+          write(fd, "(A)") 'Atom resolved dispersion energies '
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
+            write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomDisp(iAt), ' H',&
+                & Hartree__eV * energy%atomDisp(iAt), ' eV'
+          end do
+        end if
+      end if
       write(fd, *)
     end if
 
@@ -3692,7 +3723,7 @@ contains
 
   !> Seventh group of data for detailed.out
   subroutine writeDetailedOut7(fd, tGeoOpt, tGeomEnd, tMd, tDerivs, eField, dipoleMoment,&
-      & deltaDftb, eFieldScaling, dipoleMessage)
+      & deltaDftb, eFieldScaling, dipoleMessage, quadrupoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3723,6 +3754,9 @@ contains
 
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
+
+    !> Quadrupole moment, if available
+    real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
 
     if (allocated(dipoleMoment)) then
       if (len(trim(dipoleMessage))>0) then
@@ -3773,6 +3807,10 @@ contains
             & ' Debye'
         write(fd, *)
       end if
+    end if
+
+    if (allocated(quadrupoleMoment)) then
+      call printQuadrupoleMoment(quadrupoleMoment, fd)
     end if
 
     if (allocated(eField)) then
@@ -3842,9 +3880,9 @@ contains
     if (allocated(neFermi)) then
       write(fd,"(A)", advance='no')'Density of states at the Fermi energy (a.u.): '
       if (size(neFermi)==2) then
-        write(fd,"(E12.6,A,E12.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
+        write(fd,"(E13.6,A,E13.6,A)")neFermi(1), ' (up) ', neFermi(2), ' (down)'
       else
-        write(fd,"(E12.6)")neFermi
+        write(fd,"(E13.6)")neFermi
       end if
     end if
 
@@ -3852,7 +3890,7 @@ contains
 
 
   !> Tenth group of data for detailed.out (derivatives with respect to an external electric field)
-  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE)
+  subroutine writeDetailedOut10(fd, orb, polarisability, dqOut, dEfdE, omega)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3868,6 +3906,9 @@ contains
 
     !> Derivative of the Fermi energy with respect to electric field
     real(dp), allocatable, intent(in) :: dEfdE(:,:)
+
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), allocatable, intent(in) :: omega(:)
 
     integer :: iCart, iAt, nAtom, iS, nSpin, iOmega
 
@@ -3917,17 +3958,44 @@ contains
     end if
 
     if (allocated(polarisability)) then
-      write(fd,*)
-      write(fd,"(A)")'Electric polarisability (a.u.)'
-      do iOmega = 1, size(polarisability, dim=3)
-        do iCart = 1, 3
-          write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
-        end do
-      end do
-      write(fd,*)
+      @:ASSERT(allocated(omega))
+      call permitivityPrint(fd, polarisability, omega)
     end if
 
   end subroutine writeDetailedOut10
+
+
+  !> Print the electric field polarisability
+  subroutine permitivityPrint(fd, polarisability, omega)
+
+    !> File id for data
+    integer, intent(in) :: fd
+
+    !> Electric polarisability
+    real(dp), intent(in) :: polarisability(:,:,:)
+
+    !> Driving frequencies (including potentially 0 for static)
+    real(dp), intent(in) :: omega(:)
+
+    integer :: iCart, iOmega
+
+    write(fd,*)
+    write(fd,*)'Electric field polarisability (a.u.)'
+    do iOmega = 1, size(omega)
+      write(fd,*)
+      if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
+        write(fd, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
+            & omega(iOmega) * Hartree__eV, ' eV'
+      else
+        write(fd, *)"Static polarisability:"
+      end if
+      do iCart = 1, 3
+        write(fd,"(3E20.12)")polarisability(:, iCart, iOmega)
+      end do
+    end do
+    write(fd,*)
+
+  end subroutine permitivityPrint
 
 
   !> First group of output data during molecular dynamics
@@ -3947,10 +4015,12 @@ contains
 
   end subroutine writeMdOut1
 
+
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, isPeriodic, printForces, hasStress, withBarostat, isLinResp, eField,&
-      & fixEf, printMulliken, energy, energiesCasida, latVec, derivs, totalStress, cellVol,&
-      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage)
+      & fixEf, printMulliken, dftbEnergy, energiesCasida, latVec, derivs, totalStress, cellVol,&
+      & cellPressure, pressure, tempIon, qOutput, q0, dipoleMoment, eFieldScaling, dipoleMessage,&
+      & quadrupolemoment, electronicSolver, deltaDftb,  iAtInCentralRegion, mdOutput)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3979,8 +4049,8 @@ contains
     !> Should Mulliken charges be printed?
     logical, intent(in) :: printMulliken
 
-    !> Energy contributions
-    type(TEnergies), intent(in) :: energy
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: dftbEnergy(:)
 
     !> Excitation energies, if allocated
     real(dp), intent(inout), allocatable :: energiesCasida(:)
@@ -4021,13 +4091,31 @@ contains
     !> Optional extra message about dipole moments
     character(*), intent(in) :: dipoleMessage
 
-    integer :: ii
+    !> Quadrupole moment, if available
+    real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Type for DFTB determinants
+    type(TDftbDeterminants), intent(in) :: deltaDftb
+
+    !> Atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Control structure for which variables are written
+    type(TMDOutput), intent(in) :: mdOutput
+
+    integer :: iAt, iDet, ii
     character(lc) :: strTmp
 
-    if (printForces) then
+    iDet = deltaDftb%iFinal
+
+    if (printForces .and. mdOutput%printForces) then
+
       write(fd, "(A)") "Forces (au)"
-      do ii = 1, size(derivs, dim=2)
-        write(fd, "(3E24.8)") -derivs(:, ii)
+      do iAt = 1, size(derivs, dim=2)
+        write(fd, "(3E24.8)") -derivs(:, iAt)
       end do
       if (hasStress) then
         write(fd, "(A)") "Total stress (au)"
@@ -4036,6 +4124,7 @@ contains
         end do
       end if
     end if
+
     if (isPeriodic) then
       if (withBarostat) then
         write(fd, "(A)") "Lattice vectors (A)"
@@ -4046,17 +4135,17 @@ contains
       write(fd, format2Ue) "Volume", cellVol, "au^3", Bohr__AA**3 * cellVol, "A^3"
       write(fd, format2Ue) "Pressure", cellPressure, "au", cellPressure * au__pascal, "Pa"
       if (abs(pressure) < 1.0e-16_dp) then
-        write(fd, format2U) "Gibbs free energy", energy%EGibbs, "H",&
-            & Hartree__eV * energy%EGibbs, "eV"
-        write(fd, format2U) "Gibbs free energy including KE", energy%EGibbsKin, "H",&
-            & Hartree__eV * energy%EGibbsKin, "eV"
+        write(fd, format2U) "Gibbs free energy", dftbEnergy(iDet)%EGibbs, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%EGibbs, "eV"
+        write(fd, format2U) "Gibbs free energy including KE", dftbEnergy(iDet)%EGibbsKin, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%EGibbsKin, "eV"
       end if
     end if
 
     if (isLinResp) then
-      if (energy%Eexcited /= 0.0_dp) then
-        write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
-            & Hartree__eV * energy%Eexcited, "eV"
+      if (dftbEnergy(iDet)%Eexcited /= 0.0_dp) then
+        write(fd, format2U) "Excitation Energy", dftbEnergy(iDet)%Eexcited, "H",&
+            & Hartree__eV * dftbEnergy(iDet)%Eexcited, "eV"
       end if
       if (allocated(energiesCasida)) then
         do ii = 1, size(energiesCasida)
@@ -4067,10 +4156,12 @@ contains
       end if
     end if
 
-    write(fd, format2U) "Potential Energy", energy%EMermin, "H", energy%EMermin * Hartree__eV, "eV"
-    write(fd, format2U) "MD Kinetic Energy", energy%Ekin, "H", energy%Ekin * Hartree__eV, "eV"
-    write(fd, format2U) "Total MD Energy", energy%EMerminKin, "H",&
-        & energy%EMerminKin * Hartree__eV, "eV"
+    write(fd, format2U) "Potential Energy", dftbEnergy(iDet)%EMermin, "H",&
+        & dftbEnergy(iDet)%EMermin * Hartree__eV, "eV"
+    write(fd, format2U) "MD Kinetic Energy", dftbEnergy(iDet)%Ekin, "H",&
+        & dftbEnergy(iDet)%Ekin * Hartree__eV, "eV"
+    write(fd, format2U) "Total MD Energy", dftbEnergy(iDet)%EMerminKin, "H",&
+        & dftbEnergy(iDet)%EMerminKin * Hartree__eV, "eV"
     write(fd, format2U) "MD Temperature", tempIon, "au", tempIon / Boltzmann, "K"
 
     if (allocated(eField)) then
@@ -4080,27 +4171,46 @@ contains
       end if
     end if
 
-    if (fixEf .and. printMulliken) then
-      write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+    if (mdOutput%printCharges) then
+      if (fixEf .and. printMulliken) then
+        write(fd, "(A, F14.8)") "Net charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      end if
+
+      if (allocated(dipoleMoment)) then
+        if (len(trim(dipoleMessage)) > 0) then
+          write(fd, "(A)") trim(dipoleMessage)
+        end if
+        ii = size(dipoleMoment, dim=2)
+        write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
+        write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
+            & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
+      end if
     end if
 
-    if (allocated(dipoleMoment)) then
-      if (len(trim(dipoleMessage)) > 0) then
-        write(fd, "(A)") trim(dipoleMessage)
-      end if
-      ii = size(dipoleMoment, dim=2)
-      write(fd, "(A, 3F14.8, 1X,A)") "Dipole moment:",&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)), "au"
-      write(fd, "(A, 3F14.8, 1X, A)") "Dipole moment:",&
-          & eFieldScaling%scaledSoluteDipole(dipoleMoment(:,ii)) * au__Debye, "Debye"
+    if (mdOutput%printAtomEnergies) then
+      write(fd, "(A)") 'Atom resolved ground state total energies'
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, dftbEnergy(iDet)%atomTotal(iAt), ' H',&
+            & Hartree__eV * dftbEnergy(iDet)%atomTotal(iAt), ' eV'
+      end do
+    end if
+
+    if (deltaDftb%nDeterminant() > 1) then
+      call printEnergies(dftbEnergy, electronicSolver, deltaDftb, fd)
+    end if
+
+    if (allocated(quadrupoleMoment)) then
+      call printQuadrupoleMoment(quadrupoleMoment, fd)
     end if
 
   end subroutine writeMdOut2
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn,&
-      & nAtInCentralRegion, multipoles)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, densityMatrix,&
+      & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts, multipoles)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -4120,22 +4230,34 @@ contains
     !> Imaginary part of block populations if present
     real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
-    !> Full density matrix with on-diagonal adjustment
-    real(dp), intent(in), allocatable :: deltaRhoIn(:)
+    !> Holds real and complex delta density matrices
+    type(TDensityMatrix), intent(in) :: densityMatrix
+
+    !> True, if overlap and Hamiltonian are real-valued
+    logical, intent(in) :: tRealHS
 
     !> Number of atoms in central region (atoms outside this will have charges suplied from
     !> elsewhere)
     integer, intent(in) :: nAtInCentralRegion
 
+    !> Hybrid Hamiltonian construction algorithm
+    integer, intent(in), optional :: hybridXcAlg
+
+    !> Coefficients of the lattice vectors in the linear combination for the super lattice vectors
+    !! (should be integer values) and shift of the grid along the three small reciprocal lattice
+    !! vectors (between 0.0 and 1.0)
+    real(dp), intent(in), optional :: coeffsAndShifts(:,:)
+
     !> Atomic multipoles, if relevant
     type(TMultipole), intent(in), optional :: multipoles
 
-    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn,&
-        & nAtInCentralRegion, multipoles)
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, densityMatrix,&
+        & tRealHS, nAtInCentralRegion, hybridXcAlg, coeffsAndShifts=coeffsAndShifts,&
+        & multipoles=multipoles)
     if (tWriteAscii) then
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.dat'
     else
-      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.bin'
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges) // '.bin'
     end if
 
   end subroutine writeCharges
@@ -4175,7 +4297,7 @@ contains
     !> Image atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> k-points
+    !> The k-points
     real(dp), intent(in) :: kPoint(:,:)
 
     !> index  for which unit cell an atom is in
@@ -4195,7 +4317,7 @@ contains
 
     nSpin = size(ham, dim=2)
 
-    ! Sanity check, although this should have been caught in initprogram already.
+    ! Consistent with functionality? Although this should have been caught in initprogram already.
     if (nSpin == 4) then
       call error('Internal error: Hamiltonian writing for Pauli-Hamiltoninan not implemented')
     end if
@@ -4305,22 +4427,22 @@ contains
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
       & iLatGeoStep, nSpin, qOutput, velocities)
 
-    !>  file for geometry output
+    !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
     !> How central cell atoms are represented
     real(dp), intent(in) :: pCoord0Out(:,:)
 
-    !> is the lattice being optimised?
+    !> Is the lattice being optimised?
     logical, intent(in) :: tLatOpt
 
     !> Is this a molecular dynamics calculation?
     logical, intent(in) :: tMd
 
-    !> should the geometry be added to the end, or the file cleared first
+    !> Should the geometry be added to the end, or the file cleared first
     logical, intent(in) :: tAppendGeo
 
-    !> are fractional GEN files expected
+    !> Are fractional GEN files expected
     logical, intent(in) :: tFracCoord
 
     !> Is the geometry periodic?
@@ -4329,37 +4451,36 @@ contains
     !> Is the geometry helical?
     logical, intent(in) :: tHelical
 
-    !> should Mulliken charges be printed
+    !> Should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
 
-    !> species of atoms in the central cell
+    !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
-    !> label for each atomic chemical species
+    !> Label for each atomic chemical species
     character(*), intent(in) :: speciesName(:)
 
-    !> lattice vectors
+    !> Lattice vectors
     real(dp), intent(in) :: latVec(:,:)
 
     !> Origin for periodic coordinates
     real(dp), intent(in) :: origin(:)
 
-    !> current geometry step
+    !> Current geometry step
     integer, intent(in) :: iGeoStep
 
-    !> current lattice step
+    !> Current lattice step
     integer, intent(in) :: iLatGeoStep
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> charges
+    !> Charges
     real(dp), intent(in), allocatable :: qOutput(:,:,:)
 
-    !> atomic velocities
+    !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
-    real(dp), allocatable :: tmpMatrix(:,:)
     integer :: nAtom
     integer :: ii, jj
     character(lc) :: comment, fname
@@ -4374,6 +4495,88 @@ contains
     end if
 
     fname = trim(geoOutFile) // ".xyz"
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    if (tPrintMulliken) then
+      ! For non-colinear spin without velocities write magnetisation into the velocity field
+      if (nSpin == 4 .and. .not. allocated(velocities)) then
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1), dim=1),&
+            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
+            & append=tAppendGeo)
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+            & append=tAppendGeo)
+      end if
+    else
+      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+          & comment=comment, append=tAppendGeo)
+    end if
+
+  end subroutine writeCurrentGeometry
+
+
+  !> Write geometry including periodic images to disc
+  subroutine writeExtendedGeometry(geoOutFile, tLatOpt, tMd, tAppendGeo, speciesName, iGeoStep,&
+      & iLatGeoStep, coord, species)
+
+    !> File for geometry output
+    character(*), intent(in) :: geoOutFile
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Should the geometry be added to the end, or the file cleared first
+    logical, intent(in) :: tAppendGeo
+
+    !> Label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
+    !> Coordinates of all atoms (including images, if extended)
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Species for each atom (in whole structure, if extended)
+    integer, intent(in) :: species(:)
+
+    character(lc) :: comment
+
+    call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    call writeXYZFormat(trim(geoOutFile), coord, species, speciesName, comment=comment,&
+        & append=tAppendGeo)
+
+  end subroutine writeExtendedGeometry
+
+
+  !> Internal routine to set up comment line text for xyz format
+  subroutine geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
+
+    !> Resulting comment line
+    character(lc), intent(out) :: comment
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Is this a molecular dynamics calculation?
+    logical, intent(in) :: tMd
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Current lattice step
+    integer, intent(in) :: iLatGeoStep
+
     if (tLatOpt) then
       write(comment, "(A, I0, A, I0)") '** Geometry step: ', iGeoStep, ', Lattice step: ',&
           & iLatGeoStep
@@ -4383,37 +4586,7 @@ contains
       write(comment,"(A, I0)") 'Geometry Step: ', iGeoStep
     end if
 
-    if (tPrintMulliken) then
-      ! For non-colinear spin without velocities write magnetisation into the velocity field
-      if (nSpin == 4 .and. .not. allocated(velocities)) then
-        allocate(tmpMatrix(3, nAtom))
-        do jj = 1, nAtom
-          do ii = 1, 3
-            tmpMatrix(ii,jj) = sum(qOutput(:, jj, ii + 1))
-          end do
-        end do
-        ! convert by the inverse of the scaling used in writeXYZFormat
-        tmpMatrix(:,:) = tmpMatrix * au__fs / (1000_dp * Bohr__AA)
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1), velocities=tmpMatrix, comment=comment,&
-            & append=tAppendGeo)
-      else if (allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
-            & append=tAppendGeo)
-      else
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), comment=comment, append=tAppendGeo)
-      end if
-    else if (allocated(velocities)) then
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
-          & comment=comment, append=tAppendGeo)
-    else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, comment=comment,&
-          & append=tAppendGeo)
-    end if
-
-  end subroutine writeCurrentGeometry
+  end subroutine geometryComment_
 
 
   !> Write out final status of the geometry driver.
@@ -4717,19 +4890,17 @@ contains
         end if
 
         if (deltaDftb%iGround > 0) then
-          if (electronicSolver%providesFreeEnergy) then
-            write(iUnit, *)
-            write(iUnit, format2U) 'S0 -> T1',&
-                & energy(deltaDftb%iTriplet)%EForceRelated&
-                & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
-                & (energy(deltaDftb%iTriplet)%EForceRelated&
-                & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
-            write(iUnit, format2U) 'S0 -> S1',&
-                & energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated,&
-                & 'H',&
-                & (energy(deltaDftb%iFinal)%EForceRelated-energy(deltaDftb%iGround)%EForceRelated)&
-                & * Hartree__eV, 'eV'
-          end if
+          write(iUnit, *)
+          write(iUnit, format2U) 'S0 -> T1',&
+              & energy(deltaDftb%iTriplet)%EForceRelated&
+              & - energy(deltaDftb%iGround)%EForceRelated, 'H',&
+              & (energy(deltaDftb%iTriplet)%EForceRelated&
+              & - energy(deltaDftb%iGround)%EForceRelated) * Hartree__eV, 'eV'
+          write(iUnit, format2U) 'S0 -> S1',&
+              & energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated,&
+              & 'H',&
+              & (energy(deltaDftb%iFinal)%EForceRelated - energy(deltaDftb%iGround)%EForceRelated)&
+              & * Hartree__eV, 'eV'
         end if
 
       else
@@ -5081,7 +5252,7 @@ contains
     !> Spin index of the eigenvector
     integer, intent(in) :: iS
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -5149,7 +5320,7 @@ contains
     !> Fraction of each orbital in the eigenvector, decomposed into 4 components.
     real(dp), intent(in) :: fracs(:,:)
 
-    !> K-point index of the eigenvector
+    !> The k-point index of the eigenvector
     integer, intent(in) :: iK
 
     !> Index of the eigenvector
@@ -5496,7 +5667,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure,&
       & cellVol, tAtomicEnergy, dispersion, tPeriodic, tScc, invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep, qNetAtom)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isHybridXc, qNetAtom, isMdftb)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5576,10 +5747,10 @@ contains
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
 
-    !> K-points if periodic
+    !> The k-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> atoms in the central cell (or device region if transport)
+    !> Atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Electronic solver information
@@ -5589,13 +5760,16 @@ contains
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Onsite mulliken population per atom
     real(dp), intent(in), optional :: qNetAtom(:)
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
+
+    !> Are there energy contributions up to quadrupole in the DFTB model?
+    logical, intent(in) :: isMdftb
 
     integer :: nAtom, nKPoint, nMovedAtom
     integer :: ang, iAt, iSpin, iK, iSp, iSh, ii, kk
@@ -5770,9 +5944,14 @@ contains
       if (t3rd) then
         write(fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
-      if (isRangeSep) then
+      if (isHybridXc) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
+
+      if (isMdftb) then
+        call writeMdftbEnergies(energy, fd)
+      end if
+
     end if
 
     write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', &
@@ -5867,5 +6046,74 @@ contains
     end select
 
   end subroutine writeCosmoFile
+
+
+  !> Prints out the total quadrupole moment of the system
+  subroutine printQuadrupoleMoment(quadrupoleMoment, outUnit)
+
+    !> quadrupole moment
+    real(dp), intent(in), allocatable :: quadrupoleMoment(:,:)
+
+    !> Optional unit to print out the quadrupoleMoment
+    integer, intent(in), optional :: outUnit
+
+    integer :: iUnit
+
+    if (present(outUnit)) then
+      iUnit = outUnit
+    else
+      iUnit = stdOut
+    end if
+
+    write(iUnit, "(A)") ' Traceless Quadrupole moment in au'
+    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX', quadrupoleMoment(1,1), ' YY',&
+        & quadrupoleMoment(2,2), ' ZZ', quadrupoleMoment(3,3)
+    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY', quadrupoleMoment(1,2), ' XZ',&
+        & quadrupoleMoment(1,3), ' YZ', quadrupoleMoment(2,3)
+
+    write(iUnit, "(A)") ' Traceless Quadrupole moment in Buckingham or Debye*Ang'
+    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XX',&
+        & quadrupoleMoment(1,1) * au__Debye * Bohr__AA, ' YY',&
+        & quadrupoleMoment(2,2) * au__Debye * Bohr__AA, ' ZZ',&
+        & quadrupoleMoment(3,3) * au__Debye * Bohr__AA
+    write(iUnit, "(A, F14.8, A, F14.8, A, F14.8)") ' XY',&
+        & quadrupoleMoment(1,2) * au__Debye * Bohr__AA, ' XZ',&
+        & quadrupoleMoment(1,3) * au__Debye * Bohr__AA, ' YZ',&
+        & quadrupoleMoment(2,3) * au__Debye * Bohr__AA
+    write(iUnit, *)
+
+  end subroutine printQuadrupoleMoment
+
+
+  !> Writes the mdftb energy components.
+  subroutine writeMdftbEnergies(energy, iUnit)
+
+    !> Energy terms in the system
+    type(TEnergies), intent(in) :: energy
+
+    !> File unit to write out the mdftb energy components
+    integer, intent(in) :: iUnit
+
+
+    write(iUnit, format2U) 'Energy Monopole-Dipole', energy%EMdftbMD, 'H',&
+        & energy%EMdftbMD * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Dipole-Dipole', energy%EMdftbDD, 'H',&
+        & energy%EMdftbDD * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Monopole-Quadrupole', energy%EMdftbMQ, 'H',&
+        & energy%EMdftbMQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Dipole-Quadrupole', energy%EMdftbDQ, 'H',&
+        & energy%EMdftbDQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Quadrupole-Quadrupole', energy%EMdftbQQ, 'H',&
+        & energy%EMdftbQQ * Hartree__eV, 'eV'
+
+    write(iUnit, format2U) 'Energy Multipole', energy%EMdftb, 'H',&
+        & energy%EMdftb * Hartree__eV, 'eV'
+
+  end subroutine writeMdftbEnergies
+
 
 end module dftbp_dftbplus_mainio

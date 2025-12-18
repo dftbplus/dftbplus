@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
 '''Converts band.out to plottable data.'''
 
-from argparse import ArgumentParser, RawTextHelpFormatter
+from argparse import ArgumentParser
 import numpy as np
 from dptools.bandout import BandOut
-from dptools.scripts.common import ScriptError
+from dptools.scripts.common import ScriptError, find_auto_alignment
 
 USAGE = '''
 Reads the band structure information stored in the file INPUT created
@@ -40,8 +40,7 @@ def parse_cmdline_args(cmdlineargs=None):
         cmdlineargs: List of command line arguments. When None, arguments in
             sys.argv are parsed (Default: None).
     '''
-    parser = ArgumentParser(
-        description=USAGE, formatter_class=RawTextHelpFormatter)
+    parser = ArgumentParser(description=USAGE)
 
     msg = "do not use the first column of the output to enumerate the k-points"
     parser.add_argument("-N", "--no-enumeration", action="store_false",
@@ -51,14 +50,14 @@ def parse_cmdline_args(cmdlineargs=None):
     parser.add_argument("-s", "--separate-spins", action="store_true",
                         default=False, dest="spinsep", help=msg)
 
-    msg = "aligns an estimate of the level of half-occupation to the zero of " +\
-        "energy\ninteger occupations: Shifts the VBM to zero energy.\n" +\
-        "fractional occupations: Shifts approximate Fermi level, i.e. the highest" +\
-        "\n    eigenvalue that is at least half occupied, to zero energy." +\
-        "\n    Note that this energy does not necessarily correspond to the" +\
-        "\n    real Fermi level. Please consult the appropriate output files" +\
-        "\n    (detailed.out|results.tag) to obtain the Fermi level of the" +\
-        "\n    calculation."
+    msg = "Aligns an estimate of the level of half-occupation to the zero of" +\
+        " energy. Integer occupations: Shifts the VBM to zero energy." +\
+        " Fractional occupations: Shifts approximate Fermi level, i.e. the highest" +\
+        " eigenvalue that is at least half occupied, to zero energy." +\
+        " Note that this energy does not necessarily correspond to the" +\
+        " real Fermi level. Please consult the appropriate output files" +\
+        " (detailed.out|results.tag) to obtain the Fermi level of the" +\
+        " calculation."
     parser.add_argument("-A", "--auto-align", action="store_true",
                         default=False, dest="autoalign", help=msg)
 
@@ -73,6 +72,12 @@ def parse_cmdline_args(cmdlineargs=None):
 
     args = parser.parse_args(cmdlineargs)
 
+    # check for argument collisions
+    if args.autoalign and args.align is not None:
+        raise ScriptError(
+            'Collision of incompatible options. Auto-alignment ' + \
+            'and simultaneous manual shifting of eigenvalues is not supported.')
+
     return args
 
 
@@ -84,12 +89,6 @@ def dp_bands(args):
     '''
     infile = args.infile
     outprefix = args.outprefix
-
-    # check for argument collisions
-    if args.autoalign and args.align is not None:
-        raise ScriptError(
-            'Collision of incompatible options. Auto-alignment ' + \
-            'and simultaneous manual shifting of eigenvalues is not supported.')
 
     try:
         bandout = BandOut.fromfile(infile)
@@ -137,19 +136,3 @@ def dp_bands(args):
             else:
                 fp.write(formstr.format(*kdata))
         fp.close()
-
-
-def find_auto_alignment(bandout):
-    '''
-    Integer occupations: finds the energy shift required to set the VBM to zero
-    Fractional occupations: finds Fermi-type level
-
-    Args:
-        bandout (BandOut): representation of a band.out like file
-
-    '''
-
-    eigvals = bandout.eigvalarray[:, :, :, 0]
-    occ = bandout.eigvalarray[:, :, :, 1]
-
-    return np.max(eigvals[np.where(occ >= np.max(occ) / 2.0)])

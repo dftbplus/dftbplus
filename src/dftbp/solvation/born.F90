@@ -1,25 +1,27 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include 'error.fypp'
 
 !> Generalized Born solvation model.
 module dftbp_solvation_born
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Hartree__eV
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, distributeRangeWithWorkload,&
-      & assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks,&
+      & distributeRangeWithWorkload
+  use dftbp_common_status, only : TStatus
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_math_blasroutines, only : hemv, gemv
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
+  use dftbp_math_blasroutines, only : gemv, hemv
   use dftbp_math_simplealgebra, only : determinant33
-  use dftbp_solvation_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
-  use dftbp_solvation_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
+  use dftbp_solvation_cm5, only : TChargeModel5, TChargeModel5_init, TCM5Input
+  use dftbp_solvation_sasa, only : TSASACont, TSASACont_init, TSASAInput, writeSASAContInfo
   use dftbp_solvation_solvation, only : TSolvation
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
@@ -211,8 +213,7 @@ contains
 
 
   !> Initialize generalized Born model from input data
-  subroutine TGeneralizedBorn_init(this, input, nAtom, species0, speciesNames, &
-      & latVecs)
+  subroutine TGeneralizedBorn_init(this, input, nAtom, species0, speciesNames, errStatus, latVecs)
 
     !> Initialised instance at return
     type(TGeneralizedBorn), intent(out) :: this
@@ -229,6 +230,9 @@ contains
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
@@ -241,12 +245,13 @@ contains
     if (allocated(input%sasaInput)) then
        allocate(this%sasaCont)
        if (this%tPeriodic) then
-         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
-             & speciesNames, latVecs)
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, speciesNames,&
+             & errStatus, latVecs)
        else
-         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, &
-             & speciesNames)
+         call TSASACont_init(this%sasaCont, input%sasaInput, nAtom, species0, speciesNames,&
+             & errStatus)
        end if
+       @:PROPAGATE_ERROR(errStatus)
     end if
 
     if (this%tPeriodic) then
@@ -281,11 +286,9 @@ contains
     if (allocated(input%cm5Input)) then
       allocate(this%cm5)
       if (this%tPeriodic) then
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true., latVecs)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true., latVecs)
       else
-        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, &
-           & .true.)
+        call TChargeModel5_init(this%cm5, input%cm5Input, nAtom, speciesNames, .true.)
       end if
     end if
 
@@ -343,6 +346,7 @@ contains
     else
       write(unit, '(a)') "No"
     end if
+
   end subroutine writeGeneralizedBornInfo
 
 
@@ -395,8 +399,8 @@ contains
         & neighList%neighDist2, species0, coords, this%param%vdwRad, &
         & this%rho, this%param%bornOffset, this%param%bornScale, this%param%obc, &
         & this%bornRad, this%dbrdr)
-    call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, &
-        & this%param%keps, this%bornRad, this%bornMat)
+    call getBornMatrixCluster(env, this%nAtom, coords, this%param%kernel, this%param%keps,&
+        & this%bornRad, this%bornMat)
 
     ! Analytical linearized Poisson-Boltzmann contribution for charged systems
     if (this%param%alpbet > 0.0_dp) then
@@ -469,7 +473,7 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(this, env, neighList, species, coords, img2CentCell, gradients, errStatus)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: this
@@ -492,6 +496,9 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
@@ -502,7 +509,9 @@ contains
     @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      call this%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       if (allocated(this%hBondStrength)) then
         allocate(dhbds(this%nAtom))
         dhbds(:) = this%hBondStrength * this%chargesPerAtom**2
@@ -591,7 +600,7 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(this, env, species, neighList, qq, q0, img2CentCell, orb, errStatus)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: this
@@ -617,10 +626,15 @@ contains
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
     @:ASSERT(this%tCoordsUpdated)
 
     if (allocated(this%sasaCont)) then
-      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+      call this%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb,&
+          & errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     end if
 
     call getSummedCharges(species, orb, qq, q0, dQAtom=this%chargesPerAtom)
@@ -833,6 +847,7 @@ contains
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
+        if (iAt2f > iAt1) cycle
         iSp2 = species(iAt2f)
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         dist = sqrt(neighDist2(iNeigh, iAt1))
@@ -1057,8 +1072,7 @@ contains
 
 
   !> compute Born matrix
-  subroutine getBornMatrixCluster(env, nAtom, coords0, kernel, keps, bornRad, &
-      & bornMat)
+  subroutine getBornMatrixCluster(env, nAtom, coords0, kernel, keps, bornRad, bornMat)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1098,7 +1112,7 @@ contains
 
     !> self-energy part
     do iAt1 = iAtFirst, iAtLast
-      bornMat(iAt1, iAt1) = keps/bornRad(iAt1)
+      bornMat(iAt1, iAt1) = bornMat(iAt1, iAt1) + keps/bornRad(iAt1)
     end do
 
     call assembleChunks(env, bornMat)
@@ -1106,9 +1120,8 @@ contains
   end subroutine getBornMatrixCluster
 
 
-  !> compute Born matrix using Still interaction kernel
-  subroutine getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, keps, &
-      & bornMat)
+  !> Compute Born matrix using Still interaction kernel
+  subroutine getBornMatrixStillCluster(iAtFirst, iAtLast, bornRad, coords0, keps, bornMat)
 
     !> Number of atoms
     integer, intent(in) :: iAtFirst
@@ -1137,7 +1150,6 @@ contains
     do iAt1 = iAtFirst, iAtLast
       do iAt2 = 1, iAt1-1
         dist2 = sum((coords0(:, iAt1) - coords0(:, iAt2))**2)
-
         aa = bornRad(iAt1)*bornRad(iAt2)
         dd = 0.25_dp*dist2/aa
         expd = exp(-dd)

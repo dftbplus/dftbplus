@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,15 +18,16 @@
 module dftbp_poisson_bulkpot
  use dftbp_common_accuracy, only : dp
  use dftbp_common_constants, only : Bohr__AA
- use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
+ use dftbp_common_file, only : closeFile, fileExists, openFile, TFileDescr
  use dftbp_common_globalenv, only : stdOut
  use dftbp_io_message, only : warning
+ use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
  use dftbp_poisson_gallocation, only : log_gallocate, log_gdeallocate
- use dftbp_poisson_gewald, only : getalpha, rezvol, long_pot, short_pot
+ use dftbp_poisson_gewald, only : getalpha, long_pot, rezvol, short_pot
  use dftbp_poisson_mpi_poisson, only : id0
- use dftbp_poisson_parameters, only : deltaR_max, ncont, poissacc, readbulk, contdir, iatc,&
-      & overrbulkbc, dmin
- use dftbp_poisson_structure, only : period, izp, x, dqmat, period_dir, uhubb, nshells
+ use dftbp_poisson_parameters, only : contdir, deltaR_max, dmin, iatc, ncont,&
+     & overrbulkbc, poissacc, readbulk
+ use dftbp_poisson_structure, only : dqmat, izp, nshells, period, period_dir, uhubb, x
 
  implicit none
  private
@@ -129,10 +130,10 @@ contains
      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
 
-     if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(3)
-     if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(4)
-     if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(5)
-     if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(6)
+     if(overrBulkBC(3) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(2)=overrBulkBC(3)
+     if(overrBulkBC(4) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(3)=overrBulkBC(4)
+     if(overrBulkBC(5) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(4)=overrBulkBC(5)
+     if(overrBulkBC(6) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(5)=overrBulkBC(6)
      !------------------------------------------------------
      phi_bulk(m)%iparm(8)  = iparm(9)  ! iyp
      phi_bulk(m)%iparm(9)  = iparm(10) ! izp
@@ -171,10 +172,10 @@ contains
      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
 
-     if(overrBulkBC(5).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(5)
-     if(overrBulkBC(6).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(6)
-     if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(1)
-     if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(2)
+     if(overrBulkBC(5) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(2)=overrBulkBC(5)
+     if(overrBulkBC(6) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(3)=overrBulkBC(6)
+     if(overrBulkBC(1) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(4)=overrBulkBC(1)
+     if(overrBulkBC(2) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(5)=overrBulkBC(2)
      !------------------------------------------------------
      phi_bulk(m)%iparm(8)  = iparm(10) ! izp
      phi_bulk(m)%iparm(9)  = iparm(8)  ! ixp
@@ -214,10 +215,10 @@ contains
      phi_bulk(m)%iparm(6)= 0           ! Periodic in  c
      phi_bulk(m)%iparm(7)= 0           ! Periodic in  c
 
-     if(overrBulkBC(1).gt.-1) phi_bulk(m)%iparm(2)=overrBulkBC(1)
-     if(overrBulkBC(2).gt.-1) phi_bulk(m)%iparm(3)=overrBulkBC(2)
-     if(overrBulkBC(3).gt.-1) phi_bulk(m)%iparm(4)=overrBulkBC(3)
-     if(overrBulkBC(4).gt.-1) phi_bulk(m)%iparm(5)=overrBulkBC(4)
+     if(overrBulkBC(1) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(2)=overrBulkBC(1)
+     if(overrBulkBC(2) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(3)=overrBulkBC(2)
+     if(overrBulkBC(3) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(4)=overrBulkBC(3)
+     if(overrBulkBC(4) /= poissonBCsEnum%unset) phi_bulk(m)%iparm(5)=overrBulkBC(4)
      !------------------------------------------------------
      phi_bulk(m)%iparm(8)  = iparm(8)  ! ixp
      phi_bulk(m)%iparm(9)  = iparm(9)  ! iyp
@@ -251,7 +252,7 @@ contains
    ! CASE ALL PERIODIC:
    ! Choose the smallest area where compute Ewald sums
    ! Override periodic BC with Dirichlet
-   if ( all(phi_bulk(m)%iparm(2:7).eq.0) ) then
+   if ( all(phi_bulk(m)%iparm(2:7) == poissonBCsEnum%periodic) ) then
      phi_bulk(m)%doEwald=.true.
      if(nb*nc .lt. na*nc) then
         phi_bulk(m)%iparm(2)= 1           !Dirichlet in a

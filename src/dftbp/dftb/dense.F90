@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,12 +9,11 @@
 
 !> Contains subroutines for the dense matrix representation
 module dftbp_dftb_dense
-  use dftbp_common_accuracy, only : dp
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
   private
-  public :: buildSquaredAtomIndex
+  public :: buildSquaredAtomIndex, getDescriptor
 
 contains
 
@@ -42,5 +41,22 @@ contains
     iAtomStart(nAtom+1) = ind
 
   end subroutine buildSquaredAtomIndex
+
+
+  !> Finds location of relevant atomic block indices in a dense matrix.
+  pure function getDescriptor(iAt, iSquare) result(desc)
+
+    !> Relevant atom
+    integer, intent(in) :: iAt
+
+    !> Indexing array for start of atom orbitals
+    integer, intent(in) :: iSquare(:)
+
+    !> Resulting location ranges
+    integer :: desc(3)
+
+    desc(:) = [iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt)]
+
+  end function getDescriptor
 
 end module dftbp_dftb_dense

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 !> Use it with the input in the test/api/mm/qdepextpot/ folder.
 !>
 program test_qdepextpot
-  use dftbplus
+  use dftbplus, only : getDftbPlusApi, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use extchargepot, only : getPointChargePotential
   use extchargepotgen, only : TExtChargePotGen, TExtChargePotGen_init
   ! Only needed for the internal test system

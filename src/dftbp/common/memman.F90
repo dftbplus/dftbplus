@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,10 +9,10 @@
 
 !> Contains various constants for memory management
 module dftbp_common_memman
+  use, intrinsic :: iso_c_binding, only : c_associated, c_f_pointer, c_int, c_null_ptr, c_ptr,&
+      & c_size_t, c_sizeof
   use dftbp_common_accuracy, only : dp
   use dftbp_io_message, only : error
-  use, intrinsic :: iso_c_binding, only : c_associated, c_f_pointer, c_int,&
-      & c_null_ptr, c_ptr, c_size_t, c_sizeof
 
   implicit none
 
@@ -65,12 +65,12 @@ module dftbp_common_memman
 contains
 
 
-  !> figures out how much larger an array should be to minimize reallocations in future if the array
-  !> grows more
+  !> Figures out how much larger an array should be to minimize reallocations in future if the array
+  !! grows more
   pure function incrmntOfArray(currentSize)
     integer :: incrmntOfArray
 
-    !> current array size
+    !> Current array size
     integer, intent(in) :: currentSize
 
     incrmntOfArray = currentSize + currentSize  / 2 + 1

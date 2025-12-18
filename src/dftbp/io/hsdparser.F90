@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,13 +17,13 @@
 !>
 !> For the specification of the HSD format see the sample input
 module dftbp_io_hsdparser
-  use dftbp_common_file, only : TFileDescr, TOpenOptions, openFile, closeFile
-  use dftbp_extlibs_xmlf90, only : fnode, string, getNodeType, TEXT_NODE, len, getParentNode, char,&
-      & getAttributeNode, getFirstChild, getNextSibling, removeChild, createElement, appendChild,&
-      & createElement, createTextNode, createDocumentNode, assignment(=), prepend_to_string,&
-      & getAttribute, getNodeName, getNodeValue, destroyNode, setAttribute, getAttribute, normalize
-  use dftbp_io_charmanip, only : newline, whiteSpaces, trim2, tolower, i2c, unquotedIndex, unquote,&
-      & unquotedScan, convertWhitespaces, getFirstOccurance
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr, TOpenOptions
+  use dftbp_extlibs_xmlf90, only : appendChild, assignment(=), char, createDocumentNode,&
+      & createElement, createTextNode, destroyNode, fnode, getAttribute, getAttributeNode,&
+      & getFirstChild, getNextSibling, getNodeName, getNodeType, getNodeValue, getParentNode, len,&
+      & normalize, prepend_to_string, removeChild, setAttribute, string, TEXT_NODE
+  use dftbp_io_charmanip, only : convertWhitespaces, getFirstOccurance, i2c, newline, tolower,&
+      & trim2, unquote, unquotedIndex, unquotedScan, whiteSpaces
   use dftbp_io_linereader, only : TLineReader
   use dftbp_io_message, only : error
   use dftbp_io_xmlutils, only : getFirstChildByName

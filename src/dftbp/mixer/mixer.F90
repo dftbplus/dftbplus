@@ -1,248 +1,109 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
-!> Provides a general mixer which contains the desired actual mixer.
+!> Defines an abstract mixer as a base class, specifying the common interface for the
+!> desired actual mixer and providing shared methods to flatten 6D and 3D data to 1D.
 module dftbp_mixer_mixer
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
-  use dftbp_mixer_andersonmixer, only : TAndersonMixer, mix, reset
-  use dftbp_mixer_broydenmixer, only : TBroydenMixer, mix, reset, getInverseJacobian
-  use dftbp_mixer_diismixer, only : TDIISMixer, mix, reset
-  use dftbp_mixer_simplemixer, only : TSimpleMixer, mix, reset
   implicit none
 
   private
-  public :: TMixer
-  public :: init, reset, mix
-  public :: hasInverseJacobian, getInverseJacobian
-  public :: mixerTypes
+  public :: TMixerReal, TMixerCmplx
 
+#:for NAME, TYPE, LABEL in FLAVOURS
+  type, abstract :: TMixer${LABEL}$
+    contains
+      procedure(IReset${LABEL}$), deferred :: reset
 
-  !> Interface type for various mixers.
-  type TMixer
-    private
+      !> The mixing implementation
+      procedure(IMix1D${LABEL}$), deferred :: mix1D
 
-    !> numerical type of mixer 1:4
-    integer :: mixerType
+      !> Flatten 6d and 3d mixing to 1d
+      procedure :: mix3D => TMixer${LABEL}$_mix3D
+      procedure :: mix6D => TMixer${LABEL}$_mix6D
 
-    !> simple mixer instance
-    type(TSimpleMixer),   allocatable :: pSimpleMixer
+      generic :: mix => mix1D, mix3D, mix6D
+  end type TMixer${LABEL}$
 
-    !> Anderson mixer instance
-    type(TAndersonMixer), allocatable :: pAndersonMixer
+  abstract interface
 
-    !> Broyden mixer instance
-    type(TBroydenMixer),  allocatable :: pBroydenMixer
+    subroutine IReset${LABEL}$(this, nElem)
+      import :: TMixer${LABEL}$
+      class(TMixer${LABEL}$), intent(inout) :: this
+      integer, intent(in) :: nElem
+    end subroutine IReset${LABEL}$
 
-    !> modified DIIS mixer instance
-    type(TDIISMixer),  allocatable :: pDIISMixer
-  end type TMixer
+    subroutine IMix1D${LABEL}$(this, qInpResult, qDiff)
+      import :: TMixer${LABEL}$, dp
+      class(TMixer${LABEL}$), intent(inout) :: this
+      ${TYPE}$(dp), intent(inout) :: qInpResult(:)
+      ${TYPE}$(dp), intent(in) :: qDiff(:)
+    end subroutine IMix1D${LABEL}$
 
-
-  !> Initialises specific mixer in use
-  interface init
-    module procedure Mixer_initSimple
-    module procedure Mixer_initAnderson
-    module procedure Mixer_initBroyden
-    module procedure Mixer_initDIIS
   end interface
-
-
-  !> Resets mixer
-  interface reset
-    module procedure Mixer_reset
-  end interface reset
-
-
-  !> Does the actual mixing
-  interface mix
-    module procedure Mixer_mix
-  end interface mix
-
-
-  !> Is J^-1 available?
-  interface hasInverseJacobian
-    module procedure Mixer_hasInverseJacobian
-  end interface hasInverseJacobian
-
-
-  !> Return J^-1 if possible
-  interface getInverseJacobian
-    module procedure Mixer_getInverseJacobian
-  end interface getInverseJacobian
-
-
-  type :: TMixerTypesEnum
-    integer :: simple = 1
-    integer :: anderson = 2
-    integer :: broyden = 3
-    integer :: diis = 4
-  end type TMixerTypesEnum
-
-  !> Contains mixer types
-  type(TMixerTypesEnum), parameter :: mixerTypes = TMixerTypesEnum()
+#:endfor
 
 contains
 
-
-  !> Initializes a simple mixer.
-  subroutine Mixer_initSimple(this, pSimple)
-
-    !> Mixer instance
-    type(TMixer), intent(out) :: this
-
-    !> A valid simple mixer instance on exit.
-    type(TSimpleMixer), allocatable, intent(inout) :: pSimple
-
-    this%mixerType = mixerTypes%simple
-    call move_alloc(pSimple, this%pSimpleMixer)
-
-  end subroutine Mixer_initSimple
-
-
-  !> Initializes an Anderson mixer.
-  subroutine Mixer_initAnderson(this, pAnderson)
+#:for NAME, TYPE, LABEL in FLAVOURS
+  !> Mixes two 3D matrices.
+  subroutine TMixer${LABEL}$_mix3D(this, qInpResSqr, qDiffSqr)
 
     !> Mixer instance
-    type(TMixer), intent(out) :: this
+    class(TMixer${LABEL}$), intent(inout) :: this
 
-    !> A valid Anderson mixer instance on exit.
-    type(TAndersonMixer), allocatable, intent(inout) :: pAnderson
-
-    this%mixerType = mixerTypes%anderson
-    call move_alloc(pAnderson, this%pAndersonMixer)
-
-  end subroutine Mixer_initAnderson
-
-
-  !> Initializes a Broyden mixer
-  subroutine Mixer_initBroyden(this, pBroyden)
-
-    !> Mixer instance
-    type(TMixer), intent(out) :: this
-
-    !> A valid Broyden mixer instance on exit.
-    type(TBroydenMixer), allocatable, intent(inout) :: pBroyden
-
-    this%mixerType = mixerTypes%broyden
-    call move_alloc(pBroyden, this%pBroydenMixer)
-
-  end subroutine Mixer_initBroyden
-
-
-  !> Initializes a DIIS mixer
-  subroutine Mixer_initDIIS(this, pDIIS)
-
-    !> Mixer instance
-    type(TMixer), intent(out) :: this
-
-    !> A valid DIIS mixer instance on exit.
-    type(TDIISMixer), allocatable, intent(inout) :: pDIIS
-
-    this%mixerType = mixerTypes%diis
-    call move_alloc(pDIIS, this%pDIISMixer)
-
-  end subroutine Mixer_initDIIS
-
-
-  !> Resets the mixer
-  subroutine Mixer_reset(this, nElem)
-
-    !> Mixer instance.
-    type(TMixer), intent(inout) :: this
-
-    !> Size of the vectors to mix.
-    integer, intent(in) :: nElem
-
-    select case (this%mixerType)
-    case(mixerTypes%simple)
-      call reset(this%pSimpleMixer, nElem)
-    case (mixerTypes%anderson)
-      call reset(this%pAndersonMixer, nElem)
-    case (mixerTypes%broyden)
-      call reset(this%pBroydenMixer, nElem)
-    case (mixerTypes%diis)
-      call reset(this%pDIISMixer, nElem)
-    end select
-
-  end subroutine Mixer_reset
-
-
-  !> Mixes vectors together
-  subroutine Mixer_mix(this, qInpRes, qDiff)
-
-    !> Mixer instance.
-    type(TMixer), intent(inout) :: this
-
-    !> Input vector on entry, result vector on exit.
-    real(dp),      intent(inout) :: qInpRes(:)
+    !> Input vector on entry, result vector on exit
+    ${TYPE}$(dp), intent(inout), contiguous, target :: qInpResSqr(:,:,:)
 
     !> Difference between input and output vectors (measure of lack of convergence)
-    real(dp),      intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in), contiguous, target :: qDiffSqr(:,:,:)
 
-    select case (this%mixerType)
-    case (mixerTypes%simple)
-      call mix(this%pSimpleMixer, qInpRes, qDiff)
-    case (mixerTypes%anderson)
-      call mix(this%pAndersonMixer, qInpRes, qDiff)
-    case (mixerTypes%broyden)
-      call mix(this%pBroydenMixer, qInpRes, qDiff)
-    case (mixerTypes%diis)
-      call mix(this%pDIISMixer, qInpRes, qDiff)
-    end select
+    !! Difference between input and output vectors (1D pointer)
+    ${TYPE}$(dp), pointer :: qDiff(:)
 
-  end subroutine Mixer_mix
+    !! Input vector on entry, result vector on exit (1D pointer)
+    ${TYPE}$(dp), pointer :: qInpRes(:)
 
+    qDiff(1:size(qDiffSqr)) => qDiffSqr
+    qInpRes(1:size(qInpResSqr)) => qInpResSqr
 
-  !> Tells whether the mixer is able to provide the inverse Jacobian.
-  function Mixer_hasInverseJacobian(this) result(has)
+    call this%mix1D(qInpRes, qDiff)
 
-    !> Mixer instance.
-    type(TMixer), intent(inout) :: this
-
-    !> Size of the vectors to mix.
-    logical :: has
-
-    select case (this%mixerType)
-    case(mixerTypes%simple)
-      has = .false.
-    case (mixerTypes%anderson)
-      has = .false.
-    case (mixerTypes%broyden)
-      has = .true.
-    case (mixerTypes%diis)
-      has = .false.
-    end select
-
-  end function Mixer_hasInverseJacobian
+  end subroutine TMixer${LABEL}$_mix3D
 
 
-  !> Return an inverse Jacobian if possible, halting if not
-  subroutine Mixer_getInverseJacobian(this, invJac)
+  !> Mixes two 6D matrices.
+  subroutine TMixer${LABEL}$_mix6D(this, qInpResSqr, qDiffSqr)
 
-    !> Mixer instance.
-    type(TMixer), intent(inout) :: this
+    !> Mixer instance
+    class(TMixer${LABEL}$), intent(inout) :: this
 
-    !> Inverse Jacobian matrix if available
-    real(dp), intent(out) :: invJac(:,:)
+    !> Input vector on entry, result vector on exit
+    ${TYPE}$(dp), intent(inout), contiguous, target :: qInpResSqr(:,:,:,:,:,:)
 
-    select case (this%mixerType)
-    case(mixerTypes%simple)
-      call error("Simple mixer does not provide inverse Jacobian")
-    case (mixerTypes%anderson)
-      call error("Anderson mixer does not provide inverse Jacobian")
-    case (mixerTypes%broyden)
-      call getInverseJacobian(this%pBroydenMixer, invJac)
-    case (mixerTypes%diis)
-      call error("DIIS mixer does not provide inverse Jacobian")
-    end select
+    !> Difference between input and output vectors (measure of lack of convergence)
+    ${TYPE}$(dp), intent(in), contiguous, target :: qDiffSqr(:,:,:,:,:,:)
 
-  end subroutine Mixer_getInverseJacobian
+    !!Difference between input and output vectors (1D pointer)
+    ${TYPE}$(dp), pointer :: qDiff(:)
+
+    !! Input vector on entry, result vector on exit (1D pointer)
+    ${TYPE}$(dp), pointer :: qInpRes(:)
+
+    qDiff(1:size(qDiffSqr)) => qDiffSqr
+    qInpRes(1:size(qInpResSqr)) => qInpResSqr
+
+    call this%mix1D(qInpRes, qDiff)
+
+  end subroutine TMixer${LABEL}$_mix6D
+#:endfor
+
 
 end module dftbp_mixer_mixer

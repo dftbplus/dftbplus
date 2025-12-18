@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 module dftbp_dftbplus_transportio
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__eV
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, fileExists
+  use dftbp_common_file, only : closeFile, fileExists, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
   use dftbp_type_orbitals, only : TOrbitals

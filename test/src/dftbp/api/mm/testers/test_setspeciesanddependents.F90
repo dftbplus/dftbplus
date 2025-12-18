@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -26,14 +26,13 @@
 #:set WITH_MPI = defined('WITH_MPI')
 
 program test_setSpeciesAndDependents
-  use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
+  use, intrinsic :: iso_fortran_env, only : output_unit, REAL64
 #:if WITH_MPI
   use mpi
 #:endif
-  use dftbp_mmapi, only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
-  use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
-  use dftbp_hsdapi, only: dumpHsd
-  use testhelpers, only: writeAutotestTag
+  use testhelpers, only : writeAutotestTag
+  use dftbp_hsdapi, only : fnode, setChild, setChildValue
+  use dftbp_mmapi, only : TDftbPlus, TDftbPlus_destruct, TDftbPlus_init, TDftbPlusInput
   implicit none
 
   !> Precision and unit conversion
@@ -349,7 +348,11 @@ contains
     ! Boundary condition label
     character(1) :: boundary
 
-    integer :: io_unit, ii, ierr
+    integer :: io_unit, ii
+
+  #:if WITH_MPI
+    integer :: ierr
+  #:endif
 
     if (IO) then
       open(newunit=io_unit,file=fname)

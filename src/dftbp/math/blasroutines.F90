@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,8 +13,8 @@
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_math_blasroutines
-  use dftbp_common_accuracy, only : dp, elecTolMax, mc, lc, sc, rsp, rdp
-  use dftbp_extlibs_blas, only : ssyr, cher, zher, sspmv, dspmv
+  use dftbp_common_accuracy, only : dp, rdp, rsp
+  use dftbp_extlibs_blas, only : cher, dspmv, sspmv, ssyr, zher
   implicit none
 
   private
@@ -1025,8 +1025,6 @@ contains
     @:ASSERT(size(a,dim=2)>=ka)
     @:ASSERT(ldb>=im)
     @:ASSERT(ldc>=im)
-    @:ASSERT(size(B,dim=2)>=in)
-    @:ASSERT(size(C,dim=2)>=in)
 
     call dsymm ( side, iUplo, im, in, iAlpha, A, lda, B, ldb, iBeta, C, ldc )
 
@@ -1521,7 +1519,7 @@ contains
   #:for LABEL, VTYPE, VPREC, NAME in [('real', 'real', 'rsp', 'ssyr2k'),&
   & ('cmplx', 'complex', 'rsp', 'cher2k'), ('dble', 'real', 'rdp', 'dsyr2k'),&
   & ('dblecmplx', 'complex', 'rdp', 'zher2k')]
-  !> Rank-k update
+  !> Rank-2k update
   subroutine her2k_${LABEL}$(C,A,B,alpha,beta,uplo,trans,n,k)
 
     !> contains the matrix to be updated

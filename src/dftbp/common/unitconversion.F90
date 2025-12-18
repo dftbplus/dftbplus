@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,9 +13,9 @@
 !> internal in the code (atomic units).
 module dftbp_common_unitconversion
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : AA__Bohr, Bohr__AA, J__Hartree, fs__au, c, Coulomb__au,&
-      & V_m__au, pascal__au, kg__au, pi, Hartree__cm, eV__Hartree, au__fs, Debye__au, hbar,&
-      & amu__au, Boltzmann, kcal_mol__Hartree, nm__Bohr
+  use dftbp_common_constants, only : AA__Bohr, amu__au, au__fs, Bohr__AA, Boltzmann, c,&
+      & Coulomb__au, Debye__au, eV__Hartree, fs__au, Hartree__cm, hbar, J__Hartree,&
+      & kcal_mol__Hartree, kg__au, nm__Bohr, pascal__au, pi, V_m__au
   use dftbp_io_charmanip, only : tolower
   implicit none
 

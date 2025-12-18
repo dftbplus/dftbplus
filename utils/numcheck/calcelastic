@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -13,11 +13,13 @@ Calculates the elastic stiffness tensor by finite differences of the stress tens
 import argparse
 from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
+import os
 import re
 import subprocess
 import shutil
 
 PRESURE_AU = 0.339893208050290E-13 # 1 Pa in atomic units of pressure
+TAGGED_RESULTS = "results.tag" # Tagged data file
 
 DESCRIPTION = """
 Calculates Cijkl tensor in the Voight form, C_\alpha\beta, using the
@@ -26,7 +28,7 @@ displacements to the reference geometry. The geometry of the
 configuration must be specified in a file called
 'geo.gen.template'. The DFTB+ input file should include the geometry
 from the file 'geo.gen'. The input file must specify the option for
-writing an autotest file and the option for calculating the forces, as
+writing a results tag file and the option for calculating the forces, as
 this also outputs the stress tensor. The lattice vectors should be
 fixed in the dftb_in.hsd file, but the atom positions (internal
 coordinates) can either be clamped or relaxed depending on which is
@@ -50,7 +52,10 @@ def main():
         chargeRestart = None
     disp = args.disp * AA__BOHR
     binary = args.binary
-    print("BINARY:", binary)
+    print(f"DFTB+ BINARY: {binary}")
+
+    if (exists(TAGGED_RESULTS)):
+        os.remove(TAGGED_RESULTS)
 
     elastic = calculate_elastic( binary, disp, coords, latvecs,
                                  specienames, species, origin, chargeRestart)
@@ -104,7 +109,7 @@ def calculate_elastic(binary, disp, coords, latvecs, specienames, species,
             if (chargeRestart):
                 shutil.copy2 (chargeRestart.name, CHARGES_FILE)
             subprocess.call([binary,])
-            fp = open("autotest.tag", "r")
+            fp = open(TAGGED_RESULTS, "r")
             txt = fp.read()
             fp.close()
             match = STRESS_PATTERN.search(txt)
@@ -119,7 +124,7 @@ def calculate_elastic(binary, disp, coords, latvecs, specienames, species,
                 stress[5,kk] = 0.5*float(match.group("value12"))
                 stress[5,kk] += 0.5*float(match.group("value21"))
             else:
-                raise ValueError("Stress tensor missing from autotest.tag!")
+                raise ValueError(f"Stress tensor missing from {TAGGED_RESULTS}!")
             for jj in range(6):
                 elastic[ii][jj] = (stress[jj][0] - stress[jj][1]) / (2.0 * disp)
 

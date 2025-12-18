@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,6 @@
 !>
 module dftbp_type_dynneighlist
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_type_latpointiter, only : TLatPointIter, TLatPointIter_init
   implicit none
 
@@ -249,6 +248,13 @@ contains
     real(dp) :: dist2
     integer :: maxNeighs
 
+    if (present(coords)) coords(:,:) = 0.0_dp
+    if (present(dists)) dists(:) = 0.0_dp
+    if (present(img2CentCell)) img2CentCell(:) = 0
+    neighCoords(:) = 0.0_dp
+    img2CentCellTmp(:) = 0
+    coordsTmp(:,:) = 0.0_dp
+    distsTmp(:) = 0.0_dp
     maxNeighs = nNeighbourSK
     nNeighbourSK = 0
     if (this%tFinished) then

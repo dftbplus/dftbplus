@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -52,11 +52,11 @@ module dftbp_io_charmanip
   !> Maximal character length for integers (including sign)
   integer, parameter :: maxIntLen = range(1) + 2
 
-  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, i2c
+  public :: unquotedIndex, unquote, trim2, len_trim2, tolower, toupper, i2c
   public :: getNextQuotationPos, getFirstOccurance, complementaryScan
   public :: unquotedScan
   public :: space, lineFeed, carriageReturn, tabulator, whiteSpaces, newline
-  public :: convertWhitespaces
+  public :: convertWhitespaces, endsWith
 
 contains
 
@@ -413,6 +413,28 @@ contains
   end function tolower
 
 
+  !> Returns an uppercase string
+  elemental function toupper(str) result(upper)
+
+    !> String to convert to uppercase
+    character(len=*), intent(in) :: str
+
+    !> Uppercase string
+    character(len=len(str)) :: upper
+
+    integer :: ii, iTmp
+
+    do ii = 1, len(str)
+      iTmp = iachar(str(ii:ii))
+      if (97 <= iTmp .and. iTmp <= 122) then
+        upper(ii:ii) = achar(iTmp - 32)
+      else
+        upper(ii:ii) = str(ii:ii)
+      end if
+    end do
+
+  end function toupper
+
 
   !> Converts an integer to a character string
   pure function i2c(number)
@@ -446,5 +468,35 @@ contains
     end do
 
   end subroutine convertWhitespaces
+
+
+  !> Tests if a string ends with a specified suffix.
+  pure function endsWith(str, suffix)
+
+    !> String to check
+    character(len=*), intent(in) :: str
+
+    !> Suffix to check for
+    character(len=*), intent(in) :: suffix
+
+    !> True, if string ends with suffix, otherwise false
+    logical :: endsWith
+
+    !! Length of str
+    integer :: lenStr
+
+    !! Start index of suffix in str
+    integer :: iSuffixStart
+
+    lenStr = len(str)
+    iSuffixStart = lenStr - len(suffix) + 1
+
+    if (iSuffixStart < 1) then
+      endsWith = .false.
+    else
+      endsWith = (str(iSuffixStart:lenStr) == suffix)
+    end if
+
+  end function endsWith
 
 end module dftbp_io_charmanip

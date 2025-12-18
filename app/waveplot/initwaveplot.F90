@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,32 +9,33 @@
 
 !> Contains the routines for initialising Waveplot.
 module waveplot_initwaveplot
-  use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile, setDefaultBinaryAccess
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_release, only : releaseYear
-  use dftbp_common_status, only : TStatus
-  use dftbp_common_unitconversion, only : lengthUnits
-  use dftbp_dftb_boundarycond, only : boundaryConditions, TBoundaryConditions,&
-      & TBoundaryConditions_init
-  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
-  use dftbp_extlibs_xmlf90, only : fnode, fNodeList, string, char, getLength, getItem1,&
-      & getNodeName, destroyNode
-  use dftbp_io_charmanip, only : i2c, unquote
-  use dftbp_io_formatout, only : printDftbHeader
-  use dftbp_io_hsdparser, only : parseHSD, dumpHSD
-  use dftbp_io_hsdutils, only : getChildValue, setChildValue, getChild, setChild, getChildren,&
-      & getSelectedIndices, detailedError, detailedWarning
-  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, warnUnprocessedNodes, renameChildren
-  use dftbp_io_message, only : warning, error
-  use dftbp_io_xmlutils, only : removeChildNodes
-  use dftbp_type_linkedlist, only : TListIntR1, TListReal, init, destruct, len, append, asArray
-  use dftbp_type_typegeometryhsd, only : TGeometry, readTGeometryGen, readTGeometryHSD,&
-      & readTGeometryVasp, readTGeometryXyz, writeTGeometryHSD
-  use dftbp_math_simplealgebra, only : determinant33
   use waveplot_gridcache, only : TGridCache, TGridCache_init
   use waveplot_molorb, only : TMolecularOrbital, TMolecularOrbital_init, TSpeciesBasis
   use waveplot_slater, only : TSlaterOrbital_init
+  use dftbp_common_accuracy, only : dp
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_file, only : closeFile, openFile, setDefaultBinaryAccess, TFileDescr
+  use dftbp_common_globalenv, only : stdOut, tIoProc
+  use dftbp_common_release, only : releaseYear
+  use dftbp_common_status, only : TStatus
+  use dftbp_common_unitconversion, only : lengthUnits
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds,&
+      & TBoundaryConds_init
+  use dftbp_dftbplus_input_fileaccess, only : readBinaryAccessTypes
+  use dftbp_extlibs_xmlf90, only : char, destroyNode, fnode, fNodeList, getItem1, getLength,&
+      & getNodeName, string
+  use dftbp_io_charmanip, only : i2c, unquote
+  use dftbp_io_formatout, only : printDftbHeader
+  use dftbp_io_hsdparser, only : dumpHSD, parseHSD
+  use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
+      & getChildValue, getSelectedIndices, setChild, setChildValue
+  use dftbp_io_hsdutils2, only : convertUnitHsd, readHSDAsXML, renameChildren, warnUnprocessedNodes
+  use dftbp_io_message, only : error, warning
+  use dftbp_io_xmlutils, only : removeChildNodes
+  use dftbp_math_simplealgebra, only : determinant33
+  use dftbp_type_linkedlist, only : append, asArray, destruct, init, len, TListIntR1, TListReal
+  use dftbp_type_typegeometryhsd, only : readTGeometryGen, readTGeometryHSD, readTGeometryVasp,&
+      & readTGeometryXyz, TGeometry, writeTGeometryHSD
   implicit none
 
   private
@@ -74,7 +75,7 @@ module waveplot_initwaveplot
     !> Levels to plot
     integer, allocatable :: plottedLevels(:)
 
-    !> K-points to plot
+    !> The k-points to plot
     integer, allocatable :: plottedKPoints(:)
 
     !> Spins to plot
@@ -210,7 +211,7 @@ module waveplot_initwaveplot
     type(TOption) :: opt
 
     !> Boundary condition
-    type(TBoundaryConditions) :: boundaryCond
+    type(TBoundaryConds) :: boundaryCond
 
     !> Data of Basis block
     type(TBasis) :: basis
@@ -243,10 +244,13 @@ contains
 
 
   !> Initialises the program variables.
-  subroutine TProgramVariables_init(this)
+  subroutine TProgramVariables_init(this, env)
 
     !> Container of program variables
     type(TProgramVariables), intent(out), target :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !! Pointers to input nodes
     type(fnode), pointer :: root, tmp, detailed, hsdTree
@@ -327,18 +331,24 @@ contains
     call warnUnprocessedNodes(root, .true.)
 
     ! Finish parsing, dump parsed and processed input
-    call dumpHSD(hsdTree, hsdParsedInput)
+    if (tIoProc) then
+      call dumpHSD(hsdTree, hsdParsedInput)
+    end if
     write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
     write(stdout, "(A,/)") repeat("-", 80)
     call destroyNode(hsdTree)
 
+  #:if WITH_MPI
+    call env%initMpi(1)
+  #:endif
+
     if (this%input%geo%tPeriodic) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%pbc3d, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%pbc3d, errStatus)
     else if (this%input%geo%tHelical) then
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%helical, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%helical, errStatus)
     else
-      call TBoundaryConditions_init(this%boundaryCond, boundaryConditions%cluster, errStatus)
+      call TBoundaryConds_init(this%boundaryCond, boundaryCondsEnum%cluster, errStatus)
     end if
     if (errStatus%hasError()) call error(errStatus%message)
 
@@ -368,11 +378,10 @@ contains
     call TMolecularOrbital_init(this%loc%molOrb, this%input%geo, this%boundaryCond,&
         & this%basis%basis)
 
-    call TGridCache_init(this%loc%grid, levelIndex=this%loc%levelIndex, nOrb=this%input%nOrb,&
-        & nAllLevel=this%eig%nState, nAllKPoint=nKPoint, nAllSpin=nSpin, nCached=nCached,&
-        & nPoints=this%opt%nPoints, tVerbose=this%opt%tVerbose, eigVecBin=eigVecBin,&
-        & gridVec=this%loc%gridVec, origin=this%opt%gridOrigin,&
-        & kPointCoords=kPointsWeights(1:3, :), tReal=this%input%tRealHam, molorb=this%loc%pMolOrb)
+    call TGridCache_init(this%loc%grid, env, this%loc%levelIndex, this%input%nOrb, this%eig%nState,&
+        & nKPoint, nSpin, nCached, this%opt%nPoints, this%opt%tVerbose, eigVecBin,&
+        & this%loc%gridVec, this%opt%gridOrigin, kPointsWeights(1:3, :), this%input%tRealHam,&
+        & this%loc%pMolOrb)
 
   end subroutine TProgramVariables_init
 
@@ -389,7 +398,7 @@ contains
     !> Wether to look for ground state occupations (True) or excited (False)
     logical, intent(in) :: tGroundState
 
-    !> K-points and weights
+    !> The k-points and weights
     real(dp), intent(out), allocatable :: kPointsWeights(:,:)
 
     !! Pointers to input nodes
@@ -530,8 +539,8 @@ contains
 
     !! Warning issued, if the detailed.xml id does not match the eigenvector id
     character(len=63) :: warnId(3) = [&
-        & "The external files you are providing differ from those provided", &
-        & "when this input file was generated. The results you obtain with", &
+        & "The external files you are providing differ from those provided",&
+        & "when this input file was generated. The results you obtain with",&
         & "the current files could therefore be different.                "]
 
     !! Auxiliary variables

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,17 +10,17 @@
 
 !> MBD/TS dispersion model.
 module dftbp_dftb_dispmbd
-  use dftbp_common_accuracy, only: dp, mc, lc
-  use dftbp_common_constants, only: symbolToNumber
-  use dftbp_common_environment, only: TEnvironment
-  use dftbp_common_globalenv, only: stdOut
+  use dftbp_common_accuracy, only : dp, lc, mc
+  use dftbp_common_constants, only : symbolToNumber
+  use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_globalenv, only : stdOut
   use dftbp_common_status, only : TStatus
-  use dftbp_dftb_dispiface, only: TDispersionIface
-  use dftbp_dftb_periodic, only: TNeighbourList
-  use dftbp_math_simplealgebra, only: determinant33
+  use dftbp_dftb_dispiface, only : TDispersionIface
+  use dftbp_dftb_periodic, only : TNeighbourList
+  use dftbp_extlibs_mbd, only : mbd_calc_t, TDispMbdInp
+  use dftbp_math_simplealgebra, only : determinant33
   use dftbp_type_commontypes, only : TOrbitals
-  use dftbp_type_typegeometry, only: TGeometry
-  use mbd, only: TDispMbdInp => mbd_input_t, mbd_calc_t
+  use dftbp_type_typegeometry, only : TGeometry
   implicit none
 
   private
@@ -29,49 +29,49 @@ module dftbp_dftb_dispmbd
   type, extends(TDispersionIface) :: TDispMbd
     private
 
-    !> calculator to evaluate dispersion
+    !> Calculator to evaluate dispersion
     type(mbd_calc_t), allocatable :: calculator
 
-    !> number of atoms
+    !> Number of atoms
     integer :: nAtom
 
-    !> unit cell volume
+    !> Unit cell volume
     real(dp) :: cellVol
 
-    !> is the correction self-consistent or post-hoc
+    !> Is the correction self-consistent or post-hoc
     logical :: isPostHoc
 
-    !> energies for atoms
+    !> Energies for atoms
     real(dp), allocatable :: energies(:)
 
-    !> gradient contribution
+    !> Gradient contribution
     real(dp), allocatable :: gradients(:,:)
 
-    !> stress tensor component
+    !> Stress tensor component
     real(dp) :: stress(3,3)
 
-    !> atomic numbers
+    !> Atomic numbers
     integer, allocatable :: izp(:)
 
-    !> are the coordinates current?
+    !> Are the coordinates current?
     logical :: chargesUpdated
 
-    !> is the coordinates current?
+    !> Is the coordinates current?
     logical :: energyUpdated
 
-    !> are the gradients current?
+    !> Are the gradients current?
     logical :: gradientsUpdated
 
-    !> is the stress current?
+    !> Is the stress current?
     logical :: stressUpdated
 
-    !> caught error code from Libmbd, zero if no error
+    !> Caught error code from Libmbd, zero if no error
     integer :: errCode
 
-    !> caught error origin from Libmbd
+    !> Caught error origin from Libmbd
     character(len=mc) :: errOrigin
 
-    !> caught error message from Libmbd
+    !> Caught error message from Libmbd
     character(len=lc) :: errMessage
 
   contains
@@ -99,7 +99,7 @@ contains
     !> MBD input structure
     type(TDispMbdInp), intent(inout) :: inp
 
-    !> geometry of the system
+    !> Geometry of the system
     type(TGeometry), intent(in) :: geom
 
     !> Should MBD be evaluated after the SCC cycle updates (T) or during (F)? In principle F case
@@ -246,16 +246,16 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neigh
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     !> Gradients to be modified
@@ -377,10 +377,10 @@ contains
   !> Is the dispersion energy available for use in the main code after calling getEnergies
   function energyAvailable(this)
 
-    !> data structure
+    !> Data structure
     class(TDispMbd), intent(in) :: this
 
-    !> result (dummy for most dispersion models)
+    !> Result (dummy for most dispersion models)
     logical :: energyAvailable
 
     energyAvailable = this%energyUpdated
@@ -391,7 +391,7 @@ contains
   !> Raises error if it was previously caught
   subroutine checkError(this, err)
 
-    !> data structure
+    !> Data structure
     class(TDispMbd), intent(in) :: this
 
     !> Error code return, 0 if no problems
@@ -406,7 +406,7 @@ contains
   !> Printer procedure passed to Libmbd
   subroutine mbdPrinter(str)
 
-    !> message
+    !> Message
     character(len=*), intent(in) :: str
 
     write(stdOut, "(A,A)") '* Libmbd: ', str

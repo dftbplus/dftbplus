@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 module dftbp_dftb_thirdorder
   use dftbp_common_accuracy, only : dp, minHubDiff, tolSameDist
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighbours
+  use dftbp_dftb_periodic, only : getNrOfNeighbours, TNeighbourList
   use dftbp_dftb_shortgammafuncs, only : expGammaCutoff
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
@@ -39,7 +39,7 @@ module dftbp_dftb_thirdorder
     real(dp) :: dampExp
 
     !> Whether third order should be considered shell resolved. If not, only the first shell of each
-    !> atom in hubbUs and hubbUDerivs is used.
+    !! atom in hubbUs and hubbUDerivs is used.
     logical :: shellResolved
 
   end type TThirdOrderInp
@@ -80,10 +80,10 @@ contains
   !> Initializes instance.
   subroutine ThirdOrder_init(this, inp)
 
-    !> Instance.
+    !> Instance
     type(TThirdOrder), intent(out) :: this
 
-    !> Input data.
+    !> Input data
     type(TThirdOrderInp), intent(in) :: inp
 
     this%nAtoms = size(inp%orb%nOrbAtom)
@@ -140,13 +140,13 @@ contains
   !> Updates data structures if there are changed coordinates for the instance.
   subroutine updateCoords(this, neighList, species)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Species for all atoms, shape: [nAllAtom].
+    !> Species for all atoms, shape: [nAllAtom]
     integer, intent(in) :: species(:)
 
     integer :: iNeigh, iAt1, iAt2, iSp1, iSp2, iSh1, iSh2
@@ -202,16 +202,16 @@ contains
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Orbital charges.
+    !> Orbital charges
     real(dp), intent(in) :: qq(:,:,:)
 
-    !> Reference orbital charges.
+    !> Reference orbital charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> Mapping on atoms in central cell.
+    !> Mapping on atoms in central cell
     integer, intent(in) :: img2CentCell(:)
 
     !> Orbital information
@@ -280,13 +280,13 @@ contains
   !> Returns shifts per atom.
   subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Shift per atom.
+    !> Shift per atom
     real(dp), intent(out) :: shiftPerAtom(:)
 
-    !> Shift per shell.
+    !> Shift per shell
     real(dp), intent(out) :: shiftPerShell(:,:)
 
     @:ASSERT(size(shiftPerAtom) == this%nAtoms)
@@ -310,22 +310,22 @@ contains
     !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Derivative of shift per atom.
+    !> Derivative of shift per atom
     real(dp), intent(out) :: dShiftPerAtom(:)
 
-    !> Derivative of shift per shell.
+    !> Derivative of shift per shell
     real(dp), intent(out) :: dShiftPerShell(:,:)
 
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Derivative of orbital charges.
+    !> Derivative of orbital charges
     real(dp), intent(in) :: dqq(:,:,:)
 
-    !> Mapping on atoms in central cell.
+    !> Mapping on atoms in central cell
     integer, intent(in) :: img2CentCell(:)
 
     !> Orbital information
@@ -421,22 +421,22 @@ contains
 
 
   !> Returns the energy per atom for linearized 3rd order Hamiltonian.
-  !> Note: When using the linear XLBOMD form, charges should not be updated via updateCharges after
-  !> the diagonalization, so that the shift vectors remain the ones built with the input
-  !> charges. However, since for calculating energy/forces, the output charges are needed, they must
-  !> be passed explicitely here.
+  !! Note: When using the linear XLBOMD form, charges should not be updated via updateCharges after
+  !! the diagonalization, so that the shift vectors remain the ones built with the input
+  !! charges. However, since for calculating energy/forces, the output charges are needed, they must
+  !! be passed explicitely here.
   subroutine getEnergyPerAtomXlbomd(this, qOut, q0, species, orb, energyPerAtom)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Output populations determined after the diagonalization.
+    !> Output populations determined after the diagonalization
     real(dp), intent(in) :: qOut(:,:,:)
 
-    !> Reference populations.
+    !> Reference populations
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> Species of each atom.
+    !> Species of each atom
     integer, intent(in) :: species(:)
 
     !> Orbital information
@@ -467,22 +467,22 @@ contains
   !> Add gradient component resulting from the derivative of the potential.
   subroutine addGradientDc(this, neighList, species, coords, img2CentCell, derivs)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Specie for each atom.
+    !> Specie for each atom
     integer, intent(in) :: species(:)
 
-    !> Coordinate of each atom.
+    !> Coordinate of each atom
     real(dp), intent(in) :: coords(:,:)
 
-    !> Mapping of atoms to cetnral cell.
+    !> Mapping of atoms to central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Gradient on exit.
+    !> Gradient on exit
     real(dp), intent(inout) :: derivs(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
@@ -522,29 +522,29 @@ contains
 
 
   !> Add gradient component resulting from the derivative of the potential for the linearized
-  !> (XLBOMD) case.
+  !! (XLBOMD) case.
   subroutine addGradientDcXlbomd(this, neighList, species, coords, img2CentCell, qOut, q0, orb,&
       & derivs)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Specie for each atom.
+    !> Specie for each atom
     integer, intent(in) :: species(:)
 
-    !> Coordinate of each atom.
+    !> Coordinate of each atom
     real(dp), intent(in) :: coords(:,:)
 
-    !> Mapping of atoms to cetnral cell.
+    !> Mapping of atoms to cetnral cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Output populations determined after the diagonalization.
+    !> Output populations determined after the diagonalization
     real(dp), intent(in) :: qOut(:,:,:)
 
-    !> Reference populations.
+    !> Reference populations
     real(dp), intent(in) :: q0(:,:,:)
 
     !> Orbital information
@@ -623,25 +623,25 @@ contains
   !> Add stress component resulting from the derivative of the potential.
   subroutine addStressDc(this, neighList, species, coords, img2CentCell, cellVol, st)
 
-    !> Instance.
+    !> Instance
     class(TThirdOrder), intent(inout) :: this
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Specie for each atom.
+    !> Specie for each atom
     integer, intent(in) :: species(:)
 
-    !> Coordinate of each atom.
+    !> Coordinate of each atom
     real(dp), intent(in) :: coords(:,:)
 
-    !> Mapping of atoms to cetnral cell.
+    !> Mapping of atoms to cetnral cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> cell volume.
+    !> cell volume
     real(dp), intent(in) :: cellVol
 
-    !> Gradient on exit.
+    !> Gradient on exit
     real(dp), intent(inout) :: st(:,:)
 
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh, ii
@@ -693,7 +693,7 @@ contains
 ! Private routines
 
 
-  !> calculate short range cut off distance
+  !> Calculate short range cut off distance.
   subroutine calcCutoffs(hubbUs, nShells, cutoffs)
 
     !> Hubard U values
@@ -702,7 +702,7 @@ contains
     !> Shells on atoms
     integer, intent(in) :: nShells(:)
 
-    !> resulting cutoff distances
+    !> Resulting cutoff distances
     real(dp), intent(out) :: cutoffs(:,:)
 
     integer :: nSpecies
@@ -754,8 +754,8 @@ contains
 
 
   !> dgamma_AB/dUa
-  !> Sign convention: routine delivers dgamma_AB/dUa with the right sign.
-  !> Energy contributions must be therefore summed with *positive* sign.
+  !! Sign convention: routine delivers dgamma_AB/dUa with the right sign.
+  !! Energy contributions must be therefore summed with *positive* sign.
   function gamma2pU(Ua, Ub, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab
     logical, intent(in) :: damping
@@ -792,8 +792,8 @@ contains
 
 
   !> d^2gamma_AB/dUa*dr
-  !> Sign convention: routine delivers d^2gamma_AB/dUa*dr with the right sign.
-  !> Gradient contributions must be therefore summed with *positive* sign.
+  !! Sign convention: routine delivers d^2gamma_AB/dUa*dr with the right sign.
+  !! Gradient contributions must be therefore summed with *positive* sign.
   function gamma2pUpR(Ua, Ub, rab, damping, xi) result(res)
     real(dp), intent(in) :: Ua, Ub, rab
     logical, intent(in) :: damping
@@ -831,7 +831,7 @@ contains
 
 
   !> \frac{d\gamma}{dU_{l_a}} for r = 0
-  !> Eq S7 in Gaus et al. (2015) JCTC 11:4205-4219, DOI: 10.1021/acs.jctc.5b00600
+  !! Eq. S7 in Gaus et al. (2015) JCTC 11:4205-4219, DOI: 10.1021/acs.jctc.5b00600
   function dGdUr0(tauA, tauB) result(res)
     real(dp), intent(in) :: tauA, tauB
     real(dp) :: res

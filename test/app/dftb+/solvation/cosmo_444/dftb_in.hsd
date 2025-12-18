@@ -12,7 +12,12 @@ Hamiltonian = DFTB {
       Density [kg/l] = 0.867
     }
     State = "mol1bar"
-    RadiiScaling = 1.35
+    RadiiScaling {
+      O = 1.35
+      C = 1.35
+      N = 1.35
+      H = 1.35
+    }
     AngularGrid = 146
     Solver = DomainDecomposition {
       MaxMoment = 7
@@ -41,7 +46,7 @@ Hamiltonian = DFTB {
     C = "p"
   }
   SlaterKosterFiles = Type2FileNames {
-Prefix = {slakos/origin/3ob-3-1/}
+    Prefix = {slakos/origin/3ob-3-1/}
     Separator = "-"
     Suffix = ".skf"
   }

@@ -1,3 +1,41 @@
+# Distributed under the OSI-approved BSD 3-Clause License.
+#
+# Copyright (C) 2025  DFTB+ developers group
+#
+
+#[=======================================================================[.rst:
+Findelsi
+--------
+
+Finds the ELSI library
+
+
+Imported Targets
+^^^^^^^^^^^^^^^^
+
+This module provides the following imported target, if found:
+
+``elsi::elsi``
+  The ELSI library
+
+And, depending on the library build options:
+
+``elsi::pexsi``
+  The PEXSI library
+
+Result Variables
+^^^^^^^^^^^^^^^^
+
+This module will define the following variable:
+
+``ELSI_FOUND``
+  True if the system has the ELSI library
+
+``ELSI_VERSION``
+  Detected version of the library
+
+#]=======================================================================]
+
 if(NOT TARGET elsi::elsi)
   find_package(PkgConfig QUIET)
   pkg_check_modules(ELSI QUIET elsi)

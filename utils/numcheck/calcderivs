@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2023  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -13,6 +13,7 @@ Calculates forces and lattice derivatives with finite differences.
 import argparse
 from derivtools import readgen, writegen, cart2frac, frac2cart, stress2latderivs, AA__BOHR, exists, create_temporary_copy
 import numpy as np
+import os
 import re
 import subprocess
 import shutil
@@ -22,7 +23,7 @@ Calculates the forces using the specified DFTB+ binary by finite differences
 displacing the atoms along every axis. The geometry of the configuration must
 be specified in a file called 'geo.gen.template'. The DFTB+ input file should
 include the geometry from the file 'geo.gen'. The input file must specify the
-option for writing an autotest file and if the reference should be calculated
+option for writing a results file and if the reference should be calculated
 then also the option for calculating the forces.
 """
 
@@ -37,7 +38,15 @@ LATTICE_DERIV_PATTERN = re.compile(
     r"^stress[^:]*:[^:]*:[^:]*:\d+,\d+\s*"
     r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)", re.MULTILINE)
 
-REFERENCE_AUTOTEST = 'autotest0.tag'
+DIPOLE_PATTERN = re.compile(r"dipole_moments\s*:[^:]*:[^:]*:\d+,\d+\s*"
+    r"(?P<dipoleX>\S+)\s+(?P<dipoleY>\S+)\s+(?P<dipoleZ>\S+)")
+
+CHARGE_PATTERN = re.compile(r"gross_atomic_charges\s*:[^:]*:[^:]*:\d+\s*"
+    r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)",
+    re.MULTILINE)
+
+TAGGED_RESULTS = 'results.tag'
+REFERENCE_RESULTS = 'results0.tag'
 CHARGES_FILE = "charges.bin"
 
 def main():
@@ -53,15 +62,20 @@ def main():
         charge_restart = None
     calcforces = not args.skipforces
     calclatderivs = (latvecs is not None) and not args.skiplattice
+    calcborn = args.doborn
+    calccharges = args.docharges
     if args.calcref:
-        reffile = REFERENCE_AUTOTEST
+        reffile = REFERENCE_RESULTS
     elif args.ref is not None:
         reffile = args.ref
     else:
         reffile = None
+    if (exists(TAGGED_RESULTS) and reffile != TAGGED_RESULTS):
+        print(f"Removing pre-existing tagged file, {TAGGED_RESULTS}, before calculations")
+        os.remove(TAGGED_RESULTS)
     disp = args.disp * AA__BOHR
     binary = args.binary
-    print("BINARY:", binary)
+    print(f"DFTB+ BINARY: {binary}")
 
     if args.calcref:
         calculate_reference(binary, reffile, coords, specienames, species,
@@ -83,15 +97,32 @@ def main():
                                         specienames, species, origin,
                                         charge_restart, directions)
 
+    if calcborn:
+        born = calculate_born(binary, disp, coords, specienames,
+                              species, origin, latvecs,
+                              charge_restart)
+
+    if calccharges:
+        charges = calculate_charges(binary, disp, coords, specienames,
+                              species, origin, latvecs,
+                              charge_restart)
+
     if calcforces:
         print_forces(forces, forces0, directions, atoms)
 
     if latvecs is not None and calclatderivs:
         print_latderivs(latderivs, latderivs0, directions)
 
+    if calccharges:
+        print_charges(charges)
+
+    if calcborn:
+        print_born(born)
+
     if (charge_restart):
         shutil.copy2(charge_restart.name, CHARGES_FILE)
 
+    shutil.copy2("geo.gen.template", "geo.gen")
 
 def parse_arguments():
     """Parses command line arguments"""
@@ -102,11 +133,11 @@ def parse_arguments():
     parser.add_argument("-d", "--displacement", type=float, dest="disp",
                         default=1e-5, help=msg)
 
-    msg = "Compare derivatives with those in reference autotest file"
+    msg = "Compare derivatives with those in reference results file"
     parser.add_argument("-r", "--reference", dest="ref", help=msg)
 
     msg = "Calculate reference system (and compare derivatives with it),"\
-          " resulting autotest file will be saved as 'autotest0.tag'"
+          f" resulting results file will be saved as '{REFERENCE_RESULTS}'"
     parser.add_argument("-c", "--calc-reference", dest="calcref",
                         action="store_true", default=False, help=msg)
 
@@ -118,6 +149,14 @@ def parse_arguments():
     msg = "Skip the calculation of forces (useful when only lattice"\
           " derivatives should be calculated)"
     parser.add_argument("-F", "--skip-forces", dest="skipforces",
+                        action="store_true", default=False, help=msg)
+
+    msg = "Calculate the effective Born charges"
+    parser.add_argument("-b", "--born-charges", dest="doborn",
+                        action="store_true", default=False, help=msg)
+
+    msg = "Calculate derivatives of atomic charges"
+    parser.add_argument("-q", "--charges", dest="docharges",
                         action="store_true", default=False, help=msg)
 
     msg = "Directions of calculation (arguments like 'xyz' 'xy', etc.)"\
@@ -142,12 +181,12 @@ def parse_arguments():
     return args
 
 
-def read_reference_results(autotest0, calcforces, calclatderivs, latvecs):
+def read_reference_results(results0, calcforces, calclatderivs, latvecs):
     """Reads in reference results"""
 
     forces0 = None
     latderivs0 = None
-    fp = open(autotest0, "r")
+    fp = open(results0, "r")
     txt = fp.read()
     fp.close()
     if calcforces:
@@ -178,7 +217,7 @@ def calculate_reference(binary, reffile, coords, specienames, species, origin,
     if (charge_restart):
         shutil.copy2(charge_restart.name, CHARGES_FILE)
     subprocess.call([binary])
-    shutil.move("autotest.tag", reffile)
+    shutil.move(TAGGED_RESULTS, reffile)
 
 
 def calculate_forces(binary, disp, coords, specienames, species, origin,
@@ -199,7 +238,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
-                fp = open("autotest.tag", "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
@@ -208,7 +247,7 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                     energy[jj] = float(match.group("value"))
                     print("energy:", energy[jj])
                 else:
-                    raise ValueError("No energy match found in autotest.tag!")
+                    raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
             forces[aa][ii] = (energy[0] - energy[1]) / (2.0 * disp)
     return forces
 
@@ -234,7 +273,7 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary,])
-                fp = open("autotest.tag", "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = ENERGY_PATTERN.search(txt)
@@ -243,9 +282,77 @@ def calculate_latderivs(binary, disp, coords, latvecs, specienames, species,
                 if match:
                     energy[kk] = float(match.group("value"))
                 else:
-                    raise ValueError("No energy match found in autotest.tag!")
+                    raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
             latderivs[jj][ii] = (energy[1] - energy[0]) / (2.0 * disp)
     return latderivs
+
+
+def calculate_born(binary, disp, coords, specienames, species, origin,
+                     latvecs, charge_restart):
+    """Calculates effective Born charges by finite differences"""
+
+    cart =('x','y','z')
+    delta =('-','+')
+    dipole = np.empty((2,3,), dtype=float)
+    born = np.empty((len(coords), 3, 3), dtype=float)
+    for iat in range(len(coords)):
+        for ii in range(3):
+            for jj in range(2):
+                newcoords = np.array(coords)
+                newcoords[iat][ii] += float(2 * jj - 1) * disp
+                writegen("geo.gen", (specienames, species, newcoords, origin,
+                                     latvecs))
+                if (charge_restart):
+                    shutil.copy2(charge_restart.name, CHARGES_FILE)
+                subprocess.call([binary])
+                fp = open(TAGGED_RESULTS, "r")
+                txt = fp.read()
+                fp.close()
+                match = DIPOLE_PATTERN.search(txt)
+                print("iat: %2d, dir: %s, delta: %s" % (iat, cart[ii],delta[jj]))
+                if match:
+                    dipole[jj][0] = float(match.group("dipoleX"))
+                    dipole[jj][1] = float(match.group("dipoleY"))
+                    dipole[jj][2] = float(match.group("dipoleZ"))
+                    print("dipole:", dipole[jj][0], dipole[jj][1], dipole[jj][2])
+                else:
+                    raise ValueError(f"No dipole match found in {TAGGED_RESULTS}!")
+            for jj in range(3):
+                born[iat][ii][jj] = (dipole[0][jj] - dipole[1][jj]) / (2.0 * disp)
+    return born
+
+
+def calculate_charges(binary, disp, coords, specienames, species, origin,
+                     latvecs, charge_restart):
+    """Calculates charges by finite differences"""
+
+    cart =('x','y','z')
+    delta =('-','+')
+    gross = np.empty((2,len(coords),), dtype=float)
+    charges = np.empty((len(coords), 3, len(coords)), dtype=float)
+    for iat in range(len(coords)):
+        for ii in range(3):
+            for jj in range(2):
+                newcoords = np.array(coords)
+                newcoords[iat][ii] += float(2 * jj - 1) * disp
+                writegen("geo.gen", (specienames, species, newcoords, origin,
+                                     latvecs))
+                if (charge_restart):
+                    shutil.copy2(charge_restart.name, CHARGES_FILE)
+                subprocess.call([binary])
+                fp = open({TAGGED_RESULTS}, "r")
+                txt = fp.read()
+                fp.close()
+                match = CHARGE_PATTERN.search(txt)
+                print("iat: %2d, dir: %s, delta: %s" % (iat + 1, cart[ii], delta[jj]))
+                if match:
+                    tmp = np.fromstring(match.group("values"), count=-1, dtype=float,
+                                sep=" ")
+                    gross[jj][:] = tmp
+                else:
+                    raise ValueError(f"No gross charges match found in {TAGGED_RESULTS}!")
+            charges[iat][ii][:] = (gross[0] - gross[1]) / (2.0 * disp)
+    return charges
 
 
 def print_forces(forces, forces0, directions, atoms):
@@ -296,6 +403,25 @@ def print_latderivs(latderivs, latderivs0, directions):
         print("Max diff in any lattice derivatives component:")
         print("%25.12E" % (abs(diff).max(), ))
 
+
+def print_born(born):
+    """Prints Born effective charges"""
+
+    print("Effective Born charges by finite differences of dipole moments:")
+    for ii, atborn in enumerate(born):
+        for jj in range(3):
+            print(("%16.8F" * 3 % tuple(atborn[jj])))
+        print("")
+
+def print_charges(charge):
+    """Prints charge derivatives wrt positions"""
+
+    print("Atomic charge derivatives by finite differences:")
+    for ii, atq in enumerate(charge):
+        qat = atq.T
+        for jj in range(len(qat)):
+            print(("%16.8F" * 3 % tuple(-1.88972613392125187641 * qat[jj])))
+        print("")
 
 def directions_from_args(coords):
     """Determines the directions of the calculation"""

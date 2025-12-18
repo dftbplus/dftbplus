@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_dftb_dispcommon
   use dftbp_common_accuracy, only : dp, lc, nSearchIter
   use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_common_schedule, only : distributeRangeInChunks, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeInChunks
   use dftbp_io_message, only : error
   use dftbp_math_errorfunction, only : erfcwrap
   use dftbp_math_simplealgebra, only : cross3
@@ -197,7 +197,7 @@ contains
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> chemical species of atoms
+    !> Chemical species of atoms
     integer, intent(in) :: species0(:)
 
     !> Nr. of neighbours for each atom
@@ -346,7 +346,7 @@ contains
     !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    !> unit cell volume
+    !> Unit cell volume
     real(dp), intent(in) :: vol
 
     !> Optimal parameter.

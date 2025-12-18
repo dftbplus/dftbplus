@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -31,8 +31,8 @@
   & ('d4', 'real(dp)', ':,:,:,:', 'row,col,dep,qep')]
 
 module dftbp_poisson_gallocation
-  use, intrinsic :: iso_fortran_env, only : int64
   use, intrinsic :: iso_c_binding, only : c_sizeof
+  use, intrinsic :: iso_fortran_env, only : int64
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
   implicit none

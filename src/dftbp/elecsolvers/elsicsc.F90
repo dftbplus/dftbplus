@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 !> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elecsolvers_elsicsc
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
+  use dftbp_common_constants, only : imag, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_io_message, only : error
@@ -270,8 +270,8 @@ contains
       ! Offset in current column
       blockList(:,1) = 0
       tRowTrans = .false.
-      ! Starting index for column in DFTB+ sparse structure, because column probably already contains
-      ! blocks coming from transposing previously processed elements.
+      ! Starting index for column in DFTB+ sparse structure, because column probably already
+      ! contains blocks coming from transposing previously processed elements.
       iNext = blockList(iAtom1, 2)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iSparseStart(iNeigh,iAtom1) + 1
@@ -458,7 +458,7 @@ contains
         end if
 
         iVec = iCellVec(iAtom2)
-        phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+        phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
 
         tmpSqr(:nOrb2, :nOrb1) = reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])
 
@@ -732,7 +732,7 @@ contains
             & this%blockRow(iNeigh, iAtom1), tmpSqr(1:nOrb2,1:nOrb1))
 
         iVec = iCellVec(iAtom2)
-        phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+        phase = exp(-imag * dot_product(kPoint2p, cellVec(:, iVec)))
 
         ! Hermitian conjugate the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then

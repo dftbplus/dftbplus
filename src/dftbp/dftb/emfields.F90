@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,7 @@
 !!* Module for external electromagnetic fields - currently scalar magnetic field
 module dftbp_dftb_emfields
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_globalenv, only : stdOut
   use dftbp_math_angmomentum, only : Loperators
-  use dftbp_math_simplealgebra, only : cross3
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,14 @@
 #:include 'common.fypp'
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be assembled
-#:set CHUNK_TYPES = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
+#:set CHUNK_TYPES_ASSEM = [('real(dp)', 0, 'R0'), ('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), &
     & ('real(dp)', 3, 'R3'), ('real(dp)', 4, 'R4'), &
     & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), &
     & ('complex(dp)', 3, 'C3'), ('complex(dp)', 4, 'C4'), &
+    & ('integer', 1, 'I1')]
+
+#! (TYPE, RANK, NAME) tuple for all chunk types which need to be gathered
+#:set CHUNK_TYPES_GATHER = [('real(dp)', 1, 'R1'), ('complex(dp)', 1, 'C1'),&
     & ('integer', 1, 'I1')]
 
 !> Contains routines helpful for mpi-parallelisation.
@@ -19,18 +23,25 @@ module dftbp_common_schedule
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_MPI
-  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
+  use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allgatherv, mpifx_allreduceip
 #:endif
   implicit none
 
   private
   public :: distributeRangeInChunks, distributeRangeInChunks2, distributeRangeWithWorkload
-  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload
+  public :: assembleChunks, getChunkRanges, getIndicesWithWorkload, gatherChunks
+  public :: getStartAndEndIndex
 
-#:for _, _, NAME in CHUNK_TYPES
+#:for _, _, NAME in CHUNK_TYPES_ASSEM
   interface assembleChunks
     module procedure assemble${NAME}$Chunks
   end interface assembleChunks
+#:endfor
+
+#:for _, _, NAME in CHUNK_TYPES_GATHER
+  interface gatherChunks
+    module procedure gather${NAME}$Chunks
+  end interface gatherChunks
 #:endfor
 
 contains
@@ -66,9 +77,9 @@ contains
 
 
   !> Distributes a ranges in a double loop in chunks over processes within a process group.
-  !>
-  !> It will chop the loop with the wider range into chunks and leave the other intact.
-  !>
+  !!
+  !! It will chop the loop with the wider range into chunks and leave the other intact.
+  !!
   subroutine distributeRangeInChunks2(env, globalFirst1, globalLast1, globalFirst2, globalLast2,&
       & localFirst1, localLast1, localFirst2, localLast2)
 
@@ -122,7 +133,7 @@ contains
 
 
   !> Distributes a range among processes within a process group
-  !> and take into account that each item may have a different workload
+  !! and take into account that each item may have a different workload
   subroutine distributeRangeWithWorkload(env, globalFirst, globalLast, workload, indices)
 
     !> Computational environment settings
@@ -153,7 +164,7 @@ contains
   end subroutine distributeRangeWithWorkload
 
 
-#:for DTYPE, RANK, NAME in CHUNK_TYPES
+#:for DTYPE, RANK, NAME in CHUNK_TYPES_ASSEM
 
   !> Assembles the chunks by summing up contributions within a process group.
   subroutine assemble${NAME}$Chunks(env,chunks)
@@ -161,7 +172,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> array to assemble
+    !> Array to assemble
     ${DTYPE}$, intent(inout) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
   #:if WITH_MPI
@@ -169,6 +180,48 @@ contains
   #:endif
 
   end subroutine assemble${NAME}$Chunks
+
+#:endfor
+
+#:for DTYPE, RANK, NAME in CHUNK_TYPES_GATHER
+
+  !> Gathers chunks within a process group in a global array.
+  subroutine gather${NAME}$Chunks(env, globalFirst, globalLast, chunks, composite)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> First element of the range
+    integer, intent(in) :: globalFirst
+
+    !> Last element of the range
+    integer, intent(in) :: globalLast
+
+    !> Array to gather
+    ${DTYPE}$, intent(in) :: chunks${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    !> Gathered array
+    ${DTYPE}$, intent(out) :: composite${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+
+    integer, allocatable :: locSize(:), vOffset(:)
+    integer :: localFirst, localLast, iProc
+
+  #:if WITH_MPI
+    allocate(locSize(env%mpi%groupComm%size))
+    allocate(vOffSet(env%mpi%groupComm%size))
+
+    do iProc = 1, env%mpi%groupComm%size
+      call getChunkRanges(env%mpi%groupComm%size, iProc-1, globalFirst, globalLast, localFirst, &
+        & localLast)
+      locSize(iProc) = localLast - localFirst + 1
+      vOffSet(iProc) = localFirst - 1
+    enddo
+    call mpifx_allgatherv(env%mpi%globalComm, chunks, composite, locSize, vOffset)
+ #:else
+    composite = chunks
+  #:endif
+
+  end subroutine gather${NAME}$Chunks
 
 #:endfor
 
@@ -210,7 +263,7 @@ contains
   end subroutine getChunkRanges
 
 
-  !> Calculate the indices for a given MPI-communicator considerung different workload
+  !> Calculate the indices for a given MPI-communicator considering different workload
   subroutine getIndicesWithWorkload(groupSize, myRank, globalFirst, globalLast, workload, indices)
 
     !> Size of the group over which the chunks should be distributed
@@ -234,11 +287,9 @@ contains
     integer :: numIndices, rank, ii
     integer, allocatable :: rankWorkload(:), indices_(:)
 
-    allocate(indices_(globalLast - globalFirst + 1))
-    allocate(rankWorkload(groupSize))
+    allocate(indices_(globalLast - globalFirst + 1), source=0)
+    allocate(rankWorkload(groupSize), source=0)
 
-    rankWorkload(:) = 0
-    indices_(:) = 0
     numIndices = 0
 
     do ii = globalFirst, globalLast
@@ -254,6 +305,51 @@ contains
     indices(1:numIndices) = indices_(1:numIndices)
 
   end subroutine getIndicesWithWorkload
+
+
+  !> Returns the start and end index of an MPI process that calculates parts of a loop.
+  subroutine getStartAndEndIndex(env, nElements, iStart, iEnd)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Array size to split
+    integer, intent(in) :: nElements
+
+    !> Start and end index of current element range
+    integer, intent(out) :: iStart, iEnd
+
+  #:if WITH_MPI
+    ! Size of split index regions
+    integer :: splitSize
+
+    ! Number of elements that exceed integer times nProcs
+    integer :: offset
+  #:endif
+
+    @:ASSERT(nElements >= 0)
+
+  #:if WITH_MPI
+    @:ASSERT(env%mpi%globalComm%rank < env%mpi%globalComm%size)
+
+    splitSize = nElements / env%mpi%globalComm%size
+
+    ! start and end indices assuming equal split sizes
+    iStart = env%mpi%globalComm%rank * splitSize + 1
+    iEnd = iStart + splitSize - 1
+
+    ! distribute possible remainder to the ranges at the end
+    offset = env%mpi%globalComm%size - mod(nElements, env%mpi%globalComm%size)
+    if (env%mpi%globalComm%rank + 1 > offset) then
+      iStart = iStart + env%mpi%globalComm%rank - offset
+      iEnd = iEnd + env%mpi%globalComm%rank - offset + 1
+    end if
+  #:else
+    iStart = 1
+    iEnd = nElements
+  #:endif
+
+  end subroutine getStartAndEndIndex
 
 
 end module dftbp_common_schedule

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -82,7 +82,7 @@ contains
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
@@ -236,7 +236,7 @@ contains
     !> scheme
     integer, intent(in) :: distrib
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     integer :: MPorder
@@ -249,7 +249,7 @@ contains
     w = 1.0_dp/kT
     electronCount=0.0_dp
     if (distrib /= fillingTypes%Fermi) then
-      MPorder = distrib - fillingTypes%Methfessel - 1
+      MPorder = distrib - fillingTypes%Methfessel
       allocate(A(0:MPorder))
       allocate(hermites(0:2*MPorder))
       call Aweights(A,MPorder)
@@ -322,7 +322,7 @@ contains
     !> Fermi supported.
     real(dp), intent(in) :: kWeight(:)
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp) :: w
     integer i, j, ispin
     real(dp) :: x
@@ -361,7 +361,7 @@ contains
   !>
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
-  !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
+  !> Ref: F. Wagner, Th. Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
   subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
 
     !> Band structure energy at T
@@ -390,7 +390,7 @@ contains
     !> scheme
     integer, intent(in) :: distrib
 
-    !> k-point weightings
+    !> The k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
     integer :: MPorder
@@ -415,7 +415,7 @@ contains
 
     ! The Gaussian and Methfessel-Paxton broadening functions first
     if (distrib /= fillingTypes%Fermi) then
-      MPorder = distrib - fillingTypes%Methfessel -1
+      MPorder = distrib - fillingTypes%Methfessel
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
       call Aweights(A, MPorder)
@@ -500,10 +500,10 @@ contains
   !> Ref: M. Methfessel and A. T. Paxton, Phys. Rev. B Vol 40, pp 3616 (1989)
   subroutine Aweights(A,n)
 
-    !> returned weighting values for the scheme
+    !> Returned weighting values for the scheme
     real(dp), intent(out) :: A(0:)
 
-    !> the required order to calculate A_n up to
+    !> The required order to calculate A_n up to
     integer, intent(in) :: n
 
     real(dp) :: nbang(0:n)

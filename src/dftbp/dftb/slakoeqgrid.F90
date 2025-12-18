@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,9 @@
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
 module dftbp_dftb_slakoeqgrid
-  use dftbp_common_accuracy, only : dp, distFudge, distFudgeOld
+  use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp
   use dftbp_io_message, only : error
-  use dftbp_math_interpolation, only : polyInterUniform, poly5ToZero, freeCubicSpline
+  use dftbp_math_interpolation, only : freeCubicSpline, poly5ToZero, polyInterUniform
   implicit none
 
   private
@@ -78,10 +78,10 @@ module dftbp_dftb_slakoeqgrid
   ! left points, to remain compatible with the old code.
 
 
-  !> value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
+  !> Value nRightInterOld: floor(real(nInterOld_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterOld_ = 2
 
-  !> value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
+  !> Value nRightInterNew: floor(real(nInterNew_, dp) / 2.0_dp + 0.6_dp)
   integer, parameter :: nRightInterNew_ = 4
 
 
@@ -166,7 +166,7 @@ contains
     !>  SlakoEqGrid instance.
     type(TSlakoEqGrid), intent(in) :: this
 
-    !> grid cutoff
+    !> Grid cutoff
     real(dp) :: cutoff
 
     cutoff = real(this%nGrid, dp) * this%dist
@@ -188,7 +188,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance between two atoms of interest
+    !> Distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(this%nInteg,nInterNew_), y1, y1p, y1pp
@@ -203,7 +203,7 @@ contains
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterNew_ + 1) then
       call error("SlakoEqGrid: Not enough points in the SK-table for &
           &interpolation!")
@@ -253,7 +253,7 @@ contains
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
 
-    !> distance between two atoms of interest
+    !> Distance between two atoms of interest
     real(dp), intent(in) :: rr
 
     real(dp) :: xa(nInterOld_), yb(this%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp
@@ -270,7 +270,7 @@ contains
 
     invdistFudge = -1.0_dp / (real(mInd - leng -1, dp) * incr)
 
-    !! Sanity check, if SK-table contains enough entries
+    !! Consistency check, does the SK-table contain enough entries?
     if (leng < nInterOld_ + 1) then
       call error("skspar: Not enough points in the SK-table for interpolation!")
     end if

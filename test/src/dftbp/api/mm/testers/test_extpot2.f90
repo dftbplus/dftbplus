@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,9 +13,9 @@
 !>
 program test_extpot2
   use, intrinsic :: iso_fortran_env, only : output_unit
-  use dftbplus
-  use dftbp_common_constants, only : AA__Bohr
-  use extchargepot
+  use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, getMaxAngFromSlakoFile,&
+      & setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
+  use extchargepot, only : getPointChargeGradients, getPointChargePotential
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -57,7 +57,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -80,7 +81,8 @@ contains
     call getDftbPlusApi(major, minor, patch)
     write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
     !open(newunit=devNull, file="/dev/null", action="write")
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)

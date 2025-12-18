@@ -7,6 +7,7 @@
 extcharges          #? not WITH_MPI
 extpot              #? not WITH_MPI
 extpot2             #? not WITH_MPI
+extefield           #? not WITH_MPI
 timeprop            #? not WITH_MPI
 ehrenfest           #? not WITH_MPI
 ehrenfest_ext_ions  #? not WITH_MPI
@@ -18,8 +19,12 @@ qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
-mpisubgrids         #? WITH_MPI and (MPI_PROCS % 4 == 0)
+mpisubgrids         #? MPI_PROCS == 4
+expdmhs-si2         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
+imp_ham             #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
+mpiexpdmhs-o2       #? WITH_MPI and (MPI_PROCS % 2 == 0) and defined('WITH_C_EXECUTABLES') and MPI_PROCS <= 4
+mpiexpdmhs-si2      #? defined('WITH_C_EXECUTABLES') and MPI_PROCS == 4
 neighbour_list      #? not WITH_MPI
 neighbour_list_c    #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 intcharges          #? not WITH_MPI
-mpi_intcharges_c    #? WITH_MPI and MPI_PROCS <= 4 and defined('WITH_C_EXECUTABLES')
+mpi_intcharges_c    #? WITH_MPI and (MPI_PROCS % 2 == 0) and MPI_PROCS <= 4 and defined('WITH_C_EXECUTABLES')

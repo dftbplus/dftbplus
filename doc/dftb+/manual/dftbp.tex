@@ -84,9 +84,10 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.ElectronDynamics}.
 \item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
   See p.~\pref{sec:dftbp.REKS}.
-\item[\is{InputVersion}] Program version, which the input file was written for.
+\item[\is{InputVersion}] Program version, which the input file was
+  written for. See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{ParserOptions}] Various options affecting the parser only.
-  See p.~\pref{sec:dftbp.ParserOptions}.
+  See p.~\pref{sec:dftbp.ParserOptions} for a list.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
   p.~\pref{sec:dftbp.Parallel}.
 \end{description}
@@ -147,6 +148,7 @@ Geometry = {
 
 \subsection{GenFormat\cb}
 \label{sec:dftbp.GenFormat}
+\index{gen geometry input}
 
 You can use the generic format to specify the geometry (see
 appendix~\ref{app:gen}). The geometry specification for GaAs would be
@@ -172,6 +174,7 @@ Geometry = GenFormat {
 
 \subsection{xyzFormat\{\}}
 \label{sec:dftbp.xyzFormat}
+\index{xyz geometry input}
 
 You can also use the xyz format to specify molecular geometries.
 The geometry specification for a caffeine molecule would be the following:
@@ -214,6 +217,7 @@ Geometry = xyzFormat {
 
 \subsection{VaspFormat\{\}}
 \label{sec:dftbp.VaspFormat}
+\index{vasp geometry input}
 
 You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
 \href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
@@ -293,6 +297,7 @@ methods are available:
 
 \subsection{GeometryOptimisation}
 \label{sec:dftbp.GeometryOptimisation}
+\index{GeometryOptimisation}
 
 \begin{ptable}
   \kw{Optimiser} & m &  & Rational & \\
@@ -365,9 +370,9 @@ Driver = GeometryOptimisation {
 \label{sec:dftbp.Optimiser.RF}
 
 Provides a rational function based optimiser.
-The geometry displacement step is determining obtaining the lowest eigenvalue of the augmented Hessian matrix.
+The geometry displacement step is determined from the lowest eigenvalue of the augmented Hessian matrix as proposed by Pulay {\itshape et al.}~\cite{Eckert1997}.
 The eigenvalue equation is solved iteratively using a Davidson solver updating the displacement vector from the last optimisation cycle.
-The augmented Hessian is build from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme.
+The augmented Hessian is built from a guess model hessian, which is updated every cycle from the gradient change and displacement vectors using a BFGS-like scheme~\cite{Broyden1970}.
 A unit matrix is used as guess for the model hessian.
 
 The scaling behaviour of the computational cost and memory usage for this optimisation step is quadratic in the number of optimised variables.
@@ -1349,7 +1354,8 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \label{sec:dftbp.Hamiltonian}
 
 Currently, DFTB and xTB (section \ref{sec:dftbp.XTB}) Hamiltonians are
-implemented.
+implemented, with an optional interface (ASI) to externally managed
+models.
 
 \subsection{Density Functional based Tight Binding}
 \label{sec:dftbp.DFTB}
@@ -1395,7 +1401,8 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
+  \kw{Mdftb} & m & SCC = Yes & \is{None} & \pref{sec:dftbp.Mdftb} \\
+  \kw{Hybrid} & p &  & \is{None} & \pref{sec:dftbp.Hybrid} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Solvation} & m & & - & \pref{sec:dftbp.Solvation}\\
@@ -1404,6 +1411,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
   \kw{CustomisedOccupations} & p & SCC = Yes & & \\
   \kw{TruncateSKRange} & p & & & \\
+  \kw{HelicalSymmetryTol} & r & Helical = Yes & 1e-6 & \\
   \hline
 \end{ptable}
 
@@ -1758,6 +1766,10 @@ expressions, as described in appendix \ref{sec:index_selection}.):
   }
   \end{verbatim}
 
+\item[\is{HelicalSymmetryTol}] Sets the tolerance for testing whether
+  provided $k$-points are consistent with the $C_n$ rotational
+  symmetry around the $z$-axis.
+
 \end{description}
 
 
@@ -1780,6 +1792,7 @@ library.
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
   \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - & \pref{sec:dftbp.KPointsAndWeights} \\
+  \kw{ElectronicConstraints} &p&  & \cb & \pref{sec:dftbp.ElectronicConstraints} \\
 \end{ptable}
 
 \begin{description}
@@ -1844,15 +1857,41 @@ Hamiltonian = xTB {
 }
 \end{verbatim}
 
+\subsection{External Hamiltonian models}
+\label{sec:dftbp.ASI}
+
+For \dftbp{} binaries compiled with the API included, the interface to
+Atomic Simulation Interface (ASI~\cite{Stishenko2023}) can be enabled
+inside the \iscb{Hamiltonian} input block:
+
+\begin{ptable}
+  \kw{ASI} & m &  & & \\
+\end{ptable}
+
+The \kwcb{ASI} block allows an external code to read or replace the
+hamiltonian, overlap or density matrix during the calculation. Note,
+not all functionality of the code will be available if the interface
+is active.
+
+The \iscb{ASI} block currently contains no keywords.  Via ASI
+callbacks it is possible able to change the hamiltonian or overlap
+externally. If the model is modified, forces cannot be calculated,
+likewise self-consistent models cannot be computed (due to limitations
+of ASI).
+
+{\bf Note}: as per the ASI API specification, \dftbp{} declares the
+types of matrices it expects to be dealing with, but cannot check
+whether the client code is providing data matching this specification.
 
 \subsection{ElectronicConstraints}
 \label{sec:dftbp.ElectronicConstraints}
-Allows to impose constraints on the electronic ground state by finding
-the ground state of the system in a (carefully chosen) external
+
+Allows imposition of constraints on the electronic ground state by finding the
+ground state of the system in a (carefully chosen) external
 potential~\cite{Hourahine2010}.
 
 \begin{ptable}
-  \kw{Regions} & p & & \cb & \\
+  \kw{Constraints} & p & & \cb & \\
   \kw{Optimiser} & m & & FIRE & \\
   \kw{ConstrTolerance} & r & & 1e-8 & \\
   \kw{MaxConstrIterations} & i & & 100 & \\
@@ -1860,24 +1899,36 @@ potential~\cite{Hourahine2010}.
 \end{ptable}
 
 \begin{description}
-\item[\is{Regions}]
-  Specifies region (e.g.\ of atoms) targeted by electronic constraints.
+\item[\is{Constraints}] Specifies the constraint(s) to be applied. Currently
+  these are only implemented for atomic Mulliken populations:
   \begin{ptable}
-    \kw{Atoms} & p &  & \cb & \\
+    \kw{MullikenPopulations} & p &  & \cb & \\
   \end{ptable}
     \begin{description}
-      \item[\is{Atoms}] Defines a region of atoms (the specification of several blocks is possible).
+      \item[\is{MullikenPopulation}] Defines a constraint based on Mulliken
+      population.
     \begin{ptable}
-      \kw{Domain} & (i|s)+ &  &  & \\
-      \kw{Population} & r &  &  & \\
+      \kw{Atoms} & (i|s)+ &  &  & \\
+      \kw{Populations} & r &  &  & \\
+      \kw{TotalPopulation} & r &  &  & \\
+      \kw{Charges} & r &  &  & \\
+      \kw{TotalCharge} & r &  &  & \\
     \end{ptable}
       \begin{description}
-        \item[\is{Domain}] Indices of the atoms building a constrained region. The
-          atoms can be specified via index selection expressions, as described
-          in appendix \ref{sec:index_selection}.
-
-        \item[\is{Population}] Sets constraint on the Mulliken population of all
-          atoms included in the region.
+      \item[\is{Atoms}] Indices of the atoms within a constrained region. The atoms can be specified
+        via index selection expressions, as described in appendix \ref{sec:index_selection}.
+      \item[\is{Populations}] Constraint on the Mulliken population of individual atoms. Must
+        contain as many entries as selected via the \is{Atoms} keyword. This keyword is mutually
+        exclusive with the keywords \is{TotalPopulation}, \is{Charges} and \is{TotalCharge}.
+      \item[\is{TotalPopulation}] Sets constraint on the sum of the Mulliken population for the
+        atoms selected via the \is{Atoms} keyword. This keyword is mutually exclusive with the
+        keywords \is{Population}, \is{Charges} and \is{TotalCharge}.
+      \item[\is{Charges}] Constraint on the Mulliken (gross) charges of individual atoms. Must
+        contain as many entries as selected via the \is{Atoms} keyword. This keyword is mutually
+        exclusive with the keywords \is{Populations}, \is{TotalPopulation} and \is{TotalCharge}.
+      \item[\is{TotalCharge}] Sets constraint on the sum of the Mulliken charges of all atoms selected
+        via the \is{Atoms} keyword. This keyword is mutually exclusive with the keywords
+        \is{Population}, \is{TotalPopulation} and \is{Charges}.
       \end{description}
     \end{description}
 
@@ -1896,9 +1947,13 @@ potential~\cite{Hourahine2010}.
     \item[\iscb{LBFGS}] Propagate micro-iterations using the LBFGS
       algorithm. See p.~\pref{sec:dftbp.Optimiser.LBFGS}.
   \end{description}
-  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb} optimiser proved to be most
-  stable, when propagating the micro-iterations. However, your experience may vary and
-  manual testing based on your particular system is advised.
+  Please note, that the \kw{SteepestDescent\cb} and \kw{FIRE\cb}
+  optimiser proved to be most stable, when propagating the
+  micro-iterations. However, your experience may vary and manual
+  testing based on your particular system is advised.\footnote{For
+  transport calculations, section~\ref{app:transp}, gradient-only
+  optimizers, i.e., \kw{SteepestDescent\cb} and \kw{FIRE\cb} are to be
+  preferred.}
 
 \item[\is{ConstrTolerance}] Stopping criteria for the micro-iterations.
   Specifies the tolerance for the maximum difference in any condition of
@@ -1906,27 +1961,41 @@ potential~\cite{Hourahine2010}.
 
 \item[\is{MaxConstrIterations}] Maximal number of micro-iterations to reach
   convergence. If convergence is not reached after the specified
-  number of steps, the program stops.
+  number of steps, the program stops. Setting this value as -1 runs a
+  huge() number of iterations.
 
 \item[\is{ConvergentConstrOnly}] If true, requires that the micro-iterations
   converge before proceeding to subsequent stages of the calculation (next SCC
   step and eventually forces, analysis, etc.).
 \end{description}
 
-Example:
+Examples:
 \begin{verbatim}
-  ElectronicConstraints {
-    Regions {
-      Atoms {
-        Domain = 1
-        Population = 1.5
-      }
+ElectronicConstraints {
+  Constraints {
+    # Setting individual atomic populations by constraints
+    MullikenPopulation {
+      Atoms = 1 2
+      Populations = 1.2 0.8
     }
-    Optimiser = FIRE {}
-    ConstrTolerance = 1.0e-08
-    MaxConstrIterations = 30
-    ConvergentConstrOnly = Yes
   }
+  Optimiser = FIRE {}
+  ConstrTolerance = 1.0e-08
+  MaxConstrIterations = 30
+  ConvergentConstrOnly = Yes
+}
+\end{verbatim}
+
+\begin{verbatim}
+ElectronicConstraints {
+  Constraints {
+    # Setting constraint for the total gross charge of the constrained atoms
+    MullikenPopulation {
+      Atoms = 1 2
+      TotalCharge = 1.0
+    }
+  }
+}
 \end{verbatim}
 
 
@@ -2357,9 +2426,6 @@ available:
   other solvers)
 \item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
   states)
-\item \iscb{MAGMA}\\ (Only available for \dftbp{} binaries compiled with
-  MAGMA~\cite{tdb10, tnld10, dghklty14} GPU support. \textbf{WARNING:} this is
-  currently an experimental feature, so should be used with care.)
 \end{itemize}
 None of these solvers need any parameters or properties to be specified.
 
@@ -2368,18 +2434,36 @@ Example:\invparskip
   Solver = DivideAndConquer {}
 \end{verbatim}
 
-For ScaLAPACK enabled compilation, all three solvers are also available for MPI
-parallel use.
+For ScaLAPACK enabled compilation, all three of the LAPACK solvers are
+also available for MPI parallel use.
 
-If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
-the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
-become available.
+If the \dftbp{} binary is compiled with additional libraries, the
+following solvers become available:
+\begin{tabular}{|l|l|l|}
+  \hline Library & Solver(s) & Note\\ \hline
+  MAGMA~\cite{tdb10, tnld10, dghklty14,vuong2023accelerating} & \kwcb{MAGMA} & Serial \dftbp{}\\\hline
+  ELSI~\cite{YU2018267,yu2020elsi} & \kwcb{ELPA}, \kwcb{OMM}, \kwcb{PEXSI},
+  \kwcb{NTPoly} & MPI parallel \dftbp{}\\ \hline
+\end{tabular}
 
 Note: The ELSI-solvers are not tested with multiple OpenMP-threads. Therefore,
 {\dftbp} will stop with an error, if an ELSI-solver has been selected and the
 maximal number of allowed threads is greater than one. (You can control the
 number of allowed OpenMP-threads via the \verb|OMP_NUM_THREADS| environment
 variable.)
+
+\subsubsection{MAGMA}
+
+This uses available GPUs to accelerate eigensolution and (optionally)
+density matrix construction.
+It accepts following options:
+\begin{ptable}
+  \kw{DensityMatrixGPU} & l& & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{DensityMatrixGPU}] Use the GPU to construct the single
+  particle density matrix from the eigenvectors.
+\end{description}
 
 \subsubsection{ELPA}
 
@@ -2524,7 +2608,7 @@ quality of the solutions).
 \subsection{Filling}
 \label{sec:dftbp.Filling}
 
-There are currently two types of filling supported (see below). Both have common
+There are currently three types of filling supported (see below). All have common
 options:
 
 \begin{ptable}
@@ -2579,11 +2663,15 @@ high electron temperatures (for example when calculating metallic systems). Ther
 is an additional option for this type of filling:
 
 \begin{ptable}
-  \kw{Order} &i &  & 2 & \\
+  \kw{Order} &i &  & 1 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Order}] Order of the Methessel-Paxton scheme, the order must be
-  greater than zero, and the 1st order scheme is equivalent to Gaussian filling.
+\item[\is{Order}] Order of the Methessel-Paxton scheme, the order must
+  be greater than zero, and the 0$^\mathrm{th}$ order scheme is
+  equivalent to Gaussian filling. There is often no advantage to
+  higher orders than 1 (the default). All orders higher than 0 have no
+  linear or quadratic dependence of the free energy with electronic
+  temperature.
 \end{description}
 
 \textbf{Note:} Due to the non-monotonic behaviour of the Methfessel-Paxton filling function, the
@@ -2592,12 +2680,32 @@ different fillings, band entropies, and Mermin free energies may result, dependi
 been found by the Fermi-level search algorithm. The differences, however, are usually not physically
 significant.
 
+\subsubsection{Gaussian\cb}
+\label{sec:dftbp.Gaussian}
+
+Fills the single particle levels acording to gaussian broadened
+levels. When using a finite temperature, the Mermin free energy (which
+the code prints) should be used instead of the total energy. This is
+given by $E - TS$, where the electron entropy $S$ is used.
+
+Example:
+\invparskip
+\begin{verbatim}
+  Filling = Gaussian {
+    Temperature [K] = 300
+  }
+\end{verbatim}
+
+\textbf{Note:} Gaussian smearing is equivalent to Methfessel-Paxton
+\is{Order} = 0 broadening, but unlike Methfessel-Paxton broadening,
+the entropy of the distribution is strongly affected by temperature.
+
 \subsection{Time-independent DFTB (TI-DFTB) excited states}
 
 \subsubsection{$\boldsymbol\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow
 variational relaxation of the lowest singlet excited state of closed-shell
-singlet species.\cite{irle-JCTC-12-313} The KS spin orbitals are self-constently
+singlet species~\cite{irle-JCTC-12-313}. The KS spin orbitals are self-constently
 optimised under non-Aufbau orbital occupation constraints via promotion of an
 electron from the highest occupied molecular orbital (HOMO) of the ground state
 to lowest unoccupied molecular orbital (LUMO) at each SCC
@@ -2704,9 +2812,21 @@ Example (GaAs):
   }
 \end{verbatim}
 
+You can also set a \kw{Prefix} for the files, typically their path
+Example (C):
+  \invparskip
+\begin{verbatim}
+  SlaterKosterFiles = {
+    Prefix = "my_skfiles/mio-1-1/"
+    C-C = "C-C.skf"
+  }
+\end{verbatim}
+Which would specify the file's location as {\tt
+  ./my\_skfiles/mio-1-1/C-C.skf} inside the current directory.
+
 If you treat shells from different species as shells of one atom by
 using the \iscb{SelectedShells} keyword in the
-\iscb{MaxAngularMomentum} block, you have to specify more than one
+\iscb{MaxAngularMomentum} block, you will have to specify more than one
 file name for certain species pairs. (For details see the description
 about the \iscb{MaxAngularMomentum} keyword.)
 
@@ -3624,7 +3744,7 @@ For the electronegativity equilibration model the following parameters are avail
 For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
 have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
-up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
+up to 86 can be supplied automatically~\cite{caldeweyher-jcp-150-154122}.
 
 \begin{ptable}
   \kw{Chi} & m & & \is{Defaults} & \\
@@ -3703,7 +3823,7 @@ while \is{Cov\cb} is the default coordination number for DFTD4.
 \begin{description}
 
 \item[\is{Radii}] Covalent radii of all species in Bohr.
-  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+  Default values taken are the DFTD3 covalent radii~\cite{grimme-jcp-132-154104}.
 
 \item[\is{Electronegativities}] Electronegativities of all species.
   Default values taken are Pauling ENs.
@@ -3819,6 +3939,66 @@ Hamiltonian = DFTB {
 \end{verbatim}
 \end{description}
 
+\subsection{Mdftb}
+\label{sec:dftbp.Mdftb}
+\index{Mdftb}
+
+The \kw{Mdftb} keyword specifies the use of a multipole expansion (mDFTB)
+\cite{vuong-jctc-19-7592}. The \kw{Mdftb} keyword expects either \is{None} (default --
+no use of multipole expansion), or the \is{\mbox{OneCenterApproximation}} (on-site approximation)
+block as value. The \is{\mbox{OneCenterApproximation}} block has the following options:
+
+\begin{ptable}
+  \kw{OneCenterAtomIntegrals} & p & & \cb & \\
+  \kw{AtomDIntegralScalings} & p & & \cb & \\
+  \kw{AtomQIntegralScalings} & p & & \cb & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{OneCenterAtomIntegrals}] Specifies the atomic dipole and quadrupole integrals.
+  For each element, appropriate parameters must be specified.
+
+\item[\is{AtomDIntegralScalings}] Specifies empirical scaling factors for the atomic dipole
+  integrals of each element. The default value is 1.0 for all elements.
+
+\item[\is{AtomQIntegralScalings}] Specifies empirical scaling factors for the atomic quadrupole
+  integrals of each element. The default value is 1.0 for all elements.
+\end{description}
+
+Example using mDFTB without empirical scaling atomic dipole and quadrupole moments:
+\begin{verbatim}
+  Mdftb = OneCenterApproximation {
+    OneCenterAtomIntegrals = {
+      H:S|XX|S = 0.55976
+      O:S|X|Px = 0.60894
+      O:S|XX|S = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+  }
+\end{verbatim}
+
+Example using mDFTB with empirical scaling atomic dipole and quadrupole moments:
+\begin{verbatim}
+  Mdftb = OneCenterApproximation {
+    OneCenterAtomIntegrals = {
+      H:S|XX|S = 0.55976
+      O:S|X|Px = 0.60894
+      O:S|XX|S = 0.45215
+      O:Px|XX|Px = 0.83893
+      O:Py|XX|Py = 0.27964
+    }
+    AtomDIntegralScalings = {
+      H = 1.0
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 1.0
+      O = 3.0
+    }
+  }
+\end{verbatim}
+
 \subsection{Implicit Solvation Model}
 \label{sec:dftbp.Solvation}
 
@@ -3918,6 +4098,10 @@ systems.
     This file is additionally searched for in the directory specified with the
     \texttt{DFTBPLUS\_PARAM\_DIR} environment variable.
 
+    Additional parameter sets are available from
+    \href{https://github.com/grimme-lab/gbsa-parameters}{this
+      repository}.
+
   \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
     by providing the solvent name as string in the \is{FromName\cb} method or
     by specifying the necessary values with the \is{FromConstants\cb} method.
@@ -3950,7 +4134,7 @@ systems.
   \item[\is{Kernel}]
     Interaction kernel for the screened Coulomb operator.
     Possible options are the canonical ``Still'' kernel\cite{still1990} and the
-    ``P16'' kernel.\cite{lange2012}
+    ``P16'' kernel~\cite{lange2012}.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3960,7 +4144,7 @@ systems.
   \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
     polynomial to correct Born radii calculation.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
-    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I~\cite{onufriev2004}.
 
   \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
     before evaluating the Born energy.
@@ -3994,7 +4178,7 @@ systems.
 
   \item[\is{Alpha}]
     Alpha parameter in the ALPB model, should be kept to 0.571412 which was
-    derived from first principles.\cite{sigalov2006}
+    derived from first principles~\cite{sigalov2006}.
 \end{description}
 
 Example for a GB model with \cf{CS2} as solvent:
@@ -4148,7 +4332,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
   \kw{State} & s & & gsolv & \\
   \kw{AngularGrid} & i & & & \\
   \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
-  \kw{RadiiScaling} & r & & & \\
+  \kw{RadiiScaling} & r & & 1.0 & \\
   \kw{Solver} & m & & \kw{DomainDecomposition} & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
 \end{ptable}
@@ -4185,7 +4369,7 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of solving the
     COSMO equations, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -4194,19 +4378,19 @@ where $\Psi^j_n$ is the solute's potential at the $n$-th grid point.
     434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
     4334, 4802, 5294, 5810.
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
-    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+  \item[\is{Radii}] Atomic radii for each element, either defaults to
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overridden)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
     Alternatively, \is{VanDerWaalsRadiiCosmo\cb} and \is{VanDerWaalsRadiiBondi\cb}
     can be used to provide van-der-Waals radii. Note that Bondi radii\cite{mantina2009}
-    are only available for main group elements and Cosmo optimised radii default to
+    are only available for main group elements and COSMO optimised radii default to
     2.223~AA if no optimised values are available.
 
   \item[\is{RadiiScaling}] Allows to scale the provided radii by the provided value.
     Values greater one between 1.3 and 1.5 are recommended when using DFT-D3 van-der-Waals
     radii, while for Bondi radii usually values between 1.2 and 1.3 are used.
-    Cosmo optimised radius should be used with a scaling factor of unity.
+    COSMO optimised radii should be used with a scaling factor of unity.
 
   \item[\is{Solver}] for the COSMO equation. Currently only
     \is{DomainDecomposition\cb} is implemented (default). If specified
@@ -4263,7 +4447,7 @@ where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
 is the accessible surface area of each atom.
 To calculate the latter, the molecule is assumed as a convolution of spheres
 which is probed by a probe sphere rolled around the surface.
-Here a smooth numerical integration approach is employed.\cite{im2003}
+Here a smooth numerical integration approach is employed~\cite{im2003}.
 
 To use the non-polar surface area model in an calculation use the
 \is{SASA\cb} method in the input to \kw{Solvation}.
@@ -4297,7 +4481,7 @@ This model is currently only available for finite systems.
     for as SASA.
 
   \item[\is{AngularGrid}]
-    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    Size of the angular Lebedev--Laikov integration grid~\cite{lebedev1999}.
     The grid size mainly determines the computational cost of evaluating the
     accessible surface area, too small grid sizes can lead to significant errors
     due to missing rotational invariance.
@@ -4512,38 +4696,57 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\subsection{RangeSeparated}
-\label{sec:dftbp.RangeSep}
+\subsection{Hybrid}
+\label{sec:dftbp.Hybrid}
 
-The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
-functional. Currently, only the long-range corrected hybrid functional (\is{LC})
-\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
-electrostatic interaction is split up into long and short ranged components
-according to
+The \kw{Hybrid} keyword specifies the use of a (range-separated) hybrid functional.
+For the non-periodic formalism we refer to
+Refs.~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}, whereas the formalism for
+periodic boundary conditions is developed in Ref.~\cite{vdH-PRM-7-063802}.
+The DFTB implementation is derived from the DFT approach, where the electron-electron
+interaction is partitioned into short- and long-range contributions
 \begin{equation*}
-\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\frac{1}{r} = \underbrace{\frac{1 - (\alpha + \beta)
++ \beta \mathrm{e}^{-\omega r}}{r}}_{\text{DFT}} + \underbrace{\frac{\alpha
++ \beta (1 - \mathrm{e}^{-\omega r})}{r}}_{\text{HF}},
 \end{equation*}
-with the range-separation parameter $\omega$, which is set in the Slater-Koster
-files. The option should only be used with corresponding parameter sets created
-for use with long-range corrections.
+where the short-range part is handled by a modified pure density functional, while
+the exact Fock exchange enforces the correct asymptotic decay in the long-range.
+The parameters $\alpha, \beta$ and $\omega$ determine the fraction of global and
+long-range Fock exchange, as well as the value of the smooth range-separation function,
+that is of Yukawa type. $\alpha, \beta$ and $\omega$ are read from the Slater-Koster files.
 
-The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
-range-separated hybrid functional) or the \is{LC}\cb\ block as value. The latter
-has the following option:
+The \kw{Hybrid} keyword expects either \is{None} (default -- no use of hybrid functional),
+\is{Global}\cb\ (global hybrid functional with a static fraction of Fock-type exchange),
+\is{LC}\cb\ (purely long-rage corrected hybrid functional) or the \is{CAM}\cb\ (general
+partitioning of the electron-electron interaction according to the
+Coulomb-attenuating method) block as value. \is{Global}\cb\ and \is{LC}\cb\ are special
+cases of \is{CAM}\cb\ with $0 < \alpha \leq 1, \beta = 0$ and $\alpha = 0, \beta = 1$
+respectively.
+If the provided parametrization was not created for the respective hybrid xc-functional,
+\dftbp{} will issue an error message and halt. Before running a calculation it is therefore
+required to infer the type of hybrid functional from the SK-files.
+
+Note: Hybrid functionals can be used with spin-polarization
+(\pref{sec:dftbp.SpinPolarisation}). Non-collinear spins are currently
+only available for non-periodic geometries and the \iscb{MatrixBased}
+screening algorithm.
+
+The blocks \is{Global}\cb, \is{LC}\cb\ and \is{CAM}\cb\ have the following options:
 
 \begin{ptable}
   \kw{Screening} & m & & Thresholded \cb & \\
+  \kw{CoulombMatrix} & m & Periodic = Yes & Truncated \cb & \\
 \end{ptable}
-
 
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
   possible:
 
   \begin{description}
-  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+  \item[\iscb{Thresholded}] Screening according to estimated magnitude of
     terms. This is faster than the \is{NeighbourBased} method below, but does
-    not support all of the cases (restarting and spin polarisation).
+    not support all of the cases (restarting and spin-polarisation).
 
     \begin{ptable}
       \kw{Threshold} & r & & 1e-6 & \\
@@ -4555,55 +4758,191 @@ has the following option:
       zero.
     \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
       cutoff, beyond which the overlap between atoms is considered to be zero.
-      This can be used as an additional tweak to speed up the LC-calculation,
-      but make sure first, that your results do not change
-      considerably. Default: 0.0 -- no reduction, using the cutoff from the
-      SK-files.
+      This can be used as an additional tweak to speed up the hybrid-calculation,
+      but test whether this does not change your results considerably.
+      Default: 0.0 -- no reduction, using the cutoff from the SK-files.
     \end{description}
 
-  \item[\is{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
+    Note: The thresholded algorithm is only available for non-periodic systems and does
+      neither support colinear spin polarization, restarts nor MPI parallelism.
+
+  \item[\iscb{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
     algorithm is usually considerably slower than the \is{Thresholded}.
 
     \begin{ptable}
+      \kw{Threshold} & r & Periodic = Yes & 1e-6 & \\
       \kw{CutoffReduction} & r & & 0.0 & \\
     \end{ptable}
 
     \begin{description}
     \item[\is{CutoffReduction}]\modif{\modtype{length}} See description in the
       \is{Thresholded} block.
+    \item[\is{Threshold}] See description in the \is{Thresholded} block.
     \end{description}
 
-  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
-    can be faster than other two algorithms.
+  Note: Except for quasi-1D systems the neighbour-list based algorithm is usually
+    considerably slower than the matrix-based (or thresholded) algorithm. For systems
+    treated beyond the $\Gamma$-point the neighbour-list based algorithm supports MPI
+    parallelism. Collinear spin polarization and analytic energy gradients
+    (spin-unpolarized calculations) are available throughout.
 
+  \item[\iscb{MatrixBased}] Based on the multiplication of dense, square, dual-space
+    density and overlap matrices. For small to medium sized systems, this method is
+    \emph{significantly faster} than the other two algorithms.
+
+  Note: The matrix-based algorithm is available, and is the \textbf{recommended choice},
+    for non-periodic and periodic systems, including calculations beyond the
+    $\Gamma$-point. It supports analytic energy gradients (spin-unpolarized calculations),
+    collinear spin polarization and MPI parallelism. Restarting calculations however is
+    not yet supported for MPI enabled binaries in combination with non-periodic systems
+    or $\Gamma$-point calculations.
   \end{description}
 \end{description}
 
-Example for thresholded screening with customised threshold value.
+\begin{description}
+\item[\is{CoulombMatrix}] Choice of $\gamma$-electrostatics. The following options are
+  available:
+
+  \item[\is{Truncated \cb}] Truncated Coulomb operator of Ref.~\cite{spencer-alavi-tci}.
+
+    \begin{ptable}
+      \kw{CoulombCutoff} & r & & coupled to lattice vectors and k-point sampling & \\
+      \kw{GSummationCutoff} & r & & calculated based on CoulombCutoff value & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CoulombCutoff}]\modif{\modtype{length}} Spatial cutoff beyond which
+      $\gamma$-integrals are truncated to avoid the artificial Born--von K\'arm\'an
+      periodicity of the density matrix for finite k-point samplings.
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} Spatial cutoff of g-summations
+      of Ref.~\cite{vdH-PRM-7-063802}. Usually a modification of the default value by
+      the user is not necessary. Change only if you know what you are doing.
+    \end{description}
+
+    Note: Recommended choice for most calculations, especially if analytic energy gradients
+      are required, i.e.\ geometry relaxation or MD simulations.
+
+  \item[\is{TruncatedAndDamped \cb}] Identical to \is{Truncated} block, but with additional
+    fifth-order polynomial damping to zero, instead of hard truncation.
+
+    \begin{ptable}
+      \kw{CoulombCutoff} & r & & see \is{Truncated} block & \\
+      \kw{GSummationCutoff} & r & & see \is{Truncated} block & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CoulombCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \end{description}
+
+  \item[\is{MinimumImage \cb}] Adaption of the minimum image convention (MIC) to avoid
+  divergent lattice sums.
+
+    \begin{ptable}
+      \kw{WignerSeitzReduction} & i & & 0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{WignerSeitzReduction}] Number of unit cells to remove from the outer shell of
+      the Wigner-Seitz cell of the Born--von K\'arm\'an superlattice while carrying out the
+      g-summations. Usually the default value does not need to be changed by the user, since
+      convergence is established with increasingly fine k-point sampling.
+    \end{description}
+
+    Note: Usually slightly slower than the truncated Coulomb operator. Does not yet support
+      analytic energy gradients, i.e.\ atomic forces.
+
+  \item[\is{Full \cb}] Full, unaltered Coulomb operator. This option only exists for
+    testing and debugging purposes, do NOT use for production runs.
+
+    \begin{ptable}
+      \kw{GSummationCutoff} & r & & & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{GSummationCutoff}]\modif{\modtype{length}} See description in the
+      \is{Truncated} block.
+    \end{description}
+
+\end{description}
+
+\subsubsection{Examples: non-periodic systems}
+Example for thresholded screening with customised threshold value (shown for a purely
+long-range corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = Thresholded {
     Threshold = 1e-5
   }
 }
 \end{verbatim}
 
-Example for neighbour list based screening with customised cutoff reduction:
+Example for neighbour-list based screening with customised cutoff reduction
+(shown for a purely long-range corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = NeighbourBased {
     CutoffReduction [AA] = 2.0
   }
 }
 \end{verbatim}
 
-Example for matrix-matrix multiplication based method:
+Example for matrix-matrix multiplication based method (shown for a purely
+long-range corrected functional):
 \begin{verbatim}
-RangeSeparated = LC {
+Hybrid = LC {
   Screening = MatrixBased {}
 }
 \end{verbatim}
 
+\subsubsection{Examples: $\Gamma$-point calculations}
+Example for neighbour-list based screening with customised screening threshold
+and Coulomb cutoff (shown for a global hybrid functional):
+\begin{verbatim}
+  Hybrid = Global {
+    CoulombMatrix = Truncated {
+      CoulombCutoff = 20.0
+    }
+    Screening = NeighbourBased {
+      Threshold = 1e-05
+    }
+  }
+\end{verbatim}
+
+Example for matrix-matrix multiplication based method (shown for a general
+range-separated functional):
+\begin{verbatim}
+Hybrid = CAM {
+  Screening = MatrixBased {}
+}
+\end{verbatim}
+
+\subsubsection{Examples: calculations with k-points}
+Example for neighbour-list based screening with customised screening threshold and Coulomb
+cutoff (shown for a global hybrid functional):
+\begin{verbatim}
+Hybrid = Global {
+  CoulombMatrix = Truncated {
+    CoulombCutoff = 25.0
+  }
+  Screening = NeighbourBased {
+    Threshold = 1e-05
+  }
+}
+\end{verbatim}
+
+Example for neighbour-list based screening with customised screening threshold and MIC
+algorithm (shown for a general range-separated functional):
+\begin{verbatim}
+Hybrid = CAM {
+  CoulombMatrix = MinimumImage {}
+  Screening = NeighbourBased {
+    Threshold = 1e-07
+  }
+}
+\end{verbatim}
 
 \subsection{On site corrections}
 \label{sec:dftbp.Onsites}
@@ -4702,7 +5041,7 @@ ForceEvaluation = 'dynamics'
 
 This block collects some global options for the run.
 \begin{ptable}
-  \kw{WriteAutotestTag} &l & & No & \\
+  \kw{WriteAutotestTag} & l & & No & \\
   \kw{WriteDetailedXML} & l & & No & \\
   \kw{WriteResultsTag} & l & & No & \\
   \kw{WriteDetailedOut} & l & & Yes & \\
@@ -4719,6 +5058,8 @@ This block collects some global options for the run.
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
   \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
   \kw{BinaryAccessTypes} & s | 2s & & "stream"  & \\
+  \kw{MDOutput} & p & MD = Yes & \cb & \pref{sec:dftbp.MDOutput} \\
+  \kw{WriteAllAtomGeometry} & l & & No & \\
 \end{ptable}
 \begin{description}
 
@@ -4845,9 +5186,42 @@ This block collects some global options for the run.
   BinaryAccessTypes = "sequential"  "stream"
 \end{verbatim}
 
+\item[\is{WriteAllAtomGeometry}] Writes the extended geometry,
+  expanded according to the boundary conditions to an internally
+  required cut-off, as an xyz file, based on the name of the
+  \is{OutputPrefix}, with ``extendedGeom\_'' prepended. This is
+  primarily a debugging tool, but shows the atoms outside of the
+  central cell for calculations for structures including periodic or
+  transport calculations. The cutoff will depend on the type of
+  calculation, but will be the longest interaction distance considered
+  in real-space by the code. {\bf Note:} The structure uses the
+  internal representation of neighbouring atoms, which only includes
+  one triangle of the external replicated atoms.
 
 \end{description}
 
+\subsection{MDOutput}
+\label{sec:dftbp.MDOutput}
+Options controlling output of data during molecular dynamics
+calculations.
+
+\begin{ptable}
+  \kw{AppendBandOut} & l &  & No & \\
+  \kw{Derivatives} & l & \is{Printforces} = \is{Yes} & Yes & \\
+  \kw{Charges} & l & \is{MullikenAnalysis} = \is{Yes} & Yes & \\
+  \kw{AtomEnergies} & l & \is{WriteAtomicEnergies} = \is{Yes} & Yes & \\
+\end{ptable}
+\begin{description}
+\item[\is{AppendBandOut}] If enabled, add the band structure for the
+  current geometry to \verb|band.out| every \kw{MDRestartFrequency}
+  steps. If set to \is{No}, only the band structure for the most
+  recent geometry is stored in that file.
+\item[\is{Derivatves}] If enabled, save forces (and stress if
+  periodic) data in \verb|md.out|.
+\item[\is{Charges}] If enabled, save charges and charge related
+  quantities.
+\item[\is{AtomEnergies}] If enabled, save atom resolved energies.
+\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Analysis
@@ -4874,6 +5248,7 @@ calculation and/or calculate properties.
   \pref{sec:dftbp.eperturb} \\
   \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
   \pref{sec:dftbp.rperturb} \\
+  \kw{CoordDerivatives} & l & & No & \\
 \end{ptable}
 
 \begin{description}
@@ -4888,8 +5263,8 @@ calculation and/or calculate properties.
   charge associated only with the on-site part of the atomic orbitals, not the
   off-site hybridisation).
 
-\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is written as
-  a cosmo file to dftbp.cosmo. Only works if the solvation model is COSMO.
+\item[\is{WriteCosmoFile}] If \is{Yes}, the cavitity information is
+  written to dftbp.cosmo. Only works if the solvation model is COSMO.
 
 \item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
   atomic partial charges will be written.
@@ -4902,11 +5277,25 @@ calculation and/or calculate properties.
   text version of the data should be printed in \verb|eigenvec.out|. For a
   description of the file format see p.~\pref{sec:dftbp.eigenvec}.
 
-\item[\is{WriteBandOut}]  Controls the creation of the file \verb|band.out|
-  which contains the band structure in a more or less human friendly format.
+\item[\is{WriteBandOut}] Controls the creation of the file
+  \verb|band.out| which contains the band structure in a more or less
+  human friendly format.
+
+  Note: in the case of \iscb{nonAufbau} calculations (See
+  p.~\pref{sec:dftbp.NonAufbau}), separate files are written for each
+  configuration, prepended by the name of the state. The $s_1$ state
+  will be spin contaminated, so if used for density of states will
+  require processing according to the Ziegler sum
+  rule~\cite{baerends-TCA-43-261}.
 
 \item[\is{Printforces}] If \is{Yes}, forces are reported, even if not needed
   for the actual calculation (e.g.\ static geometry calculation).
+
+\item[\is{CoordDerivatives}] Calculate second derivatives with respect
+  to atomic positions (currently only molecular boundary conditions
+  and serial calculations for non-SCC or SCC DFTB). Derivatives of the band
+  structure are written to \verb|dBand_dx.out|, and Born effective
+  charges are evaluated.
 
 \end{description}
 
@@ -5076,7 +5465,7 @@ their respective blocks in the \is{Analysis} environment:
 \begin{ptable}
   \kw{ConvergedPerturb} & l & SCC = Yes & Yes\\
   \kw{MaxPerturbIter} & i & SCC = Yes & 100\\
-  \kw{PerturbDegenTol} & r & & 128\\
+  \kw{PerturbDegenTol} & r & & 1.0E-9\\
   \kw{PerturbEta} & r & Dynamic Polarisation& 1E-8\\
   \kw{PerturbSccTol} & r & SCC = Yes & 1e-5\\
 \end{ptable}
@@ -5094,8 +5483,8 @@ their respective blocks in the \is{Analysis} environment:
   using $k$-points, the default number of self-consistent iterations
   will default to 1 in cases where a band structure is being plotted
   (see \iscb{KLines} in section \ref{sec:dftbp.KLines}).
-\item[\is{PerturbDegenTol}] In the case of degenerate systems,
-  determines the number of times machine epsilon that separated
+\item[\is{PerturbDegenTol}]\modif{\modtype{energy}} In the case of
+  degenerate systems, determines the energy separation for which
   eigenvalues are considered non-degenerate.
 \item[\is{PerturbEta}] In the case of finite frequency perturbations, a small
   imaginary constant, of magnitude \is{PerturbEta} is used in the expression
@@ -5113,7 +5502,8 @@ Evaluates electric polarisability using coupled-perturbed linear
 response (hence can only be used with cases initially evaluating
 unperturbed eigenvalues/band structure). Currently only the DFTB
 hamiltonian is supported (see section~\ref{sec:dftbp.DFTB}, REKS and
-Delta-DFTB calculations are also not currently supported).
+Delta-DFTB (\iscb{nonAufbau}) calculations are also not currently
+supported).
 
 In the case of degenerate single particle levels, the reported level
 derivatives (see p.~\pref{sec:dftbp.bandout}) for those states are
@@ -5142,7 +5532,6 @@ Static polarisability, with an adjusted degeneracy tolerance:
 \begin{verbatim}
 Analysis {
   Polarisability = {} # static enabled by default
-  PerturbDegenTol = 1024 # levels within 1024 x machine tolerance
 }
 \end{verbatim}
 
@@ -5164,8 +5553,8 @@ Evaluates responses to potentials added at individual atomic sites,
 using coupled-perturbed linear response (hence can only be used with
 cases initially evaluating unperturbed eigenvalues/band
 structure). Currently only the DFTB hamiltonian is supported (see
-section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB calculations are
-also not currently supported).
+section~\ref{sec:dftbp.DFTB}, REKS and Delta-DFTB (\iscb{nonAufbau})
+calculations are also not currently supported).
 
 The same options as \is{Polarisability} are supported, but in
 addition:
@@ -5238,7 +5627,7 @@ available for collinear spin-polarised systems but not for fractional occupation
 specifications for this block have the following properties:
 
 \textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
-functionals (Section \ref{sec:dftbp.RangeSep}) can be performed for
+functionals (Section \ref{sec:dftbp.Hybrid}) can be performed for
 molecular (non-periodic) systems that do not have fractional
 fillings. The various window options (see below) are not yet
 available for range separated calculations.
@@ -5247,12 +5636,11 @@ available for range separated calculations.
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
     \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - &\\
-    \kw{Diagonaliser}           & m & & \{\} & \pref{sec:dftbp.casdiag}\\
+    \kw{Diagonaliser}           & m & & - & \pref{sec:dftbp.casdiag}\\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
-    \kw{WriteTransitionCharges} & l & \parbox{0.3\textwidth}{\raggedright
-      \is{RangeSeparated} and \is{StateOfInterest} non-zero} & No & \\
+    \kw{WriteTransitionCharges} & l & \is{StateOfInterest} non-zero & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
     \kw{WriteMulliken}          & l & & No & \\
     \kw{WriteCoefficients}      & l & & No & \\
@@ -5311,15 +5699,18 @@ available for range separated calculations.
     created, which contains the spectrum at the uncoupled DFTB level (i.e.\ the
     single-particle excitations).
 
-  \item[\is{WriteTransitionCharges}] For range separated calculations
-    (p.~\pref{sec:dftbp.RangeSep}) setting this to \is{Yes} generates the file
-    ATQ.DAT containing the Mulliken charges for a specific transition (chosen by
-    \is{StateOfInterest}).
+  \item[\is{WriteTransitionCharges}] For singlet or spin-polarized
+    calculations setting this to \is{Yes} generates the file
+    ATQ.DAT containing the Mulliken charges for a specific excited state (chosen by
+    \is{StateOfInterest}) according to~\cite{plotz2014new}.
 
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT
     are created. The former contains atom-resolved Mulliken (gross) charges for
     the excited state of interest, the latter the excited-state dipole moment of
-    the state.
+    the state. Warning: These quantities are computed from the relaxed
+    transition density added to the ground state density and possibly do not
+    faithfully represent the charges for a given excited many-body
+    state.
 
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is
     created. This file contains the complex eigenvectors (molecular orbital
@@ -5376,9 +5767,9 @@ available for range separated calculations.
 
   \subsubsection{Diagonaliser / Diagonalizer}
   \label{sec:dftbp.casdiag}
-  Specifies which iterative diagonaliser should be used to solve the Casida
-  equations. The keyword expects either a \iscb{Arpack} or \iscb{Stratmann}
-  block.
+  Specifies which iterative diagonaliser should be used to solve the
+  Casida equations. The keyword is required and expects either an
+  \iscb{Arpack} or \iscb{Stratmann} block.
   \begin{ptable}
     \kw{Arpack}    & p & \is{RangeSeparated} = \is{No} & & \\
     \kw{Stratmann} & p & & & \\
@@ -5414,15 +5805,15 @@ available for range separated calculations.
     restarted with an increased value of \is{SubSpaceFactor}.
   \end{description}
 
-\subsubsection{OptimizerCI}
+\subsubsection{OptimiserCI / OptimizerCI}
 \label{sec:dftbp.ciopt}
 
 Invokes search for conical intersections (CI) between the two states indicated
 by the \is{StateCouplings} keyword. Note that the two states must be
 direct neighbours (i.e., $n = m + 1$). There is currently one
-optimizer available.
+optimiser available.
 
-The \iscb{Bearpark} optimizer (see \cite{Bearpark1994}) minimizes a gradient that
+The \iscb{Bearpark} optimiser (see \cite{Bearpark1994}) minimises a gradient that
 is based on the non-adiabatic coupling vector and the difference
 gradient of the two potential energy surfaces in question.  The parameters given
 in the \is{GeometryOptimisation} block control the optimization as
@@ -5552,6 +5943,7 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
   \kw{WriteBondPopulation} & l & & No & \\
   \kw{WriteAtomicEnergies} & l & & No & \\
   \kw{FillingsFromFile} & l & & No & \\
+  \kw{VerboseDynamics} & l & & Yes & \\
 \end{ptable}
 
 \begin{description}
@@ -5675,11 +6067,16 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
 \item[\is{WriteAtomicEnergies}] If the atom-resolved contributions to the total energy
 shpuld be written to the \verb|atomenergies.dat| file.
 
-\item[\is{FillingsFromFile}] If the initial fillings (molecular
-  orbital occupations) should be read from a file named
-  ``fillings.ini'' present in the working directory. If used, the
-  ground state fillings are replaced by these and used to build the
-  initial density matrix.
+\item[\is{FillingsFromFile}] Whether to read the initial molecular orbital
+    occupations from a file. When set to \is{Yes}, please place a file named
+    ``fillings.in'' in the working directory. This file will override the
+    default ground state fillings when constructing the initial density matrix.
+    The file should list the occupation for each orbital, one per line, for each spin
+    channel (starting with all of the orbitals for the first spin channel). For
+    spin-polarized calculations with collinear spin, the occupations for the
+    second spin channel should follow sequentially, while for non-collinear/spin-orbit calculations all orbitals should be listed in ascending energy.
+
+\item[\is{VerboseDynamics}] If outputs are printed for Ehrenfest or electron dynamics.
 
 \end{description}
 
@@ -6461,11 +6858,16 @@ instead.
 \index{ESP.dat}
 
 The output from evaluating the electrostatic potential (see
-page~\pref{sec:dftbp.esp}). The first line consists of a comment mark followed
-by a logical variable as to whether there is an external electric field (or
-not), followed by 3 values for any regular grid pattern present in the system
-and the total number of points. If the data is gridded, the next four lines
-contain the origin and grid separation vectors in {\AA}ngstroms.
+page~\pref{sec:dftbp.esp}). The first line consists of a comment mark
+followed by a logical variable as to whether there is an external
+electric field (or not), followed by 3 values for any regular grid
+pattern present in the system and the total number of points. If the
+data is gridded, the next four lines contain the origin and vectors
+for the separation of grid points in {\AA}ngstroms. For gridded data,
+the 3 values in the header give the number of sampling points along
+each of the directions of the grid and the grid is written in order of
+the last vector most rapidly cycling, then the middle vector and
+finally the first vector.
 
 The next line is a comment, then the locations and the potential experience for
 a positive charge due to the internal field plus optionally the external field
@@ -6506,6 +6908,19 @@ shown in the label:
   0.215815549672E-01
   .
   .
+\end{verbatim}
+The grid is 25 points for each iteration, with the first few of the
+points are located at
+\begin{verbatim}
+0 -2 -2
+0 -2 -1
+0 -2  0
+0 -2  1
+0 -2  2
+0 -1 -2
+0 -1 -1
+.
+.
 \end{verbatim}
 
 \section{Excited state results files}

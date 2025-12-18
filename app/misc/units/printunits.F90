@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,9 +17,9 @@
 
 !> Printing out the conversion factors for the different units
 program printunits
-  use dftbp_common_unitconversion, only : lengthUnits, inverseLengthUnits, energyUnits, forceUnits,&
-      & timeUnits, freqUnits, volumeUnits, chargeUnits, eFieldUnits, bFieldUnits, pressureUnits,&
-      & velocityUnits, dipoleUnits, massUnits, angularUnits, massDensityUnits, TUnit
+  use dftbp_common_unitconversion, only : angularUnits, bFieldUnits, chargeUnits, dipoleUnits,&
+      & eFieldUnits, energyUnits, forceUnits, freqUnits, inverseLengthUnits, lengthUnits,&
+      & massDensityUnits, massUnits, pressureUnits, timeUnits, TUnit, velocityUnits, volumeUnits
   implicit none
 
   type(TUnit) :: localUnit

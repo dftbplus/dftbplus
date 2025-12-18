@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@
 !> Note: Currently only velocity Verlet is wrapped.
 module dftbp_md_mdintegrator
   use dftbp_common_accuracy, only : dp
-  use dftbp_md_velocityverlet, only : TVelocityVerlet, state, reset, rescale, next, init
+  use dftbp_md_velocityverlet, only : init, next, rescale, reset, state, TVelocityVerlet
   implicit none
 
   private

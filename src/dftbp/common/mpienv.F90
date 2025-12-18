@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@
 !> Contains MPI related environment settings
 module dftbp_common_mpienv
   use dftbp_common_accuracy, only : lc
-  use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_allgather, MPI_COMM_TYPE_SHARED
+  use dftbp_extlibs_mpifx, only : MPI_COMM_TYPE_SHARED, mpifx_allgather, mpifx_comm
   use dftbp_io_message, only : error
 #:if WITH_TRANSPORT
   use dftbp_extlibs_negf, only : negf_cart_init

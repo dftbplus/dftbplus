@@ -1,5 +1,25 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'cmake/**'
+      - 'external/**'
+      - 'src/**'
+      - 'test/**'
+      - 'config.cmake'
+      - 'CMakeLists.txt'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'app/**'
+      - 'cmake/**'
+      - 'external/**'
+      - 'src/**'
+      - 'test/**'
+      - 'config.cmake'
+      - 'CMakeLists.txt'
 
 env:
   CI: "ON"
@@ -9,6 +29,7 @@ env:
   HOMEBREW_NO_GITHUB_API: "ON"
   HOMEBREW_NO_INSTALL_CLEANUP: "ON"
   BUILD_DIR: _build
+  INSTALL_DIR: _install
   CMAKE_OPTIONS: >-
     -DWITH_API=true
     -DWITH_SDFTD3=true
@@ -21,50 +42,45 @@ env:
     -DWITH_PYTHON=true
 
 jobs:
+
   gcc-build:
+
     runs-on: ${{ matrix.os }}
+
+    env:
+      FC: gfortran
+      CC: gcc
+      CXX: g++
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         mpi: [nompi, openmpi]
         config: [Debug]
-        version: [11]
-        include:
-          - os: ubuntu-latest
-            mpi: nompi
-            config: Coverage
-            version: 11
-        exclude:
-          - os: macos-latest
-            mpi: openmpi
-            config: Debug
-            version: 11
-
+        version: [13]
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Get the number of available processes
+      run: |
+        NPROC=$(nproc)
+        echo "NPROC=$NPROC" >> $GITHUB_ENV
+        if [ ${NPROC} == 1 ]; then
+          NPROC_HALF=1
+        else
+          NPROC_HALF=$((NPROC / 2))
+        fi
+        echo "NPROC_HALF=$NPROC_HALF" >> $GITHUB_ENV
 
     - name: Set up python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.x'
 
-    # Note: xcode version 14.0 (default on macos-latest @ 2022-11-23) fails to link gfortran compiled
-    # code. Therefore, 14.1 is selected below (which seems to be installed.)
-    - name: Install GCC (OSX)
-      if: ${{ contains(matrix.os, 'macos') }}
-      run: |
-        brew install gcc@${{ matrix.version }} openblas pkg-config
-        ln -s /usr/local/bin/gfortran-${{ matrix.version }} /usr/local/bin/gfortran
-        ln -s /usr/local/bin/gcc-${{ matrix.version }} /usr/local/bin/gcc
-        ln -s /usr/local/bin/g++-${{ matrix.version }} /usr/local/bin/g++
-        echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
-        xcversion select 14.1
-
     - name: Install GCC (Linux)
-      if: ${{ contains(matrix.os, 'ubuntu') }}
       run: |
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt-get update
@@ -83,123 +99,122 @@ jobs:
       if: contains(matrix.mpi, 'nompi')
       run: echo "WITH_MPI=false" >> $GITHUB_ENV
 
-    - name: Set Compiler (Linux)
-      if: contains(matrix.os, 'ubuntu')
+    - name: Set Compiler
       run: |
-        echo "FC=gfortran" >> $GITHUB_ENV
-        echo "CC=gcc" >> $GITHUB_ENV
-        echo "CXX=g++" >> $GITHUB_ENV
-
-    - name: Set Compiler (OSX)
-      if: contains(matrix.os, 'macos')
-      run: |
-        echo "FC=gfortran-${{ matrix.version }}" >> $GITHUB_ENV
-        echo "CC=gcc-${{ matrix.version }}" >> $GITHUB_ENV
-        echo "CXX=g++-${{ matrix.version }}" >> $GITHUB_ENV
+        echo "FC=${FC}" >> ${GITHUB_ENV}
+        echo "CC=${CC}" >> ${GITHUB_ENV}
+        echo "CXX=${CXX}" >> ${GITHUB_ENV}
 
     - name: Check submodule commits
       run: ./utils/test/check_submodule_commits
 
-    - name: Install ARPACK (Linux)
-      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'nompi')
+    - name: Install LAPACK/BLAS
+      run: |
+        sudo apt-get install liblapack-dev libblas-dev
+
+    - name: Install ARPACK
+      if: contains(matrix.mpi, 'nompi')
       run: |
         sudo apt-get install libarpack2-dev
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DWITH_ARPACK=true" >> $GITHUB_ENV
 
-    - name: Install OpenMPI (OSX)
-      if: contains(matrix.os, 'macos') && contains(matrix.mpi, 'openmpi')
-      run: |
-        brew install open-mpi scalapack
-
-    - name: Install OpenMPI (Linux)
-      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'openmpi')
+    - name: Install OpenMPI
+      if: contains(matrix.mpi, 'openmpi')
       run: |
         sudo apt-get update
         sudo apt-get install libopenmpi-dev libscalapack-openmpi-dev
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-openmpi'" >> $GITHUB_ENV
 
-    - name: Install MPICH (Linux)
-      if: contains(matrix.os, 'ubuntu') && contains(matrix.mpi, 'mpich')
+    - name: Install MPICH
+      if: contains(matrix.mpi, 'mpich')
       run: |
         sudo apt-get update
         sudo apt-get install mpich libscalapack-mpich-dev
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
         echo "CMAKE_DEP_OPTIONS=-DSCALAPACK_LIBRARY='scalapack-mpich'" >> $GITHUB_ENV
 
-    - name: Install cmake
+    - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
-    - name: Set extra CMake flags (Linux)
-      if: contains(matrix.os, 'ubuntu')
+    - name: Set extra CMake flags
       run: |
         echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+        if [[ "${{ matrix.mpi }}" == "openmpi" || "${{ matrix.mpi }}" == "mpich" ]]; then
+          echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DTEST_MPI_PROCS=${NPROC_HALF}" >> $GITHUB_ENV
+        fi
 
     - name: Configure build
       run: >-
-        cmake -B _build -G Ninja
-        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
+        cmake -B ${BUILD_DIR} -G Ninja
+        -DCMAKE_INSTALL_PREFIX=${PWD}/${INSTALL_DIR}
         -DCMAKE_BUILD_TYPE=${{ matrix.config }}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
     - name: Build project
-      run: cmake --build ${BUILD_DIR}
+      run: cmake --build ${BUILD_DIR} -j
 
     - name: Run regression tests
       run: |
-        pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
-        popd
+        if [[ "${{ matrix.mpi }}" == "nompi" ]]; then
+          echo "TEST_OMP_THREADS=${NPROC}" >> $GITHUB_ENV
+        else
+          echo "TEST_OMP_THREADS=${NPROC_HALF}" >> $GITHUB_ENV
+        fi
+        echo "TEST_UUID=$(uuidgen)" >> ${GITHUB_ENV}
+        ctest -j ${TEST_OMP_THREADS} --output-on-failure --test-dir ${BUILD_DIR}
+
+    - name: Archive any failed test output
+      if: failure()
+      run: |
+        ./utils/test/collect_failed_output.sh ${BUILD_DIR} ${BUILD_DIR}/failed-tests.${TEST_UUID}.tar
+
+    - name: Upload the archive of failed test output
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: failed-tests.${{ env.TEST_UUID }}.tar
+        path: ${{ env.BUILD_DIR }}/failed-tests.${{ env.TEST_UUID }}.tar
+        retention-days: 2
 
     - name: Install project
-      run: |
-        cmake --install ${BUILD_DIR}
+      run: cmake --install ${BUILD_DIR}
 
     - name: Create gcov reports
       if: contains(matrix.config, 'Coverage')
-      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/_build/gcovs ${PWD}/_build/src ${PWD}/_build/app
-
-    - name: Upload coverage report
-      if: contains(matrix.config, 'Coverage')
-      uses: codecov/codecov-action@v1
-      with:
-        directory: _build/gcovs
-        functionalities: gcov
+      run: ./utils/test/make_gcov_reports ${PWD} ${PWD}/${BUILD_DIR}/gcovs ${PWD}/${BUILD_DIR}/src ${PWD}/${BUILD_DIR}/app
 
     - name: Run integration CMake test
       run: >-
-        CMAKE_PREFIX_PATH="${PWD}/_install:${CMAKE_PREFIX_PATH}"
+        CMAKE_PREFIX_PATH="${PWD}/${INSTALL_DIR}:${CMAKE_PREFIX_PATH}"
         ./test/src/dftbp/integration/cmake/runtest.sh ${BUILD_DIR}_cmake
         ${CMAKE_DEP_OPTIONS}
 
     - name: Run integration pkg-config test
       run: >-
-        PKG_CONFIG_PATH="${PWD}/_install/lib/pkgconfig:${PKG_CONFIG_PATH}"
+        PKG_CONFIG_PATH="${PWD}/${INSTALL_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
         ./test/src/dftbp/integration/pkgconfig/runtest.sh ${BUILD_DIR}_pkgconfig
 
+
   intel-build:
-    runs-on: ${{ matrix.os }}
+
     strategy:
-      fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        fc: [ifort]
-        cc: [icx]
+        config: [RelWithDebInfo]
+
+    runs-on: ${{ matrix.os }}
+
     env:
-      FC: ${{ matrix.fc }}
-      CC: ${{ matrix.cc }}
+      FC: ifx
+      CC: icx
       WITH_MPI: false
-      APT_PACKAGES: >-
-        intel-oneapi-compiler-fortran
-        intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-        intel-oneapi-mkl
-        intel-oneapi-mkl-devel
       CMAKE_OPTIONS: >-
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DCMAKE_BUILD_TYPE=${{ matrix.config }}
         -DWITH_API=true
         -DWITH_SDFTD3=true
         -DWITH_MBD=true
@@ -208,57 +223,49 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: 3.x
 
-    - name: Add Intel repository
-      if: contains(matrix.os, 'ubuntu')
-      run: |
-        wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo apt-get update
+    - name: Setup Intel compiler
+      uses: rscohn2/setup-oneapi@v0
+      with:
+        components: |
+          icx@2025.0.0
+          ifx@2025.0.0
+          mkl@2025.0.0
 
-    - name: Install Intel oneAPI compiler
-      if: contains(matrix.os, 'ubuntu')
+    - name: Setup Intel environment
       run: |
-        sudo apt-get update
-        sudo apt-get install ${APT_PACKAGES}
         source /opt/intel/oneapi/setvars.sh
-        printenv >> $GITHUB_ENV
+        printenv >> ${GITHUB_ENV}
+        echo "FC=${FC}" >> ${GITHUB_ENV}
+        echo "CC=${CC}" >> ${GITHUB_ENV}
 
-    - name: Install cmake
+    - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
     - name: Get external dependencies
       run: echo "y" | ./utils/get_opt_externals ALL
 
-    - name: Set extra CMake flags (Linux)
-      run: |
-        echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
+    - name: Set extra CMake flags
+      run: echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV
 
     - name: Configure build
       run: >-
-        cmake -B _build -G Ninja
-        -DCMAKE_INSTALL_PREFIX=${PWD}/_install
-        -DCMAKE_BUILD_TYPE=Debug
+        cmake -B ${BUILD_DIR} -G Ninja
+        -DCMAKE_INSTALL_PREFIX=${PWD}/${INSTALL_DIR}
         ${CMAKE_OPTIONS}
         -DWITH_MPI=${WITH_MPI}
 
     - name: Build project
-      run: cmake --build ${BUILD_DIR}
+      run: cmake --build ${BUILD_DIR} -j
 
     - name: Run regression tests
       run: |
         pushd ${BUILD_DIR}
-        ctest -j 2 --output-on-failure
+        ctest -j --output-on-failure
         popd
-
-    - name: Install project
-      run: |
-        cmake --install ${BUILD_DIR}

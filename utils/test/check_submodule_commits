@@ -2,10 +2,11 @@
 
 """Checks the submodule commit IDs in integration CMake files."""
 
-import os
-import subprocess
-import re
 import argparse
+import configparser
+import os
+import re
+import subprocess
 import sys
 
 _DESCRIPTION = """
@@ -33,12 +34,21 @@ def main():
     result = subprocess.run(["git", "submodule", "status"],
                             stdout=subprocess.PIPE, check=True)
     output = result.stdout.decode('ascii')
+    if args.check:
+        gitconfig = configparser.ConfigParser()
+        gitconfig.read('.git/config')
     allsync = True
     with open("CMakeLists.txt", "r") as fp:
         origcontent = fp.read()
     content = origcontent
     for match in _PAT_SUBMOD_COMMIT.finditer(output):
         commit, submodule = match.groups()
+        if args.check:
+            locale = ('submodule "external/%s/origin"' % submodule)
+            active = gitconfig.get(locale, 'active')
+            if active == 'true':
+                url = gitconfig.get(locale, 'url')
+                _check_submodule_url(content, submodule, url)
         newcontent, nn = _replace_submodule_commit(content, submodule, commit)
         if nn < 1:
             print("! Commit for submodule {} was NOT FOUND".format(submodule))
@@ -46,10 +56,10 @@ def main():
             continue
         sync = (newcontent == content)
         if sync:
-            print("+ Commit for submodule {} matches.".format(submodule))
+            print("+ Commit ID for submodule {} matches.".format(submodule))
         elif args.update:
             content = newcontent
-            print("* Commit for submodule {} had been updated."\
+            print("* Commit for submodule {} has been updated."\
                   .format(submodule))
         else:
             print("! Commit for submodule {} DOES NOT MATCH!".format(submodule))
@@ -66,6 +76,8 @@ def _parse_arguments():
     parser = argparse.ArgumentParser(description=_DESCRIPTION)
     msg = "Whether the commits should be updated in the CMakeLists.txt files"
     parser.add_argument("-u", "--update", action='store_true', help=msg)
+    msg = "Check consistency between CMakeLists.txt and submodules"
+    parser.add_argument("-c", "--check", action='store_true', help=msg)
     return parser.parse_args()
 
 
@@ -80,6 +92,21 @@ def _replace_submodule_commit(content, submodule, commit):
         'set({}_GIT_TAG "{}")'.format(submodule_normed, commit),
         content)
     return newcontent, nsubs
+
+
+def _check_submodule_url(content, submodule, url):
+    """Checks consistency of the submodule url in the CMakeLists.txt file"""
+    submodule_normed = submodule.upper()
+    submodule_normed = re.sub(
+        _PAT_SPECIAL_CHAR, _SPECIAL_CHAR_REPLACEMENT, submodule_normed)
+    match = re.findall(
+        r"set\({}_GIT_REPOSITORY \"({})(\.git)?\"\)".format(submodule_normed, url),
+        content)
+    if (len(match) == 0):
+        print('** {} : mismatch between .git/config and CMakeLists.txt'.format(submodule))
+    else:
+        if (match[0][1] == '.git'):
+            print("* {} : bare vs non-bare repository address in CMakeLists.txt and .git/config".format(submodule))
 
 
 if __name__ == '__main__':

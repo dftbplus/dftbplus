@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,8 @@
 !> Routines for calculating the interaction with external charges
 module dftbp_dftb_extcharges
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : pi
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_dftb_boundarycond, only : TBoundaryConditions
+  use dftbp_dftb_boundarycond, only : TBoundaryConds
   use dftbp_dftb_coulomb, only : TCoulomb
   implicit none
 
@@ -169,7 +168,7 @@ contains
     real(dp), intent(in) :: latVecs(:,:)
 
     !> Boundary conditions on the calculation
-    type(TBoundaryConditions), intent(in) :: boundaryConds
+    type(TBoundaryConds), intent(in) :: boundaryConds
 
     @:ASSERT(this%tInitialized .and. this%tPeriodic)
 
@@ -286,7 +285,7 @@ contains
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> sites to calculate potential
+    !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
     !> Resulting potentials
@@ -295,7 +294,7 @@ contains
     !> Coulomb calculator
     type(TCoulomb), intent(inout) :: coulomb
 
-    !> optional potential softening
+    !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(all(shape(locations) == [3, size(V)]))

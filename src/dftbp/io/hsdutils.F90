@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,22 +13,21 @@
 module dftbp_io_hsdutils
   use dftbp_common_accuracy, only : dp
   use dftbp_common_status, only : TStatus
-  use dftbp_extlibs_xmlf90, only : fnode, fnodeList, getFirstChild, getParentNode, string,&
-      & appendChild, xmlf_t, TEXT_NODE, textNodeName, ELEMENT_NODE, char, getLength,&
-      & assignment(=),getNodeType, replaceChild, createTextNode, createElement, removeChild, trim,&
-      & getAttribute, setAttribute, append_to_string, resize_string, len, xml_NewElement,&
-      & xml_AddPCData, xml_EndElement, getItem1, prepend_to_string, getAttribute, getNodeName,&
-      & getNodeValue, destroyNode, setAttribute, getAttribute, normalize
-  use dftbp_io_charmanip, only : newline, whiteSpaces, space, tolower, unquote, complementaryScan
-  use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrStart, attrModifier, attrName,&
+  use dftbp_extlibs_xmlf90, only : append_to_string, appendChild, assignment(=), char,&
+      & createElement, createTextNode, destroyNode, ELEMENT_NODE, fnode, fnodeList, getAttribute,&
+      & getFirstChild, getItem1, getLength, getNodeName, getNodeType, getNodeValue, getParentNode,&
+      & len, removeChild, replaceChild, resize_string, setAttribute, string, TEXT_NODE,&
+      & textNodeName, trim, xml_AddPCData, xml_EndElement, xml_NewElement, xmlf_t
+  use dftbp_io_charmanip, only : complementaryScan, newline, space, tolower, unquote, whiteSpaces
+  use dftbp_io_hsdparser, only : attrEnd, attrFile, attrList, attrModifier, attrName, attrStart,&
       & getHSDPath, getNodeHSDName
   use dftbp_io_indexselection, only : getIndexSelection
   use dftbp_io_message, only : error, warning
-  use dftbp_io_tokenreader, only : TOKEN_EOS, TOKEN_ERROR, LOGICAL_TRUE, LOGICAL_FALSE, TOKEN_OK,&
-      & getNextToken
+  use dftbp_io_tokenreader, only : getNextToken, LOGICAL_FALSE, LOGICAL_TRUE, TOKEN_EOS,&
+      & TOKEN_ERROR, TOKEN_OK
   use dftbp_io_xmlutils, only : getChildrenByName, getFirstChildByName
-  use dftbp_type_linkedlist, only : len, TListString, TListReal, TListRealR1, TListComplex,&
-      & TListComplexR1, TListInt, TlistIntR1, append, init, asArray, destruct
+  use dftbp_type_linkedlist, only : append, len, TListComplex, TListComplexR1, TListInt,&
+      & TlistIntR1, TListReal, TListRealR1, TListString
   implicit none
 
   private
@@ -385,7 +384,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as real.
-  subroutine getChVal_real(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_real(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -405,11 +404,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -427,8 +430,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
-      if (present(modifier)) then
-        modifier = ""
+      if (present(modifier)) modifier = ""
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
       end if
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
@@ -725,7 +729,7 @@ contains
 
 
   !> Returns the value (the child) of a child node as integer.
-  subroutine getChVal_int(node, name, variableValue, default, modifier, child)
+  subroutine getChVal_int(node, name, variableValue, default, modifier, child, isDefaultExported)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -745,11 +749,15 @@ contains
     !> Pointer to the child node (with the spec. name) on return
     type(fnode), pointer, optional :: child
 
+    !> Is the default value (if provided) set in the tree if there is no user input?
+    logical, intent(in), optional :: isDefaultExported
+
     type(string) :: text, modif
     integer :: iStart, iErr
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
+    @:ASSERT(present(default) .or. .not. present(isDefaultExported))
 
     child2 => getFirstChildByName(node, tolower(name))
     if (associated(child2)) then
@@ -767,8 +775,9 @@ contains
       call setAttribute(child2, attrProcessed, "")
     elseif (present(default)) then
       variableValue = default
-      if (present(modifier)) then
-        modifier = ""
+      if (present(modifier)) modifier = ""
+      if (present(isDefaultExported)) then
+        if (.not. isDefaultExported) return
       end if
       call setChildValue(node, name, variableValue, .false., child=child2)
     else
@@ -1922,7 +1931,7 @@ contains
 
 
   !> Returns a child node with a specified name
-  subroutine getChild(node, name, child, requested, modifier)
+  subroutine getChild(node, name, child, requested, modifier, emptyIfMissing)
 
     !> Node to investigate
     type(fnode), pointer :: node
@@ -1939,16 +1948,26 @@ contains
     !> Contains modifier on exit.
     type(string), intent(inout), optional :: modifier
 
-    logical :: tRequested
+    !> If missing, return an associated child
+    logical, intent(in), optional :: emptyIfMissing
+
+    logical :: isRequested, emptyReturn
     type(string) :: modif
 
     @:ASSERT(associated(node))
 
     if (present(requested)) then
-      tRequested = requested
+      isRequested = requested
     else
-      tRequested = .true.
+      isRequested = .true.
     end if
+    if (present(emptyIfMissing)) then
+      emptyReturn = emptyIfMissing
+    else
+      emptyReturn = .false.
+    end if
+
+    @:ASSERT(.not. (isRequested .and. emptyReturn))
 
     child => getFirstChildByName(node, tolower(name))
     if (associated(child)) then
@@ -1959,8 +1978,9 @@ contains
         call detailedError(child, MSG_NOMODIFIER)
       end if
       call setAttribute(child, attrProcessed, "")
-    elseif (tRequested) then
-      call detailedError(node, MSG_MISSING_FIELD // name)
+    else
+      if (isRequested) call detailedError(node, MSG_MISSING_FIELD // name)
+      if (emptyReturn) call setChild(node, name, child)
     end if
 
   end subroutine getChild
@@ -3588,7 +3608,7 @@ contains
 
     type(string) :: str
 
-    str = msg
+    str = trim(msg)
     call appendPathAndLine(node, str)
     call warning(char(str) // newline)
 

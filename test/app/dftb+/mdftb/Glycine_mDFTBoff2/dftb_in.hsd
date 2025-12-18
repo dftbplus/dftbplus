@@ -1,0 +1,99 @@
+Geometry = GenFormat {
+10 C
+N C O H
+1   1   1.7849000000E+00   1.1810000000E-01  -4.0200000000E-02
+2   2   6.4060000000E-01  -7.9990000000E-01   5.6000000000E-02
+3   2  -6.9370000000E-01  -3.6800000000E-02   2.2000000000E-03
+4   3  -1.7640000000E+00  -5.9830000000E-01  -4.6000000000E-02
+5   3  -5.5970000000E-01   1.2978000000E+00   3.0100000000E-02
+6   4   4.1290000000E-01   1.4630000000E+00   6.0800000000E-02
+7   4   6.1980000000E-01  -1.5575000000E+00  -7.3400000000E-01
+8   4   6.5680000000E-01  -1.3379000000E+00   1.0090000000E+00
+9   4   2.2377000000E+00   8.1900000000E-02  -9.4740000000E-01
+10   4   2.4872000000E+00  -5.1800000000E-02   6.7080000000E-01
+}
+
+Hamiltonian = DFTB {
+  Charge = 0
+  SCC = Yes
+  SCCTolerance = 1.0E-9
+  MaxSCCIterations = 300
+  Filling = Fermi {
+    Temperature = 0.0
+  }
+  Mixer = Broyden {}
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+  }
+
+  ThirdOrderFull = Yes
+  HubbardDerivs = {
+    H = -0.1857
+    C = -0.1492
+    N = -0.1535
+    O = -0.1575
+  }
+
+  Mdftb = OneCenterApproximation {
+    # Disable all atomic dipole and quadrupole moments
+    # to ensure that mDFTB does not interfere with other parts of the code.
+    # The results should be identical to those of DFTB2.
+    AtomDIntegralScalings = {
+      H = 0.0
+      C = 0.8
+      N = 0.6
+      O = 0.2
+    }
+    AtomQIntegralScalings = {
+      H = 0.0
+      C = 2.6
+      N = 3.4
+      O = 3.0
+    }
+    OneCenterAtomIntegrals = {
+      H:S|XX|S   = 0.0
+      C:S|X|Px   = 0.0
+      C:S|XX|S   = 0.0
+      C:Px|XX|Px = 0.0
+      C:Py|XX|Py = 0.0
+      N:S|X|Px   = 0.0
+      N:S|XX|S   = 0.0
+      N:Px|XX|Px = 0.0
+      N:Py|XX|Py = 0.0
+      O:S|X|Px   = 0.0
+      O:S|XX|S   = 0.0
+      O:Px|XX|Px = 0.0
+      O:Py|XX|Py = 0.0
+    }
+  }
+
+  SlaterKosterFiles = Type2Filenames {
+    Prefix = {slakos/origin/m3ob-test/}
+    Suffix = ".skf"
+    Separator = "-"
+  }
+}
+
+ParserOptions = {
+  ParserVersion = 14
+  IgnoreUnprocessedNodes = No
+}
+
+Analysis = {
+  PrintForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+}
+
+Parallel{
+  Blacs{BlockSize=2}
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

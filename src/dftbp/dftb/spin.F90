@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,6 @@
 !> switched on!
 module dftbp_dftb_spin
   use dftbp_common_accuracy, only : dp
-  use dftbp_io_message, only : error
   use dftbp_type_commontypes, only : TOrbitals
   implicit none
 
@@ -27,7 +26,7 @@ module dftbp_dftb_spin
   end interface getEnergySpin
 
 
-  !> swap from up/down to charge/magnetisation
+  !> Swap from up/down to charge/magnetisation
   interface ud2qm
     module procedure ud2qm2
     module procedure ud2qm3
@@ -35,7 +34,7 @@ module dftbp_dftb_spin
   end interface ud2qm
 
 
-  !> swap from charge/magnetisation to up/down
+  !> Swap from charge/magnetisation to up/down
   interface qm2ud
     module procedure qm2ud1
     module procedure qm2ud2
@@ -50,10 +49,10 @@ contains
   !> parts of the charges and shifts are processed.
   subroutine getSpinShift(shift, chargePerShell, species, orb, spinW)
 
-    !> resulting shell-shifts for the system
+    !> Resulting shell-shifts for the system
     real(dp), intent(out) :: shift(:,:,:)
 
-    !> spin resolved charges for each shell
+    !> Spin resolved charges for each shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
     !> Species of each atom
@@ -96,10 +95,10 @@ contains
     !> Contains the atomic contributions on exit
     real(dp), intent(out) :: rslt
 
-    !> spin resolved charges for each shell
+    !> Spin resolved charges for each shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
-    !> spin shift for each shell
+    !> Spin shift for each shell
     real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(all(shape(chargePerShell)==shape(shiftPerShell)))
@@ -117,10 +116,10 @@ contains
     !> Contains the atomic contributions on exit
     real(dp), intent(out) :: rslt(:)
 
-    !> spin resolved charges for each shell
+    !> Spin resolved charges for each shell
     real(dp), intent(in) :: chargePerShell(:,:,:)
 
-    !> spin shift for each shell
+    !> Spin shift for each shell
     real(dp), intent(in) :: shiftPerShell(:,:,:)
 
     @:ASSERT(size(rslt)==size(chargePerShell,dim=2))
@@ -177,10 +176,10 @@ contains
   end subroutine Spin_getOrbitalEquiv
 
 
-  !> converts a charge/magnetization set into a up/down
+  !> Converts a charge/magnetization set into a up/down
   subroutine qm2ud1(x)
 
-    !> array of data [spin]
+    !> Array of data [spin]
     real(dp), intent(inout) :: x(:)
 
     integer :: nSpin
@@ -201,10 +200,10 @@ contains
   end subroutine qm2ud1
 
 
-  !> converts a charge/magnetization set into a up/down
+  !> Converts a charge/magnetization set into a up/down
   subroutine qm2ud2(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
     integer :: nSpin
@@ -225,10 +224,10 @@ contains
   end subroutine qm2ud2
 
 
-  !> converts a charge/magnetization set into a up/down
+  !> Converts a charge/magnetization set into a up/down
   subroutine qm2ud3(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
     integer :: nSpin
@@ -249,10 +248,10 @@ contains
   end subroutine qm2ud3
 
 
-  !> converts a charge/magnetization set into a up/down
+  !> Converts a charge/magnetization set into a up/down
   subroutine qm2ud4(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
     integer :: nSpin
@@ -273,10 +272,10 @@ contains
   end subroutine qm2ud4
 
 
-  !> converts a up/down set into a charge/magnetization
+  !> Converts a up/down set into a charge/magnetization
   subroutine ud2qm2(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
     integer :: nSpin
@@ -297,10 +296,10 @@ contains
   end subroutine ud2qm2
 
 
-  !> converts a up/down set into a charge/magnetization
+  !> Converts a up/down set into a charge/magnetization
   subroutine ud2qm3(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
     integer :: nSpin
@@ -321,10 +320,10 @@ contains
   end subroutine ud2qm3
 
 
-  !> converts a charge/magnetization set into a up/down
+  !> Converts a charge/magnetization set into a up/down
   subroutine ud2qm4(x)
 
-    !> array of data, last index spin
+    !> Array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
     integer :: nSpin

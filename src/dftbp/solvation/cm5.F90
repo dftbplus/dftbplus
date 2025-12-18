@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,11 +10,9 @@
 !> Implementation of the charge model 5 (CM5)
 module dftbp_solvation_cm5
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_atomicrad, only : getAtomicRad
-  use dftbp_common_constants, only : AA__Bohr, symbolToNumber
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_common_constants, only : symbolToNumber
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_math_blasroutines, only : gemv
-  use dftbp_math_simplealgebra, only : determinant33
   implicit none
 
   private

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
 module dftbp_io_message
-  use dftbp_common_globalenv, only : stdOut, synchronizeAll, abortProgram
+  use dftbp_common_globalenv, only : abortProgram, stdOut, synchronizeAll
   implicit none
 
   private

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 !> a common gradient vector and the apply the resulting displacement to a geometry.
 module dftbp_geoopt_filter
   use dftbp_common_accuracy, only : dp
-  use dftbp_math_simplealgebra, only : invert33, determinant33
+  use dftbp_math_simplealgebra, only : determinant33, invert33
   implicit none
   private
   public :: TFilter, TFilterInput, TFilter_init

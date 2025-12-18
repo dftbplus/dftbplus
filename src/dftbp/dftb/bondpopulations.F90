@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -24,13 +24,13 @@ contains
   subroutine addPairWiseBondInfo(info, rhoPrim, sparseMat, iSquare, iNeighbour, nNeighbourSK,&
       & img2CentCell, iSparseStart)
 
-    !> pairwise contribution
+    !> Pairwise contribution
     real(dp), allocatable, intent(inout) :: info(:,:)
 
-    !> sparse density matrix (only spin-unpolarized)
+    !> Sparse density matrix (only spin-unpolarized)
     real(dp), intent(in) :: rhoPrim(:)
 
-    !> non-scc hamiltonian or overlap matrix in sparse format
+    !> Non-scc hamiltonian or overlap matrix in sparse format
     real(dp), intent(in) :: sparseMat(:)
 
     !> Index array for start of atomic block in dense matrices
@@ -42,10 +42,10 @@ contains
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> image atoms to their equivalent in the central cell
+    !> Image atoms to their equivalent in the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> index array for location of atomic blocks in large sparse arrays
+    !> Index array for location of atomic blocks in large sparse arrays
     integer, intent(in) :: iSparseStart(0:,:)
 
     integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iNeigh, iOrb1, iOrb2

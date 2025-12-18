@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@ module dftbp_reks_reksfon
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_message, only : error
-  use dftbp_reks_reksvar, only : TReksCalc, reksTypes
+  use dftbp_reks_reksvar, only : reksTypes, TReksCalc
 
   implicit none
 

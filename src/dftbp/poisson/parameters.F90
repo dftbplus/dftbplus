@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,6 +14,7 @@
 !**************************************************************************
 module dftbp_poisson_parameters
   use dftbp_common_accuracy, only : dp, mc
+  use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
 
   implicit none
 
@@ -109,7 +110,6 @@ module dftbp_poisson_parameters
 
   character(:), allocatable, public :: scratchfolder
 
-
   contains
 
   ! -----------------------------------------------------------------
@@ -131,8 +131,8 @@ module dftbp_poisson_parameters
     maxiter=30
     localBC=0
     poissBC=0
-    overrideBC=0
-    overrBulkBC=-1
+    overrideBC(:) = poissonBCsEnum%periodic
+    overrBulkBC(:) = poissonBCsEnum%unset
     mixed = .false.
     maxpoissiter=60
 

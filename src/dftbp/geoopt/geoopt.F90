@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,11 +8,11 @@
 !> General interface for the optimization algorithms
 module dftbp_geoopt_geoopt
   use dftbp_common_accuracy, only : dp
-  use dftbp_geoopt_conjgrad, only : TConjGrad, next, reset, init
+  use dftbp_geoopt_conjgrad, only : init, next, reset, TConjGrad
+  use dftbp_geoopt_deprecated_steepdesc, only : init, next, reset, TSteepDescDepr
   use dftbp_geoopt_fire, only : TFire
-  use dftbp_geoopt_gdiis, only : TDIIS, reset, next, init
+  use dftbp_geoopt_gdiis, only : init, next, reset, TDIIS
   use dftbp_geoopt_lbfgs, only : TLbfgs
-  use dftbp_geoopt_deprecated_steepdesc, only : TSteepDescDepr, next, reset, init
   implicit none
 
   private
@@ -61,6 +61,7 @@ module dftbp_geoopt_geoopt
     integer :: diis = 3
     integer :: lbfgs = 4
     integer :: fire = 5
+    integer :: geometryoptimisation = 6
   end type TGeoOptTypesEnum
 
   type(TGeoOptTypesEnum), parameter :: geoOptTypes = TGeoOptTypesEnum()

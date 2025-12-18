@@ -27,7 +27,7 @@ set(Fortran_FLAGS_RELEASE "-O2"
 set(Fortran_FLAGS_RELWITHDEBINFO "-g ${Fortran_FLAGS_RELEASE}"
   CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-g -f2008 -nan -C=all"
+set(Fortran_FLAGS_DEBUG "-g -f2018 -nan -C=all"
   CACHE STRING "Fortran compiler flags for Debug build")
 
 # Use intrinsic Fortran 2008 erf/erfc functions
@@ -66,8 +66,10 @@ set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
 #set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
-#set(ARPACK_LIBRARY "arpack" CACHE STRING "Arpack library")
-#set(ARPACK_LIBRARY_DIR "" CACHE STRING "Directories where Arpack library can be found")
+#set(ARPACK_LIBRARY "arpack" CACHE STRING "ARPACK library (with path if necessary)")
+
+# PARPACK -- only needed when built with ARPACK and MPI support
+#set(PARPACK_LIBRARY "parpack" CACHE STRING "PARPACK library (with path if necessary)")
 
 # ScaLAPACK -- only needed for MPI-parallel build
 #set(SCALAPACK_LIBRARY "scalapack" CACHE STRING "Scalapack libraries to link")

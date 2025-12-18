@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,12 +11,12 @@
 module dftbp_md_mdcommon
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : pi
-  use dftbp_math_ranlux, only : TRanlux, getRandom
+  use dftbp_math_ranlux, only : getRandom, TRanlux
   implicit none
 
   private
   public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
-  public :: evalKE, BoxMueller, MaxwellBoltzmann
+  public :: evalKE, BoxMueller, MaxwellBoltzmann, TMDOutput
 
 
   !> Contains necessary data for the MD framework
@@ -25,9 +25,34 @@ module dftbp_md_mdcommon
     !> Nr. of degrees of freedom
     real(dp) :: Nf
 
-    !> Should transform to rest frame?
-    logical :: tStationary
+    !> Number of moving atoms
+    integer :: nMovedAtom
+
+    !> Total number of atoms
+    integer :: nAllAtom
+
+    !> Should atomic motio be transformed to rest frame?
+    logical :: isTranslationRemoved
+
   end type TMDCommon
+
+
+  !> Output variables accumulated during MD
+  type TMDOutput
+
+    !> Are eigenvalues printed out at every write time?
+    logical :: bandStructure = .false.
+
+    !> Are 1st derivative data accumulated?
+    logical :: printForces = .false.
+
+    !> Are charge-related data accumulated?
+    logical :: printCharges = .false.
+
+    !> Are atom resolved energies printed?
+    logical :: printAtomEnergies = .false.
+
+  end type TMDOutput
 
 
   !> initialise thermostat
@@ -57,7 +82,8 @@ contains
 
 
   !> Creates MD Framework.
-  subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, tStationary)
+  subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, isTranslationRemoved)!, coords,&
+      !& isRotationRemoved)
 
     !> MD Framework instance.
     type(TMDCommon), intent(out) :: sf
@@ -68,19 +94,21 @@ contains
     !> Total number of real atoms in the system
     integer, intent(in) :: nAllAtom
 
-    !> If system should be transformed to rest frame.
-    logical :: tStationary
+    !> If system should be transformed to translational rest frame
+    logical :: isTranslationRemoved
+
+    !> Atomic coordinates
+    !real(dp) :: coords(:,:)
+
+    integer :: nDegrees
 
     @:ASSERT(nMovedAtom <= nAllAtom)
+    sf%nAllAtom = nAllAtom
+    sf%nMovedAtom = nMovedAtom
+    sf%isTranslationRemoved = isTranslationRemoved
+    !sf%isRotationRemoved = isRotationRemoved
 
-    if (nMovedAtom /= nAllAtom .or. .not. tStationary) then
-      ! there are fixed atoms present, all  moving atoms have 3 degrees of fd.
-      sf%Nf = real(3 * nMovedAtom, dp)
-    else
-      ! translational motion is removed, total of 3n - 3 degrees of freedom
-      sf%Nf = real(3 * (nMovedAtom - 1), dp)
-    end if
-    sf%tStationary = tStationary
+    call updateNf(sf)
 
   end subroutine MDCommon_init
 
@@ -89,7 +117,7 @@ contains
   subroutine  MDCommon_restFrame(sf, velocity, mass)
 
     !> MD Framework instance.
-    type(TMDCommon), intent(in) :: sf
+    type(TMDCommon), intent(inout) :: sf
 
     !> Particle velocities
     real(dp), intent(inout) :: velocity(:,:)
@@ -97,9 +125,13 @@ contains
     !> Particle masses
     real(dp), intent(in) :: mass(:)
 
-    real(dp) :: mv(3)
+    !> Particle coordinates
+    !real(dp), intent(in) :: coords(:,:)
 
-    if (sf%tStationary) then
+    real(dp) :: mv(3)
+    integer :: nDegrees
+
+    if (sf%isTranslationRemoved) then
       ! calculate total momentum of the system
       mv(:) = sum(spread(mass(:), 1, 3) * velocity(:,:), dim=2)
 
@@ -109,6 +141,8 @@ contains
       ! and shift so that it is 0
       velocity(:,:) = velocity(:,:) - spread(mv(:), 2, size(mass))
     end if
+
+    call updateNf(sf)
 
   end subroutine MDCommon_restFrame
 
@@ -251,5 +285,26 @@ contains
     velocity(:) = velocity(:) * sqrt(kT/mass)
 
   end subroutine MaxwellBoltzmann
+
+
+  !> Updates the number of degrees of freedom
+  subroutine updateNf(sf)
+
+    !> MD Framework instance
+    type(TMDCommon), intent(inout) :: sf
+
+    integer :: nDegrees
+
+    if (sf%nMovedAtom /= sf%nAllAtom .or. .not. sf%isTranslationRemoved) then
+      ! there are fixed atoms present, all moving atoms have 3 degrees of freedom
+      nDegrees = 3 * sf%nMovedAtom
+    else
+      ! translational motion is removed, total of 3n - 3 degrees of freedom
+      nDegrees = 3 * (sf%nMovedAtom - 1)
+    end if
+
+    sf%Nf = real(nDegrees, dp)
+
+  end subroutine updateNf
 
 end module dftbp_md_mdcommon

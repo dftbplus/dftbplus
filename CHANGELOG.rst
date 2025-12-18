@@ -5,6 +5,118 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+25.1 (2025-12-18)
+=================
+
+Added
+-----
+
+- MPI-parallelization of Waveplot
+
+- Generalization of mixers to also handle complex density matrices
+
+- General range-separated, long-range corrected CAM hybrid functionals for
+  ground-state periodic systems (MPI-parallel Fock-type exchange and energy
+  gradient construction by neighbour-list and matrix-multiplication based
+  algorithms)
+
+- Generalization of non-periodic, ground-state LC-DFTB Hamiltonian to general
+  range-separated, long-range corrected CAM hybrid functionals
+  (MPI-parallelization of matrix-multiplication based Fock-type exchange
+  construction, MPI-parallel matrix-multiplication based energy gradient
+  evaluation, restart of matrix-multiplication based hybrid-DFTB calculations)
+
+- Hybrid functionals for (molecular) non-collinear spin groundstate
+
+- Electronic constraints on arbitrary regions, targeting the electronic ground
+  state by determining a self-consistent constraint potential (restricted to
+  Mulliken populations at the moment)
+
+- Density Matrix construction on GPU using MAGMA-BLAS routines
+
+- More control over output of data and band structures during MD calculations.
+  By default, requesting printing of atomic charges, energies or forces in the
+  input leads them to also be included in the md.out file.
+
+- Printing of atom-resolved dispersion energies in detailed.out
+
+- MAGMA GPU accelerated solver for the modes code
+
+- Explicit keyword for gaussian electron temperature smearing (MP order 0)
+
+- Linear response derivatives for atom positions (DFTB1/DFTB2 only) for cluster
+  boundary conditions in low symmetry (non-degenerate) systems (and currently
+  not MPI parallel)
+
+- Addition of developer documentation for code internals in doc/dftb+/code/
+
+- Optional GPU acceleration for the modes code via the MAGMA library and support
+  for the divide and conquer and relatively robust LAPACK solvers
+
+- ASI interface for accessing H, S and density matrix
+
+
+Changed
+-------
+
+- Components of xtb energies are now resolved
+
+- Use least squares solution instead of inversion for XLBOMD force corrections
+
+- Raise error if a non-SCC calculation is using hybrid functionals
+
+- Raise a warning if neither the input of parser version is set in the input
+
+- Degeneracy tolerance for perturbation theory switched to absolute tolerance of
+  differences between eigenvalues.
+
+
+Fixed
+-----
+
+- Incorrect superposition of atomic densities written by Waveplot
+
+- SK-file parser extra-/spline-tag sequence dependent
+
+- Incorrect excited gradients for spin-polarized long-range corrected
+  linear-response TD-DFTB calculations.
+
+- Temporarily remove free energy for Delta-DFTB calculations, as this is not
+  formally derived in the general case.
+
+- DeltaDFTB purified forces used correctly.
+
+- COSMO solvent models had a bug leading to the energy showing a dependence on
+  the ordering of the atoms in the system.
+
+- The GBSA model had a bug, leading to differences for various GFN models from
+  xTB results (also affects DFTB hamiltonians).
+
+- Solvents where RadiiScaling was specified with a unit conversion were scaled
+  by the square of the conversion. Affects calculations using constructs of the
+  form: Radii = * [AA] = {} where * is Values, vanDerWaalsRadiiBondi
+  vanDerWaalsRadiiCosmo or vanDerWaalsRadiiD3
+
+- Corrected the order of Methfessel-Paxton filling. It was producing filling
+  that was 1 order lower than the one requested in the input. This is probably
+  safe in most applications, the lowest order beyond Gauss smearing (0th order)
+  is default for several other codes and already has linear and quadratic
+  independence of the free energy wrt temperature. Default for Methfessel-Paxton
+  smearing is now set to 1 (matching the results from the old default value).
+
+- Remove duplicate printing of internal energy in results.tag
+
+- Correct testing for incompatible Poisson boundary overrides when only one side
+  of the box is marked as periodic
+
+- Geometry error for periodic structures with open boundary contacts
+
+- Enable CI test cases and fix a parser bug
+
+- Fix backward compatibility bug from release 22.2 which led to dftb_pin.hsd
+  files containing obsolete keywords
+
+
 24.1 (2024-02-12)
 =================
 
@@ -19,11 +131,9 @@ Fixed
 
 - Memory leak for MPI enabled code with many geometric steps.
 
-- API call to setExternalCharges was not marking calculation to be
-  re-evaluated.
+- API call to setExternalCharges was not marking calculation to be re-evaluated.
 
-- Calls to setExternalCharges were failing if number of external charges
-  changes.
+- Calls to setExternalCharges were failing if number of external charges changes.
 
 
 23.1 (2023-07-05)

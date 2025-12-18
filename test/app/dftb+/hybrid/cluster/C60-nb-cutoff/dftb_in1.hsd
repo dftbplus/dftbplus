@@ -1,0 +1,35 @@
+Geometry = GenFormat {
+    <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  ReadInitialCharges = No
+  SCCTolerance = 1.0E-3
+
+  MaxAngularMomentum = {
+    C = "p"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/ob2-1-1/shift/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  RangeSeparated = LC {
+    Screening = NeighbourBased {
+      CutoffReduction [AA] = 4.0
+    }
+  }
+
+}
+
+Options {
+  WriteAutotestTag = No
+}
+
+ParserOptions {
+  ParserVersion = 6
+}

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,19 +8,21 @@
 #:include 'common.fypp'
 
 program phonons
+  use phonons_initphonons, only : atomicMasses, autotestTag, destructProgramVariables, dynMatrix,&
+      & geo, img2CentCell, iMovedAtoms, initProgramVariables, kPoint, modesToPlot, nAtomUnitCell,&
+      & nCells, nCycles, neighbourList, nKPoints, nModesToPlot, nMovedAtom, nNeighbour, nSteps,&
+      & outputUnits, selTypeModes, tAnimateModes, tCompModes, tPhonDispersion, tPlotModes,&
+      & transpar, tTransport, tundos, tWriteTagged, tXmakeMol
+  use phonons_libnegfint, only : calc_phonon_current, init_tun_proj, negf_init, negf_init_str
   use dftbp_common_accuracy, only : dp, lc
-  use dftbp_common_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
-  use dftbp_common_environment
+  use dftbp_common_constants, only : Bohr__AA, Hartree__cm, Hartree__eV, Hartree__J, hbar, pi
+  use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv
-  use phonons_initphonons
-  use dftbp_io_message
-  use dftbp_io_taggedoutput
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, stdOut, tIOProc
+  use dftbp_io_message, only : error
+  use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
   use dftbp_math_eigensolver, only : heev
   use dftbp_math_simplealgebra, only : invert33
-  use dftbp_type_typegeometry
-  use phonons_libnegfint
-  use ln_structure
   implicit none
 
   type(TEnvironment) :: env
@@ -41,7 +43,7 @@ program phonons
   nProcs = 1
   write(stdOut,*)'Computing environment'
 #:if WITH_MPI
-  print*,env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
+  write(*,*)env%mpi%globalComm%rank, env%mpi%globalComm%size, tIOProc, env%mpi%globalComm%lead
   nProcs = env%mpi%globalComm%size
 #:else
   write(stdOut,*)'Not compiled with MPI enabled'
@@ -97,12 +99,14 @@ contains
     write (stdOut, "(A,/)") repeat("=", 80)
     write (stdOut, "(A)") ""
     write (stdOut, "(A)") "Version 0.1"
-    write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on Hessians"
+    write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on&
+        & Hessians"
     write (stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas"
     write (stdOut, "(A)") "When using this code, please cite this work:"
     write (stdOut, "(A)") "Leonardo Medrano Sandonas, Rafaei Gutierrez, Alessandro Pecchia,"
     write (stdOut, "(A)") "Alexander Croy, Gianaurelio Cuniberti, Quantum phonon transport in"
-    write (stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's functions"
+    write (stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's&
+        & functions"
     write (stdOut, "(A)") "techniques, Entropy 21, 735 (2019)"
     write (stdOut, "(A)") ""
   end subroutine printHeader

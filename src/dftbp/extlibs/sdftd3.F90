@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,19 +10,19 @@
 !> Proxy module for interfacing with the s-dftd3 library.
 module dftbp_extlibs_sdftd3
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_constants, only : kcal_mol__Hartree, AA__Bohr
+  use dftbp_common_constants, only : AA__Bohr, kcal_mol__Hartree
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_dftb_periodic, only : getNrOfNeighboursForAll, TNeighbourList
   use dftbp_io_message, only : error
   use dftbp_math_simplealgebra, only : determinant33
 #:if WITH_SDFTD3
+  use dftd3, only : d3_model, damping_param, get_dftd3_version, get_dispersion,&
+      & mzero_damping_param, new_d3_model, rational_damping_param, realspace_cutoff,&
+      & zero_damping_param
   use mctc_env, only : error_type
-  use mctc_io, only : structure_type, new
-  use dftd3, only : d3_model, new_d3_model, damping_param, rational_damping_param, &
-      & zero_damping_param, mzero_damping_param, realspace_cutoff, get_dispersion, &
-      & get_dftd3_version
+  use mctc_io, only : new, structure_type
 #:endif
   implicit none
   private

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_math_angmomentum
   use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : imag
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_qm, only : makeSimilarityTrans
+  use dftbp_math_matrixops, only : makeSimilarityTrans
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 #:if WITH_SCALAPACK
@@ -217,8 +217,6 @@ contains
     complex(dp), allocatable :: L(:,:,:)
     real(dp), allocatable :: speciesL(:,:,:,:)
     real(dp), allocatable :: tmpBlock(:,:)
-
-    complex(dp), parameter :: i = (0.0_dp,1.0_dp)
 
     nAtom = size(LShell, dim=3)
     nSpecies = maxval(species(1:nAtom))

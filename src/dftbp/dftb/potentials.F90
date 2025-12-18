@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@ module dftbp_dftb_potentials
   public :: TPotentials, TPotentials_init, TAtomExtPotInput
 
 
-  !> data type to store components of the internal and external potential as named variables - makes
+  !> Data type to store components of the internal and external potential as named variables - makes
   !> extending expressions easier.
   !>
   !> Note: the reason for splitting internal and external potentials is that internals require 0.5
@@ -27,25 +27,25 @@ module dftbp_dftb_potentials
     !> Is data structure initialised
     logical :: tInitialised = .false.
 
-    !> internal atom and spin resolved potential
+    !> Internal atom and spin resolved potential
     real(dp), allocatable :: intAtom(:,:)
 
-    !> internal shell and spin resolved potential
+    !> Internal shell and spin resolved potential
     real(dp), allocatable :: intShell(:,:,:)
 
-    !> internal block and spin resolved potential
+    !> Internal block and spin resolved potential
     real(dp), allocatable :: intBlock(:,:,:,:)
 
-    !> external atom and spin resolved potential
+    !> External atom and spin resolved potential
     real(dp), allocatable :: extAtom(:,:)
 
-    !> external shell and spin resolved potential
+    !> External shell and spin resolved potential
     real(dp), allocatable :: extShell(:,:,:)
 
-    !> external block and spin resolved potential
+    !> External block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
 
-    !> gradient of the external potential with respect of nucleus coordinates
+    !> Gradient of the external potential with respect of nucleus coordinates
     real(dp), allocatable :: extGrad(:,:)
 
     !> pSIC/DFTB+U etc. potential
@@ -55,15 +55,15 @@ module dftbp_dftb_potentials
     real(dp), allocatable :: iorbitalBlock(:,:,:,:)
 
     !> If performing a contact calculation, variable for retaining the shell resolved electrostatics
-    !> for later storage. Ony the charge related potential is stored, so last index will be
-    !> allocated as 1 in most cases
+    !! for later storage. Ony the charge related potential is stored, so last index will be
+    !! allocated as 1 in most cases
     real(dp), allocatable :: coulombShell(:,:,:)
 
-    !> internal atom and spin resolved onsite only potential (i.e. relating to net, not gross
+    !> Internal atom and spin resolved onsite only potential (i.e. relating to net, not gross
     !> populations)
     real(dp), allocatable :: intOnSiteAtom(:,:)
 
-    !> external atom and spin resolved onsite only potential (i.e. relating to net, not gross
+    !> External atom and spin resolved onsite only potential (i.e. relating to net, not gross
     !> populations)
     real(dp), allocatable :: extOnSiteAtom(:,:)
 
@@ -75,6 +75,9 @@ module dftbp_dftb_potentials
 
     !> External dipolar contribution to the Hamiltonian
     real(dp), allocatable :: extDipoleAtom(:,:)
+
+    !> External quadrupolar contribution to the Hamiltonian
+    real(dp), allocatable :: extQuadrupoleAtom(:,:)
 
   end type TPotentials
 
@@ -102,16 +105,16 @@ contains
   !> Allocates storage for the potential components
   subroutine TPotentials_init(this, orb, nAtom, nSpin, nDipole, nQuadrupole, extAtPotentials)
 
-    !> data structure to allocate
+    !> Data structure to allocate
     type(TPotentials), intent(out) :: this
 
-    !> information about the orbitals and their angular momenta
+    !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
-    !> number of atoms needed for atom resolved arrays
+    !> Number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 
-    !> number of spins
+    !> Number of spins
     integer, intent(in) :: nSpin
 
     !> Number of dipole moment components
@@ -158,6 +161,8 @@ contains
     if (nQuadrupole > 0) then
       allocate(this%quadrupoleAtom(nQuadrupole, nAtom))
       this%quadrupoleAtom(:,:) = 0.0_dp
+      allocate(this%extQuadrupoleAtom(nQuadrupole, nAtom))
+      this%extQuadrupoleAtom(:,:) = 0.0_dp
     end if
 
     if (present(extAtPotentials)) then

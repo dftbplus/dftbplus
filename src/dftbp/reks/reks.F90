@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,8 +18,8 @@ module dftbp_reks_reks
   use dftbp_reks_reksen, only : activeOrbSwap, calcSaReksEnergy, calcWeights, constructMicrostates,&
       & getFilling, getFockandDiag, guessNewEigvecs, setReksTargetEnergy
   use dftbp_reks_reksfon, only : optimizeFons
-  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradProperties,&
-      & getReksGradients, getReksStress, getStateInteraction
+  use dftbp_reks_reksinterface, only : getReksEnProperties, getReksGradients,&
+      & getReksGradProperties, getReksStress, getStateInteraction
   use dftbp_reks_reksio, only : printReksMicrostates, printReksSAInfo, printSaReksEnergy
   use dftbp_reks_reksvar, only : REKS_init, reksTypes, TReksCalc, TReksInp
 
@@ -59,7 +59,8 @@ module dftbp_reks_reks
   !> dftbp_reks_reksio modules used in main.F90
   public :: printReksMicrostates, printSaReksEnergy, printReksSAInfo
 
-  !> dftbp_reks_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90, parser.F90
+  !> dftbp_reks_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90,
+  !! parser.F90
   public :: TReksInp, TReksCalc, REKS_init, reksTypes
 
 end module dftbp_reks_reks

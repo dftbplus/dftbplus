@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,7 +20,7 @@ module dftbp_dftb_energytypes
   !> in the old arrays - makes extending energy expression easier.
   type TEnergies
 
-    !> repulsive energy
+    !> Repulsive energy
     real(dp) :: Erep = 0.0_dp
 
     !> Non-SCC energy
@@ -29,22 +29,40 @@ module dftbp_dftb_energytypes
     !> SCC energy
     real(dp) :: ESCC = 0.0_dp
 
-    !> spin energy
+    !> Spin energy
     real(dp) :: Espin = 0.0_dp
 
-    !> range-separation energy
+    !> Range-separation energy
     real(dp) :: Efock = 0.0_dp
 
-    !> spin orbit energy
+    !> Total energy due to all multipolar interactions except the monopole-monopole.
+    real(dp) :: EMdftb = 0.0_dp
+
+    !> Energy contribution from monopole-dipole interactions.
+    real(dp) :: EMdftbMD = 0.0_dp
+
+    !> Energy contribution from dipole-dipole interactions.
+    real(dp) :: EMdftbDD = 0.0_dp
+
+    !> Energy contribution from monopole-quadrupole interactions.
+    real(dp) :: EMdftbMQ = 0.0_dp
+
+    !> Energy contribution from dipole-quadrupole interactions.
+    real(dp) :: EMdftbDQ = 0.0_dp
+
+    !> Energy contribution from quadrupole-quadrupole interactions.
+    real(dp) :: EMdftbQQ = 0.0_dp
+
+    !> Spin orbit energy
     real(dp) :: ELS = 0.0_dp
 
     !> DFTB+U energy
     real(dp) :: Edftbu = 0.0_dp
 
-    !> energy in external field
+    !> Energy in external field
     real(dp) :: Eext = 0.0_dp
 
-    !> total electronic energy
+    !> Total electronic energy
     real(dp) :: Eelec = 0.0_dp
 
     !> Dispersion energy
@@ -59,10 +77,10 @@ module dftbp_dftb_energytypes
     !> Electronic entropy times temperature
     real(dp), allocatable :: TS(:)
 
-    !> band structure energy
+    !> Band structure energy
     real(dp), allocatable :: EBand(:)
 
-    !> zero temperature estimated band energy
+    !> Zero temperature estimated band energy
     real(dp), allocatable :: E0(:)
 
     !> Onsite correction energy
@@ -80,7 +98,7 @@ module dftbp_dftb_energytypes
     !> Excitation energy
     real(dp) :: Eexcited = 0.0_dp
 
-    !> total energy (Erep+Etotal)
+    !> Total energy (Erep+Etotal)
     real(dp) :: Etotal = 0.0_dp
 
     !> Total energy for averaged state in REKS
@@ -109,49 +127,52 @@ module dftbp_dftb_energytypes
     !> used for example in geometry optimisation or energetic comparisons.
     real(dp) :: EForceRelated = 0.0_dp
 
-    !> atom resolved repulsive
+    !> Atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
 
-    !> atom resolved non-SCC
+    !> Atom resolved non-SCC
     real(dp), allocatable :: atomNonSCC(:)
 
-    !> atom resolved SCC
+    !> Atom resolved SCC
     real(dp), allocatable :: atomSCC(:)
 
-    !> atom resolved spin
+    !> Atom resolved spin
     real(dp), allocatable :: atomSpin(:)
 
-    !> atom resolved spin orbit
+    !> Atom resolved total multipolar energy
+    real(dp), allocatable :: atomMdftb(:)
+
+    !> Atom resolved spin orbit
     real(dp), allocatable :: atomLS(:)
 
-    !> atom resolved DFTB+U
+    !> Atom resolved DFTB+U
     real(dp), allocatable :: atomDftbu(:)
 
-    !> atom resolved external field
+    !> Atom resolved external field
     real(dp), allocatable :: atomExt(:)
 
-    !> atom resolved electronic total
+    !> Atom resolved electronic total
     real(dp), allocatable :: atomElec(:)
 
-    !> atom resolved dispersion
+    !> Atom resolved dispersion
     real(dp), allocatable :: atomDisp(:)
 
-    !> atom onsite correction energies
+    !> Atom onsite correction energies
     real(dp), allocatable :: atomOnSite(:)
 
-    !> atom halogen bond correction energies
+    !> Atom halogen bond correction energies
     real(dp), allocatable :: atomHalogenX(:)
 
-    !> atom resolved 3rd order
+    !> Atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
 
-    !> atom resolved solvation free energy
+    !> Atom resolved solvation free energy
     real(dp), allocatable :: atomSolv(:)
 
-    !> atom resolved total
+    !> Atom resolved total
     real(dp), allocatable :: atomTotal(:)
 
-    !> data structure initialised
+    !> Data structure initialised
     logical :: tInitialised = .false.
 
   end type TEnergies
@@ -163,10 +184,10 @@ contains
   !> Allocates storage for the energy components
   subroutine TEnergies_init(this, nAtom, nSpin)
 
-    !> data structure to allocate
+    !> Data structure to allocate
     type(TEnergies), intent(out) :: this
 
-    !> number of atoms needed for atom resolved arrays
+    !> Number of atoms needed for atom resolved arrays
     integer, intent(in) :: nAtom
 
     !> Number of independent spins
@@ -180,40 +201,33 @@ contains
     this%E0(:) = 0.0_dp
     this%EBand(:) = 0.0_dp
 
-    allocate(this%atomRep(nAtom))
-    allocate(this%atomNonSCC(nAtom))
-    allocate(this%atomSCC(nAtom))
-    allocate(this%atomSpin(nAtom))
-    allocate(this%atomLS(nAtom))
-    allocate(this%atomDftbu(nAtom))
-    allocate(this%atomExt(nAtom))
-    allocate(this%atomElec(nAtom))
-    allocate(this%atomDisp(nAtom))
-    allocate(this%atomOnSite(nAtom))
-    allocate(this%atomHalogenX(nAtom))
-    allocate(this%atom3rd(nAtom))
-    allocate(this%atomSolv(nAtom))
-    allocate(this%atomTotal(nAtom))
-    this%atomRep(:) = 0.0_dp
-    this%atomNonSCC(:) = 0.0_dp
-    this%atomSCC(:) = 0.0_dp
-    this%atomSpin(:) = 0.0_dp
-    this%atomLS(:) = 0.0_dp
-    this%atomDftbu(:) = 0.0_dp
-    this%atomExt(:) = 0.0_dp
-    this%atomElec(:) = 0.0_dp
-    this%atomDisp(:) = 0.0_dp
-    this%atomOnSite(:) = 0.0_dp
-    this%atomHalogenX(:) = 0.0_dp
-    this%atom3rd(:) = 0.0_dp
-    this%atomSolv(:) = 0.0_dp
-    this%atomTotal(:) = 0.0_dp
+    allocate(this%atomRep(nAtom), source=0.0_dp)
+    allocate(this%atomNonSCC(nAtom), source=0.0_dp)
+    allocate(this%atomSCC(nAtom), source=0.0_dp)
+    allocate(this%atomSpin(nAtom), source=0.0_dp)
+    allocate(this%atomLS(nAtom), source=0.0_dp)
+    allocate(this%atomDftbu(nAtom), source=0.0_dp)
+    allocate(this%atomExt(nAtom), source=0.0_dp)
+    allocate(this%atomElec(nAtom), source=0.0_dp)
+    allocate(this%atomDisp(nAtom), source=0.0_dp)
+    allocate(this%atomOnSite(nAtom), source=0.0_dp)
+    allocate(this%atomHalogenX(nAtom), source=0.0_dp)
+    allocate(this%atom3rd(nAtom), source=0.0_dp)
+    allocate(this%atomMdftb(nAtom), source=0.0_dp)
+    allocate(this%atomSolv(nAtom), source=0.0_dp)
+    allocate(this%atomTotal(nAtom), source=0.0_dp)
 
     this%Erep = 0.0_dp
     this%EnonSCC = 0.0_dp
     this%ESCC = 0.0_dp
     this%Espin = 0.0_dp
     this%Efock = 0.0_dp
+    this%EMdftb = 0.0_dp
+    this%EMdftbMD = 0.0_dp
+    this%EMdftbDD = 0.0_dp
+    this%EMdftbMQ = 0.0_dp
+    this%EMdftbDQ = 0.0_dp
+    this%EMdftbQQ = 0.0_dp
     this%ELS = 0.0_dp
     this%Edftbu = 0.0_dp
     this%Eext = 0.0_dp

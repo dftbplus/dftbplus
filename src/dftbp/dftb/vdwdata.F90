@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -83,11 +83,11 @@ module dftbp_dftb_vdwdata
     !> Radius (in Bohr) at return.
     real(dp), intent(out) :: radius
 
-    !> atomic number, if requested
+    !> Atomic number, if requested
     integer, optional, intent(out) :: number
 
     !> Flag for whether the element has been found. If this parameter is not specified and the
-    !> element is not found, the program stops.
+    !! element is not found, the program stops.
     logical, intent(out), optional :: found
 
     character(2) :: symbol

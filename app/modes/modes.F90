@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,19 +11,27 @@
 program modes
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_common_constants, only : Hartree__cm, pi
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
   use dftbp_io_formatout, only : writeXYZFormat
+  use dftbp_io_message, only : error
   use dftbp_io_taggedoutput, only : TTaggedWriter, TTaggedWriter_init
-  use dftbp_math_eigensolver, only : heev
-  use modes_initmodes, only : dynMatrix, bornMatrix, bornDerivsMatrix, modesToPlot, geo,&
-      & iMovedAtoms, nCycles, nDerivs, nModesToPlot, nMovedAtom, nSteps, tAnimateModes, tPlotModes,&
-      & tEigenVectors, tRemoveRotate, tRemoveTranslate, atomicMasses, initProgramVariables
+  use dftbp_math_eigensolver, only : heev, heevd, heevr
+#:if WITH_MAGMA
+  use dftbp_math_eigensolver, only : magmaHeevd
+#:endif
+  use modes_initmodes, only : atomicMasses, bornDerivsMatrix, bornMatrix, dynMatrix, geo,&
+      & iMovedAtoms, initProgramVariables, iSolver, modesToPlot, nCycles, nDerivs, nModesToPlot,&
+      & nMovedAtom, nSteps, setEigvecGauge, solverTypes, tAnimateModes, tEigenVectors, tPlotModes,&
+      & tRemoveRotate, tRemoveTranslate
+#:if WITH_MAGMA
+  use modes_initmodes, only : gpu
+#:endif
   use modes_modeprojection, only : project
 #:if WITH_MPI
   use mpi, only : MPI_THREAD_FUNNELED
   use dftbp_common_mpienv, only : TMpiEnv, TMpiEnv_init
-  use dftbp_extlibs_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use dftbp_extlibs_mpifx, only : mpifx_finalize, mpifx_init_thread
 #:endif
   implicit none
 
@@ -36,6 +44,7 @@ program modes
   real(dp) :: zStar(3,3), dMu(3), zStarDeriv(3,3,3), dQ(3,3)
 
   character(lc) :: lcTmp, lcTmp2
+  character(1) :: eigenSolverMode
   type(TFileDescr) :: fd
   logical :: isAppend
 
@@ -82,9 +91,28 @@ program modes
 
   ! solve the eigenproblem
   if (tEigenVectors) then
-    call heev(dynMatrix, eigenValues, "U", "V")
+    eigenSolverMode = "V"
   else
-    call heev(dynMatrix, eigenValues, "U", "N")
+    eigenSolverMode = "N"
+  end if
+  select case(iSolver)
+  case(solverTypes%qr)
+    call heev(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%divideAndConquer)
+    call heevd(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%relativelyRobust)
+    call heevr(dynMatrix, eigenValues, "U", eigenSolverMode)
+  case(solverTypes%magmaEvd)
+  #:if WITH_MAGMA
+    call magmaHeevd(gpu%nGpu, dynMatrix, eigenValues, "U", eigenSolverMode)
+  #:else
+    call error("Magma-solver selected, but program was compiled without MAGMA")
+  #:endif
+  case default
+    call error("Unknown eigensolver choice")
+  end select
+  if (tEigenVectors) then
+    call setEigvecGauge(dynMatrix)
   end if
 
   ! save original eigenvectors
@@ -200,7 +228,7 @@ program modes
         iMode = modesToPlot(ii)
         write(lcTmp2, *) "Eigenmode", iMode, eigenValues(iMode) * Hartree__cm, "cm-1"
         call writeXYZFormat(lcTmp, geo%coords, geo%species, geo%speciesNames,&
-            & velocities=displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
+            & vectors=displ(:,:, iMode), comment=trim(lcTmp2), append=isAppend)
       end do
     end if
   end if

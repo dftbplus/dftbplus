@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 !> Module containing routines for the automatic testing of the API functionality
 
 module testhelpers
-  use, intrinsic :: iso_c_binding
+  use, intrinsic :: iso_c_binding, only : c_associated, c_double, c_f_pointer, c_int, c_ptr
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter, TTaggedWriter_init
   implicit none
   private
@@ -22,7 +22,7 @@ contains
   !> Writes an autotest.tag file with the basic quantities
   subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
       & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, &
-      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff)
+      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff, groundDipole)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -65,6 +65,9 @@ contains
 
     !> Cutoff distance
     real(dp), optional, intent(in) :: cutOff
+
+    !> Ground state dipole
+    real(dp), optional, intent(in) :: groundDipole(:)
 
     type(TTaggedWriter) :: taggedWriter
     type(TFileDescr) :: autotestTag
@@ -113,6 +116,9 @@ contains
     end if
     if (present(cutOff)) then
       call taggedWriter%write(autotestTag%unit, "cutoff", cutOff)
+    end if
+    if (present(groundDipole)) then
+      call taggedWriter%write(autotestTag%unit, "ground_dipole", groundDipole)
     end if
     call closeFile(autotestTag)
 

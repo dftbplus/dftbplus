@@ -4,7 +4,7 @@ set(sources-fpp
   ${curdir}/blockpothelper.F90
   ${curdir}/bondpopulations.F90
   ${curdir}/boundarycond.F90
-  ${curdir}/chargeconstr.F90
+  ${curdir}/chargepenalty.F90
   ${curdir}/charges.F90
   ${curdir}/coordnumber.F90
   ${curdir}/coulomb.F90
@@ -23,7 +23,6 @@ set(sources-fpp
   ${curdir}/dispuffdata.F90
   ${curdir}/elecconstraints.F90
   ${curdir}/elstatpot.F90
-  #${curdir}/emfields.F90
   ${curdir}/energytypes.F90
   ${curdir}/encharges.F90
   ${curdir}/etemp.F90
@@ -34,6 +33,8 @@ set(sources-fpp
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
   ${curdir}/hamiltonian.F90
+  ${curdir}/hybridxc.F90
+  ${curdir}/mdftb.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
@@ -41,7 +42,7 @@ set(sources-fpp
   ${curdir}/pmlocalisation.F90
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
-  ${curdir}/rangeseparated.F90
+  ${curdir}/rshgamma.F90
   ${curdir}/scc.F90
   ${curdir}/sccinit.F90
   ${curdir}/shift.F90

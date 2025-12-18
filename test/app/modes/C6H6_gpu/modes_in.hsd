@@ -1,0 +1,17 @@
+# Needs the equilibrium geometry, at which the Hessian had been calculated
+Geometry = GenFormat {
+  <<< geom.gen
+}
+
+RemoveTranslation = Yes
+RemoveRotation = Yes
+
+EigenSolver = Magma
+
+# Include the Hessian, which was calculated by DFTB+
+Hessian = {
+  <<< "hessian.out"
+}
+
+# This file uses the 3rd input format of the modes code
+InputVersion = 3

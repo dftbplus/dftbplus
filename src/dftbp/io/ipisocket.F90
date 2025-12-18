@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,8 +11,8 @@
 !! communicate data back and forward from DFTB+ to the external code.
 module dftbp_io_ipisocket
   use dftbp_common_accuracy, only : dp, lc, rdp
-  use dftbp_extlibs_fsockets, only : writebuffer, readbuffer, close_socket, connect_inet_socket,&
-      & connect_unix_socket
+  use dftbp_extlibs_fsockets, only : close_socket, connect_inet_socket, connect_unix_socket,&
+      & readbuffer, writebuffer
   use dftbp_io_logger, only : LogWriter
   use dftbp_io_message, only : error, warning
   implicit none

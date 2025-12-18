@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,21 +17,22 @@
 !> * Onsite corrections are not included in this version
 module dftbp_reks_reksgrad
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_environment, only : TEnvironment, globalTimers
+  use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_schedule, only : distributeRangeWithWorkload, assembleChunks
+  use dftbp_common_schedule, only : assembleChunks, distributeRangeWithWorkload
   use dftbp_dftb_coulomb, only : addInvRPrime
+  use dftbp_dftb_hybridxc, only : THybridXcFunc
   use dftbp_dftb_nonscc, only : TNonSccDiff
   use dftbp_dftb_periodic, only : TNeighbourList
-  use dftbp_dftb_rangeseparated, only : TRangeSepFunc
   use dftbp_dftb_scc, only : TScc
   use dftbp_dftb_slakocont, only : TSlakoCont
-  use dftbp_dftb_sparse2dense, only : unpackHS, packHS, symmetrizeHS, blockSymmetrizeHS
+  use dftbp_dftb_sparse2dense, only : packHS, unpackHS
   use dftbp_io_message, only : error
   use dftbp_math_blasroutines, only : gemm, gemv
   use dftbp_math_lapackroutines, only : getrf, getri
-  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, getTwoIndices, matAO2MO, matMO2AO,&
-      & findShellOfAO, qmExpandL
+  use dftbp_math_matrixops, only : adjointLowerTriangle
+  use dftbp_reks_rekscommon, only : assignEpsilon, assignIndex, findShellOfAO, getTwoIndices,&
+      & matAO2MO, matMO2AO, qmExpandL
   use dftbp_reks_reksvar, only : reksTypes
   use dftbp_type_densedescr, only : TDenseDescr
   use dftbp_type_orbitals, only : TOrbitals
@@ -57,7 +58,7 @@ contains
   !> Calculate energy weighted density matrix for each microstate
   subroutine getEnergyWeightedDensityL(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, orb, hamSqrL, hamSpL, &
-      & fillingL, eigenvecs, Lpaired, Efunc, isRangeSep, edmSpL)
+      & fillingL, eigenvecs, Lpaired, Efunc, isHybridXc, edmSpL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -99,7 +100,7 @@ contains
     integer, intent(in) :: Efunc
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> sparse energy-weighted density matrix for each microstate
     real(dp), intent(out) :: edmSpL(:,:)
@@ -113,14 +114,14 @@ contains
     nOrb = size(fillingL,dim=1)
 
     allocate(tmpEps(nOrb,nOrb))
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     edmSpL(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (isRangeSep) then
+      if (isHybridXc) then
         if (Efunc == 1) then
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
@@ -135,7 +136,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the hamiltonians from AO basis to MO basis
         call matAO2MO(tmpHam, eigenvecs)
       end if
@@ -144,7 +145,7 @@ contains
       tmpEps(:,:) = 0.0_dp
       do i = 1, nOrb
         do j = 1, nOrb
-          if (isRangeSep) then
+          if (isHybridXc) then
             tmpEps(i,j) = (fillingL(i,1,iL) + fillingL(j,1,iL)) &
                 & * hamSqrL(i,j,1,iL) * 0.5_dp
           else
@@ -293,8 +294,8 @@ contains
 
       call distributeRangeWithWorkload(env, 1, nAtom, nNeighbourSK, iterIndices)
 
-      !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig,sqrDMTmp, &
-      !$OMP& sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
+      !$OMP PARALLEL DO PRIVATE(iIter,iAtom1,iSp1,nOrb1,iNeigh,iAtom2,iAtom2f,iSp2,nOrb2,iOrig, &
+      !$OMP& sqrDMTmp,sqrEDMTmp,hPrimeTmp,sPrimeTmp,derivTmp,shiftSprime,iSpin,ii) DEFAULT(SHARED) &
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:deriv)
       do iIter = 1, size(iterIndices)
         iAtom1 = iterIndices(iIter)
@@ -370,8 +371,8 @@ contains
 
       if (iL == 1) then
         do ii = 1, 3
-          call blockSymmetrizeHS(Hderiv(:,:,ii), iSquare)
-          call blockSymmetrizeHS(Sderiv(:,:,ii), iSquare)
+          call adjointLowerTriangle(Hderiv(:,:,ii))
+          call adjointLowerTriangle(Sderiv(:,:,ii))
         end do
       end if
 
@@ -409,8 +410,8 @@ contains
 
 
   !> Calculate SCC, spin, LC parameters with matrix form
-  subroutine getSccSpinLrPars(env, sccCalc, rangeSep, coords, species, &
-      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, isRangeSep, &
+  subroutine getSccSpinLrPars(env, sccCalc, hybridXc, coords, species, &
+      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, isHybridXc, &
       & GammaAO, GammaDeriv, SpinAO, LrGammaAO, LrGammaDeriv)
 
     !> Computational environment settings
@@ -420,7 +421,7 @@ contains
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    class(THybridXcFunc), allocatable, intent(inout) :: hybridXc
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -444,7 +445,7 @@ contains
     integer, intent(in) :: getAtomIndex(:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> scc gamma integrals in AO basis
     real(dp), intent(out) :: GammaAO(:,:)
@@ -471,14 +472,14 @@ contains
     nAtom = size(iSquare,dim=1) - 1
 
     allocate(tmpGamma(nAtom,nAtom))
-    if (isRangeSep) then
+    if (isHybridXc) then
       allocate(tmpLrGamma(nAtom,nAtom))
     end if
 
     ! get total gamma (gamma = 1/R - S)
     tmpGamma(:,:) = 0.0_dp
     call sccCalc%getAtomicGammaMatrix(tmpGamma, iNeighbour, img2CentCell)
-    call symmetrizeHS(tmpGamma)
+    call adjointLowerTriangle(tmpGamma)
     ! convert from atom to AO
     GammaAO(:,:) = 0.0_dp
     do iAt1 = 1, nAtom
@@ -491,7 +492,7 @@ contains
     ! get total gamma derivative (gamma = 1/R - S)
     call sccCalc%getGammaDeriv(env, species, iNeighbour, img2CentCell, GammaDeriv)
     do ii = 1, 3
-      call symmetrizeHS(GammaDeriv(:,:,ii))
+      call adjointLowerTriangle(GammaDeriv(:,:,ii))
     end do
 
     ! get spinW with respect to AO
@@ -514,11 +515,11 @@ contains
       end do
     end do
 
-    if (isRangeSep) then
+    if (isHybridXc) then
 
-      ! get total long-range gamma
+      ! get total CAM gamma
       tmpLrGamma(:,:) = 0.0_dp
-      call rangeSep%getLrGamma(tmpLrGamma)
+      call hybridXc%getCamGammaCluster(tmpLrGamma)
       ! convert from atom to AO
       LrGammaAO(:,:) = 0.0_dp
       do iAt1 = 1, nAtom
@@ -528,11 +529,11 @@ contains
         end do
       end do
 
-      ! get long-range gamma derivative
+      ! get CAM gamma derivative
       LrGammaDeriv(:,:,:) = 0.0_dp
-      call rangeSep%getLrGammaDeriv(coords, species, LrGammaDeriv)
+      call hybridXc%getCamGammaDerivCluster(LrGammaDeriv)
       do ii = 1, 3
-        call symmetrizeHS(LrGammaDeriv(:,:,ii))
+        call adjointLowerTriangle(LrGammaDeriv(:,:,ii))
       end do
 
     end if
@@ -542,7 +543,7 @@ contains
 
   !> Interface routine to calculate H-XC kernel in REKS
   subroutine getHxcKernel(getDenseAO, over, overSqr, GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem,&
-      & isRangeSep, HxcSpS, HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
+      & isHybridXc, HxcSpS, HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
 
     !> get dense AO index from sparse AO array
     integer, intent(in) :: getDenseAO(:,:)
@@ -569,7 +570,7 @@ contains
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Hartree-XC kernel with sparse form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
@@ -593,11 +594,11 @@ contains
 
       if (tSaveMem) then
 
-        if (isRangeSep) then
+        if (isHybridXc) then
 
           ! get Hxc kernel for DFTB with respect to AO basis
           ! for LC case, we use half dense form.
-          call HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep,&
+          call HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isHybridXc,&
               & HxcHalfS, HxcHalfD)
 
         else
@@ -613,7 +614,7 @@ contains
     else if (Glevel == 3) then
 
       ! get Hxc kernel for DFTB with respect to AO basis
-      call HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
+      call HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isHybridXc, HxcSqrS, HxcSqrD)
 
     end if
 
@@ -624,7 +625,7 @@ contains
   subroutine getG1ILOmegaRab(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, hamSqrL, &
       & hamSpL, fockFa, fillingL, FONs, SAweight, enLtot, hess, &
-      & Nc, Na, reksAlg, tSSR, isRangeSep, G1, weightIL, omega, Rab)
+      & Nc, Na, reksAlg, tSSR, isHybridXc, G1, weightIL, omega, Rab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -684,7 +685,7 @@ contains
     logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> constant calculated from hessian and energy of microstates
     real(dp), intent(out) :: G1
@@ -709,7 +710,7 @@ contains
     Lmax = size(fillingL,dim=3)
     Nv = nOrb - Nc - Na
 
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -744,7 +745,7 @@ contains
     omega(:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (isRangeSep) then
+      if (isHybridXc) then
 
         ! set omega value
         do ij = 1, superN
@@ -776,7 +777,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -909,7 +910,7 @@ contains
   !> Calculate X^T vectors for state X = PPS, OSS, etc
   subroutine buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & weightL, Nc, Na, rstate, reksAlg, tSSR, isRangeSep, XT)
+      & weightL, Nc, Na, rstate, reksAlg, tSSR, isHybridXc, XT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -960,7 +961,7 @@ contains
     logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> SA-REKS state vector
     real(dp), intent(out) :: XT(:,:)
@@ -977,14 +978,14 @@ contains
     superN = size(XT,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     XT(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (isRangeSep) then
+      if (isHybridXc) then
 
         if (tSSR) then
           do ist = 1, nstates
@@ -1016,7 +1017,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1148,7 +1149,7 @@ contains
   !> Calculate X^T_L vector for L-th microstate
   subroutine buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & Nc, Na, Lstate, Lpaired, reksAlg, isRangeSep, XTL)
+      & Nc, Na, Lstate, Lpaired, reksAlg, isHybridXc, XTL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1196,7 +1197,7 @@ contains
     integer, intent(in) :: reksAlg
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> L-th microstate vector
     real(dp), intent(out) :: XTL(:)
@@ -1212,7 +1213,7 @@ contains
     superN = size(XTL,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. isRangeSep) then
+    if (.not. isHybridXc) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -1235,7 +1236,7 @@ contains
         iL = tmpL
       end if
 
-      if (isRangeSep) then
+      if (isHybridXc) then
 
         do ij = 1, superN
           ! assign index i and j from ij
@@ -1255,7 +1256,7 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
+        call adjointLowerTriangle(tmpHam)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1382,7 +1383,7 @@ contains
   subroutine getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, HxcHalfS, &
       & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, LrGammaAO, &
-      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
+      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, isHybridXc, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1457,7 +1458,7 @@ contains
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -1467,7 +1468,7 @@ contains
 
       if (tSaveMem) then
 
-        if (isRangeSep) then
+        if (isHybridXc) then
 
           call getZmatHalf_(HxcHalfS, HxcHalfD, orderRmatL, Lpaired, RmatL, ZmatL)
 
@@ -1483,7 +1484,7 @@ contains
 
         call getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
+            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isHybridXc, ZmatL)
 
       end if
 
@@ -2083,7 +2084,7 @@ contains
       & deltaRhoSqrL, qOutputL, q0, GammaAO, GammaDeriv, SpinAO, LrGammaAO, &
       & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, blurWidths, &
       & rVec, gVec, alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, &
-      & orderRmatL, Lpaired, SAstates, tNAC, isRangeSep, tExtChrg, tPeriodic, &
+      & orderRmatL, Lpaired, SAstates, tNAC, isHybridXc, tExtChrg, tPeriodic, &
       & tBlur, SAgrad, SIgrad, SSRgrad)
 
     !> Environment settings
@@ -2207,7 +2208,7 @@ contains
     logical, intent(in) :: tNAC
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> If external charges must be considered
     logical, intent(in) :: tExtChrg
@@ -2306,7 +2307,7 @@ contains
           & orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
     end if
 
-    if (isRangeSep) then
+    if (isHybridXc) then
 
       deallocate(tmpRmatL)
       if (tNAC) then
@@ -2689,7 +2690,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Calculate H-XC kernel for DFTB in AO basis with dense form
-  subroutine HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
+  subroutine HxcKernelDense_(overSqr, GammaAO, SpinAO, LrGammaAO, isHybridXc, HxcSqrS, HxcSqrD)
 
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
@@ -2704,7 +2705,7 @@ contains
     real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Hartree-XC kernel with dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSqrS(:,:,:,:)
@@ -2753,7 +2754,7 @@ contains
         HxcSqrD(mu,nu,tau,gam) = 0.25_dp * overSqr(nu,mu) * overSqr(gam,tau) * &
             & ( (tmpG1+tmpG2+tmpG3+tmpG4) - (tmpS1+tmpS2+tmpS3+tmpS4) )
 
-        if (isRangeSep) then
+        if (isHybridXc) then
 
           tmpL1 = LrGammaAO(mu,gam)
           tmpL2 = LrGammaAO(mu,nu)
@@ -2776,7 +2777,7 @@ contains
 
 
   !> Calculate H-XC kernel for DFTB in AO basis with half dense form
-  subroutine HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS,&
+  subroutine HxcKernelHalf_(getDenseAO, overSqr, GammaAO, SpinAO, LrGammaAO, isHybridXc, HxcHalfS,&
       & HxcHalfD)
 
     !> get dense AO index from sparse AO array
@@ -2795,7 +2796,7 @@ contains
     real(dp), intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> Hartree-XC kernel with half dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcHalfS(:,:)
@@ -2877,7 +2878,7 @@ contains
 !$OMP END PARALLEL DO
 
     ! LC terms
-    if (isRangeSep) then
+    if (isHybridXc) then
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmp22, &
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
@@ -2897,7 +2898,7 @@ contains
           gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
 
           ! LC terms
-          if (isRangeSep) then
+          if (isHybridXc) then
 
             ! (mu,nu,tau,gam)
             tmpvalue1 = 0.0_dp
@@ -3805,7 +3806,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatDense_
@@ -3884,7 +3885,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatHalf_
@@ -4008,7 +4009,7 @@ contains
 !$OMP END PARALLEL DO
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatSparse_
@@ -4017,7 +4018,7 @@ contains
   !> Calculate ZmatL without saving H-XC kernel used in CP-REKS equations in REKS(2,2)
   subroutine getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
+      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isHybridXc, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4065,7 +4066,7 @@ contains
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: isRangeSep
+    logical, intent(in) :: isHybridXc
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -4188,7 +4189,7 @@ contains
 
     ! calculate the ZmatL for LC term
 
-    if (isRangeSep) then
+    if (isHybridXc) then
 
       deallocate(tmpRmatL)
       deallocate(tmpHxcS)
@@ -4237,7 +4238,7 @@ contains
           nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
           ! calculate the H-XC kernel for LC term
-          if (isRangeSep) then
+          if (isHybridXc) then
 
             ! (mu,nu,tau,gam)
             tmpL1 = LrGammaAO(mu,gam)
@@ -4276,7 +4277,7 @@ contains
     end if
 
     do iL = 1, Lmax
-      call symmetrizeHS(ZmatL(:,:,iL))
+      call adjointLowerTriangle(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatNoHxc_

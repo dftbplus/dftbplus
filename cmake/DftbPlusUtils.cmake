@@ -58,6 +58,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DINTERNAL_ERFC=1)
   endif()
 
+  if (WITH_API)
+    list(APPEND _fyppflags -DWITH_API)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -199,10 +203,6 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
   endif()
 
-  if(WITH_ARPACK AND WITH_MPI)
-    message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
-  endif()
-
   if(WITH_GPU AND WITH_MPI AND NOT WITH_ELSI)
     message(FATAL_ERROR "GPU support in MPI-parallelized applications requires the ELSI library (built with GPU support)")
   endif()
@@ -228,7 +228,7 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   # Check minimal compiler versions
-  set(fortran_minimal_versions "GNU;7.5" "Intel;18.0" "NAG;7.0")
+  set(fortran_minimal_versions "GNU;12.2" "Intel;2021.5" "IntelLLVM;2024.2" "NAG;7.2")
   dftbp_check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
   # Note: The consistency check below will / can not be executed in multi-config mode

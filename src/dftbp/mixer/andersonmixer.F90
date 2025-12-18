@@ -1,37 +1,67 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
-!> Contains an Anderson mixer
-!>
-!>   The Anderson mixing is done by building a special average over the
-!>   previous input charges and over the previous charge differences
-!>   separately and then linear mixing the two averaged vectors with a given
-!>   mixing parameter. Only a specified amount of previous charges are
-!>   considered.
-!> In order to use the mixer you have to create and reset it.
+!> Contains an Anderson mixer.
+!!
+!! The Anderson mixing is done by building a special average over the previous input charges and
+!! over the previous charge differences separately and then linear mixing the two averaged vectors
+!! with a given mixing parameter.
+!! Only a specified amount of previous charges/densities are considered.
+!! In order to use the mixer you have to create and reset it.
 module dftbp_mixer_andersonmixer
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesv
+  use dftbp_mixer_mixer, only : TMixerCmplx, TMixerReal
   implicit none
 
   private
-  public :: TAndersonMixer
-  public :: init, reset, mix
+  public :: TAndersonMixerInp
+  public :: TAndersonMixerReal, TAndersonMixerReal_init
+  public :: TAndersonMixerCmplx, TAndersonMixerCmplx_init
+
+  type :: TAndersonMixerInp
+    !> Nr. of generations (including actual) to consider
+    integer :: iGenerations = 0
+
+    !> Mixing parameter for the general case
+    real(dp) :: mixParam = 0.0_dp
+
+    !> Mixing parameter for the first iGenerations-1 cycles
+    real(dp) :: initMixParam = 0.01_dp
+
+    !> Convergence dependent mixing parameters.
+    !! Given as 2 by n array of tolerance and mixing factors pairs.
+    !! The tolerances (Euclidean norm of the charge diff. vector) must follow each
+    !! Other in decreasing order. (optional, set nConvMixParam to negative or 0 to disable)
+    !! Mixing parameters given here eventually override mixParam or initMixParam.
+    real(dp), allocatable :: convMixParam(:,:)
+
+    !> Nr. of convergence dependent mixing parameters
+    integer :: nConvMixParam = -1
+
+    !> Symmetry breaking parameter.
+    !! Diagonal elements of the system of linear equations are multiplied by (1.0+omega0**2).
+    !! [optional, negative or 0 to disable.]
+    real(dp) :: omega0 = 1.0e-2_dp
+
+  end type TAndersonMixerInp
 
 
+#:for NAME, TYPE, LABEL in FLAVOURS
   !> Contains the necessary data for an Anderson mixer
-  !>
-  !> For efficiency reasons this derived type also contains the data for the limited memory storage,
-  !> which stores a given number of recent vector pairs. The storage should be accessed as an array
-  !> with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
-  !> pairs. (LIFO)
-  type TAndersonMixer
+  !!
+  !! For efficiency reasons this derived type also contains the data for the limited memory storage,
+  !! which stores a given number of recent vector pairs. The storage should be accessed as an array
+  !! with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
+  !! pairs. (LIFO)
+  type, extends (TMixer${LABEL}$) :: TAndersonMixer${LABEL}$
     private
 
     !> General mixing parameter
@@ -65,94 +95,68 @@ module dftbp_mixer_andersonmixer
     integer, allocatable :: indx(:)
 
     !> Stored previous input charges
-    real(dp), allocatable :: prevQInput(:,:)
+    ${TYPE}$(dp), allocatable :: prevQInput(:,:)
 
     !> Stored prev. charge differences
-    real(dp), allocatable :: prevQDiff(:,:)
-  end type TAndersonMixer
+    ${TYPE}$(dp), allocatable :: prevQDiff(:,:)
 
+    contains
+      procedure :: reset => TAndersonMixer${LABEL}$_reset
+      procedure :: mix1D => TAndersonMixer${LABEL}$_mix
+  end type TAndersonMixer${LABEL}$
 
-  !> Creates an AndersonMixer instance
-  interface init
-    module procedure AndersonMixer_init
-  end interface init
-
-
-  !> Resets the mixer
-  interface reset
-    module procedure AndersonMixer_reset
-  end interface reset
-
-
-  !> Does the mixing
-  interface mix
-    module procedure AndersonMixer_mix
-  end interface mix
+#:endfor
 
 contains
 
+#:for NAME, TYPE, LABEL in FLAVOURS
 
-  !> Creates an Andersom mixer instance.
-  subroutine AndersonMixer_init(this, nGeneration, mixParam, initMixParam, convMixParam, omega0)
+  !> Initializes an Anderson mixer instance.
+  subroutine TAndersonMixer${LABEL}$_init(this, mixerInp)
 
     !> Initialized Anderson mixer on exit
-    type(TAndersonMixer), intent(out) :: this
+    type(TAndersonMixer${LABEL}$), intent(out) :: this
 
-    !> Nr. of generations (including actual) to consider
-    integer, intent(in) :: nGeneration
+    !> TAndersonMixer Input struct
+    type(TAndersonMixerInp), intent(in) :: mixerInp
 
-    !> Mixing parameter for the general case
-    real(dp), intent(in) :: mixParam
-
-    !> Mixing parameter for the first nGeneration-1 cycles
-    real(dp), intent(in) :: initMixParam
-
-    !> Convergence dependent mixing parameters. Given as 2 by n array of tolerance and mixing
-    !> factors pairs. The tolerances (Euclidean norm of the charge diff. vector) must follow each
-
-    !> other in decreasing order. Mixing parameters given here eventually override mixParam or
-    !> initMixParam.
-    real(dp), intent(in), optional :: convMixParam(:,:)
-
-    !> Symmetry breaking parameter. Diagonal elements of the system of linear equations are
-    !> multiplied by (1.0+omega0**2).
-    real(dp), intent(in), optional :: omega0
-
-    @:ASSERT(nGeneration >= 2)
+    @:ASSERT(mixerInp%iGenerations >= 2)
 
     this%nElem = 0
-    this%mPrevVector = nGeneration - 1
+    this%mPrevVector = mixerInp%iGenerations - 1
 
     allocate(this%prevQInput(this%nElem, this%mPrevVector))
     allocate(this%prevQDiff(this%nElem, this%mPrevVector))
     allocate(this%indx(this%mPrevVector))
 
-    this%mixParam = mixParam
-    this%initMixParam = initMixParam
-    if (present(convMixParam)) then
-      @:ASSERT(size(convMixParam, dim=1) == 2)
-      this%nConvMixParam = size(convMixParam, dim=2)
+    this%mixParam = mixerInp%mixParam
+    this%initMixParam = mixerInp%initMixParam
+
+    if (mixerInp%nConvMixParam > 0) then
+      @:ASSERT(size(mixerInp%convMixParam, dim=1) == 2)
+      this%nConvMixParam = size(mixerInp%convMixParam, dim=2)
       allocate(this%convMixParam(2, this%nConvMixParam))
-      this%convMixParam(:,:) = convMixParam(:,:)
+      this%convMixParam(:,:) = mixerInp%convMixParam
     else
       this%nConvMixParam = 0
     end if
-    if (present(omega0)) then
-      this%omega02 = omega0**2
+
+    if (mixerInp%omega0 > 0) then
+      this%omega02 = mixerInp%omega0**2
       this%tBreakSym = .true.
     else
       this%omega02 = 0.0_dp
       this%tBreakSym = .false.
     end if
 
-  end subroutine AndersonMixer_init
+  end subroutine TAndersonMixer${LABEL}$_init
 
 
-  !> Makes the mixer ready for a new SCC cycle
-  subroutine AndersonMixer_reset(this, nElem)
+  !> Makes the mixer ready for a new SCC cycle.
+  subroutine TAndersonMixer${LABEL}$_reset(this, nElem)
 
     !> Anderson mixer instance
-    type(TAndersonMixer), intent(inout) :: this
+    class(TAndersonMixer${LABEL}$), intent(inout) :: this
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -174,22 +178,29 @@ contains
       this%indx(ii) = this%mPrevVector + 1 - ii
     end do
 
-  end subroutine AndersonMixer_reset
+  end subroutine TAndersonMixer${LABEL}$_reset
 
 
-  !> Mixes charges according to the Anderson method
-  subroutine AndersonMixer_mix(this, qInpResult, qDiff)
+  !> Mixes charges according to the Anderson method.
+  !!
+  !! Warning: The complex-valued Anderson mixer requires flattened hermitian matrices as input.
+  !!   You are free to permute the individual elements of the flattened arrays as long as the same
+  !!   permutation is applied to qInpResult and qDiff.
+  !!   The restriction arises from the assumption that the dot-products of density matrices are
+  !!   real-valued (imaginary parts add up to zero due to the hermitian property) and the linear
+  !!   system of equations remains real-valued.
+  subroutine TAndersonMixer${LABEL}$_mix(this, qInpResult, qDiff)
 
     !> Anderson mixer
-    type(TAndersonMixer), intent(inout) :: this
+    class(TAndersonMixer${LABEL}$), intent(inout) :: this
 
     !> Input charges on entry, mixed charges on exit.
-    real(dp), intent(inout) :: qInpResult(:)
+    ${TYPE}$(dp), intent(inout) :: qInpResult(:)
 
     !> Charge difference
-    real(dp), intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in) :: qDiff(:)
 
-    real(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
+    ${TYPE}$(dp), allocatable :: qInpMiddle(:), qDiffMiddle(:)
     real(dp) :: mixParam
     real(dp) :: rTmp
     integer :: ii
@@ -205,7 +216,7 @@ contains
     end if
 
     ! Determine mixing parameter
-    rTmp = sqrt(sum(qDiff**2))
+    rTmp = sqrt(sum(abs(qDiff)**2))
     do ii = this%nConvMixParam, 1, -1
       if (rTmp < this%convMixParam(1, ii)) then
         mixParam = this%convMixParam(2, ii)
@@ -215,9 +226,9 @@ contains
 
     ! First iteration: store vectors and return simple mixed vector
     if (this%nPrevVector == 0) then
-      call storeVectors(this%prevQInput, this%prevQDiff, this%indx, &
-          &qInpResult, qDiff, this%mPrevVector)
-      qInpResult(:) = qInpResult(:) + this%initMixParam * qDiff(:)
+      call storeVectors_${NAME}$(this%prevQInput, this%prevQDiff, this%indx, qInpResult, qDiff,&
+          & this%mPrevVector)
+      qInpResult(:) = qInpResult + this%initMixParam * qDiff
       return
     end if
 
@@ -225,46 +236,45 @@ contains
     allocate(qDiffMiddle(this%nElem))
 
     ! Calculate average input charges and average charge differences
-    call calcAndersonAverages(qInpMiddle, qDiffMiddle, qInpResult, &
-        &qDiff, this%prevQInput, this%prevQDiff, this%nElem, this%nPrevVector, &
-        &this%indx, this%tBreakSym, this%omega02)
+    call calcAndersonAverages_${NAME}$(qInpMiddle, qDiffMiddle, qInpResult, qDiff, this%prevQInput,&
+        & this%prevQDiff, this%nElem, this%nPrevVector, this%indx, this%tBreakSym, this%omega02)
 
     ! Store vectors before overwriting qInpResult
-    call storeVectors(this%prevQInput, this%prevQDiff, this%indx, &
-        &qInpResult, qDiff, this%mPrevVector)
+    call storeVectors_${NAME}$(this%prevQInput, this%prevQDiff, this%indx, qInpResult, qDiff,&
+        & this%mPrevVector)
 
     ! Mix averaged input charge and average charge difference
-    qInpResult(:) = qInpMiddle(:) + mixParam * qDiffMiddle(:)
+    qInpResult(:) = qInpMiddle + mixParam * qDiffMiddle
 
-  end subroutine AndersonMixer_mix
+  end subroutine TAndersonMixer${LABEL}$_mix
 
 
   !> Calculates averages input charges and average charge differences according to the Anderson
-  !> method.
-  !>
-  !> Note: The symmetry breaking is not exactly the same as in the paper of Eyert, because here it
-  !> is applied to the diagonal of the "original" matrix built from the Fs and not of the "modified"
-  !> matrix built from the DFs.
-  subroutine calcAndersonAverages(qInpMiddle, qDiffMiddle, qInput, qDiff, prevQInp, prevQDiff, &
-      & nElem, nPrevVector, indx, tBreakSym, omega02)
+  !! method.
+  !!
+  !! Note: The symmetry breaking is not exactly the same as in the paper of Eyert, because here it
+  !! is applied to the diagonal of the "original" matrix built from the Fs and not of the "modified"
+  !! matrix built from the DFs.
+  subroutine calcAndersonAverages_${NAME}$(qInpMiddle, qDiffMiddle, qInput, qDiff, prevQInp,&
+      & prevQDiff, nElem, nPrevVector, indx, tBreakSym, omega02)
 
     !> Contains average input charge on exit
-    real(dp), intent(out) :: qInpMiddle(:)
+    ${TYPE}$(dp), intent(out) :: qInpMiddle(:)
 
     !> Contains averages charge difference on exit
-    real(dp), intent(out) :: qDiffMiddle(:)
+    ${TYPE}$(dp), intent(out) :: qDiffMiddle(:)
 
     !> Input charge in the last iteration
-    real(dp), intent(in) :: qInput(:)
+    ${TYPE}$(dp), intent(in) :: qInput(:)
 
     !> Charge difference in the last iteration
-    real(dp), intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in) :: qDiff(:)
 
     !> Input charges of the previous iterations
-    real(dp), intent(in) :: prevQInp(:,:)
+    ${TYPE}$(dp), intent(in) :: prevQInp(:,:)
 
     !> Charge differences of the previous iterations
-    real(dp), intent(in) :: prevQDiff(:,:)
+    ${TYPE}$(dp), intent(in) :: prevQDiff(:,:)
 
     !> Nr. of elements in the charge vectors
     integer, intent(in) :: nElem
@@ -281,7 +291,8 @@ contains
     !> Symmetry breaking constant
     real(dp), intent(in) :: omega02
 
-    real(dp), allocatable :: aa(:,:), bb(:,:), tmp1(:)
+    ${TYPE}$(dp), allocatable :: tmp1(:)
+    real(dp), allocatable :: aa(:,:), bb(:,:)
     real(dp) :: tmp2
     integer :: ii, jj
 
@@ -303,8 +314,9 @@ contains
     ! a(i,j) = <F(m)|F(m)-F(m-i)> - <F(m-j)|F(m)-F(m-i)>  (F ~ qDiff)
     ! b(i)   = <F(m)|F(m)-F(m-i)>                         (m ~ current iter.)
     ! Index array serves reverse indexing: indx(1) means most recent vector
+    ! (due to the hermitian property of our density matrices, the dot-products below are real)
     do ii = 1, nPrevVector
-      tmp1(:) = qDiff(:) - prevQDiff(:, indx(ii))
+      tmp1(:) = qDiff - prevQDiff(:, indx(ii))
       tmp2 = dot_product(qDiff, tmp1)
       bb(ii, 1) = tmp2
       do jj = 1, nPrevVector
@@ -326,49 +338,51 @@ contains
     ! Build averages with calculated coefficients
     qDiffMiddle(:) = 0.0_dp
     do ii = 1, nPrevVector
-      qDiffMiddle(:) = qDiffMiddle(:) + bb(ii,1) * prevQDiff(:,indx(ii))
+      qDiffMiddle(:) = qDiffMiddle + bb(ii, 1) * prevQDiff(:, indx(ii))
     end do
-    qDiffMiddle(:) = qDiffMiddle(:) + (1.0_dp - sum(bb(:,1))) * qDiff(:)
+    qDiffMiddle(:) = qDiffMiddle + (1.0_dp - sum(bb(:, 1))) * qDiff
 
     qInpMiddle(:) = 0.0_dp
     do ii = 1, nPrevVector
-      qInpMiddle(:) = qInpMiddle(:) + bb(ii,1) * prevQInp(:,indx(ii))
+      qInpMiddle(:) = qInpMiddle + bb(ii, 1) * prevQInp(:, indx(ii))
     end do
-    qInpMiddle(:) = qInpMiddle(:) + (1.0_dp - sum(bb(:,1))) * qInput(:)
+    qInpMiddle(:) = qInpMiddle + (1.0_dp - sum(bb(:, 1))) * qInput
 
-  end subroutine calcAndersonAverages
+  end subroutine calcAndersonAverages_${NAME}$
 
 
-  !> Stores a vector pair in a limited storage. If the stack is full, the oldest vector pair is
-  !> overwritten.
-  subroutine storeVectors(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
+  !> Stores a vector pair in a limited storage.
+  !! If the stack is full, the oldest vector pair is overwritten.
+  subroutine storeVectors_${NAME}$(prevQInp, prevQDiff, indx, qInput, qDiff, mPrevVector)
 
     !> Contains previous vectors of the first type
-    real(dp), intent(inout) :: prevQInp(:,:)
+    ${TYPE}$(dp), intent(inout) :: prevQInp(:,:)
 
     !> Contains previous vectors of the second type
-    real(dp), intent(inout) :: prevQDiff(:,:)
+    ${TYPE}$(dp), intent(inout) :: prevQDiff(:,:)
 
     !> Indexing array to the stacks
     integer, intent(inout) :: indx(:)
 
     !> New first vector
-    real(dp), intent(in) :: qInput(:)
+    ${TYPE}$(dp), intent(in) :: qInput(:)
 
     !> New second vector
-    real(dp), intent(in) :: qDiff(:)
+    ${TYPE}$(dp), intent(in) :: qDiff(:)
 
-    !> Size of the stacks.
+    !> Size of the stacks
     integer, intent(in) :: mPrevVector
 
     integer :: tmp
 
     tmp = indx(mPrevVector)
-    indx(2:mPrevVector) = indx(1:mPrevVector-1)
+    indx(2:mPrevVector) = indx(1:mPrevVector - 1)
     indx(1) = tmp
-    prevQInp(:,indx(1)) = qInput(:)
-    prevQDiff(:,indx(1)) = qDiff(:)
+    prevQInp(:, indx(1)) = qInput
+    prevQDiff(:, indx(1)) = qDiff
 
-  end subroutine storeVectors
+  end subroutine storeVectors_${NAME}$
+
+#:endfor
 
 end module dftbp_mixer_andersonmixer

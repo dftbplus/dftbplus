@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,18 +12,11 @@
 !> molecules and solids. J. Chem. Theory Comput. 11:3357-3363, 2015
 module dftbp_md_xlbomd
   use dftbp_common_accuracy, only : dp
-  use dftbp_common_file, only : TFileDescr, openFile, closeFile
-  use dftbp_common_globalenv, only : stdOut
-  use dftbp_io_message, only : error
-  use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangianInp, ExtLagrangian_init
+  use dftbp_md_extlagrangian, only : ExtLagrangian, ExtLagrangian_init, ExtLagrangianInp
   implicit none
 
   private
   public :: TXLBOMDInp, TXLBOMD, Xlbomd_init
-
-
-  !> File for reading the inverse of the Jacobian matrix if needed
-  character(*), parameter :: JacobianKernelFile = "neginvjac.dat"
 
 
   !> Input for the Xlbomd driver.
@@ -48,17 +41,11 @@ module dftbp_md_xlbomd
     integer :: nPreSteps
 
     !> Number of full SCC steps after the XL integrator has been started. Those
-    !> steps are used to fill up the integrator and to average the Jacobian.
+    !> steps are used to fill up the integrator.
     integer :: nFullSCCSteps
 
     !> Number of transient steps (during which prediction is corrected)
     integer :: nTransientSteps
-
-    !> Whether Xlbomd should use inverse Jacobian instead of scaling
-    logical :: useInverseJacobian
-
-    !> Whether Jacobian should be read from disk.
-    logical :: readInverseJacobian
 
   end type TXLBOMDInp
 
@@ -72,16 +59,11 @@ module dftbp_md_xlbomd
     real(dp) :: sccTol, sccTol0
     integer :: iStep
     integer :: iStartXl, nPreSteps, nTransientSteps, nFullSCCSteps
-    logical :: useInverseJacobian, readInverseJacobian
-    real(dp), allocatable :: invJacobian(:,:)
   contains
     procedure :: setDefaultSCCParameters
     procedure :: isActive
     procedure :: getSCCParameters
     procedure :: getNextCharges
-    procedure :: needsInverseJacobian
-    procedure :: setInverseJacobian
-    procedure, private :: readJacobianKernel
   end type TXLBOMD
 
 contains
@@ -122,17 +104,6 @@ contains
     this%minSCCIter = input%minSCCIter
     this%maxSCCIter = input%maxSCCIter
     this%sccTol = input%sccTol
-
-    this%useInverseJacobian = input%useInverseJacobian
-    this%readInverseJacobian = input%readInverseJacobian
-    if (this%useInverseJacobian) then
-      allocate(this%invJacobian(nElems, nElems))
-      if (this%readInverseJacobian) then
-        call this%readJacobianKernel()
-      else
-        this%invJacobian(:,:) = 0.0_dp
-      end if
-    end if
 
   end subroutine Xlbomd_init
 
@@ -220,69 +191,5 @@ contains
     end if
 
   end subroutine getSCCParameters
-
-
-  !> Whether integrator needs the inverse Jacobian at the current step.
-  function needsInverseJacobian(this)
-
-    !> Instance.
-    class(TXLBOMD), intent(in) :: this
-
-    !> True, if a inverse Jacobian is needed. It should be passed via the setInverseJacobian()
-    !> procedure.
-    logical :: needsInverseJacobian
-
-    integer :: iStart, iEnd
-
-    needsInverseJacobian = .false.
-    if (this%useInverseJacobian .and. .not. this%readInverseJacobian) then
-      iStart = this%nPreSteps + 1
-      iEnd = this%nPreSteps + this%nFullSCCSteps
-      needsInverseJacobian = (this%iStep >= iStart .and. this%iStep <= iEnd)
-    end if
-
-  end function needsInverseJacobian
-
-
-  !> Sets the inverse Jacobian for driving the Xlbomd simulation.
-  subroutine setInverseJacobian(this, invJacobian)
-
-    !> Instance.
-    class(TXLBOMD), intent(inout) :: this
-
-    !> Inverse Jacobian.
-    real(dp), intent(in) :: invJacobian(:,:)
-
-    real(dp) :: coeffOld, coeffNew, normFactor
-    integer :: nn
-
-    if (this%needsInverseJacobian()) then
-      nn = this%iStep - this%nPreSteps
-      normFactor = 1.0_dp / sum(invJacobian(:,1))
-      coeffNew = 1.0_dp / real(nn, dp)
-      coeffOld = real(nn - 1, dp) * coeffNew
-      this%invJacobian(:,:) = this%invJacobian * coeffOld &
-          & + normFactor * invJacobian * coeffNew
-      call this%extLagr%setPreconditioner(precondMtx=this%invJacobian)
-    end if
-
-  end subroutine setInverseJacobian
-
-
-  !> Read inverse Jacobian from disc
-  subroutine readJacobianKernel(this)
-
-    !> Instance.
-    class(TXLBOMD), intent(inout) :: this
-    type(TFileDescr) :: fp
-
-    call openFile(fp, JacobianKernelFile, mode="r")
-    read(fp%unit, *) this%invJacobian
-    call closeFile(fp)
-    this%invJacobian = transpose(this%invJacobian)
-    write(stdout, "(A,A,A)") "Negative inverse Jacobian read from '", &
-        & JacobianKernelFile, "'"
-
-  end subroutine readJacobianKernel
 
 end module dftbp_md_xlbomd

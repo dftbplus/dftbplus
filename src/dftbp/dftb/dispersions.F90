@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,12 +10,12 @@
 !> Offers everything which is publicly available when dealing with dispersions.
 !!
 module dftbp_dftb_dispersions
-  use dftbp_dftb_dispdftd4, only : TDispDftD4Inp, TDispDftD4, init
+  use dftbp_dftb_dispdftd4, only : init, TDispDftD4, TDispDftD4Inp
   use dftbp_dftb_dispiface, only : TDispersionIface
-  use dftbp_dftb_dispslaterkirkw, only : TDispSlaKirkInp, TDispSlaKirk, dispslakirk_init
-  use dftbp_dftb_dispuff, only : TDispUffInp, TDispUFF, dispuff_init
+  use dftbp_dftb_dispslaterkirkw, only : dispslakirk_init, TDispSlaKirk, TDispSlaKirkInp
+  use dftbp_dftb_dispuff, only : dispuff_init, TDispUFF, TDispUffInp
   use dftbp_dftb_dispuffdata, only : getuffvalues
-  use dftbp_dftb_simpledftd3, only : TSimpleDftD3Input, TSimpleDftD3, init
+  use dftbp_dftb_simpledftd3, only : init, TSimpleDftD3, TSimpleDftD3Input
 #:if WITH_MBD
   use dftbp_dftb_dispmbd, only : TDispMbdInp
 #:endif

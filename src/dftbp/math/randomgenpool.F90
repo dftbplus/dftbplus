@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -13,7 +13,7 @@
 module dftbp_math_randomgenpool
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
-  use dftbp_math_ranlux, only : TRanlux, init, getRandom
+  use dftbp_math_ranlux, only : getRandom, init, TRanlux
 #:if WITH_MPI
   use dftbp_extlibs_mpifx, only : mpifx_bcast
 #:endif

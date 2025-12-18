@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -73,6 +73,9 @@ module dftbp_io_taggedoutput
 
     !> Transition dipole moments for excitations
     character(lenLabel) :: excDipole = 'exc_transdip'
+
+    !> Square of transition charges for target state
+    character(lenLabel) :: transQ = 'transq_sqr'
 
     !> nonadiabatic coupling vector, H
     character(lenLabel) :: nacH = 'coupling_vectors'
@@ -167,6 +170,9 @@ module dftbp_io_taggedoutput
     !> total internal energy
     character(lenLabel) :: egyTotal   = 'total_energy'
 
+    !> total internal energy for averaged state in REKS
+    character(lenLabel) :: egyAvg   = 'averaged_energy'
+
     !> total internal energy extrapolated to 0 K
     character(lenLabel) :: egy0Total   = 'extrapolated0_energy'
 
@@ -206,6 +212,12 @@ module dftbp_io_taggedoutput
     !> Static net charge (onsite) response with respect to potential at an atom
     character(lenLabel) :: dqnetdV = 'dqnetdV'
 
+    !> Derivatives of gross atomic charges wrt. x
+    character(lenLabel) :: dqdx = 'dqdx'
+
+    !> Born effective charges
+    character(lenLabel) :: borncharges = 'borncharges'
+
     !> two-electron addition/removal energies in ppRPA formalism
     character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
@@ -219,7 +231,7 @@ module dftbp_io_taggedoutput
     character(lenLabel) :: scaledDipole = 'scaled_dipole'
 
     !> Atomic dipole moments
-    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moments'
+    character(lenLabel) :: dipoleAtom = 'atomic_dipole_moment'
 
   end type TTagLabelsEnum
 

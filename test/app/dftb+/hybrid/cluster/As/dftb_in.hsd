@@ -1,0 +1,54 @@
+Geometry = genFormat {
+    <<< As.gen
+}
+
+Hamiltonian = DFTB {
+    Scc = Yes
+    SCCTolerance = 1.0E-8
+    MaxSCCIterations = 1000
+    MaxAngularMomentum = {
+        As = "p"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100
+    }
+    SpinPolarisation = NonColinear {
+        InitialSpins = {
+            AtomSpin = {
+                Atoms = As
+                SpinPerAtom = {
+                    1 0 0
+                }
+            }
+        }
+    }
+    SpinConstants = {
+        As = {
+            -0.013 # Fictional value
+        }
+    }
+    SlaterKosterFiles = {
+        As-As = "slakos/origin/hybrid/lc/GaAs/As-As.skf"
+    }
+    Hybrid = LC {
+        Screening = MatrixBased {}
+    }
+}
+
+ParserOptions = {
+    ParserVersion = 14
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    PrintForces = Yes
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

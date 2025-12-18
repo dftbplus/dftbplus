@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -73,9 +73,9 @@ module dftbp_math_sorting
 contains
 
 
-  !> real case in-place heap sort
-  !> Based on Numerical Recipes Software 1986-92
-  subroutine heap_sort_real(array, tolerance)
+  !> Real case in-place heap sort
+  !! Based on Numerical Recipes Software 1986-92
+  pure subroutine heap_sort_real(array, tolerance)
 
     !> Array of values to be sorted
     real(dp), intent(inout) :: array(:)
@@ -133,9 +133,9 @@ contains
   end subroutine heap_sort_real
 
 
-  !> integer case in-place heap sort
-  !> based on Numerical Recipes Software 1986-92
-  subroutine heap_sort_int(array)
+  !> Integer case in-place heap sort
+  !! based on Numerical Recipes Software 1986-92
+  pure subroutine heap_sort_int(array)
 
     !> Array of values to be sorted
     integer, intent(inout) :: array(:)

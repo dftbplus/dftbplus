@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,9 +9,9 @@
 !! and second derivatives.
 program polyvalue
   use dftbp_common_accuracy, only : dp, lc
+  use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_common_file, only : TFileDescr, closeFile, openFile
-  use dftbp_dftb_repulsive_polyrep, only : TPolyRepInp, TPolyRep, TPolyRep_init
+  use dftbp_dftb_repulsive_polyrep, only : TPolyRep, TPolyRep_init, TPolyRepInp
   use dftbp_io_message, only : error
   implicit none
 

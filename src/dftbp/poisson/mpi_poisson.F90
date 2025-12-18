@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2023  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2025  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@
 module dftbp_poisson_mpi_poisson
 
 #:if WITH_MPI
-  use libmpifx_module, only : mpifx_comm, mpifx_gatherv
+  use dftbp_extlibs_mpifx, only : mpifx_comm, mpifx_gatherv
   implicit none
 
   private
