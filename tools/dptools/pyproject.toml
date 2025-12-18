@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dptools"
-version = "24.1"
+version='25.1'
 authors = [{name = "DFTB+ developers"},]
 dependencies = ["numpy",]
 requires-python = ">=3.10"

@@ -47,7 +47,7 @@ _FILES_AND_PATTERNS = [
      r'release\s*=\s*([\'"]){}\1'.format(_VERSION_PATTERN),
      "release = '{version}'"),
     #
-    ('tools/dptools/setup.py',
+    ('tools/dptools/pyproject.toml',
      r'version\s*=\s*([\'"]){}\1'.format(_VERSION_PATTERN),
      "version='{version}'"),
 ]

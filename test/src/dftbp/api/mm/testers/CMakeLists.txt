@@ -39,11 +39,11 @@ if(WITH_C_EXECUTABLES)
     set_target_properties(test_mpic PROPERTIES LINKER_LANGUAGE C)
 
     add_executable(test_mpiexpdmhs test_mpiexpdmhs.c $<TARGET_OBJECTS:test_api_mm_utils>)
-    target_link_libraries(test_mpiexpdmhs dftbplus MPI::MPI_C)
+    target_link_libraries(test_mpiexpdmhs dftbplus MPI::MPI_C Scalapack::Scalapack LAPACK::LAPACK)
     set_target_properties(test_mpiexpdmhs PROPERTIES LINKER_LANGUAGE C)
 
     add_executable(test_mpiexpdmhsz test_mpiexpdmhsz.c $<TARGET_OBJECTS:test_api_mm_utils>)
-    target_link_libraries(test_mpiexpdmhsz dftbplus MPI::MPI_C)
+    target_link_libraries(test_mpiexpdmhsz dftbplus MPI::MPI_C Scalapack::Scalapack LAPACK::LAPACK)
     set_target_properties(test_mpiexpdmhsz PROPERTIES LINKER_LANGUAGE C)
 
   endif()

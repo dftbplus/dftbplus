@@ -23,7 +23,7 @@ Obtaining via Conda
 
 The preferred way of to install DFTB+ is by using the conda package management
 system. We highly suggest using the `miniforge
-<https://github.com/conda-forge/miniforge>`_ conda distribution. You can use
+<https://github.com/conda-forge/miniforge>`_ conda distribution. You might use
 any other conda distribution as well, just make sure to select the `conda-forge
 <https://conda-forge.org/>`_ channel as the (only) source for packages.
 
