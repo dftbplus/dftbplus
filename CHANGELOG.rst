@@ -5,8 +5,8 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+25.1 (2025-12-19)
+=================
 
 Added
 -----
