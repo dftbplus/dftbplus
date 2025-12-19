@@ -9,7 +9,6 @@
 
 !> Contains the interface to the ELPA solver
 module dftbp_elecsolvers_elpa
-  use, intrinsic :: iso_c_binding, only : c_int
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
 #:if WITH_ELPA
@@ -176,7 +175,7 @@ contains
     integer, intent(in) :: timingLevel
 
     integer :: na_rows, na_cols
-    integer(kind=c_int) :: status
+    integer :: status
 
   #:if WITH_ELPA
 
@@ -390,9 +389,9 @@ contains
     !> Value of the flag
     integer, intent(in) :: val
 
-    integer(kind=c_int) :: status
+    integer :: status
 
-    call this%handle%set(name, int(val, kind=c_int), status)
+    call this%handle%set(name, val, status)
     if (status /= ELPA_OK) then
       call error("Error during ELPA initialization: setting " // name // " failed")
     end if
@@ -407,7 +406,7 @@ contains
     !> Instance
     type(TElpa), intent(inout) :: this
 
-    integer(kind=c_int) :: status
+    integer :: status
 
   #:if WITH_ELPA
 
@@ -490,7 +489,7 @@ contains
     !> Whether the S matrix already contains the Cholesky decomposition
     logical, intent(in) :: hasCholesky
 
-    integer(kind=c_int) :: status
+    integer :: status
     logical :: unfinished, previousStateExists
 
   #:if WITH_ELPA
