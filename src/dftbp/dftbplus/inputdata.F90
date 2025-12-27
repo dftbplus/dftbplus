@@ -402,9 +402,14 @@ module dftbp_dftbplus_inputdata
     !> Read atomic masses from the input not the SK data
     real(dp), allocatable :: masses(:)
 
-
     !> Spin constants
     real(dp), allocatable :: spinW(:,:,:)
+
+    !> Are spin constants shell resolved?
+    logical :: isSpinWShellResolved
+
+    !> Are spin constants obtained from parameterisation data?
+    logical :: isSpinWFromParameters = .false.
 
     !> Customised Hubbard U values
     real(dp), allocatable :: hubbU(:,:)

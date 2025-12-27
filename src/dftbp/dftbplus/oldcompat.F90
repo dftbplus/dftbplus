@@ -941,7 +941,8 @@ contains
 
   end subroutine convert_13_14
 
-  !> Converts input from version 14 to 15. (Version 18 February 2026)
+
+  !> Converts input from version 14 to 15. (Version 15 introduced in December 2025)
   subroutine convert_14_15(root)
 
     !> Root tag of the HSD-tree
@@ -949,6 +950,13 @@ contains
 
     type(fnode), pointer :: ch1, ch2, par, hamil, dummy
     logical :: isRecomputed
+
+    call getDescendant(root, "Hamiltonian/xTB/SpinConstants", ch1)
+    if (associated(ch1)) then
+      call setChildValue(ch1, "FromParameters", .false., child=ch2)
+      call detailedWarning(ch1, 'Keyword "FromParameters" for xTB set as false.')
+      call setUnprocessed(ch2)
+    end if
 
     ! Move RecomputeAfterDensity to the Hamiltonian block.
     ! The normal default is RecomputeAfterDensity=.true.
