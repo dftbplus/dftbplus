@@ -1431,11 +1431,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -1812,11 +1808,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau .and. ctrl%tSCC) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -2291,11 +2283,7 @@ contains
 
 
   !> Spin calculation
-#:if WITH_TRANSPORT
-  subroutine readSpinPolarisation(node, ctrl, geo, tp)
-#:else
   subroutine readSpinPolarisation(node, ctrl, geo)
-#:endif
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2305,11 +2293,6 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
-
-  #:if WITH_TRANSPORT
-    !> Transport parameters
-    type(TTransPar), intent(inout)  :: tp
-  #:endif
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -5692,11 +5675,12 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    logical :: tLRNeedsSpinConstants, tShellResolvedW
+    logical :: tLRNeedsSpinConstants, doesUserSetConsts
     integer :: iSp1, nConstants
     type(TListReal) :: realBuffer
     character(lc) :: strTmp
     real(dp) :: rWork(maxval(orb%nShell)**2)
+    type(TStatus) :: errStatus
 
     tLRNeedsSpinConstants = .false.
 
@@ -5712,48 +5696,54 @@ contains
 
     if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. &
         & ctrl%reksInp%reksAlg /= reksTypes%noReks) then
-      allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
-      ctrl%spinW(:,:,:) = 0.0_dp
-
       call getChild(hamNode, "SpinConstants", child)
       if (ctrl%hamiltonian == hamiltonianTypes%xtb) then
-        call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .true.)
+        call getChildValue(child, "ShellResolvedSpin", ctrl%isSpinWShellResolved, .true.)
       else
         if (.not.ctrl%tShellResolved) then
-          call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .false.)
+          call getChildValue(child, "ShellResolvedSpin", ctrl%isSpinWShellResolved, .false.)
         else
-          tShellResolvedW = .true.
+          ctrl%isSpinWShellResolved = .true.
         end if
       end if
 
-      do iSp1 = 1, geo%nSpecies
-        call init(realBuffer)
-        call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
-        nConstants = len(realBuffer)
-        if (tShellResolvedW) then
-          if (nConstants == orb%nShell(iSp1)**2) then
-            call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
-            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
-                & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+      ctrl%isSpinWFromParameters = .false.
+      if (ctrl%hamiltonian == hamiltonianTypes%xtb) then
+        call getChildValue(child, "FromParameters", ctrl%isSpinWFromParameters, .true.)
+      end if
+
+      if (.not.ctrl%isSpinWFromParameters) then
+        allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
+        ctrl%spinW(:,:,:) = 0.0_dp
+        do iSp1 = 1, geo%nSpecies
+          call init(realBuffer)
+          call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+          nConstants = len(realBuffer)
+          if (ctrl%isSpinWShellResolved) then
+            if (nConstants == orb%nShell(iSp1)**2) then
+              call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
+              ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
+                  & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+            else
+              write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
+                  & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                  & '", as ShellResolvedSpin enabled.'
+              call detailedError(child, trim(strTmp))
+            end if
           else
-            write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
-                & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
-                & '", as ShellResolvedSpin enabled.'
-            call detailedError(child, trim(strTmp))
+            if (nConstants == 1) then
+              call asArray(realBuffer, rWork(:1))
+              ! only one value for all atom spin constants
+              ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
+            else
+              write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
+                  & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+              call detailedError(child, trim(strTmp))
+            end if
           end if
-        else
-          if (nConstants == 1) then
-            call asArray(realBuffer, rWork(:1))
-            ! only one value for all atom spin constants
-            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
-          else
-            write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
-                & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
-            call detailedError(child, trim(strTmp))
-          end if
-        end if
-        call destruct(realBuffer)
-      end do
+          call destruct(realBuffer)
+        end do
+      end if
     end if
 
   end subroutine readSpinConstants

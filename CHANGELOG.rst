@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Option (FromParameters) to automatically set spin-constants for xTB
+  models
 
 
 Changed
