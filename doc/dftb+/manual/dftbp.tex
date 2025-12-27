@@ -2310,16 +2310,33 @@ distribution:
 
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
+\index{Spin constants}
 
-This environment suplies the atomic constants required for either spin polarised
+This environment supplies the atomic constants required for either spin polarised
 calculations or when evaluating properties which depend on spin interactions
 (triplet excitations for example).  In these cases, for each atomic species in
 the calculation the spin coupling constants for that atom must be specified.
 
-When \is{ShellResolvedSCC} = \is{No}, an extra keyword in this block controls
+When \is{ShellResolvedSCC = No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
 shells: \kw{ShellResolvedSpin}, defaulting to the same value as
 \is{ShellResolvedSCC}.
+
+For xTB models (\ref{sec:dftbp.XTB}), parameters can optionally be
+selected from the data given in \cite{Neugebauer-JCC-44-2120}, by
+using the keyword \is{FromParameters} inside the \iscb{SpinConstants}
+block: \index{FromParameters}
+\begin{verbatim}
+  SpinConstants = {
+    FromParameters = Yes
+  }
+\end{verbatim}
+Note, in the case of explicit use of \is{ShellResolvedSCC = No} for
+xTB, the Highest Occupied Atomic Orbital (HOAO) value from the
+parameters is used for all spin couplings.
+
+Alternatively, spin constants for each chemical species should be
+provided in the input.
 
 When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second
@@ -2345,14 +2362,15 @@ Example (GGA parameters for H$_2$O):
 \end{verbatim}
 
 Several standard values of atomic spin constants are given in
-appendix~\ref{app:spinconst}. Constants calculated with the same
+appendix~\ref{app:spinconst}. Constants calculated using the same
 density functional as the SK-files should be used. This input block
-may be moved to the SK-data definition files in the future.
+may be moved to the SK-data definition files in the future for the
+DFTB hamiltonians.
 
 When using the \is{SelectedShells} method for the keyword
 \is{MaxAngularMomentum}, the spin constants are listed as an array of
 values running over $\text{SK1}\text{SK2}\ldots$ in the same order as
-listed for SlaterKosterFiles.
+listed for the Slater-Koster files.
 
 \begin{verbatim}
   SpinConstants = { # not real values, only an example
