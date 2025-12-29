@@ -59,7 +59,7 @@ module dftbp_timedep_timeprop
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33, invert33
   use dftbp_md_dummytherm, only : TDummyTherm, TDummyTherm_init
-  use dftbp_md_mdcommon, only : TMDCommon, init
+  use dftbp_md_mdcommon, only : TMDCommon, TMDCommon_init
   use dftbp_md_mdintegrator, only : init, next, reset, state, TMDIntegrator
   use dftbp_md_thermostat, only : TThermostat
   use dftbp_md_velocityverlet, only : TVelocityVerlet
@@ -779,7 +779,7 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     real(dp) :: norm, tempAtom
-    logical :: tMDstill
+    logical :: isMdTranslatRemoved, isMdRotationRemoved
     integer :: iAtom
 
     this%field = eFieldScaling%scaledExtEField(inp%tdField)
@@ -891,7 +891,8 @@ contains
       this%indMovedAtom = inp%indMovedAtom
       this%nMovedAtom = inp%nMovedAtom
       tempAtom = inp%tempAtom
-      tMDstill = .false.
+      isMdTranslatRemoved = .false.
+      isMdRotationRemoved = .false.
 
       allocate(this%movedVelo(3, this%nMovedAtom))
       allocate(this%movedMass(3, this%nMovedAtom))
@@ -910,7 +911,8 @@ contains
       allocate(this%movedAccel(3, this%nMovedAtom))
 
       allocate(pMDFrame)
-      call init(pMDFrame, this%nMovedAtom, nAtom, tMDstill)
+      call TMDCommon_init(pMDFrame, this%nMovedAtom, nAtom, isMdTranslatRemoved, mass,&
+          & this%initCoord, isMdRotationRemoved)
       allocate(pDummyTherm)
       call TDummyTherm_init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat,&
           & pMDFrame)

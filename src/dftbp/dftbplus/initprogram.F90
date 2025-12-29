@@ -102,7 +102,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_math_ranlux, only : getRandom, TRanlux
   use dftbp_math_simplealgebra, only : determinant33, diagonal, invert33
   use dftbp_md_thermostats, only : createThermostat, thermostatTypes, TThermostat
-  use dftbp_md_mdcommon, only : init, TMDCommon, TMDOutput
+  use dftbp_md_mdcommon, only : TMDCommon, TMDCommon_init, TMDOutput
   use dftbp_md_mdintegrator, only : init, TMDIntegrator
   use dftbp_md_tempprofile, only : TempProfile_init, TTempProfile
   use dftbp_md_velocityverlet, only : init, TVelocityVerlet
@@ -2696,7 +2696,8 @@ contains
     if (this%tMD) then
       ! Create MD framework.
       allocate(this%pMDFrame)
-      call init(this%pMDFrame, this%nMovedAtom, this%nAtom, input%ctrl%tMDstill)
+      call TMDCommon_init(this%pMDFrame, this%nMovedAtom, this%nAtom,&
+          & input%ctrl%isMdTranslatRemoved, this%mass, this%coord0, input%ctrl%isMdRotatRemoved)
 
       allocate(this%temperatureProfile)
       call TempProfile_init(this%temperatureProfile, input%ctrl%tempProfileInp)

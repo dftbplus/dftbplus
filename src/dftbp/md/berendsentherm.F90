@@ -101,13 +101,16 @@ contains
 
 
   !> Returns the initial velocities.
-  subroutine TBerendsenTherm_getInitVelocities(this, velocities)
+  subroutine TBerendsenTherm_getInitVelocities(this, velocities, coord)
 
     !> Instance
     class(TBerendsenTherm), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: kT
     integer :: ii
@@ -121,7 +124,7 @@ contains
     do ii = 1, this%nAtom
       call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(this%pMDFrame, velocities, this%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass, coord)
     call rescaleTokT(this%pMDFrame, velocities, this%mass, kT)
 
   end subroutine TBerendsenTherm_getInitVelocities
@@ -129,13 +132,16 @@ contains
 
   !> Updates the provided velocities according the current temperature.
   !> Shifts to rest frame coordinates if required - this removes some of the flying icecube effect.
-  subroutine TBerendsenTherm_updateVelocities(this, velocities)
+  subroutine TBerendsenTherm_updateVelocities(this, velocities, coord)
 
     !> Instance
     class(TBerendsenTherm), intent(inout) :: this
 
     !> Updated velocities on exit
     real(dp), intent(inout) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     real(dp) :: kTCurrent, kTTarget, scaling
 
@@ -145,7 +151,7 @@ contains
     call evalkT(this%pMDFrame, kTCurrent,velocities,this%mass)
     scaling = sqrt(1.0_dp + this%coupling * (kTTarget / kTCurrent - 1.0_dp))
     velocities(:,:) = scaling * velocities
-    call restFrame(this%pMDFrame, velocities, this%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass, coord)
 
   end subroutine TBerendsenTherm_updateVelocities
 

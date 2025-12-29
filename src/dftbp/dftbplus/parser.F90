@@ -125,7 +125,7 @@ module dftbp_dftbplus_parser
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("25.1", 14),&
+      & TVersionMap("26.1", 15), TVersionMap("25.1", 14),&
       & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
@@ -638,10 +638,16 @@ contains
       end if
       call readInitialVelocities(node, ctrl, geom%nAtom)
 
-      call getChildValue(node, "KeepStationary", ctrl%tMDstill,.true.)
-      if (ctrl%tMDstill .and. geom%nAtom == 1) then
-        call error("Removing translational freedom with only one atom not&
-            & possible.")
+      call getChildValue(node, "RemoveTranslation", ctrl%isMdTranslatRemoved, .true.)
+      ! note, legacy behavior is false :
+      call getChildValue(node, "RemoveRotation", ctrl%isMdRotatRemoved, .true.)
+      if (geom%nAtom == 1) then
+        if (ctrl%isMdTranslatRemoved) then
+          call error("Removing translational freedom with only one atom not possible.")
+        end if
+        if (ctrl%isMdRotatRemoved) then
+          call error("Removing rotational freedom with only one atom not possible.")
+        end if
       end if
 
       call getChildValue(node, "TimeStep", ctrl%deltaT, modifier=modifier, &

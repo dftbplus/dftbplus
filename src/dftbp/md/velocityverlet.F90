@@ -136,7 +136,7 @@ contains
       end if
       this%velocities(:,:) = velocities
     else
-      call this%thermostat%getInitVelocities(this%velocities)
+      call this%thermostat%getInitVelocities(this%velocities, this%positions)
     end if
 
     if (allocated(velocities)) then
@@ -190,7 +190,7 @@ contains
     this%positions(:,:) = positions(:,:)
     call move_alloc(thermostat, this%thermostat)
 
-    call this%thermostat%getInitVelocities(this%velocities)
+    call this%thermostat%getInitVelocities(this%velocities, this%positions)
 
     this%vHalfPresent = .true. ! yes we have the t-.5 velocities
 
@@ -330,7 +330,7 @@ contains
     this%positions(:,:) = newCoord(:,:)
 
     if (allocated(this%thermostat)) then
-      call this%thermostat%updateVelocities(this%velocities)
+      call this%thermostat%updateVelocities(this%velocities, this%positions)
     end if
 
   end subroutine VelocityVerlet_next
