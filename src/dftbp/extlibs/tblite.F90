@@ -224,6 +224,9 @@ module dftbp_extlibs_tblite
     !> Get reference occupation
     procedure :: getReferenceN0
 
+    !> Get reference onsite energies
+    procedure :: getReferenceEi
+
     !> Returns the equivalence to get the correct mixing of charge dependent contributions
     procedure :: getOrbitalEquiv
 
@@ -990,6 +993,41 @@ contains
   #:endif
 
   end subroutine getReferenceN0
+
+
+  !> Get reference onsite energies.
+  subroutine getReferenceEi(this, species0, referenceEi)
+
+    !> Data structure
+    class(TTBLite), intent(in) :: this
+
+    !> Species of each atom, shape: [nAtom]
+    integer, intent(in) :: species0(:)
+
+    !> Reference onsite energies
+    real(dp), intent(out) :: referenceEi(:, :)
+
+  #:if WITH_TBLITE
+    integer :: iAt, iSp, iId, iSh
+    logical, allocatable :: done(:)
+
+    referenceEi(:,:) = 0.0_dp
+    allocate(done(maxval(species0)))
+    done(:) = .false.
+    do iAt = 1, size(species0)
+      iId = this%mol%id(iAt)
+      iSp = species0(iAt)
+      if (done(iSp)) cycle
+      do iSh = 1, this%calc%bas%nsh_at(iAt)
+        referenceEi(iSh, iSp) = this%calc%h0%selfenergy(iSh, iId)
+      end do
+      done(iSp) = .true.
+    end do
+  #:else
+    call notImplementedError
+  #:endif
+
+  end subroutine getReferenceEi
 
 
   !> Returns the equivalence to get the correct mixing of charge dependent contributions
