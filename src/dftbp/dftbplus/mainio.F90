@@ -4745,7 +4745,7 @@ contains
     ! Get maximum derivative of energy functional with respect to Vc
     dWdVcMax = elecConstraint%getMaxEnergyDerivWrtVc()
 
-    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, deltaWTotal, dWdVcMax
+    write(stdOut, "(T6,I5,3E18.8)") iConstrIter, Eelec, dWdVcMax, deltaWTotal
 
   end subroutine printElecConstrInfo
 
