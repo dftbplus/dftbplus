@@ -487,6 +487,7 @@ halogen/3500                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 halogen/3501                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 halogen/3502                           #? WITH_SDFTD3 and MPI_PROCS <= 1
 halogen/3518                           #? WITH_SDFTD3 and MPI_PROCS <= 1
+halogen/3518_periodic                  #? WITH_SDFTD3 and MPI_PROCS <= 1
 
 h-bonds/H5_defaults                    #? MPI_PROCS <= 2
 h-bonds/H5_ONS_forces                  #? MPI_PROCS <= 2

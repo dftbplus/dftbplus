@@ -50,7 +50,7 @@ module dftbp_dftb_halogenx
   character(*), parameter :: halogenXSpecies2(3) = [character(2) ::&
       & 'Cl', 'Br', 'I']
 
-  !> Energy in kcal/mol for pair truncation
+  !> Energy (in kcal/mol) for pair truncation
   real(dp), parameter :: minInteraction = 1.0E-14_dp
 
   !> Switching radii as multipliers of vdw radii
