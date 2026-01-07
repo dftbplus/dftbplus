@@ -1216,6 +1216,7 @@ contains
     real(dp) :: rSKCutOff
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut, strJoin
+    logical :: isHalogenXCorr
 
     !> For hybrid functional calculations
     type(THybridXcSKTag) :: hybridXcSK
@@ -1668,27 +1669,14 @@ contains
         end if
 
         ! Halogen correction to the DFTB3 model
-        block
-          logical :: tHalogenInteraction
-          integer :: iSp1, iSp2
+        isHalogenXCorr =&
+            & any([(any(halogenXSpecies1(ii) == geo%speciesNames), ii=1, size(halogenXSpecies1))])&
+            & .and. &
+            & any([(any(halogenXSpecies2(ii) == geo%speciesNames), ii=1, size(halogenXSpecies2))])
 
-          if (.not. geo%tPeriodic) then
-            tHalogenInteraction = .false.
-            iSp1Loop: do iSp1 = 1, geo%nSpecies
-              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
-                do iSp2 = 1, geo%nSpecies
-                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
-                    tHalogenInteraction = .true.
-                    exit iSp1Loop
-                  end if
-                end do
-              end if
-            end do iSp1Loop
-            if (tHalogenInteraction) then
-              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
-            end if
-          end if
-        end block
+        if (isHalogenXCorr) then
+          call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
+        end if
 
       end if
     end if
