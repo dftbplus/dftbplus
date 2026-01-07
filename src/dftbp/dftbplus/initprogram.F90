@@ -1824,7 +1824,7 @@ contains
         call error("Halogen correction only fitted for 3rd order models")
       end if
       if (this%tPeriodic) then
-        call error("Halogen correction was not fitted in periodic systems in original paper")
+        call warning("Halogen correction was not fitted for periodic systems in original paper")
       end if
       allocate(this%halogenXCorrection)
       call THalogenX_init(this%halogenXCorrection, this%species0, this%speciesName)
