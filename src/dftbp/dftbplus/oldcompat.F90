@@ -84,6 +84,9 @@ contains
       case (13)
         call convert_13_14(root)
         version = 14
+      case (14)
+        call convert_14_15(root)
+        version = 15
       end select
     end do
 
@@ -920,6 +923,24 @@ contains
     end if
 
   end subroutine convert_13_14
+
+
+  !> Converts input from version 14 to 15 (Version 15 introduced in December 2025).
+  subroutine convert_14_15(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+
+    call getDescendant(root, "Hamiltonian/xTB/SpinConstants", ch1)
+    if (associated(ch1)) then
+      call setChildValue(ch1, "FromParameters", .false., child=ch2)
+      call detailedWarning(ch1, 'Keyword "FromParameters" for xTB set as false.')
+      call setUnprocessed(ch2)
+    end if
+
+  end subroutine convert_14_15
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

@@ -15,7 +15,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_common_atomicmass, only : getAtomicMass
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_constants, only : amu__au, au__ps, Bohr__AA, Bohr__nm, Boltzmann, Hartree__eV,&
-      & Hartree__kJ_mol, pi, shellNames
+      & Hartree__kJ_mol, pi, shellNames, symbolToNumber
   use dftbp_common_envcheck, only : checkStackSize
   use dftbp_common_environment, only : globalTimers, TEnvironment
   use dftbp_common_file, only : clearFile, setDefaultBinaryAccess, TFileDescr
@@ -145,6 +145,7 @@ module dftbp_dftbplus_initprogram
   use dftbp_transport_negfint, only : TNegfInt, TNegfInt_init, transportPeriodicSetup
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
+  use dftbp_xtb_xtbspinw, only : xtbw => wvalues, spindx
   implicit none
 
   private
@@ -1268,7 +1269,7 @@ contains
     type(TRanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
-    integer :: ind, ii, jj, kk, iAt, iSp, iSh, iOrb
+    integer :: ind, ii, jj, kk, iAt, iSp, iSh, iOrb, il, jl, jSh
 
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
@@ -1334,8 +1335,9 @@ contains
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected, areNeighboursSymmetric
     type(TStatus) :: errStatus
-    integer :: nLocalRows, nLocalCols
-
+    integer :: nLocalRows, nLocalCols, iElem
+    real(dp) :: tmpSpinW(6)
+    real(dp), allocatable :: eiTmp(:,:)
     logical :: isIoProc
 
   #:if WITH_MPI
@@ -1454,6 +1456,45 @@ contains
       allocate(input%slako%skOcc(input%slako%orb%mShell, input%geom%nSpecies))
       call this%tblite%getReferenceN0(this%species0, input%slako%skOcc)
       this%orb = input%slako%orb
+
+      if (input%ctrl%isSpinWFromParameters) then
+        ! Only xTB at the moment
+        allocate(input%ctrl%spinW(this%orb%mShell, this%orb%mShell, this%nType), source=0.0_dp)
+        if (.not.input%ctrl%isSpinWShellResolved) then
+          allocate(eiTmp, mold=input%slako%skOcc)
+          eiTmp(:,:) = 0.0_dp
+          call this%tblite%getReferenceEi(this%species0, eiTmp)
+          write(stdOut, *) "Non-shell-resolved spin coupling constants from parameters for"
+        end if
+        do iSp = 1, this%nType
+          iElem = symbolToNumber(this%speciesName(iSp))
+          call xtbw(tmpSpinW, iElem, errStatus)
+          if (errStatus%hasError()) then
+            call error(errStatus%message)
+          end if
+          if (input%ctrl%isSpinWShellResolved) then
+            do iSh = 1, this%orb%nShell(iSp)
+              il = this%orb%angShell(iSh,iSp)
+              do jSh = iSh, this%orb%nShell(iSp)
+                jl = this%orb%angShell(jSh,iSp)
+                input%ctrl%spinW(jSh, iSh, iSp) = tmpSpinW(spindx(jl, il))
+                input%ctrl%spinW(iSh, jSh, iSp) = tmpSpinW(spindx(jl, il))
+              end do
+            end do
+          else
+            ! Use HOAO value
+            ish = maxloc(eiTmp(:,iSp), dim=1, mask=input%slako%skOcc(:,iSp) > 0.0_dp)
+            il = this%orb%angShell(iSh,iSp)
+            write(stdOut,"(1X,A,T6,A,A)")trim(this%speciesName(iSp)), ' : ', shellnames(il+1)
+            input%ctrl%spinW(:this%orb%nShell(iSp), :this%orb%nShell(iSp), iSp) =&
+                & tmpSpinW(spindx(il, il))
+          end if
+        end do
+        if (.not.input%ctrl%isSpinWShellResolved) then
+          deallocate(eiTmp)
+        end if
+      end if
+
     #:if WITH_TBLITE
       this%isHalogenEgyPrinted = allocated(this%tblite%calc%halogen)
     #:endif
@@ -5857,7 +5898,7 @@ contains
 
     character(lc) :: formstr, outStr
     integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom, iSh
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
 
     nCustomBlock = size(customOccFillings)
     if (nCustomBlock == 0) then
@@ -5875,17 +5916,17 @@ contains
       write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      call getShellNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellNamesTmp)
       outStr = ""
       do iSh = 1, nShell
         if (iSh > 1) then
           write(outStr,"(A,',')")trim(outStr)
         end if
-        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellnames(iSh)),&
+        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellNamesTmp(iSh)),&
             & customOccFillings(iSh, iCustomBlock)
       end do
       write(stdout,"(A,T29,A)")"Fillings:",trim(outStr)
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
   end subroutine printCustomReferenceOccupations
 
