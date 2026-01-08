@@ -93,6 +93,11 @@ if(NOT TARGET DftbPlus::DftbPlus)
     find_dependency(ChimesCalc)
   endif()
 
+  if (# WITH_DNAOAD AND
+    NOT TARGET DNAOAD::dnaoad)
+    find_dependency(DNAOAD)
+  endif ()
+
   include("${CMAKE_CURRENT_LIST_DIR}/dftbplus-targets.cmake")
 
 endif()

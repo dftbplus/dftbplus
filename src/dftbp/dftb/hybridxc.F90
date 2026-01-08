@@ -27,6 +27,7 @@ module dftbp_dftb_hybridxc
   use dftbp_dftb_slakocont, only : TSlakoCont
   use dftbp_dftb_sparse2dense, only : getUnpackedOverlapPrime_kpts, getUnpackedOverlapPrime_real,&
       & unpackHS
+  use dftbp_extlibs_dnaoad
   use dftbp_math_blasroutines, only : gemm, hemm, symm
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_simplealgebra, only : determinant33
@@ -478,6 +479,8 @@ contains
     !! Number of unique species in system
     integer :: nUniqueSpecies
 
+    type(dual_real64) :: dualDist, fDualDist
+
     ! Perform basic consistency checks for optional arguments
     if (isPeriodic .and. (.not. present(gSummationCutoff))) then
       @:RAISE_ERROR(errStatus, -1, "HybridXc Module: Periodic systems require g-summation cutoff,&
@@ -556,23 +559,38 @@ contains
       allocate(this%hfGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       allocate(this%hfdGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
       allocate(this%hfddGammaAtDamping(nUniqueSpecies, nUniqueSpecies))
+
+      call initialize_dual(dualDist, 2)
+      call initialize_dual(fDualDist, 2)
+      dualDist = [this%gammaDamping, 1.0_dp]
+
       do iSp2 = 1, nUniqueSpecies
         do iSp1 = 1, nUniqueSpecies
-          this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
-              & this%hubbu(iSp2), this%omega, this%gammaDamping)
-          this%lrdGammaAtDamping(iSp1, iSp2)&
-              & = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping)
-          this%lrddGammaAtDamping(iSp1, iSp2)&
-              & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%omega, this%gammaDamping, delta)
-          this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
-              & this%hubbu(iSp2), this%gammaDamping)
-          this%hfdGammaAtDamping(iSp1, iSp2)&
-              & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
-              & this%gammaDamping)
-          this%hfddGammaAtDamping(iSp1, iSp2) = getddHfAnalyticalGammaValue_workhorse(&
-              & this%hubbu(iSp1), this%hubbu(iSp2), this%gammaDamping)
+          fDualDist = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & this%omega, dualDist)
+          this%lrGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(0)
+          this%lrdGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(1)
+          this%lrddGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(2)
+          !this%lrGammaAtDamping(iSp1, iSp2) = getLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
+          !    & this%hubbu(iSp2), this%omega, this%gammaDamping)
+          !this%lrdGammaAtDamping(iSp1, iSp2)&
+          !    & = getdLrAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+          !    & this%omega, this%gammaDamping)
+          !this%lrddGammaAtDamping(iSp1, iSp2)&
+          !    & = getddLrNumericalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+          !    & this%omega, this%gammaDamping, delta)
+          fDualDist = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+              & dualDist)
+          this%hfGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(0)
+          this%hfdGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(1)
+          this%hfddGammaAtDamping(iSp1, iSp2) = fDualDist%get_derivative(2)
+          !this%hfGammaAtDamping(iSp1, iSp2) = getHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1),&
+          !    & this%hubbu(iSp2), this%gammaDamping)
+          !this%hfdGammaAtDamping(iSp1, iSp2)&
+          !    & = getdHfAnalyticalGammaValue_workhorse(this%hubbu(iSp1), this%hubbu(iSp2),&
+          !    & this%gammaDamping)
+          !this%hfddGammaAtDamping(iSp1, iSp2) = getddHfAnalyticalGammaValue_workhorse(&
+          !    & this%hubbu(iSp1), this%hubbu(iSp2), this%gammaDamping)
         end do
       end do
     end if
