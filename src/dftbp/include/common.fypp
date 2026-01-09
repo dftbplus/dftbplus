@@ -21,6 +21,7 @@
 #:set WITH_MAGMA = defined('WITH_MAGMA')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
+#:set WITH_ELPA = defined('WITH_ELPA')
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_MBD = defined('WITH_MBD')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
