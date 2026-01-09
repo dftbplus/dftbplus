@@ -25,7 +25,7 @@ module dftbp_md_thermostat
   abstract interface
 
     !> Returns the initial velocities
-    subroutine TThermostat_getInitVelocities(this, velocities)
+    subroutine TThermostat_getInitVelocities(this, velocities, coord)
       import :: TThermostat, dp
       implicit none
 
@@ -35,11 +35,14 @@ module dftbp_md_thermostat
       !> Velocities on exit
       real(dp), intent(out) :: velocities(:,:)
 
+      !> Particle coordinates
+      real(dp), intent(in) :: coord(:,:)
+
     end subroutine TThermostat_getInitVelocities
 
 
     !> Updates the velocities
-    subroutine TThermostat_updateVelocities(this, velocities)
+    subroutine TThermostat_updateVelocities(this, velocities, coord)
       import :: TThermostat, dp
       implicit none
 
@@ -48,6 +51,9 @@ module dftbp_md_thermostat
 
       !> Updated velocities on exit
       real(dp), intent(inout) :: velocities(:,:)
+
+      !> Particle coordinates
+      real(dp), intent(in) :: coord(:,:)
 
     end subroutine TThermostat_updateVelocities
 

@@ -36,7 +36,7 @@ module dftbp_md_dummytherm
     type(TRanlux), allocatable :: pRanlux
 
     !> MD Framwork
-    type(TMDCommon) :: pMDFrame
+    type(TMDCommon) :: pMDFramework
 
   contains
 
@@ -50,7 +50,7 @@ contains
 
 
   !> Creates a DummyThermostat instance.
-  subroutine TDummyTherm_init(this, kT, mass, pRanlux, pMDFrame)
+  subroutine TDummyTherm_init(this, kT, mass, pRanlux, pMDFramework)
 
     !> Initialized instance on exit
     type(TDummyTherm), intent(out) :: this
@@ -65,26 +65,29 @@ contains
     type(TRanlux), allocatable, intent(inout) :: pRanlux
 
     !> thermostat object
-    type(TMDCommon), intent(in) :: pMDFrame
+    type(TMDCommon), intent(in) :: pMDFramework
 
     this%kT = kT
     this%nAtom = size(mass)
     allocate(this%mass(this%nAtom))
     this%mass = mass(:)
     call move_alloc(pRanlux, this%pRanlux)
-    this%pMDFrame = pMDFrame
+    this%pMDFramework = pMDFramework
 
   end subroutine TDummyTherm_init
 
 
   !> Returns the initial velocities.
-  subroutine TDummyTherm_getInitVelocities(this, velocities)
+  subroutine TDummyTherm_getInitVelocities(this, velocities, coord)
 
     !> Instance
     class(TDummyTherm), intent(inout) :: this
 
     !> Velocities on return.
     real(dp), intent(out) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
 
     integer :: ii
 
@@ -94,8 +97,8 @@ contains
       do ii = 1, this%nAtom
         call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), this%kT, this%pRanlux)
       end do
-      call restFrame(this%pMDFrame, velocities(:,:), this%mass)
-      call rescaleTokT(this%pMDFrame, velocities(:,:), this%mass, this%kT)
+      call restFrame(this%pMDFramework, velocities(:,:), this%mass, coord)
+      call rescaleTokT(this%pMDFramework, velocities(:,:), this%mass, this%kT)
     else
       velocities(:,:) = 0.0_dp
     end if
@@ -103,14 +106,20 @@ contains
   end subroutine TDummyTherm_getInitVelocities
 
 
-  !> Updates velocities (does nothing in this case)
-  subroutine TDummyTherm_updateVelocities(this, velocities)
+  !> Updates velocities (does nothing in this case, apart from any removal of centre-of-mass motion
+  !! or rotation around it)
+  subroutine TDummyTherm_updateVelocities(this, velocities, coord)
 
     !> Instance
     class(TDummyTherm), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
+
+    !> Particle coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    call restFrame(this%pMDFramework, velocities, this%mass, coord)
 
   end subroutine TDummyTherm_updateVelocities
 

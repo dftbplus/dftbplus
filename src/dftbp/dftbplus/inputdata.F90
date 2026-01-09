@@ -343,7 +343,9 @@ module dftbp_dftbplus_inputdata
     real(dp) :: deltaT = 0.0_dp
 
     !> Whether to shift to a co-moving frame for MD
-    logical :: tMDstill
+    logical :: isMdTranslatRemoved
+    logical :: isMdRotatRemoved
+
     logical :: tRescale = .false.
     logical :: tSetFillingTemp = .false.
 
