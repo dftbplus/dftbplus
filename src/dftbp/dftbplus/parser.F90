@@ -16,7 +16,6 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
   use dftbp_common_globalenv, only : abortProgram, stdout, withMpi, withScalapack
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : angularUnits, chargeUnits, dipoleUnits, EFieldUnits,&
       & energyUnits, forceUnits, freqUnits, lengthUnits, massUnits, pressureUnits, timeUnits,&
@@ -46,7 +45,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData, TSlater
-  use dftbp_dftbplus_oldcompat, only : convertOldHSD
+  use dftbp_dftbplus_oldcompat, only : convertOldHSD, minVersion, parserVersion, versionMaps
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
@@ -122,20 +121,6 @@ module dftbp_dftbplus_parser
     !> HSD output?
     logical :: tWriteHSD
   end type TParserFlags
-
-  !> Actual input version <-> parser version maps (must be updated at every public release)
-  type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("25.1", 14),&
-      & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
-      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
-      & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
-      & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
-
-  !> Version of the oldest parser for which compatibility is still maintained
-  integer, parameter :: minVersion = 1
-
-  !> Version of the current parser (as latest version)
-  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
 
 
 contains
