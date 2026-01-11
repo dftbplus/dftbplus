@@ -1275,7 +1275,18 @@ contains
       call setUnprocessed(value1)
       call getChildValue(child, "Prefix", buffer2, "")
       prefix = unquote(char(buffer2))
-
+      call getChild(child, "Suffix", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
+      call getChild(child, "Separator", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
+      call getChild(child, "LowerCaseTypeName", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
