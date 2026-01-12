@@ -230,7 +230,7 @@ contains
     end if
 
     if (inp%gpu) then
-      call this%setConfig("amd-gpu", 1)
+      call this%setConfig("nvidia-gpu", 1)
 
       status = this%handle%setup_gpu()
       if (status /= ELPA_OK) then
