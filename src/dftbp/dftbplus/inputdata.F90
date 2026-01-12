@@ -390,6 +390,9 @@ module dftbp_dftbplus_inputdata
     !! C_n symmetry
     real(dp) :: helicalSymTol = 1.0E-8_dp
 
+    !> k-points reduced by inversion?
+    logical :: tReduceByInversion = .true.
+
     !> Cell pressure if periodic
     real(dp) :: pressure = 0.0_dp
     logical :: tBarostat = .false.
