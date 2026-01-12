@@ -189,7 +189,7 @@ contains
       call error("Error during ELPA initialization: different block sizes for rows and columns")
     end if
 
-    status = elpa_init(20250131) ! corresponds to ELPA version 2025.01.001
+    status = elpa_init(20220510) ! minimum ELPA version is 2022.05.001
     if (status /= ELPA_OK) then
       call error("ELPA error: elpa_init failed")
     end if
@@ -232,10 +232,12 @@ contains
     if (inp%gpu) then
       call this%setConfig("nvidia-gpu", 1)
 
+    #:if ELPA_HAS_SETUP_GPU
       status = this%handle%setup_gpu()
       if (status /= ELPA_OK) then
         call error("ELPA error: elpa_setup_gpu failed")
       end if
+    #:endif
       this%gpu = .true.
     end if
 
