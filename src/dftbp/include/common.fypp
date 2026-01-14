@@ -21,6 +21,7 @@
 #:set WITH_MAGMA = defined('WITH_MAGMA')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
+#:set WITH_ELPA = defined('WITH_ELPA')
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_MBD = defined('WITH_MBD')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
@@ -37,6 +38,7 @@
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
 #:set INSTANCE_SAFE_BUILD = defined('INSTANCE_SAFE_BUILD')
+#:set ELPA_HAS_SETUP_GPU = defined('ELPA_HAS_SETUP_GPU')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

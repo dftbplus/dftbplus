@@ -20,6 +20,7 @@ module dftbp_elecsolvers_elsisolver
   use dftbp_dftb_spin, only : ud2qm
   use dftbp_dftb_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpaInp
   use dftbp_elecsolvers_elsicsc, only : TElsiCsc
   use dftbp_extlibs_elsiiface, only : elsi_handle, elsi_rw_handle
   use dftbp_io_message, only : cleanshutdown, error, warning
@@ -61,15 +62,6 @@ module dftbp_elecsolvers_elsisolver
 
     !> Choice of the solver
     integer :: iSolver
-
-    !> Choice of ELPA solver
-    integer :: elpaSolver = 2
-
-    !> Enable ELPA autotuning
-    logical :: elpaAutotune = .false.
-
-    !> Enable GPU usage in ELPA
-    logical :: elpaGpu = .false.
 
     !> Iterations of ELPA solver before OMM minimization
     integer :: ommIterationsElpa = 5
@@ -301,14 +293,17 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
-      & iKPoint, kWeight, tWriteHS, providesElectronEntropy)
+  subroutine TElsiSolver_init(this, inp, inpElpa, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin,&
+      & nKPoint, iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
 
     !> input structure for ELSI
     type(TElsiSolverInp), intent(in) :: inp
+
+    !> input structure for ELPA
+    type(TElpaInp), intent(in) :: inpElpa
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -451,13 +446,13 @@ contains
     end if
 
     ! ELPA settings
-    this%elpaSolverOption = inp%elpaSolver
-    if (inp%elpaAutotune) then
+    this%elpaSolverOption = inpElpa%solver
+    if (inpElpa%autotune) then
       this%elpaAutotune = 1
     else
       this%elpaAutotune = 0
     end if
-    if (inp%elpaGpu) then
+    if (inpElpa%gpu) then
       this%elpaGpu = 1
     else
       this%elpaGpu = 0
