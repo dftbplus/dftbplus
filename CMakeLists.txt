@@ -233,14 +233,14 @@ endif()
 
 if(WITH_TBLITE OR WITH_SDFTD3)
   set(MCTC_LIB_GIT_REPOSITORY "https://github.com/grimme-lab/mctc-lib.git")
-  set(MCTC_LIB_GIT_TAG "87a46cdf5281ad75909083c4f72354d54abdf95d")  # do not change manually!
+  set(MCTC_LIB_GIT_TAG "aa89d4bf5c0076fbf169b59eeb9e30185db0e5a5")  # do not change manually!
   dftbp_config_hybrid_dependency(mctc-lib mctc-lib::mctc-lib "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/mctc-lib "${exclude}" "${MCTC_LIB_GIT_REPOSITORY}" "${MCTC_LIB_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES mctc-lib)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(MSTORE_GIT_REPOSITORY "https://github.com/grimme-lab/mstore.git")
-    set(MSTORE_GIT_TAG "5964ec311e7ed92665e8bff48f3e804a657dc0de")  # do not change manually!
+    set(MSTORE_GIT_TAG "663245d739be0123da61c917e55116b0c3db4c74")  # do not change manually!
     dftbp_config_hybrid_dependency(mstore mstore::mstore "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/mstore "${exclude}" "${MSTORE_GIT_REPOSITORY}" "${MSTORE_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES mstore)
@@ -248,14 +248,14 @@ if(WITH_TBLITE OR WITH_SDFTD3)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(TOML_F_GIT_REPOSITORY "https://github.com/toml-f/toml-f.git")
-    set(TOML_F_GIT_TAG "b121a9c3fd7314e887f696ca8488c9977d283788")  # do not change manually!
+    set(TOML_F_GIT_TAG "d37d83f5a8d65100f8548a64d9f97c7e1c57ca2f")  # do not change manually!
     dftbp_config_hybrid_dependency(toml-f toml-f::toml-f "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/toml-f "${exclude}" "${TOML_F_GIT_REPOSITORY}" "${TOML_F_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES toml-f)
   endif()
 
   set(S_DFTD3_GIT_REPOSITORY "https://github.com/dftd3/simple-dftd3.git")
-  set(S_DFTD3_GIT_TAG "5ee8c4d71414bf54db0b680ee3c532215847e0f9")  # do not change manually!
+  set(S_DFTD3_GIT_TAG "3425201769e7c56e98e3831f9bdb7be71cfaec0d")  # do not change manually!
   dftbp_config_hybrid_dependency(s-dftd3 s-dftd3::s-dftd3 "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/s-dftd3 "${exclude}" "${S_DFTD3_GIT_REPOSITORY}" "${S_DFTD3_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES s-dftd3)
@@ -264,7 +264,7 @@ endif()
 if(WITH_TBLITE)
   if(INCLUDE_INDIRECT_DEPS)
     set(MULTICHARGE_GIT_REPOSITORY "https://github.com/grimme-lab/multicharge.git")
-    set(MULTICHARGE_GIT_TAG "42818911d5754604504ed553dcf0b5db33f3c867")  # do not change manually!
+    set(MULTICHARGE_GIT_TAG "bf742887b5995289def0f76c537327b39859eae2")  # do not change manually!
     dftbp_config_hybrid_dependency(multicharge multicharge::multicharge "${HYBRID_CONFIG_METHODS}"
       "QUIET" external/multicharge "${exclude}" "${MULTICHARGE_GIT_REPOSITORY}"
       "${MULTICHARGE_GIT_TAG}")
@@ -273,14 +273,14 @@ if(WITH_TBLITE)
 
   if(INCLUDE_INDIRECT_DEPS)
     set(DFTD4_GIT_REPOSITORY "https://github.com/dftd4/dftd4.git")
-    set(DFTD4_GIT_TAG "3844dc141936e801ca059d1daea1773c3e6103ec")  # do not change manually!
+    set(DFTD4_GIT_TAG "7b2ff85a71a3630808fd8a2d972933f75b743f3c")  # do not change manually!
     dftbp_config_hybrid_dependency(dftd4 dftd4::dftd4 "${HYBRID_CONFIG_METHODS}" "QUIET"
       external/dftd4 "${exclude}" "${DFTD4_GIT_REPOSITORY}" "${DFTD4_GIT_TAG}")
     #list(APPEND PKG_CONFIG_REQUIRES dftd4)
   endif()
 
   set(TBLITE_GIT_REPOSITORY "https://github.com/tblite/tblite.git")
-  set(TBLITE_GIT_TAG "fa115545f7a6ba8e3f0e62df5cdace8781f4d309")  # do not change manually!
+  set(TBLITE_GIT_TAG "6f6cd7d20d97b22ef00d420904343c7bb8e2afdf")  # do not change manually!
   dftbp_config_hybrid_dependency(tblite tblite::tblite "${HYBRID_CONFIG_METHODS}" "QUIET"
     external/tblite "${exclude}" "${TBLITE_GIT_REPOSITORY}" "${TBLITE_GIT_TAG}")
   #list(APPEND PKG_CONFIG_REQUIRES tblite)
