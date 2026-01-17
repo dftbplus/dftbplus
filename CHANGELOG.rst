@@ -38,6 +38,8 @@ Added
   with optional MPI redistribution to a lower number of ranks for all
   ELPA calls
 
+- Langevin thermostat added
+
 
 Changed
 -------
