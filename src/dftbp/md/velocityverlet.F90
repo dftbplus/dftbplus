@@ -318,8 +318,7 @@ contains
     ! where v_out is one MD step behind the positions returned.
 
     if (this%vHalfPresent) then
-      newVelocity(:,:) = this%velocities(:,:) &
-          & + 0.5_dp * accel(:,:) * this%deltaT
+      newVelocity(:,:) = this%velocities(:,:) + 0.5_dp * accel(:,:) * this%deltaT
     else
       newVelocity(:,:) = this%velocities(:,:)
       this%vHalfPresent=.true.

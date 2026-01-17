@@ -599,8 +599,8 @@ contains
       end if
       ctrl%nrMoved = size(ctrl%indMovedAtom)
 
-      call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, &
-          & modifier=modifier, child=field)
+      call getChildValue(node, "Delta", ctrl%deriv2ndDelta, 1.0E-4_dp, modifier=modifier,&
+          & child=field)
       call convertUnitHsd(char(modifier), lengthUnits, field, ctrl%deriv2ndDelta)
 
     case ("velocityverlet")
@@ -3502,10 +3502,8 @@ contains
     select case (char(buffer))
     case ("finitediff")
       ctrl%iDerivMethod = diffTypes%finiteDiff
-      call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta,&
-          & modifier=modifier, child=child)
-      call convertUnitHsd(char(modifier), lengthUnits, child,&
-          & ctrl%deriv1stDelta)
+      call getChildValue(val, "Delta", ctrl%deriv1stDelta, defDelta, modifier=modifier, child=child)
+      call convertUnitHsd(char(modifier), lengthUnits, child, ctrl%deriv1stDelta)
     case ("richardson")
       ctrl%iDerivMethod = diffTypes%richardson
     case default
@@ -7069,12 +7067,10 @@ contains
           end do
         end do
       end if
-      call getChildValue(root, "Delta", tundos%delta, &
-          &1.0e-5_dp, modifier=modifier, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, &
-          &tundos%delta)
-      call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
-          &0.0_dp, modifier=modifier, child=field)
+      call getChildValue(root, "Delta", tundos%delta, 1.0e-5_dp, modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), energyUnits, field, tundos%delta)
+      call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, 0.0_dp,&
+          & modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, &
           &tundos%broadeningDelta)
 
@@ -8217,7 +8213,7 @@ contains
     !> Temperature profile input filled up from the HSD data
     type(TTempProfileInput), allocatable, intent(out) :: tempProfileInp
 
-    type(fnode), pointer :: thermNode, child, child2, child3
+    type(fnode), pointer :: thermNode, child, child2
     type(string) :: thermName, modifier
 
     allocate(thermostatInp, tempProfileInp)
@@ -8232,18 +8228,18 @@ contains
       allocate(thermostatInp%berendsen)
       associate (inp => thermostatInp%berendsen)
         call readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
-        call getChild(thermNode, "CouplingStrength", child=child2, requested=.false.)
-        if (associated(child2)) then
-          call getChildValue(child2, "", inp%coupling)
-          call getChild(thermNode, "Timescale", child=child2, modifier=modifier, requested=.false.)
-          if (associated(child2)) then
+        call getChild(thermNode, "CouplingStrength", child=child, requested=.false.)
+        if (associated(child)) then
+          call getChildValue(child, "", inp%coupling)
+          call getChild(thermNode, "Timescale", child=child, modifier=modifier, requested=.false.)
+          if (associated(child)) then
             call error("Only Coupling strength OR Timescale can be set for Berendsen thermostats.")
           end if
         else
-          call getChild(thermNode, "Timescale", child=child2, modifier=modifier, requested=.false.)
-          if (associated(child2)) then
-            call getChildValue(child2, "", inp%coupling, modifier=modifier, child=child3)
-            call convertUnitHsd(char(modifier), timeUnits, child3, inp%coupling)
+          call getChild(thermNode, "Timescale", child=child, modifier=modifier, requested=.false.)
+          if (associated(child)) then
+            call getChildValue(child, "", inp%coupling, modifier=modifier, child=child2)
+            call convertUnitHsd(char(modifier), timeUnits, child2, inp%coupling)
             inp%coupling = deltaT / inp%coupling
           else
             call error("Either CouplingStrength or Timescale must be set for Berendsen&
@@ -8251,6 +8247,31 @@ contains
           end if
         end if
       end associate
+
+    case ("langevin")
+
+      thermostatInp%thermostatType = thermostatTypes%langevin
+      allocate(thermostatInp%langevin)
+      call readTempOrTempProfile_(thermNode, maxRun, tempProfileInp)
+      call getChild(thermNode, "Frequency", child=child, modifier=modifier, requested=.false.)
+      if (associated(child)) then
+        call getChildValue(child, "", thermostatInp%langevin%gamma, child=child2, modifier=modifier)
+        call convertUnitHsd(char(modifier), freqUnits, child, thermostatInp%langevin%gamma)
+        call getChild(thermNode, "TimeConstant", child=child, modifier=modifier, requested=.false.)
+        if (associated(child)) call error("Only Frequency strength OR TimeConstant can be set for&
+            & the Langevin thermostat.")
+      else
+        call getChild(thermNode, "TimeConstant", child=child, modifier=modifier, requested=.false.)
+        if (associated(child)) then
+          call getChildValue(child, "", thermostatInp%langevin%gamma, modifier=modifier,&
+              & child=child2)
+          call convertUnitHsd(char(modifier), timeUnits, child, thermostatInp%langevin%gamma)
+          thermostatInp%langevin%gamma = 1.0_dp / thermostatInp%langevin%gamma
+        else
+          call detailedError(thermNode, "Either Frequency or TimeConstant must be set for the&
+              & Langevin thermostat.")
+        end if
+      end if
 
     case ("nosehoover")
 
