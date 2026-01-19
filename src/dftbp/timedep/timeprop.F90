@@ -2962,10 +2962,13 @@ contains
 
 
   !> Close output files
-  subroutine closeTDOutputs(this)
+  subroutine closeTDOutputs(this, env)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Environment
+    type(TEnvironment), intent(in) :: env
 
     if (.not. this%tVerboseDyn) return
 
@@ -5161,7 +5164,10 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
-    call closeTDOutputs(this)
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    call closeTDOutputs(this, env)
 
     deallocate(this%Ssqr)
     deallocate(this%Sinv)
