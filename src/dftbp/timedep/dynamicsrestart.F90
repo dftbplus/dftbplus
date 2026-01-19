@@ -359,7 +359,7 @@ contains
   end subroutine writeRestartFileBlacs
 
 
-  !> Write to a restart file the DM in Blacs format
+  !> Read from a restart file the DM in Blacs format
   subroutine readRestartFileBlacs(rho, rhoOld, coord, veloc, time, dt, fileNamePrefix, env, &
       & denseDesc, parallelKS, errStatus)
 

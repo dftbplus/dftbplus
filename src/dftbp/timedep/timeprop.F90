@@ -51,7 +51,7 @@ module dftbp_timedep_timeprop
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
   use dftbp_extlibs_tblite, only : TTBLite
-  use dftbp_io_message, only : error, warning
+  use dftbp_io_message, only : warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
   use dftbp_math_blasroutines, only : gemm, her2k
   use dftbp_math_lapackroutines, only : gesv
@@ -1795,12 +1795,12 @@ contains
     real(dp) :: tdfun(3)
     integer :: iStep
     type(TFileDescr) :: laserDat
-    logical :: writeLaserDat
+    logical :: isLead
 
   #:if WITH_MPI
-    writeLaserDat = env%mpi%tGlobalLead
+    isLead = env%mpi%tGlobalLead
   #:else
-    writeLaserDat = .true.
+    isLead = .true.
   #:endif
     allocate(this%tdFunction(3, 0:this%nSteps))
     this%tdFunction(:,:) = 0.0_dp
@@ -1816,7 +1816,7 @@ contains
       E0 = 0.0_dp !this is to make sure we never sum the current field with that read from file
     end if
 
-    if (writeLaserDat) then
+    if (isLead) then
       if (this%tEnvFromFile) then
         call openFile(laserDat, "laser.dat", mode="r")
         do iStep = 0,this%nSteps
@@ -1845,10 +1845,8 @@ contains
 
         this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
             & * this%fieldDir)
-        if (writeLaserDat) then
-          if (this%tVerboseDyn) write(laserDat%unit, "(5F15.8)") time * au__fs,&
-              & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
-        end if
+        write(laserDat%unit, "(5F15.8)") time * au__fs,&
+            & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
       end do
     end if
   #:if WITH_MPI
@@ -2531,7 +2529,7 @@ contains
         if (this%tRealHS) then
           call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr,&
               & filling(:,1,iSpin), eigvecsReal(:,:,iKS), T2)
-          rho(:,:,iKS) = cmplx(T2, 0, dp)
+          rho(:,:,iKS) = cmplx(T2, 0, kind=dp)
           ! TODO: add here the complex case
         end if
       end do
@@ -2663,7 +2661,6 @@ contains
         call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
       #:endif
       else
-        ! The following line is commented to make the fast propagate work since it needs a real H
       #:if WITH_SCALAPACK
         H1(:,:,iKS) = imag * H1(:,:,iKS)
         call propagateRhoBlacs(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS),&
@@ -2711,79 +2708,6 @@ contains
   end subroutine propagateRho
 
 #:if WITH_SCALAPACK
-  !> Propagate rho with Scalapack for real Hamiltonian
-  !! (used for frozen nuclei dynamics and gamma point periodic).
-  subroutine propagateRhoRealHBlacs(this, rhoOld, rho, H1, Sinv, step)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(inout) :: this
-
-    !> Density matrix at previous step
-    complex(dp), intent(inout) :: rhoOld(:,:)
-
-    !> Density matrix
-    complex(dp), intent(in) :: rho(:,:)
-
-    !> Square hamiltonian
-    complex(dp), intent(in) :: H1(:,:)
-
-    !> Square overlap inverse
-    complex(dp), intent(in) :: Sinv(:,:)
-
-    !> Time step in atomic units
-    real(dp), intent(in) :: step
-
-    real(dp), allocatable :: T1R(:,:), T2R(:,:), T3R(:,:),T4R(:,:)
-
-    integer :: nLocalCols, nLocalRows, i, j
-
-    nLocalRows = size(rho, dim=1)
-    nLocalCols = size(rho, dim=2)
-    allocate(T1R(nLocalRows, nLocalCols))
-    allocate(T2R(nLocalRows, nLocalCols))
-    allocate(T3R(nLocalRows, nLocalCols))
-    allocate(T4R(nLocalRows, nLocalCols))
-
-    T2R(:,:) = real(H1)
-    T1R(:,:) = real(rho)
-
-    call pblasfx_psymm(T2R, this%denseDesc%blacsOrbSqr, T1R, this%denseDesc%blacsOrbSqr,&
-         & T3R, this%denseDesc%blacsOrbSqr, side="R")
-    ! T3R= Re[Rho]*Re[H]
-
-    T2R(:,:) = T3R
-    T1R(:,:) = real(Sinv)
-
-    call pblasfx_psymm(T1R, this%denseDesc%blacsOrbSqr, T2R, this%denseDesc%blacsOrbSqr,&
-       & T3R, this%denseDesc%blacsOrbSqr, side="R")
-    ! T3R= Re[Rho]*Re[H]*Re[Sinv]
-
-    T1R(:,:) = aimag(rho)
-    T2R(:,:) = real(H1)
-
-    call pblasfx_psymm(T2R, this%denseDesc%blacsOrbSqr, T1R, this%denseDesc%blacsOrbSqr,&
-    & T4R, this%denseDesc%blacsOrbSqr, side="R")
-    ! T4R= Im[Rho]*Im[H]
-
-    T2R(:,:) = T4R
-    T1R(:,:) = real(Sinv)
-
-    call pblasfx_psymm(T1R, this%denseDesc%blacsOrbSqr, T2R, this%denseDesc%blacsOrbSqr,&
-       & T4R, this%denseDesc%blacsOrbSqr, side="R")
-    ! T4R= Im[Rho]*Im[H]*Im[Sinv]
-
-    ! T1R = transpose(T3R), T4R = transpose(T2R)
-    call pblasfx_ptran(T3R, this%denseDesc%blacsOrbSqr, T1R, this%denseDesc%blacsOrbSqr)
-    call pblasfx_ptran(T4R, this%denseDesc%blacsOrbSqr, T2R, this%denseDesc%blacsOrbSqr)
-
-    ! build the commutator combining the real and imaginary parts of the previous result
-    !$OMP WORKSHARE
-    rhoOld(:,:) = rhoOld + cmplx(0, step, dp) * (T3R + imag * T4R)&
-        & + cmplx(0, -step, dp) * (T1R - imag * T2R)
-    !$OMP END WORKSHARE
-
-  end subroutine propagateRhoRealHBlacs
-
   !> Propagate rho, notice that H = iH (coefficients are real)
   subroutine propagateRhoBlacs(this, rhoOld, rho, H1, Sinv, step)
 
@@ -2813,7 +2737,6 @@ contains
     nLocalCols = size(rho, dim=2)
     allocate(T1(nLocalRows, nLocalCols))
 
-    T1(:,:) = 0.0_dp
     call pblasfx_pgemm(Sinv, this%denseDesc%blacsOrbSqr, H1, this%denseDesc%blacsOrbSqr,&
       & T1, this%denseDesc%blacsOrbSqr)
 

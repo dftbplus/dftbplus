@@ -33,8 +33,8 @@ timeprop/GNR_kpoint_restart            #? OMP_THREADS <= 4 and not WITH_MPI and 
 timeprop/H2_singlet                    #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/H2_triplet                    #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/H2_exc_atoms                  #? OMP_THREADS <= 4 and MPI_PROCS <=2
-timeprop/C60_kick                      #? OMP_THREADS <= 4 and MPI_PROCS <=2 and LONG_TEST
-timeprop/C60_triplet                   #? OMP_THREADS <= 4 and MPI_PROCS <=2 and LONG_TEST
+timeprop/C60_kick                      #? OMP_THREADS <= 4 and MPI_PROCS <=4 and LONG_TEST
+timeprop/C60_triplet                   #? OMP_THREADS <= 4 and MPI_PROCS <=4 and LONG_TEST
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/NO_onsite                     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_kick_periodic         #? OMP_THREADS <= 4 and not WITH_MPI
