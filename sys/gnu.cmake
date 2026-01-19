@@ -71,9 +71,9 @@ set(C_FLAGS_COVERAGE "-O0 -g --coverage")
 # LAPACK and BLAS
 # (if the BLAS library contains the LAPACK functions, set LAPACK_LIBRARY to "NONE")
 #set(BLAS_LIBRARY "openblas" CACHE STRING "BLAS libraries to link")
-set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
+#set(BLAS_LIBRARY_DIR "" CACHE STRING "Directories where BLAS libraries can be found")
 #set(LAPACK_LIBRARY "NONE" CACHE STRING "LAPACK libraries to link")
-set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
+#set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 #set(ARPACK_LIBRARY "arpack" CACHE STRING "ARPACK library (with path if necessary)")
@@ -82,8 +82,8 @@ set(LAPACK_LIBRARY_DIR "" CACHE STRING "Directories where LAPACK libraries can b
 #set(PARPACK_LIBRARY "parpack" CACHE STRING "PARPACK library (with path if necessary)")
 
 # ScaLAPACK -- only needed for MPI-parallel build
-set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
-set(SCALAPACK_LIBRARY_DIR "" CACHE STRING "Directories where Scalapack libraries can be found")
+#set(SCALAPACK_LIBRARY "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
+#set(SCALAPACK_LIBRARY_DIR "" CACHE STRING "Directories where Scalapack libraries can be found")
 
 # NOTE: The libraries below provide Pkg-Conf export files.  If your PKG_CONFIG_PATH environment
 # variable has been set up correctly (containing the paths to these libraries), no adjustment should
