@@ -6,6 +6,7 @@ if (NOT WITH_MPI)
     testapp.f90)
 
   set(sources-fypp
+    interpolation.F90
     matrixops.F90)
 
   set(sources-fypp-f90)

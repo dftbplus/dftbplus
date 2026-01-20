@@ -13,17 +13,38 @@
 module dftbp_dftb_rshgamma
   use dftbp_common_accuracy, only : dp, MinHubDiff, tolSameDist
   use dftbp_common_status, only : TStatus
+  use dftbp_extlibs_dnaoad
   use dftbp_math_simplealgebra, only : cross3
 
   implicit none
   private
 
   public :: getCoulombTruncationCutoff
-  public :: getCamAnalyticalGammaValue_workhorse
-  public :: getHfAnalyticalGammaValue_workhorse, getdHfAnalyticalGammaValue_workhorse
-  public :: getLrAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse
+  public :: getCamAnalyticalGammaValue_workhorse, getHfAnalyticalGammaValue_workhorse
+  public :: getLrAnalyticalGammaValue_workhorse
+  public :: getdHfAnalyticalGammaValue_workhorse, getdLrAnalyticalGammaValue_workhorse
   public :: getddLrNumericalGammaValue_workhorse, getddHfAnalyticalGammaValue_workhorse
 
+
+  interface getYGammaSubPart
+    module procedure getYGammaSubPart_real
+    module procedure getYGammaSubPart_dual
+  end interface getYGammaSubPart
+
+  interface getCamAnalyticalGammaValue_workhorse
+    module procedure getCamAnalyticalGammaValue_real
+    module procedure getCamAnalyticalGammaValue_dual
+  end interface getCamAnalyticalGammaValue_workhorse
+
+  interface getHfAnalyticalGammaValue_workhorse
+    module procedure getHfAnalyticalGammaValue_real
+    module procedure getHfAnalyticalGammaValue_dual
+  end interface getHfAnalyticalGammaValue_workhorse
+
+  interface getLrAnalyticalGammaValue_workhorse
+    module procedure getLrAnalyticalGammaValue_real
+    module procedure getLrAnalyticalGammaValue_dual
+  end interface getLrAnalyticalGammaValue_workhorse
 
 contains
 
@@ -168,7 +189,7 @@ contains
 
 
   !> Workhorse for calculating the general CAM gamma integral.
-  function getCamAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, camAlpha, camBeta, dist)&
+  function getCamAnalyticalGammaValue_real(hubbu1, hubbu2, omega, camAlpha, camBeta, dist)&
       & result(gamma)
 
     !> Hubbard U's
@@ -196,11 +217,11 @@ contains
       gamma = gamma + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
     end if
 
-  end function getCamAnalyticalGammaValue_workhorse
+  end function getCamAnalyticalGammaValue_real
 
 
   !> Workhorse for getHfAnalyticalGammaValue wrapper in hybrid module.
-  function getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist) result(gamma)
+  function getHfAnalyticalGammaValue_real(hubbu1, hubbu2, dist) result(gamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -241,11 +262,11 @@ contains
       end if
     end if
 
-  end function getHfAnalyticalGammaValue_workhorse
+  end function getHfAnalyticalGammaValue_real
 
 
   !> Workhorse for getLrAnalyticalGammaValue wrapper in hybrid module.
-  function getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist) result(gamma)
+  function getLrAnalyticalGammaValue_real(hubbu1, hubbu2, omega, dist) result(gamma)
 
     !> Hubbard U's
     real(dp), intent(in) :: hubbu1, hubbu2
@@ -310,7 +331,175 @@ contains
       end if
     end if
 
-  end function getLrAnalyticalGammaValue_workhorse
+  end function getLrAnalyticalGammaValue_real
+
+
+    !> Workhorse for calculating the general CAM gamma integral.
+  function getCamAnalyticalGammaValue_dual(hubbu1, hubbu2, omega, camAlpha, camBeta, dist)&
+      & result(gamma)
+
+    !> Hubbard U's
+    real(dp), intent(in) :: hubbu1, hubbu2
+
+    !> Range-separation parameter
+    real(dp), intent(in) :: omega
+
+    !> CAM alpha and beta parameter
+    real(dp), intent(in) :: camAlpha, camBeta
+
+    !> Distance between atoms
+    type(dual_real64), intent(in) :: dist
+
+    !> Resulting CAM gamma
+    type(dual_real64) :: gamma
+
+    integer :: order
+
+    order = dist%order()
+    call initialize_dual(gamma, order)
+
+    if (abs(camAlpha) > 100_dp * epsilon(0.0_dp)) then
+      gamma = gamma + camAlpha * getHfAnalyticalGammaValue_workhorse(hubbu1, hubbu2, dist)
+    end if
+
+    if (abs(camBeta) > 100_dp * epsilon(0.0_dp)) then
+      gamma = gamma + camBeta * getLrAnalyticalGammaValue_workhorse(hubbu1, hubbu2, omega, dist)
+    end if
+
+  end function getCamAnalyticalGammaValue_dual
+
+
+  !> Workhorse for getHfAnalyticalGammaValue wrapper in hybrid module.
+  function getHfAnalyticalGammaValue_dual(hubbu1, hubbu2, dist) result(gamma)
+
+    !> Hubbard U's
+    real(dp), intent(in) :: hubbu1, hubbu2
+
+    !> Distance between atoms
+    type(dual_real64), intent(in) :: dist
+
+    !> Resulting gamma
+    type(dual_real64) :: gamma
+
+    real(dp) :: tau, tauA, tauB
+    type(dual_real64) :: tmp, distTauA, invDist
+    integer :: order
+
+    order = dist%order()
+    call initialize_dual(gamma, order)
+    call initialize_dual(tmp, order)
+    call initialize_dual(distTauA, order)
+    call initialize_dual(invDist, order)
+
+    tauA = 3.2_dp * hubbu1
+    tauB = 3.2_dp * hubbu2
+
+    if (dist%get_derivative(0) < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist%get_derivative(0) < tolSameDist) then
+      ! on-site case
+      tau = 0.5_dp * (tauA + tauB)
+      gamma = tau * 0.3125_dp
+    else
+      invDist = 1.0_dp / dist
+      ! off-site case, Ua == Ub
+      if (abs(tauA - tauB) < MinHubDiff) then
+        tauA = 0.5_dp * (tauA + tauB)
+        distTauA = dist * tauA
+        tmp = (distTauA**3 / 48.0_dp + 0.1875_dp * distTauA**2 + 0.6875_dp * distTauA + 1.0_dp)&
+            & * exp(-tauA * dist) * invDist
+        gamma = invDist - tmp
+      ! off-site, Ua != Ub
+      else
+        gamma = invDist&
+            & - getYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
+            & - getYGammaSubPart(tauB, tauA, dist, 0.0_dp)
+      end if
+    end if
+
+  end function getHfAnalyticalGammaValue_dual
+
+
+  !> Workhorse for getLrAnalyticalGammaValue wrapper in hybrid module.
+  function getLrAnalyticalGammaValue_dual(hubbu1, hubbu2, omega, dist) result(gamma)
+
+    !> Hubbard U's
+    real(dp), intent(in) :: hubbu1, hubbu2
+
+    !> Range-separation parameter
+    real(dp), intent(in) :: omega
+
+    !> Distance between atoms
+    type(dual_real64), intent(in) :: dist
+
+    !> Resulting gamma
+    type(dual_real64) :: gamma
+
+    real(dp) :: tauA, tauB
+    type(dual_real64) :: distTau, distTauA, invDist, prefac, tmp, tmp2
+    real(dp) :: tau, omega2
+    integer :: order
+
+    order = dist%order()
+    call initialize_dual(gamma, order)
+    call initialize_dual(distTau, order)
+    call initialize_dual(distTauA, order)
+    call initialize_dual(invDist, order)
+    call initialize_dual(prefac, order)
+    call initialize_dual(tmp, order)
+    call initialize_dual(tmp2, order)
+
+    omega2 = omega**2
+
+    tauA = 3.2_dp * hubbu1
+    tauB = 3.2_dp * hubbu2
+
+    if (dist%get_derivative(0) < tolSameDist) then
+      @:ASSERT(abs(tauA - tauB) < MinHubDiff)
+    end if
+
+    if (dist%get_derivative(0) < tolSameDist) then
+      ! on-site case
+      tau = 0.5_dp * (tauA + tauB)
+      tmp = 5.0_dp * tau**6 + 15.0_dp * tau**4 * omega2 - 5.0_dp * tau**2 * omega**4 + omega**6
+      tmp = tmp * 0.0625_dp - omega * tau**5
+      tmp = tmp * tau**3 / (tau**2 - omega2)**4
+      gamma = tau * 0.3125_dp - tmp
+    else
+      invDist = 1.0_dp / dist
+      ! off-site case, Ua == Ub
+      if (abs(tauA - tauB) < MinHubDiff) then
+        tauA = 0.5_dp * (tauA + tauB)
+        distTauA = dist * tauA
+        tmp2 = (distTauA**3 / 48.0_dp + 0.1875_dp * distTauA**2 +&
+            & 0.6875_dp * distTauA + 1.0_dp) * exp(-tauA * dist) * invDist
+        tmp = -tauA**8 / (tauA**2 - omega2)**4 * (tmp2 + exp(-tauA * dist) * &
+            & (dist**2 * (3.0_dp * tauA**4 * omega**4 - 3.0_dp * tauA**6 * omega2 - &
+            & tauA**2 * omega**6) + dist * (15.0_dp * tauA**3 * omega**4 - &
+            & 21.0_dp * tauA**5 * omega2 - 3.0_dp * tauA * omega**6) + &
+            & (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega2 - &
+            & 3.0_dp * omega**6)) / (48.0_dp * tauA**5))
+        gamma = 1.0_dp/dist - tmp2 - (tauA**8 / (tauA**2 - omega2)**4 *&
+            & exp(-omega * dist) * invDist + tmp)
+      else
+        ! off-site, Ua != Ub
+        prefac = tauA**4 / (tauA**2 - omega2)**2
+        prefac = prefac * tauB**4 / (tauB**2 - omega2)**2
+        prefac = prefac * exp(-omega * dist) * invDist
+        tmp = prefac&
+            & - getYGammaSubPart(tauA, tauB, dist, omega)&
+            & - getYGammaSubPart(tauB, tauA, dist, omega)
+        tmp = invDist - tmp
+        tmp = tmp&
+            & - getYGammaSubPart(tauA, tauB, dist, 0.0_dp)&
+            & - getYGammaSubPart(tauB, tauA, dist, 0.0_dp)
+        gamma = tmp
+      end if
+    end if
+
+  end function getLrAnalyticalGammaValue_dual
 
 
   !> Returns analytical derivative of full-range Hartree-Fock gamma.
@@ -516,7 +705,7 @@ contains
 
 
   !> Returns the subexpression for the evaluation of the off-site Y-Gamma-integral.
-  pure function getYGammaSubPart(tauA, tauB, dist, omega) result(yGamma)
+  pure function getYGammaSubPart_real(tauA, tauB, dist, omega) result(yGamma)
 
     !> Decay constant site A
     real(dp), intent(in) :: tauA
@@ -543,7 +732,43 @@ contains
     tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB**2 - tauA**2)**2 - tmp
     yGamma = tmp * exp(-tauA * dist)
 
-  end function getYGammaSubPart
+  end function getYGammaSubPart_real
+
+
+  !> Returns the subexpression for the evaluation of the off-site Y-Gamma-integral.
+  pure function getYGammaSubPart_dual(tauA, tauB, dist, omega) result(yGamma)
+
+    !> Decay constant site A
+    real(dp), intent(in) :: tauA
+
+    !> Decay constant site B
+    real(dp), intent(in) :: tauB
+
+    !> Separation of the sites A and B
+    type(dual_real64), intent(in) :: dist
+
+    !> Range-separation parameter
+    real(dp), intent(in) :: omega
+
+    !> Resulting off-site Y-Gamma-integral
+    type(dual_real64) :: yGamma
+
+    type(dual_real64) :: prefac, tmp
+    integer :: order
+
+    order = dist%order()
+    call initialize_dual(prefac, order)
+    call initialize_dual(tmp, order)
+
+    tmp = (tauA - omega)
+    tmp = tmp * (tauA + omega)
+    prefac = tauA**2 / tmp
+    tmp = (tauB**6 - 3.0_dp * tauA**2 * tauB**4 + 2.0_dp * omega**2 * tauB**4) / dist
+    tmp = tmp * prefac * prefac / (tauA**2 - tauB**2)**3
+    tmp = tauA * tauB**4 * 0.5_dp * prefac / (tauB**2 - tauA**2)**2 - tmp
+    yGamma = tmp * exp(-tauA * dist)
+
+  end function getYGammaSubPart_dual
 
 
   !> Returns the derivative of the subexpression for the evaluation of the off-site
