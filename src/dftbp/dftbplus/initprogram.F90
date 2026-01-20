@@ -282,6 +282,9 @@ module dftbp_dftbplus_initprogram
     !> ADT for neighbour parameters, symmetric version for CAM calculations
     type(TAuxNeighbourList), allocatable :: symNeighbourList
 
+    !> ADT for neighbour parameters, for dispersion and transport calculations
+    type(TAuxNeighbourList), allocatable :: extndDisprtnNeighbourList
+
     !> Nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, allocatable :: nNeighbourSK(:)
 
@@ -2854,6 +2857,20 @@ contains
       end if
 
     end if
+
+  #:if WITH_TRANSPORT
+    if (this%transpar%nCont /= 0) then
+      ! Set up storage for extended geometries used by transport
+
+      if (allocated(this%dispersion)) then
+        call initAuxDispGeometry_(this%extndDisprtnNeighbourList, this%transpar, this%nAtom,&
+            & this%nAllAtom, this%coord0, this%species0, this%dispersion%getRCutOff(),&
+            & nInitNeighbour)
+        call writeXYZAuxGeometry(env, this%extndDisprtnNeighbourList, input%geom%speciesNames)
+      end if
+
+    end if
+  #:endif
 
     call this%initializeCharges(errStatus, initialSpins=input%ctrl%initialSpins,&
         & initialCharges=input%ctrl%initialCharges, hybridXcAlg=this%hybridXcAlg)
@@ -6944,11 +6961,6 @@ contains
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
 
-    real(dp), allocatable :: tmpCoords0(:,:)
-    integer, allocatable :: tmpSpecies0(:), nExtraContAtoms(:)
-    integer :: iCont, nContAts, iStart, iEnd, iStart2, iStructOffSet, iAt
-    real(dp) :: contactVector(3)
-
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
 
@@ -6972,44 +6984,6 @@ contains
 
     coord0 = input%geom%coords
     species0 = input%geom%species
-
-    if (transpar%ncont > 0) then
-      ! Extend contact regions for dispersion interaction distance, note that this introduces a
-      ! truncation error, so should not be currently used
-      allocate(nExtraContAtoms(transpar%ncont), source=0)
-      do iCont = 1, transpar%ncont
-        nExtraContAtoms(iCont) = transpar%contacts(iCont)%idxrange(2) + 1&
-            & - transpar%contacts(iCont)%idxrange(1)
-      end do
-      allocate(tmpCoords0(3, nAtom + sum(nExtraContAtoms)))
-      allocate(tmpSpecies0(nAtom + sum(nExtraContAtoms)))
-      tmpCoords0(:, :nAtom) = coord0
-      tmpSpecies0(:nAtom) = species0
-      iStructOffSet = nAtom
-      do iCont = 1, transpar%ncont
-        iStart = transpar%contacts(iCont)%idxrange(1)
-        iEnd = transpar%contacts(iCont)%idxrange(2)
-        iStart2 = iStart + (iEnd - iStart + 1) / 2
-        ! Vector pointing into contact, away from device:
-        contactVector(:) = 2.0_dp * (coord0(:,iStart2) - coord0(:,iStart))
-        tmpSpecies0(iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
-            & species0(transpar%contacts(iCont)%idxrange(1) : transpar%contacts(iCont)%idxrange(2))
-        tmpCoords0(:, iStructOffSet+1:iStructOffSet+nExtraContAtoms(iCont)) =&
-            & coord0(:,transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(2))
-        do iAt = iStructOffSet+1, iStructOffSet+nExtraContAtoms(iCont)
-          tmpCoords0(:, iAt) = tmpCoords0(:, iAt) + contactVector
-        end do
-        iStructOffSet = iStructOffSet + nExtraContAtoms(iCont)
-      end do
-      block
-        use dftbp_io_formatout, only : writeXYZFormat
-        if (env%tGlobalLead) then
-          call writeXYZFormat("contactedTmp.xyz", tmpCoords0, tmpSpecies0, input%geom%speciesNames)
-        end if
-      end block
-      deallocate(tmpCoords0)
-      deallocate(tmpSpecies0)
-    end if
 
     tCoordsChanged = .true.
 
@@ -7035,6 +7009,114 @@ contains
     call boundaryCond%handleBoundaryChanges(latVec, invLatVec, recVec, cellVol, recCellVol)
 
   end subroutine initGeometry_
+
+
+  !> Set-up auxiliary geometry for dispersion with transport
+  subroutine initAuxDispGeometry_(extndDisprtnNeighbourList, transpar, nAtom, nAllAtom, coord0,&
+      & species0, cutOff, nInitNeighbour)
+
+    !> ADT for neighbour parameters
+    type(TAuxNeighbourList), allocatable, intent(inout) :: extndDisprtnNeighbourList
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    !> Number of unique atoms in the system
+    integer, intent(out) :: nAtom
+
+    !> Number of atoms including images in the system
+    integer, intent(out) :: nAllAtom
+
+    !> Coordinates of the central cell atoms
+    real(dp), allocatable, intent(in) :: coord0(:,:)
+
+    !> Species of the central cell atoms
+    integer, allocatable, intent(in) :: species0(:)
+
+    !> Distance at which contact atoms stop interacting with the device region
+    real(dp), intent(in) :: cutOff
+
+    !> First guess for nr. of neighbours
+    integer, intent(in) :: nInitNeighbour
+
+    integer, allocatable :: nExtraContAtoms(:), nRepeat(:)
+    integer :: iCont, nContAts, iStart, iEnd, iStart2, iStructOffSet, iAt, iRepeat, nContAt
+    real(dp) :: contactVector(3)
+
+    allocate(extndDisprtnNeighbourList)
+
+    call TAuxNeighbourList_init(extndDisprtnNeighbourList, nAtom, nAllAtom, nInitNeighbour)
+
+    ! Store cutoff used to extend contacts
+    extndDisprtnNeighbourList%cutOff = cutOff
+
+    ! Count atoms in extend contact regions for dispersion up to the interaction distance
+    allocate(nExtraContAtoms(transpar%ncont), source=0)
+    allocate(nRepeat(transpar%ncont), source=0)
+    do iCont = 1, transpar%ncont
+      iStart = transpar%contacts(iCont)%idxrange(1)
+      iEnd = transpar%contacts(iCont)%idxrange(2)
+      iStart2 = iStart + (iEnd - iStart + 1) / 2
+      ! Vector pointing into contact, away from device:
+      contactVector(:) = coord0(:,iStart2) - coord0(:,iStart)
+      ! As there are 2 principal layers already in coord0 :
+      nRepeat(iCont) = ceiling(cutOff/norm2(contactVector)) - 2
+      nExtraContAtoms(iCont) = nRepeat(iCont) * (iStart2 - iStart)
+    end do
+
+    extndDisprtnNeighbourList%nAtom0 = nAtom + sum(nExtraContAtoms)
+    allocate(extndDisprtnNeighbourList%coord0(3, extndDisprtnNeighbourList%nAtom0),&
+        & source=0.0_dp)
+    allocate(extndDisprtnNeighbourList%Species0(extndDisprtnNeighbourList%nAtom0), source=0)
+    ! Store existing geometry
+    extndDisprtnNeighbourList%coord0(:, :nAtom) = coord0
+    extndDisprtnNeighbourList%Species0(:nAtom) = species0
+
+    ! Store extra atoms on ends of contacts
+    iStructOffSet = nAtom
+    do iCont = 1, transpar%ncont
+      iStart = transpar%contacts(iCont)%idxrange(1)
+      iEnd = transpar%contacts(iCont)%idxrange(2)
+      iStart2 = iStart + (iEnd - iStart + 1) / 2
+      nContAt = iStart2 - iStart
+      ! Vector pointing into contact, away from device:
+      contactVector(:) = coord0(:,iStart2) - coord0(:,iStart)
+      do iRepeat = 1, nRepeat(iCont)
+        extndDisprtnNeighbourList%Species0(iStructOffSet+1:iStructOffSet+nContAt) =&
+            & species0(transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(1)&
+            & + nContAt-1)
+        extndDisprtnNeighbourList%coord0(:, iStructOffSet+1:iStructOffSet+nContAt) =&
+            & coord0(:,transpar%contacts(iCont)%idxrange(1):transpar%contacts(iCont)%idxrange(1)&
+            & + nContAt-1)
+        do iAt = iStructOffSet+1, iStructOffSet+nContAt
+          extndDisprtnNeighbourList%coord0(:, iAt) = extndDisprtnNeighbourList%coord0(:, iAt)&
+              & + real(iRepeat,dp) * contactVector
+        end do
+        iStructOffSet = iStructOffSet + nContAt
+      end do
+    end do
+
+  end subroutine initAuxDispGeometry_
+
+
+  subroutine writeXYZAuxGeometry(env, extndDisprtnNeighbourList, speciesNames)
+    use dftbp_io_formatout, only : writeXYZFormat
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> ADT for neighbour parameters
+    type(TAuxNeighbourList), intent(in) :: extndDisprtnNeighbourList
+
+    !> Names of chemical species
+    character(*), intent(in) :: speciesNames(:)
+
+    if (env%tGlobalLead) then
+      call writeXYZFormat("contactedTmp.xyz", extndDisprtnNeighbourList%coord0,&
+          & extndDisprtnNeighbourList%Species0, speciesNames)
+    end if
+
+  end subroutine writeXYZAuxGeometry
 
 
   !> Initializes short gamma damping
