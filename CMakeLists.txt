@@ -82,6 +82,10 @@ else()
   set(WITH_MAGMA FALSE)
 endif()
 
+if(WITH_ELSI AND WITH_ELPA)
+  message(FATAL_ERROR "You must not enable both WITH_ELSI and WITH_ELPA")
+endif()
+
 if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
   find_package(elsi ${ELSI_MIN_VERSION} REQUIRED)
