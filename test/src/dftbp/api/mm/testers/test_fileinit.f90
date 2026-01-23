@@ -38,7 +38,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -70,7 +71,8 @@ contains
       !call TDftbPlus_init(dftbp, outputUnit=devNull)
       call TDftbPlus_init(dftbp)
 
-      ! You should provide the dftb_in.hsd and skfile found in the test/app/dftb+/non-scc/Si_2/ folder
+      ! You should provide the dftb_in.hsd and skfile found in the test/app/dftb+/non-scc/Si_2/
+      ! folder
       call dftbp%getInputFromFile("dftb_in.hsd", input)
       call dftbp%setupCalculator(input)
 
@@ -112,8 +114,8 @@ contains
     end do
 
     ! Write file for internal test system
-    call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges,&
-        & stressTensor=stressTensor)
+    call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients,&
+        & grossCharges=grossCharges, stressTensor=stressTensor)
 
   end subroutine main_
 

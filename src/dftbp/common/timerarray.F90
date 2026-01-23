@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> Machinery for timers for code
 module dftbp_common_timerarray
   use dftbp_common_accuracy, only : dp
   use dftbp_common_globalenv, only : stdOut

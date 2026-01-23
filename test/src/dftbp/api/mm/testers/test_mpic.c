@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
   if (world_rank == 0) {
     /* Save some data for the internal test system */
     dftbp_write_autotest_tag(nAtom, 0, 0, mermin_energy, gradients, NULL, charges, NULL,
-                             NULL, NULL);
+                             NULL, NULL, NULL, NULL);
   }
 
   free(gradients);

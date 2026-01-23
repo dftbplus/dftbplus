@@ -8,7 +8,7 @@
 /**
  * Demonstrates the API with population dependant external potentials.
  *
- * Use it with the input in the qdepextpot/ folder.
+ * Use it with the input in the qdepextpotc/ folder.
  */
 
 #include <stdio.h>
@@ -267,7 +267,7 @@ int main()
 
 
   /* Save some data for the internal test system */
-  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL, NULL);
+  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, 0, mermin_energy, gradients, NULL, charges, NULL, NULL, NULL, NULL, NULL);
 
   free(gradients);
   free(charges);

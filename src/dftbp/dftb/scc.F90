@@ -14,7 +14,7 @@ module dftbp_dftb_scc
   use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_chargepenalty, only : TChrgPenalty, TChrgPenalty_init
   use dftbp_dftb_charges, only : getSummedCharges
-  use dftbp_dftb_coulomb, only : invRPrime, TCoulomb, TCoulomb_init, TCoulombInput
+  use dftbp_dftb_coulomb, only : TCoulomb, TCoulomb_init, TCoulombInput
   use dftbp_dftb_extcharges, only : TExtCharges, TExtCharges_init
   use dftbp_dftb_periodic, only : TNeighbourList
   use dftbp_dftb_shortgamma, only : TShortGamma, TShortGamma_init, TShortGammaInput
@@ -154,6 +154,9 @@ module dftbp_dftb_scc
     !> Set external charge field
     procedure :: setExternalCharges
 
+    !> Return information on external charges
+    procedure :: getExternalCharges
+
     !> Update potential shifts
     procedure :: updateShifts
 
@@ -205,6 +208,9 @@ module dftbp_dftb_scc
 
     !> Get Q * inverse R contribution for the point charges
     procedure :: getShiftOfPC
+
+    !> Calculate derivative of shift due to the extcharges, w.r.t. coords of an atom or an extcharge
+    procedure :: getExtShiftDerivative
 
     !> Triggers all instructions which must be done once the SCC-loop had been finished
     procedure :: finishSccLoop
@@ -299,14 +305,14 @@ contains
 
 
   !> Returns a minimal cutoff for the neighbourlist, which must be passed to various functions in
-  !> this module.
+  !! this module.
   function getCutOff(this) result(cutoff)
 
     !> Instance
     class(TScc), intent(in) :: this
 
-    !> The neighbourlists, passed to scc routines, should contain neighbour information at
-    !> least up to that cutoff.
+    !> The neighbourlists, passed to scc routines, should contain neighbour information at least up
+    !! to that cutoff.
     real(dp) :: cutoff
 
     @:ASSERT(this%tInitialised)
@@ -531,10 +537,39 @@ contains
   end subroutine setExternalCharges
 
 
+  !> Get external charge information
+  subroutine getExternalCharges(this, nCharge, chargeCoords, chargeQs, blurWidths)
+
+    !> Instance
+    class(TScc), intent(inout) :: this
+
+    !> Number of external charges
+    integer, intent(out) :: nCharge
+
+    !> Coordinates of external charges
+    real(dp), allocatable, intent(out) :: chargeCoords(:,:)
+
+    !> Magnitudes of external charges
+    real(dp), allocatable, intent(out) :: chargeQs(:)
+
+    !> Spatial extension of external charge distribution
+    real(dp), allocatable, intent(out), optional :: blurWidths(:)
+
+    if (.not. allocated(this%extCharges)) then
+      nCharge = 0
+      @:ASSERT(this%extCharges%getNumCharges() == 0)
+    else
+      nCharge = this%extCharges%getNumCharges()
+      call this%extCharges%getExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    end if
+
+  end subroutine getExternalCharges
+
+
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
-  !>
-  !> Works only, if SCC-instance uses Gamma-electrostatics.
-  !>
+  !!
+  !! Works only, if SCC-instance uses Gamma-electrostatics.
+  !!
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
     !> Instance
@@ -615,9 +650,9 @@ contains
 #:endif
   
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
-  !>
-  !> Works only, if SCC-instance uses Gamma-electrostatics.
-  !>
+  !!
+  !! Works only, if SCC-instance uses Gamma-electrostatics.
+  !!
   subroutine getAtomicGammaMatU(this, gammamat, hubbU, species, iNeighbour, img2CentCell)
 
     !> Instance
@@ -694,10 +729,10 @@ contains
 
 
   !> Calculates SCC energy contribution using the linearized XLBOMD form.
-  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
-  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
-  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
-  !> therefore these are passed in as an extra variable.
+  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !! the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !! build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !! therefore these are passed in as an extra variable.
   subroutine getEnergyPerAtomXlbomd(this, species, orb, qOut, q0, eScc)
 
     !> Resulting module variables
@@ -755,7 +790,7 @@ contains
 
 
   !> Calculates the contribution of the charge consistent part to the forces for molecules/clusters,
-  !> which is not covered in the term with the shift vectors.
+  !! which is not covered in the term with the shift vectors.
   subroutine addForceDc(this, env, force, species, iNeighbour, img2CentCell, chrgForce)
 
     !> Resulting module variables
@@ -777,7 +812,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Force contribution due to the external charges, which is not contained in the term with the
-    !> shift vectors.
+    !! shift vectors.
     real(dp), intent(inout), optional :: chrgForce(:,:)
 
     real(dp), allocatable :: tmpDerivs(:,:)
@@ -808,7 +843,7 @@ contains
 
 
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
-  !> shift vectors.
+  !! shift vectors.
   subroutine addStressDc(this, st, env, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
@@ -850,7 +885,7 @@ contains
 
 
   !> Returns the shift per atom coming from the SCC part
-  subroutine getShiftPerAtom(this, shift)
+  subroutine getShiftPerAtom(this, shift, isOnlyInternalShifts)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -858,21 +893,31 @@ contains
     !> Contains the shift on exit.
     real(dp), intent(out) :: shift(:)
 
+    !> Should only internal coulombic shifts be included
+    logical, intent(in), optional :: isOnlyInternalShifts
+
+    logical :: isAll
+
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
+
+    isAll = .true.
+    if (present(isOnlyInternalShifts)) isAll = .not. isOnlyInternalShifts
 
     shift(:) = this%shiftPerAtom
     if (this%elstatType == elstatTypes%gammaFunc) then
       call this%coulomb%addShiftPerAtom(shift)
     end if
-    if (allocated(this%extCharges)) then
-      call this%extCharges%addShiftPerAtom(shift)
-    end if
-    if (this%tChrgPenalty) then
-      call this%chrgPenalties%addShiftPerAtom(shift)
-    end if
     if (this%tThirdOrder) then
       call this%thirdOrder%addShiftPerAtom(shift)
+    end if
+    if (isAll) then
+      if (allocated(this%extCharges)) then
+        call this%extCharges%addShiftPerAtom(shift)
+      end if
+      if (this%tChrgPenalty) then
+        call this%chrgPenalties%addShiftPerAtom(shift)
+      end if
     end if
 
   end subroutine getShiftPerAtom
@@ -941,23 +986,18 @@ contains
     call this%shortGamma%getShiftPerShellDerivative(env, iAt, iCart, orb, this%coord, species,&
         & iNeighbour, img2CentCell, vShell)
 
+    vAt(:) = 0.0_dp
     ! 1/R contribution
-    if (this%tPeriodic) then
-      call error("Missing at moment")
-    !  call invRPrime(vAt, nAtom_, coord, nNeighEwald_, iNeighbour, img2CentCell, gLatPoint_,&
-    !      & alpha_, volume_, deltaQAtom_, iCart, iAt)
-    else
-      call invRPrime(this%nAtom, this%coord, this%deltaQAtom, iCart, iAt, vAt)
-    end if
+    call this%coulomb%invRPrime(iCart, iAt, vAt)
 
   end subroutine addPotentialDeriv
 
 
   !> Calculate the "double counting" force term using linearized XLBOMD form.
-  !> Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
-  !> the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
-  !> build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
-  !> therefore these are passed in as an extra variable.
+  !! Note: When SCC is driven in XLBOMD mode, the charges should NOT be updated after diagonalizing
+  !! the Hamiltonian, so the charge stored in the module are the input (auxiliary) charges, used to
+  !! build the Hamiltonian.  However, the linearized energy expession needs also the output charges,
+  !! therefore these are passed in as an extra variable.
   subroutine addForceDcXlbomd(this, env, species, orb, iNeighbour, img2CentCell, qOrbitalOut,&
       & q0, force)
 
@@ -1090,6 +1130,32 @@ contains
   end subroutine getExternalElStatPotential
 
 
+  !> Calculate the derivative of shift due to the external charges, with respect to coordinates
+  !! of an atom
+  subroutine getExtShiftDerivative(this, env, extShiftDerivative, iAtom, atomCoords)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Derivative (gradient) of shift of every atom w.r.t. coords of iAtom (3, nAtom, nAtom)
+    real(dp), intent(out) :: extShiftDerivative(:,:)
+
+    !> Differentiate with respect to coordinates of this atom
+    integer, intent(in) :: iAtom
+
+    !> Coordinates of the atoms.
+    real(dp), intent(in) :: atomCoords(:,:)
+
+    if (allocated(this%extCharges)) then
+      call this%extCharges%getExtShiftDerivative(env, extShiftDerivative, iAtom, atomCoords)
+    end if
+
+  end subroutine getExtShiftDerivative
+
+
   !> Calculate gamma integral derivatives in SCC part
   subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, gammaDeriv)
 
@@ -1108,8 +1174,7 @@ contains
     !> Indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> Atom resolved scc gamma derivative, \gamma_{A,B}
-    !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
+    !> Atom resolved scc gamma derivative, \gamma_{A,B}: gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
     real(dp), intent(out) :: gammaDeriv(:,:,:)
 
     if (this%elstatType /= elstatTypes%gammaFunc) then

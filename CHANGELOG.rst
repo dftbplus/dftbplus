@@ -8,6 +8,7 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+
 Added
 -----
 
@@ -25,6 +26,12 @@ Added
 
 - Periodic geometry halogen corrections
 
+- DFTB3 model coupled-perturbed atom derivatives
+
+- Coupled-perturbed derivatives with respect to external (MM) charges
+
+- API bindings for coupled-perturbed derivatives
+
 
 Changed
 -------
@@ -33,6 +40,7 @@ Changed
 
 - Improve control for single-shot transport calculations in cases
   where charges are read from a file
+
 
 Fixed
 -----

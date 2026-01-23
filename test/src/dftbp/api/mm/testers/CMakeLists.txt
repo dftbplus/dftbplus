@@ -52,6 +52,12 @@ if(WITH_C_EXECUTABLES)
     target_link_libraries(test_mpiexpdmhsz dftbplus MPI::MPI_C Scalapack::Scalapack LAPACK::LAPACK)
     set_target_properties(test_mpiexpdmhsz PROPERTIES LINKER_LANGUAGE C)
 
+  else()
+
+    add_executable(test_responsesc test_responsesc.c $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_responsesc dftbplus)
+    set_target_properties(test_responsesc PROPERTIES LINKER_LANGUAGE C)
+
   endif()
 
 endif()
@@ -125,5 +131,10 @@ if(WITH_MPI)
       endif()
     endif()
   endforeach()
+
+else()
+
+  add_executable(test_responses test_responses.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+  target_link_libraries(test_responses dftbplus)
 
 endif()

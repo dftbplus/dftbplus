@@ -550,6 +550,76 @@ contains
   end function c_DftbPlus_nrOfAtoms
 
 
+  !> Obtain coordinates of atoms in the calculator
+  subroutine c_DftbPlus_getCoordinates(handler, coordinates) bind(C, name='dftbp_get_coordinates')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Coordinates, row major format
+    type(c_ptr), value :: coordinates
+
+    type(TDftbPlusC), pointer :: instance
+
+    integer :: nAtom
+    real(c_double), pointer :: ptr_coordinates(:,:)
+    real(dp), allocatable :: coords(:,:)
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call c_f_pointer(coordinates, ptr_coordinates, [3, nAtom])
+    call instance%getGeometry(coords=coords)
+    ptr_coordinates(:,:) = coords
+
+  end subroutine c_DftbPlus_getCoordinates
+
+
+  !> Obtain lattice vectors, if periodic
+  subroutine c_DftbPlus_getlatVecs(handler, isperiodic, latVecs) bind(C, name='dftbp_get_latvecs')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Is this a periodic calculation
+    logical(kind=C_BOOL), intent(out) :: isPeriodic
+
+    !> Lattice vectors if periodic, null otherwise
+    type(c_ptr), value :: latVecs
+
+    type(TDftbPlusC), pointer :: instance
+    real(c_double), pointer :: ptr_latvecs(:,:)
+    real(dp), allocatable :: latticeVectors(:,:)
+
+    call c_f_pointer(handler%instance, instance)
+    call instance%getGeometry(latVecs=latticeVectors)
+    isPeriodic = allocated(latticeVectors)
+    if (isPeriodic) then
+      call c_f_pointer(latVecs, ptr_latvecs, [3, 3])
+      ptr_latvecs(:,:) = latticeVectors
+    else
+      latVecs = c_null_ptr
+    end if
+
+  end subroutine c_DftbPlus_getlatVecs
+
+
+  !> Obtain nr. of external (non-QM) charges in the calculation.
+  function c_DftbPlus_nrOfExtCharges(handler) result(nChrg) bind(C, name='dftbp_get_nr_extchrg')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of external (non-QM) charges in the system
+    integer(c_int) :: nChrg
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nChrg = instance%nrOfExternalCharges()
+
+  end function c_DftbPlus_nrOfExtCharges
+
+
   !> Obtain nr. of spin channels.
   function c_DftbPlus_nrOfSpin(handler) result(nSpin) bind(C, name='dftbp_get_nr_spin')
 
@@ -697,6 +767,100 @@ contains
     call instance%getAtomicMasses(masses(:nAtom))
 
   end subroutine c_DftbPlus_get_atom_masses
+
+
+  !> Obtain the gradients wrt DFTB atom positions and/or external charges for selected atoms/charges
+  subroutine c_DftbPlus_getChargeDerivativesSelect(handler, nAtomsWRT, atomsWRT, dqdx,&
+      & nExtChrgWRT, extChrgWRT, dqdxExt) bind(C, name='dftbp_get_charge_derivatives_select')
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    !> number of atoms to calculate the derivatives of w.r.t. their coordinates
+    integer(c_int), value, intent(in) :: nAtomsWRT
+    !> list of atoms to calculate the derivatives w.r.t. their positions
+    type(c_ptr), value, intent(in) :: atomsWRT
+    !> derivatives w.r.t. coords of atoms, row major format
+    type(c_ptr), value, intent(in) :: dqdx
+    !> number of MM atoms to calculate the derivatives of charges w.r.t. coordinates of those MM
+    !! atoms
+    integer(c_int), value, intent(in) :: nExtChrgWRT
+    !> list of MM atoms to calculate the derivatives of charges w.r.t. coordinates of those MM atoms
+    type(c_ptr), value, intent(in) :: extChrgWRT
+    !> derivatives w.r.t. coords of external point charges, row major format
+    type(c_ptr), value, intent(in) :: dqdxExt
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+    real(c_double), pointer :: ptr_dqdx(:,:,:), ptr_dqdxExt(:,:,:)
+    integer(c_int), pointer :: ptr_atomsWRT(:), ptr_extChrgWRT(:)
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+
+    if (nAtomsWRT > 0) then
+      call c_f_pointer(atomsWRT, ptr_atomsWRT, [nAtomsWRT])
+      call c_f_pointer(dqdx, ptr_dqdx, [nAtom, 3, nAtomsWRT])
+    end if
+
+    if (nExtChrgWRT > 0) then
+      call c_f_pointer(extChrgWRT, ptr_extChrgWRT, [nExtChrgWRT])
+      call c_f_pointer(dqdxExt, ptr_dqdxExt, [nAtom, 3, nExtChrgWRT])
+    end if
+
+    if (nAtomsWRT > 0 .and. nExtChrgWRT > 0) then
+      call instance%getChargeDerivatives(dqdx=ptr_dqdx, wrtAtoms=ptr_atomsWRT, dqdxExt=ptr_dqdxExt,&
+          & dxExtCharges=ptr_extChrgWRT)
+    else if (nAtomsWRT > 0) then
+      call instance%getChargeDerivatives(dqdx=ptr_dqdx, wrtAtoms=ptr_atomsWRT)
+    else if (nExtChrgWRT > 0) then
+      call instance%getChargeDerivatives(dqdxExt=ptr_dqdxExt, dxExtCharges=ptr_extChrgWRT)
+    end if
+
+  end subroutine c_DftbPlus_getChargeDerivativesSelect
+
+
+  !> Obtain the gradients wrt DFTB atom positions
+  subroutine c_DftbPlus_get_dCharge_dxAtom(handler, dqdx) bind(C, name='dftbp_get_charge_dxatom')
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    !> derivatives w.r.t. coords of atoms, row major format
+    type(c_ptr), value, intent(in) :: dqdx
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+    real(c_double), pointer :: ptr_dqdx(:,:,:)
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+
+    if (nAtom > 0) then
+      call c_f_pointer(dqdx, ptr_dqdx, [nAtom, 3, nAtom])
+      call instance%getChargeDerivatives(dqdx=ptr_dqdx)
+    end if
+
+  end subroutine c_DftbPlus_get_dCharge_dxAtom
+
+
+  !> Obtain the gradients wrt external charges
+  subroutine c_DftbPlus_get_dCharge_dxExt(handler, dqdxExt) bind(C, name='dftbp_get_charge_dxext')
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+    !> derivatives w.r.t. coords of external point charges, row major format
+    type(c_ptr), value, intent(in) :: dqdxExt
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom, nExtChrg
+    real(c_double), pointer :: ptr_dqdxExt(:,:,:)
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    nExtChrg = instance%nrOfExternalCharges()
+
+    if (nAtom > 0 .and. nExtChrg > 0) then
+      call c_f_pointer(dqdxExt, ptr_dqdxExt, [nAtom, 3, nExtChrg])
+      call instance%getChargeDerivatives(dqdxExt=ptr_dqdxExt)
+    end if
+
+  end subroutine c_DftbPlus_get_dCharge_dxExt
 
 
   !> Obtain nr. basis functions at each atoms in the DFTB+ calculation.
@@ -886,6 +1050,64 @@ contains
     call instance%setRefCharges(refCharges(1:nAtom))
 
   end subroutine c_DftbPlus_setRefCharge
+
+
+  !> Set external charges
+  subroutine c_DftbPlus_setExternalCharges(handler, nExtCharges, chargeCoords, charges)&
+      & bind(C, name='dftbp_set_external_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of external charges
+    integer(c_int), value, intent(in) :: nExtCharges
+
+    !> Coordinates of all charges
+    real(c_double), intent(in) :: chargeCoords(3, *)
+
+    !> Charges
+    real(c_double), intent(in) :: charges(*)
+
+    !> F pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    call instance%setExternalCharges(chargeCoords(:, 1:nExtCharges), charges(1:nExtCharges))
+
+  end subroutine c_DftbPlus_setExternalCharges
+
+
+  !> Set external charges with bluring
+  subroutine c_DftbPlus_setBlurredExternalCharges(handler, nExtCharges, chargeCoords, charges,&
+      & blurWidths) bind(C, name='dftbp_set_blurred_external_charges')
+
+    !> Handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> Number of external charges
+    integer(c_int), value, intent(in) :: nExtCharges
+
+    !> Coordinates of all charges
+    real(c_double), intent(in) :: chargeCoords(3, *)
+
+    !> Charges
+    real(c_double), intent(in) :: charges(*)
+
+    !> Blur-widths for charges
+    real(c_double), intent(in) :: blurWidths(*)
+
+    !> F pointer of input arguments
+    type(TDftbPlusC), pointer :: instance
+
+    ! translate c to f objects
+    call c_f_pointer(handler%instance, instance)
+
+    call instance%setExternalCharges(chargeCoords(:, 1:nExtCharges), charges(1:nExtCharges),&
+        & blurWidths(1:nExtCharges))
+
+  end subroutine c_DftbPlus_setBlurredExternalCharges
 
 
   !> Finalizer for TDftbPlusC

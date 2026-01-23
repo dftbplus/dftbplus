@@ -47,7 +47,7 @@ int main() {
 
   cout << "Mermin free energy: " << mermin_energy << " H\n";
 
-  dftbp_write_autotest_tag(natom, 0, 0, mermin_energy, NULL, NULL, NULL, NULL, NULL, NULL);
+  dftbp_write_autotest_tag(natom, 0, 0, mermin_energy, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
   return 0;
 }

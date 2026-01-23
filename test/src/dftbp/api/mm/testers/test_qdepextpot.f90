@@ -7,9 +7,9 @@
 
 
 !> Demonstrates the API with population dependant external potentials.
-!>
-!> Use it with the input in the test/api/mm/qdepextpot/ folder.
-!>
+!!
+!! Use it with the input in the test/api/mm/qdepextpot/ folder.
+!!
 program test_qdepextpot
   use dftbplus, only : getDftbPlusApi, getDftbPlusBuild, TDftbPlus, TDftbPlus_init, TDftbPlusInput
   use extchargepot, only : getPointChargePotential
@@ -44,7 +44,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -70,7 +71,8 @@ contains
     ! while the 2nd charge will be set as constant electrostatic potential
     call TExtChargePotGen_init(potGen, coords, extChargeCoords(:,1:1), extCharges(1:1))
 
-    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
     !open(newunit=devNull, file="/dev/null", action="write")
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
 
@@ -85,7 +87,8 @@ contains
     ! add an extra fixed external charge
     allocate(extPot(nQmAtom))
     allocate(extPotGrad(3, nQmAtom))
-    call getPointChargePotential(extChargeCoords(:,2:2), extCharges(2:2), coords, extPot, extPotGrad)
+    call getPointChargePotential(extChargeCoords(:,2:2), extCharges(2:2), coords, extPot,&
+        & extPotGrad)
     call dftbp%setExternalPotential(extPot, extPotGrad)
 
     ! set the geometry from this program, replacing the dftb_in.hsd values

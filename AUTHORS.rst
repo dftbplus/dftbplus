@@ -53,6 +53,8 @@ contributed to DFTB+ :
 
 * Tim Kowalczyk (Western Washington University)
 
+* Tomáš Kubař (Karlsruhe Institute of Technology, Germany)
+
 * In Seong Lee (Ulsan National Institute of Science and Technology, Republic of
   Korea)
 

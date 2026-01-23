@@ -23,16 +23,6 @@ extern "C" {
 #endif
 
 /**
- * Type containing the list of atoms and species to be passed to DFTB+.
- *
- * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
- */
-typedef struct DftbPlusAtomList {
-  void *pDftbPlusAtomList;
-} DftbPlusAtomList;
-
-
-/**
  * Type containing the DFTB+ input tree.
  *
  * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
@@ -76,6 +66,7 @@ typedef struct
     DftbPlusMatrixDescr::matrix_type */
 #define DFTBP_MATRIX_TYPE_HERMSYM 1
 
+
 /** Dense matrix storage for \ref DftbPlusMatrixDescr::storage_type */
 #define DFTBP_STORAGE_TYPE_DENSE_FULL 0
 /** Only lower triangle stored in column-major order (upper for
@@ -84,6 +75,16 @@ typedef struct
 /** Only upper triangle stored in column-major order (lower for
     row-major). For \ref DftbPlusMatrixDescr::storage_type */
 #define DFTBP_STORAGE_TYPE_TRIU  2
+
+
+/**
+ * Type containing the list of atoms and species to be passed to DFTB+.
+ *
+ * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
+ */
+typedef struct DftbPlusAtomList {
+  void *pDftbPlusAtomList;
+} DftbPlusAtomList;
 
 
 /**
@@ -383,6 +384,16 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
 
 
 /**
+ * Queries the nr. of external charges in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of charges.
+ */
+int dftbp_get_nr_extchrg(DftbPlus *instance);
+
+
+/**
  * Queries the nr. of spin channels in the system.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -444,6 +455,7 @@ void dftbp_register_dm_callback(DftbPlus *instance, DMHSCallBackFunc callback, v
  */
 void dftbp_register_s_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
+
 /**
  * Register callback for overlap matrix input.
  *
@@ -471,6 +483,7 @@ void dftbp_register_set_s_callback(DftbPlus *instance, SetDMHSCallBackFunc callb
  */
 void dftbp_register_h_callback(DftbPlus *instance, DMHSCallBackFunc callback, void *aux_ptr);
 
+
 /**
  * Register callback for hamiltonian matrix input.
  *
@@ -483,6 +496,7 @@ void dftbp_register_h_callback(DftbPlus *instance, DMHSCallBackFunc callback, vo
  *                    external context to the callback.
  */
 void dftbp_register_set_h_callback(DftbPlus *instance, SetDMHSCallBackFunc callback, void *aux_ptr);
+
 
 /**
  * Queries weights of k-points.
@@ -546,6 +560,29 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  * \param[out] gradients Gradients (not forces!) on each atom. Shape: [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
+
+
+/**
+ * Queries the coordinates of the current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] coordinates Coordinates of each atom. Shape: [natom, 3]. Unit: Bohr.
+ */
+void dftbp_get_coordinates(DftbPlus *instance, double *coordinates);
+
+
+/**
+ * Queries whether the current geometry is periodic.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] isperiodic Is the geometry periodic
+ *
+ * \param[out] latvecs Lattice vectors or NULL is not
+ *             referenced. Shape: [3, 3]. Unit: Bohr.
+ */
+void dftbp_get_latvecs(DftbPlus *instance, bool *isperiodic, double *latvecs);
 
 
 /**
@@ -634,6 +671,36 @@ void dftbp_set_ref_charges(DftbPlus *instance, double *charges);
 
 
 /**
+ * Sets external charges.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nExtCharges Number of external charges.
+ *
+ * \param[in] chargeCoords Coordinates of the atoms. Shape: [nExtCharges, 3]. Unit: Bohr.
+ *
+ * \param[in] Charges Charges. Shape: [nExtCharges]. Unit: e.
+ */
+void dftbp_set_external_charge(DftbPlus *instance, const int nExtCharges, const double *chargeCoords, const double *Charges);
+
+
+/**
+ * Sets blurred external charges.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nExtCharges Number of external charges.
+ *
+ * \param[in] chargeCoords Coordinates of the atoms. Shape: [nExtCharges, 3]. Unit: Bohr.
+ *
+ * \param[in] Charges Charges. Shape: [nExtCharges]. Unit: e.
+ *
+ * \param[in] blurWidths Width of each charge. Shape: [nExtCharges]. Unit: Bohr.
+ */
+void dftbp_set_blurred_external_charge(DftbPlus *instance, const int nExtCharges, const double *chargeCoords, const double *charges, const double *blurWidths);
+
+
+/**
  * Queries electrostatic potential in specific points.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
@@ -645,6 +712,60 @@ void dftbp_set_ref_charges(DftbPlus *instance, double *charges);
  * \param[in] locations Coordinates of requested points. Shape: [nLocations, 3]. Unit: Bohr.
  */
 void dftbp_get_elstat_potential(DftbPlus *instance, int nLocations, double *potential, const double *locations);
+
+
+/**
+ * Runs a calculation of derivatives of atomic gross charges with respect to coordinates of
+ * selected atoms. With QM/MM charge embedding, derivatives w.r.t. the coordinates of external
+ * point charges can also be calculated, where only the external point charges listed in the array
+ * extChrgWRT are considered.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] nAtomsWRT Number of atoms to calculate derivatives w.r.t.
+ *
+ * \param[in] atomsWRT Indices of these atoms. Shape: [nAtomsWRT].
+ *
+ * \param[out] dqdX Derivatives w.r.t. atom coordinates. Shape: [natom, 3, natom].
+ *
+ * \param[in] nExtChrgWRT Number of external point charges to calculate derivatives w.r.t.
+ *
+ * \param[in] extChrgWRT Indices of these external point charges. Shape: [nExtChrgWRT].
+ *
+ * \param[out] dqdXext Derivatives w.r.t. external point charges. Shape: [nextcharge, 3, natom].
+ *
+ * Sign convention: Electron has negative charge.
+ */
+void dftbp_get_charge_derivatives_select(DftbPlus *instance, const int nAtomsWRT,
+					   const int *atomsWRT, double *dQdX,
+                                           const int nExtChrgWRT, const int *extChrgWRT,
+					   double *dQdXext);
+
+
+/**
+ * Runs a calculation of derivatives of atomic gross charges with respect to coordinates of
+ * all atoms.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] dqdX Derivatives w.r.t. atom coordinates. Shape: [natom, 3, natom].
+ *
+ * Sign convention: Electron has negative charge.
+ */
+void dftbp_get_charge_dxatom(DftbPlus *instance, double *dQdX);
+
+
+/**
+ * Runs a calculation of derivatives of atomic gross charges with respect to coordinates of
+ * external point charges.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ * \param[out] dqdXext Derivatives w.r.t. external point charges. Shape: [nextcharge, 3, natom].
+ *
+ * Sign convention: Electron has negative charge.
+ */
+void dftbp_get_charge_dxext(DftbPlus *instance, double *dQdXext);
+
 
 #ifdef __cplusplus
 }

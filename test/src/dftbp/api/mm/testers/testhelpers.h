@@ -41,10 +41,16 @@ extern "C" {
  *
  * \param potential[in]  Pointer to the array with evaluated potentials. Pass NULL if not
  *     available.
+ *
+ * \param dqdx[in]  Pointer to array of gross charge derivatives wrt atom positions. Pass NULL if not
+ *     available.
+ *
+ * \param dqdxExt[in]  Pointer to array of gross charge derivatives wrt external charge positions. Pass NULL if not
+ *     available.
  */
 void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, int n_pot_locations, double mermin_energy, double *gradients,
                               double *stress_tensor, double *gross_charges, double * ext_charge_gradients, double *potential,
-                              double *cm5_charges);
+                              double *cm5_charges, double *dqdx, double *dqdxExt);
 
 #ifdef __cplusplus
 }

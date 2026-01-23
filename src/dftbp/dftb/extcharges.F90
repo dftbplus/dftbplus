@@ -12,7 +12,7 @@ module dftbp_dftb_extcharges
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
   use dftbp_dftb_boundarycond, only : TBoundaryConds
-  use dftbp_dftb_coulomb, only : TCoulomb
+  use dftbp_dftb_coulomb, only : TCoulomb, calcInvRPrimeAsymm
   implicit none
 
   private
@@ -64,6 +64,9 @@ module dftbp_dftb_extcharges
     !> Sets the external charges
     procedure :: setExternalCharges
 
+    !> Gets the external charges
+    procedure :: getExternalCharges
+
     !> Adds energy contributions per atom
     procedure :: addEnergyPerAtom
 
@@ -75,6 +78,9 @@ module dftbp_dftb_extcharges
 
     !> Returns the electrostatic potential on a grid
     procedure :: getElStatPotential
+
+    !> Derivative of shift due to the external charges, with respect to coordinates of an atom
+    procedure :: getExtShiftDerivative => getExtShiftDerivativeCluster
 
     !> Copy Q * inverse R contribution for the point charges
     procedure :: copyInvRvec
@@ -118,9 +124,9 @@ contains
 
 
   !> Sets the external point charges.
-  !>
-  !> This call should be executed before setLattticeVectors()
-  !>
+  !!
+  !! This call should be executed before setLattticeVectors()
+  !!
   subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
 
     !> Instance
@@ -156,6 +162,36 @@ contains
     this%tInitialized = .true.
 
   end subroutine setExternalCharges
+
+
+  !> Returns the external point charges.
+  subroutine getExternalCharges(this, chargeCoords, chargeQs, blurWidths)
+
+    !> Instance
+    class(TExtCharges), intent(inout) :: this
+
+    !> Coordinates of the external charges as (3, nExtCharges) array
+    real(dp), allocatable, intent(out) :: chargeCoords(:,:)
+
+    !> Charges of the point charges (sign: eletron is positive)
+    real(dp), allocatable, intent(out) :: chargeQs(:)
+
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), allocatable, intent(out), optional :: blurWidths(:)
+
+    if (this%nChrg > 0) then
+
+      allocate(chargeCoords(3, this%nChrg))
+      chargeCoords(:,:) = this%coords(:,:)
+
+      allocate(chargeQs(this%nChrg))
+      chargeQs(:) = this%charges
+
+      if (present(blurWidths) .and. allocated(this%blurWidths)) blurWidths = this%blurWidths
+
+    end if
+
+  end subroutine getExternalCharges
 
 
   !> Updates the module, if the lattice vectors had been changed
@@ -241,7 +277,7 @@ contains
 
 
   !> Adds that part of force contribution due to the external charges, which is not contained in the
-  !> term with the shift vectors.
+  !! term with the shift vectors.
   subroutine addForceDc(this, env, atomForces, chrgForces, atomCoords, atomCharges, coulomb)
 
     !> External charges structure
@@ -303,6 +339,35 @@ contains
         & blurWidths=this%blurWidths, epsSoften=epsSoften)
 
   end subroutine getElStatPotential
+
+
+  !> Calculate the derivative of shift due to external charge iCharge
+  subroutine getExtShiftDerivativeCluster(this, env, extShiftDerivative, iCharge, atomCoords)
+
+    !> External charges structure
+    class(TExtCharges), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Derivative (gradient) of shift of every atom w.r.t. coords of iCharge (3, nAtom, nAtom)
+    real(dp), intent(out) :: extShiftDerivative(:,:)
+
+    !> Differentiate with respect to coordinates of this external charge
+    integer, intent(in) :: iCharge
+
+    !> Coordinates of the atoms.
+    real(dp), intent(in) :: atomCoords(:,:)
+
+    @:ASSERT(size(extShiftDerivative, dim=1) == 3)
+    @:ASSERT(size(extShiftDerivative, dim=2) == this%nAtom)
+    @:ASSERT(size(atomCoords, dim=1) == 3)
+    @:ASSERT(size(atomCoords, dim=2) == this%nAtom)
+
+    call calcInvRPrimeAsymm(this%nAtom, atomCoords, this%nChrg, this%coords, this%charges, iCharge,&
+        & extShiftDerivative, this%blurWidths)
+
+  end subroutine getExtShiftDerivativeCluster
 
 
   !> Copy Q * inverse R contribution for the point charges

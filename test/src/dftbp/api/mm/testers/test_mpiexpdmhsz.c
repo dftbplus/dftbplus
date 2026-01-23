@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
   dftbp_api(&major, &minor, &patch);
   printf("API version %d.%d.%d\n", major, minor, patch);
 
-  _Bool instsafe = dftbp_is_instance_safe();
+  bool instsafe = dftbp_is_instance_safe();
   printf(instsafe ? "API is instance safe\n" : "API is NOT instance safe\n");
 
   DftbPlus calculator;
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
 
   int natom = dftbp_get_nr_atoms(&calculator);
   basis_size = dftbp_get_basis_size(&calculator);
-  _Bool is_hs_real = dftbp_is_hs_real(&calculator);
+  bool is_hs_real = dftbp_is_hs_real(&calculator);
   n_spin = dftbp_get_nr_spin(&calculator);
   n_kpts = dftbp_nr_kpoints(&calculator);
   int nr_local_ks = dftbp_get_nr_local_ks(&calculator);

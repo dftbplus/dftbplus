@@ -83,7 +83,7 @@ int main() {
   dftbp_api(&major, &minor, &patch);
   printf("API version %d.%d.%d\n", major, minor, patch);
 
-  _Bool instsafe = dftbp_is_instance_safe();
+  bool instsafe = dftbp_is_instance_safe();
   printf(instsafe ? "API is instance safe\n" : "API is NOT instance safe\n");
 
   /* Initialize DFTB+ input tree from input in external file */
@@ -99,7 +99,7 @@ int main() {
   int basis_size = dftbp_get_basis_size(&calculator);
   fprintf(atf, "basis_size       :integer:0:\n%d\n", basis_size);
 
-  _Bool is_hs_real = dftbp_is_hs_real(&calculator);
+  bool is_hs_real = dftbp_is_hs_real(&calculator);
   assert(is_hs_real); // workaround for Intel(R) oneAPI 2024.0, as
 		      // otherwise get value outside bool {0,1}
   fprintf(atf, "is_hs_real       :integer:0:\n%d\n", (is_hs_real ? 1 : 0));
