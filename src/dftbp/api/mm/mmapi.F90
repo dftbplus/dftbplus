@@ -13,7 +13,8 @@ module dftbp_mmapi
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment, TEnvironment_init
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
-  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi
+  use dftbp_common_globalenv, only : destructGlobalEnv, initGlobalEnv, instanceSafeBuild, withMpi,&
+      & stdOut
   use dftbp_dftbplus_hsdhelpers, only : doPostParseJobs
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain
   use dftbp_dftbplus_inputdata, only : TInputData
@@ -23,7 +24,7 @@ module dftbp_mmapi
       & getStressTensor, getTdForces, initializeTimeProp, nrOfAtoms, nrOfKPoints, nrOfLocalKS,&
       & nrOfSpin, setExternalCharges, setExternalEfield, setExternalPotential, setGeometry,&
       & setNeighbourList, setQDepExtPotProxy, setRefCharges, setTdCoordsAndVelos,&
-      & setTdElectricField, updateDataDependentOnSpeciesOrdering
+      & setTdElectricField, updateDataDependentOnSpeciesOrdering, getChargeDerivatives
   use dftbp_dftbplus_parser, only : parseHsdTree, readHsdFile, rootTag, TParserFlags
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
@@ -91,6 +92,8 @@ module dftbp_mmapi
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     !> Set/replace the geometry of a calculator
     procedure :: setGeometry => TDftbPlus_setGeometry
+    !> Get the geometry a calculator is using
+    procedure :: getGeometry => TDftbPlus_getGeometry
     !> Set/replace the neighbour list
     procedure :: setNeighbourList => TDftbPlus_setNeighbourList
     !> Add an external potential to a calculator
@@ -99,6 +102,8 @@ module dftbp_mmapi
     procedure :: setExternalEfield => TDftbPlus_setExternalEfield
     !> Add external charges to a calculator
     procedure :: setExternalCharges => TDftbPlus_setExternalCharges
+    !> Return the number of external charges currently in the system
+    procedure :: nrOfExternalCharges => TDftbPlus_nrOfExternalCharges
     !> Add reactive external charges to a calculator
     procedure :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
     !> Obtain the DFTB+ energy
@@ -172,6 +177,8 @@ module dftbp_mmapi
     procedure :: getNOrbitalsOnAtoms => TDftbPlus_getNOrbAtoms
     !> Get the maximum cutoff distance
     procedure :: getCutOff => TDftbPlus_getCutOff
+    !> obtain the derivatives of atomic charges w.r.t. coordinates of atoms and ext. point charges
+    procedure :: getChargeDerivatives => TDftbPlus_getChargeDerivatives
     !> Finalizer
     final :: TDftbPlus_final
   end type TDftbPlus
@@ -281,15 +288,15 @@ contains
     !> Array of species for each atom, size=nAtom
     integer, intent(in) :: species(:)
 
-    integer :: i
-    character(3) :: s
+    integer :: ii
+    character(3) :: name
 
     instance%nAtom = nAtom
 
     call init(instance%speciesNames)
-    do i=1,len(speciesNames)
-      call get(speciesNames, s, i)
-      call append(instance%speciesNames, s)
+    do ii = 1, len(speciesNames)
+      call get(speciesNames, name, ii)
+      call append(instance%speciesNames, name)
     end do
 
     allocate(instance%species(nAtom))
@@ -353,7 +360,7 @@ contains
     integer, intent(in), optional :: mpiComm
 
     !> Unit of the null device (you must open the null device and pass its unit number, if you open
-    !> multiple TDftbPlus instances within an MPI-process)
+    !! multiple TDftbPlus instances within an MPI-process)
     integer, intent(in), optional :: devNull
 
   #:if not INSTANCE_SAFE_BUILD
@@ -492,6 +499,26 @@ contains
   end subroutine TDftbPlus_setGeometry
 
 
+  !> Gets the geometry stored in the calculator.
+  subroutine TDftbPlus_getGeometry(this, coords, latVecs)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
+    real(dp), intent(out), allocatable, optional :: coords(:,:)
+
+    !> Lattice vectors in Bohr units, stored column-wise. Shape: (3, 3) if relevant.
+    real(dp), intent(out), allocatable, optional :: latVecs(:,:)
+
+    call this%checkInit()
+
+    if (present(coords)) coords = this%main%coord0
+    if (present(latVecs) .and. this%main%tPeriodic) latVecs = this%main%latVec
+
+  end subroutine TDftbPlus_getGeometry
+
+
   !> Sets the neighbour list and skips the neighbour list creation in DFTB+
   subroutine TDftbPlus_setNeighbourList(this, nNeighbour, iNeighbour, neighDist, cutOff,&
       & coordNeighbours, neighbour2CentCell)
@@ -595,6 +622,22 @@ contains
     call setExternalCharges(this%main, chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
+
+
+  !> Returns the nr. of external (MM) charges in the system.
+  function TDftbPlus_nrOfExternalCharges(this) result(nCharges)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of external charges
+    integer :: nCharges
+
+    call this%checkInit()
+
+    nCharges = this%main%nExtChrg
+
+  end function TDftbPlus_nrOfExternalCharges
 
 
   !> Sets the generator for the population dependant external potential.
@@ -1216,6 +1259,62 @@ contains
     call updateDataDependentOnSpeciesOrdering(this%env, this%main, inputSpecies)
 
   end subroutine TDftbPlus_setSpeciesAndDependents
+
+
+  !> Derivatives of atomic charges w.r.t. coordinates of atoms, and optionally, w.r.t. coordinates
+  !! of external point charges
+  subroutine TDftbPlus_getChargeDerivatives(this, dqdx, wrtAtoms, dqdxExt, dxExtCharges)
+    use dftbp_derivs_perturb, only : responseSolverTypes, TResponse_init
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Output: charge derivatives w.r.t. coordinates of atoms
+    real(dp), optional, intent(out) :: dqdx(:,:,:)
+
+    !> List of atoms to calculate the derivatives w.r.t. coordinates
+    integer, optional, intent(in) :: wrtAtoms(:)
+
+    !> Output: charge derivatives w.r.t. coordinates of external point charges
+    real(dp), optional, intent(out) :: dqdxExt(:,:,:)
+
+    !> List of MM atoms to calculate the derivatives of charges w.r.t. coordinates of those MM atoms
+    integer, optional, intent(in) :: dxExtCharges(:)
+
+    call this%checkInit()
+    if (this%main%tCoordsChanged) then
+      call error(["Charge derivatives require a ground state solution first.",&
+          & "Request an energy before calling this routine.           "])
+    end if
+    if (this%main%tPeriodic) then
+      if (this%main%tLatticeChanged) then
+        call error(["Charge derivatives require a ground state solution first.",&
+            & "Request an energy before calling this routine.           "])
+      end if
+    end if
+    if (present(dxExtCharges) .and. .not. this%main%tExtChrg) then
+      call error("Perturbation wrt to external charges requested, but no external charges present")
+    end if
+    if (.not. allocated(this%main%response)) then
+      write(stdOut, *)"Making a generic initialization of settings for coupled-perturbed response"
+      allocate(this%main%response)
+      ! eigenvalue-based, non-fixed Fermi level, degeneracy tolerances of 1E-9 and static:
+      call TResponse_init(this%main%response, responseSolverTypes%spectralSum, .false., 1.0E-9_dp,&
+          & 0.0_dp)
+      if (this%main%tSccCalc) then
+        this%main%maxPerturbIter = 100
+        this%main%perturbSccTol = 1.0e-5_dp
+      end if
+    end if
+
+    @:ASSERT(present(dqdx) .or. .not.present(wrtAtoms))
+    @:ASSERT(present(dqdxExt) .or. .not.present(dxExtCharges))
+    @:ASSERT(.not.present(dqdxExt) .or. this%main%nExtChrg > 0)
+
+    call getChargeDerivatives(this%env, this%main, dqdx=dqdx, dxAtoms=wrtAtoms, dqdxExt=dqdxExt,&
+        & dxExtCharges=dxExtCharges)
+
+  end subroutine TDftbPlus_getChargeDerivatives
 
 
   !> Initialise propagators for electron and nuclei dynamics

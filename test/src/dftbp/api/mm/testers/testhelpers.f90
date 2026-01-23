@@ -20,9 +20,9 @@ module testhelpers
 contains
 
   !> Writes an autotest.tag file with the basic quantities
-  subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
-      & grossCharges, extChargeGradients, tdDipole, tdEnergy, tdCharges, &
-      & tdCoords, tdForces, atomMasses, potential, cm5Charges, cutOff, groundDipole)
+  subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, grossCharges,&
+      & extChargeGradients, tdDipole, tdEnergy, tdCharges, tdCoords, tdForces, atomMasses,&
+      & potential, cm5Charges, cutOff, groundDipole, dqdx, dqdxExt)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
@@ -68,6 +68,12 @@ contains
 
     !> Ground state dipole
     real(dp), optional, intent(in) :: groundDipole(:)
+
+    !> Derivative of charges with respect to atom positions
+    real(dp), optional, intent(in) :: dqdx(:,:,:)
+
+    !> Derivative of charges with respect to external charge positions
+    real(dp), optional, intent(in) :: dqdxExt(:,:,:)
 
     type(TTaggedWriter) :: taggedWriter
     type(TFileDescr) :: autotestTag
@@ -120,6 +126,12 @@ contains
     if (present(groundDipole)) then
       call taggedWriter%write(autotestTag%unit, "ground_dipole", groundDipole)
     end if
+    if (present(dqdx)) then
+      call taggedWriter%write(autotestTag%unit, "charge_at_derivs", dqdx)
+    end if
+    if (present(dqdxExt)) then
+      call taggedWriter%write(autotestTag%unit, "charge_ext_derivs", dqdxExt)
+    end if
     call closeFile(autotestTag)
 
   end subroutine writeAutotestTag
@@ -127,7 +139,7 @@ contains
 
   !> C wrapper for the write autotest tag routine.
   subroutine c_writeAutotestTag(nAtom, nExtCharge, nPotLocations, merminEnergy, gradients,&
-      & stressTensor, grossCharges, extChargeGradients, potential, cm5Charges)&
+      & stressTensor, grossCharges, extChargeGradients, potential, cm5Charges, dqdx, dqdxExt)&
       & bind(C, name='dftbp_write_autotest_tag')
 
     !> Number of atoms
@@ -160,9 +172,17 @@ contains
     !> Gross CM5 charges or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: cm5Charges
 
-    real(dp), pointer :: pGradients(:,:), pGrossCharges(:), &
-      & pExtChargeGradients(:,:), pStressTensor(:,:), pPotential(:), &
-      & pCM5Charges(:)
+    !> Derivatives of gross charges or null pointer, if not avaialable. Warning: assumes if used,
+    !! derivatives are wrt to all atoms.
+    type(c_ptr), intent(in), value :: dqdx
+
+    !> Derivatives of gross charges or null pointer, if not avaialable. Warning: assumes if used,
+    !! derivatives are wrt to all external charges.
+    type(c_ptr), intent(in), value :: dqdxExt
+
+    real(dp), pointer :: pGradients(:,:), pGrossCharges(:), pExtChargeGradients(:,:)
+    real(dp), pointer :: pStressTensor(:,:), pPotential(:), pCM5Charges(:), pdqdx(:,:,:)
+    real(dp), pointer :: pdqdxExt(:,:,:)
 
     if (c_associated(gradients)) then
       call c_f_pointer(gradients, pGradients, [3, nAtom])
@@ -200,10 +220,22 @@ contains
       pCM5Charges => null()
     end if
 
+    if (c_associated(dqdx)) then
+      call c_f_pointer(dqdx, pdqdx, [nAtom, 3, nAtom])
+    else
+      pdqdx => null()
+    end if
+
+    if (c_associated(dqdxExt)) then
+      call c_f_pointer(dqdxExt, pdqdxExt, [nAtom, 3, nExtCharge])
+    else
+      pdqdxExt => null()
+    end if
+
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=pGradients, &
         & stressTensor=pStressTensor, grossCharges=pGrossCharges, &
         & extChargeGradients=pExtChargeGradients, potential=pPotential, &
-        & cm5Charges=pCM5charges)
+        & cm5Charges=pCM5charges, dqdx=pdqdx, dqdxExt=pdqdxExt)
 
   end subroutine c_writeAutotestTag
 

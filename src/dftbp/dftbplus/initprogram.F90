@@ -566,13 +566,16 @@ module dftbp_dftbplus_initprogram
     real(dp), allocatable :: dynRespEFreq(:)
 
     !> Is the response kernel (and frontier eigenvalue derivatives) calculated by perturbation
-    logical :: isKernelResp
+    logical :: isKernelResp = .false.
 
     !> Should the response Kernel use RPA (non-SCC) or self-consistent
-    logical :: isRespKernelRPA
+    logical :: isRespKernelRPA = .false.
 
     !> Dynamic polarisability at finite frequencies
     real(dp), allocatable :: dynKernelFreq(:)
+
+    !> Derivatives with respect to positions of external charges
+    logical :: isExtChargeDeriv = .false.
 
     !> Electric static polarisability
     real(dp), allocatable :: polarisability(:,:,:)
@@ -588,6 +591,20 @@ module dftbp_dftbplus_initprogram
 
     !> Derivatives of Mulliken charges with respect to perturbation
     real(dp), allocatable :: dqOut(:,:,:,:)
+
+    !> Derivatives of atomic charges w.r.t. atom coordinates
+    real(dp), allocatable :: dqdx(:,:,:)
+
+    !> List of atoms for which derivatives of atomic charges w.r.t. their coordinates will be
+    !! calculated
+    integer, allocatable :: atomsPerturbWRT(:)
+
+    !> Derivatives of atomic charges w.r.t. coordinates of MM atoms
+    real(dp), allocatable :: dqdxExt(:,:,:)
+
+    !> List of MM atoms/external charges for which derivatives of DFTB atomic charges w.r.t. the
+    !! coordinates of those MM atoms will be calculated
+    integer, allocatable :: extChrgPerturbWRT(:)
 
     !> Use commands from socket communication to control the run
     logical :: tSocket
@@ -2503,6 +2520,16 @@ contains
       this%maxPerturbIter = input%ctrl%perturbInp%maxPerturbIter
       this%isPerturbConvRequired = input%ctrl%perturbInp%isPerturbConvRequired
 
+      this%isAtomCoordPerturb = input%ctrl%perturbInp%isAtomCoordPerturb
+      if (this%isAtomCoordPerturb .and. allocated(input%ctrl%perturbInp%indWrtAtoms)) then
+        call move_alloc(input%ctrl%perturbInp%indWrtAtoms, this%atomsPerturbWRT)
+      end if
+
+      this%isExtChargeDeriv = input%ctrl%perturbInp%isExtChargeDeriv
+      if (this%isExtChargeDeriv .and. allocated(input%ctrl%perturbInp%indWrtCharges)) then
+        call move_alloc(input%ctrl%perturbInp%indWrtCharges, this%extChrgPerturbWRT)
+      end if
+
       allocate(this%response)
       call TResponse_init(this%response, responseSolverTypes%spectralSum, this%tFixEf,&
           & input%ctrl%perturbInp%tolDegenDFTBPT, input%ctrl%perturbInp%etaFreq)
@@ -2527,7 +2554,6 @@ contains
         end if
       end if
 
-      this%isAtomCoordPerturb = input%ctrl%perturbInp%isAtomCoordPerturb
       if (this%isAtomCoordPerturb) then
         if (withMpi) then
           call error("Coordinate derivative perturbations do not yet work with MPI enabled DFTB+")
@@ -2558,6 +2584,10 @@ contains
         if (this%tSpinOrbit) then
           call error("Spin-orbit coupling is not yet supported for coordinate derivative&
               & perturbations")
+        end if
+        if (this%boundaryCond%iBoundaryCondition /= boundaryCondsEnum%cluster) then
+          call error("Coordinate derivative perturbations not currently available for these&
+              & boundary conditions")
         end if
       end if
       tRequireDerivator = tRequireDerivator .or. this%isAtomCoordPerturb

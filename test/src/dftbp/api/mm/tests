@@ -30,3 +30,9 @@ neighbour_list_c    #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 intcharges          #? not WITH_MPI
 mpi_intcharges_c    #? WITH_MPI and (MPI_PROCS % 2 == 0) and MPI_PROCS <= 4 and defined('WITH_C_EXECUTABLES')
 simple_cpp          #? WITH_CXX and not WITH_MPI
+deriv_responses/1   #? not WITH_MPI
+deriv_responses/2   #? not WITH_MPI
+deriv_responses/3   #? not WITH_MPI
+deriv_responsesc/1  #? defined('WITH_C_EXECUTABLES') and not WITH_MPI
+deriv_responsesc/2  #? defined('WITH_C_EXECUTABLES') and not WITH_MPI
+deriv_responsesc/3  #? defined('WITH_C_EXECUTABLES') and not WITH_MPI

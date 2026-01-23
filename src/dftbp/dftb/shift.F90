@@ -156,10 +156,10 @@ contains
     !> Indexing array for the Hamiltonian.
     integer, intent(in) :: iPair(0:,:)
 
-    !> Index mapping atoms onto the central cell atoms.
+    !> Number of atoms in the central cell.
     integer, intent(in) :: nAtom
 
-    !> Mapping from image atom to central cell
+    !> Index mapping atoms onto the central cell atoms.
     integer, intent(in) :: img2CentCell(:)
 
     !> Shift to add at atom sites, listed as (0:nOrb,0:nOrb,1:nAtom,1:nSpin)

@@ -13,11 +13,12 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_status, only : TStatus
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
   use dftbp_dftbplus_forcetypes, only : forceTypes
   use dftbp_dftbplus_initprogram, only : initElectronNumber, initReferenceCharges, TDftbPlusMain,&
       & updateReferenceShellCharges
-  use dftbp_dftbplus_main, only : processGeometry
+  use dftbp_dftbplus_main, only : processPerturbations, processGeometry
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_io_message, only : error, warning
   use dftbp_timedep_timeprop, only : doTdStep, finalizeDynamics, initializeDynamics
@@ -35,7 +36,7 @@ module dftbp_dftbplus_mainapi
   public :: initializeTimeProp, nrOfAtoms, nrOfKPoints, nrOfLocalKS, nrOfSpin, setElectronNumber
   public :: setExternalCharges, setExternalEfield, setExternalPotential, setGeometry
   public :: setNeighbourList, setQDepExtPotProxy, setRefCharges, setTdCoordsAndVelos
-  public :: setTdElectricField, updateDataDependentOnSpeciesOrdering
+  public :: setTdElectricField, updateDataDependentOnSpeciesOrdering, getChargeDerivatives
 
 
   !> Record changes made to the forces routines, if requested, so they can be reset back afterwards
@@ -639,7 +640,6 @@ contains
     type(TGenericForceChanges) :: oldSettings
 
     @:ASSERT(main%tExtChrg)
-    write(*,*)shape(chargeGradients),':', main%nExtChrg
     @:ASSERT(all(shape(chargeGradients) == [3, main%nExtChrg]))
 
     if (.not.main%tForces .or. .not.allocated(main%chrgForces)) then
@@ -729,10 +729,10 @@ contains
 
 
   !> Check that the order of speciesName remains constant Keeping speciesNames constant avoids the
-  !> need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters
-  !>
-  !> Even if nAtom is not conserved, it should be possible to know the total number of species
-  !> types, nTypes, in a simulation and hence always keep speciesName constant
+  !! need to reset all of atomEigVal, referenceN0, speciesMass and SK parameters
+  !!
+  !! Even if nAtom is not conserved, it should be possible to know the total number of species
+  !! types, nTypes, in a simulation and hence always keep speciesName constant
   function checkSpeciesNames(env, main, inputSpeciesName) result(tSpeciesNameChanged)
 
     !> Instance of computational environment
@@ -838,7 +838,7 @@ contains
 
 
   !> After calculation of the ground state, this subroutine initializes the variables
-  !> and the initial step of the propagators for electron and nuclear dynamics
+  !! and the initial step of the propagators for electron and nuclear dynamics
   subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
     !> Instance of computational environment
@@ -908,11 +908,11 @@ contains
 
 
   !> After calling initializeTimeProp, this subroutine performs one timestep of
-  !> electron and nuclear (if IonDynamics enabled) dynamics.
+  !! electron and nuclear (if IonDynamics enabled) dynamics.
   subroutine doOneTdStep(env, main, iStep, dipole, energy, atomNetCharges,&
       & coordOut, force, occ)
 
-    !> Instance of computational environment
+    !> DFTB+ computational environment
     type(TEnvironment), intent(inout) :: env
 
     !> Instance of DFTB+ calculator
@@ -1056,6 +1056,111 @@ contains
   end function getCutOff
 
 
+  !> Get the derivatives of Mulliken charges for atoms w.r.t. coordinates of atoms and of external
+  !! point charges
+  subroutine getChargeDerivatives(env, main, dqdx, dxAtoms, dqdxExt, dxExtCharges)
+
+    !> DFTB+ computational environment
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
+
+    !> Output: charge derivatives w.r.t. coordinates of atoms
+    real(dp), optional, intent(out) :: dqdx(:,:,:)
+
+    !> Output: charge derivatives w.r.t. coordinates of atoms
+    integer, optional, intent(in) :: dxAtoms(:)
+
+    !> Output: charge derivatives w.r.t. coordinates of external point charges
+    real(dp), optional, intent(out) :: dqdxExt(:,:,:)
+
+    !> List of MM atoms to calculate the derivatives of charges w.r.t. coordinates of those MM atoms
+    integer, optional, intent(in) :: dxExtCharges(:)
+
+    type(TStatus) :: errStatus
+    logical :: oldAtomCoordPerturb, oldExtChargeDeriv
+    integer, allocatable :: dxAtomsTmp(:), dxExtChargesTmp(:)
+    type(TGenericForceChanges) :: oldSettings
+
+    @:ASSERT(present(dqdx) .or. .not.present(dxAtoms))
+    @:ASSERT(present(dqdxExt) .or. .not.present(dxExtCharges))
+
+    if (present(dqdx)) then
+
+      if (main%boundaryCond%iBoundaryCondition /= boundaryCondsEnum%cluster) then
+        call error("Coordinate derivative perturbations not currently available for these boundary&
+            & conditions")
+      end if
+
+      if (.not. main%tForces) then
+        call genericGradientInit(main, oldSettings)
+        call recalcGeometry(env, main)
+      end if
+
+      if (present(dxAtoms)) then
+        if (allocated(main%atomsPerturbWRT)) call move_alloc(main%atomsPerturbWRT, dxAtomsTmp)
+        main%atomsPerturbWRT = dxAtoms
+        @:ASSERT(all(shape(dqdx) == [main%nAtom,3,size(dxAtoms)]))
+      else
+        @:ASSERT(all(shape(dqdx) == [main%nAtom,3,main%nAtom]))
+      end if
+
+      oldAtomCoordPerturb = main%isAtomCoordPerturb
+      main%isAtomCoordPerturb = .true.
+
+    end if
+
+    if (present(dqdxExt)) then
+
+      if (main%nExtChrg < 1) then
+        call error("No external charges present, so cannot calculate derivatives with respect to&
+            & them")
+      end if
+
+      if (present(dxExtCharges)) then
+        if (allocated(main%extChrgPerturbWRT)) call move_alloc(main%extChrgPerturbWRT,&
+            & dxExtChargesTmp)
+        main%extChrgPerturbWRT = dxExtCharges
+        @:ASSERT(all(shape(dqdxExt) == [main%nAtom,3,size(dxExtCharges)]))
+      else
+        @:ASSERT(all(shape(dqdxExt) == [main%nAtom,3,main%nExtChrg]))
+      end if
+
+      oldExtChargeDeriv = main%isExtChargeDeriv
+      main%isExtChargeDeriv = .true.
+
+    end if
+
+    ! run the perturbation calculation(s)
+    call processPerturbations(env, main, errStatus)
+
+    if (errStatus%hasError()) then
+      call error(errStatus%message)
+    end if
+
+    if (present(dqdx)) then
+      dqdx(:,:,:) = -main%dqdx
+      if (present(dxAtoms)) deallocate(main%atomsPerturbWRT)
+      if (allocated(dxAtomsTmp)) call move_alloc(dxAtomsTmp, main%atomsPerturbWRT)
+      main%isAtomCoordPerturb = oldAtomCoordPerturb
+
+      if (oldSettings%areModified) then
+        call resetGradientSettings(main, oldSettings)
+        main%tForces = .false.
+      end if
+
+    end if
+
+    if (present(dqdxExt)) then
+      dqdxExt(:,:,:) = -main%dqdxExt
+      if (present(dxExtCharges)) deallocate(main%extChrgPerturbWRT)
+      if (allocated(dxExtChargesTmp)) call move_alloc(dxExtChargesTmp, main%extChrgPerturbWRT)
+      main%isExtChargeDeriv = oldExtChargeDeriv
+    end if
+
+  end subroutine getChargeDerivatives
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
@@ -1113,10 +1218,10 @@ contains
 
 
   !> Reassign Hamiltonian, overlap and eigenvector arrays
-  !
-  ! If nAtom is constant and one is running without BLACS, this should not be required
-  ! hence preprocessed out
-  ! May require extending if ((nAtom not constant) and (not BLACS))
+  !!
+  !! If nAtom is constant and one is running without BLACS, this should not be required
+  !! hence preprocessed out.
+  !! May require extending if ((nAtom not constant) and (not BLACS))
   subroutine reallocateHSArrays(env, main, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
       & HSqrReal, SSqrReal, eigVecsReal)
 

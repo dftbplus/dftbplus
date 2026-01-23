@@ -8,6 +8,7 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+
 Added
 -----
 
@@ -17,10 +18,15 @@ Added
 - VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
   OutputPrefix.xyz (units: eV/Angstrom).
 
+- DFTB3 model coupled-perturbed atom derivatives
+
+- Coupled-perturbed derivatives with respect to external (MM) charges
+
+- API bindings for coupled-perturbed derivatives
+
 
 Changed
 -------
-
 
 
 Fixed

@@ -145,8 +145,8 @@ module dftbp_dftbplus_main
   implicit none
 
   private
-  public :: runDftbPlus
-  public :: processGeometry
+  public :: processPerturbations, processGeometry, runDftbPlus
+
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
@@ -283,6 +283,13 @@ contains
           & this%totalLatDeriv, this%extLatDerivs, this%normOrigLatVec, this%tLatOptFixAng,&
           & this%tLatOptFixLen, this%tLatOptIsotropic, constrLatDerivs)
 
+      if (this%doPerturbEachGeom) then
+        call processPerturbations(env, this, errStatus)
+        if (errStatus%hasError()) then
+          call error(errStatus%message)
+        end if
+      end if
+
       if (tExitGeoOpt) then
         exit geoOpt
       end if
@@ -312,27 +319,6 @@ contains
 
       if (this%tDipole.and.allocated(this%derivDriver)) then
         call dipoleAdd(this%derivDriver, this%dipoleMoment)
-      end if
-
-      if (this%doPerturbEachGeom.and.allocated(this%derivDriver)) then
-
-        if (this%isEResp) then
-          call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
-              & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
-              & this%boundaryCond, this%orb, this%nAtom, this%species, this%neighbourList,&
-              & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell,&
-              & this%coord, this%coord0, this%scc, this%maxPerturbIter, this%perturbSccTol,&
-              & this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
-              & this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
-              & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
-              & this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
-              & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus,&
-              & this%dynRespEFreq)
-          if (errStatus%hasError()) then
-            call error(errStatus%message)
-          end if
-          call polAdd(this%derivDriver, this%polarisability(:,:,1))
-        end if
       end if
 
       if (this%tForces) then
@@ -493,72 +479,10 @@ contains
   #:endif
 
     if (this%doPerturbation .and. .not. this%doPerturbEachGeom) then
-
-      if (this%isEResp) then
-        call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
-            & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
-            & this%boundaryCond, this%orb, this%nAtom, this%species, this%neighbourList,&
-            & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord,&
-            & this%coord0, this%scc, this%maxPerturbIter, this%perturbSccTol,&
-            & this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
-            & this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
-            & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
-            & this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
-            & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus,&
-            & this%dynRespEFreq)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
-        if (this%tWriteBandDat) then
-          call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
-        end if
-        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
-          call writeDetailedOut10(this%fdDetailedOut%unit, this%orb, this%polarisability,&
-              & this%dqOut, this%dEfdE, this%dynRespEFreq)
-        end if
+      call processPerturbations(env, this, errStatus)
+      if (errStatus%hasError()) then
+        call error(errStatus%message)
       end if
-
-      if (this%isKernelResp) then
-        call this%response%wrtVAtom(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
-            & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
-            & this%fdDetailedOut, this%filling, this%eigen, this%eigVecsReal, this%eigvecsCplx,&
-            & this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom, this%species,&
-            & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
-            & this%img2CentCell, this%isRespKernelRPA, this%scc, this%maxPerturbIter,&
-            & this%perturbSccTol, this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb,&
-            & this%iEqOrbitals, this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU,&
-            & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%hybridXc,&
-            & this%nNeighbourCam, this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
-            & this%cellVec, this%neFermi, errStatus, this%dynKernelFreq, this%tHelical, this%coord)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
-        if (env%tGlobalLead .and. this%tWriteDetailedOut) then
-          call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
-        end if
-      end if
-
-      if (this%isAtomCoordPerturb) then
-
-        call this%response%dxAtom(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
-            & this%eigvecsCplx, this%rhoPrim, this%potential, this%qOutput, this%q0,&
-            & this%ints%hamiltonian, this%ints%overlap, this%skHamCont, this%skOverCont,&
-            & this%nonSccDeriv, this%orb, this%nAtom, this%species, this%speciesName,&
-            & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
-            & this%img2CentCell, this%coord, this%scc, this%maxPerturbIter, this%perturbSccTol,&
-            & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
-            & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
-            & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
-            & this%chrgMixerReal, this%tWriteBandDat, this%taggedWriter, this%tWriteAutotest,&
-            & autotestTag, this%tWriteResultsTag, resultsTag, this%tWriteDetailedOut,&
-            & this%fdDetailedOut%unit, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
-            & this%tPeriodic, this%tHelical, this%tMulliken, errStatus)
-        if (errStatus%hasError()) then
-          call error(errStatus%message)
-        end if
-      end if
-
     end if
 
     if (env%tGlobalLead .and. this%tWriteDetailedOut) then
@@ -1873,6 +1797,135 @@ contains
     end if
 
   end subroutine processGeometry
+
+
+  !> Processes perturbation derivatives/responses for the current geometry
+  subroutine processPerturbations(env, this, errStatus)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Global variables
+    type(TDftbPlusMain), intent(inout) :: this
+
+    !> Status of operation
+    type(TStatus), intent(out) :: errStatus
+
+    integer, allocatable :: nCombinedCharges(:), wrtCombinedCharges(:,:)
+    real(dp), allocatable :: jacobian(:,:,:)
+    real(dp), parameter :: tmpFreq(1) = 0.0_dp
+    integer :: iExt
+
+    if (this%isAtomCoordPerturb) then
+      if (allocated(this%dqdX)) then
+        deallocate(this%dqdX)
+      end if
+      if (allocated(this%atomsPerturbWRT)) then
+        allocate(this%dqdX(this%nAtom, 3, size(this%atomsPerturbWRT)), source=0.0_dp)
+      else
+        allocate(this%dqdX(this%nAtom, 3, this%nAtom), source=0.0_dp)
+      end if
+      call env%globalTimer%startTimer(globalTimers%perturb)
+      call env%globalTimer%startTimer(globalTimers%perturb_dx)
+      call this%response%dxAtom(env, this%parallelKS, this%filling, this%eigen, this%eigVecsReal,&
+          & this%eigvecsCplx, this%rhoPrim, this%potential, this%qOutput, this%q0,&
+          & this%ints%hamiltonian, this%ints%overlap, this%skHamCont, this%skOverCont,&
+          & this%nonSccDeriv, this%orb, this%nAtom, this%species, this%speciesName,&
+          & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
+          & this%img2CentCell, this%coord, this%scc, this%maxPerturbIter, this%perturbSccTol,&
+          & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef,&
+          & this%tFixEf, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+          & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
+          & this%chrgMixerReal, this%tWriteBandDat, this%taggedWriter, this%tWriteAutotest,&
+          & autotestTag, this%tWriteResultsTag, resultsTag, this%tWriteDetailedOut,&
+          & this%fdDetailedOut%unit, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+          & this%tPeriodic, this%tPrintMulliken, this%atomsPerturbWRT, nCombinedCharges,&
+          & wrtCombinedCharges, jacobian, errStatus, this%tHelical, this%dqdx)
+      call env%globalTimer%stopTimer(globalTimers%perturb_dx)
+      call env%globalTimer%stopTimer(globalTimers%perturb)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
+    if (this%isEResp) then
+      call env%globalTimer%startTimer(globalTimers%perturb)
+      call env%globalTimer%startTimer(globalTimers%perturb_efield)
+      call this%response%wrtEField(env, this%parallelKS, this%filling, this%eigen,&
+          & this%eigVecsReal, this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap,&
+          & this%boundaryCond, this%orb, this%nAtom, this%species, this%neighbourList,&
+          & this%nNeighbourSK, this%denseDesc, this%iSparseStart, this%img2CentCell, this%coord,&
+          & this%coord0, this%scc, this%maxPerturbIter, this%perturbSccTol,&
+          & this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb, this%iEqOrbitals,&
+          & this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU, this%iEqBlockDftbu,&
+          & this%onSiteElements, this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam,&
+          & this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+          & this%polarisability, this%dEidE, this%dqOut, this%neFermi, this%dEfdE, errStatus,&
+          & this%dynRespEFreq)
+      call env%globalTimer%stopTimer(globalTimers%perturb_efield)
+      call env%globalTimer%stopTimer(globalTimers%perturb)
+      @:PROPAGATE_ERROR(errStatus)
+      if (allocated(this%derivDriver)) then
+        call polAdd(this%derivDriver, this%polarisability(:,:,1))
+      end if
+      if (this%tWriteBandDat) then
+        call writeDerivBandOut(derivEBandOut, this%dEidE, this%kWeight)
+      end if
+      if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+        call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
+        call writeDetailedOut10(this%fdDetailedOut%unit, this%orb, this%polarisability,&
+            & this%dqOut, this%dEfdE, this%dynRespEFreq)
+      end if
+    end if
+
+    if (this%isKernelResp) then
+      call env%globalTimer%startTimer(globalTimers%perturb)
+      call this%response%wrtVAtom(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
+          & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
+          & this%fdDetailedOut, this%filling, this%eigen, this%eigVecsReal, this%eigvecsCplx,&
+          & this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom, this%species,&
+          & this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
+          & this%img2CentCell, this%isRespKernelRPA, this%scc, this%maxPerturbIter,&
+          & this%perturbSccTol, this%isPerturbConvRequired, this%nMixElements, this%nIneqOrb,&
+          & this%iEqOrbitals, this%tempElec, this%Ef, this%spinW, this%thirdOrd, this%dftbU,&
+          & this%iEqBlockDftbu, this%onSiteElements, this%iEqBlockOnSite, this%hybridXc,&
+          & this%nNeighbourCam, this%chrgMixerReal, this%kPoint, this%kWeight, this%iCellVec,&
+          & this%cellVec, this%neFermi, errStatus, this%dynKernelFreq, this%tHelical, this%coord)
+      call env%globalTimer%stopTimer(globalTimers%perturb)
+      @:PROPAGATE_ERROR(errStatus)
+      if (env%tGlobalLead .and. this%tWriteDetailedOut) then
+        call writeDetailedOut9(this%fdDetailedOut%unit, this%neFermi)
+      end if
+    end if
+
+    if (this%nExtChrg > 0 .and. this%isExtChargeDeriv) then
+      call env%globalTimer%startTimer(globalTimers%perturb)
+      call env%globalTimer%startTimer(globalTimers%perturb_dxMM)
+      if (allocated(this%dqdxExt)) then
+        deallocate(this%dqdxExt)
+      end if
+      if (allocated(this%extChrgPerturbWRT)) then
+        allocate(this%dqdxExt(this%nAtom, 3, size(this%extChrgPerturbWRT)), source=0.0_dp)
+      else
+        allocate(this%dqdxExt(this%nAtom, 3, this%nExtChrg))
+      end if
+      call env%globalTimer%startTimer(globalTimers%perturb)
+      call this%response%dxExtCharges(env, this%parallelKS, this%tWriteAutotest, autotestTag,&
+          & this%tWriteResultsTag, resultsTag, this%taggedWriter, this%tWriteBandDat,&
+          & this%tWriteDetailedOut, this%fdDetailedOut, this%filling, this%eigen, this%eigVecsReal,&
+          & this%eigvecsCplx, this%ints%hamiltonian, this%ints%overlap, this%orb, this%nAtom,&
+          & this%species, this%neighbourList, this%nNeighbourSK, this%denseDesc, this%iSparseStart,&
+          & this%img2CentCell, this%scc, this%maxPerturbIter, this%perturbSccTol,&
+          & this%nMixElements, this%nIneqOrb, this%iEqOrbitals, this%tempElec, this%Ef, this%spinW,&
+          & this%thirdOrd, this%dftbU, this%iEqBlockDftbu, this%onSiteElements,&
+          & this%iEqBlockOnSite, this%hybridXc, this%nNeighbourCam, this%chrgMixerReal,&
+          & this%tPeriodic, this%coord, this%kPoint, this%kWeight, this%iCellVec, this%cellVec,&
+          & this%nEFermi, this%extChrgPerturbWRT, nCombinedCharges, wrtCombinedCharges, jacobian,&
+          & this%dqdxExt, errStatus, tmpFreq, this%tHelical)
+      call env%globalTimer%stopTimer(globalTimers%perturb_dxMM)
+      call env%globalTimer%stopTimer(globalTimers%perturb)
+      @:PROPAGATE_ERROR(errStatus)
+    end if
+
+  end subroutine processPerturbations
 
 
   !> Process geometry for constrains
