@@ -356,8 +356,6 @@ contains
     !> multiple TDftbPlus instances within an MPI-process)
     integer, intent(in), optional :: devNull
 
-    integer :: stdOut
-
   #:if not INSTANCE_SAFE_BUILD
     if (nInstance_ /= 0) then
       call error("This build does not support multiple DFTB+ instances")
@@ -367,12 +365,6 @@ contains
 
     if (present(mpiComm) .and. .not. withMpi) then
       call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
-    end if
-
-    if (present(outputUnit)) then
-      stdOut = outputUnit
-    else
-      stdOut = output_unit
     end if
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
