@@ -32,7 +32,7 @@ import re
 import gzip
 from argparse import ArgumentParser
 from tagreader import InvalidEntry, ConversionError, IntConverter
-from tagreader import InvalidEntry, TaggedCollection, ResultParser
+from tagreader import InvalidEntry, TaggedCollection, TaggedDataParser
 from uncommlines import UncommLines
 
 
@@ -382,7 +382,7 @@ def main():
         print("# Reading old tagged file `%s'" % oldFile)
     try:
         f = zOpen(oldFile, "r")
-        old = TaggedCollection(ResultParser(f).entries)
+        old = TaggedCollection(TaggedDataParser(f).entries)
     except InvalidEntry as ee:
         printError("Invalid entry (%s) in file '%s' between lines %d and %d"
                              % (ee.msg, oldFile, ee.start, ee.end))
@@ -397,7 +397,7 @@ def main():
         print("# Reading new tagged file `%s'" % newFile)
     try:
         f = zOpen(newFile, "r")
-        new = TaggedCollection(ResultParser(f).entries)
+        new = TaggedCollection(TaggedDataParser(f).entries)
     except InvalidEntry as ee:
         printError("Invalid entry (%s) in file '%s' between lines %d and %d"
                              % (ee.msg, newFile, ee.start, ee.end))
@@ -417,19 +417,19 @@ def main():
             print(" # Processing rule:     `%s'" % configEntry)
 
         compFunc = configEntry.compFunc
-        oldEntries = old.getMatchingEntries(configEntry.pattern)
+        oldEntries = old.get_matching_entries(configEntry.pattern)
         for oldEntry in oldEntries:
             name = oldEntry.name
-            newEntry = new.getEntry(name)
+            newEntry = new.get_entry(name)
 
             if not configEntry.keep:
-                old.delEntry(name)
-                new.delEntry(name)
+                old.del_entry(name)
+                new.del_entry(name)
 
             if not newEntry:
                 printResult(name, compFunc, "Not found in new", RES_SKIPPED)
                 continue
-            if not oldEntry.isComparable(newEntry):
+            if not oldEntry.is_comparable(newEntry):
                 printResult(name, compFunc, "Mismatching data", RES_ERROR)
                 continue
 
