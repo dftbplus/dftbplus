@@ -8418,7 +8418,8 @@ contains
             call convertUnitHsd(char(modifier), timeUnits, child3, inp%coupling)
             inp%coupling = deltaT / inp%coupling
           else
-            call error("Either CouplingStrength or Timescale must be set for Berendsen thermostats.")
+            call error("Either CouplingStrength or Timescale must be set for Berendsen&
+                & thermostats.")
           end if
         end if
       end associate
