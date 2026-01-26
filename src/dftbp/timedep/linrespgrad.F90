@@ -55,7 +55,7 @@ module dftbp_timedep_linrespgrad
 
   !> Output files for results
   character(*), parameter :: transitionsOut = "TRA.DAT"
-  character(*), parameter :: XplusYOut = "XplusY.DAT"
+  character(*), parameter :: XplusYOut = "XplusY"
   character(*), parameter :: excitedCoefsOut = "COEF.DAT"
   character(*), parameter :: excitationsOut = "EXC.DAT"
   character(*), parameter :: transDipOut = "TDP.DAT"
@@ -555,7 +555,11 @@ contains
         & iaTrans, getIA, getIJ, getAB, win, wij, sqrOccIA, tHybridXc, tZVector)
 
     if (this%writeXplusY) then
-      call openfile(fdXPlusY, XplusYOut, mode="w")
+      if (this%writeXplusYAscii) then
+        call openFile(fdXPlusY, XplusYOut // '.DAT', mode="w")
+      else
+        call openFile(fdXPlusY, XplusYOut // '.BIN', mode="wb")
+      end if 
     end if
 
     if (this%writeTrans) then
@@ -632,13 +636,13 @@ contains
 
         call getExcSpin(env, orb, rpa, denseDesc, Ssq, xpy, filling, ovrXev, grndEigVecs)
 
-        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-            & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, this%writeXplusYAscii,&
+            & fdTrans, fdTransDip, transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
 
       else
 
-        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-            & transitionDipoles, fdTagged, taggedWriter, fdExc)
+        call writeExcitations(this, rpa, sym, osz, eval, xpy, fdXPlusY, this%writeXplusYAscii,&
+            & fdTrans, fdTransDip, transitionDipoles, fdTagged, taggedWriter, fdExc)
 
       end if
 
@@ -2918,8 +2922,8 @@ contains
 
   !> Write out transitions from ground to excited state along with single particle transitions and
   !! dipole strengths.
-  subroutine writeExcitations(lr, rpa, sym, osz, eval, xpy, fdXPlusY, fdTrans, fdTransDip,&
-      & transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
+  subroutine writeExcitations(lr, rpa, sym, osz, eval, xpy, fdXPlusY, writeXplusYAscii, fdTrans, &
+      & fdTransDip, transitionDipoles, fdTagged, taggedWriter, fdExc, Ssq)
 
     !> Data structure for linear response
     type(TLinResp), intent(in) :: lr
@@ -2947,6 +2951,9 @@ contains
 
     !> File unit for X+Y data
     type(TFileDescr), intent(in) :: fdXPlusY
+
+    !> Write X+Y data as text?
+    logical, intent(in) :: writeXplusYAscii
 
     !> File unit for transitions
     type(TFileDescr), intent(in) :: fdTrans
@@ -2980,7 +2987,11 @@ contains
     wvin(:) = 0
 
     if (fdXplusY%isConnected()) then
-      write(fdXPlusY%unit, *) nmat, lr%nExc
+      if(writeXplusYAscii) then
+        write(fdXPlusY%unit, *) nmat, lr%nExc
+      else
+        write(fdXPlusY%unit) nmat, lr%nExc
+      end if
     end if
 
     do ii = 1, lr%nExc
@@ -3023,8 +3034,13 @@ contains
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXPlusY%unit, '(1x,i5,3x,a,3x,ES17.10)') ii, sign, sqrt(eval(ii))
-          write(fdXPlusY%unit, '(6(1x,ES17.10))') xpy(:,ii)
+          if(writeXplusYAscii) then
+            write(fdXPlusY%unit, '(1x,i5,3x,a,3x,ES17.10)') ii, sign, sqrt(eval(ii))
+            write(fdXPlusY%unit, '(6(1x,ES17.10))') xpy(:,ii)
+          else
+            write(fdXPlusY%unit) ii, sign, sqrt(eval(ii))
+            write(fdXPlusY%unit) xpy(:,ii)
+          end if
         endif
 
         if (fdTrans%isConnected()) then
@@ -3088,7 +3104,11 @@ contains
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXPlusY%unit, '(1x,i5,3x,a,3x,A)') ii,sign, '-'
+          if(writeXplusYAscii) then
+            write(fdXPlusY%unit, '(1x,i5,3x,a,3x,A)') ii,sign, '-'
+          else
+            write(fdXPlusY%unit) ii,sign, '-'
+          end if
         endif
 
         if (fdTrans%isConnected()) then

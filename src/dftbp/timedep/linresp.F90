@@ -89,6 +89,9 @@ module dftbp_timedep_linresp
     !> Write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
 
+    !> Write X+Y vector as text
+    logical :: tXplusYAscii
+
     !> Should CI be optimized
     logical :: isCIopt
 
@@ -233,8 +236,10 @@ contains
     this%writeTransQ = ini%tTransQ .and. isIoProc
     this%writeSPTrans = ini%tSPTrans .and. isIoProc
     this%writeXplusY = ini%tXplusY .and. isIoProc
+    this%writeXplusYAscii = ini%tXplusYAscii .and. isIoProc
     this%writeTransDip = ini%tTradip .and. isIoProc
     this%writeNacv = this%tNaCoupling .and. isIoProc
+    print *,this%writeXplusYAscii,'Gunstig'
 
     this%nAtom = nAtom
     this%nEl = nEl
