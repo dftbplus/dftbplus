@@ -8,7 +8,6 @@
 #:include "fortuno_serial.fypp"
 
 module test_math_lapackroutines
-  use fortuno_serial, only : all_close, suite => serial_suite_item, test_list
   use dftbp_common_accuracy, only : dp
   use dftbp_math_lapackroutines, only : gesvd
   use fortuno_serial, only : suite => serial_suite_item, test_list, all_close
