@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2025  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2026  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -8,7 +8,7 @@
 """Parser for the tagged output of DFTB.
 
 The tagged data is assumed to be represented in the form as provided by the taggedout module of the
-DFTB project. See the appropriate source code for the details.)
+DFTB project. See the appropriate source code for the details.
 """
 
 from abc import ABC, abstractmethod
@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from math import prod
 import re
 from typing import Any, IO, Iterable, Self
+import numpy as np
+from numpy.typing import NDArray
 
 
 #
@@ -158,6 +160,14 @@ class TaggedEntry:
         "logical": LogicalConverter(),
     }
 
+    _NUMPY_DTYPE_MAP = {
+        "integer": np.int64,
+        "real": np.float64,
+        "complex": np.complex128,
+        "logical": np.bool_,
+    }
+
+
     def __init__(self, name: str, dtype: str, rank: int, shape: tuple[int, ...], strvalue: str):
         """Instantiates a TaggedEntry object.
 
@@ -207,13 +217,28 @@ class TaggedEntry:
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """Shape of the date in the tagged entry"""
+        """Shape of the data in the tagged entry
+
+        The shape is the one used in Fortran (using the column major convention).
+        """
         return self._shape
 
     @property
     def value(self) -> list[Any]:
         """Flat list containing the values of the data in the tagged entry"""
         return self._value
+
+    @property
+    def value_array(self) -> NDArray[Any]:
+        """Value as a numpy array.
+
+        The Fortran shape is reversed in the returned array, but the data is not transposed.  That
+        means, the data is aligned in memory exaclty in the same order as in Fortran, but you
+        traverse the consecutive elements in memory with the Python (row-major) indexing convention.
+
+        """
+        arrayshape = self._shape[::-1] if self._shape else None
+        return np.array(self._value, dtype=self._NUMPY_DTYPE_MAP[self._dtype]).reshape(arrayshape)
 
     def is_comparable(self, other: Self) -> bool:
         """Check if metadata matches."""
