@@ -376,30 +376,35 @@ do
 	    if [ -e "./$TAGDIFF_CONF" ]; then
 		tagdiffopt="-c ./$TAGDIFF_CONF ${tagdiffopt}"
 	    fi
-echo "HERE1"
 	    $tagdiff_cmd $tagdiffopt \
 		  $templateroot/$testname/$APP_TAGDATA_REF $APP_TAGDATA \
 		      > $TAGDIFF_LOG 2>&1
-echo "HERE2"
 
 	    # analyse tagdiff output and record status
 	    case $? in
 	      0)
-          case "`grep -e \"\\[.*\]]\" $TAGDIFF_LOG | grep -c -v \"\\[ok\\]\" 2> /dev/null`" in
-			      0)  tagstatus=$STATUS_MATCH ;;
-			      *)  tagstatus=$STATUS_MISMATCH ;;
-		      esac
-
-		      # attempt to soften mismatch
-		      case "`grep -e \"\\[.*\]]\" $TAGDIFF_LOG | grep -c \"\\[skipped\\]\" 2> /dev/null`" in
-			      0)  ;;
-			      *)  tagstatus=$STATUS_INCOMPLETE ;;
-		      esac
+          ntests="`grep -c -e \"\\[.*\\]\" $TAGDIFF_LOG 2> /dev/null`"
+          # Signalize error, if no test status tags were found (likely that tagdiff had an error)
+          if (( ntests == 0 )); then
+            tagstatus=$STATUS_ERROR
+          else
+            nsucceeded="`grep -c \"\\[ok\\]\" $TAGDIFF_LOG 2> /dev/null`"
+            nskipped="`grep -c \"\\[skipped\\]\" $TAGDIFF_LOG 2> /dev/null`"
+            # All tests succeded
+            if (( ntests == nsucceeded )); then
+              tagstatus=$STATUS_MATCH
+            # Some tests were skipped, but all other succeeded
+            elif (( ntests == nskipped + nsucceeded )); then
+              tagstatus=$STATUS_INCOMPLETE
+            # Apparently we have some failing tests
+            else
+              tagstatus=$STATUS_MISMATCH
+            fi
+          fi
 		      ;;
 	      *)	tagstatus=$STATUS_ERROR ;;
 	    esac
 	    touch ${STATUS_PREFIX}${tagstatus}
-      echo "HERE3"
 	fi
 	test -n "$show_tests" && echo_n " $tagstatus."
     fi
