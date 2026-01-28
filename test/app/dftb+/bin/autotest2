@@ -30,13 +30,10 @@ OWD=`pwd`
 #---------------------------------------------------------------------
 # hardwired file names and message strings
 #---------------------------------------------------------------------
-TAGDIFF_CONF=tagdiff.conf
+TAGDIFF_CONF=tagdiff.toml
 TAGDIFF_LOG=tagdiff.log
 
 TEST_SCRIPT=testrun.sh
-
-TAGDIFF_MATCH_OK="OK"
-TAGDIFF_MATCH_INCOMPLETE="Not found in new"
 
 #APP_STDIN=input
 APP_INPUT=dftb_in.hsd
@@ -304,7 +301,7 @@ error_list=""
 #---------------------------------------------------------------------
 for testname in $tests
 do
-    test -d $workroot/$testname || {
+  test -d $workroot/$testname || {
 	echo Warning: $ENODIR "\"$testname\"; test skipped." 1>&2
 	todo_list="$todo_list $testname"
 	continue
@@ -341,7 +338,7 @@ do
 	if [ -e "$TEST_SCRIPT" ]; then
 	    ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
 	else
-	    $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
+	    $app_prerun $app_cmd $app_postrun # >> $APP_STDOUT 2>> $APP_STDERR
 	fi
 	# If run was not successful, make sure tagdiff fails by removing the tagged data file
 	runstatus=$?
@@ -379,31 +376,30 @@ do
 	    if [ -e "./$TAGDIFF_CONF" ]; then
 		tagdiffopt="-c ./$TAGDIFF_CONF ${tagdiffopt}"
 	    fi
-
+echo "HERE1"
 	    $tagdiff_cmd $tagdiffopt \
 		  $templateroot/$testname/$APP_TAGDATA_REF $APP_TAGDATA \
 		      > $TAGDIFF_LOG 2>&1
+echo "HERE2"
 
 	    # analyse tagdiff output and record status
 	    case $? in
-	      0)    case "`grep -c -v \"$TAGDIFF_MATCH_OK\" \
-					$TAGDIFF_LOG 2> /dev/null`"
-		    in
-			0)  tagstatus=$STATUS_MATCH ;;
-			*)  tagstatus=$STATUS_MISMATCH ;;
-		    esac
+	      0)
+          case "`grep -e \"\\[.*\]]\" $TAGDIFF_LOG | grep -c -v \"\\[ok\\]\" 2> /dev/null`" in
+			      0)  tagstatus=$STATUS_MATCH ;;
+			      *)  tagstatus=$STATUS_MISMATCH ;;
+		      esac
 
-		    # attempt to soften mismatch
-		    case "`grep -c \"$TAGDIFF_MATCH_INCOMPLETE\" \
-		    			$TAGDIFF_LOG 2> /dev/null`"
-		    in
-			0)  ;;
-			*)  tagstatus=$STATUS_INCOMPLETE ;;
-		    esac
-		  ;;
+		      # attempt to soften mismatch
+		      case "`grep -e \"\\[.*\]]\" $TAGDIFF_LOG | grep -c \"\\[skipped\\]\" 2> /dev/null`" in
+			      0)  ;;
+			      *)  tagstatus=$STATUS_INCOMPLETE ;;
+		      esac
+		      ;;
 	      *)	tagstatus=$STATUS_ERROR ;;
 	    esac
 	    touch ${STATUS_PREFIX}${tagstatus}
+      echo "HERE3"
 	fi
 	test -n "$show_tests" && echo_n " $tagstatus."
     fi
