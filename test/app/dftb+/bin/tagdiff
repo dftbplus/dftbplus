@@ -190,7 +190,7 @@ def load_diff_rules(fname: str) -> list[DiffRule]:
     return diffrules
 
 
-def parse_arguments() -> Namespace:
+def parse_arguments(args: list[str] | None = None) -> Namespace:
     """Parses script's arguments"""
 
     parser = ArgumentParser(description=DESCRIPTION)
@@ -208,7 +208,7 @@ def parse_arguments() -> Namespace:
     )
     parser.add_argument("expected", help="tagged data file with expected results")
     parser.add_argument("obtained", help="tagged data file with obtained results")
-    return parser.parse_args()
+    return parser.parse_args(args=args)
 
 
 def print_entry_log(log: dict[str, Any]):
@@ -223,7 +223,7 @@ def print_entry_log(log: dict[str, Any]):
         print(f"- {key}: {value}")
 
 
-def main() -> int:
+def main(args: list[str] | None = None) -> int:
 
     #
     # Read config files
@@ -255,6 +255,7 @@ def main() -> int:
     #
     # Check entries on difference
     #
+    npassed = nfailed = nskipped = nerrors = 0
     for diffrule in diffrules:
         if args.verbose:
             print(f"# Applying rule: {diffrule.pattern}")
@@ -277,22 +278,31 @@ def main() -> int:
             if obtentry is None:
                 entrylog["status"] = TestStatus.SKIPPED
                 entrylog["msg"] = f"Not present in obtained data"
+                nskipped += 1
 
             elif not obtentry.is_comparable(expentry):
                 entrylog["status"] = TestStatus.FAILED
                 entrylog["msg"] = f"Mismatching data"
+                nfailed += 1
 
             else:
                 try:
                     passed, details = diffrule.diffchecker.compare(expentry, obtentry)
                 except Exception as err:
                     entrylog["msg"] = f"Error occured when building difference ({err})"
+                    entrylog["status"] = TestStatus.ERROR
+                    nerrors += 1
                 else:
-                    entrylog["status"] = TestStatus.OK if passed else TestStatus.FAILED
+                    if passed:
+                        entrylog["status"] = TestStatus.OK
+                        npassed += 1
+                    else:
+                        entrylog["status"] = TestStatus.FAILED
+                        nfailed += 1
                     entrylog["details"] = details
             print_entry_log(entrylog)
-
-    return ExitCode.SUCCESS
+            
+    return ExitCode.FAILURE if nfailed > 0 or nerrors > 0 else ExitCode.SUCCESS
 
 
 if __name__ == "__main__":
