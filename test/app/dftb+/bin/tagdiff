@@ -237,7 +237,7 @@ def main(args: list[str] | None = None) -> int:
         try:
             diffrules.extend(load_diff_rules(configfile))
         except Exception as err:
-            print("Could not read config file '{configfile}': {err}")
+            print(f"Could not read config file '{configfile}': {err}")
             return ExitCode.FAILURE
 
     #
