@@ -61,7 +61,7 @@ jobs:
         version: [13]
 
     concurrency:
-      group: ${{ matrix.os }}-${{ matrix.mpi }}
+      group: ${{ github.head_ref || github.ref_name }}-${{ matrix.os }}-${{ matrix.mpi }}
       cancel-in-progress: true
 
     steps:
@@ -214,7 +214,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     concurrency:
-      group: intel
+      group: ${{ github.head_ref || github.ref_name }}-intel
       cancel-in-progress: true
 
     env:
