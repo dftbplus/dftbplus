@@ -66,6 +66,7 @@ Prefix = {slakos/origin/mio-1-1/}
    WriteAutotestTag = Yes 
  }
 InputVersion = 20.1
+
  ElectronDynamics = {
    Steps = 2000
    TimeStep [au] = 0.2
@@ -73,4 +74,8 @@ InputVersion = 20.1
    Perturbation = kick {
     PolarizationDirection = "x"
    }
+ }
+
+ Parallel = {
+   UseOmpThreads = Yes
  }

@@ -40,7 +40,8 @@ module dftbp_dftb_populations
 #:if WITH_SCALAPACK
   public :: denseMullikenRealBlacs
   public :: denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
-      & denseSubtractDensityOfAtomsRealPeriodicBlacs
+      & denseSubtractDensityOfAtomsRealPeriodicBlacs,&
+      & denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
 #:endif
 
 
@@ -1044,6 +1045,48 @@ contains
     end do
 
   end subroutine denseSubtractDensityOfAtomsRealNonperiodicBlacs
+
+
+  !> Subtracts superposition of atomic densities from distributed, dense, square, complex-valued
+  !! density matrix.
+  !!
+  !! For spin-polarized calculations, q0 is distributed equally to alpha and beta density matrices.
+  subroutine denseSubtractDensityOfAtomsCmplxNonperiodicBlacs(env, parallelKS, q0, denseDesc, rho)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> The k-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Reference atom populations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Spin polarized (lower triangular) matrix
+    complex(dp), intent(inout) :: rho(:,:,:)
+
+    integer :: nAtom, iKS, iAt, iOrbStart, nOrb, iOrb
+    complex(dp) :: tmp(size(q0, dim=1), size(q0, dim=1))
+
+    nAtom = size(q0, dim=2)
+
+    do iKS = 1, parallelKS%nLocalKS
+      do iAt = 1, nAtom
+        iOrbStart = denseDesc%iAtomStart(iAt)
+        nOrb = denseDesc%iAtomStart(iAt + 1) - iOrbStart
+        tmp(:,:) = (0.0_dp, 0.0_dp)
+        do iOrb = 1, nOrb
+          tmp(iOrb, iOrb) = -q0(iOrb, iAt, 1)
+        end do
+        call scalafx_addl2g(env%blacs%orbitalGrid, tmp(1:nOrb, 1:nOrb), denseDesc%blacsOrbSqr,&
+            & iOrbStart, iOrbStart, rho(:,:,iKS))
+      end do
+    end do
+
+  end subroutine denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
 
 
   !> Subtracts superposition of atomic densities from distributed, dense, square, real-valued
