@@ -49,6 +49,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
+  use dftbp_extlibs_elpa, only : withElpa
   use dftbp_extlibs_elsiiface, only : withELSI, withPEXSI
   use dftbp_extlibs_plumed, only : withPlumed
   use dftbp_extlibs_poisson, only : TPoissonInfo, withPoisson
@@ -2648,6 +2649,7 @@ contains
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
+    type(TListInt) :: elpaRedistributeRanks
 
     integer :: iTmp
 
@@ -2677,22 +2679,54 @@ contains
 
     case ("elpa")
       allocate(ctrl%solver%elsi)
-      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
+      allocate(ctrl%solver%elpa)
+      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false., child=child)
       if (ctrl%solver%elsi%elsiCsr) then
         ctrl%solver%isolver = electronicSolverTypes%elpadm
+        #:if WITH_ELPA
+          call detailedError(child, "The sparse interface is not supported if ELPA is directly&
+              & included without using the ELSI interface")
+        #:endif
       else
         ctrl%solver%isolver = electronicSolverTypes%elpa
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "Mode", ctrl%solver%elsi%elpaSolver, 2)
-      call getChildValue(value1, "Autotune", ctrl%solver%elsi%elpaAutotune, .false.)
-      call getChildValue(value1, "Gpu", ctrl%solver%elsi%elpaGpu, .false., child=child)
+      call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
+      call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
+      call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")
+      ctrl%solver%elpa%autotuneFile = trim(unquote(char(buffer)))
+      call getChildValue(value1, "Gpu", ctrl%solver%elpa%gpu, .false., child=child)
       #:if not WITH_GPU
-        if (ctrl%solver%elsi%elpaGpu) then
+        if (ctrl%solver%elpa%gpu) then
           call detailedError(child, "DFTB+ must be compiled with GPU support in order to enable&
               & the GPU acceleration for the ELPA solver")
         end if
       #:endif
+      call getChildValue(value1, "RedistributeFactor", ctrl%solver%elpa%redistributeFactor, 1,&
+          & child=child)
+      #:if not WITH_ELPA
+        if (ctrl%solver%elpa%redistributeFactor /= 1) then
+          call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
+              & included without using the ELSI interface")
+        end if
+      #:endif
+
+      call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
+      if (associated(child)) then
+      #:if not WITH_ELPA
+        call detailedError(child, "Matrix redistribution is only possible if ELPA is directly&
+            & included without using the ELSI interface")
+      #:endif
+        if (ctrl%solver%elpa%redistributeFactor /= 1) then
+          call detailedError(child, "RedistributeFactor and RedistributeRanks must not be specified&
+              & at the same time")
+        end if
+        call init(elpaRedistributeRanks)
+        call getChildValue(child, "", elpaRedistributeRanks)
+        allocate(ctrl%solver%elpa%redistributeRanks(len(elpaRedistributeRanks)))
+        call asArray(elpaRedistributeRanks, ctrl%solver%elpa%redistributeRanks)
+        call destruct(elpaRedistributeRanks)
+      end if
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
@@ -2785,10 +2819,15 @@ contains
     if (ctrl%solver%isolver == electronicSolverTypes%pexsi .and. .not.withPEXSI) then
       call error("Not compiled with PEXSI support via ELSI")
     end if
-    if (any(ctrl%solver%isolver == [electronicSolverTypes%elpa, electronicSolverTypes%omm,&
-        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+    if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])) then
       if (.not.withELSI) then
         call error("Not compiled with ELSI supported solvers")
+      end if
+    end if
+    if (ctrl%solver%isolver == electronicSolverTypes%elpa) then
+      if (.not.withELSI .and. .not.withElpa) then
+        call error("Not compiled with ELSI or ELPA support")
       end if
     end if
 
