@@ -1,0 +1,181 @@
+
+\chapter{Description of some relevant file formats}
+\label{app:files}
+
+\section{The XYZ File Format}
+
+The \emph{XYZ file format} is a minimalist, plain-text representation
+of molecular geometries widely used in quantum chemistry, molecular
+mechanics, and atomistic simulation. It encodes atomic identities and
+Cartesian coordinates in a fixed, human-readable layout without
+explicit bonding or connectivity information.
+
+The XYZ format was never formalized by a standards
+organization. Instead, it evolved organically, with minor variations
+appearing in different codes. This standardization vacuum led to
+multiple incompatible extensions, particularly with respect to the
+number and interpretation of columns in the atomic data section.
+
+\subsection{Canonical Structure}
+
+An XYZ file describing a system of $N$ atoms has the following
+structure:
+
+\begin{enumerate}
+  \item The first line contains the integer number of atoms $N$.
+  \item The second line is a comment line containing arbitrary text.
+  \item The following $N$ lines contain atomic data.
+\end{enumerate}
+
+The comment line is frequently left empty but is syntactically
+required by most readers. Some implementations overload it with
+metadata such as energies or timestep data.
+
+\subsection{Four-Column XYZ Format}
+
+The most common and widely supported variant is the four-column XYZ
+format.  Each atomic line consists of the atomic symbol followed by
+three Cartesian coordinates, typically in \AA{}:
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i.
+\]
+
+A typical example is
+\begin{verbatim}
+3
+Water molecule
+O   0.000000   0.000000   0.000000
+H   0.758602   0.000000   0.504284
+H  -0.758602   0.000000   0.504284
+\end{verbatim}
+
+Here, atomic identity is specified by the chemical symbol
+(case-sensitive by convention), and no information regarding bonding,
+charge, or electronic state is encoded.
+
+\subsection{Five-Column XYZ Format}
+
+A five-column XYZ file extends the atomic line with an additional
+per-atom quantity:
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i \quad q_i.
+\]
+
+The fifth column is most commonly interpreted as a partial atomic
+charge. Because the meaning of the fifth column is not standardized,
+files using this extension are not reliably portable across programs.
+
+\subsection{Seven-Column XYZ Format}
+
+The seven-column XYZ format is most frequently encountered in
+molecular dynamics contexts. In this variant, three additional columns
+are appended to store a Cartesian vector quantity:
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i \quad v_{x,i} \quad
+v_{y,i} \quad v_{z,i}.
+\]
+
+These quantities are most often atomic velocities, though forces or
+other vectors can also be used in practice.
+
+A representative example is
+\begin{verbatim}
+2
+Diatomic molecule with velocities
+H   0.000000   0.000000   0.000000   0.010   0.000   0.000
+H   0.740000   0.000000   0.000000  -0.010   0.000   0.000
+\end{verbatim}
+
+As with the five-column case, interpretation of the extra columns
+depends entirely on external conventions.
+
+\subsection{Use of the Comment Line}
+
+The second line of an XYZ file is commonly overloaded with additional
+metadata, such as total energies or simulation times. For example,
+\begin{verbatim}
+5
+Energy = -152.347839 Ha
+\end{verbatim}
+
+While convenient, this practice further emphasizes the informal nature
+of the format, as such metadata are not machine-interpretable without
+prior agreement.
+
+\section{XYZ Formats in DFTB+}
+
+\subsection{Introduction}
+
+DFTB+ supports the XYZ family of formats primarily as a \emph{geometry exchange
+and output format}, rather than as its most feature-complete internal input
+representation. While the DFTB+ native geometry format (\texttt{.gen}) provides
+explicit support for atom types, lattice vectors, and periodicity, XYZ files are
+supported for both input and output in several distinct variants.
+
+These variants differ in the number of columns and in the interpretation of the
+comment line, depending on the mode of operation (single-point calculation,
+geometry optimization, or molecular dynamics).
+
+\subsection{XYZ as an Input Geometry}
+
+\subsubsection{Four-Column XYZ (Input Mode)}
+
+DFTB+ accepts standard four-column XYZ files as geometry input when
+the \texttt{Geometry = XYZ \{ ... \}} block is used. In this mode,
+each atomic line has the form
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i,
+\]
+with Cartesian coordinates given in \AA{}.
+
+The atomic symbol is mapped internally to a DFTB+ \emph{species} via
+the \texttt{Species} definition block in the input file. No charge,
+velocity, or constraint information can be read from an XYZ input.
+
+Periodic boundary conditions cannot be specified in pure XYZ input;
+systems read in this way are treated as non-periodic unless lattice
+information is provided elsewhere in the input.
+
+\subsection{XYZ Output: Final Geometry}
+
+\subsubsection{Four-Column XYZ (\texttt{geo\_end.xyz})}
+
+At the end of a calculation, DFTB+ can write the final geometry to an
+XYZ file, usually named \texttt{geo\_end.xyz}. For non-self-consistent
+calculations, this file uses the conventional four-column format:
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i.
+\]
+
+No velocities or forces are included in the \texttt{geo\_end.xyz}.
+
+\subsection{XYZ Output: Geometry Optimization Trajectories}
+
+\subsubsection{Multi-Frame Four-Column XYZ}
+
+During geometry optimization, DFTB+ can write intermediate structures
+using the XYZ format. Each optimization step is optionally written as
+a separate XYZ ``frame'' in a single file.  This produces a
+concatenated XYZ trajectory, compatible with common molecular
+visualization tools.
+
+\subsection{XYZ Output: Molecular Dynamics}
+
+\subsubsection{Seven-Column XYZ (MD Trajectories)}
+
+In molecular dynamics simulations, DFTB+ can write extended XYZ
+trajectory files that include atomic velocities. In this mode, each
+atomic line contains seven columns:
+\[
+\text{symbol}_i \quad x_i \quad y_i \quad z_i
+\quad v_{x,i} \quad v_{y,i} \quad v_{z,i}.
+\]
+
+Coordinates are given in \AA{}, and velocities are given in \AA{}/ps.
+
+MD steps can write an XYZ frame with:
+\begin{itemize}
+  \item the number of atoms,
+  \item a comment line (often including the MD step or simulation time),
+  \item seven-column atomic data.
+\end{itemize}

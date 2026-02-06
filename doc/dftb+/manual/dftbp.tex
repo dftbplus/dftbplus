@@ -98,9 +98,10 @@ Additionally optional blocks of definitions may be present:
 
 The geometry can be specified either directly by passing the
 appropriate list of properties or by using the \is{GenFormat\cb}
-method.
-For molecular input the \is{xyzFormat\cb} is supported as well.
-For periodic input the \is{VaspFormat\cb} supports reading POSCAR and CONTCAR files.
+method.  For molecular input the \is{xyzFormat\cb} is supported as
+well (see appendix \ref{app:files} for the file format).  For periodic
+input the \is{VaspFormat\cb} supports reading POSCAR and CONTCAR
+files.
 
 \subsection{Explicit geometry specification}
 
@@ -214,6 +215,8 @@ Geometry = xyzFormat {
   <<< "geometry.xyz"
 }
 \end{verbatim}
+
+See appendix \ref{app:files} for the file format.
 
 \subsection{VaspFormat\{\}}
 \label{sec:dftbp.VaspFormat}
@@ -7198,7 +7201,8 @@ $F_N^y$, $F_N^z$
 \subsection{tdcoords.xyz}
 
 Coordinates and velocities of the atoms saved every
-\kw{WriteFrequency} steps in XYZ format, if \is{IonDynamics} = Yes.
+\kw{WriteFrequency} steps in XYZ format (see appendix
+\ref{app:files}), if \is{IonDynamics} = Yes.
 
 \subsection{bondenergy.bin}
 \label{sec:beformatout}
