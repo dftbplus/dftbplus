@@ -64,6 +64,8 @@ contributed to DFTB+ :
 
 * Carlos R. Lien-Medrano (University of Bremen, Germany)
 
+* You Lu (STFC, Daresbury Laboratory, UK)
+
 * Reinhard Maurer (University of Warwick, UK)
 
 * Tobias Melson (Max Planck Computing and Data Facility, Germany)

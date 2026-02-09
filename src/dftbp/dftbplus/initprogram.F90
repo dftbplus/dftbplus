@@ -2894,12 +2894,12 @@ contains
     this%tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. this%tNegf
 
   #:if WITH_SCALAPACK
-      associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
-        call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
-            & this%isSparseReorderRequired)
-      end associate
-      call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
-          & nLocalCols)
+    associate (blacsOpts => input%ctrl%parallelOpts%blacsOpts)
+      call getDenseDescBlacs(env, blacsOpts%blockSize, blacsOpts%blockSize, this%denseDesc,&
+          & this%isSparseReorderRequired)
+    end associate
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr, nLocalRows,&
+        & nLocalCols)
   #:else
     nLocalRows = this%denseDesc%fullSize
     nLocalCols = this%denseDesc%fullSize
@@ -4296,6 +4296,7 @@ contains
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
+
 
   end subroutine initProgramVariables
 
@@ -5789,7 +5790,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom,&
+        & blacsOpts%isSubComWorld, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
   end subroutine initBlacs
