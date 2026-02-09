@@ -26,14 +26,15 @@ module dftbp_extlibs_poisson
 #:if WITH_POISSON
   use dftbp_poisson_boundaryconditions, only : poissonBCsEnum
   use dftbp_poisson_poisson, only : active_id, angShells, bufferBox, check_biasdir, check_contacts,&
-      & check_localbc, check_parameters, check_poisson_box, deltaR_max, DoCilGate, DoGate, dQmat,&
-      & dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir, GateLength_l, GateLength_t,&
-      & id0, init_charges, init_defaults, init_poissbox, init_skdata, init_structure, InitPot, izp,&
-      & lmax, localBC, MaxPoissIter, mudpack_drv, natoms, nshells, numprocs, overrBulkBC,&
-      & overrideBC, OxLength, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
-      & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, scratchfolder, set_accuracy,&
-      & set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox, set_poissongrid,&
-      & set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
+      & cntr_gate, cntr_gate_set, check_localbc, check_parameters, check_poisson_box, deltaR_max,&
+      & DoCilGate, DoGate, DoInsulator, dQmat, dR_cont, dr_eps, eps_r, fixed_renorm, FoundBox, Gate, GateDir,&
+      & GateLength_l, GateLength_t, id0, init_charges, init_defaults, init_poissbox, init_skdata,&
+      & init_structure, InitPot, insLength_t, insLength_l, izp, lmax, localBC, MaxPoissIter,&
+      & mudpack_drv, natoms, nshells, numprocs, overrBulkBC, overrideBC, OxLength, OxLength_t,&
+      & OxLength_l, period, poiss_freepoisson, poiss_getlatvecs, poiss_savepotential,&
+      & poiss_updcoords, ReadBulk, Rmin_Gate, Rmin_Ins, SavePot, insSharpBC, scratchfolder,&
+      & set_accuracy, set_cluster, set_dopoisson, set_mol_indeces, set_ncont, set_poissonbox,&
+      & set_poissongrid, set_scratch, set_temperature, set_verbose, uhubb, verbose, write_parameters
   #:if WITH_MPI
   use dftbp_poisson_poisson, only : global_comm, poiss_mpi_init, poiss_mpi_split
   #:endif
@@ -188,6 +189,9 @@ module dftbp_extlibs_poisson
     !> Planar or cylindrical gate
     character(1) :: gateType
 
+    !> Planar or cylindrical gate
+    logical :: insulatorIsPresent
+
     !> gate direction
     integer :: gatedir
 
@@ -203,6 +207,12 @@ module dftbp_extlibs_poisson
     !> Insulator length
     real(dp) :: insLength
 
+    !> Insulator length in transverse direction
+    real(dp) :: insLength_t
+
+    !> Insulator length in lateral direction
+    real(dp) :: insLength_l
+
     !> Radius of insulator
     real(dp) :: insRad
 
@@ -214,6 +224,15 @@ module dftbp_extlibs_poisson
 
     !> Buffer layer between dielectric and vacuum
     real(dp) :: dr_eps
+
+    !> Center of cylindrical gate
+    real(dp) :: gateCntr(3)
+
+    !> Flags for which gate center components are explicitly set by user
+    logical :: gateCntrSet(3)
+
+    !> Flag to use sharp boundary conditions for insulator (instead of smooth transition)
+    logical :: insSharpBC
 
     !> Box buffer inside the contact region
     real(dp) :: bufferBox
@@ -635,6 +654,7 @@ contains
       ! Gate settings
       DoGate=.false.
       DoCilGate=.false.
+      DoInsulator = .false.
       if (poissoninfo%gateType.eq.'C') then
         DoCilGate = .true.
       end if
@@ -645,15 +665,23 @@ contains
       Gate = poissoninfo%gatePot
       GateLength_l = poissoninfo%gateLength_l
       GateLength_t = poissoninfo%gateLength_t
+      DoInsulator = poissoninfo%insulatorIsPresent
 
       ! Planar gate must be along y
       GateDir = poissoninfo%gatedir
 
       OxLength = poissoninfo%insLength
+      OxLength_t = poissoninfo%insLength_t
+      OxLength_l = poissoninfo%insLength_l
+      insLength_t = poissoninfo%insLength_t
+      insLength_l = poissoninfo%insLength_l
       Rmin_Gate = poissoninfo%gateRad
+      insSharpBC = poissoninfo%insSharpBC
       Rmin_Ins = poissoninfo%insRad
       eps_r = poissoninfo%eps_r
       dr_eps = poissoninfo%dr_eps
+      cntr_gate = poissoninfo%gateCntr
+      cntr_gate_set = poissoninfo%gateCntrSet
 
       ! Use fixed analytical renormalization (approximate) or numerical
       fixed_renorm = .not.(poissoninfo%numericNorm)

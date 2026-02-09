@@ -59,6 +59,8 @@ module dftbp_poisson_parameters
   real(kind=dp),  public :: LmbMax
   real(kind=dp),  public :: gate
   real(kind=dp),  public :: GateLength_l, GateLength_t, OxLength
+  real(kind=dp),  public :: OxLength_t, OxLength_l
+  real(kind=dp),  public :: insLength_t, insLength_l
   real(kind=dp),  public :: Efermi(MAXNCONT)
   real(kind=dp),  public :: bias_dEf
   real(kind=dp),  public :: Rmin_Ins
@@ -66,6 +68,8 @@ module dftbp_poisson_parameters
   real(kind=dp),  public :: dr_eps
   real(kind=dp),  public :: eps_r
   real(kind=dp),  public :: cntr_gate(3)
+  logical,  public :: insSharpBC
+  logical,  public :: cntr_gate_set(3)
   real(kind=dp),  public :: tip_atom(3)
   real(kind=dp),  public :: base_atom1(3),base_atom2(3)
   real(kind=dp),  public :: tipbias
@@ -98,6 +102,7 @@ module dftbp_poisson_parameters
   logical,  public :: InitPot
   logical,  public :: DoGate
   logical,  public :: DoCilGate
+  logical,  public :: DoInsulator
   logical,  public :: DoTip
   logical,  public :: ReadBulk
   logical,  public :: mixed(6)
@@ -143,13 +148,19 @@ module dftbp_poisson_parameters
     GateLength_l=0.0_dp
     GateLength_t=0.0_dp
     OxLength=0.0_dp
+    OxLength_t=0.0_dp
+    OxLength_l=0.0_dp
+    insLength_t=0.0_dp
+    insLength_l=0.0_dp
     Efermi(:)=0.0_dp
     bias_dEf=0.0_dp
     Rmin_Ins=0.0_dp
     Rmin_Gate=0.0_dp
+    insSharpBC = .false.
     dr_eps=0.0_dp
     eps_r=0.0_dp
     cntr_gate(:)=0.0_dp
+    cntr_gate_set(:)=.false.
     tip_atom(:)=0.0_dp
     base_atom1(:)=0.0_dp
     base_atom2(:)=0.0_dp
@@ -177,6 +188,7 @@ module dftbp_poisson_parameters
     Readold=.false.
     InitPot=.false.
     DoGate=.false.
+    DoInsulator=.false.
     DoCilGate=.false.
     DoTip=.false.
     ReadBulk=.false.

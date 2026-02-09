@@ -16,14 +16,16 @@
 #:include "error.fypp"
 
 module dftbp_poisson_parcheck
+  use dftbp_common_accuracy, only : dp
   use dftbp_common_constants, only : Bohr__AA, hartree__eV
   use dftbp_common_globalenv, only : stdOut
-  use dftbp_io_message, only : warning
+  use dftbp_io_message, only : warning, error
   use dftbp_poisson_mpi_poisson, only : id0, numprocs
-  use dftbp_poisson_parameters, only : cluster, contdir, contnames, deltaR_max, DoCilGate, DoGate,&
-      & DoPoisson, dr_cont, dr_eps, Efermi, eps_r, foundbox, gate, gatedir, GateLength_l,&
-      & GateLength_t, iatc, iatm, initPot, localBC, mixed, mu, ncdim, ncont, overrideBC, OxLength,&
-      & PoissAcc, poissBC, poissbox, Rmin_gate, Rmin_ins, verbose
+  use dftbp_poisson_parameters, only : cluster, cntr_gate, contdir, contnames, deltaR_max,&
+      & DoCilGate, DoGate, DoInsulator, DoPoisson, dr_cont, dr_eps, Efermi, eps_r, foundbox, gate,&
+      & gatedir, GateLength_l, GateLength_t, iatc, iatm, initPot, localBC, mixed, mu, ncdim, ncont,&
+      & overrideBC, OxLength, OxLength_l, OxLength_t, PoissAcc, poissBC, poissbox, Rmin_gate,&
+      & Rmin_ins, verbose
   use dftbp_poisson_structure, only : boxsiz, natoms, period, period_dir, x
 
   implicit none
@@ -153,10 +155,20 @@ contains
 
  subroutine check_parameters()
 
-   if(OxLength.lt.GateLength_l) OxLength=GateLength_l
-   if(Rmin_ins.lt.Rmin_gate) Rmin_ins=Rmin_gate
-   if(dr_eps.lt.0.5d0) dr_eps = 0.5d0
 
+   if(OxLength.lt.GateLength_l) OxLength=GateLength_l
+   print *,'Oxlength=',OxLength, 'GateLength_l=',GateLength_l
+   if (DoInsulator) then
+       if(Rmin_ins.le.0.0d0) then
+       call error('Insulator radius must be positive')
+     end if
+     if(Rmin_ins.gt.Rmin_gate) then
+       call warning('Insulator radius is larger than gate radius: setting Rmin_ins=Rmin_gate')
+       Rmin_ins=Rmin_gate
+     end if
+     if(dr_eps.lt.0.5d0) dr_eps = 0.5d0 !TODO: should be changed to one grid spacing
+     print *,'dr_eps=',dr_eps
+   end if
 
    ! Check nPoles ----------------------------------------
    ! if (Temp.gt.0.and.nPoles.eq.0) nPoles=3
@@ -207,6 +219,11 @@ contains
             write(stdOut,*) 'Gate length l=',GateLength_l*Bohr__AA,'A'
             write(stdOut,*) 'Gate length t=',GateLength_t*Bohr__AA,'A'
             write(stdOut,*) 'Gate distance=',Rmin_Gate*Bohr__AA,'A'
+            write(stdOut,*) 'Oxide length l=',OxLength_l*Bohr__AA,'A'
+            write(stdOut,*) 'Oxide length t=',OxLength_t*Bohr__AA,'A'
+            write(stdOut,*) 'Oxide distance=',Rmin_Ins*Bohr__AA,'A'
+            write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
+            if (dr_eps/=0.0_dp) write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
          endif
          if (DoCilGate) then
             write(stdOut,*) 'Gate: Cylindrical'
@@ -216,7 +233,9 @@ contains
             write(stdOut,*) 'Inner gate radius=',Rmin_Gate*Bohr__AA,'A'
             write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*Bohr__AA,'A'
             write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
-            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
+            if (dr_eps/=0.0_dp) write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
+            write(stdOut,'(a,3(f10.4),a)') ' Cylindrical gate center=',cntr_gate(1)*Bohr__AA,&
+                & cntr_gate(2)*Bohr__AA, cntr_gate(3)*Bohr__AA, '  A'
          end if
          if (any(localBC.gt.0)) then
             do i=1,ncont
@@ -386,9 +405,9 @@ contains
          & the total number of atoms')
    endif
    if (DoGate) then
-     if (gatedir.ne.2) then
-       @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
-     end if
+!     if (gatedir.ne.2) then
+!      @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
+!     end if
      if(any(abs(contdir(:)).eq.gatedir)) then
        @:ERROR_HANDLING(iErr, -4, 'Gate direction along contacts!?')
      end if
