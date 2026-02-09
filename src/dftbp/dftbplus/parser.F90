@@ -6690,7 +6690,7 @@ contains
 #:endif
 
     !> Input tree
-    type(fnode), pointer :: pNode
+    type(fnode), pointer :: pNode, pNode2
 
     !> data type for Poisson solver settings
     type(TPoissonInfo), intent(inout) :: poisson
@@ -6824,7 +6824,11 @@ contains
     call getNodeName(pTmp2, buffer)
 
     poisson%insLength = 0.0_dp
+    poisson%insLength_l = 0.0_dp
+    poisson%insLength_t = 0.0_dp
     poisson%insRad = 0.0_dp
+    poisson%insSharpBC = .false.
+    poisson%insulatorIsPresent = .false.
     select case(char(buffer))
     case ("none")
       poisson%gateType = "N"
@@ -6852,7 +6856,28 @@ contains
           & child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
 
-      poisson%gatedir = 2
+      call getChildValue(pTmp2, "InsulatorLength_t", poisson%insLength_t, 0.0_dp,&
+          & modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insLength_t)
+      call getChildValue(pTmp2, "InsulatorLength_l", poisson%insLength_l, 0.0_dp,&
+          & modifier=modifier, child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insLength_l)
+      call getChildValue(pTmp2, "InsulatorDistance", poisson%insRad, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insRad)
+      call getChildValue(pTmp2, "BufferLength", poisson%dr_eps, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%dr_eps)
+      call getChildValue(pTmp2, "Permittivity", poisson%eps_r, 1.0_dp, modifier=modifier,&
+          & child=field)
+
+      poisson%gateCntrSet(:) = .false.
+      poisson%gateCntr(:) = 0.0_dp
+      if (poisson%insRad .gt. 0.0_dp) then
+        poisson%insulatorIsPresent = .true.
+      end if
+
+      call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
 
     case ("cylindrical")
       poisson%gateType = "C"
@@ -6867,6 +6892,52 @@ contains
       call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
+
+      call getChildValue(pTmp2, "InsulatorRadius", poisson%insRad, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insRad)
+      call getChildValue(pTmp2, "InsulatorLength", poisson%insLength, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insLength)
+      call getChildValue(pTmp2, "BufferLength", poisson%dr_eps, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertUnitHsd(char(modifier), lengthUnits, field, poisson%dr_eps)
+      call getChildValue(pTmp2, "Permittivity", poisson%eps_r, 1.0_dp, modifier=modifier,&
+          & child=field)
+      call getChildValue(pTmp2, "InsulatorSharpBC", poisson%insSharpBC, .false.)
+
+      if (poisson%insRad .gt. 0.0_dp) then
+        poisson%insulatorIsPresent = .true.
+      end if
+
+      poisson%gateCntrSet(:) = .false.
+      poisson%gateCntr(:) = 0.0_dp
+      ! The gate center variables need to be provided separately to be able to distinguish
+      ! between a missing entry (in which case the center will be set at the origin) and an
+      ! entry explicitly setting the center at the origin.
+      call getChild(pTmp2, "GateCenterX", pNode2, requested=.false.)
+      if (associated(pNode2)) then
+        call getChildValue(pNode2, "Pos", poisson%gateCntr(1), 0.0_dp, modifier=modifier,&
+            & child=field)
+        call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateCntr(1))
+        poisson%gateCntrSet(1) = .true.
+      end if
+
+      call getChild(pTmp2, "GateCenterY", pNode2, requested=.false.)
+      if (associated(pNode2)) then
+        call getChildValue(pNode2, "Pos", poisson%gateCntr(2), 0.0_dp, modifier=modifier,&
+            & child=field)
+        call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateCntr(2))
+        poisson%gateCntrSet(2) = .true.
+      end if
+
+      call getChild(pTmp2, "GateCenterZ", pNode2, requested=.false.)
+      if (associated(pNode2)) then
+        call getChildValue(pNode2, "Pos", poisson%gateCntr(3), 0.0_dp, modifier=modifier,&
+            & child=field)
+        call convertUnitHsd(char(modifier), lengthUnits, field, poisson%gateCntr(3))
+        poisson%gateCntrSet(3) = .true.
+      end if
 
     case default
       call getNodeHSDName(pTmp2, buffer)

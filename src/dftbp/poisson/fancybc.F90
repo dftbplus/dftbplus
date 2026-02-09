@@ -18,13 +18,15 @@ module dftbp_poisson_fancybc
   use dftbp_poisson_mpi_poisson, only : id0
   use dftbp_poisson_parameters, only : base_atom1, base_atom2, biasdir, cntr_cont, cntr_gate,&
       & contdir, dr_cont, dr_eps, eps_r, gate, gatedir, gatelength_l, gatelength_t, iatc, localbc,&
-      & mixed, ncont, OxLength, poissbox, r_cont, rmin_gate, rmin_ins, tip_atom, tipbias
+      & mixed, ncont, OxLength, OxLength_t, OxLength_l, poissbox, r_cont, rmin_gate, rmin_ins,&
+      & tip_atom, tipbias
 
   implicit none
 
   private
   public :: bndyc, coef, coef_period, coef_gate, gate_bound
   public :: coef_tip ,tip_bound, coef_cilgate, cilgate_bound
+  public :: coef_cilgate_sharp_bc
   public :: coef_local, local_bound
   public :: cofx, cofy, cofz
   public :: mix_bndyc
@@ -104,12 +106,21 @@ end subroutine coef_period
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine coef_gate(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
 
-real(kind=dp) :: cxx,cyy,czz,cx,cy,cz,ce
-real(kind=dp) :: x,y,z,x_x,y_y,z_z
-real(kind=dp) :: x_min_gate,x_max_gate,y_min_gate,y_max_gate
-real(kind=dp) :: z_min_gate,z_max_gate
-integer :: i_x,i_y,i_z
-
+   real(kind=dp) :: cxx,cyy,czz,cx,cy,cz,ce
+   real(kind=dp) :: x,y,z,x_x,y_y,z_z
+   real(kind=dp) :: x_min_gate,x_max_gate,y_min_gate,y_max_gate
+   real(kind=dp) :: z_min_gate,z_max_gate
+   real(kind=dp) :: x_min_ox,x_max_ox,y_min_ox,y_max_ox,z_min_ox,z_max_ox
+   real(kind=dp) :: dz_dist, a, b, a1, b1, a2, b2
+   real(kind=dp) :: a_z, b_z, a1_z, b1_z
+   real(kind=dp) :: a_x, b_x, a1_x, b1_x
+   real(kind=dp) :: a_y, b_y, a1_y, b1_y
+   real(kind=dp) :: dist_z_min, dist_x_min, dist_x_max, dist_y_min, dist_y_max, dist_blend
+   real(kind=dp) :: cxx_blend, a_blend
+   logical :: near_z_min_bound, near_x_min_bound, near_x_max_bound, near_y_min_bound,&
+       & near_y_max_bound
+   real(kind=dp) :: zero(3)
+   integer :: i_x,i_y,i_z
 
    cxx = 1.d0
    cyy = 1.d0
@@ -123,62 +134,132 @@ integer :: i_x,i_y,i_z
 
    select case (gatedir)
    case(1)
-       x_x = y
-       y_y = z
-       z_z = x
-       i_x = 2
-       i_y = 3
-       i_z = 1
+      x_x = y
+      y_y = z
+      z_z = x
+      i_x = 2
+      i_y = 3
+      i_z = 1
+      zero = (/1.d0, 0.d0, 0.d0/)
    case(2)
-       x_x = x
-       y_y = z
-       z_z = y
-       i_x = 1
-       i_y = 3
-       i_z = 2
+      x_x = x
+      y_y = z
+      z_z = y
+      i_x = 1
+      i_y = 3
+      i_z = 2
+      zero = (/0.d0, 1.d0, 0.d0/)
    case(3)
-       x_x = x
-       y_y = y
-       z_z = z
-       i_x = 1
-       i_y = 2
-       i_z = 3
+      x_x = x
+      y_y = y
+      z_z = z
+      i_x = 1
+      i_y = 2
+      i_z = 3
+      zero = (/0.d0, 0.d0, 1.d0/)
    end select
 
-     ! The gate extends on the centre of Poisson Box
-     ! If Rmin_Gate is positive the gate is on +gatedir
-     ! If Rmin_Gate is negative the gate is on -gatedir
+   ! Gate electrode bounds in transverse directions
+   x_min_gate = cntr_gate(i_x) - GateLength_t/2.d0
+   x_max_gate = cntr_gate(i_x) + GateLength_t/2.d0
+   y_min_gate = cntr_gate(i_y) - GateLength_l/2.d0
+   y_max_gate = cntr_gate(i_y) + GateLength_l/2.d0
 
-        x_min_gate=cntr_gate(i_x)-GateLength_t/2.d0
-        x_max_gate=cntr_gate(i_x)+GateLength_t/2.d0
-        y_min_gate=cntr_gate(i_y)-GateLength_l/2.d0
-        y_max_gate=cntr_gate(i_y)+GateLength_l/2.d0
+   ! Oxide bounds in transverse directions
+   x_min_ox = cntr_gate(i_x) - OxLength_t/2.d0
+   x_max_ox = cntr_gate(i_x) + OxLength_t/2.d0
+   y_min_ox = cntr_gate(i_y) - OxLength_l/2.d0
+   y_max_ox = cntr_gate(i_y) + OxLength_l/2.d0
 
-        if (Rmin_Gate.gt.0.d0) then
-           z_min_gate=cntr_gate(i_z)+Rmin_Gate
-           z_max_gate=cntr_gate(i_z)+PoissBox(i_z,i_z)
-        else
-           z_min_gate=cntr_gate(i_z)-PoissBox(i_z,i_z)
-           z_max_gate=cntr_gate(i_z)-Rmin_Gate
-        end if
+   ! Gate and oxide bounds in gate direction (z_z is along gate axis)
+   if (Rmin_Gate.gt.0.d0) then
+      z_min_gate = cntr_gate(i_z) + Rmin_Gate
+      z_max_gate = cntr_gate(i_z) + PoissBox(i_z,i_z)
+      z_min_ox = cntr_gate(i_z) + Rmin_Ins
+      z_max_ox = cntr_gate(i_z) + PoissBox(i_z,i_z)
+   else
+      z_min_gate = cntr_gate(i_z) - PoissBox(i_z,i_z)
+      z_max_gate = cntr_gate(i_z) - Rmin_Gate
+      z_min_ox = cntr_gate(i_z) - PoissBox(i_z,i_z)
+      z_max_ox = cntr_gate(i_z) - Rmin_Ins
+   end if
 
-        if(x_x.ge.x_min_gate.and.x_x.le.x_max_gate) then
-           if(y_y.ge.y_min_gate.and.y_y.le.y_max_gate) then
-              if(z_z.ge.z_min_gate.and.z_z.le.z_max_gate) then
+   ! Oxide region with exponential decay smoothing
+   if (OxLength_t.gt.0.d0 .and. OxLength_l.gt.0.d0) then
 
-                   cxx = 0.d0
-                   cyy = 0.d0
-                   czz = 0.d0
-                   cx = 0.d0
-                   cy = 0.d0
-                   cz = 0.d0
-                   ce = 1.d0
+      ! Calculate perpendicular distances to oxide box surfaces
+      ! min_val = minimum value in list, returns 0 if all are negative
+      dz_dist = max(z_min_ox - z_z, 0.d0, z_z - z_max_ox)
+      dist_x_min = max(x_min_ox - x_x, 0.d0, x_x - x_max_ox)
+      dist_y_min = max(y_min_ox - y_y, 0.d0, y_y - y_max_ox)
 
-               end if
-            end if
-         end if
+      ! Total distance to oxide surface
+      a_z = sqrt(dz_dist**2 + dist_x_min**2 + dist_y_min**2)
 
-  return
+      ! Smooth permittivity using exponential decay
+      if (a_z.eq.0.d0) then
+         ! At oxide boundary (inside oxide)
+         cxx = eps_r
+         cyy = eps_r
+         czz = eps_r
+         cx = 0.d0
+         cy = 0.d0
+         cz = 0.d0
+      else
+         ! Outside oxide: exponential decay
+         a_z = exp(-(a_z/dr_eps)**2)
+         cxx = 1.d0 + (eps_r - 1.d0) * a_z
+         cyy = cxx
+         czz = cxx
+
+         ! Gradients: depsilon/d* = pref * d*
+         ! where pref = (eps_r - 1) * f * (-2/(dr_eps^2)) and f = exp(-(d/dr_eps)^2)
+         a1 = (eps_r - 1.d0) * a_z * (-2.d0 / (dr_eps**2))
+         cx = a1 * dist_x_min
+         cy = a1 * dist_y_min
+         cz = a1 * dz_dist
+      end if
+
+      ! Check if inside gate electrode (Dirichlet region)
+      if ((x_x.ge.x_min_gate).and.(x_x.le.x_max_gate).and. &
+          (y_y.ge.y_min_gate).and.(y_y.le.y_max_gate).and. &
+          (z_z.ge.z_min_gate).and.(z_z.le.z_max_gate)) then
+         ! Inside gate electrode - conductor
+         cxx = 0.d0
+         cyy = 0.d0
+         czz = 0.d0
+         cx = 0.d0
+         cy = 0.d0
+         cz = 0.d0
+         ce = 1.d0
+      else
+         ! REGION 3: Inside oxide but outside gate - dielectric
+         cxx = eps_r
+         cyy = eps_r
+         czz = eps_r
+         cx = 0.d0
+         cy = 0.d0
+         cz = 0.d0
+         ce = 0.d0
+      end if
+
+   else
+      ! No oxide enabled - just check for gate electrode (standard planar gate)
+      if ((x_x.ge.x_min_gate).and.(x_x.le.x_max_gate).and. &
+          (y_y.ge.y_min_gate).and.(y_y.le.y_max_gate).and. &
+          (z_z.ge.z_min_gate).and.(z_z.le.z_max_gate)) then
+         ! Inside gate electrode - conductor
+         cxx = 0.d0
+         cyy = 0.d0
+         czz = 0.d0
+         cx = 0.d0
+         cy = 0.d0
+         cz = 0.d0
+         ce = 1.d0
+      end if
+   end if
+
+   return
 
 end subroutine coef_gate
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -193,6 +274,7 @@ subroutine gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
  real(kind=dp) :: x_x,y_y,z_z,xi,yj,zk
  real(kind=dp) :: x_min_gate,x_max_gate,y_min_gate,y_max_gate
  real(kind=dp) :: z_min_gate,z_max_gate
+ real(kind=dp) :: x_min_ox,x_max_ox,y_min_ox,y_max_ox,z_min_ox,z_max_ox
  integer :: i,j,k,i_x,i_y,i_z
 
    select case (gatedir)
@@ -250,17 +332,14 @@ subroutine gate_bound(iparm,fparm,dlx,dly,dlz,rhs)
           ! If Rmin_Gate is positive the gate is on +gatedir
           ! If Rmin_Gate is negative the gate is on -gatedir
 
+          ! Set gate boundary condition if inside gate electrode bounds
           if(z_z.ge.z_min_gate.and.z_z.le.z_max_gate) then
              if(x_x.ge.x_min_gate.and.x_x.le.x_max_gate) then
                 if(y_y.ge.y_min_gate.and.y_y.le.y_max_gate) then
-
                    rhs(i,j,k)=gate
-
-                endif
-             endif
-          endif
-
-
+                end if
+             end if
+          end if
        enddo
     enddo
  enddo
@@ -429,6 +508,108 @@ Subroutine coef_cilgate(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
 
 
 end subroutine coef_cilgate
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Subroutine coef_cilgate_sharp_bc(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
+
+ real(kind=dp) :: cxx,cyy,czz,cx,cy,cz,ce
+ real(kind=dp) :: x,y,z
+ real(kind=dp) :: x_min_gate,x_max_gate
+ real(kind=dp) :: d_cntr
+ real(kind=dp) :: x_min_ox,x_max_ox
+ real(kind=dp) :: x_x,y_y,z_z,zero(3)
+ integer :: i_x, i_y, i_z
+
+
+  select case(biasdir)
+
+     case(1)
+
+        x_x = x
+        i_x= 1
+        y_y = y
+        z_z = z
+        i_y= 2
+        i_z= 3
+        zero=(/1.d0,0.d0,0.d0/)
+
+     case(2)
+
+        x_x = y
+        i_x = 2
+        y_y = x
+        z_z = z
+        i_y= 1
+        i_z= 3
+        zero=(/0.d0,1.d0,0.d0/)
+
+     case(3)
+
+        x_x = z
+        i_x= 3
+        y_y = x
+        z_z = y
+        i_y= 1
+        i_z= 2
+        zero=(/0.d0,0.d0,1.d0/)
+
+     end select
+
+     x_min_gate = cntr_gate(i_x) - GateLength_l/2.d0
+     x_max_gate = cntr_gate(i_x) + GateLength_l/2.d0
+     x_min_ox = cntr_gate(i_x) - OxLength/2.d0
+     x_max_ox = cntr_gate(i_x) + OxLength/2.d0
+
+     d_cntr = sqrt((y_y-cntr_gate(i_y))**2+(z_z-cntr_gate(i_z))**2)
+
+     ! Sharp boundaries: outside oxide OR inside insulator cylinder
+     if ((x_x.lt.x_min_ox).or.(x_x.gt.x_max_ox).or.(d_cntr.lt.Rmin_Ins)) then
+
+        cxx = 1.d0
+        cyy = 1.d0
+        czz = 1.d0
+
+        cx = 0.d0
+        cy = 0.d0
+        cz = 0.d0
+
+        ce = 0.d0
+
+        if(any(localBC.gt.0)) call coef_local(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
+
+     else
+
+        ! Inside oxide: check if inside gate electrode
+        if ((d_cntr.ge.Rmin_Gate).and.(x_x.ge.x_min_gate).and.(x_x.le.x_max_gate)) then
+
+           cxx = 0.d0
+           cyy = 0.d0
+           czz = 0.d0
+
+           cx = 0.d0
+           cy = 0.d0
+           cz = 0.d0
+
+           ce = 1.d0
+
+        else
+
+           ! Pure oxide region (outside gate electrode)
+           cxx = eps_r
+           cyy = eps_r
+           czz = eps_r
+
+           cx = 0.d0
+           cy = 0.d0
+           cz = 0.d0
+
+           ce = 0.d0
+
+        end if
+
+     end if
+
+
+end subroutine coef_cilgate_sharp_bc
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 subroutine cilgate_bound(iparm,fparm,dlx,dly,dlz,rhs)

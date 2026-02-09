@@ -874,6 +874,8 @@ Gate = Cylindrical {
 \end{verbatim}
 
 The various options for the gates have the following meanings:
+
+{\bf Planar Gate Options:}
 \begin{description}
 \item[\is{GateLength\_l}]\modif{\modtype{length}} Sets the gate length along the
   transport direction (always assumed to be $z$). The gate is centred in the
@@ -885,16 +887,78 @@ The various options for the gates have the following meanings:
   from the centre axis of the device region.
 \item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
   the gate.
-\item[\is{GateRadius}]\modif{\modtype{length}} For a cylindrical gate, sets the
-  distance of the gate from the centre axis or gate radius.
+\item[\is{InsulatorLength\_t}]\modif{\modtype{length}} Sets the insulator layer
+  extent transverse to the transport direction. If present, an insulator
+  material is assumed to be defined in the Poisson box.
+\item[\is{InsulatorLength\_l}]\modif{\modtype{length}} Sets the insulator layer
+  length along the transport direction.
+\item[\is{InsulatorDistance}]\modif{\modtype{length}} Sets the distance of the
+  insulator from the centre axis of the device region.
+\item[\is{BufferLength}]\modif{\modtype{length}} Sets the smoothing region width
+  for the permittivity transition between the insulator and surrounding medium.
+  A larger buffer length results in a smoother transition.
+\item[\is{Permittivity}]\modif{\modtype{dimensionless}} Sets the relative
+  permittivity (dielectric constant) of the insulator material. Default is 1.0
+  (vacuum).
+\item[\is{GateDirection}] Specifies the direction of the gate normal (perpendicular
+  to the gate plane). Takes integer values 1, 2, or 3 corresponding to the $x$,
+  $y$, or $z$ directions respectively. Default is 2 (y-direction). Keep in mind, that
+  the gate direction cannot be parallel to the transport direction.
+\end{description}
+
+{\bf Cylindrical Gate Options:}
+\begin{description}
+\item[\is{GateLength}]\modif{\modtype{length}} Sets the length of the cylindrical
+  gate along the cylinder axis (transport direction).
+\item[\is{GateRadius}]\modif{\modtype{length}} Sets the radius of the cylindrical
+  gate from the centre axis.
+\item[\is{GatePotential}]\modif{\modtype{energy}} Sets the potential applied to
+  the gate.
+\item[\is{InsulatorRadius}]\modif{\modtype{length}} Sets the radius of the
+  insulator layer around the cylindrical gate. If present, an insulator
+  material is assumed to be defined in the Poisson box.
+\item[\is{InsulatorLength}]\modif{\modtype{length}} Sets the length of the
+  insulator layer along the cylinder axis.
+\item[\is{BufferLength}]\modif{\modtype{length}} Sets the smoothing region width
+  for the permittivity transition between the insulator and surrounding medium.
+\item[\is{Permittivity}]\modif{\modtype{dimensionless}} Sets the relative
+  permittivity (dielectric constant) of the insulator material. Default is 1.0
+  (vacuum).
+\item[\is{InsulatorSharpBC}] When set to \is{Yes}, uses sharp boundary
+  conditions for the insulator region instead of smooth transitions. Default is
+  \is{No}.
+\item[\is{GateCenterX}] Specifies the $x$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
+\item[\is{GateCenterY}] Specifies the $y$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
+\item[\is{GateCenterZ}] Specifies the $z$-coordinate of the cylindrical gate
+  center. If not specified, the center is automatically positioned.
 \end{description}
 
 \begin{ptableh}
-  \kw{GateLenth\_l} & r &  & 0.0 &  \\
-  \kw{GateLenth\_t} & r &  & 0.0 &  \\
+  \multicolumn{5}{l}{{\bf Planar Gate:}} \\
+  \kw{GateLength\_l} & r &  & 0.0 &  \\
+  \kw{GateLength\_t} & r &  & 0.0 &  \\
   \kw{GateDistance} & r &  & 0.0 &  \\
   \kw{GatePotential} & r &  & 0.0 &  \\
+  \kw{InsulatorLength\_t} & r &  & 0.0 &  \\
+  \kw{InsulatorLength\_l} & r &  & 0.0 &  \\
+  \kw{InsulatorDistance} & r &  & 0.0 &  \\
+  \kw{BufferLength} & r &  & 0.0 &  \\
+  \kw{Permittivity} & r &  & 1.0 &  \\
+  \kw{GateDirection} & i &  & 2 &  \\
+  \multicolumn{5}{l}{{\bf Cylindrical Gate:}} \\
+  \kw{GateLength} & r &  & 0.0 &  \\
   \kw{GateRadius} & r &  & 0.0 &  \\
+  \kw{GatePotential} & r &  & 0.0 &  \\
+  \kw{InsulatorRadius} & r &  & 0.0 &  \\
+  \kw{InsulatorLength} & r &  & 0.0 &  \\
+  \kw{BufferLength} & r &  & 0.0 &  \\
+  \kw{Permittivity} & r &  & 1.0 &  \\
+  \kw{InsulatorSharpBC} & l &  & No &  \\
+  \kw{GateCenterX} & r &  & auto &  \\
+  \kw{GateCenterY} & r &  & auto &  \\
+  \kw{GateCenterZ} & r &  & auto &  \\
 \end{ptableh}
 
 Note that the gate option has not be tested thoroughly and may still contain
