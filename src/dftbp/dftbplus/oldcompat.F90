@@ -947,8 +947,7 @@ contains
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
-
-    type(fnode), pointer :: ch1, ch2, par, hamil, tmpNodeRef
+    type(fnode), pointer :: ch1, ch2, hamil, par, tmpNodeRef
     logical :: isRecomputed
 
     call getDescendant(root, "Hamiltonian/xTB/SpinConstants", ch1)
@@ -995,6 +994,17 @@ contains
           & supported/need by libMBD any more")
       call destroyNode(ch1)
     end if
+
+    call getDescendant(root, "Parallel", ch1)
+    if (.not.associated(ch1)) then
+      call setChild(root, "Parallel", ch1)
+    end if
+    call getDescendant(ch1, "Blacs", ch2)
+    if (.not.associated(ch2)) then
+      call setChild(ch1, "Blacs", ch2)
+    end if
+    call setChildValue(ch2, "MPI_COMM_WORLD", .true.)
+    call detailedWarning(ch2, 'Set MPI communicator to be MPI_COMM_WORLD.')
 
   end subroutine convert_14_15
 
