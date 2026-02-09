@@ -56,6 +56,8 @@ contributed to DFTB+ :
 * In Seong Lee (Ulsan National Institute of Science and Technology, Republic of
   Korea)
 
+* You Lu (STFC, Daresbury Laboratory, UK)
+
 * Reinhard Maurer (University of Warwick, UK)
 
 * Tobias Melson (Max Planck Computing and Data Facility, Germany)
