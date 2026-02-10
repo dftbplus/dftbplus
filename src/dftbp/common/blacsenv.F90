@@ -51,8 +51,8 @@ contains
 
 
   !> Initializes BLACS grids
-  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, errStatus,&
-      & isSubComWorld)
+  subroutine TBlacsEnv_init(this, myMpiEnv, rowBlock, colBlock, nOrb, nAtom, isSubComWorld,&
+      & errStatus)
 
     !> Initialized instance at exit.
     type(TBlacsEnv), intent(out) :: this
@@ -72,20 +72,17 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    !> Should the top level available MPI world be used, instead of MPI_COMM_WORLD
+    logical, intent(in) :: isSubComWorld
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
-
-    logical, intent(in), optional :: isSubComWorld
 
     integer, allocatable :: gridMap(:,:), localRanks(:)
     integer :: nProcRow, nProcCol, maxProcRow, maxProcColMax, ii
     character(200) :: buffer
-    logical :: isSubComWorld_
 
-    isSubComWorld_ = .false.
-    if (present(isSubComWorld)) isSubComWorld_ = isSubComWorld
-
-    if (isSubComWorld_) then
+    if (isSubComWorld) then
       allocate(localRanks(myMpiEnv%groupSize))
       do ii = 1, myMpiEnv%groupSize
         localRanks(ii) = ii - 1
@@ -103,7 +100,7 @@ contains
           & ") too big (> ", maxProcRow, " x ", maxProcColMax, ")"
       @:RAISE_ERROR(errStatus, -1, trim(buffer))
     end if
-    if (isSubComWorld_) then
+    if (isSubComWorld) then
       call getGridMap(localRanks, nProcRow, nProcCol, gridMap)
       call this%orbitalGrid%initmappedgrids_comm(gridMap, myMpiEnv%groupComm%id)
     else
@@ -112,7 +109,7 @@ contains
     end if
 
     ! rectangular grid for the rowBlock
-    if (isSubComWorld_) then
+    if (isSubComWorld) then
       call getGridMap(localRanks, 1, nProcRow * nProcCol, gridMap)
       call this%rowOrbitalGrid%initmappedgrids_comm(gridMap, myMpiEnv%groupComm%id)
     else
@@ -126,7 +123,7 @@ contains
     nProcRow = min(nProcRow, maxProcRow)
     nProcCol = min(nProcCol, maxProcColMax)
 
-    if (isSubComWorld_) then
+    if (isSubComWorld) then
       call getGridMap(localRanks, nProcRow, nProcCol, gridMap)
       call this%atomGrid%initmappedgrids_comm(gridMap, myMpiEnv%groupComm%id)
     else

@@ -6555,10 +6555,22 @@ the code. They only take effect, if the code was compiled with MPI-support.
   This is currently an experimental feature in DFTB+ and is recommended for
   experienced users only.
 
-\item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
-  \is{BlockSize}, which specifies the row and column block size for the
-  block-cyclic distributions (with default size of 32).
+\item[\is{Blacs}] Contain BLACS specific settings.
 
+  \begin{ptable}
+    \kw{BlockSize} & i & & 32 & \\
+    \kw{MPI\_COMM\_WORLD} & l & & N & \\
+  \end{ptable}
+
+  \begin{description}
+    \item[\is{BlockSize}] Specifies the row and column block size for the
+      block-cyclic distributions (default size of 32).
+    \item[\is{MPI\_COMM\_WORLD}] Whether the BLACS grid is initialised
+      from the MPI\_COMM\_WORLD (\is{Yes}), or is initialised from the
+      top level communicator available to the code (\is{No}) as is
+      required for task-farming use of the code.
+  \end{description}
+  
   Example:
 \begin{verbatim}
   Parallel {

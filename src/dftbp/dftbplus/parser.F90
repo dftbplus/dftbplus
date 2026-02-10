@@ -7728,6 +7728,8 @@ contains
             & support)")
       end if
       call getChildValue(node, "BlockSize", blacsOpts%blockSize, 32)
+      call getChildValue(node, "MPI_COMM_WORLD", blacsOpts%isSubComWorld, .false.)
+      blacsOpts%isSubComWorld = .not. blacsOpts%isSubComWorld
     end if
 
   end subroutine readBlacs

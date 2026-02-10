@@ -67,6 +67,9 @@ module dftbp_dftbplus_inputdata
     !> Block size for matrix rows and columns.
     integer :: blockSize
 
+    !> Is the MPI comm world cut up (T), or is MPI_COMM_WORLD (F) used
+    logical :: isSubComWorld
+
   end type TBlacsOpts
 
 
