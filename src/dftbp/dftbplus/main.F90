@@ -184,7 +184,7 @@ contains
 
     !> Flag to write out geometries (and charge data if scc) when moving atoms about - in the case
     !> of drivers like conjugate gradient/steepest descent the geometries are written anyway
-    logical :: tWriteRestart
+    logical :: tWriteRestart = .false.
 
     !> Lattice vectors returned by the optimizer
     real(dp) :: constrLatDerivs(9)
@@ -301,10 +301,11 @@ contains
           & .and. this%tSccCalc .and. .not. this%tDerivs&
           & .and. this%maxSccIter > 1 .and. this%deltaDftb%nDeterminant() == 1&
           & .and. this%tWriteCharges
+
     #:if WITH_SCALAPACK
       if (this%isHybridXc .and. this%tRealHS) tWriteCharges = .false.
     #:endif
-      if (tWriteCharges .and. .not. (this%isHybridXc .and. this%nSpin==4)) then
+      if (tWriteCharges) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, size(this%iAtInCentralRegion),&
             & this%hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix,&
@@ -1036,7 +1037,7 @@ contains
         end if
       end if
     #:endif
-      if (tWriteSccRestart .and. .not. (this%isHybridXc .and. this%nSpin==4)) then
+      if (tWriteSccRestart) then
         call writeCharges(fCharges, this%tWriteChrgAscii, this%orb, this%qInput, this%qBlockIn,&
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, size(this%iAtInCentralRegion),&
             & this%hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix,&
