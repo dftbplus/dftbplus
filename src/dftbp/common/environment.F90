@@ -278,7 +278,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Initializes BLACS environment
-  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, errStatus)
+  subroutine TEnvironment_initBlacs(this, rowBlock, colBlock, nOrb, nAtom, isSubComWorld, errStatus)
 
     !> Instance
     class(TEnvironment), intent(inout) :: this
@@ -295,10 +295,14 @@ contains
     !> Nr. of atoms
     integer, intent(in) :: nAtom
 
+    !> Should the top level available MPI world be used, instead of MPI_COMM_WORLD
+    logical, intent(in) :: isSubComWorld
+
     !> Operation status, if an error needs to be returned
     type(TStatus), intent(inout) :: errStatus
 
-    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, errStatus)
+    call TBlacsEnv_init(this%blacs, this%mpi, rowBlock, colBlock, nOrb, nAtom, isSubComWorld,&
+        & errStatus)
     @:PROPAGATE_ERROR(errStatus)
     this%blacsInitialised = .true.
 

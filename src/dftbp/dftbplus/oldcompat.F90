@@ -28,7 +28,7 @@ module dftbp_dftbplus_oldcompat
 
   !> Actual input version <-> parser version maps (must be updated at every public release)
   type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("25.1", 14),&
+      & TVersionMap("26.1", 15), TVersionMap("25.1", 14),&
       & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
       & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
       & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
@@ -101,6 +101,9 @@ contains
       case (13)
         call convert_13_14(root)
         version = 14
+      case (14)
+        call convert_14_15(root)
+        version = 15
       end select
     end do
 
@@ -937,6 +940,27 @@ contains
     end if
 
   end subroutine convert_13_14
+
+
+  !> Converts input from version 14 to 15. (Version 15 introduced in February 2026)
+  subroutine convert_14_15(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+
+    call getDescendant(root, "Parallel", ch1)
+    if (.not.associated(ch1)) then
+      call setChild(root, "Parallel", ch1)
+    end if
+    call getDescendant(ch1, "Blacs", ch2)
+    if (.not.associated(ch2)) then
+      call setChild(ch1, "Blacs", ch2)
+    end if
+    call setChildValue(ch2, "MPI_COMM_WORLD", .true.)
+
+  end subroutine convert_14_15
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser
