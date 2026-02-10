@@ -202,8 +202,8 @@ if(WITH_MPI)
   # Find ScaLAPACK to make sure, all components (e.g. ScalapackFx, MBD) use the same ScaLAPACK
   find_package(CustomScalapack REQUIRED)
 
-  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/dftbplus/scalapackfx.git")
-  set(SCALAPACKFX_GIT_TAG "db5508cd58bdd29bb49eb065f7ce4c46fae6d17e")  # do not change manually!
+  set(SCALAPACKFX_GIT_REPOSITORY "https://github.com/bhourahine/scalapackfx.git")
+  set(SCALAPACKFX_GIT_TAG "b9ee16da8bea633e4750baea6fd52a310b0c27f8")  # do not change manually!
   dftbp_config_hybrid_dependency(ScalapackFx ScalapackFx::ScalapackFx "${HYBRID_CONFIG_METHODS}"
     "QUIET" external/scalapackfx "${exclude}" "${SCALAPACKFX_GIT_REPOSITORY}"
     "${SCALAPACKFX_GIT_TAG}")
