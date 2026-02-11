@@ -82,6 +82,10 @@ else()
   set(WITH_MAGMA FALSE)
 endif()
 
+if(WITH_ELSI AND WITH_ELPA)
+  message(FATAL_ERROR "You must not enable both WITH_ELSI and WITH_ELPA")
+endif()
+
 if(WITH_ELSI AND NOT TARGET elsi::elsi)
   set(ELSI_MIN_VERSION "2.5.0")
   find_package(elsi ${ELSI_MIN_VERSION} REQUIRED)
@@ -109,6 +113,18 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
 else()
   list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
+endif()
+
+if(WITH_ELPA AND NOT TARGET elpa::elpa)
+  set(ELPA_MIN_VERSION "2022.05.001")
+  find_package(elpa ${ELPA_MIN_VERSION} REQUIRED)
+  if(elpa_VERSION VERSION_GREATER "2023.05.001")
+    list(APPEND FYPP_FLAGS -DELPA_HAS_SETUP_GPU)
+  endif()
+
+  if(WITH_GPU)
+    find_package(CUDAToolkit REQUIRED)
+  endif()
 endif()
 
 if(WITH_PLUMED)

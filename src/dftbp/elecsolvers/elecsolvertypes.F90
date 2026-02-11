@@ -21,8 +21,10 @@ module dftbp_elecsolvers_elecsolvertypes
     integer :: divideandconquer = 2
     integer :: relativelyrobust = 3
 
-    ! elsi provided solvers
+    ! either provided by elsi or included standalone
     integer :: elpa = 4
+
+    ! elsi provided solvers
     integer :: omm = 5
     integer :: pexsi = 6
     integer :: dummy1 = 7

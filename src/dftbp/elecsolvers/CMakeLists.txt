@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/dmsolvertypes.F90
   ${curdir}/elecsolvers.F90
   ${curdir}/elecsolvertypes.F90
+  ${curdir}/elpa.F90
   ${curdir}/elsicsc.F90
   ${curdir}/elsisolver.F90)
 

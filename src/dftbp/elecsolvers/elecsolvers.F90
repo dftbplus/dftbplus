@@ -11,7 +11,9 @@
 module dftbp_elecsolvers_elecsolvers
   use dftbp_common_accuracy, only : dp, lc
   use dftbp_elecsolvers_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elecsolvers_elpa, only : TElpa, TElpaInp
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
+  use dftbp_extlibs_elpa, only : withElpa
   implicit none
 
   private
@@ -28,6 +30,9 @@ module dftbp_elecsolvers_elecsolvers
     !> Input for the ELSI solver
     type(TElsiSolverInp), allocatable :: elsi
 
+    !> Input for the ELPA solver
+    type(TElpaInp), allocatable :: elpa
+
   end type TElectronicSolverInp
 
 
@@ -40,6 +45,9 @@ module dftbp_elecsolvers_elecsolvers
 
     !> Whether it is an ELSI solver
     logical, public :: isElsiSolver
+
+    !> Whether we use ELPA without ELSI
+    logical, public :: isElpaStandalone
 
     !> Whether the solver provides eigenvalues
     logical, public :: providesEigenvals
@@ -59,6 +67,9 @@ module dftbp_elecsolvers_elecsolvers
 
     !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
+
+    !> Data for ELPA solver
+    type(TElpa), public, allocatable :: elpa
 
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: hasCholesky(:)
@@ -106,6 +117,15 @@ contains
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
 
+    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa) then
+      !> If ELPA should be used and we have the ELPA library included directly (without ELSI),
+      !> do not call ELSI.
+      this%isElsiSolver = .false.
+      this%isElpaStandalone = .true.
+    else
+      this%isElpaStandalone = .false.
+    end if
+
     !> Eigenvalues for hamiltonian available
     this%providesEigenvals = providesEigenvalues(this%iSolver)
 
@@ -142,6 +162,10 @@ contains
 
     if (this%isElsiSolver) then
       allocate(this%elsi)
+    end if
+
+    if (this%isElpaStandalone) then
+      allocate(this%elpa)
     end if
 
   end subroutine TElectronicSolver_init
@@ -217,6 +241,9 @@ contains
 
     case(electronicSolverTypes%magmaGvd)
       write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
+
+    case(electronicSolverTypes%elpa)
+      write(buffer, "(A)") "ELPA"
 
     case default
       write(buffer, "(A,I0,A)") "Invalid electronic solver! (iSolver = ", this%iSolver, ")"
