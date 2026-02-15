@@ -2058,6 +2058,8 @@ contains
       if (tGeomEnd .and. diffGeo < tolSameDist) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
         tExitGeoOpt = .true.
+        if (this%geometryChanges%tLatOpt) call printLatticeInfo(stdOut, this%geometryChanges,&
+            & this%latVec, this%cellVol)
         return
       end if
     else if (this%geometryChanges%tMd) then
@@ -2751,7 +2753,7 @@ contains
       call xlbomdIntegrator%getSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
 
-    tConverged = (.not. tSccCalc)
+    tConverged = .not. tSccCalc
 
     if (allocated(reks)) then
       if (tSccCalc) then
