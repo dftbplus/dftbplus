@@ -631,7 +631,6 @@ Cartesian axes, $x$, $y$, $z$.
   \kw{BoundaryRegion} & m & & global\{\} &  \pref{Boundary Conditions} \\
   \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
   \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelisations} \\
-  \kw{RecomputeAfterDensity} & l & & No & \\
   \kw{PoissonThickness} & r & contacts = 1 & &\\
 \end{ptableh}
 
@@ -678,12 +677,6 @@ Cartesian axes, $x$, $y$, $z$.
   the Poisson equation (default value 10$^{-6}$).
 \item[\is{MaxPoissonIterations}] Defines the maximum number of iterations allowed
   for the solver.
-\item[\is{RecomputeAfterDensity}] When set to \is{Yes}, Poisson's equation is
-  solved again after the density matrix is created in order to make the
-  electrostatic energy consistent with the newly updated charges.  In transport
-  calculations it is set to \is{No} by default in order to avoid the extra time
-  spent on the Poisson step. This does not affect the SCC loop or other
-  calculations apart from the electronic energy and forces.
 \item[\is{PoissonThickness}] In the special case of a single contact (cases like
   the end of semi-infinite wires or surfaces of crystals), the thickness of the
   Poisson box normal to the surface of the contact can be set with this command.
