@@ -155,6 +155,7 @@ contains
 
    if(OxLength.lt.GateLength_l) OxLength=GateLength_l
    if(Rmin_ins.lt.Rmin_gate) Rmin_ins=Rmin_gate
+   !if(Rmin_ins.le.0.0d0 .or. Rmin_ins.gt.Rmin_gate) Rmin_ins=Rmin_gate
    if(dr_eps.lt.0.5d0) dr_eps = 0.5d0
 
 

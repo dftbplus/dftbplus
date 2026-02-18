@@ -206,6 +206,7 @@ Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-005
   MaxSCCIterations = 50
+  RecomputeAfterDensity = No
   MaxAngularMomentum = {
     C = "p"
   }
@@ -246,7 +247,6 @@ Hamiltonian = DFTB {
     AtomDensityTolerance = 1e-005
     CutoffCheck = Yes
     Verbosity = 51
-    RecomputeAfterDensity = No
     MaxPoissonIterations = 60
     OverrideBulkBC = none {}
     Gate = none {}

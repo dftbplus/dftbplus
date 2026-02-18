@@ -569,6 +569,8 @@ module dftbp_dftbplus_inputdata
 
     !> Whether Scc should be updated with the output charges (obtained after diagonalization)
     !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    !> It can also be set to .false. in case of fixed-charge calculations
+    !> (e.g. when setting MaxSCCIterations=1;   ReadInitialCharges=Yes)
     logical :: updateSccAfterDiag = .true.
 
     !> Write cavity information as COSMO file

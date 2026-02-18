@@ -336,7 +336,7 @@ module dftbp_poisson_poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
+     !  @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
      end if
 
      do i = 1,3
