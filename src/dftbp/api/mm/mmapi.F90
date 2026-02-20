@@ -1243,7 +1243,7 @@ contains
     !> Instance
     class(TDftbPlus), intent(inout) :: this
 
-    call finalizeTimeProp(this%main)
+    call finalizeTimeProp(this%env, this%main)
 
   end subroutine TDftbPlus_finalizeTimeProp
 

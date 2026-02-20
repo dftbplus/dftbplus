@@ -351,7 +351,7 @@ void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
  * \param[in] cutoff Cutoff used to compute the neighbour list Unit: Bohr.
  *
  * \param[in] coordNeighbours Coordinates of all neighbour atom in all cells
- *     Shape: [3, nAllAtom]. Unit: Bohr.
+ *     Shape: [nAllAtom, 3]. Unit: Bohr.
  *
  * \param[in] neighbour2CentCell Index of the atom in the central cell a neighbour atom corresponds
  *     to Shape: [nAllAtom].

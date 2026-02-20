@@ -5590,7 +5590,6 @@ contains
 
     ! allocate CAM \tilde{gamma}
     allocate(camGammaAO(nLocCol, nLocRow))
-    allocate(camdGammaAO(nLocCol, nLocRow, 3))
 
     ! get CAM \tilde{gamma} super-matrix
     do jj = 1, size(camGammaAO, dim=2)
@@ -5651,6 +5650,7 @@ contains
     allocate(tmpGradients, mold=gradients)
     tmpGradients(:,:) = 0.0_dp
 
+    allocate(camdGammaAO(nLocCol, nLocRow, 3))
     loopForceAtom: do iAtForce = 1, nAtom0
       call getUnpackedOverlapPrime_real(env, denseDesc, iAtForce, skOverCont, orb, derivator,&
           & symNeighbourList, nNeighbourCamSym, denseDesc%iAtomStart, this%rCoords, overSqrPrime)
@@ -5819,7 +5819,6 @@ contains
 
     ! allocate CAM \tilde{gamma}
     allocate(camGammaAO(nOrb, nOrb))
-    allocate(camdGammaAO(nOrb, nOrb, 3))
 
     ! symmetrize square overlap and density matrix
     overlapSym = overlap
@@ -5878,6 +5877,7 @@ contains
     allocate(tmpGradients, mold=gradients)
     tmpGradients(:,:) = 0.0_dp
 
+    allocate(camdGammaAO(nOrb, nOrb, 3))
     loopForceAtom: do iAtForce = 1, nAtom0
       call getUnpackedOverlapPrime_real(iAtForce, skOverCont, orb, derivator, symNeighbourList,&
           & nNeighbourCamSym, iSquare, this%rCoords, overSqrPrime)
@@ -5988,7 +5988,6 @@ contains
 
     ! allocate CAM \tilde{gamma}
     allocate(camGammaAO(nOrb, nOrb))
-    allocate(camdGammaAO(nOrb, nOrb, 3))
 
     ! symmetrize square overlap and density matrix
     overlapSym = overlap
@@ -6085,6 +6084,7 @@ contains
     allocate(tmpGradients, mold=gradients)
     tmpGradients(:,:) = 0.0_dp
 
+    allocate(camdGammaAO(nOrb, nOrb, 3))
     loopForceAtom: do iAtForce = 1, nAtom0
       call getUnpackedOverlapPrime_real(iAtForce, skOverCont, orb, derivator, symNeighbourList,&
           & nNeighbourCamSym, iSquare, this%rCoords, overSqrPrime)

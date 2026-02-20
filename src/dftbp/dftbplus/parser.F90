@@ -16,7 +16,6 @@ module dftbp_dftbplus_parser
   use dftbp_common_filesystem, only : findFile, getParamSearchPaths, joinPathsPrettyErr
   use dftbp_common_globalenv, only : abortProgram, stdout, withMpi, withScalapack
   use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
-  use dftbp_common_release, only : TVersionMap
   use dftbp_common_status, only : TStatus
   use dftbp_common_unitconversion, only : angularUnits, chargeUnits, dipoleUnits, EFieldUnits,&
       & energyUnits, forceUnits, freqUnits, lengthUnits, massUnits, pressureUnits, timeUnits,&
@@ -46,7 +45,7 @@ module dftbp_dftbplus_parser
   use dftbp_dftbplus_input_geoopt, only : readGeoOptInput
   use dftbp_dftbplus_inputconversion, only : transformpdosregioninfo
   use dftbp_dftbplus_inputdata, only : TBlacsOpts, TControl, THybridXcInp, TInputData, TSlater
-  use dftbp_dftbplus_oldcompat, only : convertOldHSD
+  use dftbp_dftbplus_oldcompat, only : convertOldHSD, minVersion, parserVersion, versionMaps
   use dftbp_dftbplus_specieslist, only : readSpeciesList
   use dftbp_elecsolvers_elecsolvers, only : electronicSolverTypes, providesEigenvalues
   use dftbp_extlibs_arpack, only : withArpack
@@ -122,20 +121,6 @@ module dftbp_dftbplus_parser
     !> HSD output?
     logical :: tWriteHSD
   end type TParserFlags
-
-  !> Actual input version <-> parser version maps (must be updated at every public release)
-  type(TVersionMap), parameter :: versionMaps(*) = [&
-      & TVersionMap("25.1", 14),&
-      & TVersionMap("24.1", 14), TVersionMap("23.1", 13), TVersionMap("22.2", 12),&
-      & TVersionMap("22.1", 11), TVersionMap("21.2", 10), TVersionMap("21.1", 9),&
-      & TVersionMap("20.2", 9), TVersionMap("20.1", 8), TVersionMap("19.1", 7),&
-      & TVersionMap("18.2", 6), TVersionMap("18.1", 5), TVersionMap("17.1", 5)]
-
-  !> Version of the oldest parser for which compatibility is still maintained
-  integer, parameter :: minVersion = 1
-
-  !> Version of the current parser (as latest version)
-  integer, parameter :: parserVersion = maxval(versionMaps(:)%parserVersion)
 
 
 contains
@@ -1231,6 +1216,7 @@ contains
     real(dp) :: rSKCutOff
     type(string), allocatable :: searchPath(:)
     character(len=:), allocatable :: strOut, strJoin
+    logical :: isHalogenXCorr
 
     !> For hybrid functional calculations
     type(THybridXcSKTag) :: hybridXcSK
@@ -1290,7 +1276,18 @@ contains
       call setUnprocessed(value1)
       call getChildValue(child, "Prefix", buffer2, "")
       prefix = unquote(char(buffer2))
-
+      call getChild(child, "Suffix", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
+      call getChild(child, "Separator", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
+      call getChild(child, "LowerCaseTypeName", child2, requested=.false.)
+      if (associated(child2)) then
+        call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
+      end if
       do iSp1 = 1, geo%nSpecies
         do iSp2 = 1, geo%nSpecies
           strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
@@ -1683,27 +1680,14 @@ contains
         end if
 
         ! Halogen correction to the DFTB3 model
-        block
-          logical :: tHalogenInteraction
-          integer :: iSp1, iSp2
+        isHalogenXCorr =&
+            & any([(any(halogenXSpecies1(ii) == geo%speciesNames), ii=1, size(halogenXSpecies1))])&
+            & .and. &
+            & any([(any(halogenXSpecies2(ii) == geo%speciesNames), ii=1, size(halogenXSpecies2))])
 
-          if (.not. geo%tPeriodic) then
-            tHalogenInteraction = .false.
-            iSp1Loop: do iSp1 = 1, geo%nSpecies
-              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
-                do iSp2 = 1, geo%nSpecies
-                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
-                    tHalogenInteraction = .true.
-                    exit iSp1Loop
-                  end if
-                end do
-              end if
-            end do iSp1Loop
-            if (tHalogenInteraction) then
-              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
-            end if
-          end if
-        end block
+        if (isHalogenXCorr) then
+          call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
+        end if
 
       end if
     end if
@@ -5827,13 +5811,6 @@ contains
     logical :: ppRangeInvalid, tNeedFieldStrength
     real (dp) :: defPpRange(2)
     logical :: defaultWrite
-
-  #:if WITH_MPI
-    if (associated(node)) then
-      call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
-          & electron dynamics are not currently available for distributed parallel calculations.')
-    end if
-  #:endif
 
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, child=child)

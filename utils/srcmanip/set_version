@@ -129,7 +129,7 @@ def _warn_about_manual_changes():
 Make sure to check that the table in doc/dftb+/manual/releases.tex has been
 updated.
 
-Make sure to update input version table in src/dftbp/dftbplus/parser.F90
+Make sure to update input version map table in src/dftbp/dftbplus/oldcompat.F90
 """
     print(txt)
 

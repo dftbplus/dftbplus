@@ -340,7 +340,7 @@ def calculate_charges(binary, disp, coords, specienames, species, origin,
                 if (charge_restart):
                     shutil.copy2(charge_restart.name, CHARGES_FILE)
                 subprocess.call([binary])
-                fp = open({TAGGED_RESULTS}, "r")
+                fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
                 match = CHARGE_PATTERN.search(txt)
