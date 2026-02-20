@@ -178,13 +178,7 @@ contains
         end if
         phase2 = exp(-imag * dot_product(tdVecPot, (coordAll(:,iAtom2) - coordAll(:,iAtom1))))
         square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
-            & + phase * phase2 * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])    
-      !  print *, "Phase: "    
-      !  print *, dot_product(tdVecPot, (coordAll(:,iAtom2) - coordAll(:,iAtom1)))
-      !  print *, "VecPot: "    
-      !  print *, tdVecPot
-      !  print *, "R_atoms: "    
-      !  print *, coordAll(:,iAtom2) - coordAll(:,iAtom1)
+            & + phase * phase2 * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
       end do
     end do
 

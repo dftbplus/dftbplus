@@ -5944,6 +5944,8 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians.
   \kw{WriteAtomicEnergies} & l & & No & \\
   \kw{FillingsFromFile} & l & & No & \\
   \kw{VerboseDynamics} & l & & Yes & \\
+  \kw{Currents} & l & & No & \\
+  \kw{UseVectorPotential} & l & & No & \\
 \end{ptable}
 
 \begin{description}
@@ -6077,6 +6079,30 @@ shpuld be written to the \verb|atomenergies.dat| file.
     second spin channel should follow sequentially, while for non-collinear/spin-orbit calculations all orbitals should be listed in ascending energy.
 
 \item[\is{VerboseDynamics}] If outputs are printed for Ehrenfest or electron dynamics.
+
+\item[\is{Currents}] If the pairwise time-dependent bond currents should be calculated
+    and written to the \verb|tdcurrents.dat| file. Only available for finite systems for the moment.
+    The expression for the bond current between atoms $A$ and $B$ is given by:
+\begin{equation*}
+    I_{A B} = \sum_{\mu \in A} \sum_{\nu \in B} -\frac{4e}{\hbar}
+    \left( H_{\mu \nu} \mathrm{Im}(\rho_{\mu \nu}) - S_{\mu \nu} \mathrm{Im}(E_{\mu \nu}) \right),
+\end{equation*}
+where $A$ and $B$ are the atoms, $S$ is the overlap matrix, $\rho$ is the density matrix
+ and $E = S^{-1} H \rho$.
+
+\item[\is{UseVectorPotential}] Use the expression for the Peierls substitution to couple to an external field,
+     instead of the length gauge coupling (using the electric field). This allows to run light-driven dynamics for
+     periodic systems, where the dipole moment is ill-defined. The expression for the Peierls substitution
+     is given by:
+\begin{equation*}
+    H_{\mu \nu}(t) = H_{\mu \nu}
+      \exp(-\frac{i e}{\hbar} \mathbf{A}(t) \cdot (\mathbf{R}_\mu - \mathbf{R}_\nu)),
+\end{equation*}
+where $\mathbf{A}(t)$ is the external vector potential (related to the electric field as
+$\mathbf{E}(t) = -\frac{\partial \mathbf{A}(t)}{\partial t}$),
+$\mathbf{R}_\mu$ and $\mathbf{R}_\nu$ are the positions of the atoms corresponding to the atomic orbitals
+$\mu$ and $\nu$,  and the $H_{\mu \nu}$ are the matrix elements of the real-space Hamiltonian.
+This option is not available for kick perturbations or ion dynamics at the Ehrenfest level yet.
 
 \end{description}
 

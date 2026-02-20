@@ -640,9 +640,6 @@ module dftbp_timedep_timeprop
     !> Pairwise atomic currents file ID
     type(TFileDescr) :: currentDat
 
-    !> Sum of all bond currents projected on the cartesian directions
-    real(dp), allocatable :: totalCurrent(:)
-
     !> Number of all atoms
     integer :: nAllAtom
 
@@ -1394,7 +1391,7 @@ contains
 
     if (tWriteAutotest) then
       call writeTDAutotest(this, this%dipole, this%energy, this%deltaQ, coord, this%totalForce,&
-          & this%occ, this%lastBondPopul, this%totalCurrent, taggedWriter)
+          & this%occ, this%lastBondPopul, this%atomCurrents, taggedWriter)
     end if
 
     call finalizeDynamics(this)
@@ -2080,9 +2077,8 @@ contains
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin, iOrb
-    real(dp) :: TS(this%nSpin), ETrace
+    real(dp) :: TS(this%nSpin)
     type(TReksCalc), allocatable :: reks ! never allocated
-    real(dp), allocatable :: T1(:,:)  ! for calculation of Tr[\Rho*H]
 
     ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
@@ -2123,15 +2119,6 @@ contains
       energyKin = 0.5_dp * sum(this%movedMass * this%movedVelo**2)
       energy%Etotal = energy%Etotal + energyKin
     end if
-
-    allocate(T1(this%nOrbs,this%nOrbs))
-    call gemm(T1, real(rho(:,:,1),dp), real(this%H1(:,:,1),dp))
-    ETrace = 0.0
-    do iOrb = 1, this%nOrbs
-      Etrace = Etrace + real(T1(iOrb,iOrb), dp)
-    end do
-    energy%Etotal_2 = ETrace
-    deallocate(T1)
 
   end subroutine getTDEnergy
 
@@ -2677,9 +2664,6 @@ contains
     if (this%tCurrents) then
       call openOutputFile(this, currentDat, 'tdcurrents.dat')
       write(currentDat%unit, "(A)", advance = "NO")"#             time (fs)      |"
-      write(currentDat%unit, "(A)", advance = "NO")"   total current - x (a.u.)  |"
-      write(currentDat%unit, "(A)", advance = "NO")"   total current - y (a.u.)  |"
-      write(currentDat%unit, "(A)", advance = "NO")"   total current - z (a.u.)  |"
       write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_1) (e)   |"
       write(currentDat%unit, "(A)", advance = "NO")"   bond current (atom_1, atom_2) (e)   |  ..."
     end if
@@ -2926,7 +2910,6 @@ contains
 
     if (this%tCurrents .and. mod(iStep, this%writeFreq) == 0) then
       write(currentDat%unit, "(F25.15)", advance="no") time * au__fs
-      write(currentDat%unit, "(3X,3F25.15)", advance="no") (this%totalCurrent(iDir), iDir=1, 3)
       do iAtom = 1, this%nAtom
         do iAtom2 = 1, this%nAtom
           write(currentDat%unit, "(F25.15)", advance="no")this%atomCurrents(iAtom, iAtom2)
@@ -3123,7 +3106,7 @@ contains
 
   !> Write time-dependent tagged information to autotestTag file
   subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, lastBondPopul,&
-      & totalCurrent, taggedWriter)
+      & atomCurrents, taggedWriter)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -3149,8 +3132,8 @@ contains
     !> Last bond population in the run
     real(dp), intent(in) :: lastBondPopul
 
-    !> Bond currents
-    real(dp), intent(in) :: totalCurrent(:)
+    !> Forces (nAtom, nAtom)
+    real(dp), intent(in) :: atomCurrents(:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -3184,7 +3167,7 @@ contains
       call taggedWriter%write(fdAutotest%unit, tagLabels%sumBondPopul, lastBondPopul)
     end if
     if (this%tCurrents) then
-      call taggedWriter%write(fdAutotest%unit, tagLabels%tdcurrents, totalCurrent)
+      call taggedWriter%write(fdAutotest%unit, tagLabels%tdcurrents, atomCurrents)
     end if
     if (this%tWriteAtomEnergies) then
       call taggedWriter%write(fdAutotest%unit, tagLabels%atomenergies, energy%atomTotal)
@@ -3971,14 +3954,13 @@ contains
     real(dp), intent(in) :: coordAll(:,:)
 
     complex(dp), allocatable :: T1(:,:), T2(:,:)
-    real(dp), allocatable :: T3(:,:,:)
+
     real(dp) :: r12(3), norm
     integer :: iAt1, iAt2, iStart1, iStart2, iEnd1, iEnd2, iKS, iK, iOrb, iDir
     integer :: iSpin, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2, iOrig, iNeigh
 
     allocate(T1(this%nOrbs,this%nOrbs))
     allocate(T2(this%nOrbs,this%nOrbs))
-    allocate(T3(this%nOrbs,this%nOrbs,3))
 
     this%orbCurrents = 0.0_dp
     this%atomCurrents = 0.0_dp
@@ -3996,9 +3978,6 @@ contains
           & (real(this%H1(:,:,iKS)) * aimag(rho(:,:,iKS)) - real(this%Ssqr(:,:,iKS)) * aimag(T2(:,:)))
     end do
 
-    ! T3 is the orbital currents projected along the bonds in real space
-    T3 = 0.0_dp
-
     !$OMP PARALLEL DO PRIVATE(iAt1,iStart1,iEnd1,iAt2,iStart2,iEnd2) DEFAULT(SHARED) SCHEDULE(RUNTIME)
     do iAt1 = 1, this%nAtom
       do iAt2 = 1, this%nAtom
@@ -4008,26 +3987,11 @@ contains
         iEnd2 = iSquare(iAt2+1)-1
         ! for the atomCurrent only the contribution with iK = 1
         this%atomCurrents(iAt1,iAt2) = sum(this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2)) 
-
-        if (iAt1 /= iAt2) then
-          r12(:) = coordAll(:,iAt2) - coordAll(:,iAt1)
-          norm = sqrt(dot_product(r12(:), r12(:)))
-          do iKS = 1, this%parallelKS%nLocalKS
-            T3(iStart1:iEnd1, iStart2:iEnd2, 1) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(1) / norm
-            T3(iStart1:iEnd1, iStart2:iEnd2, 2) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(2) / norm
-            T3(iStart1:iEnd1, iStart2:iEnd2, 3) = this%orbCurrents(iStart1:iEnd1, iStart2:iEnd2) * r12(3) / norm
-          end do
-        end if
       end do
     end do
     !$OMP END PARALLEL DO
 
-    this%totalCurrent = 0.0_dp
-    do iDir = 1,3
-      this%totalCurrent(iDir) = this%totalCurrent(iDir) + sum(T3(:,:,iDir))
-    end do
-
-    deallocate(T1, T2, T3)
+    deallocate(T1, T2)
 
   end subroutine getTdCurrents
 
@@ -4228,8 +4192,6 @@ contains
       allocate(this%orbCurrents(this%nOrbs, this%nOrbs))
       allocate(this%atomCurrents(this%nAtom, this%nAtom))
     end if
-    allocate(this%totalCurrent(3))
-    this%totalCurrent = 0.0_dp
 
     allocate(this%occ(this%nOrbs))
     allocate(this%RdotSprime(this%nOrbs,this%nOrbs))
@@ -4888,7 +4850,6 @@ contains
       deallocate(this%orbCurrents)
       deallocate(this%atomCurrents)
     end if
-    deallocate(this%totalCurrent)
     if (allocated(this%Dsqr)) then
       deallocate(this%Dsqr)
     end if
