@@ -2683,7 +2683,7 @@ contains
       call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false., child=child)
       if (ctrl%solver%elsi%elsiCsr) then
         ctrl%solver%isolver = electronicSolverTypes%elpadm
-        #:if WITH_ELPA
+        #:if WITH_ELPA and not WITH_ELSI
           call detailedError(child, "The sparse interface is not supported if ELPA is directly&
               & included without using the ELSI interface")
         #:endif
