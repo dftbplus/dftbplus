@@ -95,8 +95,6 @@ module dftbp_timedep_timeprop
   public :: TElecDynamicsInp, TElecDynamics
   public :: pertTypes, envTypes, tdSpinTypes
 
-!  Integer :: KpointHam = 10
-
   !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
 
@@ -1561,8 +1559,6 @@ contains
 
     ! Multipole expansion
     type(TMdftb), allocatable :: mdftb
-    integer :: iAtom1, iStart1, iEnd1, iNeigh, iStart2, iEnd2, iAtom2, iAtom2f
-    integer :: ii, jj, nOrb1, nOrb2, iOrig
 
   #:if WITH_SCALAPACK
     nLocalRows = size(H1, dim=1)
@@ -1663,8 +1659,8 @@ contains
           H1(:,:,iSpin) = cmplx(T2, kind=dp)
         else
           call unpackHS(H1(:,:,iKS), ints%hamiltonian(:,iSpin), this%kPoint(:,iK),&
-              & this%tdFunction(:,iStep), coordAll, neighbourList%iNeighbour, nNeighbourSK, &
-              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+              & neighbourList%iNeighbour, nNeighbourSK, this%iCellVec, this%cellVec, iSquare,&
+              & iSparseStart, img2CentCell)
           call adjointLowerTriangle(H1(:,:,iKS))
         end if
       end if
@@ -1880,7 +1876,7 @@ contains
         if (this%tVerboseDyn) then 
           call openOutputFile(this, env, laserDat, 'laser.dat')
           if (this%tUseVectorPotential) then
-            write(laserDat%unit, "(A)") "#     time (fs)  |  A_x (eV/ang)  | A_y (eV/ang) | A_z (eV/ang)"
+            write(laserDat%unit, "(A)") "#     time (fs)  |  A_x (eV/(Ha.ang))  | A_y (eV/(Ha.ang)) | A_z (eV/(Ha.ang))"
           else
             write(laserDat%unit, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
           end if
@@ -2255,7 +2251,7 @@ contains
     type(TStatus), intent(inout) :: errStatus
 
     real(dp), allocatable :: qiBlock(:,:,:,:), tmp(:,:)
-    integer :: iKS, iK, iSpin, iOrb
+    integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
     type(TReksCalc), allocatable :: reks ! never allocated
 
@@ -2961,8 +2957,6 @@ contains
       write(energyDat%unit, "(A)", advance = "NO")"            E rep (H)       |"
       write(energyDat%unit, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
       write(energyDat%unit, "(A)", advance = "NO")"     E dispersion (H)       |"
-      write(energyDat%unit, "(A)", advance = "NO")"        E total_2 (H)       |"
-      write(energyDat%unit, "(A)", advance = "NO")"        E elec (H)          |"
       write(energyDat%unit, "(A)")
 
       if (this%tForces) then
@@ -3201,8 +3195,7 @@ contains
 
     if (this%tdWriteExtras) then
       write(energyDat%unit, '(11F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
-          & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp, energy%Etotal_2, &
-          & energy%Eelec
+          & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
     end if
 
     if (mod(iStep, this%writeFreq) == 0) then

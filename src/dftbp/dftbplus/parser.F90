@@ -2995,7 +2995,7 @@ contains
       call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
           & ctrl%kPoint, ctrl%kWeight, reduceByInversion=ctrl%tReduceByInversion)
       ctrl%nKPoint = size(ctrl%kPoint, dim=2)
-    
+
     case ("klines")
       ! probably unable to integrate charge for SCC
       ctrl%poorKSampling = .true.
