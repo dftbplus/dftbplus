@@ -54,8 +54,8 @@ helical/10-0CtubeC_10_origin           #? MPI_PROCS == 1
 helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
 helical/1000-0-C_1000                  #? MPI_PROCS == 1
 helical/C6H6_stack                     #? MPI_PROCS == 1
-helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
-helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
+helical/10-0Ctube_ELPA                 #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
+helical/C6H6_stack_ELPA                #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS == 1 and OMP_THREADS == 1
 helical/10-0Ctube_PEXSI                #? WITH_PEXSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and ELSI_VERSION > 2.5
 
 dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
@@ -225,14 +225,14 @@ mdftb/NH4+H2O_RotTran1                 #? MPI_PROCS <= 2
 mdftb/NH4+H2O_RotTran2                 #? MPI_PROCS <= 2
 mdftb/NH4+H2O_RotTran3                 #? OMP_THREADS <= 4 and MPI_PROCS <= 2
 
-solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
-solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
-solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
-solvers/Fe4_ELPA_2group                #? WITH_ELSI and MPI_PROCS <= 4 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
-solvers/Si384_ELPA1                    #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
-solvers/Si384_ELPA2                    #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
-solvers/SiC64+V_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1
-solvers/Si256C256_ELPA_GPU             #? WITH_ELSI and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and WITH_GPU
+solvers/GaAs_2_ELPA2                   #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS == 8 and OMP_THREADS == 1
+solvers/Si32C32_ELPA1                  #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 4 and OMP_THREADS == 1
+solvers/Si32C32_ELPA2                  #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 4 and OMP_THREADS == 1
+solvers/Fe4_ELPA_2group                #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 4 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
+solvers/Si384_ELPA1                    #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 4 and OMP_THREADS == 1
+solvers/Si384_ELPA2                    #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 4 and OMP_THREADS == 1
+solvers/SiC64+V_ELPA2                  #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1
+solvers/Si256C256_ELPA_GPU             #? (WITH_ELSI or WITH_ELPA) and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1 and WITH_GPU
 
 solvers/ice_OMM                        #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/ice_NTPoly                     #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
