@@ -2691,6 +2691,7 @@ contains
         ctrl%solver%isolver = electronicSolverTypes%elpa
       end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
+      call getChildValue(value1, "PreferElsi", ctrl%solver%elpa%preferElsi, .false.)
       call getChildValue(value1, "Mode", ctrl%solver%elpa%solver, 2)
       call getChildValue(value1, "Autotune", ctrl%solver%elpa%autotune, .false.)
       call getChildValue(value1, "AutotuneFile", buffer, "elpa_autotune_state.out")

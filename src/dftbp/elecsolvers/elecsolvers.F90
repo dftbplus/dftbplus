@@ -14,6 +14,7 @@ module dftbp_elecsolvers_elecsolvers
   use dftbp_elecsolvers_elpa, only : TElpa, TElpaInp
   use dftbp_elecsolvers_elsisolver, only : TElsiSolver, TElsiSolverInp
   use dftbp_extlibs_elpa, only : withElpa
+  use dftbp_extlibs_elsiiface, only: withElsi
   implicit none
 
   private
@@ -100,24 +101,25 @@ module dftbp_elecsolvers_elecsolvers
 contains
 
   !> Initializes an electronic solver
-  subroutine TElectronicSolver_init(this, iSolver, nCholesky)
+  subroutine TElectronicSolver_init(this, solverInp, nCholesky)
 
     !> Instance.
     type(TElectronicSolver), intent(out) :: this
 
-    !> Solver type to be used.
-    integer, intent(in) :: iSolver
+    !> Input data for the solver.
+    type(TElectronicSolverInp), intent(in) :: solverInp
 
     !> Number of Cholesky-decompositions which will be buffered.
     integer, intent(in) :: nCholesky
 
-    this%iSolver = iSolver
+    this%iSolver = solverInp%iSolver
 
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
 
-    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa) then
+    if (this%iSolver == electronicSolverTypes%elpa .and. withElpa .and.&
+        & .not. (withElsi .and. solverInp%elpa%preferElsi)) then
       !> If ELPA should be used and we have the ELPA library included directly (without ELSI),
       !> do not call ELSI.
       this%isElsiSolver = .false.

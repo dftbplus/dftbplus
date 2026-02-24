@@ -49,6 +49,9 @@ module dftbp_elecsolvers_elpa
     !> Enable GPU usage in ELPA
     logical :: gpu = .false.
 
+    !> Whether to use the ELSI library for calling ELPA
+    logical :: preferElsi = .false.
+
     !> On what fraction of the original number of ranks to redistribute the matrix
     integer :: redistributeFactor = 1
 

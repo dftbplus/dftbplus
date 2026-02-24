@@ -2476,6 +2476,7 @@ It accepts following options
   \kw{AutotuneFile} & s& Autotune = Yes & "elpa\_autotune\_state.out" & \\
   \kw{Gpu}    & l& & No & \\
   \kw{Mode} & i& & 2 & \\
+  \kw{PreferElsi} & l& & No & \\
   \kw{RedistributeFactor} & i& & 1 & \\
   \kw{RedistributeRanks} & p& RedistributeFactor = 1 & \cb & \\
   \kw{Sparse} & l& & No & \\
@@ -2491,6 +2492,9 @@ It accepts following options
 \item[\is{Mode}] ELPA operation mode (possible values: \is{1}, \is{2},
   default: \is{2}). Mode 2 is supposed to be more efficient for large problems.
   Mode 1 is strongly recommended if \is{Gpu = Yes}.
+\item[\is{PreferElsi}] Whether to call ELPA using the ELSI interface. This
+  setting is only relevant if \dftbp{} was built and linked with the ELSI
+  library.
 \item[\is{RedistributeFactor}] Call ELPA with a reduced number of MPI ranks. The
   total number of ranks is devided by \is{RedistributeFactor}, that is, only
   every \is{RedistributeFactor}th rank participates in ELPA calls

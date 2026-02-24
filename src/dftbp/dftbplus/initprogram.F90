@@ -1702,7 +1702,7 @@ contains
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, this%kPoint, input%ctrl%parallelOpts,&
         & this%nIndepSpin, this%tempElec, input%ctrl%isASICallbackEnabled)
     nBufferedCholesky = countBufferedCholesky_(this%tRealHS, this%parallelKS%nLocalKS)
-    call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
+    call TElectronicSolver_init(this%electronicSolver, input%ctrl%solver, nBufferedCholesky)
 
     if (input%ctrl%isNonAufbau) then
       ! for the moment, as this has not been derived
