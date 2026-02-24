@@ -13,7 +13,6 @@ Driver = {}
 Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1E-8
-    RecomputeAfterDensity = No
     MaxAngularMomentum = {
         H = "s"
         C = SelectedShells {"p" "s"} # reverse usual order
@@ -34,6 +33,7 @@ Hamiltonian = DFTB {
         ReadOldBulkPotential = No
         BoundaryRegion = Global {}
         PoissonAccuracy = 1E-7
+        RecomputeAfterDensity = No
     }
 }
 

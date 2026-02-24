@@ -206,7 +206,6 @@ Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1e-005
   MaxSCCIterations = 50
-  RecomputeAfterDensity = No
   MaxAngularMomentum = {
     C = "p"
   }
@@ -250,6 +249,7 @@ Hamiltonian = DFTB {
     MaxPoissonIterations = 60
     OverrideBulkBC = none {}
     Gate = none {}
+    RecomputeAfterDensity = No
   }
 
   ElectricField = {}
