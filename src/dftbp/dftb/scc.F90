@@ -1103,14 +1103,14 @@ contains
       call error("getGammaDeriv only works with gamma-electrostatics")
     end if
 
-    gammaDeriv(:,:,:) = 0.0_dp
-    call this%shortGamma%addDerivativeMatrix(this%coord, species, iNeighbour, img2CentCell,&
-        & gammaDeriv)
     if (this%tPeriodic) then
-      call this%coulomb%addInvRPrimePeriodicMat(env, this%coord,gammaDeriv)
+      call this%coulomb%addInvRPrimePeriodicMat(env, this%coord, gammaDeriv)
     else
       call this%coulomb%addInvRPrimeClusterMat(env, this%coord, gammaDeriv)
     end if
+    call this%shortGamma%addDerivativeMatrix(this%coord, species, iNeighbour, img2CentCell,&
+        & gammaDeriv)
+
 
   end subroutine getGammaDeriv
 
