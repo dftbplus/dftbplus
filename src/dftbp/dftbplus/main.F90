@@ -1760,7 +1760,8 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, this%tLatOpt, this%tMd,&
             & this%tAppendGeo.and.iGeoStep>0, this%tFracCoord, this%tPeriodic, this%tHelical,&
             & this%tPrintMulliken, this%species0, this%speciesName, this%latVec, this%origin,&
-            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities)
+            & iGeoStep, iLatGeoStep, this%nSpin, this%qOutput, this%velocities, .false.,&
+            & this%derivs)
       endif
     end if
     if (len(trim(this%extendedGeomFile)) > 0) then
@@ -2081,7 +2082,7 @@ contains
         call writeCurrentGeometry(this%geoOutFile, this%pCoord0Out, .false., .true., .true.,&
             & this%tFracCoord, this%tPeriodic, this%tHelical, this%tPrintMulliken, this%species0,&
             & this%speciesName, this%latVec, this%origin, iGeoStep, iLatGeoStep, this%nSpin,&
-            & this%qOutput, this%velocities)
+            & this%qOutput, this%velocities, this%writeTrajectoryForces, this%derivs)
       end if
       if (len(trim(this%extendedGeomFile)) > 0) then
         call writeExtendedGeometry(trim(this%extendedGeomFile), .false., .true., .true.,&
