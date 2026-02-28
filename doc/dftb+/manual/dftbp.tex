@@ -861,6 +861,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{KeepStationary} & l & & Yes & \\
   \kw{Thermostat} & m &  & - & \pref{sec:dftbp.Thermostat} \\
   \kw{OutputPrefix} &s & & "geo\_end" & \\
+  \kw{PrintTrajectoryForces} & l & & No & \\
   \kw{MDRestartFrequency} & i & & 1 & \\
   \kw{Velocities} & (3r)* & & - & \\
   \kw{Barostat} & m & Periodic = Yes & - & \pref{sec:dftbp.Barostat}\\
@@ -889,6 +890,13 @@ selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{OutputPrefix}] Prefix of the geometry files containing the
   final structure.
+
+\item[\is{PrintTrajectoryForces}] If set to \is{Yes}, per-atom forces are
+  appended to the VelocityVerlet trajectory output (\is{OutputPrefix}.xyz) as
+  columns 9--11 (\verb|fx fy fz|). Default: \is{No}. If absent or set to
+  \is{No}, the trajectory format remains unchanged. Force units are
+  bohr/Hartree, same as in detailed.out. This option is independent of
+  \is{Analysis/PrintForces}.
 
 \item[\is{MDRestartFrequency}] Interval that the current geometry and
   velocities are written to the XYZ format geometry file and md.out
