@@ -14,6 +14,9 @@ Added
 - Option (FromParameters) to automatically set spin-constants for xTB
   models
 
+- VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
+  OutputPrefix.xyz (units: eV/Angstrom).
+
 
 Changed
 -------

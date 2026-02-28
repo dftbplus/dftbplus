@@ -288,6 +288,9 @@ module dftbp_dftbplus_inputdata
     !> Molecular dynamics
     logical :: tMD = .false.
 
+    !> Write per-atom forces in MD trajectory output
+    logical :: writeTrajectoryForces = .false.
+
     !> Molecular dynamics data to be recorded as it is accumulated
     type(TMDOutput), allocatable :: mdOutput
 

@@ -510,6 +510,9 @@ module dftbp_dftbplus_initprogram
     !> Are forces being returned
     logical :: tPrintForces
 
+    !> Should per-atom forces be written into the MD trajectory file
+    logical :: writeTrajectoryForces
+
     !> Number of moved atoms
     integer :: nMovedAtom
 
@@ -1978,6 +1981,7 @@ contains
     this%tAppendGeo = input%ctrl%tAppendGeo
     this%isSccConvRequired = input%ctrl%isSccConvRequired
     this%tMD = input%ctrl%tMD
+    this%writeTrajectoryForces = input%ctrl%writeTrajectoryForces
     if (this%tMD) this%mdOutput = input%ctrl%mdOutput
     this%tDerivs = input%ctrl%tDerivs
     this%tPrintMulliken = input%ctrl%tPrintMulliken
