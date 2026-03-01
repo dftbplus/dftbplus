@@ -29,6 +29,8 @@ then also the option for calculating the forces.
 
 ENERGY_PATTERN = re.compile(r"mermin_energy[^:]*:[^:]*:[^:]*:\s*(?P<value>\S+)")
 
+ENERGY_BACKUP = re.compile(r"total_energy[^:]*:[^:]*:[^:]*:\s*(?P<value>\S+)")
+
 FORCES_PATTERN = re.compile(
     r"forces[^:]*:[^:]*:[^:]*:\d+,\d+\s*"
     r"(?P<values>(?:\s*[+-]?\d+(?:\.\d+(?:E[+-]?\d+)?)?)+)",
@@ -241,13 +243,19 @@ def calculate_forces(binary, disp, coords, specienames, species, origin,
                 fp = open(TAGGED_RESULTS, "r")
                 txt = fp.read()
                 fp.close()
+
                 match = ENERGY_PATTERN.search(txt)
                 print("iat: %2d, dir: %s, delta: %s" % (iat + 1, cart[coord], delta[jj]))
                 if match:
-                    energy[jj] = float(match.group("value"))
-                    print("energy:", energy[jj])
+                    print("Mermin energy:", energy[jj])
                 else:
-                    raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
+                    match = ENERGY_BACKUP.search(txt)
+                    if match:
+                        energy[jj] = float(match.group("value"))
+                        print("Total energy:", energy[jj])
+                    else:
+                        raise ValueError(f"No energy match found in {TAGGED_RESULTS}!")
+                energy[jj] = float(match.group("value"))
             forces[aa][ii] = (energy[0] - energy[1]) / (2.0 * disp)
     return forces
 
