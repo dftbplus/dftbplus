@@ -11,7 +11,7 @@ Unreleased
 Added
 -----
 
-- VelocityVerlet: new PrintTrajectoryForces option appends fx fy fz to
+- VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
   OutputPrefix.xyz (units: eV/Angstrom).
 
 
