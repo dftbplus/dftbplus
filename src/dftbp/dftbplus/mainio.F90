@@ -4426,7 +4426,7 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities, tPrintTrajectoryForces, derivs)
+      & iLatGeoStep, nSpin, qOutput, velocities, printTrajectoryForces, derivs)
 
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4483,7 +4483,7 @@ contains
     real(dp), intent(in), allocatable :: velocities(:,:)
 
     !> Should per-atom forces be printed in the trajectory
-    logical, intent(in) :: tPrintTrajectoryForces
+    logical, intent(in) :: printTrajectoryForces
 
     !> Energy derivatives with respect to atomic coordinates
     real(dp), intent(in), allocatable :: derivs(:,:)
@@ -4504,7 +4504,7 @@ contains
 
     call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
-    if (tPrintTrajectoryForces) then
+    if (printTrajectoryForces) then
       if (.not. allocated(velocities)) then
         call error("Internal error: trajectory force output requires velocities in MD trajectory")
       end if
