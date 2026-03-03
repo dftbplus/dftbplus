@@ -4574,6 +4574,7 @@ contains
     type(TFileDescr) :: fd
     character(1) :: mode
     integer :: ii, nAtom, nSpecies
+    real(dp) :: forceConv
 
 200 format(I5)
 205 format(A5,10F16.8)
@@ -4581,6 +4582,7 @@ contains
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
+    forceConv = Hartree__eV / Bohr__AA
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)
@@ -4602,10 +4604,12 @@ contains
 
     if (present(charges)) then
       write(fd%unit, 205) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
-          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii), ii = 1, nAtom)
+          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii) * forceConv,&
+          & ii = 1, nAtom)
     else
       write(fd%unit, 206) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii), ii = 1, nAtom)
+          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii) * forceConv,&
+          & ii = 1, nAtom)
     end if
 
     call closeFile(fd)

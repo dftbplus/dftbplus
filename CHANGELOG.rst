@@ -12,7 +12,7 @@ Added
 -----
 
 - VelocityVerlet: new PrintTrajectoryForces option appends fx fy fz to
-  OutputPrefix.xyz (units: bohr/Hartree, same as in detailed.out).
+  OutputPrefix.xyz (units: eV/Angstrom).
 
 
 Changed
