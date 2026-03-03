@@ -4505,12 +4505,8 @@ contains
     call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
     if (printTrajectoryForces) then
-      if (.not. allocated(velocities)) then
-        call error("Internal error: trajectory force output requires velocities in MD trajectory")
-      end if
-      if (.not. allocated(derivs)) then
-        call error("Internal error: trajectory force output requires force derivatives")
-      end if
+      @:ASSERT(allocated(velocities))
+      @:ASSERT(allocated(derivs))
       if (tPrintMulliken) then
         call writeXYZFormatWithForces_(fname, pCoord0Out, species0, speciesName, velocities,&
             & -derivs(:, 1:nAtom), comment, tAppendGeo, charges=sum(qOutput(:,:,1), dim=1))
