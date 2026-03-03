@@ -4483,20 +4483,15 @@ contains
     real(dp), intent(in), allocatable :: velocities(:,:)
 
     !> Should per-atom forces be printed in the trajectory
-    logical, intent(in), optional :: tPrintTrajectoryForces
+    logical, intent(in) :: tPrintTrajectoryForces
 
     !> Energy derivatives with respect to atomic coordinates
-    real(dp), intent(in), optional :: derivs(:,:)
+    real(dp), intent(in), allocatable :: derivs(:,:)
 
     integer :: nAtom
     character(lc) :: comment, fname
-    logical :: shouldPrintTrajectoryForces
 
     nAtom = size(pCoord0Out, dim=2)
-    shouldPrintTrajectoryForces = .false.
-    if (present(tPrintTrajectoryForces)) then
-      shouldPrintTrajectoryForces = tPrintTrajectoryForces
-    end if
 
     fname = trim(geoOutFile) // ".gen"
     if (tPeriodic .or. tHelical) then
@@ -4509,11 +4504,11 @@ contains
 
     call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
-    if (shouldPrintTrajectoryForces) then
+    if (tPrintTrajectoryForces) then
       if (.not. allocated(velocities)) then
         call error("Internal error: trajectory force output requires velocities in MD trajectory")
       end if
-      if (.not. present(derivs)) then
+      if (.not. allocated(derivs)) then
         call error("Internal error: trajectory force output requires force derivatives")
       end if
       if (tPrintMulliken) then
