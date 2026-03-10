@@ -642,6 +642,7 @@ contains
 
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
+      call getChildValue(node, "PrintTrajectoryForces", ctrl%printTrajectoryForces, .false.)
 
       call getChildValue(node, "Plumed", ctrl%tPlumed, default=.false., child=child)
       if (ctrl%tPlumed .and. .not. withPlumed) then
