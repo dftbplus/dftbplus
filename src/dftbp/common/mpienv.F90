@@ -69,31 +69,31 @@ module dftbp_common_mpienv
 contains
 
   !> Initializes MPI environment.
-  ! ---------------------------------------------------------------
-  ! Initializes global communicator and group communicators
-  ! Example:
-  ! globalSize = 10
-  ! nGroup = 2
-  ! groupSize = 5
-  !                        rank
-  ! globalComm:      0 1 2 3 4 5 6 7 8 9
-  ! groupComm:       0 1 2 3 4 0 1 2 3 4
-  ! interGroupComm:  0 0 0 0 0 1 1 1 1 1
-  ! ---------------------------------------------------------------
-  ! SCALAPACK
-  ! Different groups handle different kpoints/spin (iKS)
-  ! All procs within a group know eigenval(:,iKS)
-  ! These are distributed to all other nodes using interGroupComm
-  ! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
-  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
-  ! ---------------------------------------------------------------
-  ! LIBNEGF
-  ! Different groups handle different kpoints/spin (iKS)
-  ! All procs within a group know densMat(:,:,iKS)
-  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
-  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
-  ! ---------------------------------------------------------------
+  !! ---------------------------------------------------------------
+  !! Initializes global communicator and group communicators
+  !! Example:
+  !! globalSize = 10
+  !! nGroup = 2
+  !! groupSize = 5
+  !!                        rank
+  !! globalComm:      0 1 2 3 4 5 6 7 8 9
+  !! groupComm:       0 1 2 3 4 0 1 2 3 4
+  !! interGroupComm:  0 0 0 0 0 1 1 1 1 1
+  !! ---------------------------------------------------------------
+  !! SCALAPACK
+  !! Different groups handle different kpoints/spin (iKS)
+  !! All procs within a group know eigenval(:,iKS)
+  !! These are distributed to all other nodes using interGroupComm
+  !! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
+  !! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  !! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
+  !! ---------------------------------------------------------------
+  !! LIBNEGF
+  !! Different groups handle different kpoints/spin (iKS)
+  !! All procs within a group know densMat(:,:,iKS)
+  !! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  !! total DM(:,:) is obtained by mpiallreduce with MPI_SUM
+  !! ---------------------------------------------------------------
   subroutine TMpiEnv_init(this, globalMpiComm, nGroup)
 
     !> Initialised instance on exit
@@ -137,9 +137,10 @@ contains
   !> Finalises the communicators in the structure supplied here
   subroutine TMpiEnv_final(this)
 
-    !>  Initialised instance.
+    !> Initialised instance.
     type(TMpiEnv), intent(inout) :: this
 
+    call this%nodeComm%free()
     call this%interGroupComm%free()
     call this%groupComm%free()
 
@@ -147,7 +148,7 @@ contains
 
 
   !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
-  !> purely serial codes to avid multiple copies being invoked with mpirun)
+  !! purely serial codes to avid multiple copies being invoked with mpirun)
   subroutine mpiSerialEnv(this, iErr)
 
     !> Instance
@@ -203,11 +204,11 @@ contains
 #:if WITH_TRANSPORT
 
   !> Sets up subgrids and group communicators used with NEGF solver.
-  !>
-  !> Note: it overrides the global communicator with the Cartesian global handler
-  !> created by libNEGF as libNEGF uses that. At a later stage, the Cartesian
-  !> communicator should be hidden in the libNEGF-DFTB+ interface instead.
-  !>
+  !!
+  !! Note: it overrides the global communicator with the Cartesian global handler
+  !! created by libNEGF as libNEGF uses that. At a later stage, the Cartesian
+  !! communicator should be hidden in the libNEGF-DFTB+ interface instead.
+  !!
   subroutine setup_subgrids_negf(this)
 
     !> Environment instance
