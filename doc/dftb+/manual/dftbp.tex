@@ -1368,6 +1368,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{ConvergentSccOnly} & l & SCC = Yes & \is{Yes}\\
+  \kw{RecomputeAfterDensity} & l & & Yes & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
@@ -1436,6 +1437,17 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
 \item[\is{ConvergentSccOnly}] If true, requires that the SCC cycle converges
   before proceeding to subsequent stages of the calculation (forces, analysis,
   etc.).
+
+\item[\is{RecomputeAfterDensity}] When set to \is{Yes} the
+  electrostatic potentials is updated with the newly computed DM and
+  atomic charges. This is done in order to make the electrostatic
+  energy consistent and forces variational. It can be set to \is{No}
+  in transport calculations to avoid an unnecessary invocation of the
+  Poisson solver, when energy and forces are not relevant.  It should
+  also be set to \is{No} when the user would like to perform a
+  fixed-charge calculation with charges that are initialized from an
+  external file. In this case also set \is{MaxSCCIterations=1} and
+  \is{ReadInitialCharges=Yes}.
 
 \item[\is{EwaldParameter}] Sets the dimensionless parameter $\alpha$
   in the Ewald electrostatic summation for periodic calculations. This
