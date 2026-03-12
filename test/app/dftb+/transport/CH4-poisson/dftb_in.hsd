@@ -32,7 +32,7 @@ Prefix = {slakos/origin/mio-1-1/}
     readoldbulkpotential = no
     boundaryregion = global {}
     poissonaccuracy = 1e-7
-    recomputeafterdensity = no 
+    Recomputeafterdensity = No 
   }
   
 

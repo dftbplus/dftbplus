@@ -3278,6 +3278,8 @@ contains
 
     ! self consistency required or not to proceed
     call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+    
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
     call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
@@ -6665,6 +6667,18 @@ contains
       call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
+
+      !call getChildValue(pTmp2, "InsulatorRadius", poisson%insRad, 0.0_dp, modifier=modifier, child=field)
+      !call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insRad)
+      
+      !call getChildValue(pTmp2, "InsulatorLength", poisson%insLength, 0.0_dp, modifier=modifier, child=field)
+      !call convertUnitHsd(char(modifier), lengthUnits, field, poisson%insLength)
+      
+      !call getChildValue(pTmp2, "BufferLength", poisson%dr_eps, 0.0_dp, modifier=modifier, child=field)
+      !call convertUnitHsd(char(modifier), lengthUnits, field, poisson%dr_eps)
+      
+      !call getChildValue(pTmp2, "Permittivity", poisson%eps_r, 0.0_dp, modifier=modifier, child=field)
+
 
     case default
       call getNodeHSDName(pTmp2, buffer)
