@@ -3281,6 +3281,8 @@ contains
     
     call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
+
   end subroutine readSccOptions
 
 

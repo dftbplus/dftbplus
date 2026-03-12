@@ -941,43 +941,38 @@ contains
 
   end subroutine convert_13_14
 
-  !> Converts input from version 14 to 15. (Version 15 August 2026)
+  !> Converts input from version 14 to 15. (Version 18 February 2026)
   subroutine convert_14_15(root)
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode), pointer :: ch1, ch2, par, hamil, dummy
-    logical :: tVal, tPoisson=.false.
+    logical :: isRecomputed
 
     ! Move RecomputeAfterDensity to the Hamiltonian block.
     ! The normal default is RecomputeAfterDensity=.true.
-    ! Check if Poisson block is present. If NOT RecomputeAfterDensity will take the new default. 
+    ! Check if Poisson block is present. If NOT RecomputeAfterDensity will take the new default.
     call getDescendant(root, "Hamiltonian/DFTB/Electrostatics/Poisson", ch1, parent=par)
-    if (associated(ch1)) then
-      tPoisson = .true.
-    end if
-    if (tPoisson) then
+    if (associated(ch1))  then
       call getDescendant(root, "Hamiltonian/DFTB/Electrostatics/Poisson/RecomputeAfterDensity", &
           & ch1, parent=par)
       if (associated(ch1)) then
-        call getChildValue(par, "RecomputeAfterDensity", tVal)
-        call detailedWarning(ch1, "Keyword Moved to Hamiltonian {}.")
+        call getChildValue(par, "RecomputeAfterDensity", isRecomputed)
+        call detailedWarning(ch1, "Keyword Moved to Hamiltonian {} block.")
         dummy => removeChild(par, ch1)
         call destroyNode(ch1)
       else
-         tVal = .false.   
+         isRecomputed = .false.
       end if
       ! Check if the tag is already present and issue an error.
       call getDescendant(root, "Hamiltonian/DFTB/RecomputeAfterDensity", ch1)
-      if (associated(ch1)) then
-        call detailedError(ch1, "RecomputeAfterDensity already present.")
-      end if
+      if (associated(ch1)) call detailedError(ch1, "RecomputeAfterDensity is already present.")
       call getDescendant(root, "Hamiltonian/DFTB", hamil)
-      call setChildValue(hamil, "RecomputeAfterDensity", tVal, child=ch2)
+      call setChildValue(hamil, "RecomputeAfterDensity", isRecomputed, child=ch2)
       call setUnprocessed(ch2)
     end if
-        
+
   end subroutine convert_14_15
 
 

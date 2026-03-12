@@ -228,10 +228,7 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   # Check minimal compiler versions
-  # set(fortran_minimal_versions "GNU;12.2" "Intel;20.2" "IntelLLVM;2024.2" "NAG;7.2")
-  # Note: Intel new numbering system used in 'oneapi' is yyyy.v but the old system used xx.v
-  #       The conversion OLD->NEW should be yyyy.v = 2001 + xx.v
-  set(fortran_minimal_versions "GNU;12.2" "Intel;2021.5" "IntelLLVM;2024.2" "NAG;7.2")
+  set(fortran_minimal_versions "GNU;13.2" "Intel;2021.5" "IntelLLVM;2024.2" "NAG;7.2")
   dftbp_check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
   # Note: The consistency check below will / can not be executed in multi-config mode
