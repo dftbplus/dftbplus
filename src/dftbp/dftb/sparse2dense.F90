@@ -96,12 +96,12 @@ module dftbp_dftb_sparse2dense
 
 contains
 
-  !> Unpacks complex sparse matrix to square form (complex version), useful if a complex phase has been added
-  !> to the sparse matrix (e.g. Peierls phase). Note the non on-site blocks are only
-  !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
-  !> blockSymmetrizeHS subroutine.
-  subroutine unpackHS_cmplx_kpts_peierls(square, orig, kPoint, tdVecPot, coordAll, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iSparseStart, img2CentCell)
+  !> Unpacks complex sparse matrix to square form (complex version), useful if a complex phase is added
+  !! to the sparse matrix (e.g. Peierls phase). Note the non on-site blocks are only
+  !! filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
+  !! adjointLowerTriangle subroutine.
+  subroutine unpackHS_cmplx_kpts_peierls(square, orig, kPoint, tdVecPot, coordAll, iNeighbour, &
+    & nNeighbourSK, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Square form matrix on exit.
     complex(dp), intent(out) :: square(:, :)
@@ -140,12 +140,7 @@ contains
     real(dp), intent(in) :: tdVecPot(3)
 
     complex(dp) :: phase, phase2
-    integer :: nAtom
-    integer :: iOrig, ii, jj
-    integer :: iNeigh
-    integer :: iOldVec, iVec
-    integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2
+    integer :: nAtom, iOrig, ii, jj, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbour, dim=2)
