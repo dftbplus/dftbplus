@@ -549,7 +549,9 @@ contains
         call getChildValue(node, "oldLineSearch", ctrl%lbfgsInp%isOldLS, .false.)
       end if
 
-      call commonGeoOptions(node, ctrl, geom, atomsRange, ctrl%lbfgsInp%isLineSearch)
+      call commonGeoOptions(node, ctrl, geom, atomsRange,&
+          & isMaxAtStepNeeded=ctrl%lbfgsInp%isLineSearch,&
+          & isMaxLatStepNeeded=ctrl%lbfgsInp%isLineSearch)
 
     case ("fire")
 
@@ -559,7 +561,7 @@ contains
           & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
-      call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
+      call commonGeoOptions(node, ctrl, geom, atomsRange, isMaxAtStepNeeded=.false.)
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
@@ -804,7 +806,7 @@ contains
 
 
   !> Common geometry optimisation settings for various drivers
-  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxStepNeeded)
+  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxAtStepNeeded, isMaxLatStepNeeded)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -819,18 +821,20 @@ contains
     !> calculations)
     character(len=*), intent(in) :: atomsRange
 
-    !> Is the maximum step size relevant for this driver
-    logical, intent(in), optional :: isMaxStepNeeded
+    !> Is the maximum atom step size relevant for this driver
+    logical, intent(in), optional :: isMaxAtStepNeeded
+
+    !> Is the maximum lattice step size relevant for this driver
+    logical, intent(in), optional :: isMaxLatStepNeeded
 
     type(fnode), pointer :: child, field
     type(string) :: buffer2, modifier
-    logical :: isMaxStep
+    logical :: isMaxAtStep, isMaxLatStep
 
-    if (present(isMaxStepNeeded)) then
-      isMaxStep = isMaxStepNeeded
-    else
-      isMaxStep = .true.
-    end if
+    isMaxAtStep = .true.
+    if (present(isMaxAtStepNeeded)) isMaxAtStep = isMaxAtStepNeeded
+    isMaxLatStep = .true.
+    if (present(isMaxLatStepNeeded)) isMaxLatStep = isMaxLatStepNeeded
 
     ctrl%tForces = .true.
     ctrl%restartFreq = 1
@@ -849,7 +853,7 @@ contains
       else
         call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
       end if
-      if (isMaxStep) then
+      if (isMaxLatStep) then
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
     end if
@@ -860,7 +864,7 @@ contains
     ctrl%nrMoved = size(ctrl%indMovedAtom)
     ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
     if (ctrl%tCoordOpt) then
-      if (isMaxStep) then
+      if (isMaxAtStep) then
         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
     end if
