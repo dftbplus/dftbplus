@@ -110,7 +110,7 @@ contains
       if (doSi2) then
         nAtom = 2
       else
-        nAtom =3
+        nAtom = 3
       end if
 
       call TDftbPlus_init(dftbp, mpiComm=groupComm, devNull=devNull)
