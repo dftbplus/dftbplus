@@ -62,6 +62,9 @@ module dftbp_timedep_linresp
     !> Number of excited states to find
     integer :: nStat
 
+    !> Was nstat set by the user?
+    logical :: tnStat
+    
     !> Symmetry of states being calculated
     character :: sym
 

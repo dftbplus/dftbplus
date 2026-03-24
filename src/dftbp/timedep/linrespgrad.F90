@@ -681,7 +681,7 @@ contains
           call error("Forces currently not available unless a single excited state is specified")
         end if
 
-      else if (this%isCIopt) then
+      else if (this%tNaCoupling) then
 
         if (this%indNACouplings(1) == 0) then
           nStartLev = this%indNACouplings(1) + 1

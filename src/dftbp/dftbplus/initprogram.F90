@@ -1969,8 +1969,9 @@ contains
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
     this%tPrintForces = input%ctrl%tPrintForces
-    this%tForces = input%ctrl%tForces .or. this%tPrintForces
+    this%tForces = input%ctrl%tForces .or. this%tPrintForces 
     if (this%isLinResp) then
+      this%tForces = this%tForces .or. input%ctrl%lrespini%tNaCoupling
       allocate(this%linearResponse)
       allocate(this%dQAtomEx(this%nAtom))
       this%dQAtomEx(:) = 0.0_dp
@@ -1998,11 +1999,9 @@ contains
     if (this%forceType == forceTypes%dynamicT0 .and. this%tempElec > minTemp) then
       call error("This ForceEvaluation method requires the electron temperature to be zero")
     end if
-    if (this%isLinResp) then
-      tRequireDerivator = (this%tForces .or. input%ctrl%lrespini%tNaCoupling)
-    else
-      tRequireDerivator = this%tForces
-    end if
+
+    tRequireDerivator = this%tForces
+
     if (.not. tRequireDerivator .and. this%isElecDyn) then
       tRequireDerivator = input%ctrl%elecDynInp%tIons
     end if
@@ -2624,7 +2623,7 @@ contains
       this%tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       this%tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. this%tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. this%tPrintExcitedEigVecs .or.&
-          & input%ctrl%lrespini%tWriteDensityMatrix .or. input%ctrl%lrespini%tNaCoupling)
+          & input%ctrl%lrespini%tWriteDensityMatrix)
 
       if (allocated(this%onSiteElements) .and. this%tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -5322,35 +5321,32 @@ contains
       end if
 
       if (this%isLinResp) then
-        ! For CI optimization store gradient for several states,
-        ! otherwise store excited state gradient for state of interest only
-        if(this%linearResponse%isCIopt) then
-          if (.not. this%linearResponse%tNaCoupling) then
-            call error("Optimization of CI requires StateCouplings keyword.")
-          end if
+        ! For NA coupling store gradient for several states,
+        ! otherwise store excited state gradient for state of interest only     
+        if(this%linearResponse%tNaCoupling) then
+        
           dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
+          allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
           if (this%linearResponse%indNACouplings(1) == 0) then
             allocate(this%excitedDerivs(3, this%nAtom, dLev-1))
           else
             allocate(this%excitedDerivs(3, this%nAtom, dLev))
           end if
-          else  if (this%tLinRespZVect .and. this%tCasidaForces) then
-            allocate(this%excitedDerivs(3, this%nAtom, 1))
+        
+        else if (this%tLinRespZVect .and. this%tCasidaForces) then
+          allocate(this%excitedDerivs(3, this%nAtom, 1))
         end if
-        this%isCIopt = this%linearResponse%isCIopt
-        if (this%isCIopt) then
+        
+        if(this%linearResponse%isCIopt) then
+          if (.not. this%linearResponse%tNaCoupling) then
+            call error("Optimization of CI requires StateCouplings keyword.")
+          end if
+          this%isCIopt = this%linearResponse%isCIopt
           ! Currently always using Bearpark algorithm:
           write(stdOut, "('Conical Intersection finder:',T30,A)") 'Bearpark'
           write(stdOut, format2Ue) "CI finder level shift", this%linearResponse%energyShiftCI, 'H',&
               & Hartree__eV * this%linearResponse%energyShiftCI, 'eV'
         end if
-      end if
-    end if
-
-    if (this%isLinResp) then
-      if(this%linearResponse%tNaCoupling) then
-        dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
-        allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))
       end if
     end if
 
@@ -6171,13 +6167,17 @@ contains
       call warning(tmpStr)
     end if
 
-    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%isCIopt)) then
+    if (input%ctrl%lrespini%nstat == 0 .and. (.not. input%ctrl%lrespini%tNaCoupling)) then
       if (tCasidaForces) then
         call error("Excited forces only available for StateOfInterest non zero.")
       end if
       if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
         call error("Excited eigenvectors only available for StateOfInterest non zero.")
       end if
+    end if
+
+    if (input%ctrl%lrespini%tNaCoupling .and. (.not. tCasidaForces)) then
+      call error("Excited state forces required for non-adiabatic couplings")
     end if
 
     if (isOnsiteCorrected .and. input%ctrl%lrespini%iLinRespSolver == linRespSolverTypes%Stratmann)&

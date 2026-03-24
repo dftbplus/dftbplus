@@ -4975,9 +4975,11 @@ contains
 
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
+        ctrl%lrespini%tnstat = .false. 
         ctrl%lrespini%nstat = 0
         call setChildValue(child, "StateOfInterest", 0)
       else
+        ctrl%lrespini%tnstat = .true. 
         call getChildValue(child2, "", buffer)
         if (tolower(unquote(char(buffer))) == "brightest") then
           if (ctrl%lrespini%sym /= "S" .or. ctrl%tSpin) then
@@ -5015,11 +5017,16 @@ contains
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
+
       if (all(ctrl%lrespini%indNACouplings == 0)) then
         ctrl%lrespini%tNaCoupling = .false.
       else
         ctrl%lrespini%tNaCoupling = .true.
       end if
+      if (ctrl%lrespini%tNaCoupling .and. ctrl%lrespini%tnstat) then
+         call detailedError(child, "StateOfInterest must not be set with StateCouplings")
+      end if
+
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -5069,7 +5076,7 @@ contains
         ctrl%lrespini%isCIopt = .false.
       end if
 
-      if (ctrl%tForces .or. ctrl%tPrintForces) then
+      if (ctrl%tForces .or. ctrl%tPrintForces .or. ctrl%lrespini%tNaCoupling) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
       end if
 
