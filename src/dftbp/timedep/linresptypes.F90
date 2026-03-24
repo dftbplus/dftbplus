@@ -77,7 +77,7 @@ module dftbp_timedep_linresptypes
     !> Whether X+Y data should be written
     logical :: writeXplusY = .false.
 
-    !> Whether X+Y data should be written as text
+    !> Whether X+Y data should be written as a text file
     logical :: writeXplusYAscii = .true.   
 
     !> Should non-adiabatic couplings be computed?

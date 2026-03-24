@@ -5648,6 +5648,7 @@ available for range separated calculations.
     \kw{WriteDensityMatrix}     & l & & No & \\
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
+    \kw{WriteXplusYAscii}       & l & & Yes & \\    
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
@@ -5735,6 +5736,9 @@ available for range separated calculations.
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is
     created. This file contains the RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all
     excited states (c.f., Eqn.~(18) in Ref.~\cite{heringer2007aes}).
+    
+  \item[\is{WriteXplusYAscii}] If set to \is{Yes}, the file is written
+    in Ascii format otherwise as binary file. 
 
   \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is
     created. This file contains the Mulliken transition dipole for each excited

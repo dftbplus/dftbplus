@@ -3107,7 +3107,7 @@ contains
           if(writeXplusYAscii) then
             write(fdXPlusY%unit, '(1x,i5,3x,a,3x,A)') ii,sign, '-'
           else
-            write(fdXPlusY%unit) ii,sign, '-'
+            write(fdXPlusY%unit) ii,sign, -1.0
           end if
         endif
 

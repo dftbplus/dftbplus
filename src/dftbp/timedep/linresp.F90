@@ -239,7 +239,6 @@ contains
     this%writeXplusYAscii = ini%tXplusYAscii .and. isIoProc
     this%writeTransDip = ini%tTradip .and. isIoProc
     this%writeNacv = this%tNaCoupling .and. isIoProc
-    print *,this%writeXplusYAscii,'Gunstig'
 
     this%nAtom = nAtom
     this%nEl = nEl
