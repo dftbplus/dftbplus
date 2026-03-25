@@ -97,7 +97,7 @@ module dftbp_dftb_scc
     !> Cell volume
     real(dp) :: volume
 
-    !> Negative gross charge
+    !> Negative gross charges for atomic orbitals
     real(dp), allocatable :: deltaQ(:,:)
 
     !> Negative gross charge per shell
