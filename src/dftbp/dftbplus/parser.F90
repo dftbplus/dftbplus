@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 #:include 'error.fypp'
 
-!> Fills the derived type with the input parameters from an HSD or an XML file.
+!> Fills the derived type with the input parameters from an HSD file.
 module dftbp_dftbplus_parser
   use dftbp_common_accuracy, only : distFudge, distFudgeOld, dp, lc, mc, minTemp, sc
   use dftbp_common_constants, only : Bohr__AA, boltzmann, maxL, pi, shellNames, symbolToNumber
@@ -139,7 +139,7 @@ contains
   end subroutine readHsdFile
 
 
-  !> Parse input from an HSD/XML file
+  !> Parse input from an HSD file
   subroutine parseHsdTree(hsdTree, input, parserFlags)
 
     !> Tree representation of the input
@@ -423,7 +423,7 @@ contains
     !> Parent of node (for error messages)
     type(fnode), pointer :: parent
 
-    !> geometry of the system
+    !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
     !> Control structure to be filled
@@ -572,8 +572,7 @@ contains
       ctrl%tDerivs = .true.
       ctrl%tForces = .true.
 
-      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child,&
-          & multiple=.true.)
+      call getChildValue(node, "Atoms", buffer2, trim(atomsRange), child=child, multiple=.true.)
       call getSelectedAtomIndices(child, char(buffer2), geom%speciesNames, geom%species,&
           & ctrl%indDerivAtom)
       if (size(ctrl%indDerivAtom) == 0) then
@@ -814,7 +813,7 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> geometry of the system
+    !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
     !> Default range of moving atoms (may be restricted for example by contacts in transport
@@ -882,7 +881,7 @@ contains
       if (ctrl%nrConstr/=0) then
         call error("Lattice optimisation and constraints currently incompatible.")
       end if
-      if (ctrl%nrMoved/=0.and.ctrl%nrMoved<geom%nAtom) then
+      if (ctrl%nrMoved /= 0 .and. ctrl%nrMoved < geom%nAtom) then
         call error("Subset of optimising atoms not currently possible with lattice optimisation.")
       end if
     end if
@@ -1045,15 +1044,15 @@ contains
 
 
   !> Reads atomic masses from input file, eventually overwriting those in the SK files
-  subroutine getInputMasses(node, geo, masses)
+  subroutine getInputMasses(node, geom, masses)
 
-    !> relevant node of input data
+    !> Relevant node of input data
     type(fnode), pointer :: node
 
-    !> geometry object, which contains atomic species information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
-    !> masses to be returned
+    !> Masses to be returned
     real(dp), allocatable, intent(out) :: masses(:)
 
     type(fnode), pointer :: child, child2, child3, val
@@ -1073,12 +1072,12 @@ contains
       return
     end if
 
-    allocate(masses(geo%nAtom))
+    allocate(masses(geom%nAtom))
     masses(:) = -1.0_dp
     do ii = 1, getLength(children)
       call getItem1(children, ii, child2)
       call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-      call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+      call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, pTmpI1)
       call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
       call convertUnitHsd(char(modifier), massUnits, child, rTmp)
       do jj = 1, size(pTmpI1)
@@ -1098,9 +1097,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readHamiltonian(node, ctrl, geom, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readHamiltonian(node, ctrl, geom, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1109,8 +1108,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Slater-Koster structure to be filled
     type(TSlater), intent(inout) :: slako
@@ -1136,16 +1135,16 @@ contains
     select case (char(buffer))
     case ("dftb")
   #:if WITH_TRANSPORT
-      call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+      call readDFTBHam(node, ctrl, geom, slako, tp, greendens, poisson, errStatus)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+      call readDFTBHam(node, ctrl, geom, slako, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+      call readXTBHam(node, ctrl, geom, tp, greendens, poisson, errStatus)
   #:else
-      call readXTBHam(node, ctrl, geo, poisson, errStatus)
+      call readXTBHam(node, ctrl, geom, poisson, errStatus)
   #:endif
       @:PROPAGATE_ERROR(errStatus)
     case default
@@ -1166,9 +1165,9 @@ contains
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson, errStatus)
+  subroutine readDFTBHam(node, ctrl, geom, slako, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako, poisson, errStatus)
+  subroutine readDFTBHam(node, ctrl, geom, slako, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1177,8 +1176,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Slater-Koster structure to be filled
     type(TSlater), intent(inout) :: slako
@@ -1227,19 +1226,19 @@ contains
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
-    call readMaxAngularMomentum(node, geo, angShells)
+    call readMaxAngularMomentum(node, geom, angShells)
 
     ! Orbitals and angular momenta for the given shells (once the SK files contain the full
     ! information about the basis, this will be moved to the SK reading routine).
     allocate(slako%orb)
-    call setupOrbitals(slako%orb, geo, angShells)
+    call setupOrbitals(slako%orb, geom, angShells)
 
     ! Slater-Koster files
     call getParamSearchPaths(searchPath)
     strJoin = joinPathsPrettyErr(searchPath)
-    allocate(skFiles(geo%nSpecies, geo%nSpecies))
-    do iSp1 = 1, geo%nSpecies
-      do iSp2 = 1, geo%nSpecies
+    allocate(skFiles(geom%nSpecies, geom%nSpecies))
+    do iSp1 = 1, geom%nSpecies
+      do iSp2 = 1, geom%nSpecies
         call init(skFiles(iSp2, iSp1))
       end do
     end do
@@ -1254,17 +1253,17 @@ contains
       call getChildValue(value1, "Separator", buffer2, "")
       separator = unquote(char(buffer2))
       call getChildValue(value1, "LowerCaseTypeName", tLower, .false.)
-      do iSp1 = 1, geo%nSpecies
+      do iSp1 = 1, geom%nSpecies
         if (tLower) then
-          elem1 = tolower(geo%speciesNames(iSp1))
+          elem1 = tolower(geom%speciesNames(iSp1))
         else
-          elem1 = geo%speciesNames(iSp1)
+          elem1 = geom%speciesNames(iSp1)
         end if
-        do iSp2 = 1, geo%nSpecies
+        do iSp2 = 1, geom%nSpecies
           if (tLower) then
-            elem2 = tolower(geo%speciesNames(iSp2))
+            elem2 = tolower(geom%speciesNames(iSp2))
           else
-            elem2 = geo%speciesNames(iSp2)
+            elem2 = geom%speciesNames(iSp2)
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) // trim(elem2) // trim(suffix)
           call findFile(searchPath, strTmp, strOut)
@@ -1292,9 +1291,9 @@ contains
       if (associated(child2)) then
         call detailedError(child2, "Keyword requires SlaterKosterFiles = Type2Filenames {")
       end if
-      do iSp1 = 1, geo%nSpecies
-        do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" // trim(geo%speciesNames(iSp2))
+      do iSp1 = 1, geom%nSpecies
+        do iSp2 = 1, geom%nSpecies
+          strTmp = trim(geom%speciesNames(iSp1)) // "-" // trim(geom%speciesNames(iSp2))
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
@@ -1320,7 +1319,7 @@ contains
     end select
 
     ! Which repulsive is defined by polynomial? (Default: None)
-    allocate(repPoly(geo%nSpecies, geo%nSpecies))
+    allocate(repPoly(geom%nSpecies, geom%nSpecies))
     call getChildValue(node, "PolynomialRepulsive", value1, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
     call getNodeName2(value1, buffer)
@@ -1331,10 +1330,10 @@ contains
       call getChildValue(value1, "", repPoly(1,1))
       repPoly(:,:) = repPoly(1,1)
     case default
-      do iSp1 = 1, geo%nSpecies
-        do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-              &// trim(geo%speciesNames(iSp2))
+      do iSp1 = 1, geom%nSpecies
+        do iSp2 = 1, geom%nSpecies
+          strTmp = trim(geom%speciesNames(iSp1)) // "-" &
+              &// trim(geom%speciesNames(iSp2))
           call getChildValue(child, trim(strTmp), repPoly(iSp2, iSp1), .false.)
         end do
       end do
@@ -1349,7 +1348,7 @@ contains
     ! SCC
     call getChildValue(node, "SCC", ctrl%tSCC, .false.)
 
-    call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geo, skFiles)
+    call parseHybridBlock(node, ctrl%hybridXcInp, ctrl, geom, skFiles)
 
     if (allocated(ctrl%hybridXcInp)) then
       if (.not.ctrl%tSCC) then
@@ -1375,24 +1374,24 @@ contains
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
         call SKTruncations(child, rSKCutOff, skInterMeth)
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+        call readSKFiles(skFiles, geom%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly, rSKCutOff)
       else
         rSKCutOff = 0.0_dp
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+        call readSKFiles(skFiles, geom%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
     else
-      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+      call readSKFiles(skFiles, geom%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
           & skInterMeth, repPoly, hybridXcSK=hybridXcSK)
       ctrl%hybridXcInp%omega = hybridXcSK%omega
       ctrl%hybridXcInp%camAlpha = hybridXcSK%camAlpha
       ctrl%hybridXcInp%camBeta = hybridXcSK%camBeta
     end if
 
-    do iSp1 = 1, geo%nSpecies
+    do iSp1 = 1, geom%nSpecies
       call destruct(angShells(iSp1))
-      do iSp2 = 1, geo%nSpecies
+      do iSp2 = 1, geom%nSpecies
         call destruct(skFiles(iSp2, iSp1))
       end do
     end do
@@ -1404,10 +1403,10 @@ contains
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options
-      call readSccOptions(node, ctrl, geo)
+      call readSccOptions(node, ctrl, geom)
 
       ! DFTB hydrogen bond corrections
-      call readHCorrection(node, geo, ctrl)
+      call readHCorrection(node, geom, ctrl)
 
       !> TI-DFTB varibles for Delta DFTB
       call getChild(node, "NonAufbau", child, requested=.false.)
@@ -1426,12 +1425,12 @@ contains
     end if ifSCC
 
     ! Customize the reference atomic charges for virtual doping
-    call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
+    call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geom, &
         & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
-      call readSpinPolarisation(node, ctrl, geo)
+      call readSpinPolarisation(node, ctrl, geom)
     end if
 
     ! temporararily removed until debugged
@@ -1443,14 +1442,14 @@ contains
     ctrl%tReadShifts = .false.
 
     ! External fields and potentials
-    call readExternal(node, ctrl, geo)
+    call readExternal(node, ctrl, geom)
 
     ! Non-self-consistent spin-orbit coupling
-    call readSpinOrbit(node, ctrl, geo, slako%orb)
+    call readSpinOrbit(node, ctrl, geom, slako%orb)
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geom, tp, greendens, poisson)
 
     if (tp%taskUpload) then
       ! Initialise variable, but unused
@@ -1460,14 +1459,14 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geom, poisson)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, errStatus)
+    call readKPoints(node, ctrl, geom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     if (ctrl%tscc) then
@@ -1485,21 +1484,21 @@ contains
           call detailedError(child,"Unknown orbital functional :"// char(buffer))
         end select
 
-        allocate(ctrl%dftbUInp%nUJ(geo%nSpecies))
+        allocate(ctrl%dftbUInp%nUJ(geom%nSpecies))
         ctrl%dftbUInp%nUJ(:) = 0
 
         ! to hold list of U-J values for each atom
-        allocate(lrN(geo%nSpecies))
+        allocate(lrN(geom%nSpecies))
         ! to hold count of U-J values for each atom
-        allocate(liN(geo%nSpecies))
+        allocate(liN(geom%nSpecies))
         ! to hold list of shells for each U-J block of values
-        allocate(li1N(geo%nSpecies))
+        allocate(li1N(geom%nSpecies))
 
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           call init(lrN(iSp1))
           call init(liN(iSp1))
           call init(li1N(iSp1))
-          call getChildren(child, trim(geo%speciesNames(iSp1)), children)
+          call getChildren(child, trim(geom%speciesNames(iSp1)), children)
           ctrl%dftbUInp%nUJ(iSp1) = getLength(children)
           do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
             call getItem1(children, ii, child2)
@@ -1529,14 +1528,14 @@ contains
           call destroyNodeList(children)
         end do
 
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           ctrl%dftbUInp%nUJ(iSp1) = len(lrN(iSp1))
         end do
-        allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+        allocate(ctrl%dftbUInp%UJ(maxval(ctrl%dftbUInp%nUJ), geom%nSpecies))
         ctrl%dftbUInp%UJ(:,:) = 0.0_dp
-        allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+        allocate(ctrl%dftbUInp%niUJ(maxval(ctrl%dftbUInp%nUJ), geom%nSpecies))
         ctrl%dftbUInp%niUJ(:,:) = 0
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           call asArray(lrN(iSp1),ctrl%dftbUInp%UJ(1:len(lrN(iSp1)),iSp1))
           allocate(iTmpN(len(liN(iSp1))))
           call asArray(liN(iSp1),iTmpN)
@@ -1546,9 +1545,9 @@ contains
           call destruct(liN(iSp1))
         end do
         allocate(ctrl%dftbUInp%iUJ(maxval(ctrl%dftbUInp%niUJ),&
-            & maxval(ctrl%dftbUInp%nUJ),geo%nSpecies))
+            & maxval(ctrl%dftbUInp%nUJ), geom%nSpecies))
         ctrl%dftbUInp%iUJ(:,:,:) = 0
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
             allocate(iTmpN(ctrl%dftbUInp%niUJ(ii,iSp1)))
             call get(li1N(iSp1),iTmpN,ii)
@@ -1564,7 +1563,7 @@ contains
 
         ! check input values
         allocate(iTmpN(slako%orb%mShell))
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           iTmpN = 0
           ! loop over number of blocks for that species
           do ii = 1, ctrl%dftbUInp%nUJ(iSp1)
@@ -1575,7 +1574,7 @@ contains
             write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
             write(stdout, "(A,A3,A,I2)") &
                 & 'The count for the occurrence of shells of species ', &
-                & trim(geo%speciesNames(iSp1)),' are:'
+                & trim(geom%speciesNames(iSp1)),' are:'
             write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
             call abortProgram()
           end if
@@ -1588,11 +1587,11 @@ contains
       call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
           & dummyValue=.true.)
       if (associated(value1)) then
-        allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+        allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geom%nSpecies))
+        do iSp1 = 1, geom%nSpecies
+          call getChildValue(child, trim(geom%speciesNames(iSp1))//"uu",&
               & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-          call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+          call getChildValue(child, trim(geom%speciesNames(iSp1))//"ud",&
               & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
         end do
       end if
@@ -1604,7 +1603,7 @@ contains
         & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1612,7 +1611,7 @@ contains
         & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
-      call readSolvation(child, geo, ctrl%solvInp)
+      call readSolvation(child, geom, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
@@ -1621,28 +1620,28 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geom, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
       if (.not. allocated(ctrl%elecConstraintInp%mullikenConstrs)) then
         call detailedWarning(child, "No electronic constraint specified")
         deallocate(ctrl%elecConstraintInp)
       end if
     end if
 
-    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
+    if (ctrl%tLatOpt .and. .not. geom%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
     end if
 
     if (ctrl%tSCC) then
     #:if WITH_TRANSPORT
-      call readElectrostatics(node, ctrl, geo, tp, poisson)
+      call readElectrostatics(node, ctrl, geom, tp, poisson)
     #:else
-      call readElectrostatics(node, ctrl, geo, poisson)
+      call readElectrostatics(node, ctrl, geom, poisson)
     #:endif
     end if
 
     ! Multipole expansion
     ctrl%isMdftb = .false.
-    call readMdftb(node, ctrl, geo)
+    call readMdftb(node, ctrl, geom)
 
     ! Third order stuff
     ctrl%t3rd = .false.
@@ -1660,30 +1659,30 @@ contains
       end if
       if (ctrl%t3rd .or. ctrl%t3rdFull) then
         call getChild(node, 'HubbardDerivs', child, requested=.true.)
-        allocate(ctrl%HubDerivs(slako%orb%mShell, geo%nSpecies))
+        allocate(ctrl%HubDerivs(slako%orb%mShell, geom%nSpecies))
         ctrl%hubDerivs(:,:) = 0.0_dp
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           nShell = slako%orb%nShell(iSp1)
           if (ctrl%tShellResolved) then
-            call getChildValue(child, geo%speciesNames(iSp1),&
+            call getChildValue(child, geom%speciesNames(iSp1),&
                 & ctrl%hubDerivs(1:nShell, iSp1))
           else
-            call getChildValue(child, geo%speciesNames(iSp1),&
+            call getChildValue(child, geom%speciesNames(iSp1),&
                 & ctrl%hubDerivs(1, iSp1))
             ctrl%hubDerivs(2:nShell, iSp1) = ctrl%hubDerivs(1, iSp1)
           end if
         end do
         if (ctrl%t3rd) then
-          allocate(ctrl%thirdOrderOn(geo%nAtom, 2))
+          allocate(ctrl%thirdOrderOn(geom%nAtom, 2))
           ctrl%thirdOrderOn(:,1) = 0.0_dp
-          ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
+          ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geom%species)
         end if
 
         ! Halogen correction to the DFTB3 model
         isHalogenXCorr =&
-            & any([(any(halogenXSpecies1(ii) == geo%speciesNames), ii=1, size(halogenXSpecies1))])&
+            & any([(any(halogenXSpecies1(ii) == geom%speciesNames), ii=1, size(halogenXSpecies1))])&
             & .and. &
-            & any([(any(halogenXSpecies2(ii) == geo%speciesNames), ii=1, size(halogenXSpecies2))])
+            & any([(any(halogenXSpecies2(ii) == geom%speciesNames), ii=1, size(halogenXSpecies2))])
 
         if (isHalogenXCorr) then
           call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
@@ -1701,16 +1700,16 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
-    call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
+    call readCustomisedHubbards(node, geom, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
 
   end subroutine readDFTBHam
 
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson, errStatus)
+  subroutine readXTBHam(node, ctrl, geom, tp, greendens, poisson, errStatus)
 #:else
-  subroutine readXTBHam(node, ctrl, geo, poisson, errStatus)
+  subroutine readXTBHam(node, ctrl, geom, poisson, errStatus)
 #:endif
 
     !> Node to get the information from
@@ -1719,8 +1718,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -1747,8 +1746,8 @@ contains
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
     allocate(ctrl%tbliteInp)
-    call ctrl%tbliteInp%setupGeometry(geo%nAtom, geo%species, geo%coords, geo%speciesNames,&
-        & geo%latVecs)
+    call ctrl%tbliteInp%setupGeometry(geom%nAtom, geom%species, geom%coords, geom%speciesNames,&
+        & geom%latVecs)
 
     call getChild(node, "Method", child, requested=.false.)
     if (associated(child)) then
@@ -1788,7 +1787,7 @@ contains
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options etc.
-      call readSccOptions(node, ctrl, geo)
+      call readSccOptions(node, ctrl, geom)
 
       !> TI-DFTB varibles for Delta DFTB
       call getChild(node, "NonAufbau", child, requested=.false.)
@@ -1808,7 +1807,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau .and. ctrl%tSCC) then
-      call readSpinPolarisation(node, ctrl, geo)
+      call readSpinPolarisation(node, ctrl, geom)
     end if
 
     ! temporararily removed until debugged
@@ -1820,15 +1819,15 @@ contains
     ctrl%tReadShifts = .false.
 
     ! External fields and potentials
-    call readExternal(node, ctrl, geo)
+    call readExternal(node, ctrl, geom)
 
     ! Non-self-consistent spin-orbit coupling
-    call ctrl%tbliteInp%setupOrbitals(geo%species, orb)
-    call readSpinOrbit(node, ctrl, geo, orb)
+    call ctrl%tbliteInp%setupOrbitals(geom%species, orb)
+    call readSpinOrbit(node, ctrl, geom, orb)
 
     ! Electronic solver
   #:if WITH_TRANSPORT
-    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+    call readSolver(node, ctrl, geom, tp, greendens, poisson)
 
     if (tp%taskUpload) then
       ! Initialise, but unused
@@ -1838,14 +1837,14 @@ contains
       call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
     end if
   #:else
-    call readSolver(node, ctrl, geo, poisson)
+    call readSolver(node, ctrl, geom, poisson)
 
     ! Charge
     call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
   #:endif
 
     ! K-Points
-    call readKPoints(node, ctrl, geo, errStatus)
+    call readKPoints(node, ctrl, geom, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
     ! Dispersion
@@ -1853,7 +1852,7 @@ contains
         & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
+      call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
     end if
 
     ! Solvation
@@ -1861,18 +1860,18 @@ contains
         & dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
-      call readSolvation(child, geo, ctrl%solvInp)
+      call readSolvation(child, geom, ctrl%solvInp)
       call getChildValue(value1, "RescaleSolvatedFields", ctrl%isSolvatedFieldRescaled, .true.)
     end if
 
-    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
+    if (ctrl%tLatOpt .and. .not. geom%tPeriodic) then
       call error("Lattice optimisation only applies for periodic structures.")
     end if
 
   #:if WITH_TRANSPORT
-    call readElectrostatics(node, ctrl, geo, tp, poisson)
+    call readElectrostatics(node, ctrl, geom, tp, poisson)
   #:else
-    call readElectrostatics(node, ctrl, geo, poisson)
+    call readElectrostatics(node, ctrl, geom, poisson)
   #:endif
 
     ! Third order stuff
@@ -1893,14 +1892,14 @@ contains
         & allowEmptyValue=.true., dummyValue=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
-      call readElecConstraintInput(child, geo, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
+      call readElecConstraintInput(child, geom, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
     end if
 
   end subroutine readXTBHam
 
 
   !> Reads in settings for spin orbit enabled calculations
-  subroutine readSpinOrbit(node, ctrl, geo, orb)
+  subroutine readSpinOrbit(node, ctrl, geom, orb)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -1908,8 +1907,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Information about the orbitals of the species/atoms in the system
     class(TOrbitals), intent(in) :: orb
@@ -1932,9 +1931,9 @@ contains
 
       call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
 
-      allocate(ctrl%xi(orb%mShell,geo%nSpecies), source = 0.0_dp)
-      do iSp = 1, geo%nSpecies
-        call getChildValue(child, geo%speciesNames(iSp), &
+      allocate(ctrl%xi(orb%mShell, geom%nSpecies), source = 0.0_dp)
+      do iSp = 1, geom%nSpecies
+        call getChildValue(child, geom%speciesNames(iSp), &
             & ctrl%xi(:orb%nShell(iSp),iSp), modifier=modifier, child=child2 )
         call convertUnitHsd(char(modifier), energyUnits, child2,&
             & ctrl%xi(:orb%nShell(iSp),iSp))
@@ -1945,13 +1944,13 @@ contains
 
 
   !> Read in maximal angular momenta or selected shells
-  subroutine readMaxAngularMomentum(node, geo, angShells)
+  subroutine readMaxAngularMomentum(node, geom, angShells)
 
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> List containing the angular momenta of the shells
     type(TListIntR1), allocatable, intent(out) :: angShells(:)
@@ -1970,10 +1969,10 @@ contains
       angShellOrdered(ii) = ii - 1
     end do
     call getChild(node, "MaxAngularMomentum", child)
-    allocate(angShells(geo%nSpecies))
-    do iSp1 = 1, geo%nSpecies
+    allocate(angShells(geom%nSpecies))
+    do iSp1 = 1, geom%nSpecies
       call init(angShells(iSp1))
-      call getChildValue(child, geo%speciesNames(iSp1), value1, child=child2)
+      call getChildValue(child, geom%speciesNames(iSp1), value1, child=child2)
       call getNodeName(value1, buffer)
       select case(char(buffer))
       case("selectedshells")
@@ -2037,27 +2036,27 @@ contains
 
 
   !> Setup information about the orbitals of the species/atoms from angShell lists
-  subroutine setupOrbitals(orb, geo, angShells)
+  subroutine setupOrbitals(orb, geom, angShells)
 
     !> Information about the orbitals of the species/atoms in the system
     class(TOrbitals), intent(out) :: orb
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> List containing the angular momenta of the shells,
-    !> must be inout, since intoArray requires inout arguments
+    !! must be inout, since intoArray requires inout arguments
     type(TListIntR1), intent(inout) :: angShells(:)
 
     integer :: nShell, iSp1, iSh1, ii, jj, ind
     integer :: angShell(maxL+1)
 
-    allocate(orb%nShell(geo%nSpecies))
-    allocate(orb%nOrbSpecies(geo%nSpecies))
-    allocate(orb%nOrbAtom(geo%nAtom))
+    allocate(orb%nShell(geom%nSpecies))
+    allocate(orb%nOrbSpecies(geom%nSpecies))
+    allocate(orb%nOrbAtom(geom%nAtom))
     orb%mOrb = 0
     orb%mShell = 0
-    do iSp1 = 1, geo%nSpecies
+    do iSp1 = 1, geom%nSpecies
       orb%nShell(iSp1) = 0
       orb%nOrbSpecies(iSp1) = 0
       do ii = 1, len(angShells(iSp1))
@@ -2071,14 +2070,14 @@ contains
     end do
     orb%mShell = maxval(orb%nShell)
     orb%mOrb = maxval(orb%nOrbSpecies)
-    orb%nOrbAtom(:) = orb%nOrbSpecies(geo%species(:))
+    orb%nOrbAtom(:) = orb%nOrbSpecies(geom%species(:))
     orb%nOrb = sum(orb%nOrbAtom)
 
-    allocate(orb%angShell(orb%mShell, geo%nSpecies))
-    allocate(orb%iShellOrb(orb%mOrb, geo%nSpecies))
-    allocate(orb%posShell(orb%mShell+1, geo%nSpecies))
+    allocate(orb%angShell(orb%mShell, geom%nSpecies))
+    allocate(orb%iShellOrb(orb%mOrb, geom%nSpecies))
+    allocate(orb%posShell(orb%mShell+1, geom%nSpecies))
     orb%angShell(:,:) = 0
-    do iSp1 = 1, geo%nSpecies
+    do iSp1 = 1, geom%nSpecies
       ind = 1
       iSh1 = 1
       do ii = 1, len(angShells(iSp1))
@@ -2098,9 +2097,9 @@ contains
 
 
 #:if WITH_TRANSPORT
-  subroutine readElectrostatics(node, ctrl, geo, tp, poisson)
+  subroutine readElectrostatics(node, ctrl, geom, tp, poisson)
 #:else
-  subroutine readElectrostatics(node, ctrl, geo, poisson)
+  subroutine readElectrostatics(node, ctrl, geom, poisson)
 #:endif
 
     !> Node to get the information from
@@ -2109,8 +2108,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -2147,9 +2146,9 @@ contains
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         ctrl%tPoisson = .true.
         #:if WITH_TRANSPORT
-          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
+          call readPoisson(value1, poisson, geom%tPeriodic, tp, geom%latVecs)
         #:else
-          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs)
+          call readPoisson(value1, poisson, geom%tPeriodic, geom%latVecs)
         #:endif
       #:endblock
 
@@ -2162,7 +2161,7 @@ contains
 
 
   !> Read in the mdftb parameters
-  subroutine readMdftb(node, ctrl, geo)
+  subroutine readMdftb(node, ctrl, geom)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -2170,8 +2169,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer
@@ -2187,86 +2186,86 @@ contains
         case("onecenterapproximation")
           ctrl%isMdftb = .true.
           allocate(ctrl%mdftbAtomicIntegrals)
-          allocate(ctrl%mdftbAtomicIntegrals%DScaling(geo%nSpecies), source=1.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%QScaling(geo%nSpecies), source=1.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SXPx(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PxXDxxyy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PxXDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PyYDxxyy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PzZDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SXXS(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PxXXPx(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%PyXXPy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SXXDxxyy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SXXDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SYYDxxyy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%SZZDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DxyXXDxy(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DyzXXDyz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DzzXXDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DzzZZDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DxzXZDzz(geo%nSpecies), source=0.0_dp)
-          allocate(ctrl%mdftbAtomicIntegrals%DyzYZDxxyy(geo%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DScaling(geom%nSpecies), source=1.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%QScaling(geom%nSpecies), source=1.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SXPx(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PxXDxxyy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PxXDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PyYDxxyy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PzZDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SXXS(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PxXXPx(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%PyXXPy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SXXDxxyy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SXXDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SYYDxxyy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%SZZDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DxyXXDxy(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DyzXXDyz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DzzXXDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DzzZZDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DxzXZDzz(geom%nSpecies), source=0.0_dp)
+          allocate(ctrl%mdftbAtomicIntegrals%DyzYZDxxyy(geom%nSpecies), source=0.0_dp)
 
           call getChild(value1, 'AtomDIntegralScalings', child2, requested=.false.)
           if (associated(child2)) then
-            do iSp1 = 1, geo%nSpecies
-              call getChildValue(child2, trim(geo%speciesNames(iSp1)),&
+            do iSp1 = 1, geom%nSpecies
+              call getChildValue(child2, trim(geom%speciesNames(iSp1)),&
                   & ctrl%mdftbAtomicIntegrals%DScaling(iSp1), 1.0_dp)
             end do
           end if
 
           call getChild(value1, 'AtomQIntegralScalings', child2, requested=.false.)
           if (associated(child2)) then
-            do iSp1 = 1, geo%nSpecies
-              call getChildValue(child2, trim(geo%speciesNames(iSp1)),&
+            do iSp1 = 1, geom%nSpecies
+              call getChildValue(child2, trim(geom%speciesNames(iSp1)),&
                   & ctrl%mdftbAtomicIntegrals%QScaling(iSp1), 1.0_dp)
             end do
           end if
 
           call getChild(value1, 'OneCenterAtomIntegrals', child2, requested=.true.)
-          do iSp1 = 1, geo%nSpecies
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|X|Px",&
+          do iSp1 = 1, geom%nSpecies
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|X|Px",&
                 & ctrl%mdftbAtomicIntegrals%SXPx(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|X|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Px|X|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%PxXDxxyy (iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|X|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Px|X|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%PxXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py|Y|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Py|Y|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%PyYDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Pz|Z|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Pz|Z|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%PzZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|S",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|XX|S",&
                 & ctrl%mdftbAtomicIntegrals%SXXS(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Px|XX|Px",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Px|XX|Px",&
                 & ctrl%mdftbAtomicIntegrals%PxXXPx(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Py|XX|Py",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Py|XX|Py",&
                 & ctrl%mdftbAtomicIntegrals%PyXXPy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%SXXDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|XX|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%SXXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|YY|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%SYYDxxyy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":S|ZZ|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":S|ZZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%SZZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxy|XX|Dxy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dxy|XX|Dxy",&
                 & ctrl%mdftbAtomicIntegrals%DxyXXDxy(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|XX|Dyz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dyz|XX|Dyz",&
                 & ctrl%mdftbAtomicIntegrals%DyzXXDyz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dzz|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dzz|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzXXDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|YY|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dzz|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|ZZ|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dzz|ZZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzZZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxz|XZ|Dzz",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dxz|XZ|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DxzXZDzz(iSp1), 0.0_dp)
-            call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|YZ|Dxx-yy",&
+            call getChildValue(child2, trim(geom%speciesNames(iSp1))//":Dyz|YZ|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DyzYZDxxyy(iSp1), 0.0_dp)
           end do
         case("none")
@@ -2281,7 +2280,7 @@ contains
 
 
   !> Spin calculation
-  subroutine readSpinPolarisation(node, ctrl, geo)
+  subroutine readSpinPolarisation(node, ctrl, geom)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2289,8 +2288,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -2310,14 +2309,14 @@ contains
       call getChildValue(value1, 'UnpairedElectrons', ctrl%nrSpinPol, 0.0_dp)
       call getChildValue(value1, 'RelaxTotalSpin', ctrl%tSpinSharedEf, .false.)
       if (.not. ctrl%tReadChrg) then
-        call getInitialSpins(value1, geo, 1, ctrl%initialSpins)
+        call getInitialSpins(value1, geom, 1, ctrl%initialSpins)
       end if
 
     case ("noncolinear", "noncollinear")
       ctrl%tSpin = .true.
       ctrl%t2Component = .true.
       if (.not. ctrl%tReadChrg) then
-        call getInitialSpins(value1, geo, 3, ctrl%initialSpins)
+        call getInitialSpins(value1, geom, 3, ctrl%initialSpins)
       end if
 
     case default
@@ -2330,7 +2329,7 @@ contains
 
 
   ! External field(s) and potential(s)
-  subroutine readExternal(node, ctrl, geo)
+  subroutine readExternal(node, ctrl, geom)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2338,8 +2337,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
@@ -2527,7 +2526,7 @@ contains
 
 
   !> Filling of electronic levels
-  subroutine readFilling(node, ctrl, geo, temperatureDefault)
+  subroutine readFilling(node, ctrl, geom, temperatureDefault)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2535,8 +2534,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to test for periodicity
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Default temperature for filling
     real(dp), intent(in) :: temperatureDefault
@@ -2596,7 +2595,7 @@ contains
       call convertUnitHsd(char(modifier), energyUnits, child3, ctrl%Ef)
     end if
 
-    if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
+    if (geom%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value1, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
 
@@ -2605,9 +2604,9 @@ contains
 
   !> Electronic Solver
 #:if WITH_TRANSPORT
-  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readSolver(node, ctrl, geom, tp, greendens, poisson)
 #:else
-  subroutine readSolver(node, ctrl, geo, poisson)
+  subroutine readSolver(node, ctrl, geom, poisson)
 #:endif
 
     !> Relevant node in input tree
@@ -2616,8 +2615,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -2740,7 +2739,7 @@ contains
     case ("greensfunction")
       ctrl%solver%isolver = electronicSolverTypes%GF
       ! need electronic temperature to be read for this solver:
-      call readElectronicFilling(node, ctrl, geo)
+      call readElectronicFilling(node, ctrl, geom)
       if (tp%defined .and. .not.tp%taskUpload) then
         call detailederror(node, "greensfunction solver cannot be used "// &
             &  "when task = contactHamiltonian")
@@ -2800,7 +2799,7 @@ contains
 
 
   !> K-Points
-  subroutine readKPoints(node, ctrl, geo, errStatus)
+  subroutine readKPoints(node, ctrl, geom, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2808,8 +2807,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Error status
     type(TStatus), intent(inout) :: errStatus
@@ -2822,11 +2821,11 @@ contains
     ctrl%checkStopHybridCalc = .false.
 
     ! K-Points
-    if (geo%tPeriodic) then
-      call getEuclideanKSampling(ctrl, node, geo, errStatus)
+    if (geom%tPeriodic) then
+      call getEuclideanKSampling(ctrl, node, geom, errStatus)
       @:PROPAGATE_ERROR(errStatus)
-    elseif (geo%tHelical) then
-      call getHelicalKSampling(ctrl, node, geo)
+    elseif (geom%tHelical) then
+      call getHelicalKSampling(ctrl, node, geom)
     end if
 
     call maxSelfConsIterations(node, ctrl, "MaxSCCIterations", ctrl%maxSccIter)
@@ -2917,7 +2916,7 @@ contains
 
 
   !> The k-points in Euclidean space
-  subroutine getEuclideanKSampling(ctrl, node, geo, errStatus)
+  subroutine getEuclideanKSampling(ctrl, node, geom, errStatus)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2925,8 +2924,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Error status
     type(TStatus), intent(inout) :: errStatus
@@ -3028,8 +3027,8 @@ contains
         select case (tolower(char(modifier)))
         case ("relative")
         case ("absolute")
-          ctrl%kPoint(:,:) =  matmul(transpose(geo%latVecs), ctrl%kPoint)
-          kpts(:,:) = matmul(transpose(geo%latVecs), kpts)
+          ctrl%kPoint(:,:) =  matmul(transpose(geom%latVecs), ctrl%kPoint)
+          kpts(:,:) = matmul(transpose(geom%latVecs), kpts)
         case default
           call detailedError(child, "Invalid modifier: '" // char(modifier) &
               &// "'")
@@ -3057,7 +3056,7 @@ contains
         case ("relative")
           continue
         case ("absolute")
-          kpts(1:3,:) =  matmul(transpose(geo%latVecs), kpts(1:3,:))
+          kpts(1:3,:) =  matmul(transpose(geom%latVecs), kpts(1:3,:))
         case default
           call detailedError(child, "Invalid modifier: '" // char(modifier) &
               &// "'")
@@ -3073,13 +3072,13 @@ contains
     end select
 
     ! Catch problematic k-point sampling in case this is a hybrid calculation
-    ctrl%checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+    ctrl%checkStopHybridCalc = allocated(ctrl%hybridXcInp) .and. geom%tPeriodic&
         & .and. (char(buffer) /= "supercellfolding") .and. ctrl%tReadChrg
 
     ! Check for hybrid xc-functional requirements
     tGammaOnly = isGammaOnly(ctrl%nKPoint, ctrl%kPoint, ctrl%kWeight)
     if (.not. tGammaOnly) then
-      if (allocated(ctrl%hybridXcInp) .and. geo%tPeriodic&
+      if (allocated(ctrl%hybridXcInp) .and. geom%tPeriodic&
           & .and. (char(buffer) /= "supercellfolding") .and. (.not. ctrl%tReadChrg)) then
         call detailedError(child, "Error while parsing k-point sampling for a hybrid xc-functional&
             & run. Currently only" // NEW_LINE('A') // "   the supercell folding technique (or any&
@@ -3102,7 +3101,7 @@ contains
 
 
   !> The k-points for helical boundaries
-  subroutine getHelicalKSampling(ctrl, node, geo)
+  subroutine getHelicalKSampling(ctrl, node, geom)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -3110,8 +3109,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(string) :: buffer
     type(fnode), pointer :: value1, child
@@ -3137,7 +3136,7 @@ contains
         call detailedError(node, "Number of grid points must be above 0")
       end if
       if (.not.ctrl%tSpinOrbit) then
-        ctrl%nKPoint = iTmp * nint(geo%latvecs(3,1))
+        ctrl%nKPoint = iTmp * nint(geom%latvecs(3,1))
         allocate(ctrl%kPoint(2, ctrl%nKPoint))
         ctrl%kPoint(:,:) = 0.0_dp
         allocate(ctrl%kWeight(ctrl%nKPoint))
@@ -3146,9 +3145,9 @@ contains
           ctrl%kPoint(1,ii+1) = ii * 0.5_dp*ctrl%kWeight(ii+1) + 0.5_dp*rTmp3(2)/rTmp3(1)
         end do
         ctrl%kWeight(:) = 1.0_dp / real(ctrl%nKPoint,dp)
-        do ii = 2, nint(geo%latvecs(3,1))
+        do ii = 2, nint(geom%latvecs(3,1))
           ctrl%kPoint(1,(ii-1)*iTmp+1:ii*iTmp) = ctrl%kPoint(1,1:iTmp)
-          ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geo%latvecs(3,1))
+          ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geom%latvecs(3,1))
         end do
       else
         call error("Helical boundaries not yet added for spin-orbit")
@@ -3162,21 +3161,21 @@ contains
       if (any(iTmp2 < 1)) then
         call detailedError(node, "Number of grid points must be above 0")
       end if
-      if (iTmp2(2) > nint(geo%latvecs(3,1))) then
+      if (iTmp2(2) > nint(geom%latvecs(3,1))) then
         write(errorStr, '("The k-point grid for the helix rotational operation (",I0,&
-            & ") is larger than the rotation order (C_",I0,").")') iTmp2(2), nint(geo%latvecs(3,1))
+            & ") is larger than the rotation order (C_",I0,").")') iTmp2(2), nint(geom%latvecs(3,1))
         call detailedError(node, errorStr)
       end if
-      if (mod(nint(geo%latvecs(3,1)),iTmp2(2)) /= 0) then
+      if (mod(nint(geom%latvecs(3,1)),iTmp2(2)) /= 0) then
         write(errorStr, '("The k-point grid for the helix rotational operation (n_k=",I0,&
             & ") is not a divisor of the rotation order (C_",I0,").")') iTmp2(2),&
-            & nint(geo%latvecs(3,1))
+            & nint(geom%latvecs(3,1))
         call detailedError(node, errorStr)
       end if
-      if (abs(rTmp22(2,2) * nint(geo%latvecs(3,1)) - nint(rTmp22(2,2) * nint(geo%latvecs(3,1))))&
+      if (abs(rTmp22(2,2) * nint(geom%latvecs(3,1)) - nint(rTmp22(2,2) * nint(geom%latvecs(3,1))))&
           & > epsilon(1.0_dp)) then
         write(errorStr, '("The shift of the k-points along the rotation is incommensurate, it must&
-            & be an integer multiple of 1/",I0)') nint(geo%latvecs(3,1))
+            & be an integer multiple of 1/",I0)') nint(geom%latvecs(3,1))
         call detailedError(node, errorStr)
       end if
       if (.not.ctrl%tSpinOrbit) then
@@ -3216,7 +3215,7 @@ contains
       ! first two are point values
       ctrl%kPoint(:2,:) = kpts(:2, :)
       ! test if the second k-point is commensurate with the C_n operation
-      if (any(abs(kpts(2,:)*nint(geo%latvecs(3,1)) - nint(kpts(2,:) * nint(geo%latvecs(3,1))))&
+      if (any(abs(kpts(2,:)*nint(geom%latvecs(3,1)) - nint(kpts(2,:) * nint(geom%latvecs(3,1))))&
           & > epsilon(1.0_dp))) then
         call error("Specified k-value(s) incommensurate with C_n operation.")
       end if
@@ -3232,7 +3231,7 @@ contains
 
 
   !> SCC options that are need for different hamiltonian choices
-  subroutine readSccOptions(node, ctrl, geo)
+  subroutine readSccOptions(node, ctrl, geom)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -3240,14 +3239,14 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     ctrl%tMulliken = .true.
 
     call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
     if (.not. ctrl%tReadChrg) then
-      call getInitialCharges(node, geo, ctrl%initialCharges)
+      call getInitialCharges(node, geom, ctrl%initialCharges)
     end if
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
@@ -3256,12 +3255,12 @@ contains
     ! call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
     ctrl%tWriteShifts = .false.
 
-    if (geo%tPeriodic) then
+    if (geom%tPeriodic) then
       call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
     end if
 
-    if (geo%tHelical) then
+    if (geom%tHelical) then
       ! Tolerance for k-points being commensurate with C_n rotation
       call getChildValue(node, "HelicalSymmetryTol", ctrl%helicalSymTol, 1.0E-6_dp)
     end if
@@ -3342,13 +3341,13 @@ contains
 
 
   !> Reads initial charges
-  subroutine getInitialCharges(node, geo, initCharges)
+  subroutine getInitialCharges(node, geom, initCharges)
 
     !> relevant node in input tree
     type(fnode), pointer :: node
 
-    !> geometry, including atomic type information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> initial atomic charges
     real(dp), allocatable :: initCharges(:)
@@ -3366,18 +3365,18 @@ contains
     ! Read either all atom charges, or individual atom specifications
     call getChild(child, "AllAtomCharges", child2, requested=.false.)
     if (associated(child2)) then
-      allocate(initCharges(geo%nAtom))
+      allocate(initCharges(geom%nAtom))
       call getChildValue(child2, "", initCharges)
     else
       call getChildren(child, "AtomCharge", children)
       if (getLength(children) > 0) then
-        allocate(initCharges(geo%nAtom))
+        allocate(initCharges(geom%nAtom))
         initCharges = 0.0_dp
       end if
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, pTmpI1)
         call getChildValue(child2, "ChargePerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
@@ -3396,13 +3395,13 @@ contains
 
 
   !> Reads initial spins
-  subroutine getInitialSpins(node, geo, nSpin, initSpins)
+  subroutine getInitialSpins(node, geom, nSpin, initSpins)
 
     !> relevant node in input data
     type(fnode), pointer :: node
 
-    !> geometry, including atomic information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> number of spin channels
     integer, intent(in) :: nSpin
@@ -3425,19 +3424,19 @@ contains
     ! Read either all atom spins, or individual spin specifications
     call getChild(child, "AllAtomSpins", child2, requested=.false.)
     if (associated(child2)) then
-      allocate(initSpins(nSpin, geo%nAtom))
+      allocate(initSpins(nSpin, geom%nAtom))
       call getChildValue(child2, "", initSpins)
     else
       call getChildren(child, "AtomSpin", children)
       if (getLength(children) > 0) then
-        allocate(initSpins(nSpin, geo%nAtom))
+        allocate(initSpins(nSpin, geom%nAtom))
         initSpins = 0.0_dp
       end if
       allocate(rTmp(nSpin))
       do ii = 1, getLength(children)
         call getItem1(children, ii, child2)
         call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-        call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, pTmpI1)
         call getChildValue(child2, "SpinPerAtom", rTmp)
         do jj = 1, size(pTmpI1)
           iAt = pTmpI1(jj)
@@ -3495,13 +3494,13 @@ contains
 
 
   !> Reads the H corrections (H5, Damp)
-  subroutine readHCorrection(node, geo, ctrl)
+  subroutine readHCorrection(node, geom, ctrl)
 
     !> Node containing the h-bond correction sub-block.
     type(fnode), pointer, intent(in) :: node
 
-    !> Geometry.
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Control structure
     type(TControl), intent(inout) :: ctrl
@@ -3531,10 +3530,10 @@ contains
       associate (h5Input => ctrl%h5Input)
         call getChildValue(value1, "RScaling", h5Input%rScale, 0.714_dp)
         call getChildValue(value1, "WScaling", h5Input%wScale, 0.25_dp)
-        allocate(h5Input%elementParams(geo%nSpecies))
+        allocate(h5Input%elementParams(geom%nSpecies))
         call getChild(value1, "H5Scaling", child2, requested=.false., emptyIfMissing=.true.)
-        do iSp = 1, geo%nSpecies
-          select case (geo%speciesNames(iSp))
+        do iSp = 1, geom%nSpecies
+          select case (geom%speciesNames(iSp))
           case ("O")
             h5ScalingDef = 0.06_dp
           case ("N")
@@ -3545,10 +3544,10 @@ contains
             ! Default value is -1, this indicates that the element should be ignored
             h5ScalingDef = -1.0_dp
           end select
-          call getChildValue(child2, geo%speciesNames(iSp), h5Input%elementParams(iSp),&
+          call getChildValue(child2, geom%speciesNames(iSp), h5Input%elementParams(iSp),&
               & h5ScalingDef)
         end do
-        h5Input%speciesNames = geo%speciesNames
+        h5Input%speciesNames = geom%speciesNames
       end associate
 
     case default
@@ -4036,7 +4035,7 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure
+    !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: child, value1
@@ -4122,13 +4121,13 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input, nrChrg, tSCC)
+  subroutine readDispersion(node, geom, input, nrChrg, tSCC)
 
     !> Node to parse
     type(fnode), pointer :: node
 
-    !> geometry, including atomic information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> dispersion data on exit
     type(TDispersionInp), intent(out) :: input
@@ -4147,19 +4146,19 @@ contains
     select case (char(buffer))
     case ("slaterkirkwood")
       allocate(input%slakirk)
-      call readDispSlaKirk(dispModel, geo, input%slakirk)
+      call readDispSlaKirk(dispModel, geom, input%slakirk)
     case ("lennardjones")
       allocate(input%uff)
-      call readDispVdWUFF(dispModel, geo, input%uff)
+      call readDispVdWUFF(dispModel, geom, input%uff)
     case ("dftd3")
       allocate(input%dftd3)
-      call readDFTD3(dispModel, geo, input%dftd3)
+      call readDFTD3(dispModel, geom, input%dftd3)
     case ("simpledftd3")
       allocate(input%sdftd3)
-      call readSimpleDFTD3(dispModel, geo, input%sdftd3)
+      call readSimpleDFTD3(dispModel, geom, input%sdftd3)
     case ("dftd4")
       allocate(input%dftd4)
-      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
+      call readDispDFTD4(dispModel, geom, input%dftd4, nrChrg)
     case ("ts")
   #:if WITH_MBD
       allocate(input%mbd)
@@ -4182,13 +4181,13 @@ contains
 
 
   !> Reads in the dispersion input data for the Slater-Kirkwood dispersion model
-  subroutine readDispSlaKirk(node, geo, input)
+  subroutine readDispSlaKirk(node, geom, input)
 
     !> Node to process
     type(fnode), pointer :: node
 
-    !> Geometry of the current system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Contains the input for the dispersion module on exit
     type(TDispSlaKirkInp), intent(out) :: input
@@ -4206,10 +4205,10 @@ contains
     type(TNeighbourList) :: neighs
     type(TStatus) :: errStatus
 
-    allocate(tmpR2(3, geo%nAtom))
-    allocate(input%polar(geo%nAtom))
-    allocate(input%rWaals(geo%nAtom))
-    allocate(input%charges(geo%nAtom))
+    allocate(tmpR2(3, geom%nAtom))
+    allocate(input%polar(geom%nAtom))
+    allocate(input%rWaals(geom%nAtom))
+    allocate(input%charges(geom%nAtom))
     call getChildValue(node, "PolarRadiusCharge", value1, child=child, modifier=modifier)
     call getNodeName(value1, buffer)
     select case (char(buffer))
@@ -4230,10 +4229,10 @@ contains
         call detailedError(child, "PolarRadiusCharge is not allowed to carry &
             &a modifier, if the HybridDependentPol method is used.")
       end if
-      allocate(rCutoffs(geo%nSpecies))
-      allocate(tmp2R2(13, geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), value2, &
+      allocate(rCutoffs(geom%nSpecies))
+      allocate(tmp2R2(13, geom%nSpecies))
+      do iSp1 = 1, geom%nSpecies
+        call getChildValue(value1, geom%speciesNames(iSp1), value2, &
             &child=child2, dummyValue=.true.)
         call getChildValue(child2, "CovalentRadius", rCutoffs(iSp1), &
             &modifier=modifier2, child=child3)
@@ -4253,36 +4252,36 @@ contains
         end if
       end do
       mCutoff = 2.0_dp * maxval(rCutoffs)
-      if (geo%tPeriodic) then
-        call getCellTranslations(cellVec, rCellVec, geo%latVecs, geo%recVecs2p, mCutoff)
+      if (geom%tPeriodic) then
+        call getCellTranslations(cellVec, rCellVec, geom%latVecs, geom%recVecs2p, mCutoff)
       else
         allocate(cellVec(3, 1))
         allocate(rCellVec(3, 1))
         cellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
         rCellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
       end if
-      call TNeighbourlist_init(neighs, geo%nAtom, 10)
-      if (geo%tPeriodic) then
+      call TNeighbourlist_init(neighs, geom%nAtom, 10)
+      if (geom%tPeriodic) then
         ! Make some guess for the nr. of all interacting atoms
-        nAllAtom = int((real(geo%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
+        nAllAtom = int((real(geom%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
       else
-        nAllAtom = geo%nAtom
+        nAllAtom = geom%nAtom
       end if
       allocate(coords(3, nAllAtom))
       allocate(img2CentCell(nAllAtom))
       allocate(iCellVec(nAllAtom))
-      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geo%coords,&
+      call updateNeighbourList(coords, img2CentCell, iCellVec, neighs, nAllAtom, geom%coords,&
           & mCutoff, rCellVec, errStatus)
       if (errStatus%hasError()) then
         call error(errStatus%message)
       end if
-      allocate(nNeighs(geo%nAtom))
+      allocate(nNeighs(geom%nAtom))
       nNeighs(:) = 0
-      do iAt1 = 1, geo%nAtom
-        iSp1 = geo%species(iAt1)
+      do iAt1 = 1, geom%nAtom
+        iSp1 = geom%species(iAt1)
         do iNeigh = 1, neighs%nNeighbour(iAt1)
           iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
-          iSp2 = geo%species(iAt2f)
+          iSp2 = geom%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)
           if (neighs%neighDist2(iNeigh, iAt1) <= rTmp**2) then
             nNeighs(iAt1) = nNeighs(iAt1) + 1
@@ -4290,8 +4289,8 @@ contains
           end if
         end do
       end do
-      do iAt1 = 1, geo%nAtom
-        iSp1 = geo%species(iAt1)
+      do iAt1 = 1, geom%nAtom
+        iSp1 = geom%species(iAt1)
         if (nNeighs(iAt1) <= 4 ) then
           tmpR2(1, iAt1) = tmp2R2(1+nNeighs(iAt1), iSp1)
           tmpR2(2, iAt1) = tmp2R2(7+nNeighs(iAt1), iSp1)
@@ -4314,13 +4313,13 @@ contains
 
 
   !> Reads in initialization data for the UFF dispersion model
-  subroutine readDispVdWUFF(node, geo, input)
+  subroutine readDispVdWUFF(node, geom, input)
 
     !> Node to process
     type(fnode), pointer :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Filled input structure on exit
     type(TDispUffInp), intent(out) :: input
@@ -4331,23 +4330,23 @@ contains
     logical :: found
 
     call getChildValue(node, "Parameters", value1, child=child)
-    allocate(input%distances(geo%nSpecies))
-    allocate(input%energies(geo%nSpecies))
+    allocate(input%distances(geom%nSpecies))
+    allocate(input%energies(geom%nSpecies))
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case("uffparameters")
-      do iSp = 1, geo%nSpecies
-        call getUffValues(geo%speciesNames(iSp), input%distances(iSp), &
+      do iSp = 1, geom%nSpecies
+        call getUffValues(geom%speciesNames(iSp), input%distances(iSp), &
             &input%energies(iSp), found)
         if (.not. found) then
-          call detailedError(value1, "UFF parameters for species '" // geo&
-              &%speciesNames(iSp) // "' not found.")
+          call detailedError(value1, "UFF parameters for species '" // geom%speciesNames(iSp) //&
+              & "' not found.")
         end if
       end do
     case default
       call setUnprocessed(value1)
-      do iSp = 1, geo%nSpecies
-        call getChild(child, geo%speciesNames(iSp), child2)
+      do iSp = 1, geom%nSpecies
+        call getChild(child, geom%speciesNames(iSp), child2)
         call getChildValue(child2, "Distance", input%distances(iSp), &
             &modifier=buffer)
         call convertUnitHsd(char(buffer), lengthUnits, child, &
@@ -4363,13 +4362,13 @@ contains
 
 
   !> Reads in initialization data for the DFTD3 dispersion module
-  subroutine readDFTD3(node, geo, input)
+  subroutine readDFTD3(node, geom, input)
 
     !> Node to process.
     type(fnode), pointer :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Filled input structure on exit.
     type(TSDFTD3Input), intent(out) :: input
@@ -4415,26 +4414,26 @@ contains
     call getChildValue(node, "hhrepulsion", input%hhrepulsion, default=.false.)
 
     ! Initialize default atomic numbers
-    allocate(izpDefault(size(geo%speciesNames)))
-    do iSp = 1, size(geo%speciesNames)
-      izpDefault(iSp) = symbolToNumber(geo%speciesNames(iSp))
+    allocate(izpDefault(size(geom%speciesNames)))
+    do iSp = 1, size(geom%speciesNames)
+      izpDefault(iSp) = symbolToNumber(geom%speciesNames(iSp))
     end do
 
     ! See if we find user specified overwrites for atomic numbers
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
-      allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
+      allocate(input%izp(size(geom%speciesNames)))
+      call readSpeciesList(child, geom%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
     end if
 
     unknownSpecies = .false.
-    do iSp = 1, size(geo%speciesNames)
+    do iSp = 1, size(geom%speciesNames)
       if (input%izp(iSp) <= 0 .or. input%izp(iSp) > d3MaxNum) then
         unknownSpecies = .true.
-        call warning("Species '"//trim(geo%speciesNames(iSp))// &
+        call warning("Species '"//trim(geom%speciesNames(iSp))// &
           & "' is not supported by DFT-D3")
       end if
     end do
@@ -4446,13 +4445,13 @@ contains
 
 
   !> Reads in initialization data for the simple D3 dispersion model.
-  subroutine readSimpleDFTD3(node, geo, input)
+  subroutine readSimpleDFTD3(node, geom, input)
 
     !> Node to process.
     type(fnode), pointer :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Filled input structure on exit.
     type(TSimpleDftD3Input), intent(out) :: input
@@ -4471,7 +4470,7 @@ contains
         & child=child)
     call convertUnitHsd(char(buffer), lengthUnits, child, input%cutoffInter)
 
-    call readCoordinationNumber(node, input%cnInput, geo, "exp", 0.0_dp)
+    call readCoordinationNumber(node, input%cnInput, geom, "exp", 0.0_dp)
 
   end subroutine readSimpleDFTD3
 
@@ -4483,13 +4482,13 @@ contains
   !> Here we additionally require a s9, since the non-addititive contributions
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
-  subroutine readDispDFTD4(node, geo, input, nrChrg)
+  subroutine readDispDFTD4(node, geom, input, nrChrg)
 
     !> Node to process.
     type(fnode), pointer :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Filled input structure on exit.
     type(TDispDftD4Inp), intent(out) :: input
@@ -4531,40 +4530,40 @@ contains
       input%selfConsistent = .true.
     case ("eeq")
       allocate(input%eeqInput)
-      allocate(d4Chi(geo%nSpecies))
-      d4Chi(:) = getEeqChi(geo%speciesNames)
-      allocate(d4Gam(geo%nSpecies))
-      d4Gam(:) = getEeqGam(geo%speciesNames)
-      allocate(d4Kcn(geo%nSpecies))
-      d4Kcn(:) = getEeqKcn(geo%speciesNames)
-      allocate(d4Rad(geo%nSpecies))
-      d4Rad(:) = getEeqRad(geo%speciesNames)
-      call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
+      allocate(d4Chi(geom%nSpecies))
+      d4Chi(:) = getEeqChi(geom%speciesNames)
+      allocate(d4Gam(geom%nSpecies))
+      d4Gam(:) = getEeqGam(geom%speciesNames)
+      allocate(d4Kcn(geom%nSpecies))
+      d4Kcn(:) = getEeqKcn(geom%speciesNames)
+      allocate(d4Rad(geom%nSpecies))
+      d4Rad(:) = getEeqRad(geom%speciesNames)
+      call readEeqModel(value1, input%eeqInput, geom, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
     end select
 
     ! Initialize default atomic numbers
-    allocate(izpDefault(size(geo%speciesNames)))
-    do iSp = 1, size(geo%speciesNames)
-      izpDefault(iSp) = symbolToNumber(geo%speciesNames(iSp))
+    allocate(izpDefault(size(geom%speciesNames)))
+    do iSp = 1, size(geom%speciesNames)
+      izpDefault(iSp) = symbolToNumber(geom%speciesNames(iSp))
     end do
 
     ! See if we find user specified overwrites for atomic numbers
     call getChild(node, "AtomicNumbers", child, requested=.false.)
     if (associated(child)) then
-      allocate(input%izp(size(geo%speciesNames)))
-      call readSpeciesList(child, geo%speciesNames, input%izp, default=izpDefault)
+      allocate(input%izp(size(geom%speciesNames)))
+      call readSpeciesList(child, geom%speciesNames, input%izp, default=izpDefault)
       deallocate(izpDefault)
     else
       call move_alloc(izpDefault, input%izp)
     end if
 
-    call readCoordinationNumber(node, input%cnInput, geo, "Cov", 0.0_dp)
+    call readCoordinationNumber(node, input%cnInput, geom, "Cov", 0.0_dp)
 
     unknownSpecies = .false.
-    do iSp = 1, size(geo%speciesNames)
+    do iSp = 1, size(geom%speciesNames)
       if (input%izp(iSp) <= 0 .or. input%izp(iSp) > d4MaxNum) then
         unknownSpecies = .true.
-        call warning("Species '"//trim(geo%speciesNames(iSp))// &
+        call warning("Species '"//trim(geom%speciesNames(iSp))// &
           & "' is not supported by DFT-D4")
       end if
     end do
@@ -4576,14 +4575,14 @@ contains
 
 
   !> Read settings regarding the EEQ charge model
-  subroutine readEeqModel(node, input, geo, nrChrg, kChiDefault, kGamDefault, &
+  subroutine readEeqModel(node, input, geom, nrChrg, kChiDefault, kGamDefault, &
       & kKcnDefault, kRadDefault)
 
     !> Node to process.
     type(fnode), pointer :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Filled input structure on exit.
     type(TEeqInput), intent(out) :: input
@@ -4608,10 +4607,10 @@ contains
 
     input%nrChrg = nrChrg
 
-    allocate(input%chi(geo%nSpecies))
-    allocate(input%gam(geo%nSpecies))
-    allocate(input%kcn(geo%nSpecies))
-    allocate(input%rad(geo%nSpecies))
+    allocate(input%chi(geom%nSpecies))
+    allocate(input%gam(geom%nSpecies))
+    allocate(input%kcn(geom%nSpecies))
+    allocate(input%rad(geom%nSpecies))
 
     call getChildValue(node, "Chi", value1, "Defaults", child=child)
     call getNodeName(value1, buffer)
@@ -4619,9 +4618,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%chi, default=kChiDefault)
+      call readSpeciesList(value1, geom%speciesNames, input%chi, default=kChiDefault)
     case ("values")
-      call readSpeciesList(value1, geo%speciesNames, input%chi)
+      call readSpeciesList(value1, geom%speciesNames, input%chi)
     end select
 
     call getChildValue(node, "Gam", value1, "Defaults", child=child)
@@ -4630,9 +4629,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%gam, default=kGamDefault)
+      call readSpeciesList(value1, geom%speciesNames, input%gam, default=kGamDefault)
     case ("values")
-      call readSpeciesList(value1, geo%speciesNames, input%gam)
+      call readSpeciesList(value1, geom%speciesNames, input%gam)
     end select
 
     call getChildValue(node, "Kcn", value1, "Defaults", child=child)
@@ -4641,9 +4640,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%kcn, default=kKcnDefault)
+      call readSpeciesList(value1, geom%speciesNames, input%kcn, default=kKcnDefault)
     case ("values")
-      call readSpeciesList(value1, geo%speciesNames, input%kcn)
+      call readSpeciesList(value1, geom%speciesNames, input%kcn)
     end select
 
     call getChildValue(node, "Rad", value1, "Defaults", child=child)
@@ -4652,9 +4651,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      call readSpeciesList(value1, geo%speciesNames, input%rad, default=kRadDefault)
+      call readSpeciesList(value1, geom%speciesNames, input%rad, default=kRadDefault)
     case ("values")
-      call readSpeciesList(value1, geo%speciesNames, input%rad)
+      call readSpeciesList(value1, geom%speciesNames, input%rad)
     end select
 
     call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
@@ -4664,13 +4663,13 @@ contains
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
-    call readCoordinationNumber(node, input%cnInput, geo, "Erf", 8.0_dp)
+    call readCoordinationNumber(node, input%cnInput, geom, "Erf", 8.0_dp)
 
   end subroutine readEeqModel
 
 
   !> Read in coordination number settings
-  subroutine readCoordinationNumber(node, input, geo, cnDefault, cutDefault)
+  subroutine readCoordinationNumber(node, input, geom, cnDefault, cutDefault)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -4678,8 +4677,8 @@ contains
     !> Control structure to be filled
     type(TCNInput), intent(inout) :: input
 
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Default value for the coordination number type
     character(len=*), intent(in) :: cnDefault
@@ -4714,7 +4713,7 @@ contains
         & modifier=modifier, child=field)
     call convertUnitHsd(char(modifier), lengthUnits, field, input%rCutoff)
 
-    allocate(input%en(geo%nSpecies))
+    allocate(input%en(geom%nSpecies))
     if (input%cnType == cnType%cov) then
       call getChildValue(value1, "Electronegativities", value2, "PaulingEN", child=child2)
       call getNodeName(value2, buffer)
@@ -4723,12 +4722,12 @@ contains
         call detailedError(child2, "Unknown method '" // char(buffer) //&
             & "' to generate electronegativities")
       case("paulingen")
-        allocate(kENDefault(geo%nSpecies))
-        kENDefault(:) = getElectronegativity(geo%speciesNames)
-        call readSpeciesList(value2, geo%speciesNames, input%en, default=kENDefault)
+        allocate(kENDefault(geom%nSpecies))
+        kENDefault(:) = getElectronegativity(geom%speciesNames)
+        call readSpeciesList(value2, geom%speciesNames, input%en, default=kENDefault)
         deallocate(kENDefault)
       case("values")
-        call readSpeciesList(value2, geo%speciesNames, input%en)
+        call readSpeciesList(value2, geom%speciesNames, input%en)
       end select
       if (any(input%en <= 0.0_dp)) then
         call detailedError(value1, "Electronegativities are not defined for all species")
@@ -4738,19 +4737,19 @@ contains
       input%en(:) = 0.0_dp
     end if
 
-    allocate(input%covRad(geo%nSpecies))
+    allocate(input%covRad(geom%nSpecies))
     call getChildValue(value1, "Radii", value2, "CovalentRadiiD3", child=child2)
     call getNodeName(value2, buffer)
     select case(char(buffer))
     case default
       call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
     case("covalentradiid3")
-      allocate(kRadDefault(geo%nSpecies))
-      kRadDefault(:) = getD3Radius(geo%speciesNames)
-      call readSpeciesList(value2, geo%speciesNames, input%covRad, default=kRadDefault)
+      allocate(kRadDefault(geom%nSpecies))
+      kRadDefault(:) = getD3Radius(geom%speciesNames)
+      call readSpeciesList(value2, geom%speciesNames, input%covRad, default=kRadDefault)
       deallocate(kRadDefault)
     case("values")
-      call readSpeciesList(value2, geo%speciesNames, input%covRad)
+      call readSpeciesList(value2, geom%speciesNames, input%covRad)
     end select
 
     if (any(input%covRad <= 0.0_dp)) then
@@ -4914,13 +4913,13 @@ contains
 
 
   !> Reads the excited state data block
-  subroutine readExcited(node, geo, ctrl)
+  subroutine readExcited(node, geom, ctrl)
 
     !> Node to parse
     type(fnode), pointer :: node
 
-    !> geometry object, which contains atomic species information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
@@ -5094,8 +5093,8 @@ contains
       call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
 
       call getChildValue(child, "HHubbard", value, child=child2)
-      allocate(ctrl%pprpa%hhubbard(geo%nSpecies))
-      call readSpeciesList(child2, geo%speciesNames, ctrl%pprpa%hhubbard)
+      allocate(ctrl%pprpa%hhubbard(geom%nSpecies))
+      call readSpeciesList(child2, geom%speciesNames, ctrl%pprpa%hhubbard)
 
       call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
 
@@ -5116,9 +5115,9 @@ contains
 
   !> Reads the analysis block
 #:if WITH_TRANSPORT
-  subroutine readAnalysis(node, ctrl, geo, orb, transpar, tundos)
+  subroutine readAnalysis(node, ctrl, geom, orb, transpar, tundos)
 #:else
-  subroutine readAnalysis(node, ctrl, geo)
+  subroutine readAnalysis(node, ctrl, geom)
 #:endif
 
     !> Node to parse
@@ -5127,8 +5126,8 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
   #:if WITH_TRANSPORT
     !> Orbital
@@ -5137,7 +5136,7 @@ contains
     !> Transport parameters
     type(TTransPar), intent(inout) :: transpar
 
-    !> Tunneling and Dos parameters
+    !> Tunneling and DOS parameters
     type(TNEGFTunDos), intent(inout) :: tundos
   #:endif
 
@@ -5170,12 +5169,12 @@ contains
         do iReg = 1, nReg
           call getItem1(children, iReg, child2)
           call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-          call getSelectedAtomIndices(child3, char(buffer), geo%speciesNames, geo%species, pTmpI1)
+          call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, pTmpI1)
           call append(ctrl%iAtInRegion, pTmpI1)
           call getChildValue(child2, "ShellResolved", ctrl%tShellResInRegion(iReg), .false.,&
               & child=child3)
           if (ctrl%tShellResInRegion(iReg)) then
-            if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
+            if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
               call detailedError(child3, "Shell resolved PDOS only allowed for &
                   &regions where all atoms belong to the same species")
             end if
@@ -5183,7 +5182,7 @@ contains
           call getChildValue(child2, "OrbitalResolved", &
               & ctrl%tOrbResInRegion(iReg), .false., child=child3)
           if (ctrl%tOrbResInRegion(iReg)) then
-            if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
+            if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
               call detailedError(child3, "Orbital resolved PDOS only allowed for &
                   &regions where all atoms belong to the same species")
             end if
@@ -5206,7 +5205,7 @@ contains
           associate(inp => ctrl%pipekMezeyInp)
             call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
             tPipekDense = .true.
-            if (.not. geo%tPeriodic) then
+            if (.not. geom%tPeriodic) then
               call getChildValue(child2, "Dense", tPipekDense, .false.)
               if (.not. tPipekDense) then
                 call init(lr1)
@@ -5324,7 +5323,7 @@ contains
     if (tHaveDensityMatrix) then
 
       ! Is this compatible with Poisson solver use?
-      call readElectrostaticPotential(node, geo, ctrl)
+      call readElectrostaticPotential(node, geom, ctrl)
 
       call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
       if (ctrl%tPrintMulliken) then
@@ -5335,7 +5334,7 @@ contains
         call getChild(node, "CM5", child, requested=.false.)
         if (associated(child)) then
           allocate(ctrl%cm5Input)
-          call readCM5(child, ctrl%cm5Input, geo)
+          call readCM5(child, ctrl%cm5Input, geom)
         end if
       end if
       call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, .false.)
@@ -5372,7 +5371,7 @@ contains
         call error("Orbital information from SK-files missing (xTB Hamiltonian not compatible&
             & with transport yet)")
       end if
-      call readTunAndDos(child, orb, geo, tundos, transpar, ctrl%tempElec)
+      call readTunAndDos(child, orb, geom, tundos, transpar, ctrl%tempElec)
     else
       if (ctrl%solver%isolver == electronicSolverTypes%OnlyTransport) then
         call detailedError(node, "The TransportOnly solver requires a TunnelingAndDos block to be&
@@ -5513,7 +5512,7 @@ contains
 
 
   !> Read in hamiltonian settings that are influenced by those read from REKS{}, electronDynamics{}
-  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
+  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geom)
 
     !> Hamiltonian node to parse
     type(fnode), pointer :: hamNode
@@ -5524,8 +5523,8 @@ contains
     !> Geometry driver node to parse
     type(fnode), pointer :: driverNode
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: value1, value2, child, child2
     type(string) :: buffer, buffer2
@@ -5621,7 +5620,7 @@ contains
       end if
 
       if (ctrl%solver%isolver /= electronicSolverTypes%GF) then
-        call readElectronicFilling(hamNode, ctrl, geo)
+        call readElectronicFilling(hamNode, ctrl, geom)
       end if
 
     end if hamNeedsT
@@ -5631,7 +5630,7 @@ contains
 
   !> Parses for electronic filling temperature (should only read if not either REKS or electron
   !> dynamics from a supplied density matrix)
-  subroutine readElectronicFilling(hamNode, ctrl, geo)
+  subroutine readElectronicFilling(hamNode, ctrl, geom)
 
     !> Relevant node in input tree
     type(fnode), pointer :: hamNode
@@ -5639,27 +5638,27 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to test for periodicity
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     select case(ctrl%hamiltonian)
     case(hamiltonianTypes%xtb)
-      call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+      call readFilling(hamNode, ctrl, geom, 300.0_dp*Boltzmann)
     case(hamiltonianTypes%dftb)
-      call readFilling(hamNode, ctrl, geo, 0.0_dp)
+      call readFilling(hamNode, ctrl, geom, 0.0_dp)
     end select
 
   end subroutine readElectronicFilling
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state
-  subroutine readSpinConstants(hamNode, geo, orb, ctrl)
+  subroutine readSpinConstants(hamNode, geom, orb, ctrl)
 
     !> node for Hamiltonian data
     type(fnode), pointer :: hamNode
 
-    !> geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5706,11 +5705,11 @@ contains
       end if
 
       if (.not.ctrl%isSpinWFromParameters) then
-        allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
+        allocate(ctrl%spinW(orb%mShell, orb%mShell, geom%nSpecies))
         ctrl%spinW(:,:,:) = 0.0_dp
-        do iSp1 = 1, geo%nSpecies
+        do iSp1 = 1, geom%nSpecies
           call init(realBuffer)
-          call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+          call getChildValue(child, geom%speciesNames(iSp1), realBuffer)
           nConstants = len(realBuffer)
           if (ctrl%isSpinWShellResolved) then
             if (nConstants == orb%nShell(iSp1)**2) then
@@ -5719,7 +5718,7 @@ contains
                   & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
             else
               write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
-                  & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                  & orb%nShell(iSp1), ' spin constant matrix for "', trim(geom%speciesNames(iSp1)),&
                   & '", as ShellResolvedSpin enabled.'
               call detailedError(child, trim(strTmp))
             end if
@@ -5730,7 +5729,7 @@ contains
               ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
             else
               write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
-                  & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+                  & trim(geom%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
               call detailedError(child, trim(strTmp))
             end if
           end if
@@ -5743,13 +5742,13 @@ contains
 
 
   !> Reads customised Hubbard U values that over-ride the SK file values
-  subroutine readCustomisedHubbards(node, geo, orb, tShellResolvedScc, hubbU)
+  subroutine readCustomisedHubbards(node, geom, orb, tShellResolvedScc, hubbU)
 
     !> input data to parse
     type(fnode), pointer, intent(in) :: node
 
-    !> geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -5766,10 +5765,10 @@ contains
     call localiseName(node, "CustomizedHubbards", "CustomisedHubbards")
     call getChild(node, "CustomisedHubbards", child, requested=.false.)
     if (associated(child)) then
-      allocate(hubbU(orb%mShell, geo%nSpecies))
+      allocate(hubbU(orb%mShell, geom%nSpecies))
       hubbU(:,:) = 0.0_dp
-      do iSp1 = 1, geo%nSpecies
-        call getChild(child, geo%speciesNames(iSp1), child2, requested=.false.)
+      do iSp1 = 1, geom%nSpecies
+        call getChild(child, geom%speciesNames(iSp1), child2, requested=.false.)
         if (.not. associated(child2)) then
           cycle
         end if
@@ -5794,7 +5793,7 @@ contains
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(inout) :: input
 
-    !> geometry of the system
+    !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
     !> masses to be returned
@@ -6125,7 +6124,7 @@ contains
     !> Root node containing the current block
     type(fnode), pointer :: root
 
-    !> geometry of the system, which may be modified for some types of calculation
+    !> Atomic geometry of the system, which may be modified for some types of calculation
     type(TGeometry), intent(inout) :: geom
 
     !> Parameters of the transport calculation
@@ -6754,7 +6753,7 @@ contains
     !> Range of atoms in the contact
     integer, intent(in) :: atomrange(2)
 
-    !> Atomic geometry, including the contact atoms
+    !> Atomic geometry of the system, including the contact atoms
     type(TGeometry), intent(in) :: geom
 
     !> Index for this contact
@@ -6837,14 +6836,24 @@ contains
 
 
   !> Read Tunneling and Dos options from analysis block
-  subroutine readTunAndDos(root, orb, geo, tundos, transpar, tempElec)
-    type(fnode), pointer :: root
-    type(TOrbitals), intent(in) :: orb
-    type(TGeometry), intent(in) :: geo
+  subroutine readTunAndDos(root, orb, geom, tundos, transpar, tempElec)
 
-    !> tundos is the container to be filled
+    !> Root node containing the current block
+    type(fnode), pointer :: root
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
+
+    !> Tunneling and DOS parameters to be filled in
     type(TNEGFTunDos), intent(inout) :: tundos
+
+    !> Transport parameters to be filled in
     type(TTransPar), intent(inout) :: transpar
+
+    !> Electron temperature
     real(dp), intent(in) :: tempElec
 
     type(fnode), pointer :: pTmp, pNode, field
@@ -6965,12 +6974,12 @@ contains
       call convertUnitHsd(char(modifier), energyUnits, field, &
           &tundos%broadeningDelta)
 
-      call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
+      call readPDOSRegions(root, geom, transpar%idxdevice, iAtInRegion, &
           & tShellResInRegion, regionLabelPrefixes)
 
       if (allocated(iAtInRegion)) then
         call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
-            & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
+            & regionLabelPrefixes, orb, geom%species, tundos%dosOrbitals, &
             & tundos%dosLabels)
       end if
 
@@ -6986,7 +6995,7 @@ contains
     !> Contacts
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
 
-    !> Geometry of the system
+    !> Atomic geometry of the system, including atomic species information
     type(TGeometry), intent(in) :: geom
 
     !> What type of transport-related calculation is this?
@@ -7095,7 +7104,7 @@ contains
           contacts(ii)%tFermiSet = .true.
 
           ! NOTE: These options have been commented out: there is a problem in parallel execution
-          ! since one single file is accessed by all processors causing rush conditions
+          ! since one single file is accessed by all processors causing race conditions
           ! The options are therefore disabled for the official dftb+ release
           contacts(ii)%tWriteSelfEnergy = .false.
           contacts(ii)%tWriteSurfaceGF = .false.
@@ -7203,13 +7212,13 @@ contains
 
 
   !> Read the names of regions to calculate PDOS for
-  subroutine readPDOSRegions(node, geo, idxdevice, iAtInregion, tShellResInRegion, regionLabels)
+  subroutine readPDOSRegions(node, geom, idxdevice, iAtInregion, tShellResInRegion, regionLabels)
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: node
 
-    !> Geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Is the region to be projected by shell
     integer, intent(in) :: idxdevice(2)
@@ -7255,13 +7264,13 @@ contains
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
-      call getSelectedAtomIndices(child2, char(buffer), geo%speciesNames,&
-          & geo%species(idxdevice(1) : idxdevice(2)), tmpI1,&
-          & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geo%nAtom])
+      call getSelectedAtomIndices(child2, char(buffer), geom%speciesNames,&
+          & geom%species(idxdevice(1) : idxdevice(2)), tmpI1,&
+          & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geom%nAtom])
       iAtInRegion(iReg)%data = tmpI1
       call getChildValue(child, "ShellResolved", tShellResInRegion(iReg), .false., child=child2)
       if (tShellResInRegion(iReg)) then
-        if (.not. all(geo%species(tmpI1) == geo%species(tmpI1(1)))) then
+        if (.not. all(geom%species(tmpI1) == geom%species(tmpI1(1)))) then
           call detailedError(child2, "Shell resolved PDOS can only summed up over atoms of the same&
               & type")
         end if
@@ -7338,7 +7347,7 @@ contains
 
 
   !> This subroutine overrides the neutral (reference) atom electronic occupation
-  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, customOcc)
+  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geom, iAtInRegion, customOcc)
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
@@ -7349,8 +7358,8 @@ contains
     !> Default reference occupations
     real(dp), intent(in) :: referenceOcc(:,:)
 
-    !> Geometry information
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Atom indices corresponding to user defined reference atomic charges
     type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
@@ -7373,7 +7382,7 @@ contains
 
     call getChildren(container, "ReferenceOccupation", nodes)
     nCustomOcc = getLength(nodes)
-    nAtom = size(geo%species)
+    nAtom = size(geom%species)
     allocate(iAtInRegion(nCustomOcc))
     allocate(customOcc(orb%mShell, nCustomOcc))
     allocate(atomOverriden(nAtom))
@@ -7383,14 +7392,14 @@ contains
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
-      call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
+      call getSelectedAtomIndices(child, char(buffer), geom%speciesNames, geom%species,&
           & iAtInRegion(iCustomOcc)%data)
       if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
         call detailedError(child, "Atom region contains atom(s) which have already been overridden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
-      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
-      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+      iSpecies = geom%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geom%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
         call detailedError(child, "All atoms in a ReferenceOccupation declaration must have the&
             & same type.")
       end if
@@ -7456,13 +7465,13 @@ contains
 
 
   !> Reads the settings for electrostatic potential plotting
-  subroutine readElectrostaticPotential(node, geo, ctrl)
+  subroutine readElectrostaticPotential(node, geom, ctrl)
 
     !> Node containing optional electrostatic settings
     type(fnode), pointer, intent(in) :: node
 
-    !> geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> Control structure
     type(TControl), intent(inout) :: ctrl
@@ -7495,8 +7504,8 @@ contains
       call getChildValue(child3, "", 3, lr1, modifier=modifier)
       allocate(ctrl%elStatPotentialsInp%espGrid(3,len(lr1)))
       call asArray(lr1, ctrl%elStatPotentialsInp%espGrid)
-      if (geo%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
-        ctrl%elStatPotentialsInp%espGrid = matmul(geo%latVecs, ctrl%elStatPotentialsInp%espGrid)
+      if (geom%tPeriodic .and. (char(modifier) == "F" .or. char(modifier) == "f")) then
+        ctrl%elStatPotentialsInp%espGrid = matmul(geom%latVecs, ctrl%elStatPotentialsInp%espGrid)
       else
         call convertUnitHsd(char(modifier), lengthUnits, child3,&
             & ctrl%elStatPotentialsInp%espGrid)
@@ -7510,9 +7519,9 @@ contains
       if (allocated(ctrl%elStatPotentialsInp%espGrid)) then
         call error("Both grid and point specification not both currently possible")
       end if
-      if (geo%tPeriodic) then
+      if (geom%tPeriodic) then
         call readGrid(ctrl%elStatPotentialsInp%espGrid, child2, modifier,&
-            & latVecs=geo%latVecs, nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
+            & latVecs=geom%latVecs, nPoints=ctrl%elStatPotentialsInp%gridDimensioning,&
             & origin=ctrl%elStatPotentialsInp%origin,&
             & axes=ctrl%elStatPotentialsInp%axes)
       else
@@ -7544,7 +7553,7 @@ contains
     !> unit modifier for the grid
     type(string), intent(in) :: modifier
 
-    !> geometry of the system
+    !> Atomic geometry of the system, including atomic species information
     real(dp), intent(in), optional :: latVecs(:,:)
 
     !> Number of grid points in each direction, if required
@@ -7648,7 +7657,7 @@ contains
 
 
   !> Parses hybrid xc-functional input.
-  subroutine parseHybridBlock(node, input, ctrl, geo, skFiles)
+  subroutine parseHybridBlock(node, input, ctrl, geom, skFiles)
 
     !> Node to parse
     type(fnode), intent(in), pointer :: node
@@ -7656,8 +7665,8 @@ contains
     !> Range separated data structure to fill
     type(THybridXcInp), intent(inout), allocatable :: input
 
-    !> Geometry structure
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     !> General control structure
     type(TControl), intent(in) :: ctrl
@@ -7749,7 +7758,7 @@ contains
         call getChildValue(screeningValue, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child1)
         call convertUnitHsd(char(modifier), lengthUnits, child1, input%cutoffRed)
-        if (geo%tPeriodic) then
+        if (geom%tPeriodic) then
           call getChildValue(screeningValue, "Threshold", input%screeningThreshold, 1e-6_dp)
         end if
       case ("thresholded")
@@ -7777,7 +7786,7 @@ contains
       end if
 
       ! Additional settings for periodic sytems
-      ifPeriodic: if (geo%tPeriodic) then
+      ifPeriodic: if (geom%tPeriodic) then
 
         ! parse gamma function type (full, truncated, mic, ...)
         call getChildValue(hybridValue, "CoulombMatrix", cmValue, "Truncated", child=cmChild)
@@ -7836,7 +7845,7 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readReks(node, dummy, ctrl, geo)
+  subroutine readReks(node, dummy, ctrl, geom)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
@@ -7847,8 +7856,8 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    !> geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(string) :: buffer
 
@@ -7860,7 +7869,7 @@ contains
       ctrl%reksInp%reksAlg = reksTypes%noReks
     case ("ssr22")
       ctrl%reksInp%reksAlg = reksTypes%ssr22
-      call readSSR22(dummy, ctrl, geo)
+      call readSSR22(dummy, ctrl, geom)
     case ("ssr44")
       ctrl%reksInp%reksAlg = reksTypes%ssr44
       call detailedError(node, "SSR(4,4) is not implemented yet.")
@@ -7873,7 +7882,7 @@ contains
 
 
   !> Reads the SSR(2,2) block
-  subroutine readSSR22(node, ctrl, geo)
+  subroutine readSSR22(node, ctrl, geom)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
@@ -7881,8 +7890,8 @@ contains
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
-    !> geometry of the system
-    type(TGeometry), intent(in) :: geo
+    !> Atomic geometry of the system, including atomic species information
+    type(TGeometry), intent(in) :: geom
 
     type(fnode), pointer :: child1, value2, child2
     type(TListString) :: strBuffer
@@ -7957,7 +7966,7 @@ contains
     call getChildValue(node, "Shift", ctrl%reksInp%shift, default=0.3_dp)
 
     !> Read "SpinTuning" block with 'nType' elements
-    call readSpinTuning(node, ctrl, geo%nSpecies)
+    call readSpinTuning(node, ctrl, geom%nSpecies)
 
     !> Calculate transition dipole moments
     call getChildValue(node, "TransitionDipole", ctrl%reksInp%tTDP, default=.false.)
