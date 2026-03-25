@@ -51,9 +51,12 @@ contains
   $:TEST("tooManyRanks")
     integer :: startAtom, endAtom, ii
     logical :: error
+    integer, parameter :: nRanks = 4
 
-    do ii = 1, 4
-      call distributeAtoms(ii, 4, 2, startAtom, endAtom, error)
+    write(*,*)
+    write(*,"(1X,A,I0,A)")'Expect errors for the next ', nRanks, ' ranks.'
+    do ii = 1, nRanks
+      call distributeAtoms(ii, nRanks, 2, startAtom, endAtom, error)
       @:ASSERT(error)
     end do
   $:END_TEST()
