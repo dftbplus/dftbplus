@@ -433,8 +433,7 @@ contains
     select case (this%elstatType)
     case (elstatTypes%gammaFunc)
       call this%shortGamma%updateCharges(orb, species, this%deltaQShell)
-      call this%coulomb%updateCharges(env, qOrbital, orb, species, this%deltaQ, this%deltaQAtom,&
-          & this%deltaQShell)
+      call this%coulomb%updateCharges(env, orb, species, this%deltaQAtom)
     case (elstatTypes%poisson)
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         call this%poisson%updateCharges(env, qOrbital(:,:,1), q0)
