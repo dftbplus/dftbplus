@@ -5762,7 +5762,9 @@ available for range separated calculations.
     requires two values, $m$ and $n$, with $m < n$ and state 0 being
     defined as the ground state. The couplings are computed according
     to the method described
-    in~\cite{niehaus2021ground,niehaus2023exact}.\\ Example:
+    in~\cite{niehaus2021ground,niehaus2023exact}. In addition, the
+    file FRC.DAT is created which contains the forces for all states
+    from $m$ to $n$. \is{StateOfInterest} must be in the range of \is{StateCouplings}. \\ Example:
     \is{Couplings = \{0 2\}} would generate the the couplings between
     states $0\to 1$, $0\to 2$ and $1\to 2$. The results are written to
     the file NACV.DAT (See p.~\pref{subsec:nacv.dat}). Couplings are
@@ -7053,6 +7055,23 @@ vector in atomic units. Each line contains the coupling contribution
 associated with the three Cartesian displacements an atom in the
 geometry (combined index $\xi$), with one atom per line and ordered as
 in the geometry.
+
+\subsection{FRC.DAT}
+\index{FRC.DAT}
+
+Contains the TD-(LC)-DFTB forces, in atomic units, for the different states in the range
+given by \is{StateCouplings}. The format is:\\
+\begin{verbatim}
+State x
+F_x_at1 F_y_at1 F_z_at1
+F_x_at2 F_y_at2 F_z_at2
+...
+State y
+F_x_at1 F_y_at1 F_z_at1
+F_x_at2 F_y_at2 F_z_at2
+...
+\end{verbatim}
+State 0 corresponds to the ground state.
 
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}

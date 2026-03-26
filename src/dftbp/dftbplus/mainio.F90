@@ -98,6 +98,7 @@ module dftbp_dftbplus_mainio
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
   public :: readEigenvecs
+  public :: writeExcitedStateForces
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -6115,5 +6116,48 @@ contains
 
   end subroutine writeMdftbEnergies
 
+  !> Write excited state forces
+  subroutine writeExcitedStateForces(fileName, derivs, excitedDerivs, indNACouplings)
 
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Ground state derivatives
+    real(dp), intent(in) :: derivs(:,:) 
+
+    !> Derivatives of the excited state energies
+    real(dp), intent(in) :: excitedDerivs(:,:,:)
+
+    !> Start and end index of excited state forces
+    integer, intent(in) :: indNACouplings(:)
+
+    type(TFileDescr) :: fd
+    integer :: ii, iAt, offSet
+
+    offSet = indNACouplings(1)
+    call openFile(fd, fileName, mode="w")
+    write(fd%unit, "(A)") "Forces (au)"
+
+    if(indNACouplings(1) == 0) then
+      write(fd%unit, "(A, i5)") "State ", 0
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)
+      end do
+      offSet = 1
+    end if
+
+    if(size(excitedDerivs, dim=3) /= indNACouplings(2)-offSet+1) then
+      call error("Mismatch of number of gradient entries with NACV size.")
+    end if
+    
+    do ii = 1, size(excitedDerivs, dim=3)
+      write(fd%unit, "(A, i5)") "State ", ii + offSet - 1
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)-excitedDerivs(:,iAt,ii)
+      end do
+    enddo
+
+    call closeFile(fd)
+  end subroutine writeExcitedStateForces
+  
 end module dftbp_dftbplus_mainio

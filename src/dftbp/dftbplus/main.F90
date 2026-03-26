@@ -77,10 +77,11 @@ module dftbp_dftbplus_main
       & writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7,&
       & writeDetailedOut8, writeDetailedOut9, writeDetailedXml, writeEigenVectors, writeEsp,&
       & writeFinalDriverstatus, writeHessianout, writehsandstop, writeMdOut1, writeMdOut2,&
-      & writeProjectedEigenvectors, writeRealEigvecs, writeReksDetailedOut1, writeResultsTag
+      & writeProjectedEigenvectors, writeRealEigvecs, writeReksDetailedOut1, writeResultsTag,&
+      & writeExcitedStateForces
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
       & derivEBandOut, fCharges, fShifts, fStopDriver, fStopScc, hessianOut, mdOut, resultsTag,&
-      & userOut
+      & userOut, excFrcOut
   use dftbp_dftbplus_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_dftbplus_transportio, only : readShifts, writeContactShifts, writeShifts
   use dftbp_elecsolvers_elecsolvers, only : TElectronicSolver
@@ -147,7 +148,6 @@ module dftbp_dftbplus_main
   private
   public :: runDftbPlus
   public :: processGeometry
-
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
@@ -1810,12 +1810,18 @@ contains
             & this%deltaDftb, this%tPeriodic, this%tRealHS, this%kPoint, this%kWeight,&
             & this%densityMatrix, errStatus)
         @:PROPAGATE_ERROR(errStatus)
+
         if (this%isCIopt) then
           call conicalIntersectionOptimizer(this%derivs, this%excitedDerivs,&
               & this%linearResponse%indNACouplings, this%linearResponse%energyShiftCI,&
               & this%naCouplings, this%energiesCasida)
         else if (this%tCasidaForces) then
-          this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)
+          if(this%linearResponse%tNaCoupling) then
+            call writeExcitedStateForces(excFrcOut, this%derivs, this%excitedDerivs, &
+                & this%linearResponse%indNACouplings)
+          else
+            this%derivs(:,:) = this%derivs + this%excitedDerivs(:,:,1)        
+          end if
         end if
       end if
 
