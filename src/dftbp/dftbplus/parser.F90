@@ -5014,6 +5014,7 @@ contains
       call getChildValue(child, "WriteEigenvectors", ctrl%lrespini%tPrintEigVecs, .false.)
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
+      call getChildValue(child, "WriteXplusYAscii", ctrl%lrespini%tXplusYAscii, default=.true.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
       if (all(ctrl%lrespini%indNACouplings == 0)) then
         ctrl%lrespini%tNaCoupling = .false.
