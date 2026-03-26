@@ -5323,7 +5323,7 @@ contains
       if (this%isLinResp) then
         ! For NA coupling store gradient for several states,
         ! otherwise store excited state gradient for state of interest only     
-        if(this%linearResponse%tNaCoupling) then
+        if (this%linearResponse%tNaCoupling) then
         
           dLev = this%linearResponse%indNACouplings(2) - this%linearResponse%indNACouplings(1) + 1
           allocate(this%naCouplings(3, this%nAtom, dLev*(dLev-1)/2))

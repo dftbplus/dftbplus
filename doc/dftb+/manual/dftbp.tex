@@ -5651,7 +5651,7 @@ available for range separated calculations.
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
-    \kw{StateCouplings}         & 2i &  & - & \\
+    \kw{StateCouplings}         & 2i & & - & \\
     \kw{OptimiserCI}            & m & \is{StateCouplings} non-zero & \{\} & \pref{sec:dftbp.ciopt}\\
   \end{ptable}
 
@@ -7054,7 +7054,7 @@ in the geometry.
 \subsection{FRC.DAT}
 \index{FRC.DAT}
 
-Contains the TD-(LC)-DFTB forces in atomic units for the different states in the range
+Contains the TD-(LC)-DFTB forces, in atomic units, for the different states in the range
 given by \is{StateCouplings}. The format is:\\
 \begin{verbatim}
 State x

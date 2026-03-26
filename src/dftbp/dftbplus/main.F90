@@ -148,7 +148,6 @@ module dftbp_dftbplus_main
   private
   public :: runDftbPlus
   public :: processGeometry
-  
   !> Should further output be appended to detailed.out?
   logical, parameter :: tAppendDetailedOut = .false.
 
