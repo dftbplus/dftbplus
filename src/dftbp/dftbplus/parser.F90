@@ -2151,9 +2151,9 @@ contains
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         ctrl%tPoisson = .true.
         #:if WITH_TRANSPORT
-          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
+          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
         #:else
-          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
+          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs)
         #:endif
       #:endblock
 
@@ -3278,6 +3278,10 @@ contains
 
     ! self consistency required or not to proceed
     call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+    
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
+
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
   end subroutine readSccOptions
 
@@ -6488,9 +6492,9 @@ contains
 
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
-  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
+  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs)
 #:else
-  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs, updateSccAfterDiag)
+  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs)
 #:endif
 
     !> Input tree
@@ -6509,9 +6513,6 @@ contains
 
     !> Lattice vectors if periodic
     real(dp), allocatable, intent(in) :: latVecs(:,:)
-
-    !> Whether Scc should be updated with the output charges (obtained after diagonalisation)
-    logical, intent(out) :: updateSccAfterDiag
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modifier
@@ -6582,7 +6583,6 @@ contains
     call getChildValue(pNode, "PoissonAccuracy", poisson%poissAcc, 1.0e-6_dp)
     call getChildValue(pNode, "BuildBulkPotential", poisson%bulkBC, .true.)
     call getChildValue(pNode, "ReadOldBulkPotential", poisson%readBulkPot, .false.)
-    call getChildValue(pNode, "RecomputeAfterDensity", updateSccAfterDiag, .false.)
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
     poisson%overrideBC(:) = poissonBCsEnum%periodic
