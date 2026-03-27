@@ -16,6 +16,10 @@ Added
 Changed
 -------
 
+- For MPI parallel calculations the code will run by default with a
+  sub-divided communicator, instead of MPI_COMM_WORLD. This is
+  required for task-farming use of DFTB+, and may also improve
+  calculation performance.
 
 
 Fixed

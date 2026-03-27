@@ -976,6 +976,27 @@ contains
   end subroutine convert_14_15
 
 
+  !> Converts input from version 14 to 15. (Version 15 introduced in February 2026)
+  subroutine convert_14_15(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, ch2
+
+    call getDescendant(root, "Parallel", ch1)
+    if (.not.associated(ch1)) then
+      call setChild(root, "Parallel", ch1)
+    end if
+    call getDescendant(ch1, "Blacs", ch2)
+    if (.not.associated(ch2)) then
+      call setChild(ch1, "Blacs", ch2)
+    end if
+    call setChildValue(ch2, "MPI_COMM_WORLD", .true.)
+
+  end subroutine convert_14_15
+
+
   !> Update values in the DftD3 block to match behaviour of v6 parser
   subroutine handleD3Defaults(root)
 

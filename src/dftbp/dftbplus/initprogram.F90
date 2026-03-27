@@ -5628,7 +5628,8 @@ contains
     else
       sizeHS = nOrb
     end if
-    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom, errStatus)
+    call env%initBlacs(blacsOpts%blockSize, blacsOpts%blockSize, sizeHS, nAtom,&
+        & blacsOpts%isSubComWorld, errStatus)
     @:PROPAGATE_ERROR(errStatus)
 
   end subroutine initBlacs
