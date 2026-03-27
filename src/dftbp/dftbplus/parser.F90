@@ -196,7 +196,6 @@ contains
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
       call detailedError(child, "Be patient... Dephasing feature will be available soon!")
-      !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
     ! electronic Hamiltonian
@@ -2256,12 +2255,10 @@ contains
                 & ctrl%mdftbAtomicIntegrals%DxyXXDxy(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|XX|Dyz",&
                 & ctrl%mdftbAtomicIntegrals%DyzXXDyz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|XX|Dzz",&
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzXXDzz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|YY|Dzz",&
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|ZZ|Dzz",&
@@ -6385,14 +6382,6 @@ contains
       if (.not.associated(pTmp)) then
         call setChildValue(pNode, "FirstLayerAtoms", greendens%PL)
       end if
-      !call getChild(pNode, "ContactPLs", pTmp, requested=.false.)
-      !if (associated(pTmp)) then
-      !  call init(li)
-      !  call getChildValue(pTmp, "", li)
-      !  allocate(transpar%cblk(len(li)))
-      !  call asArray(li,transpar%cblk)
-      !  call destruct(li)
-      !end if
       allocate(greendens%kbT(1))
       greendens%kbT(:) = tempElec
     else
@@ -6474,8 +6463,6 @@ contains
           & - minval(transpar%contacts(:)%potential) + &
           & 2 * greendens%nKT * maxval(greendens%kbT)))
         greendens%nP(3) = defvalue
-        !call getChildValue(pNode, "RealAxisPoints", greendens%nP(3), &
-        !    & defvalue, child=child1)
       end if
 
   end subroutine readGreensFunction
@@ -6630,6 +6617,7 @@ contains
     select case(char(buffer))
     case ("none")
       poisson%gateType = "N"
+
     case ("planar")
       poisson%gateType = "P"
       call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modifier,&
@@ -6653,7 +6641,6 @@ contains
           & child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
 
-      !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
       poisson%gatedir = 2
 
     case ("cylindrical")
@@ -6846,270 +6833,6 @@ contains
     end if
 
   end subroutine getContactVector
-
-
-  !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos)
-
-    !> Input tree node
-    type(fnode), pointer :: node
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Atomic geometry, including the contact atoms
-    type(TGeometry), intent(in) :: geom
-
-    !> Parameters of the transport calculation
-    type(TTransPar), intent(inout) :: tp
-
-    !> Parameters of tunneling and dos calculation
-    type(TNEGFTunDos), intent(inout) :: tundos
-
-    type(fnode), pointer :: value1, child
-
-    call getChild(node, "VibronicElastic", child, requested=.false.)
-    if (associated(child)) then
-      tp%tDephasingVE = .true.
-      call readElPh(child, tundos%elph, geom, orb, tp)
-    end if
-
-    call getChildValue(node, "BuettikerProbes", value1, "", child=child, allowEmptyValue=.true.,&
-       & dummyValue=.true.)
-    if (associated(value1)) then
-      tp%tDephasingBP = .true.
-      call readDephasingBP(child, tundos%bp, geom, orb, tp)
-    end if
-
-    ! Lowdin transformations involve dense matrices and works only in small systems
-    ! For the dftb+ official release the options are disabled
-    tp%tOrthonormal = .false.
-    tp%tOrthonormalDevice = .false.
-    !call getChildValue(node, "Orthonormal", tp%tOrthonormal, .false.)
-    !call getChildValue(node, "OrthonormalDevice", tp%tOrthonormalDevice, .false.)
-    tp%tNoGeometry = .false.
-    tp%NumStates = 0
-
-  end subroutine readDephasing
-
-
-  !> Read Electron-Phonon blocks (for density and/or current calculation)
-  subroutine readElPh(node, elph, geom, orb, tp)
-
-    !> Input node in the tree
-    type(fnode), pointer :: node
-
-    !> container for electron-phonon parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(in) :: tp
-
-
-    logical :: block_model, semilocal_model
-
-    elph%defined = .true.
-    !! Only local el-ph model is defined (elastic for now)
-    elph%model = 1
-
-    call getChildValue(node, "MaxSCBAIterations", elph%scba_niter, default=100)
-    call getChildValue(node, "atomBlock", block_model, default=.false.)
-    if (block_model) then
-      elph%model = 2
-    endif
-
-    !BUG: semilocal model crashes because of access of S before its allocation
-    !     this because initDephasing was moved into initprogram
-    call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
-    if (semilocal_model) then
-      call detailedError(node, "semilocal dephasing causes crash and has been "//&
-           & "temporarily disabled")
-      elph%model = 3
-    endif
-
-    call readCoupling(node, elph, geom, orb, tp)
-
-  end subroutine readElPh
-
-
-  !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
-  subroutine readDephasingBP(node, elph, geom, orb, tp)
-
-    !> Node in input document tree
-    type(fnode), pointer :: node
-
-    !> container for buttiker-probes parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(inout) :: tp
-
-    logical :: block_model, semilocal_model
-    type(string) :: model
-    type(fnode), pointer :: dephModel
-
-    call detailedError(node,"Buettiker probes are still under development")
-
-    elph%defined = .true.
-    call getChildValue(node, "", dephModel)
-    call getNodeName2(dephModel, model)
-
-    select case(char(model))
-    case("dephasingprobes")
-      !! Currently only zeroCurrent condition is implemented
-      !! This corresponds to elastic dephasing probes
-      tp%tZeroCurrent=.true.
-      !! Only local bp model is defined (elastic for now)
-    case("voltageprobes")
-      call detailedError(dephModel,"voltageProbes have been not implemented yet")
-      tp%tZeroCurrent=.false.
-    case default
-      call detailedError(dephModel,"unknown model")
-    end select
-
-    elph%model = 1
-
-    call getChildValue(dephModel, "MaxSCBAIterations", elph%scba_niter, default=100)
-
-    call getChildValue(dephModel, "atomBlock", block_model, default=.false.)
-    if (block_model) then
-      elph%model = 2
-    endif
-
-    !BUG: semilocal model crashes because of access of S before its allocation
-    !     this because initDephasing occurs in initprogram
-    call getChildValue(dephModel, "semiLocal", semilocal_model, default=.false.)
-    if (semilocal_model) then
-      call detailedError(dephModel, "semilocal dephasing is not working yet")
-      elph%model = 3
-    endif
-
-    call readCoupling(dephModel, elph, geom, orb, tp)
-
-  end subroutine readDephasingBP
-
-
-  !> Reads coupling strength and mode for dephasing
-  !> 2 modes support, constant or specified per each orbital
-  subroutine readCoupling(node, elph, geom, orb, tp)
-
-    !> Node in the input tree
-    type(fnode), pointer :: node
-
-    !> container for buttiker-probes parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(in) :: tp
-
-    type(string) :: buffer, method, modifier, modifier2
-    type(fnode), pointer :: val, child, child2, child3, child4, field
-    type(fnodeList), pointer :: children
-    integer :: norbs, ii, jj, iAt
-    integer :: atm_range(2)
-    real(dp) :: rTmp
-    integer, allocatable :: tmpI1(:)
-    real(dp), allocatable :: atmCoupling(:)
-
-    !! Allocate coupling array
-    norbs = 0
-    if (tp%defined) then
-      atm_range(1) = tp%idxdevice(1)
-      atm_range(2) = tp%idxdevice(2)
-    else
-      atm_range(1) = 1
-      atm_range(2) = geom%nAtom
-    endif
-    do ii=atm_range(1), atm_range(2)
-      norbs = norbs + orb%nOrbAtom(ii)
-    enddo
-    allocate(elph%coupling(norbs))
-    elph%coupling(:) = 0.d0
-
-    elph%orbsperatm = orb%nOrbAtom(atm_range(1):atm_range(2))
-
-    call getChildValue(node, "Coupling", val, "", child=child, allowEmptyValue=.true.,&
-        & modifier=modifier, dummyValue=.true., list=.false.)
-
-    call getNodeName(val, method)
-
-    ! This reads also things like:  "Coupling [eV] = 0.34"
-    !if (is_numeric(char(method))) then
-    !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-    !  elph%coupling = rTmp
-    !  return
-    !end if
-
-    select case (char(method))
-    case ("allorbitals")
-      call getChild(child, "AllOrbitals", child2, requested=.false.)
-      call getChildValue(child2, "", elph%coupling, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, elph%coupling)
-
-    case ("atomcoupling")
-      call getChild(child, "AtomCoupling", child2, requested=.false.)
-      allocate(atmCoupling(atm_range(2)-atm_range(1)+1))
-      atmCoupling = 0.d0
-      call getChildren(child2, "AtomList", children)
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child3)
-        call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
-        call getSelectedAtomIndices(child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
-        call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
-        ! If not defined, use common unit modifier defined after Coupling
-        if (len(modifier2)==0) then
-          call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-        else
-          call convertUnitHsd(char(modifier2), energyUnits, field, rTmp)
-        end if
-        do jj=1, size(tmpI1)
-          iAt = tmpI1(jj)
-          if (atmCoupling(iAt) /= 0.0_dp) then
-            call detailedWarning(child3, "Previous setting of coupling &
-                &for atom" // i2c(iAt) // " has been overwritten")
-          end if
-          atmCoupling(iAt) = rTmp
-        end do
-      end do
-      call destroyNodeList(children)
-
-      ! Transform atom coupling in orbital coupling
-      norbs = 0
-      do ii=atm_range(1), atm_range(2)
-        elph%coupling(norbs + 1:norbs + orb%nOrbAtom(ii)) = atmCoupling(ii)
-        norbs = norbs + orb%nOrbAtom(ii)
-      enddo
-      deallocate(atmCoupling)
-
-    case ("constant")
-      call getChildValue(child, "Constant", rtmp, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-      elph%coupling = rTmp
-
-    case default
-      call detailedError(node, "Coupling definition unknown")
-    end select
-
-  end subroutine readCoupling
 
 
   !> Read Tunneling and Dos options from analysis block
@@ -7373,10 +7096,6 @@ contains
           ! NOTE: These options have been commented out: there is a problem in parallel execution
           ! since one single file is accessed by all processors causing rush conditions
           ! The options are therefore disabled for the official dftb+ release
-          !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-          !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-          !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-          !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
           contacts(ii)%tWriteSelfEnergy = .false.
           contacts(ii)%tWriteSurfaceGF = .false.
           contacts(ii)%tReadSelfEnergy = .false.
