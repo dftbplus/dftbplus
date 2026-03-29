@@ -60,7 +60,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -85,13 +86,14 @@ contains
     call getDftbPlusApi(major, minor, patch)
     write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
     !open(newunit=devNull, file="/dev/null", action="write")
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
-    ! be downloaded with the utils/get_opt_externals script
+    ! You should provide the skfiles, as found in the external/slakos/origin/mio-1-1/ folder. These
+    ! can be downloaded with the utils/get_opt_externals script
     call dftbp%getEmptyInput(input)
     call input%getRootNode(pRoot)
     call setChild(pRoot, "Geometry", pGeo)
