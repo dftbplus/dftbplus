@@ -197,10 +197,10 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Number of requested points
-    integer, value, intent(in) :: nLocations
+    integer(c_int), value, intent(in) :: nLocations
 
     !> Resulting potentials
-    real(dp), intent(out) :: pot(*)
+    real(c_double), intent(out) :: pot(*)
 
     !> Sites to calculate potential
     real(c_double), intent(in) :: locations(3,*)
@@ -725,7 +725,7 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Cutoff distance
-    real(dp) :: cutOff
+    real(c_double) :: cutOff
 
     type(TDftbPlusC), pointer :: instance
 
