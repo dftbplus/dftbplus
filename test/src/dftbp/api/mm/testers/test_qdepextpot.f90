@@ -57,7 +57,7 @@ contains
     real(dp) :: gradients(3, nQmAtom), grossCharges(nQmAtom)
 
     character(:), allocatable :: DftbVersion
-    integer :: major, minor, patch
+    integer :: major, minor, patch, iAt
 
     !integer :: devNull
 
@@ -96,7 +96,11 @@ contains
     call dftbp%getGradients(gradients)
     call dftbp%getGrossCharges(grossCharges)
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-    print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
+    print "(A,3F15.10)", 'Obtained gross atomic charges:'
+    do iAt = 1, nQmAtom
+      print "(T22,F15.10)", grossCharges(iAt)
+    end do
+
     print "(A,3F15.10)", 'Obtained gross charges:', grossCharges
 
     ! Write file for internal test system
