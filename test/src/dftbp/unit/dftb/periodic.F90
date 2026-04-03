@@ -171,7 +171,6 @@ contains
   $:TEST("neighbourdistance")
     real(dp), allocatable :: coords(:,:), coords0(:,:), rCellVec(:,:)
     integer, allocatable :: img2CentCell(:), iCellVec(:)
-    type(TNeighbourList) :: neigh
     real(dp) :: mCutoff
     type(TStatus) :: errStatus
     integer :: nAtom
