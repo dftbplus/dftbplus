@@ -95,10 +95,8 @@ contains
 
 
     ! local variables
-    integer :: i, l, ncont, nc_vec(1), nldos
+    integer :: i, l, ncont, nldos
     integer, dimension(:), allocatable :: sizes
-    ! string needed to hold processor name
-    character(:), allocatable :: hostname
     type(lnParams) :: parms
 
     initinfo = .true.
@@ -626,32 +624,6 @@ contains
 
   end subroutine negf_phonon_current
 
-  subroutine printH(fu, H)
-    integer, intent(in) :: fu
-    type(z_CSR), intent(in) :: H
-
-    type(z_DNS) :: tmp
-    integer :: ii, jj
-    real(dp) :: maxv
-
-    call create(tmp, H%nrow, H%ncol)
-
-    call csr2dns(H,tmp)
-
-    maxv = maxval(abs(tmp%val))
-    write(fu, *) 'Normalized Dynamical Matrix:'
-
-    do ii = 1, tmp%nrow, 3
-       do jj = 1, tmp%ncol, 3
-          write(fu,'(F8.4)',advance='no') real(tmp%val(ii,jj))/maxv
-       end do
-       write(fu,*)
-    end do
-
-    call destroy(tmp)
-
-  end subroutine printH
-
 
   !> Utility to allocate and sum partial results from different channels
 #:if WITH_MPI
@@ -861,33 +833,6 @@ contains
     end if
 
   end subroutine write_file
-
-
-  !> DEBUG routine dumping H and S on file in Matlab format
-  subroutine negf_dumpHS(HH,SS)
-    type(z_CSR), intent(in) :: HH, SS
-
-    type(TFileDescr) :: fd
-
-    write(stdOut,*) 'Dumping H and S on files...'
-    call openFile(fd, 'HH.dat', mode="w")
-    write(fd%unit, *) '% Size =',HH%nrow, HH%ncol
-    write(fd%unit, *) '% Nonzeros =',HH%nnz
-    write(fd%unit, *) '% '
-    write(fd%unit, *) 'zzz = ['
-    call printcsr(fd%unit, HH)
-    write(fd%unit, *) ']'
-    call closeFile(fd)
-
-    call openFile(fd, 'SS.dat', mode="w")
-    write(fd%unit, *) '% Size =',SS%nrow, SS%ncol
-    write(fd%unit, *) '% Nonzeros =',SS%nnz
-    write(fd%unit, *) '% '
-    write(fd%unit, *) 'zzz = ['
-    call printcsr(fd%unit, SS)
-    write(fd%unit, *) ']'
-    call closeFile(fd)
-  end subroutine negf_dumpHS
 
 
 end module phonons_libnegfint

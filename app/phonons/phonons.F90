@@ -32,7 +32,7 @@ program phonons
   logical :: twriteLDOS
   logical :: twriteTunn
   type (TTaggedWriter) :: taggedWriter
-  integer :: err, nProcs
+  integer :: nProcs
 
   call initGlobalEnv()
   call printHeader()
@@ -230,11 +230,10 @@ contains
     type(TTaggedWriter) :: tWriter
 
     type(TFileDescr) :: fu, ftag
-    integer  :: ii, jj, kk, ll, nAtom,  iAtom,  iK, jAtom,  kAtom
-    integer  :: i2, j2, k2, nrep
+    integer  :: ii, iAtom,  iK, jAtom,  kAtom
+    integer  :: i2, j2, k2
     real(dp), allocatable :: eigenValues(:)
-    real(dp)::  ModKPoint,  ModDeltaR
-    character(lc) :: lcTmp, lcTmp2
+    real(dp)::  ModKPoint
     complex(dp), dimension(:,:), allocatable :: KdynMatrix
     real(dp) :: latVecs(3,3), invLatt(3,3)
     real(dp) :: DeltaR(3), q(3), qold(3)
