@@ -46,7 +46,9 @@ ensure that you can maintain backwards compatibility with later versions of
 DFTB+.
 
 The Fortran interface is documented in the source code file
-\verb|src/dftbp/api/mm/mmapi.F90|, while \verb|src/dftbp/api/mm/capi.F90|
-gives the bindings for calling from C. DFTB+ uses atomic units internally, hence
-exchanged values should be in this unit system (however HSD formatted data can
-carry unit modifiers, see examples of input parsing for details).
+\verb|src/dftbp/api/mm/mmapi.F90|, while
+\verb|src/dftbp/api/mm/capi.F90| and
+\verb|src/dftbp/api/mm/dftbplus.h| give the bindings for calling from
+C. DFTB+ uses atomic units internally, hence exchanged values should
+be in this unit system (however HSD formatted data can carry unit
+modifiers, see examples of input parsing for details).

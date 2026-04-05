@@ -11,14 +11,18 @@
 ! species(1:nAtoms) = (/1,2,2,1,...,1/) -> (/1,2,2,1,...,2/),
 !
 ! following an MD step. A situation that arises in molecular dynamics packages that use domain
-! decomposition as a parallelisation scheme.
+! decomposition as a parallelisation scheme. This tester emulates similar rearangement between fake
+! MD steps.
 !
 ! In this tester the lead process reads in geometry and broadcasts to all other processes. Geometry
-! is not distributed upon entry to or inside DFTB+ (note that it will be checked though if compiled
-! in Debug mode). nAtoms conserved for a given hsd_tree, to reset, call destruct and re-initialise.
+! is not distributed upon entry to or inside DFTB+ (note that it's consistency will be checked
+! though, if compiled in Debug mode). nAtoms conserved for a given hsd_tree, to reset this, call
+! destruct and re-initialise.
 !
 ! Forces are not used to update atomic positions, rather two sets of atomic positions are read from
-! file and forces are computed for them
+! file and forces are computed for them. Note that if forces are not requested at initialisation
+! inside the hsd tree (see the commented out pAnalysis code below), default initialisation of force
+! settings are performed by DFTB+.
 !
 ! NOTE: count_substrings function requires no leading white space for species names in structure.gen
 
@@ -41,7 +45,7 @@ program test_setSpeciesAndDependents
   real(dp), parameter :: AA__Bohr = 1.0_dp / Bohr__AA
 
   !> Type for containing geometrical information
-  !> One can write your own type, rather than copy DTFB+
+  !! You can write your own type, rather than copying DTFB+
   type TGeometry
     integer :: nAtom
     logical :: tPeriodic
@@ -77,7 +81,7 @@ program test_setSpeciesAndDependents
 
 contains
 
-  !! Main test routine
+  !> Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
   !! deallocated before the program finishes.
@@ -231,7 +235,7 @@ contains
     character(100) :: fname
 
     ! Pointers to the parts of the input tree that will be set
-    type(fnode), pointer :: pRoot, pGeo, pAnalysis
+    type(fnode), pointer :: pRoot, pGeo !, pAnalysis
 
     ! "Does geometry already exist in DTFB+ input?" (== "replace geometry in HSD tree?")
     logical :: replace_geometry
@@ -263,8 +267,8 @@ contains
         & reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
 
     ! Always compute forces
-    call setChild(pRoot, "Analysis", pAnalysis, replace=.True.)
-    call setChildValue(pAnalysis, "CalculateForces", .True.)
+    !call setChild(pRoot, "Analysis", pAnalysis, replace=.True.)
+    !call setChildValue(pAnalysis, "CalculateForces", .True.)
 
   end subroutine initialise_dftbplus_tree
 

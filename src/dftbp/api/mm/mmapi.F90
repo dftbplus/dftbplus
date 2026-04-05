@@ -641,6 +641,9 @@ contains
 
 
   !> Returns the gradient on the atoms in the system.
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests forces are evaluated
+  !!
   subroutine TDftbPlus_getGradients(this, gradients)
 
     !> Instance.
@@ -657,6 +660,9 @@ contains
 
 
   !> Returns the stress tensor of the periodic system.
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests stress to be evaluated
+  !!
   subroutine TDftbPlus_getStressTensor(this, stresstensor)
 
     !> Instance.

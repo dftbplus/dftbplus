@@ -230,7 +230,7 @@ module dftbp_dftbplus_initprogram
     logical :: tShowFoldedCoord
 
     !> How to calculate forces
-    integer :: forceType
+    integer :: forceType = forceTypes%none
 
     !> Are atomic coordinates fractional?
     logical :: tFracCoord

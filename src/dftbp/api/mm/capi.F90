@@ -753,6 +753,9 @@ contains
 
 
   !> Obtain the gradients wrt DFTB atom positions
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests forces are evaluated
+  !!
   subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
 
     !> Handler for the calculation
@@ -772,6 +775,9 @@ contains
 
 
   !> Obtain the stress tensor of the periodic system
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests stress are evaluated
+  !!
   subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
       & bind(C, name='dftbp_get_stress_tensor')
 
