@@ -531,6 +531,8 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
 /**
  * Queries the gradients of the current geometry.
  *
+ * Note: it is more efficient if the HSD tree already requests forces are evaluated
+ *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
  * \param[out] gradients Gradients (not forces!) on each atom. Shape: [natom, 3]. Unit: Hartree/Bohr.
@@ -570,6 +572,9 @@ double dftbp_get_cutoff(DftbPlus *instance);
 
 /**
  * Queries the stress tensor of the current periodic box.
+ *
+ *
+ * Note: it is more efficient if the HSD tree already requests stresses are evaluated
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *

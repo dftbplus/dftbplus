@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
-!> derivatives.
+!! derivatives.
 module dftbp_dftb_nonscc
   use dftbp_common_accuracy, only : dp
   use dftbp_common_environment, only : TEnvironment
@@ -24,37 +24,40 @@ module dftbp_dftb_nonscc
   public :: TNonSccDiff, NonSccDiff_init
   public :: diffTypes
 
-  ! Workaround: pgfortran 16.5
-  ! Keep default value as a constant, as using the expression directly
-  ! for the default initialisation triggers ICE.
-  real(dp), parameter :: DELTA_X_DIFF_DEFAULT = epsilon(1.0_dp)**0.25_dp
+  !> Namespace for possible differentiation methods
+  type :: TDiffTypesEnum
+    !> Central finite difference
+    integer :: finiteDiff = 1
+    !> Richardson extrapolation to the limit
+    integer :: richardson = 2
+  end type TDiffTypesEnum
+
+  !> Actual values for diffTypes.
+  type(TDiffTypesEnum), parameter :: diffTypes = TDiffTypesEnum()
 
   !> Contains settings for the derivation of the non-scc contribution.
   type :: TNonSccDiff
+
     private
-    ! default of a reasonable choice for round off and a second order formula
-    real(dp) :: deltaXDiff = DELTA_X_DIFF_DEFAULT
-    integer :: diffType
+    !> Default of a reasonable choice for round off and a second order formula
+    real(dp) :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
+
+    !> Default to finite difference
+    integer :: diffType = diffTypes%finiteDiff
+
   contains
 
-    !> Evaluate first derivative
+    !> Evaluate first derivative for the whole matrix
     procedure, private :: getFirstDerivMatrix
+    !> Get first derivative for a specified diatomic block
     procedure, private :: getFirstDerivBlock
+    !> Evaluate first derivative
     generic :: getFirstDeriv => getFirstDerivMatrix, getFirstDerivBlock
 
     !> Evaluate second derivative
     procedure :: getSecondDeriv
 
   end type TNonSccDiff
-
-  !> Namespace for possible differentiation methods
-  type :: TDiffTypesEnum
-    integer :: finiteDiff
-    integer :: richardson
-  end type TDiffTypesEnum
-
-  !> Actual values for diffTypes.
-  type(TDiffTypesEnum), parameter :: diffTypes = TDiffTypesEnum(1, 2)
 
 contains
 
@@ -87,7 +90,7 @@ contains
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-    !> Shift vector, where the interaction between two atoms
+    !> Starting position of atom-neighbor interaction in the sparse matrix
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the orbitals in the system
@@ -145,7 +148,7 @@ contains
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-    !> Shift vector, where the interaction between two atoms starts in the sparse format.
+    !> Starting position of atom-neighbor interaction in the sparse matrix
     integer, intent(in) :: iPair(0:,:)
 
     !> Information about the orbitals in the system.
@@ -179,8 +182,8 @@ contains
 
 
   !> Initializes a differentiator for the non-scc contributions.
-  !> Note: Second derivative can not be calculated currently via Richardson
-  !> interpolation, so the finite difference method is invoked instead.
+  !! Note: Second derivative can not be calculated currently via Richardson interpolation, so the
+  !! finite difference method is invoked instead.
   subroutine NonSccDiff_init(this, diffType, deltaXDiff)
 
     !> Initialised instance on exit.
@@ -227,7 +230,7 @@ contains
     !> The second atom in the diatomic block
     integer, intent(in) :: atomJ
 
-    !> Orbital informations
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     select case (this%diffType)
@@ -248,7 +251,7 @@ contains
     !> Instance
     class(TNonSccDiff), intent(in) :: this
 
-    !> Derivative of H0 or S diatomic block, with respect to x,y,z (last index).
+    !> Derivative of H0 or S matrix, with respect to x,y,z (last index).
     real(dp), intent(out) :: deriv(:,:)
 
     !> Computational environment settings
@@ -266,7 +269,7 @@ contains
     !> Atom to differentiate wrt
     integer, intent(in) :: iAt
 
-    !> Orbital informations
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     !> Number of neighbours for each central cell atom
@@ -275,7 +278,7 @@ contains
     !> List of neighbours for each central cell
     integer, intent(in) :: iNeighbours(0:,:)
 
-    !> Index in the sparse matrix for the start of diatomic pairs
+    !> Starting position of atom-neighbor interaction in the sparse matrix
     integer, intent(in) :: iPair(0:,:)
 
     real(dp) :: tmp(size(deriv,dim=1))
@@ -335,13 +338,13 @@ contains
     !> Chemical species of each atom
     integer, intent(in) :: species(:)
 
-    !> First atom in the diatomic block
+    !> The first atom in the diatomic block
     integer, intent(in) :: atomI
 
-    !> Second atom in the diatomic block
+    !> The second atom in the diatomic block
     integer, intent(in) :: atomJ
 
-    !> Orbital informations
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     ! Note, second derivatives are not Richardson interpolated yet, so finite difference code is
@@ -360,15 +363,35 @@ contains
   !> Helper routine to calculate the diatomic blocks for the routines buildH0 and buildS.
   subroutine buildDiatomicBlocks(firstAtom, lastAtom, skCont, coords, nNeighbourSK, iNeighbours,&
       & species, iPair, orb, out)
+
+    !> First of the atoms in the pair
     integer, intent(in) :: firstAtom
+
+    !> Second of the atoms in the pair
     integer, intent(in) :: lastAtom
+
+    !> Container for SK Hamiltonian integrals
     type(TSlakoCont), intent(in) :: skCont
+
+    !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
+
+    !> Number of surrounding neighbours for each atom
     integer, intent(in) :: nNeighbourSK(:)
+
+    !> List of surrounding neighbours for each atom
     integer, intent(in) :: iNeighbours(0:,:)
+
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
+
+    !> Starting position of atom-neighbor interaction in the sparse matrix
     integer, intent(in) :: iPair(0:,:)
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
+    !> Diatomic block, reshaped to 1D
     real(dp), intent(inout) :: out(:)
 
     real(dp) :: tmp(orb%mOrb,orb%mOrb)
@@ -403,12 +426,29 @@ contains
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
+
+    !> Derivative of matrix block
     real(dp), intent(out) :: deriv(:,:,:)
+
+    !> Container for SK Hamiltonian integrals
     type(TSlakoCont), intent(in) :: skCont
+
+    !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
+
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    integer, intent(in) :: atomI, atomJ
+
+    !> The first atom in the diatomic block
+    integer, intent(in) :: atomI
+
+    !> The second atom in the diatomic block
+    integer, intent(in) :: atomJ
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
+    !> Displacement for finite difference differentiation.
     real(dp), intent(in) :: deltaXDiff
 
     ! interpolated H integs.
@@ -446,11 +486,26 @@ contains
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
+
+    !> Derivative of matrix block
     real(dp), intent(out) :: deriv(:,:,:)
+
+    !> Container for SK Hamiltonian integrals
     type(TSlakoCont), intent(in) :: skCont
+
+    !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
+
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    integer, intent(in) :: atomI, atomJ
+
+    !> The first atom in the diatomic block
+    integer, intent(in) :: atomI
+
+    !> The second atom in the diatomic block
+    integer, intent(in) :: atomJ
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
     integer, parameter :: maxrows = 20
@@ -546,20 +601,36 @@ contains
 
 
   !> Contains code to calculate the numerical second derivative of a diatomic block of the H0
-  !> Hamiltonian and overlap.
+  !! Hamiltonian and overlap.
   subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
+
+    !> Derivative of matrix block
     real(dp), intent(out) :: deriv(:,:,:,:)
+
+    !> Container for SK Hamiltonian integrals
     type(TSlakoCont), intent(in) :: skCont
+
+    !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
+
+    !> Chemical species of each atom
     integer, intent(in) :: species(:)
-    integer, intent(in) :: atomI, atomJ
+
+    !> The first atom in the diatomic block
+    integer, intent(in) :: atomI
+
+    !> The second atom in the diatomic block
+    integer, intent(in) :: atomJ
+
+    !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
+
+    !> Displacement for finite difference differentiation.
     real(dp), intent(in) :: deltaXDiff
 
     real(dp) :: interSk(getMIntegrals(skCont))   ! interpolated integs.
     real(dp) :: vect(3), dist
-    integer :: ii, jj, kk, ll
-    integer :: sp1, sp2
+    integer :: ii, jj, kk, ll, sp1, sp2
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2))
 
     ! second derivative weights for d2 F /dx2
