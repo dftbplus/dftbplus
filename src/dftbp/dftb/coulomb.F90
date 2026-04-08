@@ -2425,7 +2425,7 @@ contains
     ! Real space part of the Ewald sum
     pNeighList => neighList
     call distributeRangeInChunks(env, 1, nAtom, iFirst, iLast)
-    localStress = 0.0_dp
+    localStress(:,:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:localStress) SCHEDULE(RUNTIME)
     do iAtom1 = iFirst, iLast
       call addNeighbourContribsStress(iAtom1, pNeighList, coord, alpha, Q, localStress)
@@ -2483,8 +2483,7 @@ contains
   end subroutine addNeighbourContribsStress
 
 
-  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
-  !! storing anything.
+  !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case
   subroutine addInvRPrimeClusterMat(this, env, coord, invRDeriv)
 
     !> Data structure
@@ -2497,16 +2496,14 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Derivative of inverse R matrix
-    real(dp), intent(inout) :: invRDeriv(:,:,:)
+    real(dp), intent(out) :: invRDeriv(:,:,:)
 
     real(dp) :: dist, vect(3)
-    integer :: nAtom, iAtFirst, iAtLast
-    integer :: ii, jj
+    integer :: nAtom, iAtFirst, iAtLast, ii, jj
 
     nAtom = size(invRDeriv,dim=1)
-
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
-
+    invRDeriv(:,:,:) = 0.0_dp
     !$OMP PARALLEL DO&
     !$OMP& DEFAULT(SHARED) PRIVATE(jj, vect, dist) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do ii = iAtFirst, iAtLast
@@ -2523,7 +2520,7 @@ contains
   end subroutine addInvRPrimeClusterMat
 
 
-  !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
+  !> Calculates the -1/R**2 deriv contribution for the periodic case
   subroutine addInvRPrimePeriodicMat(this, env, coord, invRDeriv)
 
     !> Instance
@@ -2536,18 +2533,17 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Derivative of inverse R matrix
-    real(dp), intent(inout) :: invRDeriv(:,:,:)
+    real(dp), intent(out) :: invRDeriv(:,:,:)
 
     type(TDynNeighList), pointer :: pNeighList
     real(dp) :: r(3)
-    integer :: nAtom, iAtom1, iAtom2
-    integer :: iAtFirst, iAtLast
+    integer :: nAtom, iAtom1, iAtom2, iAtFirst, iAtLast
 
     nAtom = size(invRDeriv,dim=1)
     pNeighList => this%neighList_
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
-
+    invRDeriv(:,:,:) = 0.0_dp
     ! d(1/R)/dr real space
     !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:invRDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
