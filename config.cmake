@@ -113,6 +113,9 @@ else()
     "How to run the modes code for tests")
 endif()
 
+# Whether to download the test data (slakos, gbsa) during CMake configuration.
+option(TEST_AUTO_DOWNLOAD "Automatically download test data (slakos, gbsa) at configure time" ON)
+
 # Turn it on to include the unit tests (needs the Fortuno unit testing framework)
 option(WITH_UNIT_TESTS "Whether the unit tests should be built" FALSE)
 

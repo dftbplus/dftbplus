@@ -67,8 +67,7 @@ contains
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder. These can be
-    ! downloaded with the utils/get_opt_externals script.
+    ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder.
 
     ! initialise a DFTB input tree and populate entries which do not have relevant or appropriate
     ! default values

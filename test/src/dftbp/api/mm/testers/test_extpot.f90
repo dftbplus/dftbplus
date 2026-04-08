@@ -94,8 +94,7 @@ contains
     call setChildValue(pMaxAng, "H", "s")
 
     ! get the SK data
-    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These
-    ! can be downloaded with the utils/get_opt_externals script
+    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder.
     call setChild(pDftb, "SlaterKosterFiles", pSlakos)
     call setChild(pSlakos, "Type2FileNames", pType2Files)
     call setChildValue(pType2Files, "Prefix", "./")

@@ -173,22 +173,6 @@ The project uses git-submodules for some external dependencies, which will be
 automatically retrieved during configuration.
 
 
-Optional extra components
--------------------------
-
-Some optional software components are not distributed with the DFTB+ source code
-and are also not retrieved automatically. If these are required, you can
-download these components by using the `get_opt_externals` utility, e.g.::
-
-  ./utils/get_opt_externals
-
-This will download all license compatible optional external components. These
-include the Slater-Koster (slako) data for testing the compiled code.
-
-For more information see the detailed help for this tool by issuing
-``./utils/get_opt_externals -h``.
-
-
 Slater-Koster file locations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
