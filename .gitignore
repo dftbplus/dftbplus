@@ -2,12 +2,8 @@
 *.pyc
 *.mod
 _gitmsg.saved.txt
-external/dftd3/origin
-external/dftd3/status
 external/gbsa/origin
-external/gbsa/status
 external/slakos/origin
-external/slakos/status
 build
 custom.cmake
 __pycache__

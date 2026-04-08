@@ -57,6 +57,10 @@ Changed
 
 - Better scaling algorithm for k-point inversion folding
 
+- The cmake system replaces the functionality of the get_opt_externals
+  script, which has been removed.
+
+
 Fixed
 -----
 

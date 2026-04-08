@@ -141,8 +141,6 @@ jobs:
     - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
-    - name: Get external dependencies
-      run: echo "y" | ./utils/get_opt_externals ALL
 
     - name: Set extra CMake flags
       run: |
@@ -256,8 +254,6 @@ jobs:
     - name: Install requirements (pip)
       run: pip3 install cmake ninja fypp numpy
 
-    - name: Get external dependencies
-      run: echo "y" | ./utils/get_opt_externals ALL
 
     - name: Set extra CMake flags
       run: echo "CMAKE_OPTIONS=${CMAKE_OPTIONS} -DBUILD_SHARED_LIBS=true -DENABLE_DYNAMIC_LOADING=true" >> $GITHUB_ENV

@@ -42,8 +42,7 @@ program test_extpot2
       &], [4, nExtChrg])
 
   ! where to find the SK data.
-  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
-  ! be downloaded with the utils/get_opt_externals script
+  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder.
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
       & "./O-O.skf", "./H-O.skf", "./O-H.skf", "./H-H.skf"], [2, 2])
 
