@@ -1352,11 +1352,12 @@ contains
     type(TPoissonInput), allocatable :: poissonInput
 
     logical :: tGeoOptRequiresEgy, isOnsiteCorrected, areNeighboursSymmetric
-    type(TStatus) :: errStatus
-    integer :: nLocalRows, nLocalCols, iElem
-    real(dp) :: tmpSpinW(6)
-    real(dp), allocatable :: eiTmp(:,:)
     logical :: isIoProc
+    type(TStatus) :: errStatus
+    integer :: iCount, iElem, nLocalRows, nLocalCols
+    integer, allocatable :: iAtTmp(:)
+    real(dp) :: tmpSpinW(6)
+    real(dp), allocatable :: eiTmp(:,:), VextTmp(:)
 
   #:if WITH_MPI
     !! Number of k'-points
@@ -3138,6 +3139,62 @@ contains
       this%potential%coulombShell(:,:,:) = 0.0_dp
     else
       allocate(this%iAtInCentralRegion(this%transpar%idxdevice(2)))
+
+      if (allocated(input%ctrl%atomicExtPotential)) then
+        if (allocated(input%ctrl%atomicExtPotential%iAtOnSite)) then
+          if (any(input%ctrl%atomicExtPotential%iAtOnSite > size(this%iAtInCentralRegion))) then
+            call warning("Some net potential atoms outside the range of atoms in device region.")
+            call warning("Chopping net potential atoms to fit within the range of atoms in central&
+                & region.")
+
+            allocate(iAtTmp(size(this%iAtInCentralRegion)))
+            allocate(VextTmp(size(this%iAtInCentralRegion)))
+            iCount = 0
+            do iAt = 1, size(input%ctrl%atomicExtPotential%iAtOnSite)
+              if (input%ctrl%atomicExtPotential%iAtOnSite(iAt) <= size(this%iAtInCentralRegion))&
+                  & then
+                iCount = iCount + 1
+                iAtTmp(iCount) = input%ctrl%atomicExtPotential%iAtOnSite(iAt)
+                VextTmp(iCount) = input%ctrl%atomicExtPotential%VextOnSite(iAt)
+              end if
+            end do
+            deallocate(input%ctrl%atomicExtPotential%iAtOnSite)
+            deallocate(input%ctrl%atomicExtPotential%VextOnSite)
+            allocate(input%ctrl%atomicExtPotential%iAtOnSite(iCount))
+            allocate(input%ctrl%atomicExtPotential%VextOnSite(iCount))
+            input%ctrl%atomicExtPotential%iAtOnSite(:) = iAtTmp(1:iCount)
+            input%ctrl%atomicExtPotential%VextOnSite(:) = VextTmp(1:iCount)
+            deallocate(iAtTmp)
+            deallocate(VextTmp)
+          end if
+        end if
+        if (allocated(input%ctrl%atomicExtPotential%iAt)) then
+          if (any(input%ctrl%atomicExtPotential%iAt > size(this%iAtInCentralRegion))) then
+            call warning("Some gross potential atoms outside the range of atoms in device regoin.")
+            call warning("Chopping gross potential atoms to fit within the range of atoms in&
+                & central region.")
+            allocate(iAtTmp(size(this%iAtInCentralRegion)))
+            allocate(VextTmp(size(this%iAtInCentralRegion)))
+            iCount = 0
+            do iAt = 1, size(input%ctrl%atomicExtPotential%iAt)
+              if (input%ctrl%atomicExtPotential%iAt(iAt) <= size(this%iAtInCentralRegion)) then
+                iCount = iCount + 1
+                iAtTmp(iCount) = input%ctrl%atomicExtPotential%iAt(iAt)
+                VextTmp(iCount) = input%ctrl%atomicExtPotential%Vext(iAt)
+              end if
+            end do
+            deallocate(input%ctrl%atomicExtPotential%iAt)
+            deallocate(input%ctrl%atomicExtPotential%Vext)
+            allocate(input%ctrl%atomicExtPotential%iAt(iCount))
+            allocate(input%ctrl%atomicExtPotential%Vext(iCount))
+            input%ctrl%atomicExtPotential%iAt = iAtTmp(1:iCount)
+            input%ctrl%atomicExtPotential%Vext = VextTmp(1:iCount)
+            deallocate(iAtTmp)
+            deallocate(VextTmp)
+
+          end if
+        end if
+      end if
     end if
 
     if (this%transpar%tPeriodic1D) then

@@ -2367,14 +2367,16 @@ contains
     type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
     type(string) :: modifier, buffer, buffer2
-    real(dp) :: rTmp
+    real(dp) :: rTmp, vTmp
     type(TFileDescr) :: file
     integer :: ind, ii, iErr, nElem
+    integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: tmpR1(:), tmpR2(:,:)
     type(TListRealR2) :: lCharges
     type(TListRealR1) :: lBlurs, lr1
     type(TListReal) :: lr
     type(TListInt) :: li
+    logical :: speciesPotentialPresent = .false., atomSitePotentialPresent = .false.
 
     call getChildValue(node, "ElectricField", value1, "", child=child, allowEmptyValue=.true.,&
         & dontMarkProcessed=.true., list=.true.)
@@ -2498,6 +2500,7 @@ contains
 
     call getChild(node, "AtomSitePotential", child, requested=.false.)
     if (associated(child)) then
+      atomSitePotentialPresent = .true.
       allocate(ctrl%atomicExtPotential)
 
       call getChild(child, "Net", child2, requested=.false.)
@@ -2544,6 +2547,53 @@ contains
         call detailedError(child, "No atomic potentials specified")
       end if
 
+    end if
+
+    call getChild(node, "SpeciesPotential", child, requested=.false.)
+
+    if (associated(child)) then
+      speciesPotentialPresent = .true.
+
+      allocate(ctrl%atomicExtPotential)
+
+      call getChild(child, "Net", child2, requested=.false.)
+      if (associated(child2)) then
+        ! onsites
+        ctrl%tNetAtomCharges = .true.
+        call getChildValue(child2, "Species", buffer, child=child3, multiple=.true.)
+        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, tmpI1)
+        call getChildValue(child2, "Vext", vTmp, modifier=modifier, child=child3)
+        call convertUnitHsd(char(modifier), energyUnits, child3, vTmp)
+
+        allocate(ctrl%atomicExtPotential%iAtOnSite(size(tmpI1)))
+        ctrl%atomicExtPotential%iAtOnSite = tmpI1
+        allocate(ctrl%atomicExtPotential%VextOnSite(size(tmpI1)))
+        do ii = 1, size(tmpI1)
+          ctrl%atomicExtPotential%VextOnSite(ii) = vTmp
+        end do
+      end if
+
+      call getChild(child, "Gross", child2, requested=.false.)
+      if (associated(child2)) then
+        ! atomic
+        call getChildValue(child2, "Species", buffer, child=child3, multiple=.true.)
+        call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, tmpI1)
+        call getChildValue(child2, "Vext", vTmp, modifier=modifier, child=child3)
+        call convertUnitHsd(char(modifier), energyUnits, child3, vTmp)
+
+        allocate(ctrl%atomicExtPotential%iAt(size(tmpI1)))
+        ctrl%atomicExtPotential%iAt = tmpI1
+        allocate(ctrl%atomicExtPotential%Vext(size(tmpI1)))
+        do ii = 1, size(tmpI1)
+          ctrl%atomicExtPotential%Vext(ii) = vTmp
+        end do
+      end if
+    end if
+
+    ! Raise an error if both are present
+    if (atomSitePotentialPresent .and. speciesPotentialPresent) then
+      call detailedError(node, "Only one of AtomSitePotential or SpeciesPotential can be present in&
+          & the input file")
     end if
 
   end subroutine readExternal
