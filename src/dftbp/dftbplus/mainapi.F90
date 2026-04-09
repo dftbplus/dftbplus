@@ -284,9 +284,11 @@ contains
 
     oldSettings%iForceType = main%forceType
     main%forceType = forceTypes%orig
-    main%tCoordsChanged = .true.
     oldSettings%areForcesRequested = main%tForces
     main%tForces = .true.
+
+    ! mark coordinates as tainted, forcing re-evaluation
+    main%tCoordsChanged = .true.
 
     call warning(["Generic derivatives settings initialised inside API an property request.",&
         & "For more control, setup forces at calculation initialisation.           "])
@@ -589,6 +591,13 @@ contains
     !> Widths of the Gaussian for each charge used for blurring (0.0 = no blurring)
     real(dp), intent(in), optional :: blurWidths(:)
 
+    @:ASSERT(all(shape(chargeCoords) == [3,size(chargeQs)]))
+  #:block DEBUG_CODE
+    if (present(blurWidths)) then
+      @:ASSERT(size(chargeQs) == size(blurWidths))
+    end if
+  #:endblock DEBUG_CODE
+
     main%tExtChrg = .true.
     if (main%tForces) then
       if ( allocated(main%chrgForces) ) then
@@ -601,6 +610,7 @@ contains
       end if
     end if
     call main%scc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    main%nExtChrg = size(chargeQs)
     ! flag ground state for recalculation as external charge geometries changed:
     main%tCoordsChanged = .true.
     if (main%tPeriodic) then
@@ -611,17 +621,34 @@ contains
 
 
   !> Returns the gradient acting on the external point charges
-  subroutine getExtChargeGradients(main, chargeGradients)
+  subroutine getExtChargeGradients(env, main, chargeGradients)
 
     !> Instance
-    type(TDftbPlusMain), intent(in) :: main
+    type(TEnvironment), intent(inout) :: env
+
+    !> Instance
+    type(TDftbPlusMain), intent(inout) :: main
 
     !> Gradients
     real(dp), intent(out) :: chargeGradients(:,:)
 
-    @:ASSERT(main%tForces .and. allocated(main%chrgForces))
+    type(TGenericForceChanges) :: oldSettings
 
+    @:ASSERT(main%tExtChrg)
+    write(*,*)shape(chargeGradients),':', main%nExtChrg
+    @:ASSERT(all(shape(chargeGradients) == [3, main%nExtChrg]))
+
+    if (.not.main%tForces .or. .not.allocated(main%chrgForces)) then
+      call genericGradientInit(main, oldSettings)
+      if (main%tPeriodic) main%tLatticeChanged = .true.
+    end if
+
+    call recalcGeometry(env, main)
     chargeGradients(:,:) = main%chrgForces
+
+    if (oldSettings%areModified) then
+      call resetGradientSettings(main, oldSettings)
+    end if
 
   end subroutine getExtChargeGradients
 
