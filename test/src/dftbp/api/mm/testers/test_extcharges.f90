@@ -127,7 +127,9 @@ contains
     call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)))
     call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
     call setChild(pRoot, "Analysis", pAnalysis)
-    call setChildValue(pAnalysis, "CalculateForces", .true.)
+    ! More efficient/controllable to pre-request derivatives and set evaluation options if
+    ! necessary, but here we will rely on internal initialisation of settings:
+    !call setChildValue(pAnalysis, "CalculateForces", .true.)
     call setChild(pAnalysis, "CM5", pCm5)
     call setChild(pRoot, "ParserOptions", pParserOpts)
     call setChildValue(pParserOpts, "ParserVersion", 5)
@@ -145,7 +147,7 @@ contains
     ! add a single external charge
     call dftbp%setExternalCharges(extCharges(:3,:1), extCharges(4,:1), extChargeBlur(:1))
 
-    ! get energy, charges and forces for the single external charge
+    ! get energy, charges and force on the single external charge
     call dftbp%getEnergy(merminEnergy)
     call dftbp%getExtChargeGradients(extChargeGrads(:,:1))
 
@@ -155,7 +157,7 @@ contains
     ! get energy
     call dftbp%getEnergy(merminEnergy)
 
-    ! Finally, external charges corresponding to the regression data
+    ! Finally, external charges corresponding to the regression data with all the external charges
     call dftbp%setExternalCharges(extCharges(:3,:2), extCharges(4,:2), extChargeBlur(:2))
 
     ! get energy, charges and forces

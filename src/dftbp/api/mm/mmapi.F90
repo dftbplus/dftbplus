@@ -692,7 +692,7 @@ contains
 
     call this%checkInit()
 
-    call getExtChargeGradients(this%main, gradients)
+    call getExtChargeGradients(this%env, this%main, gradients)
 
   end subroutine TDftbPlus_getExtChargeGradients
 
