@@ -33,9 +33,6 @@ module dftbp_dftb_densitymatrix
   private
 
   public :: TDensityMatrix, TDensityMatrix_init, transformDualSpaceToBvKRealSpace
-#:if WITH_SCALAPACK
-  public :: makeDensityMtxRealBlacs, makeDensityMtxCplxBlacs
-#:endif
 
 
   !> Holds density matrix related data and control variables
@@ -80,11 +77,21 @@ module dftbp_dftb_densitymatrix
     procedure, private :: getDensityMatrix_real
     procedure, private :: getDensityMatrix_cmplx
     generic :: getDensityMatrix => getDensityMatrix_real, getDensityMatrix_cmplx
+  #:if WITH_SCALAPACK
+    procedure, private :: getDensityMatrix_real_blacs
+    procedure, private :: getDensityMatrix_cmplx_blacs
+    generic :: getDensityMatrix => getDensityMatrix_real_blacs, getDensityMatrix_cmplx_blacs
+  #:endif
 
     !> Returns the energy weighted density matrix
     procedure, private :: getEDensityMatrix_real
     procedure, private :: getEDensityMatrix_cmplx
     generic :: getEDensityMatrix => getEDensityMatrix_real, getEDensityMatrix_cmplx
+  #:if WITH_SCALAPACK
+    procedure, private :: getEDensityMatrix_real_blacs
+    procedure, private :: getEDensityMatrix_cmplx_blacs
+    generic :: getEDensityMatrix => getEDensityMatrix_real_blacs, getEDensityMatrix_cmplx_blacs
+  #:endif
 
   end type TDensityMatrix
 
@@ -335,6 +342,134 @@ contains
     end select
 
   end subroutine getEDensityMatrix_cmplx
+
+
+#:if WITH_SCALAPACK
+  !> Returns the distributed real density matrix
+  subroutine getDensityMatrix_real_blacs(this, myBlacs, desc, densityMatrix, eigenvecs, filling,&
+      & errStatus)
+
+    !> Instance
+    class(TDensityMatrix), intent(in) :: this
+
+    !> BLACS grid information
+    type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> Resulting density matrix
+    real(dp), intent(inout) :: densityMatrix(:,:)
+
+    !> Eigenvectors of the system
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    call makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenvecs, densityMatrix)
+
+  end subroutine getDensityMatrix_real_blacs
+
+
+!> Returns the distributed real energy weighted density matrix
+  subroutine getEDensityMatrix_real_blacs(this, myBlacs, desc, egyDensityMatrix, eigenvecs,&
+      & filling, eigenvals, errStatus)
+
+    !> Instance
+    class(TDensityMatrix), intent(in) :: this
+
+    !> BLACS grid information
+    type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> Resulting density matrix
+    real(dp), intent(inout) :: egyDensityMatrix(:,:)
+
+    !> Eigenvectors of the system
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    !> Eigenvalues of the system
+    real(dp), intent(in) :: eigenvals(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    call makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenvecs, egyDensityMatrix, eigenvals)
+
+  end subroutine getEDensityMatrix_real_blacs
+
+
+  !> Returns the distributed complex density matrix
+  subroutine getDensityMatrix_cmplx_blacs(this, myBlacs, desc, densityMatrix, eigenvecs, filling,&
+      & errStatus)
+
+    !> Instance
+    class(TDensityMatrix), intent(in) :: this
+
+    !> BLACS grid information
+    type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> Resulting density matrix
+    complex(dp), intent(inout) :: densityMatrix(:,:)
+
+    !> Eigenvectors of the system
+    complex(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    call makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenvecs, densityMatrix)
+
+  end subroutine getDensityMatrix_cmplx_blacs
+
+
+  !> Returns the distributed complex energy weighted density matrix
+  subroutine getEDensityMatrix_cmplx_blacs(this, myBlacs, desc, egyDensityMatrix, eigenvecs,&
+      & filling, eigenvals, errStatus)
+
+    !> Instance
+    class(TDensityMatrix), intent(in) :: this
+
+    !> BLACS grid information
+    type(blacsgrid), intent(in) :: myBlacs
+
+    !> Matrix descriptor
+    integer, intent(in) :: desc(:)
+
+    !> Resulting density matrix
+    complex(dp), intent(inout) :: egyDensityMatrix(:,:)
+
+    !> Eigenvectors of the system
+    complex(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Occupation numbers of the orbitals
+    real(dp), intent(in) :: filling(:)
+
+    !> Eigenvalues of the system
+    real(dp), intent(in) :: eigenvals(:)
+
+    !> Error status
+    type(TStatus), intent(out) :: errStatus
+
+    call makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenvecs, egyDensityMatrix, eigenvals)
+
+  end subroutine getEDensityMatrix_cmplx_blacs
+#:endif
 
 
   !> Transforms dense, square density matrix for all spins/k-points to real-space (BvK cell).
