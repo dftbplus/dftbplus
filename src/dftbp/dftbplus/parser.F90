@@ -4775,16 +4775,6 @@ contains
     type(fnode), pointer :: child
 
     input%method = 'ts'
-    call getChild(node, "EnergyAccuracy", child, requested=.false.)
-    if (associated(child)) then
-      call detailedWarning(child, "The energy accuracy setting will be ignored as it is not&
-          & supported/need by libMBD any more")
-    end if
-    call getChild(node, "ForceAccuracy", child, requested=.false.)
-    if (associated(child)) then
-      call detailedWarning(child, "The force accuracy setting will be ignored as it is not&
-          & supported/need by libMBD any more")
-    end if
     call getChildValue(node, "Damping", input%ts_d, default=(input%ts_d))
     call getChildValue(node, "RangeSeparation", input%ts_sr, default=(input%ts_sr))
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)

@@ -981,6 +981,21 @@ contains
       call setUnprocessed(ch2)
     end if
 
+    call getDescendant(root, "Hamiltonian/DFTB/Dispersion/Ts/EnergyAccuracy", ch1)
+    if (associated(ch1)) then
+      call setUnprocessed(ch1)
+      call detailedWarning(ch1, "The energy accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+      call destroyNode(ch1)
+    end if
+    call getDescendant(root, "Hamiltonian/DFTB/Dispersion/Ts/ForceAccuracy", ch1)
+    if (associated(ch1)) then
+      call setUnprocessed(ch1)
+      call detailedWarning(ch1, "The force accuracy setting will be ignored as it is not&
+          & supported/need by libMBD any more")
+      call destroyNode(ch1)
+    end if
+
   end subroutine convert_14_15
 
 
