@@ -783,8 +783,8 @@ contains
   end subroutine TDftbPlus_setRefCharges
 
 
-  !> Returns electrostatic potential at specified points
-  subroutine TDftbPlus_getElStatPotential(this, pot, locations)
+  !> Returns electrostatic potential, and optionally the gradient, at specified points
+  subroutine TDftbPlus_getElStatPotential(this, pot, locations, gradients)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -795,9 +795,12 @@ contains
     !> Sites at which to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
+    !> Gradient of the potential at the the locations [3,size(pot)]
+    real(dp), intent(out), optional :: gradients(:,:)
+
     call this%checkInit()
 
-    call getElStatPotential(this%env, this%main, pot, locations)
+    call getElStatPotential(this%env, this%main, pot, locations, gradients)
 
   end subroutine TDftbPlus_getElStatPotential
 

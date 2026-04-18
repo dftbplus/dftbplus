@@ -60,10 +60,10 @@ contains
   !> Sets up the atomic geometry
   subroutine setGeometry(env, main, coords, latVecs, coordOrigin)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Atom coordinates
@@ -115,10 +115,10 @@ contains
   subroutine setNeighbourList(env, main, nNeighbour, iNeighbour, neighDist, cutOff,&
       & coordNeighbours, neighbour2CentCell)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), target, intent(inout) :: main
 
     !> Number of neighbours of an atom in the central cell
@@ -162,10 +162,10 @@ contains
   !> Returns the free energy of the system at finite temperature
   subroutine getEnergy(env, main, merminEnergy)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting energy
@@ -183,10 +183,10 @@ contains
   !> Get forces on atoms
   subroutine getGradients(env, main, gradients)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting gradients wrt atom positions
@@ -214,10 +214,10 @@ contains
   !> Get stress tensor for unit cell
   subroutine getStressTensor(env, main, stress)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting stress tensor
@@ -323,10 +323,10 @@ contains
   !> Get the gross (Mulliken projected) charges for atoms wrt neutral atoms
   subroutine getGrossCharges(env, main, atomCharges)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting charges
@@ -346,10 +346,10 @@ contains
   !> Get the CM5 charges
   subroutine getCM5Charges(env, main, atomCharges)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting charges
@@ -460,12 +460,12 @@ contains
 
 
   !>  Get electrostatic potential at specified points
-  subroutine getElStatPotential(env, main, pot, locations)
+  subroutine getElStatPotential(env, main, pot, locations, gradients)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Resulting potentials
@@ -474,21 +474,25 @@ contains
     !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
-    !> Default potential softening
+    !> Gradient of the potential at the the locations [3,size(pot)]
+    real(dp), intent(out), optional :: gradients(:,:)
+
+    ! Default potential softening
     real(dp) :: epsSoften = 1E-6
 
-    call main%scc%getInternalElStatPotential(pot, env, locations, epsSoften)
+    call main%scc%getInternalElStatPotential(pot, env, locations, gradients=gradients,&
+        & epsSoften=epsSoften)
 
   end subroutine getElStatPotential
 
 
   !> Sets up an external population independent electrostatic potential.
-  !>
-  !> Sign convention: charge of electron is considered to be positive.
-  !>
+  !!
+  !! Sign convention: charge of electron is considered to be positive.
+  !!
   subroutine setExternalPotential(main, atomPot, shellPot, potGrad)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Atomic external potential
@@ -536,7 +540,7 @@ contains
   !> Sets up an external electric field.
   subroutine setExternalEfield(main, EfieldStr, EfieldVec)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Electric field amplitude
@@ -565,7 +569,7 @@ contains
   !> Sets up a generator for external population dependant potentials
   subroutine setQDepExtPotProxy(main, extPotProxy)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Generator for the external population dependant potential
@@ -579,7 +583,7 @@ contains
   !> Sets up external point charges
   subroutine setExternalCharges(main, chargeCoords, chargeQs, blurWidths)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Coordinates of the external charges
@@ -620,13 +624,13 @@ contains
   end subroutine setExternalCharges
 
 
-  !> Returns the gradient acting on the external point charges
+  !> Returns the gradient acting on the external point charges from the DFTB charges
   subroutine getExtChargeGradients(env, main, chargeGradients)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Gradients
@@ -656,7 +660,7 @@ contains
   !> Obtains number of atoms in the system
   function nrOfAtoms(main)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> Resulting atom count
@@ -670,7 +674,7 @@ contains
   !> Obtains number of spin channels in the system
   function nrOfSpin(main)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> Spin channel count (1 for spin free, 2 conventional z-spin, 4 non-collinear)
@@ -684,7 +688,7 @@ contains
   !> Obtains number of k-points in the system (1 if not a repeating structure)
   function nrOfKPoints(main)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> Number of k-points present
@@ -698,7 +702,7 @@ contains
   !> Obtains number of (k-point,spin chanel) pairs in current process group
   function nrOfLocalKS(main)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> K-points and spin on the local processor group
@@ -712,7 +716,7 @@ contains
   !> Get (k-point,spin chanel) pairs in current process group
   subroutine getLocalKS(main, localKS)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
@@ -731,10 +735,10 @@ contains
   !> types, nTypes, in a simulation and hence always keep speciesName constant
   function checkSpeciesNames(env, main, inputSpeciesName) result(tSpeciesNameChanged)
 
-    !> Dftb+ environment
+    !> Instance of computational environment
     type(TEnvironment), intent(in) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Labels of atomic species from external program
@@ -769,10 +773,10 @@ contains
   !! Updated data returned via module use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, main, inputSpecies)
 
-    !> Dftb+ environment
+    !> Instance of computational environment
     type(TEnvironment), intent(in) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Types of the atoms (nAllAtom)
@@ -837,10 +841,10 @@ contains
   !> and the initial step of the propagators for electron and nuclear dynamics
   subroutine initializeTimeProp(env, main, dt, tdFieldThroughAPI, tdCoordsAndVelosThroughAPI)
 
-    !> Dftb+ environment
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Time step
@@ -890,10 +894,10 @@ contains
   !> Finalizes the dynamics (releases memory, closes eventual open files)
   subroutine finalizeTimeProp(env, main)
 
-    !> Dftb+ environment
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     if (allocated(main%electronDynamics)) then
@@ -908,10 +912,10 @@ contains
   subroutine doOneTdStep(env, main, iStep, dipole, energy, atomNetCharges,&
       & coordOut, force, occ)
 
-    !> Dftb+ environment
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Present step of dynamics
@@ -980,7 +984,7 @@ contains
   !> Sets electric field for td propagation
   subroutine setTdElectricField(main, field)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     ! electric field components
@@ -995,7 +999,7 @@ contains
   !> Sets coordinates and velos for td propagation
   subroutine setTdCoordsAndVelos(main, coords, velos)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     ! coordinates
@@ -1014,7 +1018,7 @@ contains
   !> Gets atomic forces from time dependent propagation
   subroutine getTdForces(main, forces)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Forces (3, nAtom)
@@ -1028,7 +1032,7 @@ contains
   !> Obtains mass for each atom in the system
   subroutine getAtomicMasses(main, outMass)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     real(dp), intent(out) :: outMass(main%nAtom)
@@ -1041,7 +1045,7 @@ contains
   !> Returns the cutoff distance for interactions
   function getCutOff(main) result(cutOff)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     !> Cutoff distance
@@ -1060,7 +1064,7 @@ contains
   !> Update order of nr. atomic orbitals for each atom, orb%nOrbAtom
   function updateAtomicOrbitals(main) result(nOrbAtomReordered)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> Nr. of orbitals for each atom (nAtom)
@@ -1076,7 +1080,7 @@ contains
   !> Update atomic masses
   function updateAtomicMasses(main) result(massReordered)
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> List of atomic masses (nAtom)
@@ -1093,10 +1097,10 @@ contains
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, main)
 
-    !> Environment settings
-    type(TEnvironment), intent(in)    :: env
+    !> Instance of computational environment
+    type(TEnvironment), intent(in) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
 
@@ -1116,10 +1120,10 @@ contains
   subroutine reallocateHSArrays(env, main, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
       & HSqrReal, SSqrReal, eigVecsReal)
 
-    !> Environment instance
+    !> Instance of computational environment
     type(TEnvironment), intent(in) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(in) :: main
 
     !> Dense matrix descriptor for H and S
@@ -1182,10 +1186,10 @@ contains
   !> Re-evaluate the energy/forces if the geometry changes
   subroutine recalcGeometry(env, main)
 
-    !> Instance
+    !> Instance of computational environment
     type(TEnvironment), intent(inout) :: env
 
-    !> Instance
+    !> Instance of DFTB+ calculator
     type(TDftbPlusMain), intent(inout) :: main
 
     logical :: tStopScc, tExitGeoOpt

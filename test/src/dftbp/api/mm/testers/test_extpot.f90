@@ -9,7 +9,7 @@ program test_extpot
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, setChild, setChildValue,&
       & TDftbPlus, TDftbPlus_init, TDftbPlusInput
-  use extchargepot, only : getPointChargeGradients, getPointChargePotential
+  use extchargepot, only : getPointChargePotential
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -50,12 +50,13 @@ contains
     type(TDftbPlus) :: dftbp
     type(TDftbPlusInput) :: input
 
+    integer, parameter :: nEsps = 2
     real(dp) :: merminEnergy
     real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
-    real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargeGrads(3, nExtChrg)
-    real(dp) :: esps(2)
-    real(dp), parameter :: espLocations(3,2) = reshape([1.0_dp,0.0_dp,0.0_dp,1.0_dp,0.1_dp,0.0_dp],&
-        & [3,2])
+    real(dp) :: atomCharges(nAtom), cm5Charges(nAtom), extChargePots(nExtChrg)
+    real(dp) :: extChargeGrads(3, nExtChrg), esps(nEsps)
+    real(dp), parameter :: espLocations(3,nEsps) =&
+        & reshape([1.0_dp,0.0_dp,0.0_dp,1.0_dp,0.1_dp,0.0_dp], [3,nEsps])
     type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis, pCm5
     type(fnode), pointer :: pParserOpts
 
@@ -130,8 +131,10 @@ contains
     call dftbp%getGrossCharges(atomCharges)
     call dftbp%getCM5Charges(cm5Charges)
     call dftbp%getElStatPotential(esps, espLocations)
-    call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
-        & extChargeGrads)
+    ! get electrostatic potential at positions of our charges, then evaluate forces on the point
+    ! charges
+    call dftbp%getElStatPotential(extChargePots, extCharges(1:3,:), extChargeGrads)
+    extChargeGrads(:,:) = extChargeGrads * spread(extCharges(4,:),1,3)
 
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
     print "(A,3F15.10)", 'Obtained gross charges:', atomCharges

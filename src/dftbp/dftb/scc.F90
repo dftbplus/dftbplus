@@ -1015,7 +1015,7 @@ contains
 
 
   !> Returns potential from DFTB charges
-  subroutine getInternalElStatPotential(this, pot, env, locations, epsSoften)
+  subroutine getInternalElStatPotential(this, pot, env, locations, gradients, epsSoften)
 
     !> Instance of SCC calculation
     class(TScc), intent(in) :: this
@@ -1029,11 +1029,19 @@ contains
     !> Sites to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
+    !> Gradient of the potential at the the locations [3,size(pot)]
+    real(dp), intent(out), optional :: gradients(:,:)
+
     !> Optional potential softening
     real(dp), optional, intent(in) :: epsSoften
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(all(shape(locations) == [3,size(pot)]))
+    #:block DEBUG_CODE
+    if (present(gradients)) then
+      @:ASSERT(all(shape(locations) == shape(gradients)))
+    end if
+    #:endblock DEBUG_CODE
 
     if (this%elstatType /= elstatTypes%gammaFunc) then
       call error("getInternalElStatPotential only works with gamma-electrostatics")
@@ -1042,6 +1050,12 @@ contains
     pot(:) = 0.0_dp
     call this%coulomb%getPotential(env, locations, this%coord, this%deltaQAtom, pot,&
         & epsSoften=epsSoften)
+
+    if (present(gradients)) then
+      gradients(:,:) = 0.0_dp
+      call this%coulomb%getPotentialGradient(env, locations, this%coord, this%deltaQAtom,&
+          & gradients) ! not implemented yet: , epsSoften=epsSoften)
+    end if
 
   end subroutine getInternalElStatPotential
 
