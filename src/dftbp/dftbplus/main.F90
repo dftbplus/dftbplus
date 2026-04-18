@@ -125,7 +125,6 @@ module dftbp_dftbplus_main
 #:endif
   use dftbp_transport_negfvars, only : TTransPar
 #:if WITH_SCALAPACK
-  use dftbp_dftb_densitymatrix, only : makeDensityMtxCplxBlacs, makeDensityMtxRealBlacs
   use dftbp_dftb_hybridxc, only : getFullFromDistributed, scatterFullToDistributed
   use dftbp_dftb_populations, only : denseMullikenRealBlacs,&
       & denseSubtractDensityOfAtomsRealNonperiodicBlacs,&
@@ -3939,8 +3938,9 @@ contains
 
     #:if WITH_SCALAPACK
       if (.not. allocated(densityMatrix%deltaRhoOut)) then
-        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
-            & filling(:,iSpin), eigvecs(:,:,iKS), work)
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+            & eigvecs(:,:,iKS), filling(:,iSpin), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packRhoHelicalRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour,&
@@ -3951,8 +3951,9 @@ contains
         end if
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
-        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
-            & filling(:,iSpin), eigvecs(:,:,iKS), densityMatrix%deltaRhoOut(:,:,iKS))
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
+            & densityMatrix%deltaRhoOut(:,:,iKS), eigvecs(:,:,iKS), filling(:,iSpin), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
           call packRhoHelicalRealBlacs(env%blacs, denseDesc, densityMatrix%deltaRhoOut(:,:,iKS),&
@@ -4129,8 +4130,9 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK&
-          &,iSpin), eigvecs(:,:,iKS), work)
+      call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+          & eigvecs(:,:,iKS), filling(:,iK,iSpin), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       if (tHelical) then
         call packRhoHelicalCplxBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
@@ -4312,8 +4314,9 @@ contains
       iK = parallelKS%localKS(1, iKS)
 
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK),&
-          & eigvecs(:,:,iKS), work)
+      call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+          & eigvecs(:,:,iKS), filling(:,iK), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
     #:else
       call densityMatrix%getDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iK), errStatus)
       @:PROPAGATE_ERROR(errStatus)
@@ -6422,8 +6425,9 @@ contains
       case(forceTypes%orig)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
-            & eigvecsReal(:,:,iKS), work, eigen(:,1,iS))
+        call densityMatrix%getEDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+            & eigvecsReal(:,:,iKS), filling(:,1,iS), eigen(:,1,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       #:else
         call densityMatrix%getEDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS),&
             & eigen(:,1,iS), errStatus)
@@ -6441,8 +6445,9 @@ contains
           call unpackHSRealBlacs(env%blacs, ints%hamiltonian(:,iS), neighbourList%iNeighbour,&
               & nNeighbourSK, iSparseStart, img2CentCell, denseDesc, work)
         end if
-        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
-            & eigVecsReal(:,:,iKS), work2)
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work2,&
+            & eigVecsReal(:,:,iKS), filling(:,1,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & eigvecsReal(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
         call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
@@ -6469,8 +6474,9 @@ contains
       case(forceTypes%dynamicTFinite)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
-        call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
-            & eigVecsReal(:,:,iKS), work)
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+            & eigVecsReal(:,:,iKS), filling(:,1,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         if (tHelical) then
           call unpackHSHelicalRealBlacs(env%blacs, ints%hamiltonian(:,iS),&
               & neighbourlist%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, orb, species,&
@@ -6655,8 +6661,9 @@ contains
       case(forceTypes%orig)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
-            & filling(:,iK,iS), eigvecsCplx(:,:,iKS), work, eigen(:,iK,iS))
+        call densityMatrix%getEDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+            & eigvecsCplx(:,:,iKS), filling(:,iK,iS), eigen(:,iK,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
       #:else
         call densityMatrix%getEDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS),&
             & eigen(:,iK, iS), errStatus)
@@ -6675,8 +6682,9 @@ contains
               & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, denseDesc, work)
         end if
-        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
-            & eigvecsCplx(:,:,iKS), work2)
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work2,&
+            & eigvecsCplx(:,:,iKS), filling(:,1,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr,&
             & eigvecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, side="L")
         call pblasfx_phemm(work2, denseDesc%blacsOrbSqr, eigvecsCplx(:,:,iKS),&
@@ -6701,8 +6709,9 @@ contains
       case(forceTypes%dynamicTFinite)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
-        call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
-            & filling(:,iK,iS), eigVecsCplx(:,:,iKS), work)
+        call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+            & eigVecsCplx(:,:,iKS), filling(:,iK,iS), errStatus)
+        @:PROPAGATE_ERROR(errStatus)
         if (tHelical) then
           call unpackHSHelicalCplxBlacs(env%blacs, ints%hamiltonian(:,iS), kPoint(:,iK),&
               & neighbourlist%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
@@ -6876,8 +6885,9 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
     #:if WITH_SCALAPACK
-      call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,iK,1),&
-          & eigvecsCplx(:,:,iKS), work, eigen(:,iK,1))
+      call densityMatrix%getEDensityMatrix(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, work,&
+          & eigvecsCplx(:,:,iKS), filling(:,iK,1), eigen(:,iK,1), errStatus)
+      @:PROPAGATE_ERROR(errStatus)
       call packERhoPauliBlacs(env%blacs, denseDesc, work, kPoint(:,iK), kWeight(iK),&
           & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, ERhoPrim)
