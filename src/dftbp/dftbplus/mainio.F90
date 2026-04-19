@@ -5513,12 +5513,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,f10.6)") Hartree__eV * eigval, sum(fracs(iOrbs))
       deallocate(iOrbs)
     end do
@@ -5543,12 +5543,12 @@ contains
 
     integer, allocatable :: iOrbs(:)
     integer :: valShape(1)
-    integer :: iReg, dummy
+    integer :: iReg, placeholder
 
     do iReg = 1, size(fd)
       call elemShape(iOrbRegion, valshape, iReg)
       allocate(iOrbs(valshape(1)))
-      call intoArray(iOrbRegion, iOrbs, dummy, iReg)
+      call intoArray(iOrbRegion, iOrbs, placeholder, iReg)
       write(fd(iReg)%unit, "(f13.6,4f10.6)") Hartree__eV * eigval, sum(fracs(:,iOrbs), dim=2)
       deallocate(iOrbs)
     end do
@@ -5756,7 +5756,7 @@ contains
   #:else
 
     type(TFileDescr) :: file
-    integer :: iMO, nOrb, dummy, ioStat
+    integer :: iMO, nOrb, tmpJobId, ioStat
 
     nOrb = size(eigenvecs,dim=1)
 
@@ -5764,9 +5764,9 @@ contains
     if (ioStat /= 0) then
       call error('no ' // eigvecBin // ' file!')
     end if
-    read(file%unit) dummy
+    read(file%unit) tmpJobId
     if (present(jobId)) then
-      jobId = dummy
+      jobId = tmpJobId
     end if
     do iMO = 1, nOrb
       read(file%unit) eigenvecs(:,iMO)

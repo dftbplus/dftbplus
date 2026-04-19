@@ -1203,12 +1203,12 @@ contains
     ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subspace
     real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:)
     ! Residual vectors
-    real(dp), allocatable :: resR(:,:), resL(:,:), dummyM(:,:)
+    real(dp), allocatable :: resR(:,:), resL(:,:), workspaceM(:,:)
     real(dp), allocatable :: evalInt(:) ! store eigenvectors within routine
     real(dp), allocatable :: vecNorm(:) ! will hold norms of residual vectors
-    real(dp) :: dummyReal
+    real(dp) :: placeHolderReal
 
-    integer :: nExc, nAtom, dummyInt, newVec, iVec, info, iterStrat, nLoc
+    integer :: nExc, nAtom, placeHolderInt, newVec, iVec, info, iterStrat, nLoc
     integer :: subSpaceDim, prevSubSpaceDim
     integer :: ii, jj, myjj, myii
     character(lc) :: tmpStr
@@ -1247,7 +1247,7 @@ contains
     allocate(mMsqrt(subSpaceDim, subSpaceDim))
     allocate(mMsqrtInv(subSpaceDim, subSpaceDim))
     allocate(mH(subSpaceDim, subSpaceDim))
-    allocate(dummyM(subSpaceDim, subSpaceDim))
+    allocate(workspaceM(subSpaceDim, subSpaceDim))
     allocate(evalInt(subSpaceDim))
     allocate(evecL(subSpaceDim, nExc))
     allocate(evecR(subSpaceDim, nExc))
@@ -1291,13 +1291,13 @@ contains
 
        do ii = prevSubSpaceDim + 1, subSpaceDim
           do jj = 1, ii
-            dummyReal = dot_product(vecB(:,jj), vP(:,ii))
-            call assembleChunks(env, dummyReal)
-            mP(ii,jj) = dummyReal
+            placeHolderReal = dot_product(vecB(:,jj), vP(:,ii))
+            call assembleChunks(env, placeHolderReal)
+            mP(ii,jj) = placeHolderReal
             mP(jj,ii) = mP(ii,jj)
-            dummyReal = dot_product(vecB(:,jj), vM(:,ii))
-            call assembleChunks(env, dummyReal)
-            mM(ii,jj) = dummyReal
+            placeHolderReal = dot_product(vecB(:,jj), vM(:,ii))
+            call assembleChunks(env, placeHolderReal)
+            mM(ii,jj) = placeHolderReal
             mM(jj,ii) = mM(ii,jj)
           end do
         end do
@@ -1312,8 +1312,8 @@ contains
 
       call calcMatrixSqrt(mM, mMsqrt, mMsqrtInv)
 
-      call symm(dummyM, 'L', mP, mMsqrt, uplo='U')
-      call symm(mH, 'L', mMsqrt, dummyM, uplo='U')
+      call symm(workspaceM, 'L', mP, mMsqrt, uplo='U')
+      call symm(mH, 'L', mMsqrt, workspaceM, uplo='U')
 
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
@@ -1344,9 +1344,9 @@ contains
       ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original
       ! EV problem, only use first nExc vectors
       do ii = 1, nExc
-        dummyReal = sqrt(sqrt(evalInt(ii)))
-        evecR(:,ii) = evecR(:,ii) / dummyReal
-        evecL(:,ii) = evecL(:,ii) * dummyReal
+        placeHolderReal = sqrt(sqrt(evalInt(ii)))
+        evecR(:,ii) = evecR(:,ii) / placeHolderReal
+        evecL(:,ii) = evecL(:,ii) * placeHolderReal
       end do
 
       ! Calculate the residual vectors
@@ -1356,9 +1356,9 @@ contains
       call gemm(resL, vecB, evecL)
 
       do ii = 1, nExc
-        dummyReal = -sqrt(evalInt(ii))
-        resR(:,ii) = dummyReal * resR(:,ii)
-        resL(:,ii) = dummyReal * resL(:,ii)
+        placeHolderReal = -sqrt(evalInt(ii))
+        resR(:,ii) = placeHolderReal * resR(:,ii)
+        resL(:,ii) = placeHolderReal * resL(:,ii)
       end do
 
       ! (A-B)|L_n> for all n=1,..,nExc
@@ -1368,12 +1368,12 @@ contains
 
       ! calc. norms of residual vectors to check for convergence
       do ii = 1, nExc
-        dummyReal = dot_product(resR(:,ii), resR(:,ii))
-        call assembleChunks(env, dummyReal)
-        vecNorm(ii) = dummyReal
-        dummyReal = dot_product(resL(:,ii), resL(:,ii))
-        call assembleChunks(env, dummyReal)
-        vecNorm(nExc+ii) = dummyReal
+        placeHolderReal = dot_product(resR(:,ii), resR(:,ii))
+        call assembleChunks(env, placeHolderReal)
+        vecNorm(ii) = placeHolderReal
+        placeHolderReal = dot_product(resL(:,ii), resL(:,ii))
+        call assembleChunks(env, placeHolderReal)
+        vecNorm(nExc+ii) = placeHolderReal
       end do
       didConverge = all(vecNorm < convThreshStrat)
 
@@ -1414,18 +1414,18 @@ contains
       enddo
 
       call incMemStratmann(subSpaceDim, subSpaceDim + newVec, vecB, vP, vM, mP, mM, mH, mMsqrt,&
-            & mMsqrtInv, dummyM, evalInt, evecL, evecR)
+            & mMsqrtInv, workspaceM, evalInt, evecL, evecR)
 
       iVec = 0
       do ii = 1, nExc
         if (vecNorm(ii) > convThreshStrat) then
           iVec = iVec + 1
-          dummyReal = sqrt(evalInt(ii))
-          dummyInt = subSpaceDim + iVec
+          placeHolderReal = sqrt(evalInt(ii))
+          placeHolderInt = subSpaceDim + iVec
 
           do jj = iGlobal, fGlobal
             myjj = jj - iGlobal + 1
-            vecB(myjj,dummyInt) = resR(myjj,ii) / (dummyReal - rpa%wij(jj))
+            vecB(myjj,placeHolderInt) = resR(myjj,ii) / (placeHolderReal - rpa%wij(jj))
           end do
 
         end if
@@ -1434,11 +1434,11 @@ contains
       do ii = 1, nExc
         if (vecNorm(nExc+ii) > convThreshStrat) then
           iVec = iVec + 1
-          dummyInt = subSpaceDim + iVec
+          placeHolderInt = subSpaceDim + iVec
 
           do jj = iGlobal, fGlobal
             myjj = jj - iGlobal + 1
-            vecB(myjj,dummyInt) = resL(myjj,ii) / (dummyReal - rpa%wij(jj))
+            vecB(myjj,placeHolderInt) = resL(myjj,ii) / (placeHolderReal - rpa%wij(jj))
           end do
 
         end if

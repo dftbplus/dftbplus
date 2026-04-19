@@ -347,7 +347,7 @@ contains
     call buildNeighbourList()
 
     call getChildValue(root, "Analysis", tmp, "", child=child, list=.true., &
-        &allowEmptyValue=.true., dummyValue=.true.)
+        &allowEmptyValue=.true., dontMarkProcessed=.true.)
 
     if (associated(tmp)) then
       if (tPhonDispersion) then

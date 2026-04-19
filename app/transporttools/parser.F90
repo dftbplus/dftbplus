@@ -105,7 +105,7 @@ contains
 
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, &
-        &list=.true., allowEmptyValue=.true., dummyValue=.true.)
+        &list=.true., allowEmptyValue=.true., dontMarkProcessed=.true.)
     call readParserOptions(child, root, parserFlags)
 
     ! Read in the different blocks

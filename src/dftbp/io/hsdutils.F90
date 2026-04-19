@@ -1738,7 +1738,7 @@ contains
   !> Caveat: If allowEmptyValue is set to .true. and the child has no subnodes (empty value) then
   !> the returned value is an unassociated pointer
   subroutine getChVal_node(node, name, variableValue, default, modifier, child, list, &
-      & allowEmptyValue, dummyValue)
+      & allowEmptyValue, dontMarkProcessed)
 
     !> The node to investigate.
     type(fnode), pointer :: node
@@ -1768,11 +1768,11 @@ contains
     logical, intent(in), optional :: allowEmptyValue
 
     !> If true, the value is not marked as processed.
-    logical, intent(in), optional :: dummyValue
+    logical, intent(in), optional :: dontMarkProcessed
 
     type(string) :: modif
     type(fnode), pointer :: child2
-    logical :: tList, tAllowEmptyVal, tDummyValue
+    logical :: tList, tAllowEmptyVal, shouldMarkProcessed
 
     @:ASSERT(associated(node))
   #:block DEBUG_CODE
@@ -1794,10 +1794,10 @@ contains
     else
       tAllowEmptyVal = .false.
     end if
-    if (present(dummyValue)) then
-      tDummyValue = dummyValue
+    if (present(dontMarkProcessed)) then
+      shouldMarkProcessed = dontMarkProcessed
     else
-      tDummyValue = .false.
+      shouldMarkProcessed = .false.
     end if
 
     child2 => getFirstChildByName(node, tolower(name))
@@ -1828,7 +1828,7 @@ contains
     else
       call detailedError(node, MSG_MISSING_FIELD // name)
     end if
-    if (associated(variableValue) .and. .not. tDummyValue) then
+    if (associated(variableValue) .and. .not. shouldMarkProcessed) then
       if (getNodeType(variableValue) == ELEMENT_NODE) then
         call setAttribute(variableValue, attrProcessed, "")
       end if

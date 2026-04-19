@@ -162,7 +162,7 @@ module dftbp_dftbplus_initprogram
 
 #:if not WITH_TRANSPORT
 
-  !> Dummy type for negf interface
+  !> Placeholder type for negf interface
   type :: TNegfInt
   end type TNegfInt
 
@@ -1065,7 +1065,7 @@ module dftbp_dftbplus_initprogram
   #:endif
     type(TTransPar) :: transpar
 
-    !> Transport interface (may be dummy placeholder, if built without transport)
+    !> Transport interface (may be a placeholder, if built without transport)
     type(TNegfInt) :: negfInt
 
     !> Whether contact Hamiltonians are uploaded
@@ -2770,7 +2770,7 @@ contains
 
     ! Check for extended Born-Oppenheimer MD
     if (this%isXlbomd) then
-      if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%dummy) then
+      if (input%ctrl%thermostatInp%thermostatType /= thermostatTypes%none) then
         call error("XLBOMD does not work with thermostats yet")
       elseif (this%geometryChanges%tBarostat) then
         call error("XLBOMD does not work with barostats yet")
@@ -3297,7 +3297,7 @@ contains
 
     if (input%ctrl%tMd) then
       select case(input%ctrl%thermostatInp%thermostatType)
-      case (thermostatTypes%dummy)
+      case (thermostatTypes%none)
         if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)") 'MD without scaling of velocities',&
               & '(a.k.a. "NPE" ensemble)'
@@ -3559,7 +3559,7 @@ contains
     end if
     if (this%geometryChanges%tMd) then
       write(stdOut, "(A,':',T30,E14.6)") "Time step", this%deltaT
-      if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%dummy&
+      if (input%ctrl%thermostatInp%thermostatType == thermostatTypes%none&
           & .and. .not.input%ctrl%tReadMDVelocities) then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", input%ctrl%tempProfileInp%tempValues(1)
       end if
@@ -5056,8 +5056,7 @@ contains
     !> Input data for the socket.
     type(ipiSocketCommInp), intent(inout) :: socketInput
 
-
-    logical :: tDummy
+    logical :: isStopRequested
 
     if (env%tGlobalLead) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
@@ -5065,7 +5064,7 @@ contains
       this%socket = IpiSocketComm(socketInput)
     end if
     call receiveGeometryFromSocket(env, this%socket, this%tPeriodic, this%coord0, this%latVec,&
-        & this%tCoordsChanged, this%tLatticeChanged, tDummy)
+        & this%tCoordsChanged, this%tLatticeChanged, isStopRequested)
 
   end subroutine initSocket
 #:endif

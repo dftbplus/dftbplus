@@ -281,7 +281,7 @@ contains
 
 #:else
 
-  !> Dummy initializer in case code was compiled without ChIMES
+  !> Fake initializer, in case code was compiled without ChIMES
   subroutine TChimesRep_init()
   end subroutine TChimesRep_init
 

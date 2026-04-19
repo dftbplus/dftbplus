@@ -50,7 +50,7 @@ module dftbp_md_tempprofile
     !> The length of the intervals (in MD steps)
     integer, allocatable :: tempInts(:)
 
-    !> Target temperature for each interval (zeroth entry is dummy with staring temperature)
+    !> Target temperature for each interval (zeroth entry is placeholder with staring temperature)
     real(dp), allocatable :: tempValues(:)
 
   end type TTempProfileInput

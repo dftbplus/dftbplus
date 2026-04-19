@@ -3,7 +3,7 @@ set(curdir ${CMAKE_CURRENT_SOURCE_DIR})
 set(sources-fpp
   ${curdir}/andersentherm.F90
   ${curdir}/berendsentherm.F90
-  ${curdir}/dummytherm.F90
+  ${curdir}/notherm.F90
   ${curdir}/extlagrangian.F90
   ${curdir}/mdcommon.F90
   ${curdir}/mdintegrator.F90

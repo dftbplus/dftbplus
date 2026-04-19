@@ -7,8 +7,9 @@
 
 #:include 'common.fypp'
 
-!> Dummy thermostat, delivers only initial velocities according to the Maxwell-Boltzmann statistics.
-module dftbp_md_dummytherm
+!> No thermostat present, delivers only initial velocities according to the Maxwell-Boltzmann
+!! statistics.
+module dftbp_md_notherm
   use dftbp_common_accuracy, only : dp, minTemp
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_md_mdcommon, only : MaxwellBoltzmann, rescaleTokT, restFrame, TMDCommon
@@ -16,11 +17,11 @@ module dftbp_md_dummytherm
   implicit none
 
   private
-  public :: TDummyTherm, TDummyTherm_init
+  public :: TNoTherm, TNoTherm_init
 
 
-  !> Dummy thermostat
-  type, extends(TThermostat) :: TDummyTherm
+  !> No thermostat, just initial velocities
+  type, extends(TThermostat) :: TNoTherm
     private
 
     !> Nr. of atoms
@@ -40,20 +41,20 @@ module dftbp_md_dummytherm
 
   contains
 
-    procedure :: getInitVelocities => TDummyTherm_getInitVelocities
-    procedure :: updateVelocities => TDummyTherm_updateVelocities
-    procedure :: writeState => TDummyTherm_writeState
+    procedure :: getInitVelocities => TNoTherm_getInitVelocities
+    procedure :: updateVelocities => TNoTherm_updateVelocities
+    procedure :: writeState => TNoTherm_writeState
 
-  end type TDummyTherm
+  end type TNoTherm
 
 contains
 
 
-  !> Creates a DummyThermostat instance.
-  subroutine TDummyTherm_init(this, kT, mass, pRanlux, pMDFrame)
+  !> Creates a NoThermostat instance.
+  subroutine TNoTherm_init(this, kT, mass, pRanlux, pMDFrame)
 
     !> Initialized instance on exit
-    type(TDummyTherm), intent(out) :: this
+    type(TNoTherm), intent(out) :: this
 
     !> Temperature
     real(dp), intent(in) :: kT
@@ -74,14 +75,14 @@ contains
     call move_alloc(pRanlux, this%pRanlux)
     this%pMDFrame = pMDFrame
 
-  end subroutine TDummyTherm_init
+  end subroutine TNoTherm_init
 
 
   !> Returns the initial velocities.
-  subroutine TDummyTherm_getInitVelocities(this, velocities)
+  subroutine TNoTherm_getInitVelocities(this, velocities)
 
     !> Instance
-    class(TDummyTherm), intent(inout) :: this
+    class(TNoTherm), intent(inout) :: this
 
     !> Velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -100,30 +101,30 @@ contains
       velocities(:,:) = 0.0_dp
     end if
 
-  end subroutine TDummyTherm_getInitVelocities
+  end subroutine TNoTherm_getInitVelocities
 
 
   !> Updates velocities (does nothing in this case)
-  subroutine TDummyTherm_updateVelocities(this, velocities)
+  subroutine TNoTherm_updateVelocities(this, velocities)
 
     !> Instance
-    class(TDummyTherm), intent(inout) :: this
+    class(TNoTherm), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
-  end subroutine TDummyTherm_updateVelocities
+  end subroutine TNoTherm_updateVelocities
 
 
   !> Writes internals of thermostat (does nothing in this case)
-  subroutine TDummyTherm_writeState(this, fd)
+  subroutine TNoTherm_writeState(this, fd)
 
     !> Instance
-    class(TDummyTherm), intent(in) :: this
+    class(TNoTherm), intent(in) :: this
 
     !> File unit to write thermostat state out to
     integer, intent(in) :: fd
 
-  end subroutine TDummyTherm_writeState
+  end subroutine TNoTherm_writeState
 
-end module dftbp_md_dummytherm
+end module dftbp_md_notherm

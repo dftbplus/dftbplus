@@ -503,7 +503,7 @@ contains
     real(dp) :: rCell(3), rr(3)
     integer :: ii, iAtom1, oldIAtom1, iAtom2, startAtom, endAtom
     integer :: nn1, iAtom2End, pairError(2)
-    logical :: symm, isParallel, isSetupError
+    logical :: isSymm, isParallel, isSetupError
     real(dp), allocatable :: neighDist2(:,:)
     integer, allocatable :: indx(:), iNeighbour(:,:)
     character(len=100) :: strError
@@ -527,10 +527,8 @@ contains
     @:ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
     @:ASSERT(cutoff >= 0.0_dp)
 
-    symm = .false.
-    if (present(symmetric)) then
-      symm = symmetric
-    end if
+    isSymm = .false.
+    if (present(symmetric)) isSymm = symmetric
     neigh%cutoff = cutoff
     cutoff2 = cutoff**2
     nAllAtom = 0
@@ -564,9 +562,8 @@ contains
     ! No erroneous atom pair(s) at moment
     pairError(:) = 0
 
-    ! Loop over all possible neighbours for all atoms in the central cell.
-    ! Only those neighbours are considered which map on atom with a higher
-    ! or equal index in the central cell.
+    ! Loop over all possible neighbours for all atoms in the central cell.  Only those neighbours
+    ! are considered which map on atom with a higher or equal index in the central cell.
     ! Outer two loops: all atoms in all cells.
     ! Inner loop: all atoms in the central cell.
     lpCellVec: do ii = 1, nCellVec
@@ -580,7 +577,7 @@ contains
       oldIAtom1 = 0
       lpIAtom1: do iAtom1 = 1, nAtom
         rr(:) = coord0(:, iAtom1) + rCell(:)
-        if (symm) then
+        if (isSymm) then
           iAtom2End = nAtom
         else
           iAtom2End = iAtom1
@@ -602,10 +599,9 @@ contains
           if (dist2 > cutoff2) then
             cycle lpIAtom2
           end if
-          ! New interacting atom -> append
-          ! We need that before checking for interaction with dummy atom or
-          ! with itself to make sure that atoms in the central cell are
-          ! appended exactly in the same order as found in the coord0 array.
+          ! New interacting atom -> append We need that to make sure that atoms in the central cell
+          ! are appended exactly in the same order as found in the coord0 central cell array, before
+          ! then checking for interactions with itself or periodic images of atoms.
           if (iAtom1 /= oldIAtom1) then
             nAllAtom = nAllAtom + 1
             if (nAllAtom > mAtom) then

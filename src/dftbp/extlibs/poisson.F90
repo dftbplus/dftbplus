@@ -444,10 +444,10 @@ contains
     !> Gradients
     real(dp), intent(out) :: gradients(:,:)
 
-    real(dp), allocatable :: dummyArray(:,:)
+    real(dp), allocatable :: fakePotential(:,:)
 
-    allocate(dummyArray, mold=this%shellPot_)
-    call poiss_getshift_(env, dummyArray, gradients)
+    allocate(fakePotential, mold=this%shellPot_)
+    call poiss_getshift_(env, fakePotential, gradients)
 
   end subroutine getGradients
 
@@ -727,12 +727,12 @@ contains
 
 
   !> Interface subroutine to call Poisson
-  subroutine poiss_getshift_(env, V_L_atm,grad_V)
+  subroutine poiss_getshift_(env, V_L_atm, grad_V)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    !> potential for each shell at atom sites
+    !> Potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
 
     !> Gradient of potential

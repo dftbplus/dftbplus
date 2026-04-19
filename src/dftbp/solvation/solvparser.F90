@@ -423,7 +423,7 @@ contains
     !> Contains the input for the CM5 module on exit
     type(TCM5Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, dummy, child, field
+    type(fnode), pointer :: value1, child, field
     type(string) :: buffer, modifier
     real(dp), allocatable :: atomicRadDefault(:)
 
@@ -557,7 +557,7 @@ contains
     real(dp), allocatable, intent(out) :: vdwRad(:)
 
     type(string) :: buffer
-    type(fnode), pointer :: child, value1, dummy
+    type(fnode), pointer :: child, value1
     real(dp), allocatable :: vdwRadDefault(:)
 
     allocate(vdwRad(geo%nSpecies))

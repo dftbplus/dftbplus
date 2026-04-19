@@ -177,7 +177,7 @@ contains
     !> Is this a calculation with Pauli wavefunctions
     logical, intent(in) :: is2Component
 
-    type(fnode), pointer :: constrContainer, dummyNode, child1
+    type(fnode), pointer :: constrContainer, placeholderNode, child1
 
     call localiseName(node, "Optimizer", "Optimiser")
     call getChildValue(node, "Optimiser", child1, "FIRE")
@@ -187,8 +187,8 @@ contains
     call getChildValue(node, "MaxConstrIterations", input%nConstrIter, 100)
     call getChildValue(node, "ConvergentConstrOnly", input%isConvRequired, .true.)
 
-    call getChildValue(node, "Constraints", dummyNode, "", child=constrContainer,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+    call getChildValue(node, "Constraints", placeholderNode, "", child=constrContainer,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true., list=.true.)
     call readMullikenConstraintInputs(constrContainer, geo, isSpinPol, is2Component,&
         & input%mullikenConstrs)
 

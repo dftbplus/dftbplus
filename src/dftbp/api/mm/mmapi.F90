@@ -438,13 +438,13 @@ contains
     !> Instance.
     type(TDftbPlusInput), intent(out) :: input
 
-    type(fnode), pointer :: root, dummy
+    type(fnode), pointer :: root, placeholder
 
     call this%checkInit()
 
     input%hsdTree => createDocumentNode()
     root => createElement(rootTag)
-    dummy => appendChild(input%hsdTree, root)
+    placeholder => appendChild(input%hsdTree, root)
 
   end subroutine TDftbPlus_getEmptyInput
 

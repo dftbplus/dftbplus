@@ -16,7 +16,7 @@ module dftbp_elecsolvers_elecsolvertypes
   !> Namespace for possible electronic solver methods
   type :: TElecSolverTypesEnum
 
-    ! Dummy solver for non-initialized
+    ! Non-initialised solver
     integer :: none = 0
 
     ! lapack/scalapack solvers

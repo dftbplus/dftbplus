@@ -60,16 +60,14 @@ contains
     !! Distances of sphere origin to cell planes
     real(dp) :: distances(3)
 
-    !! Origin dummy
-    real(dp) :: origin(3)
+    !! Origin, unreferenced
+    real(dp), parameter :: origin(3) = 0.0_dp
 
     !! Auxiliary variable
     integer :: ii
 
     @:ASSERT(size(latVecs, dim=1) == 3)
     @:ASSERT(size(latVecs, dim=2) == 3)
-
-    origin(:) = 0.0_dp
 
     if (present(nK)) then
       @:ASSERT(size(nK) == 3)

@@ -56,6 +56,25 @@ module dftbp_elecsolvers_elsisolver
   public :: TElsiSolver, TElsiSolver_init, TElsiSolver_final
 
 
+  !> List of ELSI solvers from elsi_interface/src/elsi_constant.f90
+  type :: TElsiEnum
+    integer :: AUTO_SOLVER = 0
+    integer :: ELPA_SOLVER = 1
+    integer :: OMM_SOLVER = 2
+    integer :: PEXSI_SOLVER = 3
+    integer :: EIGENEXA_SOLVER = 4
+    integer :: SIPS_SOLVER = 5
+    integer :: NTPOLY_SOLVER = 6
+    integer :: MAGMA_SOLVER = 7
+    integer :: BSEPACK_SOLVER = 8
+    integer :: CHASE_SOLVER = 9
+    integer :: DLAF_SOLVER = 10
+  end type TElsiEnum
+
+  !> Actual values for ELSI solvers
+  type(TElsiEnum), parameter :: elsiEnum = TElsiEnum()
+
+
   !> Input data for the ELSI solvers
   type :: TElsiSolverInp
 
@@ -356,12 +375,12 @@ contains
     select case(this%iSolver)
 
     case (electronicSolverTypes%elpa)
-      this%solver = 1
+      this%solver = elsiEnum%ELPA_SOLVER
       ! ELPA is asked for all states
       this%nState = nBasisFn
 
     case (electronicSolverTypes%omm)
-      this%solver = 2
+      this%solver = elsiEnum%OMM_SOLVER
       ! OMM solves only over occupied space
       ! spin degeneracies for closed shell
       if (nSpin == 1) then
@@ -371,17 +390,17 @@ contains
       end if
 
     case (electronicSolverTypes%pexsi)
-      this%solver = 3
+      this%solver = elsiEnum%PEXSI_SOLVER
       ! ignored by PEXSI:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%ntpoly)
-      this%solver = 6
+      this%solver = elsiEnum%NTPOLY_SOLVER
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
     case (electronicSolverTypes%elpadm)
-      this%solver = 1
+      this%solver = elsiEnum%ELPA_SOLVER
       ! ignored by density matrix from ELPA, but set anyway:
       this%nState = nBasisFn
 
@@ -606,7 +625,7 @@ contains
 
     else
 
-      ! initialise solver
+      ! initialise ELSI library solver
 
       call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
           & this%nElectron, this%nState)

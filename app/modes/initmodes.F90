@@ -239,7 +239,7 @@ contains
     end do
 
     call getChildValue(root, "SlaterKosterFiles", value, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
+        & dontMarkProcessed=.true.)
     if (associated(value)) then
       allocate(skFiles(geo%nSpecies))
       do iSp1 = 1, geo%nSpecies
@@ -456,7 +456,7 @@ contains
     integer :: ii, jj, iAt
 
     call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+        & dontMarkProcessed=.true., list=.true.)
 
     ! Read individual atom specifications
     call getChildren(child, "Mass", children)

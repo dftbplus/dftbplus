@@ -1837,8 +1837,8 @@ contains
 
 
   !> Encapsulate memory expansion for Stratmann solver.
-  subroutine incMemStratmann(oldDim, newDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv, dummyM,&
-      & evalInt, evecL, evecR)
+  subroutine incMemStratmann(oldDim, newDim, vecB, vP, vM, mP, mM, mH, mMsqrt, mMsqrtInv,&
+      & workspaceM, evalInt, evecL, evecR)
 
     !> Previous size of subspace
     integer, intent(in) :: oldDim
@@ -1871,7 +1871,7 @@ contains
     real(dp), allocatable, intent(inout) :: mMsqrtInv(:,:)
 
     !> Work array
-    real(dp), allocatable, intent(inout) :: dummyM(:,:)
+    real(dp), allocatable, intent(inout) :: workspaceM(:,:)
 
     !> Internal eigenvector storage
     real(dp), allocatable, intent(inout) :: evalInt(:)
@@ -1890,7 +1890,7 @@ contains
     call incSizeMatBothDim(oldDim, newDim, mH)
     call incSizeMatBothDim(oldDim, newDim, mMsqrt)
     call incSizeMatBothDim(oldDim, newDim, mMsqrtInv)
-    call incSizeMatBothDim(oldDim, newDim, dummyM)
+    call incSizeMatBothDim(oldDim, newDim, workspaceM)
     call incSizeVec(oldDim, newDim, evalInt)
     call incSizeMatDimOne(oldDim, newDim, evecL)
     call incSizeMatDimOne(oldDim, newDim, evecR)

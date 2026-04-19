@@ -380,7 +380,7 @@ contains
     !> Data structure
     class(TDispMbd), intent(in) :: this
 
-    !> Result (dummy for most dispersion models)
+    !> Result (placeholder variable for most dispersion models)
     logical :: energyAvailable
 
     energyAvailable = this%energyUpdated

@@ -15,7 +15,7 @@ module dftbp_md_thermostats
   use dftbp_common_accuracy, only : dp
   use dftbp_md_andersentherm, only : TAndersenTherm, TAndersenTherm_init, TAndersenThermInput
   use dftbp_md_berendsentherm, only : TBerendsenTherm, TBerendsenTherm_init, TBerendsenThermInput
-  use dftbp_md_dummytherm, only : TDummyTherm, TDummyTherm_init
+  use dftbp_md_notherm, only : TNoTherm, TNoTherm_init
   use dftbp_md_nhctherm, only : TNhcTherm, TNhcTherm_init, TNhcThermInput
   use dftbp_md_thermostat, only : TThermostat
   implicit none
@@ -25,12 +25,12 @@ module dftbp_md_thermostats
   public :: createThermostat, TThermostat, TThermostatInput
   public :: TAndersenTherm, TAndersenTherm_init, TAndersenThermInput
   public :: TBerendsenTherm, TBerendsenTherm_init, TBerendsenThermInput
-  public :: TDummyTherm, TDummyTherm_init
+  public :: TNoTherm, TNoTherm_init
   public :: TNhcTherm, TNhcTherm_init, TNhcThermInput
 
 
   type :: TThermostatTypes_
-    integer :: dummy = 0
+    integer :: none = 0
     integer :: andersen = 1
     integer :: berendsen = 2
     integer :: nhc = 3
@@ -76,7 +76,7 @@ contains
     !> Time step for the MD simulation
     real(dp), intent(in) :: deltaT
 
-    type(TDummyTherm), allocatable :: dummyTherm
+    type(TNoTherm), allocatable :: noTherm
     type(TAndersenTherm), allocatable :: andersenTherm
     type(TBerendsenTherm), allocatable :: berendsenTherm
     type(TNHCTherm), allocatable :: nhcTherm
@@ -91,11 +91,11 @@ contains
         & ))
 
     select case (input%thermostatType)
-    case (thermostatTypes%dummy)
-      allocate(dummyTherm)
+    case (thermostatTypes%none)
+      allocate(noTherm)
       call pTempProfile%getTemperature(tempAtom)
-      call TDummyTherm_init(dummyTherm, tempAtom, masses, randomThermostat, pMdFrame)
-      call move_alloc(dummyTherm, thermostat)
+      call TNoTherm_init(noTherm, tempAtom, masses, randomThermostat, pMdFrame)
+      call move_alloc(noTherm, thermostat)
     case (thermostatTypes%andersen)
       allocate(andersenTherm)
       call TAndersenTherm_init(andersenTherm, input%andersen, randomThermostat, masses,&

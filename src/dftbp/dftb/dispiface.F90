@@ -166,7 +166,7 @@ module dftbp_dftb_dispiface
 
 contains
 
-  !> Update charges, dummy interface if not needed
+  !> Update charges, placeholder interface if not needed
   subroutine updateOnsiteCharges(this, qNetAtom, orb, referenceN0, species0, tCanUseCharges)
 
     !> Data structure
@@ -196,7 +196,7 @@ contains
     !> Data structure
     class(TDispersionIface), intent(in) :: this
 
-    !> Atomistic potential (dummy for most dispersion models)
+    !> Atomistic potential (placeholder for most dispersion models)
     real(dp), intent(inout) :: vDisp(:)
 
   end subroutine addPotential
@@ -208,7 +208,7 @@ contains
     !> Data structure
     class(TDispersionIface), intent(in) :: this
 
-    !> Result (dummy for most dispersion models)
+    !> Result (placeholder variable for most dispersion models)
     logical :: energyAvailable
 
     energyAvailable = .true.

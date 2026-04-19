@@ -988,13 +988,11 @@ contains
     integer :: ii
     integer, allocatable :: iAtMN(:,:)
 
-    !! Dummy array with zeros
-    real(dp) :: zeros(3)
+    !! Placeholder array with zeros
+    real(dp), parameter :: zeros(3) = 0.0_dp
 
     !! Iterates over g-vectors
     integer :: iG
-
-    zeros(:) = 0.0_dp
 
     nAtom0 = size(this%species0)
 
@@ -2877,16 +2875,14 @@ contains
     integer :: ii
     integer, allocatable :: compositeIndex(:,:)
 
-    !! Dummy array with zeros
-    real(dp) :: zeros(3)
+    !! Placeholder array with zeros
+    real(dp), parameter :: zeros(3) = 0.0_dp
 
     !! Number of k-points and spins
     integer :: nK, nS
 
     !! Number of k-point-spin compound indices
     integer :: nKS
-
-    zeros(:) = 0.0_dp
 
     tot(:,:,:) = (0.0_dp, 0.0_dp)
 

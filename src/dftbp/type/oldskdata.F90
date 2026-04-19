@@ -111,14 +111,14 @@ contains
     integer :: hybridXcType
 
     type(TFileDescr) :: file
-    character(lc) :: chDummy
+    character(lc) :: chPlaceholder
 
     !! Extended format for f orbitals
     logical :: tExtended
 
     integer :: nShell
     integer :: ii, iGrid
-    real(dp) :: rDummy
+    real(dp) :: rPlaceholder
     real(dp) :: coeffs(2:9), polyCutoff
     integer :: iostat
 
@@ -129,9 +129,9 @@ contains
     call checkIoError(iostat, fileName, "Unable to open file")
     rewind(file%unit)
 
-    read(file%unit, "(A1)", iostat=iostat) chDummy
+    read(file%unit, "(A1)", iostat=iostat) chPlaceholder
     call checkIoError(iostat, fileName, "Unable to read 1st line")
-    if (chDummy == "@") then
+    if (chPlaceholder == "@") then
       tExtended = .true.
       nShell = 4
     else
@@ -147,17 +147,17 @@ contains
       skData%skSelf(nShell+1:) = 0.0_dp
       skData%skHubbU(nShell+1:) = 0.0_dp
       skData%skOcc(nShell+1:) = 0.0_dp
-      read(file%unit, *, iostat=iostat) (skData%skSelf(ii), ii = nShell, 1, -1), rDummy,&
+      read(file%unit, *, iostat=iostat) (skData%skSelf(ii), ii = nShell, 1, -1), rPlaceholder,&
           & (skData%skHubbU(ii), ii = nShell, 1, -1), (skData%skOcc(ii), ii = nShell, 1, -1)
       call checkIoError(iostat, fileName, "Unable to read 2nd data line")
-      read(file%unit, *, iostat=iostat) skData%mass, (coeffs(ii), ii = 2, 9), polyCutoff, rDummy,&
-          & (rDummy, ii = 12, 20)
+      read(file%unit, *, iostat=iostat) skData%mass, (coeffs(ii), ii = 2, 9), polyCutoff,&
+          & rPlaceholder, (rPlaceholder, ii = 12, 20)
       call checkIoError(iostat, fileName, "Unable to read 3rd data line")
       ! convert to atomic units
       skData%mass = skData%mass * amu__au
     else
-      read(file%unit, *, iostat=iostat) rDummy, (coeffs(ii), ii = 2, 9), polyCutoff,&
-          & (rDummy, ii = 11, 20)
+      read(file%unit, *, iostat=iostat) rPlaceholder, (coeffs(ii), ii = 2, 9), polyCutoff,&
+          & (rPlaceholder, ii = 11, 20)
       call checkIoError(iostat, fileName, "Unable to read 1st data line")
     end if
 
@@ -191,9 +191,9 @@ contains
       call parseHybridXcTag(fileName, fp=file%unit, hybridXcType=hybridXcType,&
           & hybridXcSK=hybridXcSK)
       if (hybridXcType == hybridXcFunc%none) then
-        write(chDummy, "(A,A,A)") "Hybrid xc-functional calculation requested, but SK-file '",&
+        write(chPlaceholder, "(A,A,A)")"Hybrid xc-functional calculation requested, but SK-file '",&
             & trim(fileName), "' is not a suitable parametrization."
-        call error(chDummy)
+        call error(chPlaceholder)
       end if
     end if
 
@@ -224,7 +224,7 @@ contains
     integer :: iostat
 
     integer :: nint, ii, jj
-    character(lc) :: chdummy
+    character(lc) :: chplaceholder
     logical :: hasspline
     real(dp), allocatable :: xend(:)
 
@@ -232,19 +232,19 @@ contains
 
     ! Look for spline
     do
-      read(fp, "(A)", iostat=iostat) chdummy
+      read(fp, "(A)", iostat=iostat) chplaceholder
       if (iostat /= 0) then
         hasspline = .false.
         exit
-      elseif (chdummy == "Spline") then
+      elseif (chplaceholder == "Spline") then
         hasspline = .true.
         exit
       end if
     end do
 
     if (.not. hasspline) then
-      write(chdummy, "(A,A,A)") "No spline repulsive found in file '", trim(fname), "'"
-      call error(chdummy)
+      write(chplaceholder, "(A,A,A)") "No spline repulsive found in file '", trim(fname), "'"
+      call error(chplaceholder)
     end if
 
     read(fp, *, iostat=iostat) nint, splineRepInp%cutoff
@@ -268,12 +268,12 @@ contains
     do jj = 2, nint
       if (abs(xend(jj-1) - splineRepInp%xstart(jj)) > 1e-8_dp) then
         if (present(iSp1) .and. present(iSp2)) then
-          write(chdummy, "(A,I2,A,I2,A)") "Repulsive not continuous for species pair ",&
+          write(chplaceholder, "(A,I2,A,I2,A)") "Repulsive not continuous for species pair ",&
               & iSp1, "-", iSp2, "."
         else
-          write(chdummy, "(A)") "Repulsive not continuous."
+          write(chplaceholder, "(A)") "Repulsive not continuous."
         end if
-        call error(chdummy)
+        call error(chplaceholder)
       end if
     end do
 
@@ -303,7 +303,7 @@ contains
     integer :: iErr
 
     !! Temporary character storage
-    character(lc) :: strDummy, tag
+    character(lc) :: strPlaceholder, tag
 
     !! True, if hybrid xc-functional extra tag was found in SK-file
     logical :: isHybridXcTag
@@ -335,20 +335,20 @@ contains
 
     ! Seek hybrid xc-functional section in SK-file
     do
-      read(fd, "(A)", iostat=iErr) strDummy
+      read(fd, "(A)", iostat=iErr) strPlaceholder
       if (iErr /= 0) then
         isHybridXcTag = .false.
         exit
-      elseif (strDummy == "RangeSep") then
+      elseif (strPlaceholder == "RangeSep") then
         isHybridXcTag = .true.
         exit
       end if
     end do
 
     if (isHybridXcTag) then
-      read(fd, "(A)", iostat=iErr) strDummy
+      read(fd, "(A)", iostat=iErr) strPlaceholder
       call checkIoError(iErr, fname, "Error in reading hybrid xc-functional extra tag and method.")
-      read(strDummy, *, iostat=iErr) tag
+      read(strPlaceholder, *, iostat=iErr) tag
       call checkIoError(iErr, fname, "Error in reading hybrid xc-functional extra tag and method.")
 
       select case(tolower(trim(tag)))
@@ -357,9 +357,9 @@ contains
       case ("cam")
         hybridXcTag_ = hybridXcFunc%cam
       case default
-        write(strDummy, "(A,A,A)") "Unknown hybrid xc-functional method in SK-file '",&
+        write(strPlaceholder, "(A,A,A)") "Unknown hybrid xc-functional method in SK-file '",&
             & trim(fname), "'"
-        call error(strDummy)
+        call error(strPlaceholder)
       end select
     else
       hybridXcTag_ = hybridXcFunc%none
@@ -369,11 +369,11 @@ contains
     case (hybridXcFunc%lc)
       hybridXcSK_%camAlpha = 0.0_dp
       hybridXcSK_%camBeta = 1.0_dp
-      read(strDummy, *, iostat=iErr) tag, hybridXcSK_%omega
+      read(strPlaceholder, *, iostat=iErr) tag, hybridXcSK_%omega
       call checkIoError(iErr, fname, "Error in reading hybrid xc-functional parameters.")
       hybridXcType_ = hybridXcFunc%lc
     case (hybridXcFunc%cam)
-      read(strDummy, *, iostat=iErr) tag, hybridXcSK_%omega, hybridXcSK_%camAlpha,&
+      read(strPlaceholder, *, iostat=iErr) tag, hybridXcSK_%omega, hybridXcSK_%camAlpha,&
           & hybridXcSK_%camBeta
       call checkIoError(iErr, fname, "Error in reading hybrid xc-functional parameters.")
       if (abs(hybridXcSK_%camAlpha) < epsilon(1.0_dp)&
@@ -395,8 +395,8 @@ contains
     end select
 
     if (hybridXcSK_%omega < 0.0_dp) then
-      write(strDummy, "(A)") "Range-separation parameter is negative."
-      call error(strDummy)
+      write(strPlaceholder, "(A)") "Range-separation parameter is negative."
+      call error(strPlaceholder)
     end if
 
     if (.not. present(fp)) call closeFile(file)

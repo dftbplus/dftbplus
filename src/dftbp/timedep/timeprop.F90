@@ -58,7 +58,7 @@ module dftbp_timedep_timeprop
   use dftbp_math_matrixops, only : adjointLowerTriangle
   use dftbp_math_ranlux, only : TRanlux
   use dftbp_math_simplealgebra, only : determinant33, invert33
-  use dftbp_md_dummytherm, only : TDummyTherm, TDummyTherm_init
+  use dftbp_md_notherm, only : TNoTherm, TNoTherm_init
   use dftbp_md_mdcommon, only : TMDCommon, init
   use dftbp_md_mdintegrator, only : init, next, reset, state, TMDIntegrator
   use dftbp_md_thermostat, only : TThermostat
@@ -783,8 +783,8 @@ contains
     !> If calculation is periodic
     logical, intent(in) :: tPeriodic
 
-    !> Dummy thermostat object
-    type(TDummyTherm), allocatable :: pDummyTherm
+    !> Object when ther is no thermostat
+    type(TNoTherm), allocatable :: pNoTherm
 
     !> MD Framework
     type(TMDCommon), allocatable :: pMDFrame
@@ -977,10 +977,10 @@ contains
 
       allocate(pMDFrame)
       call init(pMDFrame, this%nMovedAtom, nAtom, tMDstill)
-      allocate(pDummyTherm)
-      call TDummyTherm_init(pDummyTherm, tempAtom, mass(this%indMovedAtom), randomThermostat,&
+      allocate(pNoTherm)
+      call TNoTherm_init(pNoTherm, tempAtom, mass(this%indMovedAtom), randomThermostat,&
           & pMDFrame)
-      call move_alloc(pDummyTherm, this%thermostat)
+      call move_alloc(pNoTherm, this%thermostat)
       allocate(this%derivator, source=nonSccDeriv)
     else
       if (this%tForces) then

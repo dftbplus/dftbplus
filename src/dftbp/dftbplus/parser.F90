@@ -153,7 +153,7 @@ contains
 
     type(TStatus) :: errStatus
     type(TOrbitals) :: orb
-    type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
+    type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, placeholder
     logical :: tReadAnalysis
     integer, allocatable :: implicitParserVersion
 
@@ -163,8 +163,8 @@ contains
     call getChild(hsdTree, rootTag, root)
 
     call handleInputVersion(root, implicitParserVersion)
-    call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
-        & allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(root, "ParserOptions", placeholder, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true.)
     call readParserOptions(child, root, parserFlags, implicitParserVersion)
 
     ! Read the geometry unless the list of atoms has been provided through the API
@@ -175,8 +175,8 @@ contains
     input%geom%areContactsPresent = .false.
 
     ! Hamiltonian settings that need to know settings from the REKS block
-    call getChildValue(root, "Reks", dummy, "None", child=child)
-    call readReks(child, dummy, input%ctrl, input%geom)
+    call getChildValue(root, "Reks", placeholder, "None", child=child)
+    call readReks(placeholder, child, input%ctrl, input%geom)
 
     call getChild(root, "Transport", child, requested=.false.)
 
@@ -239,8 +239,8 @@ contains
 
     if (tReadAnalysis) then
       ! Analysis of properties
-      call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true.,&
-          & allowEmptyValue=.true., dummyValue=.true.)
+      call getChildValue(root, "Analysis", placeholder, "", child=analysisNode, list=.true.,&
+          & allowEmptyValue=.true., dontMarkProcessed=.true.)
 
     #:if WITH_TRANSPORT
       call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
@@ -253,15 +253,15 @@ contains
 
     end if
 
-    call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true.,&
-        & allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(root, "ExcitedState", placeholder, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
     ! Hamiltonian settings that need to know about settings from the blocks above
     call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
-    call getChildValue(root, "Options", dummy, "", child=child, list=.true.,&
-        & allowEmptyValue=.true., dummyValue=.true.)
+    call getChildValue(root, "Options", placeholder, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true.)
     call readOptions(child, input%ctrl, input%geom)
 
     ! W values if needed by Hamiltonian or excited state calculation
@@ -295,7 +295,7 @@ contains
     !> Parser version corresponding to input version, or unallocated if none has been found
     integer, allocatable, intent(out) :: implicitParserVersion
 
-    type(fnode), pointer :: child, dummy
+    type(fnode), pointer :: child, placeholder
     type(string) :: versionString
 
     call getChild(root, "InputVersion", child, requested=.false.)
@@ -934,7 +934,7 @@ contains
       call getChildValue(pRoot, 'TransientSteps', input%nTransientSteps, 10)
       input%minSccIter = 1
       input%maxSccIter = 1
-      ! Dummy value as minSccIter and maxSccIter have been set to 1.
+      ! Placeholder value, as minSccIter and maxSccIter have been set to 1.
       input%sccTol = 1e-5_dp
       call getChildValue(pRoot, 'Scale', input%scale, 1.0_dp, child=pChild)
       if (input%scale <= 0.0_dp .or. input%scale > 1.0_dp) then
@@ -1063,7 +1063,7 @@ contains
     integer :: ii, jj, iAt
 
     call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+        & dontMarkProcessed=.true., list=.true.)
 
     ! Read individual atom specifications
     call getChildren(child, "Mass", children)
@@ -1321,7 +1321,7 @@ contains
     ! Which repulsive is defined by polynomial? (Default: None)
     allocate(repPoly(geom%nSpecies, geom%nSpecies))
     call getChildValue(node, "PolynomialRepulsive", value1, "", child=child, list=.true.,&
-        & allowEmptyValue=.true., dummyValue=.true.)
+        & allowEmptyValue=.true., dontMarkProcessed=.true.)
     call getNodeName2(value1, buffer)
     select case (char(buffer))
     case ("")
@@ -1585,7 +1585,7 @@ contains
 
       ! On-site
       call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
-          & dummyValue=.true.)
+          & dontMarkProcessed=.true.)
       if (associated(value1)) then
         allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geom%nSpecies))
         do iSp1 = 1, geom%nSpecies
@@ -1600,7 +1600,7 @@ contains
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
+        & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
@@ -1608,7 +1608,7 @@ contains
 
     ! Solvation
     call getChildValue(node, "Solvation", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
+        & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geom, ctrl%solvInp)
@@ -1617,7 +1617,7 @@ contains
 
     ! Electronic constraints
     call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+        & allowEmptyValue=.true., dontMarkProcessed=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
       call readElecConstraintInput(child, geom, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
@@ -1766,7 +1766,7 @@ contains
       ctrl%tbliteInp%info%name = trim(unquote(char(buffer)))
     else
       call getChildValue(node, "ParameterFile", value1, "", child=child, allowEmptyValue=.true.,&
-          & dummyValue=.true.)
+          & dontMarkProcessed=.true.)
       if (associated(value1)) then
         call getChildValue(child, "", buffer)
         paramFile = trim(unquote(char(buffer)))
@@ -1849,7 +1849,7 @@ contains
 
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
+        & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geom, ctrl%dispInp, ctrl%nrChrg, ctrl%tSCC)
@@ -1857,7 +1857,7 @@ contains
 
     ! Solvation
     call getChildValue(node, "Solvation", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
+        & dontMarkProcessed=.true.)
     if (associated(value1)) then
       allocate(ctrl%solvInp)
       call readSolvation(child, geom, ctrl%solvInp)
@@ -1889,7 +1889,7 @@ contains
 
     ! Electronic constraints
     call getChildValue(node, "ElectronicConstraints", value1, "", child=child,&
-        & allowEmptyValue=.true., dummyValue=.true., list=.true.)
+        & allowEmptyValue=.true., dontMarkProcessed=.true., list=.true.)
     if (associated(value1)) then
       allocate(ctrl%elecConstraintInp)
       call readElecConstraintInput(child, geom, ctrl%tSpin, ctrl%t2Component, ctrl%elecConstraintInp)
@@ -2179,7 +2179,7 @@ contains
     ctrl%isMdftb = .false.
     if (ctrl%tSCC) then
       call getChildValue(node, "Mdftb", value1, "None", child=child, allowEmptyValue=.true.,&
-          & dummyValue=.false.)
+          & dontMarkProcessed=.false.)
       if (associated(value1)) then
         call getNodeName(value1, buffer)
         select case(char(buffer))
@@ -2353,7 +2353,7 @@ contains
     type(TListInt) :: li
 
     call getChildValue(node, "ElectricField", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+        & dontMarkProcessed=.true., list=.true.)
 
     ! external applied field
     call getChild(child, "External", child2, requested=.false.)
@@ -3360,7 +3360,7 @@ contains
     integer :: ii, jj, iAt
 
     call getChildValue(node, "InitialCharges", val, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+        & dontMarkProcessed=.true., list=.true.)
 
     ! Read either all atom charges, or individual atom specifications
     call getChild(child, "AllAtomCharges", child2, requested=.false.)
@@ -3419,7 +3419,7 @@ contains
     @:ASSERT(nSpin == 1 .or. nSpin == 3)
 
     call getChildValue(node, "InitialSpins", val, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true., list=.true.)
+        & dontMarkProcessed=.true., list=.true.)
 
     ! Read either all atom spins, or individual spin specifications
     call getChild(child, "AllAtomSpins", child2, requested=.false.)
@@ -4062,7 +4062,7 @@ contains
     if (ctrl%tMD) then
       allocate(ctrl%mdOutput)
       call getChildValue(node, "MDOutput", value1, "", child=child, allowEmptyValue=.true.,&
-          & dummyValue=.true.)
+          & dontMarkProcessed=.true.)
       if (associated(value1)) then
         if (providesEigenvalues(ctrl%solver%isolver)) then
           call getChildValue(child, "AppendBandOut", ctrl%mdOutput%bandStructure, .false.)
@@ -4232,8 +4232,8 @@ contains
       allocate(rCutoffs(geom%nSpecies))
       allocate(tmp2R2(13, geom%nSpecies))
       do iSp1 = 1, geom%nSpecies
-        call getChildValue(value1, geom%speciesNames(iSp1), value2, &
-            &child=child2, dummyValue=.true.)
+        call getChildValue(value1, geom%speciesNames(iSp1), value2, child=child2,&
+            & dontMarkProcessed=.true.)
         call getChildValue(child2, "CovalentRadius", rCutoffs(iSp1), &
             &modifier=modifier2, child=child3)
         call convertUnitHsd(char(modifier2), lengthUnits, child3, &
@@ -5603,7 +5603,7 @@ contains
       end if
 
       if (ctrl%tMD) then
-        if (ctrl%thermostatInp%thermostatType /= thermostatTypes%dummy) then
+        if (ctrl%thermostatInp%thermostatType /= thermostatTypes%none) then
           call getChildValue(driverNode, "Thermostat", child, child=child2)
           if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
             call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
@@ -7847,13 +7847,13 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readReks(node, dummy, ctrl, geom)
+  subroutine readReks(node, child, ctrl, geom)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
 
-    !> Node to parse
-    type(fnode), pointer, intent(in) :: dummy
+    !> Node descendant
+    type(fnode), pointer, intent(in) :: child
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
@@ -7864,20 +7864,20 @@ contains
     type(string) :: buffer
 
     ! SSR(2,2) or SSR(4,4) stuff
-    call getNodeName(dummy, buffer)
+    call getNodeName(node, buffer)
 
     select case (char(buffer))
     case ("none")
       ctrl%reksInp%reksAlg = reksTypes%noReks
     case ("ssr22")
       ctrl%reksInp%reksAlg = reksTypes%ssr22
-      call readSSR22(dummy, ctrl, geom)
+      call readSSR22(node, ctrl, geom)
     case ("ssr44")
       ctrl%reksInp%reksAlg = reksTypes%ssr44
-      call detailedError(node, "SSR(4,4) is not implemented yet.")
+      call detailedError(child, "SSR(4,4) is not implemented yet.")
     case default
-      call getNodeHSDName(dummy, buffer)
-      call detailedError(node, "Invalid Algorithm '" // char(buffer) // "'")
+      call getNodeHSDName(node, buffer)
+      call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
     end select
 
   end subroutine readReks
@@ -8194,7 +8194,7 @@ contains
 
       ! Create a fake thermostat with a single constant temperature value
       ! It will only used to generate the initial velocities for the MD anyway.
-      thermostatInp%thermostatType = thermostatTypes%dummy
+      thermostatInp%thermostatType = thermostatTypes%none
       tempProfileInp%tempInts = [huge(1)]
       tempProfileInp%tempMethods = [tempProfileTypes%constant]
       tempProfileInp%tempValues = [minTemp]

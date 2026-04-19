@@ -376,9 +376,9 @@ module dftbp_dftb_dftd4param
     &             0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 5.4929_dp, & ! -Cn
     &  6.7286_dp, 6.5144_dp,10.9169_dp,10.3600_dp, 9.4723_dp, 8.6641_dp]   ! Nh-Og
 
-  integer :: iDummy
+  integer :: iElem
   real(dp), parameter :: sqrtZr4r2(maxElementD4) = &
-    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, maxElementD4)]))
+    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iElem, dp)), iElem=1, maxElementD4)]))
 
 
 contains
