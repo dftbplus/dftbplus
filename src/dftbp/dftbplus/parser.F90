@@ -2821,6 +2821,13 @@ contains
               & included without using the ELSI interface")
         end if
       #:endif
+      call getChildValue(value1, "UsePxgemm", ctrl%solver%elpa%usePxgemm, .false., child=child)
+      #:if not ELPA_HAS_PXGEMM
+        if (ctrl%solver%elpa%usePxgemm) then
+          call detailedError(child, "ELPA version 2025.01.001 or later is required in order to&
+              & use the matrix-matrix multiplication from ELPA")
+        end if
+      #:endif
 
       call getChild(value1, "RedistributeRanks", child=child, requested=.false.)
       if (associated(child)) then

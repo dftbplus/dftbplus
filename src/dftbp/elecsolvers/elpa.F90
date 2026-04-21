@@ -58,6 +58,9 @@ module dftbp_elecsolvers_elpa
     !> Explicit list of ranks to be used for redistribution
     integer, allocatable :: redistributeRanks(:)
 
+    !> Whether to use ELPA's pxgemm to replace some PBLAS calls
+    logical :: usePxgemm = .false.
+
   end type TElpaInp
 
 
@@ -73,6 +76,9 @@ module dftbp_elecsolvers_elpa
 
     !> Whether GPUs are enabled
     logical :: gpu = .false.
+
+    !> Whether to use ELPA's pxgemm to replace some PBLAS calls
+    logical, public :: usePxgemm = .false.
 
     !> Whether to print ELPA's timing information an the end
     logical :: printTimings = .false.
@@ -125,20 +131,26 @@ module dftbp_elecsolvers_elpa
     integer :: desc(DLEN_)
   #:endif
 
-    !> First matrix used for redistribution
+    !> First matrix used for redistribution and matrix-matrix multiplication
     real(dp), allocatable :: matrixReal1(:,:)
 
     !> Second matrix used for redistribution
     real(dp), allocatable :: matrixReal2(:,:)
 
+    !> Third matrix used for matrix-matrix multiplication
+    real(dp), allocatable :: matrixReal3(:,:)
+
     !> Eigenvector storage used for redistribution
     real(dp), allocatable :: eigenvectorsReal(:,:)
 
-    !> First matrix used for redistribution
+    !> First matrix used for redistribution and matrix-matrix multiplication
     complex(dp), allocatable :: matrixComplex1(:,:)
 
     !> Second matrix used for redistribution
     complex(dp), allocatable :: matrixComplex2(:,:)
+
+    !> Third matrix used for matrix-matrix multiplication
+    complex(dp), allocatable :: matrixComplex3(:,:)
 
     !> Eigenvector storage used for redistribution
     complex(dp), allocatable :: eigenvectorsComplex(:,:)
@@ -148,6 +160,9 @@ module dftbp_elecsolvers_elpa
     procedure, private :: TElpa_solveReal
     procedure, private :: TElpa_solveComplex
     generic :: solve => TElpa_solveReal, TElpa_solveComplex
+    procedure, private :: TElpa_pgemmReal
+    procedure, private :: TElpa_pgemmComplex
+    generic :: pgemm => TElpa_pgemmReal, TElpa_pgemmComplex
   #:if WITH_ELPA
     procedure, private :: setConfig => Telpa_setConfig
     procedure, private :: initConfig => Telpa_initConfig
@@ -196,6 +211,8 @@ contains
     if (status /= ELPA_OK) then
       call error("ELPA error: elpa_init failed")
     end if
+
+    this%usePxgemm = inp%usePxgemm
 
     if (inp%redistributeFactor /= 1 .or. allocated(inp%redistributeRanks)) then
       call this%initRedistribute(inp%redistributeFactor, inp%redistributeRanks, env%mpi%groupComm)
@@ -425,6 +442,9 @@ contains
       if (allocated(this%matrixReal2)) then
         deallocate(this%matrixReal2)
       end if
+      if (allocated(this%matrixReal3)) then
+        deallocate(this%matrixReal3)
+      end if
       if (allocated(this%eigenvectorsReal)) then
         deallocate(this%eigenvectorsReal)
       end if
@@ -433,6 +453,9 @@ contains
       end if
       if (allocated(this%matrixComplex2)) then
         deallocate(this%matrixComplex2)
+      end if
+      if (allocated(this%matrixComplex3)) then
+        deallocate(this%matrixComplex3)
       end if
       if (allocated(this%eigenvectorsComplex)) then
         deallocate(this%eigenvectorsComplex)
@@ -448,10 +471,7 @@ contains
 
     if (associated(this%handle)) then
       if (this%printTimings) then
-        call this%handle%print_times("ELPA generalized_eigenvectors")
-        if (this%redistributing) then
-          call this%handle%print_times("ELPA redistribute")
-        end if
+        call this%handle%print_times("ELPA")
       end if
 
       call elpa_deallocate(this%handle, status)
@@ -498,6 +518,10 @@ contains
     logical :: unfinished, previousStateExists
 
   #:if WITH_ELPA
+
+    if (this%joinElpaCalls) then
+      call this%handle%timer_start("ELPA")
+    end if
 
     previousStateExists = .false.
     if (this%autotuning .and. this%joinElpaCalls) then
@@ -555,21 +579,21 @@ contains
       end if
 
       if (this%joinElpaCalls) then
-        call this%handle%timer_start("ELPA redistribute")
+        call this%handle%timer_start("redistribute")
       end if
       call blacsfx_gemr2d(this%matrixSize, this%matrixSize, HSqr, 1, 1, this%descOrig,&
           & this%matrix${NAME}$1, 1, 1, this%desc, this%contextOrig)
       call blacsfx_gemr2d(this%matrixSize, this%matrixSize, SSqr, 1, 1, this%descOrig,&
           & this%matrix${NAME}$2, 1, 1, this%desc, this%contextOrig)
       if (this%joinElpaCalls) then
-        call this%handle%timer_stop("ELPA redistribute")
+        call this%handle%timer_stop("redistribute")
       end if
 
       if (this%joinElpaCalls) then
-        call this%handle%timer_start("ELPA generalized_eigenvectors")
+        call this%handle%timer_start("generalized_eigenvectors")
         call this%handle%generalized_eigenvectors(this%matrix${NAME}$1, this%matrix${NAME}$2,&
             & eigenVals, this%eigenvectors${NAME}$, hasCholesky, status)
-        call this%handle%timer_stop("ELPA generalized_eigenvectors")
+        call this%handle%timer_stop("generalized_eigenvectors")
 
         if (status /= ELPA_OK) then
           call error("ELPA error: generalized_eigenvectors failed")
@@ -577,7 +601,7 @@ contains
       end if
 
       if (this%joinElpaCalls) then
-        call this%handle%timer_start("ELPA redistribute")
+        call this%handle%timer_start("redistribute")
       end if
       if (.not. hasCholesky) then
         call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%matrix${NAME}$2, 1, 1,&
@@ -587,17 +611,21 @@ contains
           & this%desc, eigenVecs, 1, 1, this%descOrig, this%contextOrig)
       call mpifx_bcast(this%groupComm, eigenVals, this%redistributeLead)
       if (this%joinElpaCalls) then
-        call this%handle%timer_stop("ELPA redistribute")
+        call this%handle%timer_stop("redistribute")
       end if
     else
-      call this%handle%timer_start("ELPA generalized_eigenvectors")
+      call this%handle%timer_start("generalized_eigenvectors")
       call this%handle%generalized_eigenvectors(HSqr, SSqr, eigenVals, eigenVecs, hasCholesky,&
           & status)
-      call this%handle%timer_stop("ELPA generalized_eigenvectors")
+      call this%handle%timer_stop("generalized_eigenvectors")
 
       if (status /= ELPA_OK) then
         call error("ELPA error: generalized_eigenvectors failed")
       end if
+    end if
+
+    if (this%joinElpaCalls) then
+      call this%handle%timer_stop("ELPA")
     end if
 
   #:else
@@ -607,7 +635,118 @@ contains
   #:endif
 
   end subroutine TElpa_solve${NAME}$
-#:endfor
 
+
+  !> Matrix-matrix multiplication (${DTYPE}$ case)
+  subroutine TElpa_pgemm${NAME}$(this, a, b, c, transa, transb)
+
+    !> Instance
+    class(TElpa), intent(inout) :: this
+
+    !> Matrix A
+    ${DTYPE}$(dp), intent(in) :: a(:,:)
+
+    !> Matrix B
+    ${DTYPE}$(dp), intent(in) :: b(:,:)
+
+    !> Matrix C = A * B
+    ${DTYPE}$(dp), intent(out) :: c(:,:)
+
+    !> Whether A should be unchanged ('N'), transposed ('T') or transposed conjugated ('C')
+    character, intent(in), optional :: transa
+
+    !> Whether B should be unchanged ('N'), transposed ('T') or transposed conjugated ('C')
+    character, intent(in), optional :: transb
+
+    integer :: status
+    character :: transa0, transb0
+
+  #:if WITH_ELPA and ELPA_HAS_PXGEMM
+
+    if (present(transa)) then
+      transa0 = transa
+    else
+      transa0 = 'N'
+    end if
+
+    if (present(transb)) then
+      transb0 = transb
+    else
+      transb0 = 'N'
+    end if
+
+    if (this%joinElpaCalls) then
+      call this%handle%timer_start("ELPA")
+    end if
+
+    if (this%redistributing) then
+      if (.not. allocated(this%matrix${NAME}$1)) then
+        allocate(this%matrix${NAME}$1(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+
+      if (.not. allocated(this%matrix${NAME}$3)) then
+        allocate(this%matrix${NAME}$3(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+
+      if (.not. allocated(this%eigenvectors${NAME}$)) then
+        allocate(this%eigenvectors${NAME}$(this%matrixLocalRows, this%matrixLocalColumns))
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("redistribute")
+      end if
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, a, 1, 1, this%descOrig,&
+          & this%eigenvectors${NAME}$, 1, 1, this%desc, this%contextOrig)
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, b, 1, 1, this%descOrig,&
+          & this%matrix${NAME}$1, 1, 1, this%desc, this%contextOrig)
+      if (this%joinElpaCalls) then
+        call this%handle%timer_stop("redistribute")
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("pxgemm_multiply")
+        call this%handle%pxgemm_multiply(transa0, transb0, this%matrixSize,&
+            & this%eigenvectors${NAME}$, this%matrix${NAME}$1, this%matrixLocalRows,&
+            & this%matrixLocalColumns, this%matrix${NAME}$3, this%matrixLocalRows,&
+            & this%matrixLocalColumns, status)
+        call this%handle%timer_stop("pxgemm_multiply")
+
+        if (status /= ELPA_OK) then
+          call error("ELPA error: pxgemm_multiply failed")
+        end if
+      end if
+
+      if (this%joinElpaCalls) then
+        call this%handle%timer_start("redistribute")
+      end if
+      call blacsfx_gemr2d(this%matrixSize, this%matrixSize, this%matrix${NAME}$3, 1, 1,&
+          & this%desc, c, 1, 1, this%descOrig, this%contextOrig)
+      if (this%joinElpaCalls) then
+        call this%handle%timer_stop("redistribute")
+      end if
+    else
+      call this%handle%timer_start("pxgemm_multiply")
+      call this%handle%pxgemm_multiply(transa0, transb0, this%matrixSize,&
+          & a, b, this%matrixLocalRows,&
+          & this%matrixLocalColumns, c, this%matrixLocalRows,&
+          & this%matrixLocalColumns, status)
+      call this%handle%timer_stop("pxgemm_multiply")
+
+      if (status /= ELPA_OK) then
+        call error("ELPA error: pxgemm_multiply failed")
+      end if
+    end if
+
+    if (this%joinElpaCalls) then
+      call this%handle%timer_stop("ELPA")
+    end if
+
+  #:else
+    c(:,:) = 0._dp
+    call error("Internal error: TElpa_pgemm${NAME}$() called despite missing ELPA support")
+  #:endif
+
+  end subroutine TElpa_pgemm${NAME}$
+#:endfor
 
 end module dftbp_elecsolvers_elpa

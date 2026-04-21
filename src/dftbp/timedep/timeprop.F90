@@ -1171,7 +1171,7 @@ contains
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Holds density matrix generation settings and real-space delta density matrix
-    type(TDensityMatrix), intent(in) :: densityMatrix
+    type(TDensityMatrix), intent(inout) :: densityMatrix
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -1353,7 +1353,7 @@ contains
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Holds density matrix generation settings and real-space delta density matrix
-    type(TDensityMatrix), intent(in) :: densityMatrix
+    type(TDensityMatrix), intent(inout) :: densityMatrix
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2328,7 +2328,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Holds density matrix generation settings and real-space delta density matrix
-    type(TDensityMatrix), intent(in) :: densityMatrix
+    type(TDensityMatrix), intent(inout) :: densityMatrix
 
     !> Density matrix
     complex(dp), intent(inout) :: rho(:,:,:)
@@ -4577,7 +4577,7 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     !> Holds density generation settings and real-space delta density matrix
-    type(TDensityMatrix), intent(in) :: densityMatrix
+    type(TDensityMatrix), intent(inout) :: densityMatrix
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
