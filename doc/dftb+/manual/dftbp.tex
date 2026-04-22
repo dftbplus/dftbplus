@@ -5437,6 +5437,23 @@ Example:
   }
 \end{verbatim}
 
+{\bf EachAtom mode:} if \kw{EachAtom} is defined, a separate region for each atom
+is automatically created, and the projected density of states is computed for for each
+specified atom individually. In this mode, a single \iscb{Region} block must be specified
+containing the \is{Atoms} specification. Each atom specified will generate a separate
+output file with its corresponding projected density of states.
+
+Usage example:
+\begin{verbatim}
+  ProjectStates = EachAtom {
+    Region {
+      Atoms = 1:80
+    }
+  }
+\end{verbatim}
+This will treat each atom from 1 to 80 as an individual region. The atom
+specification supports the same syntax as in regular Region blocks.
+
 \subsection{Localise / Localize}
 \label{sec:dftbp.Localise} Convert the single particle states of the calculation
 to localised orbitals via a unitary transformation. Localised orbitals span the
