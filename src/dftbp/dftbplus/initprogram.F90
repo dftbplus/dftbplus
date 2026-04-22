@@ -6082,10 +6082,6 @@ contains
           & evaluation for periodic systems beyond the Gamma-point.")
     end if
 
-    if (this%tSpinOrbit) then
-      call error("Hybrid calculations not currently implemented for spin orbit coupling.")
-    end if
-
     if (this%isXlbomd) then
       call error("Hybrid calculations not currently implemented for XLBOMD.")
     end if
