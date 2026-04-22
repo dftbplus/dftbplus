@@ -1005,6 +1005,18 @@ conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
   block follow the same syntax as a \dftbp{} calculation without transport (see
   section~\ref{sec:dftbp.ProjectStates}). If \is{Region} is absent the default
   behaviour is to compute the projected DOS on the whole central region.
+
+  By using the \kw{EachAtom} option, the LDOS will be computed and
+  output separately for each specified atom. Usage example:
+  \begin{verbatim}
+  Region = EachAtom {
+    Atoms = 1:80
+  }
+  \end{verbatim}
+  This will treat each atom from 1 to 80 as an individual region. The atom
+  specification can use ranges (e.g., \verb|1:80|), lists (e.g., \verb|1 2 3|),
+  or species specifications (e.g., \verb|C|). This is particularly useful for
+  analyzing atom-resolved properties in extended systems.
 \item[\is{ComputeLDOS}] Change the default bahaviour of projected DOS calculation.
   When set to No, PDOS is not computed. In the case of two contacts
   the code can exploit a fast and less memory consuming algorithm for transmission.

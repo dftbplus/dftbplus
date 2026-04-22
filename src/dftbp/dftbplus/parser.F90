@@ -5223,15 +5223,17 @@ contains
     type(TNEGFTunDos), intent(inout) :: tundos
   #:endif
 
-    type(fnode), pointer :: val, child, child2, child3
+    type(fnode), pointer :: val, child, child2, child3, child4
     type(fnodeList), pointer :: children
-    integer, allocatable :: pTmpI1(:)
+    integer, allocatable :: pTmpI1(:), pTmpI2(:)
     type(string) :: buffer, modifier
     integer :: nReg, iReg
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
     logical :: tPipekDense
-    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix, isEtaNeeded
+    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
+    logical :: isEtaNeeded
+    logical :: tUseEachAtom
 
     ! Default range of atoms to move (may be adjusted if contacts present)
     character(mc) :: atomsRange
@@ -5247,44 +5249,99 @@ contains
 
     if (tHaveEigenDecomposition) then
 
-      call getChildValue(node, "ProjectStates", val, "", child=child, allowEmptyValue=.true.,&
-          & list=.true.)
-      call getChildren(child, "Region", children)
-      nReg = getLength(children)
-      ctrl%tProjEigenvecs = (nReg > 0)
-      if (ctrl%tProjEigenvecs) then
-        allocate(ctrl%tShellResInRegion(nReg))
-        allocate(ctrl%tOrbResInRegion(nReg))
-        allocate(ctrl%RegionLabel(nReg))
-        call init(ctrl%iAtInRegion)
-        do iReg = 1, nReg
-          call getItem1(children, iReg, child2)
-          call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
-          call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species, pTmpI1)
-          call append(ctrl%iAtInRegion, pTmpI1)
-          call getChildValue(child2, "ShellResolved", ctrl%tShellResInRegion(iReg), .false.,&
-              & child=child3)
-          if (ctrl%tShellResInRegion(iReg)) then
-            if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
-              call detailedError(child3, "Shell resolved PDOS only allowed for &
-                  &regions where all atoms belong to the same species")
-            end if
+      ! Determine if "EachAtom" mode is being used by checking for a child node
+      call getChild(node, "ProjectStates", child, requested=.false.)
+      if (associated(child)) then
+
+        call getChild(child, "EachAtom", child2, requested=.false.)
+        if (associated(child2)) then
+          tUseEachAtom = .true.
+          call getChildren(child2, "Region", children)
+        else
+          tUseEachAtom = .false.
+          call getChildren(child, "Region", children)
+        end if
+
+        if (tUseEachAtom) then
+
+          nReg = getLength(children)
+          if (nReg == 0) then
+            call detailedError(child2, "ProjectStates = EachAtom requires exactly one Region&
+                & block defining the atoms to process (e.g., Atoms = 1:-1 for all atoms)")
+          else if (nReg > 1) then
+            call detailedError(child2, "ProjectStates = EachAtom can only have one encompassing&
+                & Region block. Found " // i2c(nReg) // " Region blocks.")
           end if
-          call getChildValue(child2, "OrbitalResolved", ctrl%tOrbResInRegion(iReg), .false.,&
-              & child=child3)
-          if (ctrl%tOrbResInRegion(iReg)) then
-            if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
-              call detailedError(child3, "Orbital resolved PDOS only allowed for regions where all&
-                  & atoms belong to the same species")
-            end if
+
+          call getItem1(children, 1, child3)
+          call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
+          call getSelectedAtomIndices(child4, char(buffer), geom%speciesNames, geom%species, pTmpI1)
+
+          nReg = size(pTmpI1)
+          ctrl%tProjEigenvecs = (nReg > 0)
+          if (ctrl%tProjEigenvecs) then
+            allocate(ctrl%tShellResInRegion(nReg))
+            allocate(ctrl%tOrbResInRegion(nReg))
+            allocate(ctrl%RegionLabel(nReg))
+            call init(ctrl%iAtInRegion)
+
+            do iReg = 1, nReg
+              ! For each atom in the encompassing region, create a single-atom region
+              allocate(pTmpI2(1))
+              pTmpI2(1) = pTmpI1(iReg)
+              call append(ctrl%iAtInRegion, pTmpI2)
+              deallocate(pTmpI2)
+              ctrl%tShellResInRegion(iReg) = .false.
+              ctrl%tOrbResInRegion(iReg) = .false.
+              write(strTmp, "(I0)") pTmpI1(iReg)
+              ctrl%RegionLabel(iReg) = trim(strTmp)
+            end do
           end if
           deallocate(pTmpI1)
-          write(strTmp, "('region',I0)") iReg
-          call getChildValue(child2, "Label", buffer, trim(strTmp))
-          ctrl%RegionLabel(iReg) = unquote(char(buffer))
-        end do
+
+        else
+
+          call getChildren(child, "Region", children)
+          nReg = getLength(children)
+          ctrl%tProjEigenvecs = (nReg > 0)
+          if (ctrl%tProjEigenvecs) then
+            allocate(ctrl%tShellResInRegion(nReg))
+            allocate(ctrl%tOrbResInRegion(nReg))
+            allocate(ctrl%RegionLabel(nReg))
+            call init(ctrl%iAtInRegion)
+            do iReg = 1, nReg
+              call getItem1(children, iReg, child2)
+              call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
+              call getSelectedAtomIndices(child3, char(buffer), geom%speciesNames, geom%species,&
+                  & pTmpI1)
+              call append(ctrl%iAtInRegion, pTmpI1)
+              call getChildValue(child2, "ShellResolved", ctrl%tShellResInRegion(iReg), .false.,&
+                  & child=child3)
+              if (ctrl%tShellResInRegion(iReg)) then
+                if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
+                  call detailedError(child3, "Shell resolved PDOS only allowed for &
+                      &regions where all atoms belong to the same species")
+                end if
+              end if
+              call getChildValue(child2, "OrbitalResolved", &
+                  & ctrl%tOrbResInRegion(iReg), .false., child=child3)
+              if (ctrl%tOrbResInRegion(iReg)) then
+                if (.not. all(geom%species(pTmpI1) == geom%species(pTmpI1(1)))) then
+                  call detailedError(child3, "Orbital resolved PDOS only allowed for &
+                      &regions where all atoms belong to the same species")
+                end if
+              end if
+              deallocate(pTmpI1)
+              write(strTmp, "('region',I0)") iReg
+              call getChildValue(child2, "Label", buffer, trim(strTmp))
+              ctrl%RegionLabel(iReg) = unquote(char(buffer))
+            end do
+          end if
+
+        end if
+
+        call destroyNodeList(children)
       end if
-      call destroyNodeList(children)
 
       call localiseName(node, "Localize", "Localise")
       call getChild(node, "Localise", child=val, requested=.false.)
@@ -7387,53 +7444,96 @@ contains
     character(lc), allocatable, intent(out) :: regionLabels(:)
 
     integer :: nReg, iReg
-    integer, allocatable :: tmpI1(:)
+    integer, allocatable :: tmpI1(:), pTmpI1(:), pTmpI2(:)
     type(fnodeList), pointer :: children
-    type(fnode), pointer :: child, child2
+    type(fnode), pointer :: regionNode, eachAtomNode, child, child2, child3
     type(string) :: buffer
     character(lc) :: strTmp
-    logical :: do_ldos
+    logical :: do_ldos, tUseEachAtom
 
-    call getChildren(node, "Region", children)
-    nReg = getLength(children)
-
-    if (nReg == 0) then
-      call getChildValue(node, "ComputeLDOS", do_ldos, .true.)
-      if (do_ldos) then
-        write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
-        call setChild(node, "Region", child)
-        call setChildValue(child, "Atoms", trim(strTmp))
-        call setChildValue(child, "Label", "localDOS")
-        call destroyNodeList(children)
-        call getChildren(node, "Region", children)
-        nReg = getLength(children)
-      else
-        return
+    ! Determine if "EachAtom" mode is being used by checking for it within the Region node
+    tUseEachAtom = .false.
+    call getChild(node, "Region", regionNode, requested=.false.)
+    if (associated(regionNode)) then
+      call getChild(regionNode, "EachAtom", eachAtomNode, requested=.false.)
+      if (associated(eachAtomNode)) then
+        tUseEachAtom = .true.
       end if
     end if
 
-    allocate(tShellResInRegion(nReg))
-    allocate(regionLabels(nReg))
-    allocate(iAtInRegion(nReg))
-    do iReg = 1, nReg
-      call getItem1(children, iReg, child)
-      call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
+    if (tUseEachAtom) then
+      ! EachAtom mode: Region = EachAtom { Atoms = ... }
+      call getChildValue(eachAtomNode, "Atoms", buffer, child=child2, multiple=.true.)
+      if (.not. associated(child2)) then
+        call detailedError(eachAtomNode, "EachAtom requires an 'Atoms' specification")
+      end if
       call getSelectedAtomIndices(child2, char(buffer), geom%speciesNames,&
-          & geom%species(idxdevice(1) : idxdevice(2)), tmpI1,&
+          & geom%species(idxdevice(1) : idxdevice(2)), pTmpI1,&
           & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geom%nAtom])
-      iAtInRegion(iReg)%data = tmpI1
-      call getChildValue(child, "ShellResolved", tShellResInRegion(iReg), .false., child=child2)
-      if (tShellResInRegion(iReg)) then
-        if (.not. all(geom%species(tmpI1) == geom%species(tmpI1(1)))) then
-          call detailedError(child2, "Shell resolved PDOS can only summed up over atoms of the same&
-              & type")
+
+      nReg = size(pTmpI1)
+      allocate(tShellResInRegion(nReg))
+      allocate(regionLabels(nReg))
+      allocate(iAtInRegion(nReg))
+
+      do iReg = 1, nReg
+        ! For each atom in the encompassing region, create a single-atom region
+        allocate(pTmpI2(1))
+        pTmpI2(1) = pTmpI1(iReg)
+        iAtInRegion(iReg)%data = pTmpI2
+        deallocate(pTmpI2)
+        tShellResInRegion(iReg) = .false.
+        write(strTmp, "(I0)") pTmpI1(iReg)
+        regionLabels(iReg) = trim(strTmp)
+      end do
+      deallocate(pTmpI1)
+
+    else
+
+      ! Normal mode: support multiple Region blocks (backward compatible)
+      call getChildren(node, "Region", children)
+      nReg = getLength(children)
+
+      if (nReg == 0) then
+        call getChildValue(node, "ComputeLDOS", do_ldos, .true.)
+        if (do_ldos) then
+          write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
+          call setChild(node, "Region", child)
+          call setChildValue(child, "Atoms", trim(strTmp))
+          call setChildValue(child, "Label", "localDOS")
+          call destroyNodeList(children)
+          call getChildren(node, "Region", children)
+          nReg = getLength(children)
+        else
+          return
         end if
       end if
-      write(strTmp, "('region',I0)") iReg
-      call getChildValue(child, "Label", buffer, trim(strTmp))
-      regionLabels(iReg) = unquote(char(buffer))
-    end do
-    call destroyNodeList(children)
+
+      allocate(tShellResInRegion(nReg))
+      allocate(regionLabels(nReg))
+      allocate(iAtInRegion(nReg))
+      do iReg = 1, nReg
+        call getItem1(children, iReg, child)
+        call getChildValue(child, "Atoms", buffer, child=child2, multiple=.true.)
+        call getSelectedAtomIndices(child2, char(buffer), geom%speciesNames,&
+            & geom%species(idxdevice(1) : idxdevice(2)), tmpI1,&
+            & selectionRange=[idxdevice(1), idxdevice(2)], indexRange=[1, geom%nAtom])
+        iAtInRegion(iReg)%data = tmpI1
+        call getChildValue(child, "ShellResolved", tShellResInRegion(iReg), .false., child=child2)
+        if (tShellResInRegion(iReg)) then
+          if (.not. all(geom%species(tmpI1) == geom%species(tmpI1(1)))) then
+            call detailedError(child2, "Shell resolved PDOS can only summed up over atoms of the&
+                & same type")
+          end if
+        end if
+        write(strTmp, "('region',I0)") iReg
+        call getChildValue(child, "Label", buffer, trim(strTmp))
+        regionLabels(iReg) = unquote(char(buffer))
+      end do
+
+      call destroyNodeList(children)
+
+    end if
 
   end subroutine readPDOSRegions
 
