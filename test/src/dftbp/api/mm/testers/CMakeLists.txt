@@ -31,6 +31,12 @@ if(WITH_C_EXECUTABLES)
   target_link_libraries(test_fileinitc dftbplus)
   set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
 
+  if (WITH_CXX)
+    add_executable(test_fileinitcpp test_fileinitcpp.cpp $<TARGET_OBJECTS:test_api_mm_utils>)
+    target_link_libraries(test_fileinitcpp dftbplus)
+    set_target_properties(test_fileinitcpp PROPERTIES LINKER_LANGUAGE CXX)
+  endif()
+
   if(WITH_MPI)
 
     include_directories(SYSTEM ${MPI_INCLUDE_PATH})

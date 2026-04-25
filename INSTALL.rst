@@ -16,7 +16,8 @@ In order to compile DFTB+, you need the following software components:
 
 * C compiler
 
-* C++ compiler (when built with ELSI/PEXSI or ChIMES support)
+* C++ compiler (when built with ELSI+PEXSI or ChIMES support or if
+  testing the API for C++)
 
 * CMake (version 3.22 or newer)
 
@@ -428,27 +429,28 @@ DFTB+ CMake library options
 See `config.cmake` for details, but the main configuration options for building
 are listed below.
 
-+-------------------------+---------+-----------------------------------------+
-|CMake option             |Default  |Notes                                    |
-+=========================+=========+=========================================+
-|-DBUILD_SHARED_LIBS      |N        |Build libdftbplus and other components as|
-|                         |         |shared libraries.                        |
-+-------------------------+---------+-----------------------------------------+
-|-DENABLE_DYNAMIC_LOADING |N        |Use shared libraries externally (where   |
-|                         |         |possible) for libdftbplus.               |
-+-------------------------+---------+-----------------------------------------+
-|-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe  |
-|                         |         |library (the build stops, if any         |
-|                         |         |non-instance-safe components have been   |
-|                         |         |selected)                                |
-+-------------------------+---------+-----------------------------------------+
-|-DWITH_API               |N        |Build the API bindings to use libdftbplus|
-|                         |         |externally.                              |
-+-------------------------+---------+-----------------------------------------+
-|-DWITH_PYTHON            |N        |Build the Python3 bindings for           |
-|                         |         |libdftbplus. Note that this should also  |
-|                         |         |be built for shared libraries.           |
-+-------------------------+---------+-----------------------------------------+
++-------------------------+---------+------------------------------------------+
+|CMake option             |Default  |Notes                                     |
++=========================+=========+==========================================+
+|-DBUILD_SHARED_LIBS      |N        |Build libdftbplus and other components as |
+|                         |         |shared libraries.                         |
++-------------------------+---------+------------------------------------------+
+|-DENABLE_DYNAMIC_LOADING |N        |Use shared libraries externally (where    |
+|                         |         |possible) for libdftbplus.                |
++-------------------------+---------+------------------------------------------+
+|-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe   |
+|                         |         |library (the build stops, if any          |
+|                         |         |non-instance-safe components have been    |
+|                         |         |selected)                                 |
++-------------------------+---------+------------------------------------------+
+|-DWITH_API               |N        |Build the API bindings to use libdftbplus |
+|                         |         |externally.  Note: -DWITH_CXX=Y enables   |
+|                         |         |testing of the API with a C++ code        |
++-------------------------+---------+------------------------------------------+
+|-DWITH_PYTHON            |N        |Build the Python3 bindings for            |
+|                         |         |libdftbplus. Note that this should also   |
+|                         |         |be built for shared libraries.            |
++-------------------------+---------+------------------------------------------+
 
 
 Linking the library in CMake based builds
