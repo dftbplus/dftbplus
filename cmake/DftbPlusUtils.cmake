@@ -66,7 +66,7 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
 
-  if(WITH_CXX)
+  if(WITH_CXX AND WITH_C_EXECUTABLES)
     list(APPEND _fyppflags -DWITH_CXX)
   endif()
 
