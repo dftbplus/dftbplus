@@ -4435,8 +4435,8 @@ contains
     allocate(T1(this%nOrbs,this%nOrbs))
     allocate(T2(this%nOrbs,this%nOrbs))
 
-    this%orbCurrents = 0.0_dp
-    this%atomCurrents = 0.0_dp
+    this%orbCurrents(:,:) = 0.0_dp
+    this%atomCurrents(:,:) = 0.0_dp
 
     do iKS = 1, this%parallelKS%nLocalKS
       iK = this%parallelKS%localKS(1, iKS)
@@ -4725,7 +4725,7 @@ contains
       if (this%iCall == 1) then
         allocate(this%tdFunction(3, 0:this%nSteps))
       end if
-      this%tdFunction = 0.0_dp                       !so H1 = H_gs
+      this%tdFunction(:,:) = 0.0_dp                       !so H1 = H_gs
       this%tdFunction(this%currPolDir,:) = -c * this%field
     end if
 
