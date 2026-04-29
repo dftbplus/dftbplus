@@ -20,6 +20,9 @@ extern "C" {
  * \param n_ext_charge[in]  Number of external charges in the system. Set it to zero,
  *     if no external charges are defined.
  *
+ * \param n_pot_locations[in]  Number of locations at which the potential is evaluated. Set it to
+ *     zero, if no positions are defined.
+ *
  * \param mermin_energy[in]  Mermin free energy
  *
  * \param gradients[in]  Pointer to the array with the gradients. Pass NULL if not available.
@@ -30,11 +33,14 @@ extern "C" {
  * \param gross_charges[in]  Pointer to the array with the gross charges. Pass NULL if not
  *     available.
  *
+ * \param ext_charges_gradients[in]  Pointer to the array with the gradients of the external charges
+ *     Pass NULL if not available.
+ *
  * \param cm5_charges[in]  Pointer to the array with the cm5 charges. Pass NULL if not
  *     available.
  *
- * \param ext_charges_gradients[in]  Pointer to the array with the gradients of the external charges
- *     Pass NULL if not available.
+ * \param potential[in]  Pointer to the array with evaluated potentials. Pass NULL if not
+ *     available.
  */
 void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, int n_pot_locations, double mermin_energy, double *gradients,
                               double *stress_tensor, double *gross_charges, double * ext_charge_gradients, double *potential,
