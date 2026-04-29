@@ -11,7 +11,15 @@
 #define __DFTBPLUS_API__ "@API_VERSION@"
 
 #ifdef __cplusplus
+
 extern "C" {
+
+#else
+
+#if __STDC_VERSION__ < 202311l
+#include <stdbool.h>
+#endif
+
 #endif
 
 /**
@@ -182,7 +190,7 @@ void dftbp_api(int *major, int *minor, int *patch);
  *
  * \return Whether API is instance safe.
  */
-_Bool dftbp_is_instance_safe();
+bool dftbp_is_instance_safe();
 
 
 /**
@@ -406,7 +414,7 @@ int dftbp_get_basis_size(DftbPlus *instance);
  *
  * \return If the system is described with real matrices
  */
-_Bool dftbp_is_hs_real(DftbPlus *instance);
+bool dftbp_is_hs_real(DftbPlus *instance);
 
 
 /**
