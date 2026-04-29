@@ -15,7 +15,8 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann, gfac,&
+  use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+      & gfac,&
       & Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
@@ -98,6 +99,7 @@ module dftbp_dftbplus_mainio
   public :: printReksSccHeader, printReksSccInfo
   public :: writeReksDetailedOut1
   public :: readEigenvecs
+  public :: writeExcitedStateForces
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -4425,7 +4427,7 @@ contains
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
       & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
-      & iLatGeoStep, nSpin, qOutput, velocities)
+      & iLatGeoStep, nSpin, qOutput, velocities, writeTrajectoryForces, derivs)
 
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
@@ -4481,8 +4483,13 @@ contains
     !> Atomic velocities
     real(dp), intent(in), allocatable :: velocities(:,:)
 
+    !> Should per-atom forces be printed in the trajectory
+    logical, intent(in) :: writeTrajectoryForces
+
+    !> Energy derivatives with respect to atomic coordinates
+    real(dp), intent(in), allocatable :: derivs(:,:)
+
     integer :: nAtom
-    integer :: ii, jj
     character(lc) :: comment, fname
 
     nAtom = size(pCoord0Out, dim=2)
@@ -4498,24 +4505,109 @@ contains
 
     call geometryComment_(comment, tLatOpt, tMd, iGeoStep, iLatGeoStep)
 
-    if (tPrintMulliken) then
-      ! For non-colinear spin without velocities write magnetisation into the velocity field
-      if (nSpin == 4 .and. .not. allocated(velocities)) then
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1), dim=1),&
-            & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
-            & append=tAppendGeo)
+    if (writeTrajectoryForces) then
+      @:ASSERT(allocated(velocities))
+      @:ASSERT(allocated(derivs))
+      if (tPrintMulliken) then
+        call writeXYZFormatWithForces_(fname, pCoord0Out, species0, speciesName, velocities,&
+            & -derivs(:, 1:nAtom), comment, tAppendGeo, charges=sum(qOutput(:,:,1), dim=1))
       else
-        call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
-            & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
-            & append=tAppendGeo)
+        call writeXYZFormatWithForces_(fname, pCoord0Out, species0, speciesName, velocities,&
+            & -derivs(:, 1:nAtom), comment, tAppendGeo)
       end if
     else
-      call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
-          & comment=comment, append=tAppendGeo)
+      if (tPrintMulliken) then
+        ! For non-colinear spin without velocities write magnetisation into the velocity field
+        if (nSpin == 4 .and. .not. allocated(velocities)) then
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1), dim=1),&
+              & vectors=transpose(sum(qOutput(:,:,2:4), dim=1)), comment=comment,&
+              & append=tAppendGeo)
+        else
+          call writeXYZFormat(fname, pCoord0Out, species0, speciesName,&
+              & charges=sum(qOutput(:,:,1),dim=1), velocities=velocities, comment=comment,&
+              & append=tAppendGeo)
+        end if
+      else
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & comment=comment, append=tAppendGeo)
+      end if
     end if
 
   end subroutine writeCurrentGeometry
+
+
+  !> Writes XYZ geometry with Mulliken charge, velocity and force columns.
+  subroutine writeXYZFormatWithForces_(fileName, coords, species, speciesNames, velocities, forces,&
+      & comment, append, charges)
+
+    !> File name to write to
+    character(*), intent(in) :: fileName
+
+    !> Coordinates in atomic units
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Species names
+    character(*), intent(in) :: speciesNames(:)
+
+    !> Velocities for each atom
+    real(dp), intent(in) :: velocities(:,:)
+
+    !> Forces for each atom (in atomic units)
+    real(dp), intent(in) :: forces(:,:)
+
+    !> Comment for the XYZ frame header
+    character(*), intent(in) :: comment
+
+    !> Whether to append to existing file
+    logical, intent(in) :: append
+
+    !> Optional Mulliken charges
+    real(dp), intent(in), optional :: charges(:)
+
+    type(TFileDescr) :: fd
+    character(1) :: mode
+    integer :: ii, nAtom, nSpecies
+    real(dp) :: forceConv
+
+    nAtom = size(coords, dim=2)
+    nSpecies = maxval(species)
+    forceConv = Hartree__eV / Bohr__AA
+    @:ASSERT(size(coords, dim=1) == 3)
+    @:ASSERT(size(species) == nAtom)
+    @:ASSERT(size(speciesNames) == nSpecies)
+    @:ASSERT(all(shape(velocities) == [3, nAtom]))
+    @:ASSERT(all(shape(forces) == [3, nAtom]))
+    if (present(charges)) then
+      @:ASSERT(size(charges) == nAtom)
+    end if
+
+    if (append) then
+      mode = "a"
+    else
+      mode = "w"
+    end if
+
+    call openFile(fd, fileName, mode=mode)
+    write(fd%unit, "(I0)") nAtom
+    write(fd%unit, "(A)") trim(comment)
+
+    if (present(charges)) then
+      write(fd%unit, "(A5,10F16.8)") (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+          & charges(ii), velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp,&
+          & forces(:, ii) * forceConv, ii = 1, nAtom)
+    else
+      write(fd%unit, "(A5,9F16.8)") (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii) * forceConv,&
+          & ii = 1, nAtom)
+    end if
+
+    call closeFile(fd)
+
+  end subroutine writeXYZFormatWithForces_
 
 
   !> Write geometry including periodic images to disc
@@ -6115,5 +6207,48 @@ contains
 
   end subroutine writeMdftbEnergies
 
+  !> Write excited state forces
+  subroutine writeExcitedStateForces(fileName, derivs, excitedDerivs, indNACouplings)
 
+    !> File name
+    character(*), intent(in) :: fileName
+
+    !> Ground state derivatives
+    real(dp), intent(in) :: derivs(:,:) 
+
+    !> Derivatives of the excited state energies
+    real(dp), intent(in) :: excitedDerivs(:,:,:)
+
+    !> Start and end index of excited state forces
+    integer, intent(in) :: indNACouplings(:)
+
+    type(TFileDescr) :: fd
+    integer :: ii, iAt, offSet
+
+    offSet = indNACouplings(1)
+    call openFile(fd, fileName, mode="w")
+    write(fd%unit, "(A)") "Forces (au)"
+
+    if(indNACouplings(1) == 0) then
+      write(fd%unit, "(A, i5)") "State ", 0
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)
+      end do
+      offSet = 1
+    end if
+
+    if(size(excitedDerivs, dim=3) /= indNACouplings(2)-offSet+1) then
+      call error("Mismatch of number of gradient entries with NACV size.")
+    end if
+    
+    do ii = 1, size(excitedDerivs, dim=3)
+      write(fd%unit, "(A, i5)") "State ", ii + offSet - 1
+      do iAt = 1, size(derivs, dim=2)
+        write(fd%unit, "(3E24.12)") -derivs(:, iAt)-excitedDerivs(:,iAt,ii)
+      end do
+    enddo
+
+    call closeFile(fd)
+  end subroutine writeExcitedStateForces
+  
 end module dftbp_dftbplus_mainio

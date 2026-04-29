@@ -196,7 +196,6 @@ contains
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
       call detailedError(child, "Be patient... Dephasing feature will be available soon!")
-      !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
     ! electronic Hamiltonian
@@ -549,7 +548,9 @@ contains
         call getChildValue(node, "oldLineSearch", ctrl%lbfgsInp%isOldLS, .false.)
       end if
 
-      call commonGeoOptions(node, ctrl, geom, atomsRange, ctrl%lbfgsInp%isLineSearch)
+      call commonGeoOptions(node, ctrl, geom, atomsRange,&
+          & isMaxAtStepNeeded=ctrl%lbfgsInp%isLineSearch,&
+          & isMaxLatStepNeeded=ctrl%lbfgsInp%isLineSearch)
 
     case ("fire")
 
@@ -559,7 +560,7 @@ contains
           & "Please use the GeometryOptimisation driver instead.")
 
       ctrl%iGeoOpt = geoOptTypes%fire
-      call commonGeoOptions(node, ctrl, geom, atomsRange, .false.)
+      call commonGeoOptions(node, ctrl, geom, atomsRange, isMaxAtStepNeeded=.false.)
       call getChildValue(node, "TimeStep", ctrl%deltaT, 1.0_dp, modifier=modifier, child=field)
       call convertUnitHsd(char(modifier), timeUnits, field, ctrl%deltaT)
 
@@ -642,6 +643,7 @@ contains
 
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
+      call getChildValue(node, "WriteTrajectoryForces", ctrl%writeTrajectoryForces, .false.)
 
       call getChildValue(node, "Plumed", ctrl%tPlumed, default=.false., child=child)
       if (ctrl%tPlumed .and. .not. withPlumed) then
@@ -804,7 +806,7 @@ contains
 
 
   !> Common geometry optimisation settings for various drivers
-  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxStepNeeded)
+  subroutine commonGeoOptions(node, ctrl, geom, atomsRange, isMaxAtStepNeeded, isMaxLatStepNeeded)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -819,18 +821,20 @@ contains
     !> calculations)
     character(len=*), intent(in) :: atomsRange
 
-    !> Is the maximum step size relevant for this driver
-    logical, intent(in), optional :: isMaxStepNeeded
+    !> Is the maximum atom step size relevant for this driver
+    logical, intent(in), optional :: isMaxAtStepNeeded
+
+    !> Is the maximum lattice step size relevant for this driver
+    logical, intent(in), optional :: isMaxLatStepNeeded
 
     type(fnode), pointer :: child, field
     type(string) :: buffer2, modifier
-    logical :: isMaxStep
+    logical :: isMaxAtStep, isMaxLatStep
 
-    if (present(isMaxStepNeeded)) then
-      isMaxStep = isMaxStepNeeded
-    else
-      isMaxStep = .true.
-    end if
+    isMaxAtStep = .true.
+    if (present(isMaxAtStepNeeded)) isMaxAtStep = isMaxAtStepNeeded
+    isMaxLatStep = .true.
+    if (present(isMaxLatStepNeeded)) isMaxLatStep = isMaxLatStepNeeded
 
     ctrl%tForces = .true.
     ctrl%restartFreq = 1
@@ -849,7 +853,7 @@ contains
       else
         call getChildValue(node, "Isotropic", ctrl%tLatOptIsotropic, .false.)
       end if
-      if (isMaxStep) then
+      if (isMaxLatStep) then
         call getChildValue(node, "MaxLatticeStep", ctrl%maxLatDisp, 0.2_dp)
       end if
     end if
@@ -860,7 +864,7 @@ contains
     ctrl%nrMoved = size(ctrl%indMovedAtom)
     ctrl%tCoordOpt = (ctrl%nrMoved /= 0)
     if (ctrl%tCoordOpt) then
-      if (isMaxStep) then
+      if (isMaxAtStep) then
         call getChildValue(node, "MaxAtomStep", ctrl%maxAtomDisp, 0.2_dp)
       end if
     end if
@@ -1427,11 +1431,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks  .and. .not.ctrl%isNonAufbau) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -1808,11 +1808,7 @@ contains
 
     ! Spin calculation
     if (ctrl%reksInp%reksAlg == reksTypes%noReks .and. .not.ctrl%isNonAufbau .and. ctrl%tSCC) then
-    #:if WITH_TRANSPORT
-      call readSpinPolarisation(node, ctrl, geo, tp)
-    #:else
       call readSpinPolarisation(node, ctrl, geo)
-    #:endif
     end if
 
     ! temporararily removed until debugged
@@ -2151,9 +2147,9 @@ contains
       #:block REQUIRES_COMPONENT('Poisson-solver', WITH_POISSON)
         ctrl%tPoisson = .true.
         #:if WITH_TRANSPORT
-          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs, ctrl%updateSccAfterDiag)
+          call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
         #:else
-          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs, ctrl%updateSccAfterDiag)
+          call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs)
         #:endif
       #:endblock
 
@@ -2260,12 +2256,10 @@ contains
                 & ctrl%mdftbAtomicIntegrals%DxyXXDxy(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dyz|XX|Dyz",&
                 & ctrl%mdftbAtomicIntegrals%DyzXXDyz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|XX|Dzz",&
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyXXDzz(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|XX|Dzz",&
                 & ctrl%mdftbAtomicIntegrals%DzzXXDzz(iSp1), 0.0_dp)
-            !call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dxx-yy|YY|Dzz",&
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|YY|Dxx-yy",&
                 & ctrl%mdftbAtomicIntegrals%DxxyyYYDzz(iSp1), 0.0_dp)
             call getChildValue(child2, trim(geo%speciesNames(iSp1))//":Dzz|ZZ|Dzz",&
@@ -2287,11 +2281,7 @@ contains
 
 
   !> Spin calculation
-#:if WITH_TRANSPORT
-  subroutine readSpinPolarisation(node, ctrl, geo, tp)
-#:else
   subroutine readSpinPolarisation(node, ctrl, geo)
-#:endif
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2301,11 +2291,6 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
-
-  #:if WITH_TRANSPORT
-    !> Transport parameters
-    type(TTransPar), intent(inout)  :: tp
-  #:endif
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -3283,6 +3268,10 @@ contains
 
     ! self consistency required or not to proceed
     call getChildValue(node, "ConvergentSCCOnly", ctrl%isSccConvRequired, .true.)
+    
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
+
+    call getChildValue(node, "RecomputeAfterDensity", ctrl%updateSccAfterDiag, .true.)
 
   end subroutine readSccOptions
 
@@ -4980,9 +4969,11 @@ contains
 
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
+        ctrl%lrespini%tnstat = .false. 
         ctrl%lrespini%nstat = 0
         call setChildValue(child, "StateOfInterest", 0)
       else
+        ctrl%lrespini%tnstat = .true. 
         call getChildValue(child2, "", buffer)
         if (tolower(unquote(char(buffer))) == "brightest") then
           if (ctrl%lrespini%sym /= "S" .or. ctrl%tSpin) then
@@ -5019,12 +5010,18 @@ contains
       call getChildValue(child, "WriteEigenvectors", ctrl%lrespini%tPrintEigVecs, .false.)
       call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
+      call getChildValue(child, "WriteXplusYAscii", ctrl%lrespini%tXplusYAscii, default=.true.)
       call getChildValue(child, "StateCouplings", ctrl%lrespini%indNACouplings, default=[0, 0])
+
       if (all(ctrl%lrespini%indNACouplings == 0)) then
         ctrl%lrespini%tNaCoupling = .false.
       else
         ctrl%lrespini%tNaCoupling = .true.
       end if
+      if (ctrl%lrespini%tNaCoupling .and. ctrl%lrespini%tnstat) then
+         call detailedError(child, "StateOfInterest must not be set with StateCouplings")
+      end if
+
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
@@ -5074,7 +5071,7 @@ contains
         ctrl%lrespini%isCIopt = .false.
       end if
 
-      if (ctrl%tForces .or. ctrl%tPrintForces) then
+      if (ctrl%tForces .or. ctrl%tPrintForces .or. ctrl%lrespini%tNaCoupling) then
         call getChildValue(child, "ExcitedStateForces", ctrl%tCasidaForces, default=.true.)
       end if
 
@@ -5681,11 +5678,12 @@ contains
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    logical :: tLRNeedsSpinConstants, tShellResolvedW
+    logical :: tLRNeedsSpinConstants, doesUserSetConsts
     integer :: iSp1, nConstants
     type(TListReal) :: realBuffer
     character(lc) :: strTmp
     real(dp) :: rWork(maxval(orb%nShell)**2)
+    type(TStatus) :: errStatus
 
     tLRNeedsSpinConstants = .false.
 
@@ -5701,48 +5699,54 @@ contains
 
     if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. &
         & ctrl%reksInp%reksAlg /= reksTypes%noReks) then
-      allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
-      ctrl%spinW(:,:,:) = 0.0_dp
-
       call getChild(hamNode, "SpinConstants", child)
       if (ctrl%hamiltonian == hamiltonianTypes%xtb) then
-        call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .true.)
+        call getChildValue(child, "ShellResolvedSpin", ctrl%isSpinWShellResolved, .true.)
       else
         if (.not.ctrl%tShellResolved) then
-          call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .false.)
+          call getChildValue(child, "ShellResolvedSpin", ctrl%isSpinWShellResolved, .false.)
         else
-          tShellResolvedW = .true.
+          ctrl%isSpinWShellResolved = .true.
         end if
       end if
 
-      do iSp1 = 1, geo%nSpecies
-        call init(realBuffer)
-        call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
-        nConstants = len(realBuffer)
-        if (tShellResolvedW) then
-          if (nConstants == orb%nShell(iSp1)**2) then
-            call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
-            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
-                & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+      ctrl%isSpinWFromParameters = .false.
+      if (ctrl%hamiltonian == hamiltonianTypes%xtb) then
+        call getChildValue(child, "FromParameters", ctrl%isSpinWFromParameters, .true.)
+      end if
+
+      if (.not.ctrl%isSpinWFromParameters) then
+        allocate(ctrl%spinW(orb%mShell, orb%mShell, geo%nSpecies))
+        ctrl%spinW(:,:,:) = 0.0_dp
+        do iSp1 = 1, geo%nSpecies
+          call init(realBuffer)
+          call getChildValue(child, geo%speciesNames(iSp1), realBuffer)
+          nConstants = len(realBuffer)
+          if (ctrl%isSpinWShellResolved) then
+            if (nConstants == orb%nShell(iSp1)**2) then
+              call asArray(realBuffer, rWork(:orb%nShell(iSp1)**2))
+              ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) =&
+                  & reshape(rWork(:orb%nShell(iSp1)**2), [orb%nShell(iSp1), orb%nShell(iSp1)])
+            else
+              write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
+                  & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
+                  & '", as ShellResolvedSpin enabled.'
+              call detailedError(child, trim(strTmp))
+            end if
           else
-            write(strTmp, "(A,I0,A,I0,A,A,A)")'Expecting a ', orb%nShell(iSp1), ' x ',&
-                & orb%nShell(iSp1), ' spin constant matrix for "', trim(geo%speciesNames(iSp1)),&
-                & '", as ShellResolvedSpin enabled.'
-            call detailedError(child, trim(strTmp))
+            if (nConstants == 1) then
+              call asArray(realBuffer, rWork(:1))
+              ! only one value for all atom spin constants
+              ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
+            else
+              write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
+                  & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
+              call detailedError(child, trim(strTmp))
+            end if
           end if
-        else
-          if (nConstants == 1) then
-            call asArray(realBuffer, rWork(:1))
-            ! only one value for all atom spin constants
-            ctrl%spinW(:orb%nShell(iSp1), :orb%nShell(iSp1), iSp1) = rWork(1)
-          else
-            write(strTmp, "(A,A,A)")'Expecting a single spin constant for "',&
-                & trim(geo%speciesNames(iSp1)),'", as ShellResolvedSpin not enabled.'
-            call detailedError(child, trim(strTmp))
-          end if
-        end if
-        call destruct(realBuffer)
-      end do
+          call destruct(realBuffer)
+        end do
+      end if
     end if
 
   end subroutine readSpinConstants
@@ -6389,14 +6393,6 @@ contains
       if (.not.associated(pTmp)) then
         call setChildValue(pNode, "FirstLayerAtoms", greendens%PL)
       end if
-      !call getChild(pNode, "ContactPLs", pTmp, requested=.false.)
-      !if (associated(pTmp)) then
-      !  call init(li)
-      !  call getChildValue(pTmp, "", li)
-      !  allocate(transpar%cblk(len(li)))
-      !  call asArray(li,transpar%cblk)
-      !  call destruct(li)
-      !end if
       allocate(greendens%kbT(1))
       greendens%kbT(:) = tempElec
     else
@@ -6478,8 +6474,6 @@ contains
           & - minval(transpar%contacts(:)%potential) + &
           & 2 * greendens%nKT * maxval(greendens%kbT)))
         greendens%nP(3) = defvalue
-        !call getChildValue(pNode, "RealAxisPoints", greendens%nP(3), &
-        !    & defvalue, child=child1)
       end if
 
   end subroutine readGreensFunction
@@ -6490,9 +6484,9 @@ contains
 
   !> Read in Poisson related data
 #:if WITH_TRANSPORT
-  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs, updateSccAfterDiag)
+  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs)
 #:else
-  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs, updateSccAfterDiag)
+  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs)
 #:endif
 
     !> Input tree
@@ -6511,9 +6505,6 @@ contains
 
     !> Lattice vectors if periodic
     real(dp), allocatable, intent(in) :: latVecs(:,:)
-
-    !> Whether Scc should be updated with the output charges (obtained after diagonalisation)
-    logical, intent(out) :: updateSccAfterDiag
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modifier
@@ -6584,7 +6575,6 @@ contains
     call getChildValue(pNode, "PoissonAccuracy", poisson%poissAcc, 1.0e-6_dp)
     call getChildValue(pNode, "BuildBulkPotential", poisson%bulkBC, .true.)
     call getChildValue(pNode, "ReadOldBulkPotential", poisson%readBulkPot, .false.)
-    call getChildValue(pNode, "RecomputeAfterDensity", updateSccAfterDiag, .false.)
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
     poisson%overrideBC(:) = poissonBCsEnum%periodic
@@ -6638,6 +6628,7 @@ contains
     select case(char(buffer))
     case ("none")
       poisson%gateType = "N"
+
     case ("planar")
       poisson%gateType = "P"
       call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modifier,&
@@ -6661,7 +6652,6 @@ contains
           & child=field)
       call convertUnitHsd(char(modifier), energyUnits, field, poisson%gatepot)
 
-      !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
       poisson%gatedir = 2
 
     case ("cylindrical")
@@ -6854,270 +6844,6 @@ contains
     end if
 
   end subroutine getContactVector
-
-
-  !> Read dephasing block
-  subroutine readDephasing(node, orb, geom, tp, tundos)
-
-    !> Input tree node
-    type(fnode), pointer :: node
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Atomic geometry, including the contact atoms
-    type(TGeometry), intent(in) :: geom
-
-    !> Parameters of the transport calculation
-    type(TTransPar), intent(inout) :: tp
-
-    !> Parameters of tunneling and dos calculation
-    type(TNEGFTunDos), intent(inout) :: tundos
-
-    type(fnode), pointer :: value1, child
-
-    call getChild(node, "VibronicElastic", child, requested=.false.)
-    if (associated(child)) then
-      tp%tDephasingVE = .true.
-      call readElPh(child, tundos%elph, geom, orb, tp)
-    end if
-
-    call getChildValue(node, "BuettikerProbes", value1, "", child=child, allowEmptyValue=.true.,&
-       & dummyValue=.true.)
-    if (associated(value1)) then
-      tp%tDephasingBP = .true.
-      call readDephasingBP(child, tundos%bp, geom, orb, tp)
-    end if
-
-    ! Lowdin transformations involve dense matrices and works only in small systems
-    ! For the dftb+ official release the options are disabled
-    tp%tOrthonormal = .false.
-    tp%tOrthonormalDevice = .false.
-    !call getChildValue(node, "Orthonormal", tp%tOrthonormal, .false.)
-    !call getChildValue(node, "OrthonormalDevice", tp%tOrthonormalDevice, .false.)
-    tp%tNoGeometry = .false.
-    tp%NumStates = 0
-
-  end subroutine readDephasing
-
-
-  !> Read Electron-Phonon blocks (for density and/or current calculation)
-  subroutine readElPh(node, elph, geom, orb, tp)
-
-    !> Input node in the tree
-    type(fnode), pointer :: node
-
-    !> container for electron-phonon parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(in) :: tp
-
-
-    logical :: block_model, semilocal_model
-
-    elph%defined = .true.
-    !! Only local el-ph model is defined (elastic for now)
-    elph%model = 1
-
-    call getChildValue(node, "MaxSCBAIterations", elph%scba_niter, default=100)
-    call getChildValue(node, "atomBlock", block_model, default=.false.)
-    if (block_model) then
-      elph%model = 2
-    endif
-
-    !BUG: semilocal model crashes because of access of S before its allocation
-    !     this because initDephasing was moved into initprogram
-    call getChildValue(node, "semiLocal", semilocal_model, default=.false.)
-    if (semilocal_model) then
-      call detailedError(node, "semilocal dephasing causes crash and has been "//&
-           & "temporarily disabled")
-      elph%model = 3
-    endif
-
-    call readCoupling(node, elph, geom, orb, tp)
-
-  end subroutine readElPh
-
-
-  !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
-  subroutine readDephasingBP(node, elph, geom, orb, tp)
-
-    !> Node in input document tree
-    type(fnode), pointer :: node
-
-    !> container for buttiker-probes parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(inout) :: tp
-
-    logical :: block_model, semilocal_model
-    type(string) :: model
-    type(fnode), pointer :: dephModel
-
-    call detailedError(node,"Buettiker probes are still under development")
-
-    elph%defined = .true.
-    call getChildValue(node, "", dephModel)
-    call getNodeName2(dephModel, model)
-
-    select case(char(model))
-    case("dephasingprobes")
-      !! Currently only zeroCurrent condition is implemented
-      !! This corresponds to elastic dephasing probes
-      tp%tZeroCurrent=.true.
-      !! Only local bp model is defined (elastic for now)
-    case("voltageprobes")
-      call detailedError(dephModel,"voltageProbes have been not implemented yet")
-      tp%tZeroCurrent=.false.
-    case default
-      call detailedError(dephModel,"unknown model")
-    end select
-
-    elph%model = 1
-
-    call getChildValue(dephModel, "MaxSCBAIterations", elph%scba_niter, default=100)
-
-    call getChildValue(dephModel, "atomBlock", block_model, default=.false.)
-    if (block_model) then
-      elph%model = 2
-    endif
-
-    !BUG: semilocal model crashes because of access of S before its allocation
-    !     this because initDephasing occurs in initprogram
-    call getChildValue(dephModel, "semiLocal", semilocal_model, default=.false.)
-    if (semilocal_model) then
-      call detailedError(dephModel, "semilocal dephasing is not working yet")
-      elph%model = 3
-    endif
-
-    call readCoupling(dephModel, elph, geom, orb, tp)
-
-  end subroutine readDephasingBP
-
-
-  !> Reads coupling strength and mode for dephasing
-  !> 2 modes support, constant or specified per each orbital
-  subroutine readCoupling(node, elph, geom, orb, tp)
-
-    !> Node in the input tree
-    type(fnode), pointer :: node
-
-    !> container for buttiker-probes parameters
-    type(TElPh), intent(inout) :: elph
-
-    !> Geometry type
-    type(TGeometry), intent(in) :: geom
-
-    !> Orbitals infos
-    type(TOrbitals), intent(in) :: orb
-
-    !> Transport parameter type
-    type(TTransPar), intent(in) :: tp
-
-    type(string) :: buffer, method, modifier, modifier2
-    type(fnode), pointer :: val, child, child2, child3, child4, field
-    type(fnodeList), pointer :: children
-    integer :: norbs, ii, jj, iAt
-    integer :: atm_range(2)
-    real(dp) :: rTmp
-    integer, allocatable :: tmpI1(:)
-    real(dp), allocatable :: atmCoupling(:)
-
-    !! Allocate coupling array
-    norbs = 0
-    if (tp%defined) then
-      atm_range(1) = tp%idxdevice(1)
-      atm_range(2) = tp%idxdevice(2)
-    else
-      atm_range(1) = 1
-      atm_range(2) = geom%nAtom
-    endif
-    do ii=atm_range(1), atm_range(2)
-      norbs = norbs + orb%nOrbAtom(ii)
-    enddo
-    allocate(elph%coupling(norbs))
-    elph%coupling(:) = 0.d0
-
-    elph%orbsperatm = orb%nOrbAtom(atm_range(1):atm_range(2))
-
-    call getChildValue(node, "Coupling", val, "", child=child, allowEmptyValue=.true.,&
-        & modifier=modifier, dummyValue=.true., list=.false.)
-
-    call getNodeName(val, method)
-
-    ! This reads also things like:  "Coupling [eV] = 0.34"
-    !if (is_numeric(char(method))) then
-    !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-    !  elph%coupling = rTmp
-    !  return
-    !end if
-
-    select case (char(method))
-    case ("allorbitals")
-      call getChild(child, "AllOrbitals", child2, requested=.false.)
-      call getChildValue(child2, "", elph%coupling, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, elph%coupling)
-
-    case ("atomcoupling")
-      call getChild(child, "AtomCoupling", child2, requested=.false.)
-      allocate(atmCoupling(atm_range(2)-atm_range(1)+1))
-      atmCoupling = 0.d0
-      call getChildren(child2, "AtomList", children)
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child3)
-        call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
-        call getSelectedAtomIndices(child4, char(buffer), geom%speciesNames, geom%species, tmpI1)
-        call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
-        ! If not defined, use common unit modifier defined after Coupling
-        if (len(modifier2)==0) then
-          call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-        else
-          call convertUnitHsd(char(modifier2), energyUnits, field, rTmp)
-        end if
-        do jj=1, size(tmpI1)
-          iAt = tmpI1(jj)
-          if (atmCoupling(iAt) /= 0.0_dp) then
-            call detailedWarning(child3, "Previous setting of coupling &
-                &for atom" // i2c(iAt) // " has been overwritten")
-          end if
-          atmCoupling(iAt) = rTmp
-        end do
-      end do
-      call destroyNodeList(children)
-
-      ! Transform atom coupling in orbital coupling
-      norbs = 0
-      do ii=atm_range(1), atm_range(2)
-        elph%coupling(norbs + 1:norbs + orb%nOrbAtom(ii)) = atmCoupling(ii)
-        norbs = norbs + orb%nOrbAtom(ii)
-      enddo
-      deallocate(atmCoupling)
-
-    case ("constant")
-      call getChildValue(child, "Constant", rtmp, child=field)
-      call convertUnitHsd(char(modifier), energyUnits, field, rTmp)
-      elph%coupling = rTmp
-
-    case default
-      call detailedError(node, "Coupling definition unknown")
-    end select
-
-  end subroutine readCoupling
 
 
   !> Read Tunneling and Dos options from analysis block
@@ -7381,10 +7107,6 @@ contains
           ! NOTE: These options have been commented out: there is a problem in parallel execution
           ! since one single file is accessed by all processors causing rush conditions
           ! The options are therefore disabled for the official dftb+ release
-          !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-          !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-          !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-          !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
           contacts(ii)%tWriteSelfEnergy = .false.
           contacts(ii)%tWriteSurfaceGF = .false.
           contacts(ii)%tReadSelfEnergy = .false.

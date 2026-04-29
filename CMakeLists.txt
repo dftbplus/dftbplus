@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22...4.2)
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
@@ -28,6 +28,9 @@ dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
   dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
+  option(WITH_CXX "Whether C++ compiler is required" FALSE)
+else()
+  set(WITH_CXX FALSE)
 endif()
 
 if(WITH_MPI)
@@ -89,9 +92,7 @@ if(WITH_ELSI AND NOT TARGET elsi::elsi)
 
   if(TARGET elsi::pexsi)
     set(ELSI_WITH_PEXSI TRUE)
-    enable_language(CXX)
-    # Avoid to link everything associated with PEXSI with C++
-    set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+    set(WITH_CXX TRUE)
   else()
     set(ELSI_WITH_PEXSI FALSE)
   endif()
@@ -134,6 +135,15 @@ if(WITH_MAGMA)
   list(APPEND PKG_CONFIG_REQUIRES magma)
 endif()
 
+if(WITH_CHIMES)
+  set(WITH_CXX TRUE)
+endif()
+
+if(WITH_CXX)
+ enable_language(CXX)
+ # Avoid linking everything associated with C++ with that compiler
+ set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
+endif()
 
 #
 # Preprocessor details
@@ -176,11 +186,6 @@ add_subdirectory(external/ddcosmo EXCLUDE_FROM_ALL)
 
 if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
-endif()
-
-if(WITH_CHIMES)
-  enable_language(CXX)
-  set(CMAKE_CXX_LINKER_PREFERENCE_PROPAGATES 0)
 endif()
 
 # If INCLUDE_INDIRECT_DEPS is non-empty, indirect dependencies must also be explicitely treated

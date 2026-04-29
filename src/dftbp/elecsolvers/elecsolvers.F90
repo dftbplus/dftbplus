@@ -36,26 +36,26 @@ module dftbp_elecsolvers_elecsolvers
     private
 
     !> Electronic solver number
-    integer, public :: iSolver
+    integer, public :: iSolver = electronicSolverTypes%none
 
     !> Whether it is an ELSI solver
-    logical, public :: isElsiSolver
+    logical, public :: isElsiSolver = .false.
 
     !> Whether the solver provides eigenvalues
-    logical, public :: providesEigenvals
+    logical, public :: providesEigenvals = .false.
 
     !> Whether the solver provides a band energy (sum of the eigenvalues)
-    logical, public :: providesBandEnergy
+    logical, public :: providesBandEnergy = .false.
 
     !> Whether the solver provides the TS term for electrons
-    logical, public :: providesElectronEntropy
+    logical, public :: providesElectronEntropy = .false.
 
     !> Whether the solver provides electronic free energy (or is consistent with its evaluation)
-    logical, public :: providesFreeEnergy
+    logical, public :: providesFreeEnergy = .false.
 
     !> Whether the solver provides the electron chemical potential (or is consistent with its
     !> evaluation or it being suplied externally)
-    logical, public :: elecChemPotAvailable
+    logical, public :: elecChemPotAvailable = .false.
 
     !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
@@ -70,7 +70,7 @@ module dftbp_elecsolvers_elecsolvers
     complex(dp), allocatable :: choleskyBufferCmplx(:,:,:)
 
     !> Number of buffered overlap matrices
-    integer :: nCholesky
+    integer :: nCholesky = 0
 
   contains
     procedure :: getSolverName => TElectronicSolver_getSolverName

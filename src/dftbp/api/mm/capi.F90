@@ -197,10 +197,10 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Number of requested points
-    integer, value, intent(in) :: nLocations
+    integer(c_int), value, intent(in) :: nLocations
 
     !> Resulting potentials
-    real(dp), intent(out) :: pot(*)
+    real(c_double), intent(out) :: pot(*)
 
     !> Sites to calculate potential
     real(c_double), intent(in) :: locations(3,*)
@@ -725,7 +725,7 @@ contains
     type(c_DftbPlus), intent(inout) :: handler
 
     !> Cutoff distance
-    real(dp) :: cutOff
+    real(c_double) :: cutOff
 
     type(TDftbPlusC), pointer :: instance
 
@@ -753,6 +753,9 @@ contains
 
 
   !> Obtain the gradients wrt DFTB atom positions
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests forces are evaluated
+  !!
   subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
 
     !> Handler for the calculation
@@ -772,6 +775,9 @@ contains
 
 
   !> Obtain the stress tensor of the periodic system
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests stress are evaluated
+  !!
   subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
       & bind(C, name='dftbp_get_stress_tensor')
 

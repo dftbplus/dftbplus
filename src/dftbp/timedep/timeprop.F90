@@ -73,7 +73,6 @@ module dftbp_timedep_timeprop
   use dftbp_type_integral, only : TIntegral
   use dftbp_type_multipole, only : TMultipole, TMultipole_init
 #:if WITH_SCALAPACK
-  use dftbp_dftb_densitymatrix, only : makeDensityMtxRealBlacs
   use dftbp_dftb_populations, only : mulliken, denseSubtractDensityOfAtomsCmplxNonperiodicBlacs
   use dftbp_dftb_sparse2dense, only : unpackHSRealBlacs, packRhoRealBlacs
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip, mpifx_bcast
@@ -2585,8 +2584,9 @@ contains
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
         if (this%tRealHS) then
-          call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr,&
-              & filling(:,1,iSpin), eigvecsReal(:,:,iKS), T2)
+          call densityMatrix%getDensityMatrix(env%blacs%orbitalGrid, this%denseDesc%blacsOrbSqr,&
+              & T2, eigvecsReal(:,:,iKS), filling(:,1,iSpin), errStatus)
+          @:PROPAGATE_ERROR(errStatus)
           rho(:,:,iKS) = cmplx(T2, 0, kind=dp)
           ! TODO: add here the complex case
         end if

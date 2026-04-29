@@ -60,7 +60,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes  (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -85,13 +86,14 @@ contains
     call getDftbPlusApi(major, minor, patch)
     write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
     !open(newunit=devNull, file="/dev/null", action="write")
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
-    ! be downloaded with the utils/get_opt_externals script
+    ! You should provide the skfiles, as found in the external/slakos/origin/mio-1-1/ folder. These
+    ! can be downloaded with the utils/get_opt_externals script
     call dftbp%getEmptyInput(input)
     call input%getRootNode(pRoot)
     call setChild(pRoot, "Geometry", pGeo)
@@ -125,7 +127,9 @@ contains
     call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)))
     call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
     call setChild(pRoot, "Analysis", pAnalysis)
-    call setChildValue(pAnalysis, "CalculateForces", .true.)
+    ! More efficient/controllable to pre-request derivatives and set evaluation options if
+    ! necessary, but here we will rely on internal initialisation of settings:
+    !call setChildValue(pAnalysis, "CalculateForces", .true.)
     call setChild(pAnalysis, "CM5", pCm5)
     call setChild(pRoot, "ParserOptions", pParserOpts)
     call setChildValue(pParserOpts, "ParserVersion", 5)
@@ -143,7 +147,7 @@ contains
     ! add a single external charge
     call dftbp%setExternalCharges(extCharges(:3,:1), extCharges(4,:1), extChargeBlur(:1))
 
-    ! get energy, charges and forces for the single external charge
+    ! get energy, charges and force on the single external charge
     call dftbp%getEnergy(merminEnergy)
     call dftbp%getExtChargeGradients(extChargeGrads(:,:1))
 
@@ -153,7 +157,7 @@ contains
     ! get energy
     call dftbp%getEnergy(merminEnergy)
 
-    ! Finally, external charges corresponding to the regression data
+    ! Finally, external charges corresponding to the regression data with all the external charges
     call dftbp%setExternalCharges(extCharges(:3,:2), extCharges(4,:2), extChargeBlur(:2))
 
     ! get energy, charges and forces

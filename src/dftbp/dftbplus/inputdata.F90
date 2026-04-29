@@ -288,6 +288,9 @@ module dftbp_dftbplus_inputdata
     !> Molecular dynamics
     logical :: tMD = .false.
 
+    !> Write per-atom forces in MD trajectory output
+    logical :: writeTrajectoryForces = .false.
+
     !> Molecular dynamics data to be recorded as it is accumulated
     type(TMDOutput), allocatable :: mdOutput
 
@@ -405,9 +408,14 @@ module dftbp_dftbplus_inputdata
     !> Read atomic masses from the input not the SK data
     real(dp), allocatable :: masses(:)
 
-
     !> Spin constants
     real(dp), allocatable :: spinW(:,:,:)
+
+    !> Are spin constants shell resolved?
+    logical :: isSpinWShellResolved
+
+    !> Are spin constants obtained from parameterisation data?
+    logical :: isSpinWFromParameters = .false.
 
     !> Customised Hubbard U values
     real(dp), allocatable :: hubbU(:,:)
@@ -571,7 +579,9 @@ module dftbp_dftbplus_inputdata
     type(TReksInp) :: reksInp
 
     !> Whether Scc should be updated with the output charges (obtained after diagonalization)
-    !> Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    !! Could be set to .false. to prevent costly recalculations (e.g. when using Poisson-solver)
+    !! It can also be set to .false. in case of fixed-charge calculations
+    !! (e.g. when setting MaxSCCIterations=1;   ReadInitialCharges=Yes)
     logical :: updateSccAfterDiag = .true.
 
     !> Write cavity information as COSMO file

@@ -11,7 +11,15 @@
 #define __DFTBPLUS_API__ "@API_VERSION@"
 
 #ifdef __cplusplus
+
 extern "C" {
+
+#else
+
+#if __STDC_VERSION__ < 202311l
+#include <stdbool.h>
+#endif
+
 #endif
 
 /**
@@ -182,7 +190,7 @@ void dftbp_api(int *major, int *minor, int *patch);
  *
  * \return Whether API is instance safe.
  */
-_Bool dftbp_is_instance_safe();
+bool dftbp_is_instance_safe();
 
 
 /**
@@ -406,7 +414,7 @@ int dftbp_get_basis_size(DftbPlus *instance);
  *
  * \return If the system is described with real matrices
  */
-_Bool dftbp_is_hs_real(DftbPlus *instance);
+bool dftbp_is_hs_real(DftbPlus *instance);
 
 
 /**
@@ -531,6 +539,8 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
 /**
  * Queries the gradients of the current geometry.
  *
+ * Note: it is more efficient if the HSD tree already requests forces are evaluated
+ *
  * \param[inout] instance Handler of the DFTB+ instance.
  *
  * \param[out] gradients Gradients (not forces!) on each atom. Shape: [natom, 3]. Unit: Hartree/Bohr.
@@ -570,6 +580,9 @@ double dftbp_get_cutoff(DftbPlus *instance);
 
 /**
  * Queries the stress tensor of the current periodic box.
+ *
+ *
+ * Note: it is more efficient if the HSD tree already requests stresses are evaluated
  *
  * \param[inout] instance Handler of the DFTB+ instance.
  *

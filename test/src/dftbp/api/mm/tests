@@ -18,6 +18,7 @@ qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 #! The next test fails on 1 MPI proc with NAG compiler and -nan flag:
 resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 resetspecies_C2H6   #? MPI_PROCS <= 4
+implicit_force_init #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
 treeinit            #? not WITH_MPI
 mpisubgrids         #? MPI_PROCS == 4
 expdmhs-si2         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
@@ -28,3 +29,4 @@ neighbour_list      #? not WITH_MPI
 neighbour_list_c    #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 intcharges          #? not WITH_MPI
 mpi_intcharges_c    #? WITH_MPI and (MPI_PROCS % 2 == 0) and MPI_PROCS <= 4 and defined('WITH_C_EXECUTABLES')
+simple_cpp          #? WITH_CXX and not WITH_MPI

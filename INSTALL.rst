@@ -16,15 +16,16 @@ In order to compile DFTB+, you need the following software components:
 
 * C compiler
 
-* C++ compiler (when built with ELSI/PEXSI or ChIMES support)
+* C++ compiler (when built with ELSI+PEXSI or ChIMES support or if
+  testing the API for C++)
 
-* CMake (version 3.16 or newer)
+* CMake (version 3.22 or newer)
 
 * GNU make
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
-* Python (version >= 3.2) for the source preprocessor
+* Python (version >= 3.7) for the source preprocessor
 
 
 Fortran compiler
@@ -32,15 +33,15 @@ Fortran compiler
 
 The following Fortran compilers are known to build DFTB+ correctly:
 
-* GNU >= 12.2
+* GNU >= 13.2
 
 * Intel >= 2021.5
 
 * NAG >= 7.2 (when built without OpenMP support)
 
-Older versions of the compilers above are likely to fail due to missing Fortran
-features and/or compiler bugs. Compilers by other vendors may work, but have not
-been tested extensively (see also `Tested build environments
+Older versions of the compilers above may work but are neither tested nor
+supported. Similarly, compilers by other vendors may work, but have not been
+tested extensively (see also `Tested build environments
 <#tested-build-environments>`_ and `Testing DFTB+ <#testing-dftb>`_).
 
 
@@ -52,11 +53,10 @@ Additionally there are optional requirements for some DFTB+ features:
 * ScaLAPACK (version 2.0 or later) and a Fortran aware MPI framework, if you
   want to build the MPI-parallelised version of the code.
 
-* In addition to ScaLAPACK, for MPI parallel builds it is recommended
-  to use the `ELSI <https://wordpress.elsi-interchange.org/>`_ library
-  for large scale systems (versions 2.6.x – 2.11.x of the library,
-  with partial support for 2.5.0). If ELSI was compiled with PEXSI
-  included, you will also need a C++ compiler.
+* In addition to ScaLAPACK, for MPI parallel builds it is recommended to use the
+  `ELSI <https://gitlab.com/elsi_project/elsi_interface/>`_ library for large
+  scale systems. If ELSI was compiled with PEXSI included, you will also need a
+  C++ compiler.
 
 * The ARPACK-ng library if using the excited state DFTB functionality. For
   MPI-parallel builds, the parallel version of ARPACK-ng (containing also
@@ -69,10 +69,25 @@ Additionally there are optional requirements for some DFTB+ features:
   is controlled at runtime by the `MAGMA_NUM_GPUS` shell variable
   (the usual default is 1).
 
-* The `PLUMED2 <https://github.com/plumed/plumed2>`_ library for
+* The `PLUMED2 <https://github.com/plumed/plumed2/>`_ library for
   metadynamics simulations. If you build DFTB+ with MPI, the linked
   PLUMED library must also be MPI-aware (and must have been built with
   the same MPI-framework as DFTB+).
+
+* The `TBLite <https://github.com/tblite/tblite/>`_ library for carrying out
+  simulations using xTB-type Hamiltonians.
+
+* The `simple-dftd3 <https://github.com/dftd3/simple-dftd3/>`_ library for
+  D3-type dispersion.
+
+* The `many-body dispersion <https://github.com/libmbd/libmbd/>`_ library for
+  taking many-body dispersions into account.
+
+* The `ChIMES calculator <https://github.com/rk-lindsey/chimes_calculator/>`_
+  library for using Chebishev-polynomial based many-body repulsive interactions.
+
+* The `libNEGF <https://github.com/libnegf/libnegf/>`_ library for carrying out
+  non-equilibrium Green's function based transport calculations.
 
 
 External library requirements
@@ -97,7 +112,7 @@ Requirements for testing DFTB+
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 
-* Python (version >= 3.2) with NumPy
+* Python (version >= 3.7) with NumPy
 
 * The Slater-Koster data used in the tests (see below)
 
@@ -111,10 +126,6 @@ following architectures:
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
 +===============+======================+=============+==================+=====+
-| x86_64 /      | GNU Fortran/C 12.2   | OpenMPI 4.1 | OpenBlas 0.3.21, |     |
-| Linux         |                      |             | ScaLAPACK 2.2,   |     |
-|               |                      |             | ELSI 2.9         |     |
-+---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | GNU Fortran/C 13.2   | OpenMPI 5.0 | OpenBlas 0.3.25, |     |
 | Linux         |                      |             | ScaLAPACK 2.2,   |     |
 |               |                      |             | ELSI 2.9         |     |
@@ -123,14 +134,18 @@ following architectures:
 | Linux         |                      |             | ScaLAPACK 2.2,   |     |
 |               |                      |             | ELSI 2.11        |     |
 +---------------+----------------------+-------------+------------------+-----+
+| x86_64 /      | GNU Fortran/C 15.2   | OpenMPI 5.0 | OpenBlas 0.3.30, |     |
+| Linux         |                      |             | ScaLAPACK 2.2,   |     |
+|               |                      |             | ELSI 2.12        |     |
++---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2022.0,      |     |
 | Linux         | 2022.0               | 2021.5      | ELSI 2.8         |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2024.2,      |     |
 | Linux         | 2024.2               | 2021.14     | ELSI 2.11        |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2025.0,      |     |
-| Linux         | 2025.0               | 2021.14     | ELSI 2.11        |     |
+| x86_64 /      | Intel Fortran/C      | IntelMPI    | MKL 2025.3,      |     |
+| Linux         | 2025.3               | 2021.17     | ELSI 2.12        |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | NAG Fortran 7.2      | MPICH 4.2   | OpenBlas 0.3.26  | [1] |
 | Linux         | GNU C 13.2           |             | ScaLAPACK 2.2    |     |
@@ -414,27 +429,28 @@ DFTB+ CMake library options
 See `config.cmake` for details, but the main configuration options for building
 are listed below.
 
-+-------------------------+---------+-----------------------------------------+
-|CMake option             |Default  |Notes                                    |
-+=========================+=========+=========================================+
-|-DBUILD_SHARED_LIBS      |N        |Build libdftbplus and other components as|
-|                         |         |shared libraries.                        |
-+-------------------------+---------+-----------------------------------------+
-|-DENABLE_DYNAMIC_LOADING |N        |Use shared libraries externally (where   |
-|                         |         |possible) for libdftbplus.               |
-+-------------------------+---------+-----------------------------------------+
-|-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe  |
-|                         |         |library (the build stops, if any         |
-|                         |         |non-instance-safe components have been   |
-|                         |         |selected)                                |
-+-------------------------+---------+-----------------------------------------+
-|-DWITH_API               |N        |Build the API bindings to use libdftbplus|
-|                         |         |externally.                              |
-+-------------------------+---------+-----------------------------------------+
-|-DWITH_PYTHON            |N        |Build the Python3 bindings for           |
-|                         |         |libdftbplus. Note that this should also  |
-|                         |         |be built for shared libraries.           |
-+-------------------------+---------+-----------------------------------------+
++-------------------------+---------+------------------------------------------+
+|CMake option             |Default  |Notes                                     |
++=========================+=========+==========================================+
+|-DBUILD_SHARED_LIBS      |N        |Build libdftbplus and other components as |
+|                         |         |shared libraries.                         |
++-------------------------+---------+------------------------------------------+
+|-DENABLE_DYNAMIC_LOADING |N        |Use shared libraries externally (where    |
+|                         |         |possible) for libdftbplus.                |
++-------------------------+---------+------------------------------------------+
+|-DINSTANCE_SAFE_BUILD    |N        |Compile libdftbplus as an instance safe   |
+|                         |         |library (the build stops, if any          |
+|                         |         |non-instance-safe components have been    |
+|                         |         |selected)                                 |
++-------------------------+---------+------------------------------------------+
+|-DWITH_API               |N        |Build the API bindings to use libdftbplus |
+|                         |         |externally.  Note: -DWITH_CXX=Y enables   |
+|                         |         |testing of the API with a C++ code        |
++-------------------------+---------+------------------------------------------+
+|-DWITH_PYTHON            |N        |Build the Python3 bindings for            |
+|                         |         |libdftbplus. Note that this should also   |
+|                         |         |be built for shared libraries.            |
++-------------------------+---------+------------------------------------------+
 
 
 Linking the library in CMake based builds

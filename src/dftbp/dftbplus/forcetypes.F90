@@ -15,14 +15,17 @@ module dftbp_dftbplus_forcetypes
 
   type :: TForceTypesEnum
 
+    !> Uninitialised
+    integer :: none = 0
+
     !> Conventional forces
-    integer :: orig = 0
+    integer :: orig = 1
 
     !> convergence corrected at 0 temperature
-    integer :: dynamicT0 = 1
+    integer :: dynamicT0 = 2
 
     !> convergence corrected at finite temperature
-    integer :: dynamicTFinite = 2
+    integer :: dynamicTFinite = 3
 
   end type TForceTypesEnum
 

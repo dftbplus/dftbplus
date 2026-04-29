@@ -16,6 +16,9 @@ module dftbp_elecsolvers_elecsolvertypes
   !> Namespace for possible electronic solver methods
   type :: TElecSolverTypesEnum
 
+    ! Dummy solver for non-initialized
+    integer :: none = 0
+
     ! lapack/scalapack solvers
     integer :: qr = 1
     integer :: divideandconquer = 2

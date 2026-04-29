@@ -356,8 +356,6 @@ contains
     !> multiple TDftbPlus instances within an MPI-process)
     integer, intent(in), optional :: devNull
 
-    integer :: stdOut
-
   #:if not INSTANCE_SAFE_BUILD
     if (nInstance_ /= 0) then
       call error("This build does not support multiple DFTB+ instances")
@@ -367,12 +365,6 @@ contains
 
     if (present(mpiComm) .and. .not. withMpi) then
       call error("MPI Communicator supplied to initialise a serial DFTB+ instance")
-    end if
-
-    if (present(outputUnit)) then
-      stdOut = outputUnit
-    else
-      stdOut = output_unit
     end if
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm, devNull=devNull)
@@ -649,6 +641,9 @@ contains
 
 
   !> Returns the gradient on the atoms in the system.
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests forces are evaluated
+  !!
   subroutine TDftbPlus_getGradients(this, gradients)
 
     !> Instance.
@@ -665,6 +660,9 @@ contains
 
 
   !> Returns the stress tensor of the periodic system.
+  !!
+  !! NOTE: it is more efficient if the HSD tree already requests stress to be evaluated
+  !!
   subroutine TDftbPlus_getStressTensor(this, stresstensor)
 
     !> Instance.
@@ -694,7 +692,7 @@ contains
 
     call this%checkInit()
 
-    call getExtChargeGradients(this%main, gradients)
+    call getExtChargeGradients(this%env, this%main, gradients)
 
   end subroutine TDftbPlus_getExtChargeGradients
 
@@ -785,8 +783,8 @@ contains
   end subroutine TDftbPlus_setRefCharges
 
 
-  !> Returns electrostatic potential at specified points
-  subroutine TDftbPlus_getElStatPotential(this, pot, locations)
+  !> Returns electrostatic potential, and optionally the gradient, at specified points
+  subroutine TDftbPlus_getElStatPotential(this, pot, locations, gradients)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -797,9 +795,12 @@ contains
     !> Sites at which to calculate potential
     real(dp), intent(in) :: locations(:,:)
 
+    !> Gradient of the potential at the the locations [3,size(pot)]
+    real(dp), intent(out), optional :: gradients(:,:)
+
     call this%checkInit()
 
-    call getElStatPotential(this%env, this%main, pot, locations)
+    call getElStatPotential(this%env, this%main, pot, locations, gradients)
 
   end subroutine TDftbPlus_getElStatPotential
 

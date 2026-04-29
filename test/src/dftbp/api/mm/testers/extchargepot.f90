@@ -6,16 +6,16 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Module containing some routines to calculate external point charges related quantities, as used
-!> by a few API tests.
-!>
-!> NOTE: This is not a production module, it should only used to drive the API tests.
-!> The tasks implemented here should be provided by the MM-driver in a production code.
-!>
+!! by a few API tests.
+!!
+!! NOTE: This is not a production module, it should only used to drive the API tests.
+!! The tasks implemented here should be provided by the MM-driver in a production code.
+!!
 module extchargepot
   implicit none
   private
 
-  public :: getPointChargePotential, getPointChargeGradients
+  public :: getPointChargePotential
 
 
   !> double precision kind
@@ -25,7 +25,7 @@ module extchargepot
 contains
 
   !> Calculate the potential and its first derivatives at DFTB atoms due to external electrostatic
-  !> charges (perhaps from a surrounding MM region)
+  !! charges (perhaps from a surrounding MM region)
   subroutine getPointChargePotential(coordsMm, chargesMm, coordsQm, extPot, extPotGrad)
 
     !> Coordinates of the external charges (xyz,:nAtomMm) in atomic units
@@ -64,47 +64,5 @@ contains
     end do
 
   end subroutine getPointChargePotential
-
-
-  !> Calculate the gradient of the electrostatic energy wrt to external charges in the field from
-  !> the charges of DFTB atoms
-  subroutine getPointChargeGradients(coordsQm, chargesQm, coordsMm, chargesMm, gradients)
-
-    !> Coordinates of the DFTB QM atoms (xyz,:nAtomQm) in atomic units
-    real(dp), intent(in) :: coordsQm(:,:)
-
-    !> Charges of QM DFTB region atoms, in atomic units (:nAtomMm)
-    real(dp), intent(in) :: chargesQm(:)
-
-    !> Coordinates of the external charges (xyz,:nAtomMm) in atomic units
-    real(dp), intent(in) :: coordsMm(:,:)
-
-    !> Charges of MM region atoms, in atomic units (:nAtomMm)
-    real(dp), intent(in) :: chargesMm(:)
-
-    !> Gradient of potentials with respect to MM atom displacement (xyz,:nAtomMm)
-    real(dp), intent(out) :: gradients(:,:)
-
-    real(dp) :: atomPosQm(3), atomPosMm(3)
-    real(dp) :: chargeQm, chargeMm, dist
-    integer :: nAtomQm, nAtomMm
-    integer :: iAtQm, iAtMm
-
-    gradients(:,:) = 0.0_dp
-    nAtomQm = size(coordsQm, dim=2)
-    nAtomMm = size(coordsMm, dim=2)
-    do iAtMm = 1, nAtomMm
-      atomPosMm(:) = coordsMm(:, iAtMm)
-      chargeMm = chargesMm(iAtMm)
-      do iAtQm = 1, nAtomQm
-        atomPosQm(:) = coordsQm(:, iAtQm)
-        chargeQm = chargesQm(iAtQm)
-        dist = sqrt(sum((atomPosQm - atomPosMm)**2))
-        gradients(:, iAtMm) = gradients(:, iAtMm) &
-            & + chargeQm * chargeMm * (atomPosMm - atomPosQm) / dist**3
-      end do
-    end do
-
-  end subroutine getPointChargeGradients
 
 end module extchargepot

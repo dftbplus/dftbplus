@@ -738,9 +738,11 @@ and efficient for your system before using it over other optimisers.
 
 Specific properties for this method are:
 \begin{description}
-\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step sizexs used
+\item[\is{TimeStep}]\modif{\modtype{time}} Controls the maximum step sizes used
   in the dynamics integrator.
 \end{description}
+
+\textbf{Note}: the \is{MaxAtomStep} keyword is not used by this optimiser.
 
 \subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
@@ -861,6 +863,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{KeepStationary} & l & & Yes & \\
   \kw{Thermostat} & m &  & - & \pref{sec:dftbp.Thermostat} \\
   \kw{OutputPrefix} &s & & "geo\_end" & \\
+  \kw{WriteTrajectoryForces} & l & & No & \\
   \kw{MDRestartFrequency} & i & & 1 & \\
   \kw{Velocities} & (3r)* & & - & \\
   \kw{Barostat} & m & Periodic = Yes & - & \pref{sec:dftbp.Barostat}\\
@@ -889,6 +892,13 @@ selection expressions, as described in appendix \ref{sec:index_selection}.
 
 \item[\is{OutputPrefix}] Prefix of the geometry files containing the
   final structure.
+
+\item[\is{WriteTrajectoryForces}] If set to \is{Yes}, per-atom forces are
+  appended to the VelocityVerlet trajectory output (\is{OutputPrefix}.xyz) as
+  columns 9--11 (\verb|fx fy fz|). Default: \is{No}. If absent or set to
+  \is{No}, the trajectory format remains unchanged. Force units are
+  eV/\AA, converted from internal force units in detailed.out. This option is independent of
+  \is{Analysis/PrintForces}.
 
 \item[\is{MDRestartFrequency}] Interval that the current geometry and
   velocities are written to the XYZ format geometry file and md.out
@@ -1368,6 +1378,7 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{ConvergentSccOnly} & l & SCC = Yes & \is{Yes}\\
+  \kw{RecomputeAfterDensity} & l & & Yes & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
@@ -1436,6 +1447,17 @@ To select the DFTB Hamiltonian you must set \is{Hamiltonian =
 \item[\is{ConvergentSccOnly}] If true, requires that the SCC cycle converges
   before proceeding to subsequent stages of the calculation (forces, analysis,
   etc.).
+
+\item[\is{RecomputeAfterDensity}] When set to \is{Yes} the
+  electrostatic potentials is updated with the newly computed DM and
+  atomic charges. This is done in order to make the electrostatic
+  energy consistent and forces variational.  It can be set to \is{No}
+  in transport calculations to avoid an unnecessary invocation of the
+  Poisson solver, when energy and forces are not relevant.  It should
+  also be set to \is{No} when the user would like to perform a
+  fixed-charge calculation with charges that are initialized from an
+  external file. In this case also set \is{MaxSCCIterations=1} and
+  \is{ReadInitialCharges=Yes}.
 
 \item[\is{EwaldParameter}] Sets the dimensionless parameter $\alpha$
   in the Ewald electrostatic summation for periodic calculations. This
@@ -2310,16 +2332,33 @@ distribution:
 
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
+\index{Spin constants}
 
-This environment suplies the atomic constants required for either spin polarised
+This environment supplies the atomic constants required for either spin polarised
 calculations or when evaluating properties which depend on spin interactions
 (triplet excitations for example).  In these cases, for each atomic species in
 the calculation the spin coupling constants for that atom must be specified.
 
-When \is{ShellResolvedSCC} = \is{No}, an extra keyword in this block controls
+When \is{ShellResolvedSCC = No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
 shells: \kw{ShellResolvedSpin}, defaulting to the same value as
 \is{ShellResolvedSCC}.
+
+For xTB models (\ref{sec:dftbp.XTB}), parameters can optionally be
+selected from the data given in \cite{Neugebauer-JCC-44-2120}, by
+using the keyword \is{FromParameters} inside the \iscb{SpinConstants}
+block: \index{FromParameters}
+\begin{verbatim}
+  SpinConstants = {
+    FromParameters = Yes
+  }
+\end{verbatim}
+Note, in the case of explicit use of \is{ShellResolvedSCC = No} for
+xTB, the Highest Occupied Atomic Orbital (HOAO) value from the
+parameters is used for all spin couplings.
+
+Alternatively, spin constants for each chemical species should be
+provided in the input.
 
 When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second
@@ -2345,14 +2384,15 @@ Example (GGA parameters for H$_2$O):
 \end{verbatim}
 
 Several standard values of atomic spin constants are given in
-appendix~\ref{app:spinconst}. Constants calculated with the same
+appendix~\ref{app:spinconst}. Constants calculated using the same
 density functional as the SK-files should be used. This input block
-may be moved to the SK-data definition files in the future.
+may be moved to the SK-data definition files in the future for the
+DFTB hamiltonians.
 
 When using the \is{SelectedShells} method for the keyword
 \is{MaxAngularMomentum}, the spin constants are listed as an array of
 values running over $\text{SK1}\text{SK2}\ldots$ in the same order as
-listed for SlaterKosterFiles.
+listed for the Slater-Koster files.
 
 \begin{verbatim}
   SpinConstants = { # not real values, only an example
@@ -5648,6 +5688,7 @@ available for range separated calculations.
     \kw{WriteDensityMatrix}     & l & & No & \\
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
+    \kw{WriteXplusYAscii}       & l & & Yes & \\    
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
@@ -5733,8 +5774,12 @@ available for range separated calculations.
     corresponds to the total charge density in the excited state.
 
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is
-    created. This file contains the RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all
+    created (if \is{WriteXplusYAscii}  = \is{No} then XplusY.BIN is written).
+    This file contains the RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all
     excited states (c.f., Eqn.~(18) in Ref.~\cite{heringer2007aes}).
+    
+  \item[\is{WriteXplusYAscii}] If set to \is{Yes}, the file is written
+    in Ascii format otherwise as binary file. 
 
   \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is
     created. This file contains the Mulliken transition dipole for each excited
@@ -5757,7 +5802,9 @@ available for range separated calculations.
     requires two values, $m$ and $n$, with $m < n$ and state 0 being
     defined as the ground state. The couplings are computed according
     to the method described
-    in~\cite{niehaus2021ground,niehaus2023exact}.\\ Example:
+    in~\cite{niehaus2021ground,niehaus2023exact}. In addition, the
+    file FRC.DAT is created which contains the forces for all states
+    from $m$ to $n$. \is{StateOfInterest} must be in the range of \is{StateCouplings}. \\ Example:
     \is{Couplings = \{0 2\}} would generate the the couplings between
     states $0\to 1$, $0\to 2$ and $1\to 2$. The results are written to
     the file NACV.DAT (See p.~\pref{subsec:nacv.dat}). Couplings are
@@ -7075,6 +7122,23 @@ associated with the three Cartesian displacements an atom in the
 geometry (combined index $\xi$), with one atom per line and ordered as
 in the geometry.
 
+\subsection{FRC.DAT}
+\index{FRC.DAT}
+
+Contains the TD-(LC)-DFTB forces, in atomic units, for the different states in the range
+given by \is{StateCouplings}. The format is:\\
+\begin{verbatim}
+State x
+F_x_at1 F_y_at1 F_z_at1
+F_x_at2 F_y_at2 F_z_at2
+...
+State y
+F_x_at1 F_y_at1 F_z_at1
+F_x_at2 F_y_at2 F_z_at2
+...
+\end{verbatim}
+State 0 corresponds to the ground state.
+
 \subsection{TEST\_ARPACK.DAT}
 \index{TEST\_ARPACK.DAT}
 
@@ -7115,7 +7179,26 @@ excited states.
 Line 1: number of single particle excitations and the number of calculated
 excited states\\
 Line 2: Level number 1, nature of the state (S, T, U or D) then excitation
+energy (in Hartree). For states with negative excitation energy the
+string '-' is printed.\\
+Line 3: expansion in the KS single particle transitions\\
+.\\
+.\\
+.\\
+Line 2: Level number 2, nature of the state (S, T, U or D) then excitation
 energy (in Hartree)\\
+
+\subsection{XplusY.BIN}
+\index{XplusY.BIN}
+
+Expert binary file with the RPA  $(X+Y)^{I\Sigma}_{ia}$ data for all the calculated
+excited states.
+
+Line 1: number of single particle excitations and the number of calculated
+excited states\\
+Line 2: Level number 1, nature of the state (S, T, U or D) then excitation
+energy (in Hartree). For states with negative excitation energy the
+real number '-1.0' is printed.\\
 Line 3: expansion in the KS single particle transitions\\
 .\\
 .\\
