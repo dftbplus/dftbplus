@@ -2699,8 +2699,9 @@ contains
     !> Gaussian blur width of the point charges
     real(dp), intent(in), optional :: blurWidths(:)
 
-    real(dp), allocatable :: placeHolderGradient(:,:), placeHolderCharges(:)
+    real(dp) :: placeHolderGradient(0,0), placeHolderCharges(0)
 
+    gradient(:,:) = 0.0_dp
     ! potential at group-0 of coordinates
     if (this%boundaryCond_ == boundaryCondsEnum%cluster) then
       call addInvRPrimeClusterAsymm(env, size(coords, dim=2), size(chargeCoords, dim=2),&
