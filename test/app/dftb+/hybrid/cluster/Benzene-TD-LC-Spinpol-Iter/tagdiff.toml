@@ -1,0 +1,7 @@
+#
+# Specific rules for selected quantities
+#
+[[rule]]
+pattern = "exc_oscillator:"
+diffmethod = "all_close"
+diffargs = {atol = 1.0e-5, rtol = 0.0}
