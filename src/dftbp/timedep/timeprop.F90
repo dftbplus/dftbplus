@@ -3557,7 +3557,7 @@ contains
     real(dp), intent(in) :: lastBondPopul
 
     !> Forces (nAtom, nAtom)
-    real(dp), intent(in) :: atomCurrents(:,:)
+    real(dp), intent(in), allocatable :: atomCurrents(:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
