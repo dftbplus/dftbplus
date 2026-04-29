@@ -15,7 +15,7 @@ program test_extpot2
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus, only : dumpHsd, fnode, getDftbPlusApi, getDftbPlusBuild, getMaxAngFromSlakoFile,&
       & setChild, setChildValue, TDftbPlus, TDftbPlus_init, TDftbPlusInput
-  use extchargepot, only : getPointChargeGradients, getPointChargePotential
+  use extchargepot, only : getPointChargePotential
   ! Only needed for the internal test system
   use testhelpers, only : writeAutotestTag
   implicit none
@@ -67,7 +67,8 @@ contains
 
     real(dp) :: merminEnergy
     real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
-    real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
+    real(dp) :: atomCharges(nAtom), extChargePots(nExtChrg), extChargeGrads(3, nExtChrg)
+
     type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
     type(fnode), pointer :: pParserOpts
 
@@ -141,9 +142,9 @@ contains
     call dftbp%getGradients(gradients)
     call dftbp%getGrossCharges(atomCharges)
 
-    ! get forces on the external charges
-    call getPointChargeGradients(coords, atomCharges, extCharges(1:3,:), extCharges(4,:),&
-        & extChargeGrads)
+    ! get forces on the external charges from the DFTB system
+    call dftbp%getElStatPotential(extChargePots, extCharges(1:3,:), extChargeGrads)
+    extChargeGrads(:,:) = extChargeGrads * spread(extCharges(4,:),1,3)
 
     print "(A,F15.10)", 'Expected Mermin Energy:', -0.398548033919583E+001_dp
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
