@@ -1,0 +1,50 @@
+Geometry = GenFormat {
+    <<< "butadiene.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    Scc = Yes
+    SCCTolerance = 1e-10  # Very tight for test purposes only
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "slakos/origin/ob2-1-1/shift/"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    Hybrid = LC {
+        Screening = MatrixBased {}
+     }
+     SpinPolarisation = {}
+}
+
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ ElectronDynamics = {
+     UseVectorPotential = Yes
+     Steps = 10000
+     TimeStep [au] = 0.2
+     Perturbation = Laser {
+         PolarizationDirection = 0.72302680 0.69081993 0.00025325
+	 LaserEnergy [ev] = 6.29
+     }
+     FieldStrength [v/a] = 0.001
+ }
+
+
+InputVersion = 24.1
+
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

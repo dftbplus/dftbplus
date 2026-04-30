@@ -28,6 +28,7 @@ timeprop/benzene_laser                 #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_laser_gfn2            #? OMP_THREADS <= 4 and not WITH_MPI and WITH_TBLITE
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and MPI_PROCS <=2
+timeprop/benzene_nonscc_sin2           #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/GNR_kpoint_restart            #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/H2_singlet                    #? OMP_THREADS <= 4 and MPI_PROCS <=2
@@ -47,6 +48,11 @@ timeprop/graphite_dispersion_pulse     #? OMP_THREADS <= 4 and not WITH_MPI and 
 timeprop/PDI_charged                   #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_circpol               #? OMP_THREADS <= 4 and MPI_PROCS <=2
 timeprop/benzene_rs                    #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_vecpot_currents       #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/h-BN_VecPot                   #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/h-BN_VecPot_spinpol           #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/C4H6_rs_laser                 #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/C4H6_rs_laser_VecPot          #? OMP_THREADS == 1 and not WITH_MPI
 
 helical/10-0Ctube                      #? MPI_PROCS <= 2
 helical/10-0CtubeC_10                  #? MPI_PROCS == 1

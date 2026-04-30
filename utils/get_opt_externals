@@ -128,7 +128,7 @@ def set_status(destdir, status):
 def get_slakos(destdir):
     '''Downloads and extracts parametrizations for the tests.'''
 
-    commit_SHA='0e1d95abc70339d017fd53d40c41c041057fd03f'
+    commit_SHA='1f5aefe45b7951f3fd1c0b63e40b80f80fdab612'
     url = f'https://github.com/dftbplus/testparams/archive/{commit_SHA}.tar.gz'
     fname = os.path.join(destdir, 'testparams.tar.gz')
     unpackname = os.path.join(destdir, f'testparams-{commit_SHA}')

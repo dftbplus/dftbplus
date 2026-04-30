@@ -4170,7 +4170,7 @@ contains
           & this%mass, this%nAtom, this%atomEigVal, this%dispersion, this%nonSccDeriv,&
           & this%tPeriodic, this%parallelKS, this%tRealHS, this%kPoint, this%kWeight,&
           & this%isHybridXc, this%scc, this%tblite, this%eFieldScaling, this%hamiltonianType,&
-          & this%denseDesc, errStatus)
+          & this%denseDesc, input%ctrl%tSCC, errStatus)
       if (errStatus%hasError()) call error(errStatus%message)
 
     end if
