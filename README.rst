@@ -81,17 +81,7 @@ If the configuration was successful, start the build with::
 
   cmake --build _build -- -j
 
-After successful build, you should test the code. First download the files
-needed for the test ::
-
-  ./utils/get_opt_externals slakos
-  ./utils/get_opt_externals gbsa
-
-or ::
-
-  ./utils/get_opt_externals ALL
-
-and then run the tests with ::
+After successful build, you should test the code. Run the tests with ::
 
   pushd _build; ctest -j; popd
 

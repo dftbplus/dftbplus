@@ -92,8 +92,7 @@ contains
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles, as found in the external/slakos/origin/mio-1-1/ folder. These
-    ! can be downloaded with the utils/get_opt_externals script
+    ! You should provide the skfiles, as found in the external/slakos/origin/mio-1-1/ folder.
     call dftbp%getEmptyInput(input)
     call input%getRootNode(pRoot)
     call setChild(pRoot, "Geometry", pGeo)
