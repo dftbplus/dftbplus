@@ -17,17 +17,30 @@ Added
 - VelocityVerlet: new PrintTrajectoryForces option to append fx fy fz to
   OutputPrefix.xyz (units: eV/Angstrom).
 
+- MPI parallelism for real-time propagation
+
+- Evaluate bond currents for time propagation
+
+- Excited state forces for multiple excited states
+
+- Periodic geometry halogen corrections
+
 
 Changed
 -------
 
+- Binary X+Y data export from time dependent calculations
 
+- Improve control for single-shot transport calculations in cases
+  where charges are read from a file
 
 Fixed
 -----
 
 - Corrected variable order printed out during electronic constraint
   enforcement
+
+- API include file now can also be used for C++ codes
 
 
 25.1 (2025-12-18)
