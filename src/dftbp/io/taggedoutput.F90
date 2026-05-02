@@ -218,6 +218,9 @@ module dftbp_io_taggedoutput
     !> Derivatives of gross atomic charges wrt. x
     character(lenLabel) :: dqdx = 'dqdx'
 
+    !> Derivatives of gross atomic charges wrt. external charges
+    character(lenLabel) :: dqdxExt = 'dqdxext'
+
     !> Born effective charges
     character(lenLabel) :: borncharges = 'borncharges'
 

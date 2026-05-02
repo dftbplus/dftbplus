@@ -51,7 +51,7 @@ int main()
 
   dftbp_final(&calculator);
 
-  dftbp_write_autotest_tag(2, 0, 0, mermin_energy, gradients, NULL, NULL, NULL, NULL, NULL);
+  dftbp_write_autotest_tag(2, 0, 0, mermin_energy, gradients, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
   return 0;
 }

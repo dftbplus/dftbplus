@@ -35,8 +35,8 @@ module dftbp_dftb_coulomb
   private
   public :: TCoulombInput, TCoulomb, TCoulomb_init
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
-  public :: getMaxREwald, invRStress
-  public :: addInvRPrimeXlbomd, invRPrime
+  public :: getMaxREwald, invRStress, calcInvRPrimeAsymm
+  public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
 
 
@@ -78,16 +78,16 @@ module dftbp_dftb_coulomb
     real(dp) :: recVecs_(3, 3)
 
     !> Cell volume
-    real(dp) :: volume_
+    real(dp), public :: volume_
 
     !> Coordinates of the atoms in the central cell
     real(dp), allocatable :: coords_(:,:)
 
     !> Lattice points for reciprocal Ewald
-    real(dp), allocatable :: gLatPoints_(:,:)
+    real(dp), allocatable, public :: gLatPoints_(:,:)
 
     !> Real lattice points for asymmetric Ewald sum
-    real(dp), allocatable :: rLatPoints_(:,:)
+    real(dp), allocatable, public :: rLatPoints_(:,:)
 
     !> Dynamic neighbour list for the real space Ewald summation
     type(TDynNeighList), allocatable :: neighList_
@@ -172,6 +172,11 @@ module dftbp_dftb_coulomb
     !> Adds the forces created by the external charges on charged atoms
     procedure :: addExternalPotGrad
 
+    !> Calculate -1/R**2 due to
+    procedure :: invRPrimeCluster
+    procedure :: invRPrimePeriodic
+    generic :: invRPrime => invRPrimeCluster, invRPrimePeriodic
+
   end type TCoulomb
 
 
@@ -198,12 +203,11 @@ module dftbp_dftb_coulomb
   end interface addInvRPrimeXlbomd
 
 
-  !> 1/r^2 potential
-  interface invRPrime
-    module procedure invRPrimeCluster
-    ! To do :
-    !module procedure invRPrimePeriodic
-  end interface invRPrime
+  !> 1/r^2 potential, derivatives for interaction between atoms and ext. charges
+  interface calcInvRPrimeAsymm
+    module procedure calcInvRPrimeAsymmCluster
+    module procedure calcInvRPrimeAsymmPeriodic
+  end interface calcInvRPrimeAsymm
 
 
   !> Maximal argument value of erf, after which it is constant
@@ -302,6 +306,7 @@ contains
     !> Central cell chemical species
     integer, intent(in) :: species(:)
 
+    this%coords_(:,:) = coords(:, 1:this%nAtom_)
     if (this%boundaryCond_ == boundaryCondsEnum%pbc3d) then
       call this%neighList_%updateCoords(coords(:, 1:this%nAtom_))
     end if
@@ -1295,15 +1300,15 @@ contains
         !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            vect(:) = coord1(:,iAt1) - coord0(:,iAt0)
             dist = norm2(vect)
-            fTmp = -vect / (dist**3)
+            fTmp(:) = vect / (dist**3)
             if (dist < erfArgLimit_ * blurWidths1(iAt1)) then
               sigma = blurWidths1(iAt1)
               rs = dist / sigma
-              fTmp = fTmp * (erfwrap(rs) - 2.0_dp / (sqrt(pi) * sigma) * dist * exp(-rs**2))
+              fTmp(:) = fTmp * (erfwrap(rs) - 2.0_dp / (sqrt(pi) * sigma) * dist * exp(-rs**2))
             end if
-            fTmp = charge1(iAt1) * fTmp
+            fTmp(:) = charge1(iAt1) * fTmp
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
           end do
         end do
@@ -1314,15 +1319,15 @@ contains
         !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            vect(:) = coord1(:,iAt1) - coord0(:,iAt0)
             dist = norm2(vect)
-            fTmp = -vect / (dist**3)
+            fTmp(:) = vect / (dist**3)
             if (dist < erfArgLimit_ * blurWidths1(iAt1)) then
               sigma = blurWidths1(iAt1)
               rs = dist / sigma
-              fTmp = fTmp * (erfwrap(rs) - 2.0_dp / (sqrt(pi) * sigma) * dist * exp(-rs**2))
+              fTmp(:) = fTmp * (erfwrap(rs) - 2.0_dp / (sqrt(pi) * sigma) * dist * exp(-rs**2))
             end if
-            fTmp = charge0(iAt0) * charge1(iAt1) * fTmp
+            fTmp(:) = charge0(iAt0) * charge1(iAt1) * fTmp
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp
           end do
@@ -1336,9 +1341,9 @@ contains
         !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            vect(:) = coord1(:,iAt1) - coord0(:,iAt0)
             dist = norm2(vect)
-            fTmp = -charge1(iAt1) / (dist**3) * vect
+            fTmp(:) = charge1(iAt1) * vect / dist**3
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
           end do
         end do
@@ -1349,9 +1354,9 @@ contains
         !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
           do iAt1 = iAtFirst1, iAtLast1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            vect(:) = coord1(:,iAt1) - coord0(:,iAt0)
             dist = norm2(vect)
-            fTmp = -charge0(iAt0) * charge1(iAt1) / (dist**3) * vect
+            fTmp(:) = charge0(iAt0) * charge1(iAt1) * vect / dist**3
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp
           end do
@@ -1405,7 +1410,7 @@ contains
 
     type(TDynNeighList), pointer :: pNeighList
     integer :: iAtom1, iAtom2
-    real(dp) :: r(3)
+    real(dp) :: r(3), tmp(3)
     real(dp), allocatable :: localDeriv(:,:)
     integer :: iAtFirst, iAtLast
 
@@ -1425,16 +1430,14 @@ contains
 
     ! d(1/R)/dr reciprocal space
     !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iAtom2, r) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
+    !$OMP& DEFAULT(SHARED) PRIVATE(iAtom2, r, tmp) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
     do iAtom1 = iAtFirst, iAtLast
       do iAtom2 = iAtom1+1, nAtom
         r(:) = coord(:,iAtom1) - coord(:,iAtom2)
-        localDeriv(:,iAtom1) = localDeriv(:,iAtom1)&
-            & + derivEwaldReciprocal(r, recPoint, alpha, volume) * deltaQAtom(iAtom1)&
+        tmp(:) = derivEwaldReciprocal(r, recPoint, alpha, volume) * deltaQAtom(iAtom1)&
             & * deltaQAtom(iAtom2)
-        localDeriv(:,iAtom2) = localDeriv(:,iAtom2)&
-            & - derivEwaldReciprocal(r, recPoint, alpha, volume) * deltaQAtom(iAtom1)&
-            & * deltaQAtom(iAtom2)
+        localDeriv(:,iAtom1) = localDeriv(:,iAtom1) + tmp
+        localDeriv(:,iAtom2) = localDeriv(:,iAtom2) - tmp
       end do
     end do
     !$OMP END PARALLEL DO
@@ -1446,21 +1449,32 @@ contains
   end subroutine addInvRPrimePeriodic
 
 
-  !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
+  !> Real space neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
 
+    !> Atom to differentiate with respect to
     integer, intent(in) :: iAtom1
+
+    !> Neighbour list for the system
     type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> Atom charges
     real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Ewald alpha parameter
     real(dp), intent(in) :: alpha
+
+    !> Resulting derivatives (3, nAtom)
     real(dp), intent(inout) :: deriv(:,:)
 
     type(TNeighIterator) :: neighIter
     real(dp) :: neighCoords(3, iterChunkSize_)
     integer :: neighImages(iterChunkSize_)
     integer :: iAtom2f, iNeigh, nNeigh
-    real(dp) :: rr(3)
+    real(dp) :: rr(3), tmp(3)
 
     call TNeighIterator_init(neighIter, pNeighList, iAtom1)
     nNeigh = iterChunkSize_
@@ -1470,15 +1484,63 @@ contains
         iAtom2f = neighImages(iNeigh)
         if (iAtom2f /= iAtom1) then
           rr(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
-          deriv(:,iAtom1) = deriv(:,iAtom1)&
-              & + derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
-          deriv(:,iAtom2f) = deriv(:,iAtom2f)&
-              & - derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+          tmp(:) = derivRTerm(rr, alpha) * deltaQAtom(iAtom1) * deltaQAtom(iAtom2f)
+          deriv(:,iAtom1) = deriv(:,iAtom1) + tmp
+          deriv(:,iAtom2f) = deriv(:,iAtom2f) - tmp
         end if
       end do
     end do
 
   end subroutine addNeighbourContribsInvRP
+
+
+  !> Component of Real space neighbour summation of potential with local scope for predictable OMP
+  !! <= 4.0 behaviour
+  subroutine addNeighbourVInvRPComp(iAtom1, pNeighList, coords, deltaQAtom, alpha, iCart, deriv)
+
+    !> Atom to differentiate with respect to
+    integer, intent(in) :: iAtom1
+
+    !> Neighbour list for the system
+    type(TDynNeighList), pointer, intent(in) :: pNeighList
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Atom charges
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Ewald alpha parameter
+    real(dp), intent(in) :: alpha
+
+    !> Cartesian component of derivative
+    integer, intent(in) :: iCart
+
+    !> Resulting derivatives (nAtom)
+    real(dp), intent(inout) :: deriv(:)
+
+    type(TNeighIterator) :: neighIter
+    real(dp) :: neighCoords(3, iterChunkSize_)
+    integer :: neighImages(iterChunkSize_)
+    integer :: iAtom2f, iNeigh, nNeigh
+    real(dp) :: rr(3), tmp(3)
+
+    call TNeighIterator_init(neighIter, pNeighList, iAtom1)
+    nNeigh = iterChunkSize_
+    do while (nNeigh == iterChunkSize_)
+      call neighIter%getNextNeighbours(nNeigh, coords=neighCoords, img2CentCell=neighImages)
+      do iNeigh = 1, nNeigh
+        iAtom2f = neighImages(iNeigh)
+        if (iAtom2f /= iAtom1) then
+          rr(:) = coords(:,iAtom1) - neighCoords(:,iNeigh)
+          tmp(:) = derivRTerm(rr, alpha)
+          deriv(iAtom1) = deriv(iAtom1) + tmp(iCart) * deltaQAtom(iAtom2f)
+          deriv(iAtom2f) = deriv(iAtom2f) - tmp(iCart) * deltaQAtom(iAtom1)
+        end if
+      end do
+    end do
+
+  end subroutine addNeighbourVInvRPComp
 
 
   !> Calculates the -1/R**2 deriv contribution for extended lagrangian dynamics forces
@@ -1631,10 +1693,10 @@ contains
     !> Volume of the supercell
     real(dp), intent(in) :: vol
 
-    !> Contains the derivative for the first group on exit
+    !> Contains the derivative for the first group of charges on exit
     real(dp), intent(inout) :: deriv0(:,:)
 
-    !> Contains the derivative for the second group on exit
+    !> Contains the derivative for the second group of charges on exit
     real(dp), intent(inout) :: deriv1(:,:)
 
     !> Compute the derivative of Hamiltonians? Otherwise, compute the force
@@ -1660,8 +1722,8 @@ contains
         & iAtLast1)
 
     ! real space part
-    if (present(blurwidths1)) then
-      if (tHamDeriv) then
+    if (tHamDeriv) then
+      if (present(blurWidths1)) then
         !$OMP PARALLEL DO&
         !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
         !$OMP& SCHEDULE(RUNTIME)
@@ -1675,6 +1737,20 @@ contains
         !$OMP END PARALLEL DO
       else
         !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
+        !$OMP& SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+    else
+      if (present(blurWidths1)) then
+        !$OMP PARALLEL DO&
         !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
         !$OMP& SCHEDULE(RUNTIME)
         do iAt0 = iAtFirst0, iAtLast0
@@ -1684,20 +1760,6 @@ contains
                 & * charge0(iAt0) * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp
-          end do
-        end do
-        !$OMP END PARALLEL DO
-      end if
-    else
-      if (tHamDeriv) then
-        !$OMP PARALLEL DO&
-        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
-        !$OMP& SCHEDULE(RUNTIME)
-        do iAt0 = iAtFirst0, iAtLast0
-          do iAt1 = iAtFirst1, iAtLast1
-            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
-            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp
           end do
         end do
         !$OMP END PARALLEL DO
@@ -1717,8 +1779,8 @@ contains
       end if
     end if
 
+    ! reciprocal space part
     if (tHamDeriv) then
-      ! reciprocal space part
       !$OMP PARALLEL DO&
       !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
       !$OMP& SCHEDULE(RUNTIME)
@@ -1731,7 +1793,6 @@ contains
       end do
       !$OMP END PARALLEL DO
     else
-      ! reciprocal space part
       !$OMP PARALLEL DO&
       !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
       !$OMP& SCHEDULE(RUNTIME)
@@ -2101,6 +2162,52 @@ contains
   end function derivEwaldReciprocal
 
 
+  !> Returns the derivative of the reciprocal part of the Ewald sum for only one direction
+  function derivEwaldReciprocalComp(rr, gVec, alpha, vol, iCart) result(recSum)
+
+    !> Vector where to calculate the Ewald sum
+    real(dp), intent(in) :: rr(:)
+
+    !> Reciprocal space vectors to sum over
+    !! (Should not contain either origin nor inversion related points)
+    real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter for the Ewald summation
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell
+    real(dp), intent(in) :: vol
+
+    !> Component of derivative
+    integer, intent(in) :: iCart
+
+    !> Contribution to the derivative value
+    real(dp) :: recSum
+
+    real(dp), allocatable :: recSumArray(:)
+
+    real(dp) :: g2Factor, g2, gr, prefactor
+    integer :: iG
+
+    @:ASSERT(vol > 0.0_dp)
+
+    g2Factor = -1.0_dp / (4.0_dp * alpha**2)
+
+    allocate(recSumArray(size(gVec, dim=2)), source=0.0_dp)
+
+    ! note the explicit unrolling of loops to enforce vectorization of the outer loop
+    do iG = 1, size(gVec, dim=2)
+      g2 = gVec(1,iG)**2 + gVec(2,iG)**2 + gVec(3,iG)**2
+      gr = gVec(iCart,iG) * rr(iCart)
+      prefactor = -sin(gr) * exp(g2Factor * g2) / g2
+      recSumArray(iG) = prefactor * gVec(iCart,iG)
+    end do
+    ! note factor of 2 as only summing over half of reciprocal space
+    recSum = 2.0_dp * sum(recSumArray) * 4.0_dp * pi / vol
+
+  end function derivEwaldReciprocalComp
+
+
   !> Returns the derivative and stress of the reciprocal part of the Ewald sum
   subroutine derivStressEwaldRec(rr, gVec, alpha, vol, recSum, sigma)
 
@@ -2221,11 +2328,10 @@ contains
     !> Contribution to derivative
     real(dp) :: dewr(3)
 
-    real(dp) :: rNew(3)
-    real(dp) :: rr, factor
+    real(dp) :: rNew(3), rr, factor
     integer :: iR
 
-    dewr = 0.0_dp
+    dewr(:) = 0.0_dp
 
     if (present(blurWidth)) then
       do iR = 1, size(rVec, dim=2)
@@ -2255,6 +2361,61 @@ contains
     end if
 
   end function derivEwaldReal
+
+
+  !> Returns a component the derivative of the real space part of the Ewald sum.
+  function derivEwaldRealComp(rdiff, rVec, alpha, iCart, blurWidth) result(dewr)
+
+    !> Vector where to calculate the Ewald sum
+    real(dp), intent(in) :: rdiff(:)
+
+    !> Real space vectors to sum over (Should contain origin)
+    real(dp), intent(in) :: rVec(:,:)
+
+    !> Parameter for the Ewald summation
+    real(dp), intent(in) :: alpha
+
+    !> Component of derivative
+    integer, intent(in) :: iCart
+
+    !> Gaussian blur width of the second charge
+    real(dp), intent(in), optional :: blurWidth
+
+    !> Contribution to derivative
+    real(dp) :: dewr
+
+    real(dp) :: rNew(3), rr, factor
+    integer :: iR
+
+    dewr = 0.0_dp
+    if (present(blurWidth)) then
+      do iR = 1, size(rVec, dim=2)
+        rNew(:) = rdiff + rVec(:,iR)
+        rr = norm2(rNew)
+        if (rr < tolSameDist2) cycle
+        ! derivative of -erf(alpha * r) / r
+        factor = alpha * rr
+        dewr = dewr + rNew(iCart) * (-2.0_dp / sqrt(pi) * exp(-factor * factor) * factor&
+            & - erfcwrap(factor)) / (rr * rr * rr)
+        ! deriv of erf(r / blur) / r
+        if (rr < erfArgLimit_ * blurWidth) then
+          factor = rr / blurWidth
+          dewr = dewr + rNew(iCart) * (2.0_dp / sqrt(pi) * exp(-factor * factor) * factor&
+              & + erfcwrap(factor)) / (rr * rr * rr)
+        end if
+      end do
+    else
+      do iR = 1, size(rVec, dim=2)
+        rNew(:) = rdiff + rVec(:,iR)
+        rr = norm2(rNew)
+        if (rr < tolSameDist2) cycle
+        factor = alpha * rr
+        dewr = dewr + rNew(iCart) * (-2.0_dp / sqrt(pi) * exp(-factor * factor) * factor&
+            & - erfcwrap(factor)) / (rr * rr * rr)
+      end do
+    end if
+
+  end function derivEwaldRealComp
 
 
   !> Returns the difference in the decrease of the real and reciprocal parts of the Ewald sum.  In
@@ -2527,6 +2688,37 @@ contains
   end subroutine addInvRPrimeClusterMat
 
 
+  !> Calculates the -1/R**2 deriv iCart contribution for atom iAt for the non-periodic case
+  subroutine invRPrimeCluster(this, iCart, iAt, invRDeriv)
+
+    !> Data structure
+    class(TCoulomb), intent(in) :: this
+
+    !> Cartesian component of derivative
+    integer, intent(in) :: iCart
+
+    !> Atom to differentiate wrt to
+    integer, intent(in) :: iAt
+
+    !> Derivative of inverse R potential
+    real(dp), intent(out) :: invRDeriv(:)
+
+    real(dp) :: dist, vect(3), fTmp
+    integer :: jj
+
+    invRDeriv(:) = 0.0_dp
+    do jj = 1, this%nAtom_
+      if (iAt == jj) cycle
+      vect(:) = this%coords_(:, jj) - this%coords_(:, iAt)
+      dist = sqrt(sum(vect(:)**2))
+      fTmp = vect(iCart) / (dist**3)
+      invRDeriv(jj) = this%deltaQAtom_(iAt) * fTmp
+      invRDeriv(iAt) = invRDeriv(iAt) + this%deltaQAtom_(jj) * fTmp
+    end do
+
+  end subroutine invRPrimeCluster
+
+
   !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
   subroutine addInvRPrimePeriodicMat(this, env, coord, invRDeriv)
 
@@ -2573,6 +2765,49 @@ contains
     call assembleChunks(env, invRDeriv)
 
   end subroutine addInvRPrimePeriodicMat
+
+
+  !> Calculates the -1/R**2 deriv iCart contribution for atom iAt in periodic boundaries
+  subroutine invRPrimePeriodic(this, env, iCart, iAt, invRDeriv)
+
+    !> Instance
+    class(TCoulomb), target, intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Cartesian component of derivative
+    integer, intent(in) :: iCart
+
+    !> Atom to differentiate wrt to
+    integer, intent(in) :: iAt
+
+    !> Derivative of inverse R matrix
+    real(dp), intent(out) :: invRDeriv(:)
+
+    type(TDynNeighList), pointer :: pNeighList
+    real(dp) :: r(3), fTmp(3)
+    integer :: jAt
+
+    invRDeriv(:) = 0.0_dp
+
+    pNeighList => this%neighList_
+
+    ! d(1/R)/dr real space
+    do jAt = 1, this%nAtom_
+      call addNeighbourVInvRPComp(jAt, pNeighList, this%coords_, this%deltaQAtom_, this%alpha,&
+          & iCart, invRDeriv)
+    end do
+
+    ! d(1/R)/dr reciprocal space
+    do jAt = 1, this%nAtom_
+      r(:) = this%coords_(:,jAt) - this%coords_(:,iAt)
+      fTmp(:) = derivEwaldReciprocal(r, this%gLatPoints_, this%alpha, this%volume_)
+      invRDeriv(jAt) = invRDeriv(jAt) + this%deltaQAtom_(iAt) * fTmp(iCart)
+      invRDeriv(iAt) = invRDeriv(iAt) + this%deltaQAtom_(jAt) * fTmp(iCart)
+    end do
+
+  end subroutine invRPrimePeriodic
 
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
@@ -2718,8 +2953,8 @@ contains
 
 
   !> Adds the forces created by the external charges on charged atoms
-  subroutine addExternalPotGrad(this, env, atomCoords, extChargeCoords, atomCharges,&
-      & extCharges, atomGrads, extChargeGrads, tHamDeriv, extChargeBlurWidths)
+  subroutine addExternalPotGrad(this, env, atomCoords, extChargeCoords, atomCharges, extCharges,&
+      & atomGrads, extChargeGrads, tHamDeriv, extChargeBlurWidths)
 
     !> Instance
     class(TCoulomb), intent(in) :: this
@@ -2765,44 +3000,146 @@ contains
   end subroutine addExternalPotGrad
 
 
-  !> Calculates the -1/R**2 deriv contribution for potentials for the non-periodic case, without
-  !! storing anything.
-  subroutine invRPrimeCluster(nAtom, coord, deltaQAtom, iCart, iAt, vPrime)
+  !> Calculates the -1/R**2 deriv contribution for potential from external charge iParticle
+  subroutine calcInvRPrimeAsymmCluster(nAtom, coord, nChargeExt, coordExt, chargeExt, iParticle,&
+      & deriv, blurWidths)
 
-    !> Number of atoms.
+    !> Number of atoms
     integer, intent(in) :: nAtom
 
-    !> List of atomic coordinates.
+    !> List of atomic coordinates (3, nAtom)
     real(dp), intent(in) :: coord(:,:)
 
-    !> List of charges on each atom.
-    real(dp), intent(in) :: deltaQAtom(:)
+    !> Number of external charges
+    integer, intent(in) :: nChargeExt
 
-    !> Component of derivative
-    integer, intent(in) :: iCart
+    !> Coordinates of external charges (3, nChargeExt)
+    real(dp), intent(in) :: coordExt(:,:)
 
-    !> Atom to differentiate wrt to
-    integer, intent(in) :: iAt
+    !> Magnitudes of external charges (nChargeExt)
+    real(dp), intent(in) :: chargeExt(:)
 
-    !> Contains the derivative of potential
-    real(dp), intent(inout) :: vprime(:)
+    !> Atom or external charge to differentiate wrt to
+    integer, intent(in) :: iParticle
 
-    integer :: jj
-    real(dp) :: dist, vect(3), fTmp
+    !> Contains the derivative of potential (3, nAtom) or (3, nChargeExt)
+    real(dp), intent(out) :: deriv(:,:)
 
-    do jj = 1, nAtom
+    !> Smearing of external charges
+    real(dp), intent(in), optional :: blurWidths(:)
 
-      if (iAt == jj) cycle
+    integer :: iAtom
+    real(dp) :: dist, dist3, vect(3), fTmp(3), sigma, rs
 
-      vect(:) = coord(:,iAt) - coord(:,jj)
-      dist = sqrt(sum(vect(:)**2))
-      fTmp = -vect(iCart) / (dist**3)
+    @:ASSERT(size(coord, dim=1) == 3)
+    @:ASSERT(size(coord, dim=2) == nAtom)
+    @:ASSERT(size(coordExt, dim=1) == 3)
+    @:ASSERT(size(coordExt, dim=2) == nChargeExt)
+    @:ASSERT(size(chargeExt) == nChargeExt)
+    @:ASSERT(size(deriv, dim=1) == 3)
+    @:ASSERT(size(deriv, dim=2) == nAtom)
+    @:ASSERT(iParticle > 0 .and. iParticle <= nChargeExt)
+    if (present(blurWidths)) then
+      @:ASSERT(size(blurWidths) == nChargeExt)
+    end if
 
-      vprime(iAt) = vprime(iAt) + deltaQAtom(jj)*fTmp
-      vprime(jj) = vprime(jj) + deltaQAtom(iAt)*fTmp
+    deriv(:, :) = 0.0_dp
 
+    if (present(blurWidths)) then
+
+      do iAtom = 1, nAtom
+        vect(:) = coord(:,iAtom) - coordExt(:,iParticle)
+        dist = norm2(vect)
+        fTmp(:) = vect / (dist**3)
+        if (dist < erfArgLimit_ * blurWidths(iParticle)) then
+          sigma = blurWidths(iParticle)
+          rs = dist / sigma
+          fTmp(:) = fTmp * (erfwrap(rs) - 2.0_dp / (sqrt(pi) * sigma) * dist * exp(-rs**2))
+        end if
+        deriv(:,iAtom) = chargeExt(iParticle) * fTmp
+      end do
+
+    else
+
+      do iAtom = 1, nAtom
+        vect(:) = coord(:,iAtom) - coordExt(:,iParticle)
+        dist3 = sqrt(sum(vect(:)**2)) ** 3
+        deriv(:,iAtom) = chargeExt(iParticle) * vect(:) / dist3
+      end do
+
+    end if
+
+  end subroutine calcInvRPrimeAsymmCluster
+
+
+  !> Calculates the -1/R**2 deriv contribution for potential from external charge, iPart
+  subroutine calcInvRPrimeAsymmPeriodic(nAtom, coord, nChargeExt, coordExt, chargeExt, rVec, gVec,&
+      & alpha, vol, iPart, deriv, blurWidths)
+
+    !> Number of atoms in the first group
+    integer, intent(in) :: nAtom
+
+    !> List of atomic coordinates (first group)
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Number of atoms in the second group
+    integer, intent(in) :: nChargeExt
+
+    !> List of the point charge coordinates (second group)
+    real(dp), intent(in) :: coordExt(:,:)
+
+    !> Charge of the point charges
+    real(dp), intent(in) :: chargeExt(:)
+
+    !> Lattice vectors to be used for the real Ewald summation
+    real(dp), intent(in) :: rVec(:,:)
+
+    !> Lattice vectors to be used for the reciprocal Ewald summation
+    real(dp), intent(in) :: gVec(:,:)
+
+    !> Parameter of the Ewald summation
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the supercell
+    real(dp), intent(in) :: vol
+
+    !> Atom or external charge to differentiate wrt to
+    integer, intent(in) :: iPart
+
+    !> Contains the derivative for the potential at the atom sites
+    real(dp), intent(inout) :: deriv(:, :)
+
+    !> Gaussian blur width of the charges in the 2nd group
+    real(dp), intent(in), optional :: blurWidths(:)
+
+    integer :: iAtom
+    real(dp) :: vect(3), fTmp(3)
+
+    deriv(:, :) = 0.0_dp
+
+    ! real space part
+    if (present(blurWidths)) then
+      do iAtom = 1, nAtom
+        vect(:) = coord(:,iAtom) - coordExt(:,iPart)
+        fTmp = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths(iPart)) * chargeExt(iPart)
+        deriv(:, iAtom) = deriv(:, iAtom) + fTmp
+      end do
+    else
+      do iAtom = 1, nAtom
+        vect(:) = coord(:,iAtom) - coordExt(:,iPart)
+        fTmp = derivEwaldReal(vect, rVec, alpha) * chargeExt(iPart)
+        deriv(:, iAtom) = deriv(:, iAtom) + fTmp
+      end do
+    end if
+
+    ! reciprocal space part
+    do iAtom = 1, nAtom
+      vect(:) = coord(:,iAtom) - coordExt(:,iPart)
+      fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * chargeExt(iPart)
+      deriv(:, iAtom) = deriv(:, iAtom) + fTmp
     end do
 
-  end subroutine invRPrimeCluster
+  end subroutine calcInvRPrimeAsymmPeriodic
+
 
 end module dftbp_dftb_coulomb

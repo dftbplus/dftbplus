@@ -63,7 +63,7 @@ module dftbp_dftbplus_parser
   use dftbp_io_charmanip, only : i2c, newline, tolower, unquote
   use dftbp_io_hsdparser, only : getNodeHSdName, parseHsd
   use dftbp_io_hsdutils, only : detailedError, detailedWarning, getChild, getChildren,&
-      & getChildValue, getSelectedAtomIndices, setChild, setChildValue
+      & getChildValue, getSelectedAtomIndices, getSelectedIndices, setChild, setChildValue
   use dftbp_io_hsdutils2, only : convertUnitHsd, getNodeName2, localiseName, setUnprocessed,&
       & splitModifier
   use dftbp_io_message, only : error, warning
@@ -456,13 +456,11 @@ contains
     ctrl%tForces = .false.
     ctrl%tSetFillingTemp = .false.
 
-    atomsRange = "1:-1"
-  #:if WITH_TRANSPORT
-    if (transpar%defined) then
-      ! only those atoms in the device region
-      write(atomsRange,"(I0,':',I0)")transpar%idxdevice
-    end if
-  #:endif
+    #:if WITH_TRANSPORT
+      atomsRange = atomicRange(transpar)
+    #:else
+      atomsRange = atomicRange()
+    #:endif
 
     call localiseName(parent, "GeometryOptimization", "GeometryOptimisation")
     call getNodeName2(node, buffer)
@@ -501,6 +499,7 @@ contains
 
       ! Steepest downhill optimisation
       ctrl%iGeoOpt = geoOptTypes%steepestDesc
+
       call commonGeoOptions(node, ctrl, geom, atomsRange)
 
     case ("conjugategradient")
@@ -767,6 +766,31 @@ contains
   #:endif
 
   end subroutine readDriver
+
+
+  !> Generates a string for the full range of atoms available for modifications
+#:if WITH_TRANSPORT
+  function atomicRange(transpar)
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+#:else
+  function atomicRange()
+#:endif
+
+    !> Default range of atoms
+    character(mc) :: atomicRange
+
+    atomicRange = "1:-1"
+  #:if WITH_TRANSPORT
+    if (transpar%defined) then
+      ! only those atoms in the device region
+      write(atomicRange,"(I0,':',I0)")transpar%idxdevice
+    end if
+  #:endif
+
+  end function atomicRange
+
 
   !> Simple function to check that an array of indices is a contigous range
   function isContiguousRange(indices) result(isContiguous)
@@ -5159,8 +5183,16 @@ contains
     character(lc) :: strTmp
     type(TListRealR1) :: lr1
     logical :: tPipekDense
-    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix
-    logical :: isEtaNeeded
+    logical :: tWriteBandDatDefault, tHaveEigenDecomposition, tHaveDensityMatrix, isEtaNeeded
+
+    ! Default range of atoms to move (may be adjusted if contacts present)
+    character(mc) :: atomsRange
+
+    #:if WITH_TRANSPORT
+      atomsRange = atomicRange(transpar)
+    #:else
+      atomsRange = atomicRange()
+    #:endif
 
     tHaveEigenDecomposition = providesEigenvalues(ctrl%solver%isolver)
     tHaveDensityMatrix = ctrl%solver%isolver /= electronicSolverTypes%OnlyTransport
@@ -5190,12 +5222,12 @@ contains
                   &regions where all atoms belong to the same species")
             end if
           end if
-          call getChildValue(child2, "OrbitalResolved", &
-              & ctrl%tOrbResInRegion(iReg), .false., child=child3)
+          call getChildValue(child2, "OrbitalResolved", ctrl%tOrbResInRegion(iReg), .false.,&
+              & child=child3)
           if (ctrl%tOrbResInRegion(iReg)) then
             if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
-              call detailedError(child3, "Orbital resolved PDOS only allowed for &
-                  &regions where all atoms belong to the same species")
+              call detailedError(child3, "Orbital resolved PDOS only allowed for regions where all&
+                  & atoms belong to the same species")
             end if
           end if
           deallocate(pTmpI1)
@@ -5255,7 +5287,11 @@ contains
 
       call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDefault)
 
-      ! electric field polarisability of system
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! Coupled perturbed settings !
+      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+      ! Electric field polarisability of system
       call localiseName(node, "Polarizability", "Polarisability")
       call getChild(node, "Polarisability", child=child, requested=.false.)
       if (associated(child)) then
@@ -5277,18 +5313,67 @@ contains
         call freqRanges(child, ctrl%perturbInp%dynKernelFreq)
       end if
 
+      if (ctrl%nExtChrg > 0) then
+        ! External charge position perturbation
+        call getChild(node, "ExternalChargeDerivatives", child=child, requested=.false.)
+        if (associated(child)) then
+
+          if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
+
+          ! try ExternalChargeDerivatives = {WrtCharges = {} } first
+          call getChild(child, "WrtCharges", child2, requested=.false.)
+          if (associated(child2)) then
+            call getChildValue(child2, "", buffer)
+            call getSelectedIndices(child, char(buffer), [1, ctrl%nExtChrg],&
+                & ctrl%perturbInp%indWrtCharges)
+            if (size(ctrl%perturbInp%indWrtCharges) == 0) then
+              call error("No charges specified for derivatives calculation.")
+            else
+              ctrl%perturbInp%isExtChargeDeriv = .true.
+            end if
+          else
+            ! try ExternalChargeDerivatives = Yes/No
+            call getChildValue(node, "ExternalChargeDerivatives", ctrl%perturbInp%isExtChargeDeriv,&
+                & .false.)
+          end if
+
+        end if
+
+      end if
+
       ! Perturbation with respect to atom positions
       call getChild(node, "CoordDerivatives", child=child, requested=.false.)
       if (associated(child)) then
+
         if (.not.allocated(ctrl%perturbInp)) allocate(ctrl%perturbInp)
+
+        ! try CoordDerivatives = {WrtAtoms = {} } first
+        call getChild(child, "WrtAtoms", child2, requested=.false.)
+        if (associated(child2)) then
+          call getChildValue(child2, "", buffer)
+          call getSelectedAtomIndices(child, char(buffer), geo%speciesNames, geo%species,&
+              & ctrl%perturbInp%indWrtAtoms, indexRange=[1,geo%nAtom])
+          if (size(ctrl%perturbInp%indWrtAtoms) == 0) then
+            call error("No atoms specified for derivatives calculation.")
+          else
+            ctrl%perturbInp%isAtomCoordPerturb = .true.
+          end if
+        else
+          ! try CoordDerivatives = Yes/No
+          call getChildValue(node, "CoordDerivatives", ctrl%perturbInp%isAtomCoordPerturb, .false.)
+        end if
+
       #:if WITH_MPI
-        call detailedError(node, "CoordDerivatives not currently available for MPI enabled code")
-        ctrl%perturbInp%isAtomCoordPerturb = .false.
-      #:else
-        ctrl%perturbInp%isAtomCoordPerturb = .true.
+        if (allocated(ctrl%perturbInp)) then
+          if (ctrl%perturbInp%isAtomCoordPerturb) then
+            call detailedError(node,"CoordDerivatives not currently available for MPI enabled code")
+          end if
+        end if
       #:endif
+
       end if
 
+      ! General perturbation settings
       if (allocated(ctrl%perturbInp)) then
         call getChildValue(node, "PerturbDegenTol", ctrl%perturbInp%tolDegenDFTBPT, 1.0E-9_dp,&
             & modifier=modifier, child=child)
@@ -5330,6 +5415,8 @@ contains
       end if
 
     end if
+
+    !!!!!!!!!!!!!!!!!!!!!!!
 
     if (tHaveDensityMatrix) then
 

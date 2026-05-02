@@ -113,7 +113,7 @@ int main()
   int natom, natom0;
   int si2, ii, ij;
   int major, minor, patch;
-  _Bool instsafe;
+  bool instsafe;
 
   double masses_si2[NR_OF_ATOMS_SI2];
   int orbitals_si2[NR_OF_ATOMS_SI2];
@@ -263,11 +263,11 @@ int main()
       if (si2) {
         dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
                                  stress_tensor_total, gross_charges_total, NULL, potential_total,
-                                 cm5_charges_total);
+                                 cm5_charges_total, NULL, NULL);
       } else {
         dftbp_write_autotest_tag(MAX_ATOMS, 0, 2, mermin_energy_total, gradients_total,
                                  stress_tensor_total, gross_charges_total, NULL, potential_total,
-                                 NULL);
+                                 NULL, NULL, NULL);
       }
     }
 

@@ -5288,7 +5288,8 @@ calculation and/or calculate properties.
   \pref{sec:dftbp.eperturb} \\
   \kw{ResponseKernel} & m & Hamiltonian = DFTB & \cb &
   \pref{sec:dftbp.rperturb} \\
-  \kw{CoordDerivatives} & l & & No & \\
+  \kw{CoordDerivatives} & l | p & & No & \\
+  \kw{ExternalChargeDerivatives} & l | p & & No & \\
 \end{ptable}
 
 \begin{description}
@@ -5333,9 +5334,36 @@ calculation and/or calculate properties.
 
 \item[\is{CoordDerivatives}] Calculate second derivatives with respect
   to atomic positions (currently only molecular boundary conditions
-  and serial calculations for non-SCC or SCC DFTB). Derivatives of the band
-  structure are written to \verb|dBand_dx.out|, and Born effective
-  charges are evaluated.
+  and serial calculations). Derivatives of the band structure are
+  written to \verb|dBand_dx.out|, and Born effective charges are
+  evaluated. The keyword accepts either a logical \is{Yes} or \is{No}
+  for derivatives with respect to {\em all} atoms, or a
+  \kwcb{WrtAtoms} environment to choose a list of atoms to
+  differentiate with respect to their coordinates (selection syntax is
+  described in appendix \ref{sec:index_selection}).
+
+  Example:
+\begin{verbatim}
+Analysis = {
+  PrintForces = Yes
+  CoordDerivatives = WrtAtoms {H 1:2}
+}
+\end{verbatim}
+
+\item[\is{ExternalChargeDerivatives}] Calculate second derivatives
+  with respect to external charge positions. The keyword accepts
+  either a logical \is{Yes} or \is{No} for derivatives with respect to
+  {\em all} atoms, or a \kwcb{WrtCharges} environment to choose a list
+  of the (numbered) charges to differentiate with respect to their
+  coordinates (selection syntax is described in appendix
+  \ref{sec:index_selection}).
+
+  Example:
+\begin{verbatim}
+Analysis = {
+  ExternalChargeDerivatives = WrtCharges {2 4:-1}
+}
+\end{verbatim}
 
 \end{description}
 
@@ -5688,7 +5716,7 @@ available for range separated calculations.
     \kw{WriteDensityMatrix}     & l & & No & \\
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
-    \kw{WriteXplusYAscii}       & l & & Yes & \\    
+    \kw{WriteXplusYAscii}       & l & & Yes & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{ExcitedStateForces}     & l & \is{Printforces} = Yes & Yes & \\
     \kw{CacheCharges}           & l & & Yes & \\
@@ -5777,9 +5805,9 @@ available for range separated calculations.
     created (if \is{WriteXplusYAscii}  = \is{No} then XplusY.BIN is written).
     This file contains the RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all
     excited states (c.f., Eqn.~(18) in Ref.~\cite{heringer2007aes}).
-    
+
   \item[\is{WriteXplusYAscii}] If set to \is{Yes}, the file is written
-    in Ascii format otherwise as binary file. 
+    in Ascii format otherwise as binary file.
 
   \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is
     created. This file contains the Mulliken transition dipole for each excited

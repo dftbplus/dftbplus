@@ -16,8 +16,7 @@
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
   use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
-      & gfac,&
-      & Hartree__eV, quaternionName, spinName
+      & gfac, Hartree__eV, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : abortProgram, destructGlobalEnv, stdOut
@@ -85,7 +84,8 @@ module dftbp_dftbplus_mainio
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
   public :: writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7
-  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10, permitivityPrint
+  public :: writeDetailedOut8, writeDetailedOut9, writeDetailedOut10
+  public :: permitivityPrint
   public :: writeMdOut1, writeMdOut2
   public :: writeCharges
   public :: writeEsp
