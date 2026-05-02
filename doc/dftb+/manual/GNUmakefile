@@ -6,7 +6,8 @@ MANUALCOMPONENTS = manual.tex packages.tex newcommands.tex hsd.tex	\
     disp_constants.tex dftd3_constants.tex onsite_constants.tex		\
     hhubbard.tex restart_files.tex publications.tex references.tex	\
     introduction.tex dftbp.tex transport.tex modes.tex waveplot.tex	\
-    phonons.tex setupgeom.tex Fig_device.pdf Fig_integration.png api.tex solvents.tex
+    phonons.tex setupgeom.tex Fig_device.pdf Fig_integration.png	\
+    api.tex solvents.tex app_files.tex
 
 RM = /usr/bin/env rm -f
 FIG2DEV = /usr/bin/env fig2dev
