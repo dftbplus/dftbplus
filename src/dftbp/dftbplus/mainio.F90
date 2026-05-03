@@ -3986,8 +3986,8 @@ contains
     do iOmega = 1, size(omega)
       write(fd,*)
       if (abs(omega(iOmega)) > epsilon(0.0_dp)) then
-        write(fd, format2U)"Polarisability at omega = ", omega(iOmega), ' H ',&
-            & omega(iOmega) * Hartree__eV, ' eV'
+        write(fd, "(A, T32, F18.10, T51, A, T54, F16.4, T71, A)")"Polarisability at omega = ",&
+            & omega(iOmega), ' H ', omega(iOmega) * Hartree__eV, ' eV'
       else
         write(fd, *)"Static polarisability:"
       end if
