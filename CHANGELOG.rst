@@ -25,6 +25,8 @@ Added
 
 - Periodic geometry halogen corrections
 
+- Langevin thermostat added
+
 
 Changed
 -------

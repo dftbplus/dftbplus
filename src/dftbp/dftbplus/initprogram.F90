@@ -3325,6 +3325,14 @@ contains
               & "MD with scaling of velocities according to temperature",&
               & "(a.k.a. 'not' NVT ensemble using Berendsen thermostating)"
         end if
+      case(thermostatTypes%langevin)
+        if (this%geometryChanges%tBarostat) then
+          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+              & "MD with NVP ensemble using Langevin thermostating and barostat)"
+        else
+          write(stdOut, "('Mode:',T30,A,/,T30,A)")&
+              & "MD with NVT Langevin thermostating)"
+        end if
       case(thermostatTypes%nhc)
         if (this%geometryChanges%tBarostat) then
           write(stdOut, "('Mode:',T30,A,/,T30,A)")"MD with scaling of velocities according to",&

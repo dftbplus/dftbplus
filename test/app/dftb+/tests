@@ -536,6 +536,8 @@ geoopt/Si_2_lattice_lbfgs              #? MPI_PROCS <= 1
 geoopt/Si_2_lattice                    #? MPI_PROCS <= 1
 geoopt/Si_2_lattice_rf                 #? MPI_PROCS <= 1
 md/Si_8_NHC                            #? MPI_PROCS <= 1
+md/Si_8_Langevin                       #? MPI_PROCS <= 4
+md/H2O_Langevin                        #? MPI_PROCS <= 1
 
 
 spin/Fe4_Fermi                         #? MPI_PROCS <= 2
