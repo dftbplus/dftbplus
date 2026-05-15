@@ -1574,7 +1574,6 @@ contains
 
     real(dp), allocatable :: dqBlockIn(:,:,:,:), SSqrReal(:,:)
     real(dp), allocatable :: dqBlockOut(:,:,:,:)
-    real(dp), allocatable :: dummy(:,:,:,:)
 
     ! derivative of potentials
     type(TPotentials) :: dPotential
@@ -1948,7 +1947,7 @@ contains
             !if (allocated(onsMEs)) then
             !  ! onsite corrections
             !  call addOnsShift(dPotential%orbitalBlock, dPotential%iOrbitalBlock,&
-            !      & dqBlockIn + dqNonVariationalBlock, dummy, onsMEs, species, orb)
+            !      & dqBlockIn + dqNonVariationalBlock, placeHolder, onsMEs, species, orb)
             !end if
 
           end if
@@ -2593,8 +2592,7 @@ contains
 
     logical :: tSccCalc, tConverged
     integer :: iSccIter
-    real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
-    real(dp), allocatable :: dummy(:,:,:,:)
+    real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:), placeHolder(:,:,:,:)
 
     real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements), sccErrorQ
     real(dp) :: dqPerShell(orb%mShell, nAtom, nSpin)
@@ -2708,8 +2706,8 @@ contains
         end if
         if (allocated(onsMEs)) then
           ! onsite corrections
-          call addOnsShift(dPotential%orbitalBlock, dPotential%iOrbitalBlock, dqBlockIn, dummy,&
-              & onsMEs, species, orb)
+          call addOnsShift(dPotential%orbitalBlock, dPotential%iOrbitalBlock, dqBlockIn,&
+              & placeHolder, onsMEs, species, orb)
         end if
 
       end if

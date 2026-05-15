@@ -130,7 +130,7 @@ contains
     !> Node to investigate
     type(fnode), pointer :: node
 
-    type(fnode), pointer :: child, child2, dummy
+    type(fnode), pointer :: child, child2, removed
     type(string) :: buffer
 
     @:ASSERT(associated(node))
@@ -141,7 +141,7 @@ contains
       if (getNodeType(child) == TEXT_NODE) then
         call getNodeValue(child, buffer)
         if (len_trim2(char(buffer)) == 0) then
-          dummy => removeChild(node, child)
+          removed => removeChild(node, child)
           call destroyNode(child)
         end if
       else

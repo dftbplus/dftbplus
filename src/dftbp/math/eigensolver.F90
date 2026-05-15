@@ -147,7 +147,7 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
@@ -168,14 +168,14 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == "real"
-      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workDummy, -1, info_)
+      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workSpaceSize, -1, info_)
     #:else
-      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workDummy, -1, rwork, info_)
+      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workSpaceSize, -1, rwork, info_)
     #:endif
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
     #:if TYPE == "real"
       call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, work, workSize, info_)
@@ -232,14 +232,14 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer, allocatable :: iwork(:)
-    integer :: iworkDummy(1)
+    integer :: iWorkSpaceSize(1)
     integer :: iworkSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     integer n, info_, iStep
@@ -254,22 +254,22 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == "real"
-      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workDummy, -1, iworkDummy, -1, info_)
+      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workSpaceSize, -1, iWorkSpaceSize, -1, info_)
     #:else
-      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workDummy, -1, rworkDummy, -1, iworkDummy,&
-          & -1, info_)
+      call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, workSpaceSize, -1, rWorkSpaceSize, -1,&
+          & iWorkSpaceSize, -1, info_)
     #:endif
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "real"
       call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, work, workSize, iwork, iworkSize, info_)
     #:else
-      rworkSize = nint(rworkDummy(1))
+      rworkSize = nint(rWorkSpaceSize(1))
       allocate(rwork(rworkSize))
       call ${LAPACK_ROUTINE}$(jobz, uplo, n, a, n, w, work, workSize, rwork, rworkSize, iwork,&
           & iworkSize, info_)
@@ -332,14 +332,14 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer, allocatable :: iwork(:)
-    integer :: iworkDummy(1)
+    integer :: iWorkSpaceSize(1)
     integer :: iworkSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     ${TYPE}$(${KIND}$), allocatable :: z(:,:)
@@ -395,23 +395,23 @@ contains
       iStep = 1
       #:if TYPE == "real"
         call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, n, vl, vu, il, iu, abstol, m, w, z, ldz,&
-            & isuppz, workDummy, -1, iworkDummy, -1, info_)
+            & isuppz, workSpaceSize, -1, iWorkSpaceSize, -1, info_)
       #:else
         call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, n, vl, vu, il, iu, abstol, m, w, z, ldz,&
-            & isuppz, workDummy, -1, rworkDummy, -1, iworkDummy, -1, info_)
+            & isuppz, workSpaceSize, -1, rWorkSpaceSize, -1, iWorkSpaceSize, -1, info_)
       #:endif
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "real"
       call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, n, vl, vu, il, iu, abstol, m, w, z, ldz,&
           & isuppz, work, workSize, iwork, iworkSize, info_)
     #:else
-      rworkSize = nint(rworkDummy(1))
+      rworkSize = nint(rWorkSpaceSize(1))
       allocate(rwork(rworkSize))
       call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, n, vl, vu, il, iu, abstol, m, w, z, ldz,&
           & isuppz, work, workSize, rwork, rworkSize, iwork, iworkSize, info_)
@@ -478,11 +478,11 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
   #:endif
     integer n, lda, info_, iitype, ldb, iStep
     character(len=100) :: errorMsg
@@ -506,15 +506,15 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == "real"
-      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, lda, b, ldb, w, workDummy, -1, info_)
+      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, lda, b, ldb, w, workSpaceSize, -1, info_)
     #:else
-      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, lda, b, ldb, w, workDummy, -1,&
-          & rworkDummy, info_)
+      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, lda, b, ldb, w, workSpaceSize, -1,&
+          & rWorkSpaceSize, info_)
     #:endif
       if (info_/=0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
     #:if TYPE == "real"
       call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, lda, b, ldb, w, work, workSize, info_)
@@ -584,14 +584,14 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer, allocatable :: iwork(:)
-    integer :: iworkDummy(1)
+    integer :: iWorkSpaceSize(1)
     integer :: iworkSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     integer n, info_, iitype, iStep
@@ -613,24 +613,24 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == "real"
-      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, workDummy, -1, &
-         & iworkDummy, -1, info_)
+      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, workSpaceSize, -1, &
+         & iWorkSpaceSize, -1, info_)
     #:else
-      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, workDummy, -1,&
-         & rworkDummy, -1, iworkDummy, -1, info_)
+      call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, workSpaceSize, -1,&
+         & rWorkSpaceSize, -1, iWorkSpaceSize, -1, info_)
     #:endif
       if (info_/=0) exit errorGuard
 
       iStep = 2
-      worksize = nint(real(workDummy(1), kind=${KIND}$))
+      worksize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "real"
       call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, work, workSize, iwork,&
           & iworkSize, info_)
     #:else
-      rworkSize = nint(rworkDummy(1))
+      rworkSize = nint(rWorkSpaceSize(1))
       allocate(rwork(rworkSize))
       call ${LAPACK_ROUTINE}$(iitype, jobz, uplo, n, a, n, b, n, w, work, workSize, rwork,&
           & rworkSize, iwork, iworkSize, info_)
@@ -709,14 +709,14 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer, allocatable :: iwork(:)
-    integer :: iworkDummy(1)
+    integer :: iWorkSpaceSize(1)
     integer :: iworkSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     ${TYPE}$(${KIND}$), allocatable :: tmpChole(:)
@@ -795,21 +795,22 @@ contains
       iStep = 1
     #:if TYPE == "real"
       call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, size(a, dim=1), vl, vu, il, iu, abstol, m,&
-          & w, b, size(b, dim=1), isuppz, workDummy, -1, iworkDummy, -1, info_)
+          & w, b, size(b, dim=1), isuppz, workSpaceSize, -1, iWorkSpaceSize, -1, info_)
     #:else
       call ${LAPACK_HEEVR}$(jobz, range, uplo, n, a, size(a, dim=1), vl, vu, il, iu, abstol, m,&
-          & w, b, size(b, dim=1), isuppz, workDummy, -1, rworkDummy, -1, iworkDummy, -1, info_)
+          & w, b, size(b, dim=1), isuppz, workSpaceSize, -1, rWorkSpaceSize, -1, iWorkSpaceSize,&
+          & -1, info_)
     #:endif
       if (info_ /= 0) exit errorGuard
 
       ! Form a Cholesky factorization of B.
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "complex"
-      rworkSize = nint(rworkDummy(1))
+      rworkSize = nint(rWorkSpaceSize(1))
       allocate(rwork(rworkSize))
     #:endif
       call ${LAPACK_POTRF}$(uplo, n, b, n, info_)
@@ -943,14 +944,14 @@ contains
     integer, optional, intent(out) :: info
 
     real(${KIND}$), allocatable :: work(:)
-    real(${KIND}$) :: workDummy(1)
+    real(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer :: n, lda, info_, ldvl, ldvr, iStep
     character :: jobvl, jobvr
     character(len=100) :: errorMsg
 
-    ! If no eigenvectors requested, need a dummy array for lapack call
-    real(${KIND}$) :: dummyvl(1,1), dummyvr(1,1)
+    ! If no eigenvectors requested, need a temporary array for lapack call
+    real(${KIND}$) :: temporaryVl(1,1), temporaryVr(1,1)
 
     lda = size(a, dim=1)
     n = size(a, dim=2)
@@ -980,34 +981,34 @@ contains
       iStep = 1
       if (jobvl == 'V' .and. jobvr == 'V') then
         call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr,&
-            & workDummy, -1, info_)
+            & workSpaceSize, -1, info_)
       else if (jobvl == 'V' .and. jobvr == 'N') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr,&
-            & workDummy, -1, info_)
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, temporaryVr, ldvr,&
+            & workSpaceSize, -1, info_)
       else if (jobvl == 'N' .and. jobvr == 'V') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr,&
-            & workDummy, -1, info_)
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, temporaryVl, ldvl, vr, ldvr,&
+            & workSpaceSize, -1, info_)
       else if (jobvl == 'N' .and. jobvr == 'N') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr,&
-            & workDummy, -1, info_)
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, temporaryVl, ldvl, temporaryVr,&
+            & ldvr, workSpaceSize, -1, info_)
       end if
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(workDummy(1))
+      workSize = nint(workSpaceSize(1))
       allocate(work(workSize))
       if (jobvl == 'V' .and. jobvr == 'V') then
         call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work,&
             & workSize, info_)
       else if (jobvl == 'V' .and. jobvr == 'N') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, work,&
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, temporaryVr, ldvr, work,&
             & workSize, info_)
       else if (jobvl == 'N' .and. jobvr == 'V') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, work,&
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, temporaryVl, ldvl, vr, ldvr, work,&
             & workSize, info_)
       else if (jobvl == 'N' .and. jobvr == 'N') then
-        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr,&
-            & work, workSize, info_)
+        call ${LAPACK_ROUTINE}$(jobvl, jobvr, n, a, lda, wr, wi, temporaryVl, ldvl, temporaryVr,&
+            & ldvr, work, workSize, info_)
       end if
     end block errorGuard
 
@@ -1065,14 +1066,14 @@ contains
     integer, optional, intent(out) :: info
 
    ${TYPE}$(${KIND}$), allocatable :: work(:)
-   ${TYPE}$(${KIND}$) :: workDummy(1)
+   ${TYPE}$(${KIND}$) :: workSpaceSize(1)
    integer :: workSize
    integer, allocatable :: iwork(:)
-   integer :: iworkDummy(1)
+   integer :: iWorkSpaceSize(1)
    integer :: iworkSize
  #:if TYPE == 'complex'
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     integer :: n, info_, iStep
@@ -1087,17 +1088,18 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == 'real'
-      call ${MAGMA_ROUTINE}$(ngpus, jobz, uplo, n, a, n, w, workDummy, -1, iworkDummy, -1, info_)
+      call ${MAGMA_ROUTINE}$(ngpus, jobz, uplo, n, a, n, w, workSpaceSize, -1, iWorkSpaceSize, -1,&
+          & info_)
     #:else
-      call ${MAGMA_ROUTINE}$(ngpus, jobz, uplo, n, a, n, w, workDummy, -1, rworkDummy, -1,&
-          & iworkDummy, -1, info)
+      call ${MAGMA_ROUTINE}$(ngpus, jobz, uplo, n, a, n, w, workSpaceSize, -1, rWorkSpaceSize, -1,&
+          & iWorkSpaceSize, -1, info)
     #:endif
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "real"
       call ${MAGMA_ROUTINE}$(ngpus, jobz, uplo, n, a, n, w, work, workSize, iwork, iworkSize, info_)
@@ -1167,14 +1169,14 @@ contains
     integer, optional, intent(out) :: info
 
     ${TYPE}$(${KIND}$), allocatable :: work(:)
-    ${TYPE}$(${KIND}$) :: workDummy(1)
+    ${TYPE}$(${KIND}$) :: workSpaceSize(1)
     integer :: workSize
     integer, allocatable :: iwork(:)
-    integer :: iworkDummy(1)
+    integer :: iWorkSpaceSize(1)
     integer :: iworkSize
   #:if TYPE == "complex"
     real(${KIND}$), allocatable :: rwork(:)
-    real(${KIND}$) :: rworkDummy(1)
+    real(${KIND}$) :: rWorkSpaceSize(1)
     integer :: rworkSize
   #:endif
     integer :: n, info_, iitype, iStep
@@ -1196,24 +1198,24 @@ contains
     errorGuard: block
       iStep = 1
     #:if TYPE == "real"
-      call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, workDummy, -1,&
-          & iworkDummy, -1, info_)
+      call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, workSpaceSize, -1,&
+          & iWorkSpaceSize, -1, info_)
     #:else
-      call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, workDummy, -1,&
-          & rworkDummy, -1, iworkDummy, -1, info_)
+      call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, workSpaceSize, -1,&
+          & rWorkSpaceSize, -1, iWorkSpaceSize, -1, info_)
     #:endif
       if (info_ /= 0) exit errorGuard
 
       iStep = 2
-      workSize = nint(real(workDummy(1), kind=${KIND}$))
+      workSize = nint(real(workSpaceSize(1), kind=${KIND}$))
       allocate(work(workSize))
-      iworkSize = iworkDummy(1)
+      iworkSize = iWorkSpaceSize(1)
       allocate(iwork(iworkSize))
     #:if TYPE == "real"
       call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, workSize, iwork,&
           & iworkSize, info_)
     #:else
-      rworkSize = nint(rworkDummy(1))
+      rworkSize = nint(rWorkSpaceSize(1))
       allocate(rwork(rworkSize))
       call ${MAGMA_ROUTINE}$(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, workSize, rwork,&
           & rworkSize, iwork, iworkSize, info_)

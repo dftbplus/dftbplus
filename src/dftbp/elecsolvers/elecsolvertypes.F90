@@ -28,8 +28,8 @@ module dftbp_elecsolvers_elecsolvertypes
     integer :: elpa = 4
     integer :: omm = 5
     integer :: pexsi = 6
-    integer :: dummy1 = 7
-    integer :: dummy2 = 8
+    integer :: unused1 = 7
+    integer :: unused2 = 8
     integer :: ntpoly = 9
     integer :: elpadm = 10
 

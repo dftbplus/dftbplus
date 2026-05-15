@@ -90,7 +90,7 @@ contains
     type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, child, dummy
+    type(fnode), pointer :: root, tmp, child, placeholder
     type(TParserflags) :: parserFlags
 
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
@@ -104,8 +104,8 @@ contains
     write(stdout, "(A)") repeat("-", 80)
 
     ! Handle parser options
-    call getChildValue(root, "ParserOptions", dummy, "", child=child, &
-        &list=.true., allowEmptyValue=.true., dontMarkProcessed=.true.)
+    call getChildValue(root, "ParserOptions", placeholder, "", child=child, list=.true.,&
+        & allowEmptyValue=.true., dontMarkProcessed=.true.)
     call readParserOptions(child, root, parserFlags)
 
     ! Read in the different blocks

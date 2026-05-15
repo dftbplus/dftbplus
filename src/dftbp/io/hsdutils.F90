@@ -3325,7 +3325,7 @@ contains
     !> If created child should be marked as a list.
     logical, optional, intent(in) :: list
 
-    type(fnode), pointer :: child2, dummy
+    type(fnode), pointer :: child2, removed
     logical :: tReplace, tList
 
     if (present(replace)) then
@@ -3340,7 +3340,7 @@ contains
     end if
     call createChild_local(node, name, tList, tReplace, child2)
     if (associated(variableValue)) then
-      dummy => appendChild(child2, variableValue)
+      removed => appendChild(child2, variableValue)
     end if
     if (present(child)) then
       child => child2
@@ -3377,7 +3377,7 @@ contains
     !> Value to set (if empty, no child is appended to the created child)
     character(len=*), intent(in), optional :: variableValue
 
-    type(fnode), pointer :: parent, oldChild, child2, text, dummy
+    type(fnode), pointer :: parent, oldChild, child2, text, removed
     character(len=len(name)) :: loName
     type(string) :: newName, parentname
 
@@ -3403,20 +3403,20 @@ contains
     end if
 
     ! If parent is a text mode, no subnodes should be allowed.
-    dummy => getFirstChild(parent)
-    if (associated(dummy)) then
-      call getNodeName(dummy, parentname)
+    removed => getFirstChild(parent)
+    if (associated(removed)) then
+      call getNodeName(removed, parentname)
       if (char(parentname) == textNodeName) then
         call detailedError(node, "Node contains superfluous free text: '"&
-            & // trim(dummy%nodeValue) // "'")
+            & // trim(removed%nodeValue) // "'")
       end if
     end if
 
     if (associated(oldChild)) then
-      dummy => replaceChild(parent, child2, oldChild)
+      removed => replaceChild(parent, child2, oldChild)
       call destroyNode(oldChild)
     else
-      dummy => appendChild(parent, child2)
+      removed => appendChild(parent, child2)
     end if
 
     if (len(newName) > 0) then
@@ -3430,7 +3430,7 @@ contains
     call setAttribute(child, attrProcessed, "")
     if (present(variableValue)) then
       text => createTextNode(variableValue)
-      dummy => appendChild(child, text)
+      removed => appendChild(child, text)
     end if
 
   end subroutine createChild_local
@@ -3477,7 +3477,7 @@ contains
     character(len=*), optional, intent(in) :: modifier
 
     logical :: tReplace, tList
-    type(fnode), pointer :: dummy
+    type(fnode), pointer :: removed
 
     if (present(replace)) then
       tReplace = replace
@@ -3493,14 +3493,14 @@ contains
     child => getFirstChildByName(node, tolower(name))
     if (associated(child)) then
       if (tReplace) then
-        dummy => removeChild(node, child)
+        removed => removeChild(node, child)
         call destroyNode(child)
       else
         call detailedError(node, MSG_EXISTING_CHILD // name)
       end if
     end if
     child => createElement(tolower(name))
-    dummy => appendChild(node, child)
+    removed => appendChild(node, child)
     call setAttribute(child, attrName, name)
     call setAttribute(child, attrProcessed, "")
     if (tList) then

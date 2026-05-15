@@ -287,11 +287,11 @@ contains
     integer, intent(in) :: nItems
     character(:), allocatable, intent(out) :: formStrRow
 
-    character(200) :: dummy
+    character(200) :: digits
     integer :: nn
 
-    write(dummy, '(I0)') nItems
-    nn = len_trim(formStr) + 2 + len_trim(dummy)
+    write(digits, '(I0)') nItems
+    nn = len_trim(formStr) + 2 + len_trim(digits)
     allocate(character(nn) :: formStrRow)
     write(formStrRow, '(A,I0,A,A)') '(', nItems, trim(formStr), ')'
 

@@ -632,10 +632,10 @@ contains
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
 
-    !> Last (partly) filled level in each spin channel (and dummy k)
+    !> Last (partly) filled level in each spin channel (and no k dependence)
     integer, intent(in) :: nFilled(:, :)
 
-    !> First (partly) empty level in each spin channel (and dummy k)
+    !> First (partly) empty level in each spin channel (and no k dependence)
     integer, intent(in) :: nEmpty(:, :)
 
     !> Ground state eigenvectors

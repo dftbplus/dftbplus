@@ -5,7 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Dummy generator for an external potential given by surrounding point charges
+!> Simple generator for an external potential given by surrounding point charges
 module extchargepotgen
   use extchargepot, only : getPointChargePotential
   use dftbp_dftbplus_qdepextpotgen, only : TQDepExtPotGen

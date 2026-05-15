@@ -49,7 +49,7 @@ module phonons_libnegfint
 
   Type(Tnegf), target, public :: negf
   ! Workaround: ifort 17, ifort 16
-  ! Passing negf for pointer dummy arguments fails despite target attribute, so pointer is needed
+  ! Passing negf for pointer arguments fails despite target attribute, so pointer is needed
   type(TNegf), pointer :: pNegf
 
   public :: negf_init, negf_destroy
@@ -101,7 +101,7 @@ contains
 
     initinfo = .true.
 
-    pNegf=>negf
+    pNegf => negf
 
   #:if WITH_MPI
     call negf_mpi_init(env%mpi%globalComm, tIOproc)

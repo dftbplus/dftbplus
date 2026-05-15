@@ -72,7 +72,7 @@ program test_setSpeciesAndDependents
     integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
     integer, parameter :: lead_id = 0
   #:else
-    ! Dummy variables for serial code
+    ! Unused variables for serial code
     integer, parameter :: MPI_COMM_WORLD = 0
     integer, parameter :: lead_id = 0
   #:endif
@@ -95,11 +95,8 @@ contains
   #:if WITH_MPI
     ! MPI variables
     integer :: providedThreading, rank, np, ierr
-    logical :: IO
-  #:else
-    ! Dummy variables for serial code
-    logical :: IO
   #:endif
+    logical :: IO
 
     integer, parameter :: nSteps = 2
     integer :: nAtoms
