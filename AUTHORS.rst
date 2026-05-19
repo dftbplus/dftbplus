@@ -39,9 +39,9 @@ contributed to DFTB+ :
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
-* Roberto Andrés González-León (University of Costa Rica)
-
 * Sebastian Ehlert (University of Bonn, Germany)
+
+* Roberto Andrés González-León (University of Costa Rica)
 
 * Tammo van der Heide (University of Bremen, Germany)
 
@@ -64,13 +64,15 @@ contributed to DFTB+ :
 
 * Tobias Melson (Max Planck Computing and Data Facility, Germany)
 
+* Gonzalo Díaz Mirón (International Centre for Theoretical Physics, Italy)
+
 * Izaac Mitchell (University of Newcastle, Australia)
 
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
 
-* Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
+* Gabriele Penazzi (formerly University of Bremen Germany until 2016, now
   QuantumWise A/S, Denmark)
 
 * Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech
@@ -89,5 +91,3 @@ contributed to DFTB+ :
 * Bo Thomsen (Japan Atomic Energy Agency, Japan)
 
 * Victor Yu (Duke University, USA)
-
-* Gonzalo Díaz Mirón (International Centre for Theoretical Physics, Italy)
