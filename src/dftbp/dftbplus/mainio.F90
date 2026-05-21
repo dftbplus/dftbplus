@@ -15,7 +15,7 @@
 !> Various I/O routines for the main program.
 module dftbp_dftbplus_mainio
   use dftbp_common_accuracy, only : dp, lc, mc, sc
-  use dftbp_common_constants, only : au__Debye, au__fs, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
+  use dftbp_common_constants, only : au__Debye, au__pascal, au__V_m, Bohr__AA, Boltzmann,&
       & gfac, Hartree__eV, pi, quaternionName, spinName
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
@@ -40,7 +40,8 @@ module dftbp_dftbplus_mainio
   use dftbp_io_charmanip, only : i2c
   use dftbp_io_commonformats, only : format1U, format1U1e, format1Ue, format2U, format2Ue,&
       & formatBorn, formatdBorn, formatGeoOut, formatHessian
-  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare, writeXYZFormat
+  use dftbp_io_formatout, only : writeGenFormat, writeSparse, writeSparseAsSquare,&
+      & writeXYZFormat
   use dftbp_io_hsdutils, only : writeChildValue
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : tagLabels, TTaggedWriter
@@ -4510,11 +4511,11 @@ contains
       @:ASSERT(allocated(velocities))
       @:ASSERT(allocated(derivs))
       if (tPrintMulliken) then
-        call writeXYZFormatWithForces_(fname, pCoord0Out, species0, speciesName, velocities,&
-            & -derivs(:, 1:nAtom), comment, tAppendGeo, charges=sum(qOutput(:,:,1), dim=1))
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, charges=sum(qOutput(:,:,1),&
+            & dim=1), velocities=velocities, forces=-derivs, comment=comment, append=tAppendGeo)
       else
-        call writeXYZFormatWithForces_(fname, pCoord0Out, species0, speciesName, velocities,&
-            & -derivs(:, 1:nAtom), comment, tAppendGeo)
+        call writeXYZFormat(fname, pCoord0Out, species0, speciesName, velocities=velocities,&
+            & forces=-derivs, comment=comment, append=tAppendGeo)
       end if
     else
       if (tPrintMulliken) then
@@ -4536,79 +4537,6 @@ contains
     end if
 
   end subroutine writeCurrentGeometry
-
-
-  !> Writes XYZ geometry with Mulliken charge, velocity and force columns.
-  subroutine writeXYZFormatWithForces_(fileName, coords, species, speciesNames, velocities, forces,&
-      & comment, append, charges)
-
-    !> File name to write to
-    character(*), intent(in) :: fileName
-
-    !> Coordinates in atomic units
-    real(dp), intent(in) :: coords(:,:)
-
-    !> Species of atoms
-    integer, intent(in) :: species(:)
-
-    !> Species names
-    character(*), intent(in) :: speciesNames(:)
-
-    !> Velocities for each atom
-    real(dp), intent(in) :: velocities(:,:)
-
-    !> Forces for each atom (in atomic units)
-    real(dp), intent(in) :: forces(:,:)
-
-    !> Comment for the XYZ frame header
-    character(*), intent(in) :: comment
-
-    !> Whether to append to existing file
-    logical, intent(in) :: append
-
-    !> Optional Mulliken charges
-    real(dp), intent(in), optional :: charges(:)
-
-    type(TFileDescr) :: fd
-    character(1) :: mode
-    integer :: ii, nAtom, nSpecies
-    real(dp) :: forceConv
-
-    nAtom = size(coords, dim=2)
-    nSpecies = maxval(species)
-    forceConv = Hartree__eV / Bohr__AA
-    @:ASSERT(size(coords, dim=1) == 3)
-    @:ASSERT(size(species) == nAtom)
-    @:ASSERT(size(speciesNames) == nSpecies)
-    @:ASSERT(all(shape(velocities) == [3, nAtom]))
-    @:ASSERT(all(shape(forces) == [3, nAtom]))
-    if (present(charges)) then
-      @:ASSERT(size(charges) == nAtom)
-    end if
-
-    if (append) then
-      mode = "a"
-    else
-      mode = "w"
-    end if
-
-    call openFile(fd, fileName, mode=mode)
-    write(fd%unit, "(I0)") nAtom
-    write(fd%unit, "(A)") trim(comment)
-
-    if (present(charges)) then
-      write(fd%unit, "(A5,10F16.8)") (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & charges(ii), velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp,&
-          & forces(:, ii) * forceConv, ii = 1, nAtom)
-    else
-      write(fd%unit, "(A5,9F16.8)") (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-          & velocities(:, ii) * Bohr__AA / au__fs * 1000.0_dp, forces(:, ii) * forceConv,&
-          & ii = 1, nAtom)
-    end if
-
-    call closeFile(fd)
-
-  end subroutine writeXYZFormatWithForces_
 
 
   !> Write geometry including periodic images to disc
