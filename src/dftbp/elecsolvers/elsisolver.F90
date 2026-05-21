@@ -46,7 +46,8 @@ module dftbp_elecsolvers_elsisolver
       & elsi_set_pexsi_np_per_pole, elsi_set_pexsi_np_symbo, elsi_set_pexsi_temp,&
       & elsi_set_rw_blacs, elsi_set_rw_csc, elsi_set_rw_mpi, elsi_set_sing_check,&
       & elsi_set_sparsity_mask, elsi_set_spin, elsi_set_zero_def, elsi_write_mat_complex,&
-      & elsi_write_mat_complex_sparse, elsi_write_mat_real, elsi_write_mat_real_sparse
+      & elsi_write_mat_complex_sparse, elsi_write_mat_real, elsi_write_mat_real_sparse,&
+      & elsi_set_elpa_n_single
   use dftbp_extlibs_mpifx, only : MPI_SUM, mpifx_allreduceip
 #:endif
   implicit none
@@ -89,6 +90,9 @@ module dftbp_elecsolvers_elsisolver
 
     !> Enable GPU usage in ELPA
     logical :: elpaGpu = .false.
+
+    !> Number of SCC cycles performed at single precision
+    integer :: nSingle = 0
 
     !> Iterations of ELPA solver before OMM minimization
     integer :: ommIterationsElpa = 5
@@ -244,6 +248,9 @@ module dftbp_elecsolvers_elsisolver
 
     !> Whether ELPA uses GPUs (1=true)
     integer :: elpaGpu
+
+    !> Number of single precision steps
+    integer :: nSingle
 
     !! OMM settings
 
@@ -481,6 +488,7 @@ contains
     else
       this%elpaGpu = 0
     end if
+    this%nSingle = inp%nSingle
 
     ! OMM settings
     this%ommIter = inp%ommIterationsElpa
@@ -674,6 +682,7 @@ contains
 
         call elsi_set_elpa_autotune(this%handle, this%elpaAutotune)
         call elsi_set_elpa_gpu(this%handle, this%elpaGpu)
+        call elsi_set_elpa_n_single(this%handle, this%nSingle)
 
       case(electronicSolverTypes%omm)
         ! libOMM

@@ -2701,6 +2701,7 @@ contains
               & the GPU acceleration for the ELPA solver")
         end if
       #:endif
+      call getChildValue(value1, "nSingle", ctrl%solver%elsi%nSingle, 0)
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
