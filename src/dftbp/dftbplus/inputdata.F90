@@ -233,6 +233,15 @@ module dftbp_dftbplus_inputdata
     !> Printout of Mulliken
     logical :: tPrintMulliken = .false.
 
+    !> Print pairwise Mulliken bond populations
+    logical :: writeBondPopul = .false.
+
+    !> Print pairwise non-SCC bond energies
+    logical :: writeBondEnergy = .false.
+
+    !> Print pairwise Mayer bond orders
+    logical :: writeBondOrder = .false.
+
     !> Net atomic charges (i.e. on-site only part of Mulliken charges)
     logical :: tNetAtomCharges = .false.
 

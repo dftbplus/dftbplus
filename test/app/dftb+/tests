@@ -413,6 +413,10 @@ timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 8
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
 analysis/H2O_mdESP                     #? MPI_PROCS <= 2
+analysis/bond_pop_N2                   #? not WITH_MPI
+analysis/bond_pop_H2O                  #? not WITH_MPI
+analysis/bond_pop_C2H4                 #? not WITH_MPI
+analysis/bond_pop_C2H4_ext             #? not WITH_MPI
 geoopt/H2O_lbfgs                       #? MPI_PROCS <= 1
 geoopt/H2O_lbfgsStep                   #? MPI_PROCS <= 1
 geoopt/H2O_lbfgsLineMin                #? MPI_PROCS <= 1

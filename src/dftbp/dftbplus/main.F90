@@ -19,7 +19,8 @@ module dftbp_dftbplus_main
   use dftbp_common_status, only : TStatus
   use dftbp_derivs_numderivs2, only : dipoleAdd, getHessianMatrix, next, polAdd, TNumderivs
   use dftbp_dftb_blockpothelper, only : appendBlockReduced
-  use dftbp_dftb_boundarycond, only : TBoundaryConds
+  use dftbp_dftb_bondpopulations, only : addPairWiseBondInfo, getPairWiseMayer
+  use dftbp_dftb_boundarycond, only : boundaryCondsEnum, TBoundaryConds
   use dftbp_dftb_densitymatrix, only : TDensityMatrix, transformDualSpaceToBvKRealSpace
   use dftbp_dftb_determinants, only : determinants, TDftbDeterminants
   use dftbp_dftb_dftbplusu, only : TDftbU
@@ -70,15 +71,15 @@ module dftbp_dftbplus_main
       & printElecConstrInfo, printEnergies, printForceNorm, printGeostepInfo,&
       & printLatticeForceNorm, printMaxForce, printMaxLatticeForce, printMdInfo,&
       & printPressureAndFreeEnergy, printReksSccHeader, printReksSccInfo, printSccHeader,&
-      & printSccInfo, printLatticeInfo, readEigenVecs, writeAutotestTag, writebandout,&
-      & writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile, writeCplxEigVecs,&
-      & writeCurrentGeometry, writeExtendedGeometry, writeDerivBandOut, writeDetailedOut1,&
-      & writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets, writeDetailedOut3,&
-      & writeDetailedOut4, writeDetailedOut5, writeDetailedOut6, writeDetailedOut7,&
-      & writeDetailedOut8, writeDetailedOut9, writeDetailedXml, writeEigenVectors, writeEsp,&
-      & writeFinalDriverstatus, writeHessianout, writehsandstop, writeMdOut1, writeMdOut2,&
-      & writeProjectedEigenvectors, writeRealEigvecs, writeReksDetailedOut1, writeResultsTag,&
-      & writeExcitedStateForces
+      & printSccInfo, printLatticeInfo, readEigenVecs, writeAutotestTag, writeBondInfo,&
+      & writebandout, writeBornChargesOut, writeBornDerivs, writeCharges, writeCosmoFile,&
+      & writeCplxEigVecs, writeCurrentGeometry, writeExtendedGeometry, writeDerivBandOut,&
+      & writeDetailedOut1, writeDetailedOut10, writeDetailedOut2, writeDetailedOut2dets,&
+      & writeDetailedOut3, writeDetailedOut4, writeDetailedOut5, writeDetailedOut6,&
+      & writeDetailedOut7, writeDetailedOut8, writeDetailedOut9, writeDetailedXml,&
+      & writeEigenVectors, writeEsp, writeFinalDriverstatus, writeHessianout, writehsandstop,&
+      & writeMdOut1, writeMdOut2, writeProjectedEigenvectors, writeRealEigvecs,&
+      & writeReksDetailedOut1, writeResultsTag, writeExcitedStateForces
   use dftbp_dftbplus_outputfiles, only : autotestTag, bandOut, bornChargesOut, bornDerivativesOut,&
       & derivEBandOut, fCharges, fShifts, fStopDriver, fStopScc, hessianOut, mdOut, resultsTag,&
       & userOut, excFrcOut
@@ -93,7 +94,7 @@ module dftbp_dftbplus_main
   use dftbp_io_message, only : error, warning
   use dftbp_io_taggedoutput, only : TTaggedWriter
   use dftbp_math_angmomentum, only : getLDual, getLOnsite
-  use dftbp_math_blasroutines, only : hemm, symm
+  use dftbp_math_blasroutines, only : gemm, hemm, symm
   use dftbp_math_contactsymm, only : TEquivContactAtoms
   use dftbp_math_lapackroutines, only : posv
   use dftbp_math_matrixops, only : adjointLowerTriangle
@@ -317,6 +318,11 @@ contains
             & this%qiBlockIn, this%densityMatrix, this%tRealHS, size(this%iAtInCentralRegion),&
             & this%hybridXcAlg, coeffsAndShifts=this%supercellFoldingMatrix,&
             & multipoles=this%multipoleInp)
+      end if
+
+      if ((this%writeBondPopul .or. this%writeBondEnergy .or. this%writeBondOrder) .and.&
+          & .not. this%tRestartNoSC) then
+        call getBondInfo(this, env)
       end if
 
       if (this%tDipole.and.allocated(this%derivDriver)) then
@@ -860,6 +866,49 @@ contains
   #:endif
 
   end subroutine processOutputCharges
+
+
+  !> Computes pairwise bond information.
+  !! Mulliken bond populations, non-SCC bond energies, and/or Mayer bond orders.
+  subroutine getBondInfo(this, env)
+
+    !> Global variables
+    type(TDftbPlusMain), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    real(dp), allocatable :: bondPop(:,:), bondEner(:,:), bondOrder(:,:)
+
+    if (this%writeBondPopul) then
+      allocate(bondPop(this%nAtom, this%nAtom), source=0.0_dp)
+      call addPairWiseBondInfo(bondPop, this%rhoPrim(:,1), this%ints%overlap,&
+          & this%denseDesc%iAtomStart, this%neighbourList%iNeighbour, this%nNeighbourSk,&
+          & this%img2CentCell, this%iSparseStart)
+    end if
+
+    if (this%writeBondEnergy) then
+      allocate(bondEner(this%nAtom, this%nAtom), source=0.0_dp)
+      call addPairWiseBondInfo(bondEner, this%rhoPrim(:,1), this%H0,&
+          & this%denseDesc%iAtomStart, this%neighbourList%iNeighbour, this%nNeighbourSk,&
+          & this%img2CentCell, this%iSparseStart)
+    end if
+
+  #:if not WITH_MPI
+    if (this%writeBondOrder) then
+      allocate(bondOrder(this%nAtom, this%nAtom))
+      call getPairWiseMayer(bondOrder, this%rhoPrim(:,1), this%ints%overlap,&
+          & this%denseDesc%iAtomStart, this%neighbourList%iNeighbour, this%nNeighbourSk,&
+          & this%img2CentCell, this%iSparseStart)
+    end if
+  #:endif
+
+    if (env%tGlobalLead) then
+      call writeBondInfo(bondPop, bondEner, bondOrder, this%tWriteAutotest, autotestTag,&
+          & this%tWriteResultsTag, resultsTag, this%taggedWriter)
+    end if
+
+  end subroutine getBondInfo
 
 
   !> Output charges SCC handling

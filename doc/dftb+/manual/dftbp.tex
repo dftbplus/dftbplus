@@ -5294,6 +5294,9 @@ calculation and/or calculate properties.
   \kw{CoordDerivatives} & l & & No & \\
   \kw{PrintLatticeInformation} & l & Periodic = Yes & Yes & \\
   \kw{ExternalChargeDerivatives} & l | p & & No & \\
+  \kw{WriteBondPopulation} & l & & No & \\
+  \kw{WriteBondEnergy} & l & & No & \\
+  \kw{WriteBondOrder} & l & & No & \\
 \end{ptable}
 
 \begin{description}
@@ -5371,6 +5374,16 @@ Analysis = {
 
 \item[\is{PrintLatticeInformation}] Print information about the
   lattice vectors whenever they are updated (periodic geometries only).
+
+\item[\is{WriteBondPopulation}] If \is{Yes}, pairwise Mulliken bond
+  populations are written to \verb|bond_pop.dat|.
+
+\item[\is{WriteBondEnergy}] If \is{Yes}, pairwise non-SCC bond energies
+  are written to \verb|bond_energy.dat|.
+
+\item[\is{WriteBondOrder}] If \is{Yes}, pairwise Mayer bond orders are
+  written to \verb|bond_order.dat| (cluster geometries and non-MPI
+  enabled code only).
 
 \end{description}
 

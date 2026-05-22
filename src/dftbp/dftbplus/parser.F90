@@ -5424,6 +5424,12 @@ contains
           call readCM5(child, ctrl%cm5Input, geom)
         end if
       end if
+      call getChildValue(node, "WriteBondPopulation", ctrl%writeBondPopul, .false.)
+      call getChildValue(node, "WriteBondEnergy", ctrl%writeBondEnergy, .false.)
+      if (.not. withMpi) then
+        call getChildValue(node, "WriteBondOrder", ctrl%writeBondOrder, .false.)
+      end if
+
       call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, .false.)
 
       if (allocated(ctrl%solvInp)) then

@@ -451,6 +451,15 @@ module dftbp_dftbplus_initprogram
     !> Do we need to show Mulliken charges?
     logical :: tPrintMulliken
 
+    !> Write pairwise Mulliken bond populations to file?
+    logical :: writeBondPopul = .false.
+
+    !> Write pairwise non-SCC bond energies to file?
+    logical :: writeBondEnergy = .false.
+
+    !> Write pairwise Mayer bond orders to file?
+    logical :: writeBondOrder = .false.
+
     !> Logical to determine whether to calculate net charge per atom (qNetAtom)
     logical :: isQNetAllocated
 
@@ -2018,6 +2027,16 @@ contains
         & this%tFixEf .or. this%tSpinSharedEf .or. this%isHybridXc .or. this%isMdftb .or.&
         & this%electronicSolver%iSolver == electronicSolverTypes%GF
     this%tAtomicEnergy = input%ctrl%tAtomicEnergy
+    this%writeBondPopul = input%ctrl%writeBondPopul
+    this%writeBondEnergy = input%ctrl%writeBondEnergy
+    this%writeBondOrder = input%ctrl%writeBondOrder
+    if (this%writeBondOrder) then
+      if (withMpi) call error("Bond order analysis does not yet work with MPI enabled DFTB+")
+      if (this%boundaryCond%iBoundaryCondition /= boundaryCondsEnum%cluster) then
+        call error("WriteBondOrder is currently only supported for non-periodic, cluster&
+            & geometries")
+      end if
+    end if
     this%tPrintEigVecs = input%ctrl%tPrintEigVecs
     this%tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
