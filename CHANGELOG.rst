@@ -32,6 +32,8 @@ Added
 
 - API bindings for coupled-perturbed derivatives
 
+- Pairwise bond populations, bond energies and Mayer bond orders
+
 
 Changed
 -------

@@ -81,6 +81,7 @@ module dftbp_dftbplus_mainio
 #:endif
   public :: writeProjectedEigenvectors
   public :: writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
+  public :: writeBondInfo
   public :: writeDerivBandOut, writeHessianOut, writeBornChargesOut, writeBornDerivs
   public :: openOutputFile
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut2Dets, writeDetailedOut3
@@ -2036,6 +2037,108 @@ contains
     call closeFile(fd)
 
   end subroutine writeAutotestTag
+
+
+  !> Writes pairwise Mulliken bond populations, non-SCC bond energies and/or
+  !! Mayer bond orders as plain-text N x N matrices.
+  subroutine writeBondInfo(bondPop, bondEner, bondOrder, tWriteAutotest, autotestFile,&
+      & tWriteResultsTag, resultsFile, taggedWriter)
+
+    !> Pairwise Mulliken bond populations (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondPop(:,:)
+
+    !> Pairwise non-SCC bond energies (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondEner(:,:)
+
+    !> Pairwise Mayer bond orders (allocation status used as a flag)
+    real(dp), allocatable, intent(in) :: bondOrder(:,:)
+
+    !> Whether tagged output should be appended for regression testing
+    logical, intent(in) :: tWriteAutotest
+
+    !> Name of the autotest tag file to append to (mode = "a")
+    character(*), intent(in) :: autotestFile
+
+    !> Whether tagged output should be appended for results file
+    logical, intent(in) :: tWriteResultsTag
+
+    !> Name of the results tag file to append to (mode = "a")
+    character(*), intent(in) :: resultsFile
+
+    !> Tagged-output writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    type(TFileDescr) :: fd
+    integer :: nAtom, iAt
+
+    if (.not.any([allocated(bondPop), allocated(bondEner), allocated(bondOrder)])) return
+    if (.not.any([tWriteAutotest, tWriteResultsTag])) return
+
+    if (allocated(bondPop)) then
+      nAtom = size(bondPop, dim=1)
+      call openFile(fd, "bond_pop.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mulliken bond populations: B_AB = sum_{mu in A, nu in B} P_{mu nu} S_{mu nu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondPop(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondEner)) then
+      nAtom = size(bondEner, dim=1)
+      call openFile(fd, "bond_energy.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Non-SCC bond energies: E_AB = sum_{mu in A, nu in B} P_{mu nu} H0_{mu nu} (a.u.)"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondEner(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (allocated(bondOrder)) then
+      nAtom = size(bondOrder, dim=1)
+      call openFile(fd, "bond_order.dat", mode="w")
+      write(fd%unit, "(A)")&
+          & "# Mayer bond orders: B_AB = sum_{mu in A, nu in B} (PS)_{mu nu} (PS)_{nu mu}"
+      write(fd%unit, "(A,I0)") "# nAtom = ", nAtom
+      do iAt = 1, nAtom
+        write(fd%unit, "(*(ES16.8,1x))") bondOrder(iAt,:)
+      end do
+      call closeFile(fd)
+    end if
+
+    if (tWriteAutotest) then
+      call openFile(fd, autotestFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+    if (tWriteResultsTag) then
+      call openFile(fd, resultsFile, mode="a")
+      if (allocated(bondPop)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondPopulations, bondPop)
+      end if
+      if (allocated(bondEner)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondEnergies, bondEner)
+      end if
+      if (allocated(bondOrder)) then
+        call taggedWriter%write(fd%unit, tagLabels%bondOrders, bondOrder)
+      end if
+      call closeFile(fd)
+    end if
+
+  end subroutine writeBondInfo
 
 
   !> Writes out machine readable data

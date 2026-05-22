@@ -1,0 +1,36 @@
+Geometry = GenFormat {
+    2  C
+    N
+    1    1    0.00000000000   0.00000000000   0.00000000000
+    2    1    0.00000000000   0.00000000000   1.09800000000
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-10
+  MaxAngularMomentum = {
+    N = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "slakos/origin/mio-1-1/"
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Analysis = {
+  MullikenAnalysis = Yes
+  WriteBondPopulation = Yes
+  WriteBondEnergy = Yes
+  WriteBondOrder = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 14
+}

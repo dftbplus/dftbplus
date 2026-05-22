@@ -146,6 +146,15 @@ module dftbp_io_taggedoutput
     !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 
+    !> Pairwise Mulliken bond populations matrix
+    character(lenLabel) :: bondPopulations = 'bond_populations'
+
+    !> Pairwise non-SCC bond energies matrix
+    character(lenLabel) :: bondEnergies = 'bond_energies'
+
+    !> Pairwise Mayer bond order matrix
+    character(lenLabel) :: bondOrders = 'bond_orders'
+
     !> final atom-resolved energies
     character(lenLabel) :: atomenergies = 'atomic_energies'
 
