@@ -6391,7 +6391,7 @@ contains
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
-    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !> Number of unit cells along each supercell folding direction to subtract from MIC
     !! Wigner-Seitz cell construction
     integer, intent(in), optional :: wignerSeitzReduction
 

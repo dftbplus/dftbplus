@@ -752,7 +752,7 @@ contains
     !> Atom positions in the row/column of square matrices
     integer, intent(in) :: iSquare(:)
 
-    !> Spin polarized density matrix to substract q0 from
+    !> Spin polarized density matrix to subtract q0 from
     complex(dp), intent(inout) :: rho(:,:,:)
 
     integer :: nAtom, iAtom, nSpin, iStart, iEnd, iOrb, iSpin
@@ -835,7 +835,7 @@ contains
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      ! Get full complex, square, k-space overlap and store for later q0 subtraction
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -915,7 +915,7 @@ contains
     scale = populationScalingFactor(nSpin)
 
     do iK = 1, size(kPoint, dim=2)
-      ! Get full complex, square, k-space overlap and store for later q0 substraction
+      ! Get full complex, square, k-space overlap and store for later q0 subtraction
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(SSqrCplx, ints%overlap, kPoint(:, iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)

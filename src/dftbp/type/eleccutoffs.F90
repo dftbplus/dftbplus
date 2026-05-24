@@ -26,7 +26,7 @@ module dftbp_type_eleccutoffs
     !> Cutoff for real-space g-summation in CAM Hartree-Fock contributions
     real(dp), allocatable :: gSummationCutoff
 
-    !> Number of unit cells along each supercell folding direction to substract from MIC
+    !> Number of unit cells along each supercell folding direction to subtract from MIC
     !! Wigner-Seitz cell construction
     integer, allocatable :: wignerSeitzReduction
 
