@@ -4302,7 +4302,7 @@ contains
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
     #:endif
       if (allocated(hybridXc)) then
-        ! Store square density matrix P(iKS), since currently needed for q0 substraction
+        ! Store square density matrix P(iKS), since currently needed for q0 subtraction
         call adjointLowerTriangle(work)
         if (hybridXc%hybridXcAlg == hybridXcAlgo%matrixBased) then
           densityMatrix%deltaRhoOutCplx(:,:, densityMatrix%iKiSToiGlobalKS(iK, iSpin)) = work

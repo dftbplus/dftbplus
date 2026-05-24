@@ -234,7 +234,7 @@ module dftbp_dftb_hybridxc
     !> Cutoff for real-space g-summation
     real(dp) :: gSummationCutoff
 
-    !> Number of unitcells along each supercell folding direction to substract from MIC Wigner-Seitz
+    !> Number of unitcells along each supercell folding direction to subtract from MIC Wigner-Seitz
     !! cell construction
     integer :: wignerSeitzReduction
 
@@ -459,7 +459,7 @@ contains
     !> Cutoff for real-space g-summation
     real(dp), intent(in), optional :: gSummationCutoff
 
-    !> Number of unitcells along each supercell folding direction to substract from MIC Wigner-Seitz
+    !> Number of unitcells along each supercell folding direction to subtract from MIC Wigner-Seitz
     !! cell construction
     integer, intent(in), optional :: wignerSeitzReduction
 
@@ -1026,7 +1026,7 @@ contains
 
     ! pre-tabulate overlap estimates for neighbour-list based algorithms
     ! if-branch not really necessary, since k-implementation only available for neighbour-list
-    ! based algorithm anyway, but let's be on the save side
+    ! based algorithm anyway, but let's be on the safe side
     if (this%hybridXcAlg == hybridXcAlgo%neighbourBased) then
       call calculateOverlapEstimates(this, symNeighbourList, nNeighbourCamSym, iSquare)
     end if
@@ -1035,7 +1035,7 @@ contains
 
     if (this%gammaType == hybridXcGammaTypes%mic) then
       if (allocated(this%wsVectors)) deallocate(this%wsVectors)
-      ! Generate "save" Wigner-Seitz vectors for density matrix arguments
+      ! Generate "safe" Wigner-Seitz vectors for density matrix arguments
       call generateWignerSeitzGrid(max(this%coeffsDiag - this%wignerSeitzReduction, 1), latVecs,&
           & this%wsVectors)
 
