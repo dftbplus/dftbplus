@@ -682,13 +682,13 @@ contains
     call openFile(fd2, 'sort_indices.dat', mode="w")
 
     do jj = 1, size(iAtInRegion(ncont+1)%data)
-       write(fd2%unit,"(I,I)") jj, iAtInRegion(ncont+1)%data(jj)
+       write(fd2%unit,"(I0,I0)") jj, iAtInRegion(ncont+1)%data(jj)
     end do
 
     kk = size(iAtInRegion(ncont+1)%data)
     do ii = 1, ncont
       do jj = 1, size(iAtInRegion(ii)%data)
-         write(fd2%unit,"(I,I)") kk+jj, iAtInRegion(ii)%data(jj)
+         write(fd2%unit,"(I0,I0)") kk+jj, iAtInRegion(ii)%data(jj)
       end do
       kk = kk + size(iAtInRegion(ii)%data)
     end do
