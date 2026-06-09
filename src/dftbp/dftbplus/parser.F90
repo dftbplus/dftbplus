@@ -5014,6 +5014,11 @@ contains
       ctrl%lrespini%tOscillatorWindow = ctrl%lrespini%oscillatorWindow /= 0.0_dp
       call convertUnitHsd(char(modifier), dipoleUnits, child2, ctrl%lrespini%oscillatorWindow)
       call getChildValue(child, "CacheCharges", ctrl%lrespini%tCacheCharges, default=.true.)
+    #:if WITH_MPI
+      if (.not.ctrl%lrespini%tCacheCharges) then
+        call detailedError(child, "Uncached charges currently not supported for MPI enabled builds")
+      end if
+    #:endif
       call getChildValue(child, "WriteMulliken", ctrl%lrespini%tMulliken, default=.false.)
       call getChildValue(child, "WriteCoefficients", ctrl%lrespini%tCoeffs, default=.false.)
       ctrl%lrespini%tGrndState = .false.

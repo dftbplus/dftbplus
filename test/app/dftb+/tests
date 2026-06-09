@@ -442,7 +442,7 @@ timedep/C4H6-S1-Force_uncache          #? WITH_ARPACK and not WITH_MPI
 timedep/NH-Force-spinpol               #? WITH_ARPACK and not WITH_MPI
 
 timedep/C4H6-S1-Force_uncache-Stratmann #? not WITH_MPI
-timedep/NH-Force-spinpol-Stratmann     #? not WITH_MPI
+timedep/NH-Force-spinpol-Stratmann     #? MPI_PROCS <= 4
 
 timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 4
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 8

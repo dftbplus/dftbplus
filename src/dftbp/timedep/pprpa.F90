@@ -310,7 +310,8 @@ contains
     integer :: ab_r, cd_r, ij_r, kl_r
     integer :: at1, at2, natom
     real(dp):: factor1, factor2
-    logical :: updwn
+    ! Spin-up channel only for closed-shell systems
+    real(dp), parameter :: updwn = +1.0_dp
     real(dp):: q_1(size(gamma_eri, dim=1))
     real(dp):: q_2(size(gamma_eri, dim=1))
     real(dp):: q_3(size(gamma_eri, dim=1))
@@ -334,9 +335,6 @@ contains
     allocate(work(5*nRPA))
     allocate(wi(nRPA))
     allocate(PP(nRPA, nRPA))
-
-    ! Spin-up channel only for closed-shell systems
-    updwn = .true.
 
     if (sym == "S") then !------ singlets -------
 

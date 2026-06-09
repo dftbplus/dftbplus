@@ -173,8 +173,16 @@ contains
     end if
 
     if (this%iLinRespSolver == linrespSolverTypes%Arpack .and. .not. withArpack) then
-      call error('This binary is buit without ARPACK support, but it is requested.')
+      call error('This binary is built without ARPACK support, but it is requested.')
     end if
+
+  #:if WITH_MPI
+    if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
+      if (.not. ini%tCacheCharges) then
+        call error("Uncached charges currently not supported for MPI enabled builds")
+      end if
+    end if
+  #:endif
 
     this%nExc = ini%nExc
     this%tEnergyWindow = ini%tEnergyWindow
