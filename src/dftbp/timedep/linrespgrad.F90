@@ -40,7 +40,7 @@ module dftbp_timedep_linrespgrad
       & transitionDipole, twothird, writeExcMulliken, writeSPExcitations
   use dftbp_timedep_linresptypes, only : linrespSolverTypes, TCasidaParameter,&
       & TCasidaParameter_init, TLinResp
-  use dftbp_timedep_transcharges, only : transq, TTransCharges, TTransCharges_init
+  use dftbp_timedep_transcharges, only : TTransCharges, TTransCharges_init
   use dftbp_type_commontypes, only : TOrbitals
   use dftbp_type_densedescr, only : TDenseDescr
 
