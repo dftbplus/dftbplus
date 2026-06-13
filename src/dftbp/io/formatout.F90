@@ -103,7 +103,7 @@ contains
     integer, intent(in) :: fd
 
     !> Coordinates in atomic units
-    real(dp),          intent(in) :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Species of the atoms
     integer, intent(in) :: species(:)
@@ -120,9 +120,8 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
-    integer :: nAtom, nSpecies
+    integer :: ii, nAtom, nSpecies
     character(mc) :: formatCoordinates
-    integer :: ii
     logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
@@ -307,13 +306,10 @@ contains
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
-    integer :: nAtom, nSpecies, iAt
+    integer :: nAtom, nSpecies, iAt, nFields
     real(dp), parameter :: forceConv = Hartree__eV / Bohr__AA
     real(dp), parameter :: velocityConv = Bohr__AA * 1000.0_dp / au__fs
-
-    character(len=*), parameter :: formatElement = "(A5)"
-    character(len=*), parameter :: formatScalar = "(F16.8)"
-    character(len=*), parameter :: formatVector = "(3F16.8)"
+    real(dp), allocatable :: values(:)
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
@@ -346,16 +342,35 @@ contains
       write(fd%unit, *) ""
     end if
 
+    nFields = 3
+    if (present(charges)) nFields = nFields + 1
+    if (present(velocities)) nFields = nFields + 3
+    if (present(forces)) nFields = nFields + 3
+    if (present(vectors)) nFields = nFields + 3
+    allocate(values(nFields))
+
     do iAt = 1, nAtom
 
-      write(fd%unit, formatElement, advance="NO") trim(speciesNames(species(iAt)))
-      write(fd%unit, formatVector, advance="NO") coords(:, iAt) * Bohr__AA
-      if (present(charges)) write(fd%unit, formatScalar, advance="NO") charges(iAt)
-      if (present(velocities)) write(fd%unit, formatVector, advance="NO")&
-          & velocities(:,iAt) * velocityConv
-      if (present(forces)) write(fd%unit, formatVector, advance="NO") forces(:,iAt) * forceConv
-      if (present(vectors))  write(fd%unit, formatVector, advance="NO") vectors(:,iAt)
-      write(fd%unit, *)
+      values(1:3) = coords(:, iAt) * Bohr__AA
+      nFields = 4
+      if (present(charges)) then
+        values(nFields) = charges(iAt)
+        nFields = nFields + 1
+      end if
+      if (present(velocities)) then
+        values(nFields:nFields+2) = velocities(:,iAt) * velocityConv
+        nFields = nFields + 3
+      end if
+      if (present(forces)) then
+        values(nFields:nFields+2) = forces(:,iAt) * forceConv
+        nFields = nFields + 3
+      end if
+      if (present(vectors)) then
+        values(nFields:nFields+2) = vectors(:,iAt)
+        nFields = nFields + 3
+      end if
+
+      write(fd%unit, "(A5, *(F16.8))")trim(speciesNames(species(iAt))), values
 
     end do
 
