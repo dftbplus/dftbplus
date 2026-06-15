@@ -35,7 +35,8 @@ module dftbp_dftb_slakocont
   type TSlakoCont
     private
     type(TSlaKo_), allocatable :: slakos(:,:)
-    integer :: nSpecies
+    integer :: nAtom
+    integer, allocatable :: species(:)
     integer :: mInt
     real(dp) :: cutoff
     logical :: tDataOK
@@ -80,21 +81,27 @@ contains
 
 
   !> Initialises SlakoCont
-  subroutine SlakoCont_init(this, nSpecies, isH)
+  subroutine SlakoCont_init(this, nAtom, species, isH)
 
     !> SlakoCont instance
     type(TSlakoCont), intent(out) :: this
 
-    !> Nr. of species in the system.
-    integer, intent(in) :: nSpecies
+    !> Nr. of atoms in the system.
+    integer, intent(in) :: nAtom
+
+    !> Species index for each atom. Shape: [nAtom].
+    integer, intent(in) :: species(:)
 
     !> Specified the container for Hamitonian (==.true.) or Overlap (==.false.).
     logical, intent(in) :: isH
 
     @:ASSERT(.not. this%tInit)
+    @:ASSERT(size(species) == nAtom)
 
-    this%nSpecies = nSpecies
-    allocate(this%slakos(nSpecies, nSpecies))
+    this%nAtom = nAtom
+    allocate(this%species(nAtom))
+    this%species(:) = species(:)
+    allocate(this%slakos(nAtom, nAtom))
     this%mInt = 0
     this%cutoff = 0.0_dp
     this%tDataOK = .false.
@@ -104,7 +111,7 @@ contains
   end subroutine SlakoCont_init
 
 
-  !> Adds a Slater-Koster table for a given diatomic pair to the container.
+  !> Adds a Slater-Koster table for a given diatomic species pair to the container.
   subroutine SlakoCont_addTableEqGrid(this, pTable, iSp1, iSp2)
 
     !> SlakoCont instance
@@ -119,11 +126,20 @@ contains
     !> Index of the second interacting species
     integer, intent(in) :: iSp2
 
+    integer :: iAt1, iAt2
+
     @:ASSERT(this%tInit)
     this%mInt = max(this%mInt, getNIntegrals(pTable))
     this%cutoff = max(this%cutoff, getCutoff(pTable))
-    this%slakos(iSp2, iSp1)%iType = 1
-    call move_alloc(pTable, this%slakos(iSp2, iSp1)%pSlakoEqGrid)
+    do iAt1 = 1, this%nAtom
+      if (this%species(iAt1) /= iSp1) cycle
+      do iAt2 = 1, this%nAtom
+        if (this%species(iAt2) /= iSp2) cycle
+        this%slakos(iAt2, iAt1)%iType = 1
+        allocate(this%slakos(iAt2, iAt1)%pSlakoEqGrid, source=pTable)
+      end do
+    end do
+    deallocate(pTable)
     this%tDataOK = all(this%slakos(:,:)%iType /= 0)
 
   end subroutine SlakoCont_addTableEqGrid
@@ -163,7 +179,7 @@ contains
   end function SlakoCont_getCutoff
 
 
-  !> Returns the Slater-Koster integrals for a given distance for a given species pair.
+  !> Returns the Slater-Koster integrals for a given distance for a given atom pair.
   subroutine SlakoCont_getSKIntegrals(this, sk, dist, atom1, atom2, sp1, sp2)
 
     !> SlakoCont instance
@@ -192,14 +208,14 @@ contains
   #:if WITH_PLUGINS
     if (associated(this%plugin)) then
       if (this%plugin%capabilities%provides_updateSKIntegrals) then
-        updated = this%plugin%updateSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid%skTab, dist,&
-            & atom1, atom2, sp1, sp2, this%isH, this%slakos(sp2, sp1)%pSlakoEqGrid%dist)
+        updated = this%plugin%updateSKIntegrals(this%slakos(atom2, atom1)%pSlakoEqGrid%skTab, dist,&
+            & atom1, atom2, sp1, sp2, this%isH, this%slakos(atom2, atom1)%pSlakoEqGrid%dist)
       end if
     end if
   #:endif
 
     @:ASSERT(this%tInit .and. this%tDataOK)
-    call getSKIntegrals(this%slakos(sp2, sp1)%pSlakoEqGrid, sk, dist)
+    call getSKIntegrals(this%slakos(atom2, atom1)%pSlakoEqGrid, sk, dist)
 
   end subroutine SlakoCont_getSKIntegrals
 

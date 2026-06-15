@@ -1483,16 +1483,16 @@ contains
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
         call SKTruncations(child, rSKCutOff, skInterMeth)
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-            & skInterMeth, repPoly, rSKCutOff)
+        call readSKFiles(skFiles, geo%nSpecies, geo%nAtom, geo%species, slako, slako%orb,&
+            & angShells, ctrl%tShellResolved, skInterMeth, repPoly, rSKCutOff)
       else
         rSKCutOff = 0.0_dp
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-            & skInterMeth, repPoly)
+        call readSKFiles(skFiles, geo%nSpecies, geo%nAtom, geo%species, slako, slako%orb,&
+            & angShells, ctrl%tShellResolved, skInterMeth, repPoly)
       end if
     else
-      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, hybridXcSK=hybridXcSK)
+      call readSKFiles(skFiles, geo%nSpecies, geo%nAtom, geo%species, slako, slako%orb, angShells,&
+          & ctrl%tShellResolved, skInterMeth, repPoly, hybridXcSK=hybridXcSK)
       ctrl%hybridXcInp%omega = hybridXcSK%omega
       ctrl%hybridXcInp%camAlpha = hybridXcSK%camAlpha
       ctrl%hybridXcInp%camBeta = hybridXcSK%camBeta
@@ -3555,14 +3555,20 @@ contains
   !> Reads Slater-Koster files.
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established.
-  subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff, hybridXcSK)
+  subroutine readSKFiles(skFiles, nSpecies, nAtom, species, slako, orb, angShells, orbRes,&
+      & skInterMeth, repPoly, truncationCutOff, hybridXcSK)
 
     !> List of SK file names to read in for every interaction
     type(TListCharLc), intent(inout) :: skFiles(:,:)
 
     !> Nr. of species in the system
     integer, intent(in) :: nSpecies
+
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Species index for each atom. Shape: [nAtom].
+    integer, intent(in) :: species(:)
 
     !> Data type for slako information
     type(TSlater), intent(inout) :: slako
@@ -3617,9 +3623,9 @@ contains
     slako%skOcc(:,:) = 0.0_dp
 
     allocate(slako%skHamCont)
-    call init(slako%skHamCont, nSpecies, .true.)
+    call init(slako%skHamCont, nAtom, species, .true.)
     allocate(slako%skOverCont)
-    call init(slako%skOverCont, nSpecies, .false.)
+    call init(slako%skOverCont, nAtom, species, .false.)
     allocate(slako%pairRepulsives(nSpecies, nSpecies))
 
     write(stdout, "(A)") "Reading SK-files:"
