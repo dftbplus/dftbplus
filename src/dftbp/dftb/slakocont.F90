@@ -21,7 +21,7 @@ module dftbp_dftb_slakocont
   implicit none
 
   private
-  public :: TSlakoCont, init
+  public :: TSlakoCont, init, updateSpecies
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
 
   !> A specific Slater-Koster table implementation.
@@ -52,6 +52,12 @@ module dftbp_dftb_slakocont
   interface init
     module procedure SlakoCont_init
   end interface init
+
+
+  !> Updates the species assignment per atom and rebuilds the per-atom Slater-Koster table mapping.
+  interface updateSpecies
+    module procedure SlakoCont_updateSpecies
+  end interface updateSpecies
 
 
   !> Adds a Slater-Koster table for a given diatomic pair to the container.
@@ -109,6 +115,62 @@ contains
     this%isH = isH
 
   end subroutine SlakoCont_init
+
+
+  !> Updates the species assignment per atom and rebuilds the per-atom Slater-Koster table mapping.
+  !>
+  !> The per-atom slakos array is dimensioned by atom but each slot effectively holds the
+  !> Slater-Koster table for the diatomic species pair (species(iAt1), species(iAt2)). After
+  !> resetting species via the public API, the slots must be reshuffled so that each atom-pair
+  !> references the table matching its new species pair.
+  subroutine SlakoCont_updateSpecies(this, newSpecies)
+
+    !> SlakoCont instance
+    type(TSlakoCont), intent(inout) :: this
+
+    !> New species index for each atom. Shape: [nAtom].
+    integer, intent(in) :: newSpecies(:)
+
+    type(TSlaKo_), allocatable :: templates(:,:)
+    integer :: nSp, iAt1, iAt2, sp1, sp2
+
+    @:ASSERT(this%tInit .and. this%tDataOK)
+    @:ASSERT(size(newSpecies) == this%nAtom)
+
+    nSp = max(maxval(this%species), maxval(newSpecies))
+    allocate(templates(nSp, nSp))
+
+    ! Collect one Slater-Koster table per species pair from the current per-atom layout.
+    do iAt1 = 1, this%nAtom
+      sp1 = this%species(iAt1)
+      do iAt2 = 1, this%nAtom
+        sp2 = this%species(iAt2)
+        if (templates(sp2, sp1)%iType == 0) then
+          templates(sp2, sp1)%iType = 1
+          allocate(templates(sp2, sp1)%pSlakoEqGrid,&
+              & source=this%slakos(iAt2, iAt1)%pSlakoEqGrid)
+        end if
+      end do
+    end do
+
+    this%species(:) = newSpecies(:)
+
+    ! Repopulate per-atom slakos from templates according to the new species assignment.
+    do iAt1 = 1, this%nAtom
+      sp1 = this%species(iAt1)
+      do iAt2 = 1, this%nAtom
+        sp2 = this%species(iAt2)
+        if (allocated(this%slakos(iAt2, iAt1)%pSlakoEqGrid)) then
+          deallocate(this%slakos(iAt2, iAt1)%pSlakoEqGrid)
+        end if
+        allocate(this%slakos(iAt2, iAt1)%pSlakoEqGrid, source=templates(sp2, sp1)%pSlakoEqGrid)
+        this%slakos(iAt2, iAt1)%iType = 1
+      end do
+    end do
+
+    this%tDataOK = .true.
+
+  end subroutine SlakoCont_updateSpecies
 
 
   !> Adds a Slater-Koster table for a given diatomic species pair to the container.

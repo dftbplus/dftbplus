@@ -12,8 +12,10 @@ module dftbp_dftbplus_mainapi
   use dftbp_common_accuracy, only : dp, mc, tolSameDist
   use dftbp_common_coherence, only : checkExactCoherence, checkToleranceCoherence
   use dftbp_common_environment, only : TEnvironment
+  use dftbp_common_hamiltoniantypes, only : hamiltonianTypes
   use dftbp_common_status, only : TStatus
   use dftbp_dftb_periodic, only : setNeighbourListOrig => setNeighbourList
+  use dftbp_dftb_slakocont, only : updateSpecies
   use dftbp_dftbplus_initprogram, only : TDftbPlusMain, initReferenceCharges, initElectronNumber,&
       & updateReferenceShellCharges
   use dftbp_dftbplus_main, only : processGeometry
@@ -598,6 +600,12 @@ contains
     main%species0 = inputSpecies
     main%mass = updateAtomicMasses(main)
     main%orb%nOrbAtom = updateAtomicOrbitals(main)
+
+    ! Reshuffle per-atom Slater-Koster tables to match the new species assignment.
+    if (main%hamiltonianType == hamiltonianTypes%dftb) then
+      call updateSpecies(main%skHamCont, inputSpecies)
+      call updateSpecies(main%skOverCont, inputSpecies)
+    end if
 
     ! if atom species change, dense matrix indexing needs updating
     call main%getDenseDescCommon()
