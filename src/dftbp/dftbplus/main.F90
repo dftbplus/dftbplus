@@ -1177,9 +1177,11 @@ contains
         call error("Invalid Hamiltonian")
       case(hamiltonianTypes%dftb)
         call buildH0(env, this%H0, this%skHamCont, this%atomEigVal, this%coord, this%nNeighbourSk,&
-            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
+            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%img2CentCell,&
+            & this%orb)
         call buildS(env, this%ints%overlap, this%skOverCont, this%coord, this%nNeighbourSk,&
-            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%orb)
+            & this%neighbourList%iNeighbour, this%species, this%iSparseStart, this%img2CentCell,&
+            & this%orb)
       case(hamiltonianTypes%xtb)
         @:ASSERT(allocated(this%tblite), "Compiled without TBLITE included")
         call this%tblite%buildSH0(env, this%species, this%coord, this%nNeighbourSk, &

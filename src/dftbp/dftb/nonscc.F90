@@ -58,7 +58,7 @@ contains
 
   !> Driver for making the non-SCC Hamiltonian in the primitive sparse format.
   subroutine buildH0(env, ham, skHamCont, selfegy, coords, nNeighbourSK, iNeighbours, species,&
-      & iPair, orb)
+      & iPair, img2CentCell, orb)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -87,6 +87,9 @@ contains
     !> Shift vector, where the interaction between two atoms
     integer, intent(in) :: iPair(0:,:)
 
+    !> Mapping from image atoms back to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
@@ -111,14 +114,15 @@ contains
     !$OMP  END PARALLEL DO
 
     call buildDiatomicBlocks(iAtFirst, iAtLast, skHamCont, coords, nNeighbourSK, iNeighbours,&
-        & species, iPair, orb, ham)
+        & species, iPair, img2CentCell, orb, ham)
 
     call assembleChunks(env, ham)
 
   end subroutine buildH0
 
   !> Driver for making the overlap matrix in the primitive sparse format.
-  subroutine buildS(env, over, skOverCont, coords, nNeighbourSK, iNeighbours, species, iPair, orb)
+  subroutine buildS(env, over, skOverCont, coords, nNeighbourSK, iNeighbours, species, iPair,&
+      & img2CentCell, orb)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -144,6 +148,9 @@ contains
     !> Shift vector, where the interaction between two atoms starts in the sparse format.
     integer, intent(in) :: iPair(0:,:)
 
+    !> Mapping from image atoms back to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
     !> Information about the orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
@@ -167,7 +174,7 @@ contains
     !$OMP END PARALLEL DO
 
     call buildDiatomicBlocks(iAtFirst, iAtLast, skOverCont, coords, nNeighbourSK, iNeighbours,&
-        & species, iPair, orb, over)
+        & species, iPair, img2CentCell, orb, over)
 
     call assembleChunks(env, over)
 
@@ -276,7 +283,7 @@ contains
 
   !> Helper routine to calculate the diatomic blocks for the routines buildH0 and buildS.
   subroutine buildDiatomicBlocks(firstAtom, lastAtom, skCont, coords, nNeighbourSK, iNeighbours,&
-      & species, iPair, orb, out)
+      & species, iPair, img2CentCell, orb, out)
     integer, intent(in) :: firstAtom
     integer, intent(in) :: lastAtom
     type(TSlakoCont), intent(inout) :: skCont
@@ -285,6 +292,7 @@ contains
     integer, intent(in) :: iNeighbours(0:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(inout) :: out(:)
 
@@ -292,7 +300,7 @@ contains
     real(dp) :: vect(3), dist
     real(dp) :: interSK(getMIntegrals(skCont))
     integer :: nOrb1, nOrb2
-    integer :: iAt1, iAt2, iSp1, iSp2, iNeigh1, ind
+    integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh1, ind
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbourSK
     do iAt1 = firstAtom, lastAtom
@@ -300,13 +308,14 @@ contains
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh1 = 1, nNeighbourSK(iAt1)
         iAt2 = iNeighbours(iNeigh1, iAt1)
+        iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2)
         nOrb2 = orb%nOrbSpecies(iSp2)
         ind = iPair(iNeigh1,iAt1)
         vect(:) = coords(:,iAt2) - coords(:,iAt1)
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSK, dist, iAt1, iAt2, iSp1, iSp2)
+        call getSKIntegrals(skCont, interSK, dist, iAt1, iAt2f, iSp1, iSp2)
         call rotateH0(tmp, interSK, vect(1), vect(2), vect(3), iSp1, iSp2, orb)
         out(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmp(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
       end do

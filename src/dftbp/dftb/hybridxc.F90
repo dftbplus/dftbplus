@@ -877,7 +877,7 @@ contains
     ! build symmetric, sparse overlap
     call buildS(env, this%overSym, skOverCont, this%rCoords, nNeighbourCamSym,&
         & symNeighbourList%neighbourList%iNeighbour, symNeighbourList%species,&
-        & symNeighbourList%iPair, orb)
+        & symNeighbourList%iPair, symNeighbourList%img2CentCell, orb)
 
     if (this%tScreeningInited) then
       this%hPrev(:,:) = 0.0_dp
@@ -989,7 +989,7 @@ contains
     ! build symmetric, sparse overlap
     call buildS(env, this%overSym, skOverCont, this%rCoords, nNeighbourCamSym,&
         & symNeighbourList%neighbourList%iNeighbour, symNeighbourList%species,&
-        & symNeighbourList%iPair, orb)
+        & symNeighbourList%iPair, symNeighbourList%img2CentCell, orb)
 
     if (this%tScreeningInited) then
       this%hPrevCplxHS(:,:,:) = 0.0_dp

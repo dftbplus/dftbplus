@@ -3244,9 +3244,9 @@ contains
       @:ASSERT(.false.)
     case(hamiltonianTypes%dftb)
       call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
-          & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
+          & neighbourList%iNeighbour, this%speciesAll, iSparseStart, img2CentCell, orb)
       call buildS(env, ints%overlap, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
-          & this%speciesAll, iSparseStart, orb)
+          & this%speciesAll, iSparseStart, img2CentCell, orb)
     case(hamiltonianTypes%xtb)
       @:ASSERT(allocated(this%tblite))
       call this%tblite%buildSH0(env, this%speciesAll, coordAll, nNeighbourSk, &
