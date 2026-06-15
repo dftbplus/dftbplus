@@ -314,9 +314,9 @@ contains
             sqrEDMTmp(1:nOrb2,1:nOrb1) = &
                 & reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1,iL),(/nOrb2,nOrb1/))
             call derivator%getFirstDeriv(hPrimeTmp, skHamCont, &
-                & coords, species, iAtom1, iAtom2, orb)
+                & coords, species, iAtom1, iAtom2, img2CentCell, orb)
             call derivator%getFirstDeriv(sPrimeTmp, skOverCont, &
-                & coords, species, iAtom1, iAtom2, orb)
+                & coords, species, iAtom1, iAtom2, img2CentCell, orb)
 
             if (iL == 1) then
               ! H0 & S derivative with respect to AO basis

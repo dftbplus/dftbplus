@@ -193,8 +193,10 @@ contains
           sPrimeTmp(:,:,:) = 0.0_dp
           sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
           sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
           do ii = 1, 3
             deriv(ii,iAtom1) = deriv(ii,iAtom1)&
@@ -295,8 +297,10 @@ contains
         sPrimeTmp(:,:,:) = 0.0_dp
         sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
         sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), [nOrb2,nOrb1])
-        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
+        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2,&
+            & img2CentCell, orb)
+        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+            & img2CentCell, orb)
         ! note factor of 2 for implicit summation over lower triangle of density matrix:
         do ii = 1, 3
           intermed(ii) = 2.0_dp * (sum(sqrDMTmp(1:nOrb2,1:nOrb1) * hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
@@ -501,8 +505,10 @@ contains
           iOrig = iPair(iNeigh,iAtom1) + 1
           sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
           sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
@@ -634,8 +640,10 @@ contains
           iOrig = iPair(iNeigh,iAtom1) + 1
           sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
           sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:
@@ -771,8 +779,10 @@ contains
           iOrig = iPair(iNeigh,iAtom1) + 1
           sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig:iOrig+nOrb1*nOrb2-1,1), [nOrb2,nOrb1])
           sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2,nOrb1])
-          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+              & img2CentCell, orb)
 
           derivTmp(:) = 0.0_dp
           ! note factor of 2 for implicit summation over lower triangle of density matrix:

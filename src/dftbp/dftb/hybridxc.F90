@@ -4708,7 +4708,7 @@ contains
         sPrimeTmp(:,:,:) = 0.0_dp
         if (iAtK /= iAtC) then
           call derivator%getFirstDeriv(sPrimeTmp, skOverCont, this%rCoords, this%species0, iAtK,&
-              & iAtC, orb)
+              & iAtC, orb=orb)
           do alpha = 1, 3
             sPrimeTmp2(:,:, alpha) = -transpose(sPrimeTmp(:,:, alpha))
           end do
@@ -4955,7 +4955,7 @@ contains
           gammaMKMB = gammaMK + this%camGammaEval0(iAtM, iAtBfold)
           SbnPrimeKequalsN(:,:,:) = 0.0_dp
           call derivator%getFirstDeriv(SbnPrimeKequalsN, skOverCont, this%rCoords,&
-              & symNeighbourList%species, iAtK, iAtB, orb)
+              & symNeighbourList%species, iAtK, iAtB, symNeighbourList%img2CentCell, orb)
           loopA1: do iNeighM = 0, nNeighbourCamSym(iAtM)
             iAtA = symNeighbourList%neighbourList%iNeighbour(iNeighM, iAtM)
             iAtAfold = symNeighbourList%img2CentCell(iAtA)
@@ -6302,7 +6302,7 @@ contains
           vecL(:) = cellVecs(:, symNeighbourList%iCellVec(iAtB))
           SbnPrimeKequalsN(:,:,:) = 0.0_dp
           call derivator%getFirstDeriv(SbnPrimeKequalsN, skOverCont, this%rCoords,&
-              & symNeighbourList%species, iAtK, iAtB, orb)
+              & symNeighbourList%species, iAtK, iAtB, symNeighbourList%img2CentCell, orb)
           loopA1: do iNeighM = 0, nNeighbourCamSym(iAtM)
             iAtA = symNeighbourList%neighbourList%iNeighbour(iNeighM, iAtM)
             iAtAfold = symNeighbourList%img2CentCell(iAtA)

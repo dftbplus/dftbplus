@@ -2725,9 +2725,9 @@ contains
         end if
 
         call derivator%getFirstDeriv(dH0, skHamCont, coord0, species0,&
-            & iAt1, iAt2, orb)
+            & iAt1, iAt2, orb=orb)
         call derivator%getFirstDeriv(dSo, skOverCont, coord0, species0,&
-            & iAt1, iAt2, orb)
+            & iAt1, iAt2, orb=orb)
 
         do xyz = 1, 3
 
@@ -4754,8 +4754,8 @@ contains
           nacv(:,iAt2) = nacv(:,iAt2) + 0.125_dp * tmprs * gammaLongRangePrime(:,iAt1,iAt2)
         end if
 
-        call derivator%getFirstDeriv(dH0, skHamCont, coord0, species0, iAt1, iAt2, orb)
-        call derivator%getFirstDeriv(dSo, skOverCont, coord0, species0, iAt1, iAt2, orb)
+        call derivator%getFirstDeriv(dH0, skHamCont, coord0, species0, iAt1, iAt2, orb=orb)
+        call derivator%getFirstDeriv(dSo, skOverCont, coord0, species0, iAt1, iAt2, orb=orb)
 
         do xyz = 1, 3
 

@@ -205,7 +205,7 @@ contains
   end subroutine NonSccDiff_init
 
   !> Calculates the first derivative of H0 or S.
-  subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ, orb)
+  subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ, img2CentCell, orb)
 
     !> Instance
     class(TNonSccDiff), intent(in) :: this
@@ -228,21 +228,25 @@ contains
     !> The second atom in the diatomic block
     integer, intent(in) :: atomJ
 
+    !> Mapping from image atoms back to their equivalent in the central cell. If absent, atomJ is
+    !> assumed to already be a central-cell index.
+    integer, intent(in), optional :: img2CentCell(:)
+
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
 
     select case (this%diffType)
     case (diffTypes%finiteDiff)
-      call getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb,&
+      call getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, img2CentCell, orb,&
           & this%deltaXDiff)
     case (diffTypes%richardson)
-      call getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
+      call getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, img2CentCell, orb)
     end select
 
   end subroutine getFirstDeriv
 
   !> Calculates the numerical second derivative of a diatomic block of H0 or S.
-  subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ, orb)
+  subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ, img2CentCell, orb)
 
     !> Instance.
     class(TNonSccDiff), intent(in) :: this
@@ -265,6 +269,10 @@ contains
     !> Second atom in the diatomic block
     integer, intent(in) :: atomJ
 
+    !> Mapping from image atoms back to their equivalent in the central cell. If absent, atomJ is
+    !> assumed to already be a central-cell index.
+    integer, intent(in), optional :: img2CentCell(:)
+
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
 
@@ -272,8 +280,8 @@ contains
     ! invoked instead.
     select case (this%diffType)
     case (diffTypes%finiteDiff)
-      call getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb,&
-          & this%deltaXDiff)
+      call getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, img2CentCell,&
+          & orb, this%deltaXDiff)
     case (diffTypes%richardson)
       call error("Richardson second derivative extrapolation not implemented")
     end select
@@ -325,12 +333,14 @@ contains
 
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
-  subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
+  subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, img2CentCell,&
+      & orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:)
     type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
+    integer, intent(in), optional :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: deltaXDiff
 
@@ -339,13 +349,18 @@ contains
 
     real(dp) :: vect(3), dist
     integer :: ii, jj
-    integer :: sp1, sp2
+    integer :: sp1, sp2, atomJf
     real(dp) :: tmp(size(deriv,dim=1), size(deriv,dim=2),2,3)
 
     @:ASSERT(size(deriv, dim=3) == 3)
 
     deriv(:,:,:) = 0.0_dp
 
+    if (present(img2CentCell)) then
+      atomJf = img2CentCell(atomJ)
+    else
+      atomJf = atomJ
+    end if
     sp1 = species(atomI)
     sp2 = species(atomJ)
 
@@ -355,7 +370,7 @@ contains
         vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJf, sp1, sp2)
         call rotateH0(tmp(:,:,ii,jj), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
     end do
@@ -367,12 +382,13 @@ contains
   end subroutine getFirstDerivFiniteDiff
 
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
-  subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
+  subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, img2CentCell, orb)
     real(dp), intent(out) :: deriv(:,:,:)
     type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
+    integer, intent(in), optional :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
 
     integer, parameter :: maxrows = 20
@@ -381,7 +397,7 @@ contains
 
     real(dp) :: interSk(getMIntegrals(skCont))  ! interpolated S integs.
     real(dp) :: vect(3), dist
-    integer :: sp1, sp2
+    integer :: sp1, sp2, atomJf
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2),2)
     real(dp) :: diff
     real(dp) :: dd(size(deriv, dim=1), size(deriv, dim=2), 0:maxcolumns, 0:maxrows)
@@ -393,6 +409,11 @@ contains
 
     deriv(:,:,:) = 0.0_dp
 
+    if (present(img2CentCell)) then
+      atomJf = img2CentCell(atomJ)
+    else
+      atomJf = atomJ
+    end if
     sp1 = species(atomI)
     sp2 = species(atomJ)
     do iCart = 1, 3
@@ -406,7 +427,7 @@ contains
         vect(iCart) = vect(iCart) - real(2 * kk - 3, dp) * hh
         dist = sqrt(sum(vect(:)**2))
         vect(:) = vect / dist
-        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJf, sp1, sp2)
         call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
       end do
 
@@ -432,7 +453,7 @@ contains
           vect(iCart) = vect(iCart) - real(2*kk-3,dp) * hh
           dist = sqrt(sum(vect**2))
           vect(:) = vect / dist
-          call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
+          call getSKIntegrals(skCont, interSk, dist, atomI, atomJf, sp1, sp2)
           call rotateH0(tmp(:,:,kk), interSk, vect(1), vect(2), vect(3), sp1, sp2, orb)
         end do
         where (.not.tConverged)
@@ -468,19 +489,21 @@ contains
 
   !> Contains code to calculate the numerical second derivative of a diatomic block of the H0
   !> Hamiltonian and overlap.
-  subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
+  subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, img2CentCell,&
+      & orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:,:)
     type(TSlakoCont), intent(inout) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
+    integer, intent(in), optional :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: deltaXDiff
 
     real(dp) :: interSk(getMIntegrals(skCont))   ! interpolated integs.
     real(dp) :: vect(3), dist
     integer :: ii, jj, kk, ll
-    integer :: sp1, sp2
+    integer :: sp1, sp2, atomJf
     real(dp) :: tmp(size(deriv, dim=1), size(deriv, dim=2))
 
     ! second derivative weights for d2 F /dx2
@@ -491,6 +514,11 @@ contains
 
     deriv(:,:,:,:) = 0.0_dp
 
+    if (present(img2CentCell)) then
+      atomJf = img2CentCell(atomJ)
+    else
+      atomJf = atomJ
+    end if
     sp1 = species(atomI)
     sp2 = species(atomJ)
 
@@ -512,7 +540,7 @@ contains
             dist = sqrt(sum(vect**2))
             vect(:) = vect / dist
 
-            call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
+            call getSKIntegrals(skCont, interSk, dist, atomI, atomJf, sp1, sp2)
             call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
             deriv(:,:,jj,ii) = deriv(:,:,jj,ii) + real(kk * ll, dp) * tmp
           end do
@@ -527,7 +555,7 @@ contains
         dist = sqrt(sum(vect**2))
         vect(:) = vect / dist
 
-        call getSKIntegrals(skCont, interSk, dist, atomI, atomJ, sp1, sp2)
+        call getSKIntegrals(skCont, interSk, dist, atomI, atomJf, sp1, sp2)
         call rotateH0(tmp,interSk,vect(1),vect(2),vect(3),sp1,sp2,orb)
         deriv(:,:,ii,ii) = deriv(:,:,ii,ii) + stencil(jj) * tmp
 

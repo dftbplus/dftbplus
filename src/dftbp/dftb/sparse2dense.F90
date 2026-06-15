@@ -3247,7 +3247,7 @@ contains
       descAt2 = getDescriptor(iAt2fold, iSquare)
       overPrime(:,:,:) = 0.0_dp
       call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-          & iAtomPrime, iAt2, orb)
+          & iAtomPrime, iAt2, symNeighbourList%img2CentCell, orb)
       do iCoord = 1, 3
         call scalafx_addl2g(env%blacs%orbitalGrid, overPrime(1:descAt2(iNOrb), 1:descAt1(iNOrb),&
             & iCoord), denseDesc%blacsOrbSqr, descAt2(iStart), descAt1(iStart),&
@@ -3319,7 +3319,7 @@ contains
       descAt2 = getDescriptor(iAt2fold, iSquare)
       overPrime(:,:,:) = 0.0_dp
       call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-            & iAtomPrime, iAt2, orb)
+            & iAtomPrime, iAt2, symNeighbourList%img2CentCell, orb)
       do iCoord = 1, 3
         overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
             & = overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&
@@ -3407,7 +3407,7 @@ contains
       iVec = symNeighbourList%iCellVec(iAt2)
       overPrime(:,:,:) = 0.0_dp
       call derivator%getFirstDeriv(overPrime, skOverCont, rCoords, symNeighbourList%species,&
-          & iAtomPrime, iAt2, orb)
+          & iAtomPrime, iAt2, symNeighbourList%img2CentCell, orb)
       phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
       do iCoord = 1, 3
         overSqrPrime(iCoord, descAt2(iStart):descAt2(iEnd), descAt1(iStart):descAt1(iEnd))&

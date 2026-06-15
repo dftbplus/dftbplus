@@ -3648,7 +3648,7 @@ contains
         nOrb2 = orb%nOrbAtom(iAtom2f)
         if (iAtom2f /= iAtom1) then
           call this%derivator%getFirstDeriv(sPrimeTmp, skOverCont, coordAll, this%speciesAll,&
-              & iAtom1, iAtom2, orb)
+              & iAtom1, iAtom2, img2CentCell, orb)
 
           sPrimeTmp2(:,:) = 0.0_dp
           do iDir=1,3
