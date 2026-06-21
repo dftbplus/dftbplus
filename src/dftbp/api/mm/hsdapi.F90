@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Proviedes access to HSD manipulation functions
+!> Provides access to HSD manipulation functions
 module dftbp_hsdapi
   use dftbp_extlibs_xmlf90, only : fnode, fNodeList
   use dftbp_io_hsdparser, only : dumpHsd
