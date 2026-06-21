@@ -1222,8 +1222,8 @@ contains
   !! If nAtom is constant and one is running without BLACS, this should not be required
   !! hence preprocessed out.
   !! May require extending if ((nAtom not constant) and (not BLACS))
-  subroutine reallocateHSArrays(env, main, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx,&
-      & HSqrReal, SSqrReal, eigVecsReal)
+  subroutine reallocateHSArrays(env, main, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal,&
+      & SSqrReal, eigVecsReal)
 
     !> Instance of computational environment
     type(TEnvironment), intent(in) :: env
