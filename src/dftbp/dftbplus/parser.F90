@@ -120,6 +120,7 @@ module dftbp_dftbplus_parser
 
     !> HSD output?
     logical :: tWriteHSD
+
   end type TParserFlags
 
 
@@ -371,8 +372,7 @@ contains
     end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 
-    call getChildValue(node, "IgnoreUnprocessedNodes", &
-        &flags%tIgnoreUnprocessed, .false.)
+    call getChildValue(node, "IgnoreUnprocessedNodes", flags%tIgnoreUnprocessed, .false.)
 
   end subroutine readParserOptions
 
