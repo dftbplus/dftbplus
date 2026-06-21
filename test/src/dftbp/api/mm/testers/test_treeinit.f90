@@ -37,7 +37,8 @@ contains
   !! Main test routine
   !!
   !! All non-constant variables must be defined here to ensure that they are all explicitely
-  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind notice).
+  !! deallocated before the program finishes (avoiding residual memory that tools like valgrind
+  !! notice).
   !!
   subroutine main_()
 
@@ -62,13 +63,14 @@ contains
     call getDftbPlusApi(major, minor, patch)
     write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
-    ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
+    ! Note: setting the global standard output to /dev/null will also suppress run-time error
+    ! messages
     !open(newunit=devNull, file="/dev/null", action="write")
     !call TDftbPlus_init(dftbp, outputUnit=devNull)
     call TDftbPlus_init(dftbp)
 
-    ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder. These can be
-    ! downloaded with the utils/get_opt_externals script.
+    ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder. These can
+    ! be downloaded with the utils/get_opt_externals script.
 
     ! initialise a DFTB input tree and populate entries which do not have relevant or appropriate
     ! default values
@@ -78,7 +80,7 @@ contains
     call setChildValue(pGeo, "Periodic", .true.)
     call setChildValue(pGeo, "LatticeVectors", initialLatVecs)
     call setChildValue(pGeo, "TypeNames", ["Si"])
-    coords(:,:) = 0.0_dp
+    coords(:,:) = 0.0_dp ! note these are junk for a multi-atom structure, as all 0
     call setChildValue(pGeo, "TypesAndCoordinates", reshape([1, 1], [1, 2]), coords)
     call setChild(pRoot, "Hamiltonian", pHam)
     call setChild(pHam, "Dftb", pDftb)
@@ -97,7 +99,10 @@ contains
     call setChild(pRoot, "ParserOptions", pParserOpts)
     call setChildValue(pParserOpts, "ParserVersion", 3)
 
-    ! print resulting input file, including defaults
+    ! turn off dumping the full HSD tree by setupCalculator into a dftb_pin.hsd file
+    call setChildValue(pParserOpts, "WriteHSDInput", .false.)
+    ! as we can print the state of the input tree, as built up so far, before all the other default
+    ! values are filled in inside setupCalculator
     print *, 'Input tree in HSD format:'
     call dumpHsd(input%hsdTree, output_unit)
     print *
@@ -105,10 +110,12 @@ contains
     ! parse the input for the DFTB+ instance
     call dftbp%setupCalculator(input)
 
-    ! set the lattice vectors and coordinates in the document tree
+    ! set the lattice vectors and coordinates after setting up the calculation from the document
+    ! tree
     latVecs(:,:) = initialLatVecs
     coords(:,:) = initialCoords
     call dftbp%setGeometry(coords, latVecs)
+
     call dftbp%getEnergy(merminEnergy)
     call dftbp%getGradients(gradients)
     print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
