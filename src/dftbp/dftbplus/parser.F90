@@ -5162,6 +5162,8 @@ contains
 
       call getChildValue(child, "NrOfExcitations", ctrl%lrespini%nexc)
 
+      call getChildValue(child, "TammDancoff", ctrl%lrespini%isTDA, default=.false.)
+
       call getChild(child, "StateOfInterest", child2, requested=.false.)
       if (.not. associated(child2)) then
         ctrl%lrespini%tnstat = .false.
@@ -5313,7 +5315,7 @@ contains
       allocate(ctrl%pprpa%hhubbard(geom%nSpecies))
       call readSpeciesList(child2, geom%speciesNames, ctrl%pprpa%hhubbard)
 
-      call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
+      call getChildValue(child, "TammDancoff", ctrl%pprpa%isTDA, default=.false.)
 
       call getChild(child, "NrOfVirtualStates", child2, requested=.false.)
       if (.not. associated(child2)) then
