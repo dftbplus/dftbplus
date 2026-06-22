@@ -44,7 +44,7 @@ module dftbp_timedep_pprpa
     real(dp), allocatable :: hhubbard(:)
 
     !> Tamm Dancoff Approximation?
-    logical :: tTDA
+    logical :: isTDA
 
     !> Virtual orbital constraint?
     logical :: tConstVir
@@ -223,13 +223,13 @@ contains
       sym = symmetries(isym)
 
       if (sym == "S") then
-        if (.not. RPA%tTDa) then
+        if (.not. RPA%isTDA) then
           dim_rpa = nxvv + nxoo
         else
           dim_rpa = nxvv
         end if
       else
-        if (.not. RPA%tTDa) then
+        if (.not. RPA%isTDA) then
           dim_rpa = nxvv + nxoo - nvir - nocc
         else
           dim_rpa = nxvv - nvir
@@ -239,11 +239,11 @@ contains
       allocate(pp_eval(dim_rpa))
       allocate(vr(dim_rpa, dim_rpa))
 
-      call buildAndDiagppRPAmatrix(env%stdOut, RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, env,&
-          & denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
+      call buildAndDiagppRPAmatrix(env%stdOut, RPA%isTDA, sym, grndEigVal(:,1), nocc, nvir, nxvv,&
+          & nxoo, env, denseDesc, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
-      call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
-          & nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
+      call writeppRPAExcitations(RPA%isTDA, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc,&
+          & nvir, nxvv, nxoo, fdExc, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)
@@ -256,14 +256,14 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(output, tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
+  subroutine buildAndDiagppRPAmatrix(output, isTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, env, &
       & denseDesc, gamma_eri, stimc, cc, pp_eval, vr, err)
 
     !> Output unit for human readable messages
     integer, intent(in) :: output
 
     !> Tamm-Dancoff approximation?
-    logical, intent(in) :: tTDA
+    logical, intent(in) :: isTDA
 
     !> Symmetry to calculate transitions
     character, intent(in) :: sym
@@ -390,7 +390,7 @@ contains
 
       end do
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         ! Build Matrix B
         B_s(:,:) = 0.0_dp
 
@@ -507,7 +507,7 @@ contains
 
       end do
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         ! Build Matrix B
         B_t(:,:) = 0.0_dp
         ab_r = 0
@@ -595,11 +595,11 @@ contains
 
 
   !> Write pp-RPA excitation energies in output file.
-  subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
+  subroutine writeppRPAExcitations(isTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
       & fdExc, fdTagged, taggedWriter, eval_0, homo)
 
     !> Tamm-Dancoff approximation?
-    logical, intent(in) :: tTDA
+    logical, intent(in) :: isTDA
 
     !> Symmetry to calculate transitions
     character, intent(in) :: sym
@@ -666,7 +666,7 @@ contains
     end if
 
     ! Neglect negative-norm eigenvectors
-    if (.not. tTDA) then
+    if (.not. isTDA) then
       allocate(norm(nRPA))
       norm(:) = sum(vr(:nxvv_r,:)**2, dim=1)
       norm(:) = norm - sum(vr(nxvv_r+1:nxvv_r+nxoo_r,:)**2, dim=1)
@@ -679,7 +679,7 @@ contains
     ii = 0
     RPA: do i = 1, nRPA
 
-      if (.not. tTDA) then
+      if (.not. isTDA) then
         if (norm(e_ind(i)) < 0.0_dp) cycle RPA
       end if
 

@@ -44,6 +44,9 @@ module dftbp_timedep_linresp
     !> Number of excitations to be found
     integer :: nExc
 
+    !> Is Tamm-Dancoff Approximation being used?
+    logical :: isTDA
+
     !> Is an energy window being used?
     logical :: tEnergyWindow
 
@@ -178,7 +181,13 @@ contains
       if (this%iLinRespSolver == linrespSolverTypes%Arpack) then
         if (allocated(ini%shiftSpace)) then
           this%isSpectrumFolded = .true.
-          this%shiftSpace = ini%shiftSpace**2
+          if (ini%isTDA) then
+            ! TDA operator A has eigenvalues omega
+            this%shiftSpace = ini%shiftSpace
+          else
+            ! Full-Casida operator Omega has eigenvalues omega**2
+            this%shiftSpace = ini%shiftSpace**2
+          end if
         else
           this%isSpectrumFolded = .false.
           this%shiftSpace = 0.0_dp
@@ -207,6 +216,7 @@ contains
   #:endif
 
     this%nExc = ini%nExc
+    this%isTDA = ini%isTDA
     this%tEnergyWindow = ini%tEnergyWindow
     this%energyWindow = ini%energyWindow
     this%tOscillatorWindow = ini%tOscillatorWindow
