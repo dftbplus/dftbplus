@@ -2153,7 +2153,8 @@ contains
 
     if (tIoProc) then
       write(stdOut,*)
-      call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
+      call writeXYZFormat("supercell.xyz", lc_coord, lc_species,&
+          & speciesName)
       write(stdOut,*) " <<< supercell.xyz written on file"
     end if
 

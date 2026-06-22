@@ -10,7 +10,7 @@
 !> Contains subroutines for formatted output of data
 module dftbp_io_formatout
   use dftbp_common_accuracy, only : dp, mc
-  use dftbp_common_constants, only : au__fs, Bohr__AA, pi
+  use dftbp_common_constants, only : au__fs, Bohr__AA, Hartree__eV, pi
   use dftbp_common_environment, only : TEnvironment
   use dftbp_common_file, only : closeFile, openFile, TFileDescr
   use dftbp_common_globalenv, only : stdOut, tIoProc, withMpi
@@ -31,13 +31,6 @@ module dftbp_io_formatout
     module procedure writeGenFormat_fname
     module procedure writeGenFormat_fid
   end interface writeGenFormat
-
-
-  !> Writes geometry information in xyz format to a file
-  interface writeXYZFormat
-    module procedure writeXYZFormat_fname
-    module procedure writeXYZFormat_fid
-  end interface writeXYZFormat
 
 
   !> Writes DFTB+ type sparse matrix in square form to disc
@@ -110,7 +103,7 @@ contains
     integer, intent(in) :: fd
 
     !> Coordinates in atomic units
-    real(dp),          intent(in) :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Species of the atoms
     integer, intent(in) :: species(:)
@@ -127,9 +120,8 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
-    integer :: nAtom, nSpecies
+    integer :: ii, nAtom, nSpecies
     character(mc) :: formatCoordinates
-    integer :: ii
     logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
@@ -230,8 +222,8 @@ contains
 
 
   !> Writes coordinates in the XYZ format
-  subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities,&
-      & vectors, comment, append)
+  subroutine writeXYZFormat(fileName, coord, species, speciesName, charges, velocities, vectors,&
+      & forces, comment, append)
 
     !> File name of a file to be created
     character(len=*), intent(in) :: fileName
@@ -254,6 +246,9 @@ contains
     !> Optional array of vectors for each atom, printed unscaled
     real(dp), intent(in), optional :: vectors(:,:)
 
+    !> Optional array of forces for each atom (in atomic units)
+    real(dp), intent(in), optional :: forces(:,:)
+
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
@@ -264,11 +259,8 @@ contains
     character(1) :: mode
     logical :: append0
 
-    if (present(append)) then
-      append0 = append
-    else
-      append0 = .false.
-    end if
+    append0 = .false.
+    if (present(append)) append0 = append
 
     if (append0) then
       mode = "a"
@@ -276,18 +268,19 @@ contains
       mode = "w"
     end if
     call openFile(fd, fileName, mode=mode)
-    call writeXYZFormat(fd%unit, coord, species, speciesName, charges, velocities, vectors, comment)
+    call writeXYZFormat_fid(fd, coord, species, speciesName, charges, velocities, vectors, forces,&
+        & comment)
     call closeFile(fd)
 
-  end subroutine writeXYZFormat_fname
+  end subroutine writeXYZFormat
 
 
   !> Writes coordinates in the XYZ format with additional charges and vectors
   subroutine writeXYZFormat_fid(fd, coords, species, speciesNames, charges, velocities, vectors,&
-      & comment)
+      & forces, comment)
 
-    !> File id of an open file where output should be written
-    integer, intent(in) :: fd
+    !> Open file where output should be written
+    type(TFileDescr) :: fd
 
     !> Coordinates in atomic units
     real(dp), intent(in) :: coords(:,:)
@@ -307,16 +300,16 @@ contains
     !> Optional array of vectors for each atom, printed unscaled
     real(dp), intent(in), optional :: vectors(:,:)
 
+    !> Optional array of forces for each atom (in atomic units)
+    real(dp), intent(in), optional :: forces(:,:)
+
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
-    integer :: nAtom, nSpecies, ii
-
-200 format(I5)
-201 format(A5,3F16.8)
-202 format(A5,6F16.8)
-203 format(A5,4F16.8)
-204 format(A5,7F16.8)
+    integer :: nAtom, nSpecies, iAt, nFields
+    real(dp), parameter :: forceConv = Hartree__eV / Bohr__AA
+    real(dp), parameter :: velocityConv = Bohr__AA * 1000.0_dp / au__fs
+    real(dp), allocatable :: values(:)
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
@@ -328,61 +321,58 @@ contains
       @:ASSERT(size(charges) == nAtom)
     end if
     @:ASSERT(.not. (present(velocities) .and. present(vectors)))
+    @:ASSERT(.not. (present(forces) .and. present(vectors)))
     if (present(velocities)) then
-      @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
+      @:ASSERT(all(shape(velocities) == [3, nAtom]))
     end if
     if (present(vectors)) then
-      @:ASSERT(all(shape(vectors) == (/ 3, nAtom /)))
+      @:ASSERT(all(shape(vectors) == [3, nAtom]))
+    end if
+    if (present(forces)) then
+      @:ASSERT(all(shape(forces) == [3, nAtom]))
     end if
   #:endblock DEBUG_CODE
 
-    write(fd, 200) nAtom
+    write(fd%unit, "(I5)") nAtom
     if (present(comment)) then
-      write(fd, "(A)") trim(comment)
+      write(fd%unit, "(A)") trim(comment)
     elseif (present(velocities)) then
-      write(fd, *) "Velocity in AA/ps"
+      write(fd%unit, *) "Velocity in AA/ps"
     else
-      write(fd, *) ""
+      write(fd%unit, *) ""
     end if
 
-    if (present(charges)) then
+    nFields = 3
+    if (present(charges)) nFields = nFields + 1
+    if (present(velocities)) nFields = nFields + 3
+    if (present(forces)) nFields = nFields + 3
+    if (present(vectors)) nFields = nFields + 3
+    allocate(values(nFields))
 
+    do iAt = 1, nAtom
+
+      values(1:3) = coords(:, iAt) * Bohr__AA
+      nFields = 4
+      if (present(charges)) then
+        values(nFields) = charges(iAt)
+        nFields = nFields + 1
+      end if
       if (present(velocities)) then
-
-        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-            & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
-
-      else if (present(vectors)) then
-
-        write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-            & charges(ii), vectors(:,ii) * Bohr__AA, ii = 1, nAtom)
-
-      else
-
-        write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
-            & ii = 1, nAtom)
-
+        values(nFields:nFields+2) = velocities(:,iAt) * velocityConv
+        nFields = nFields + 3
+      end if
+      if (present(forces)) then
+        values(nFields:nFields+2) = forces(:,iAt) * forceConv
+        nFields = nFields + 3
+      end if
+      if (present(vectors)) then
+        values(nFields:nFields+2) = vectors(:,iAt)
+        nFields = nFields + 3
       end if
 
-    else
+      write(fd%unit, "(A5, *(F16.8))")trim(speciesNames(species(iAt))), values
 
-      if (present(velocities)) then
-
-        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-            & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
-
-      else if (present(vectors)) then
-
-        write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
-            & vectors(:,ii), ii = 1, nAtom)
-
-      else
-
-        write(fd, 201) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, ii = 1, nAtom)
-
-      end if
-
-    end if
+    end do
 
   end subroutine writeXYZFormat_fid
 
