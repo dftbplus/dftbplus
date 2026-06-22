@@ -422,7 +422,7 @@ contains
   !! in global arrays. The supervector is column block distributed (not block cyclic on columns and
   !! rows).
   subroutine actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-    & ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, lrGamma)
+    & ovrXev, grndEigVecs, frGamma, tAplusB, vin, vout, tTDA, lrGamma)
 
     !> Starting index of current rank in global RPA vectors
     integer, intent(in) :: iGlobal
@@ -475,6 +475,9 @@ contains
     !> vector containing the result on exit size(nMat)
     real(dp), intent(out) :: vout(:)
 
+    !> control TDA approximation.
+    logical, intent(in) :: tTDA
+
     integer :: nMat, nOrb, ia, nxvv_a
     integer :: ii, aa, ss, jj, bb, ias, jbs, abs, ijs, jas, ibs
     integer :: nLoc, myia, myab, myja, nLocAB, iGlobalAB, fGlobalAB
@@ -486,6 +489,7 @@ contains
     real(dp) :: vout_ons(size(vin))
     real(dp), allocatable :: vLoc(:), vGlb(:), vGlb2(:)
     real(dp), parameter :: spinFactor(2) = [1.0_dp, -1.0_dp]
+    real(dp) :: tdaFactor
     ! for later use to change HFX contribution
     real(dp), allocatable :: qv(:,:)
 
@@ -522,6 +526,11 @@ contains
 
     if (.not. lr%tSpin) then !-----------spin-unpolarized systems--------------
 
+      tdaFactor = 4.0_dp ! Full Casida
+      if (tTDA) then
+        tdaFactor = 2.0_dp
+      endif
+
       if (sym == 'S') then
 
         call hemv(gtmp, frGamma, otmp)
@@ -531,7 +540,7 @@ contains
         do ia = iGlobal, fGlobal
           myia = ia - iGlobal + 1
           qij(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          vOut(myia) = 4.0_dp * rpa%sqrOccIA(ia) * dot_product(qij, gTmp)
+          vOut(myia) = tdaFactor * rpa%sqrOccIA(ia) * dot_product(qij, gTmp)
         enddo
 
       else
@@ -542,7 +551,7 @@ contains
         vOut(:) = 0.0_dp
         call transChrg%qVecMat(env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win, oTmp, vOut,&
             & iGlobal-1)
-        vOut(:) = 4.0_dp * rpa%sqrOccIA(iGlobal:fGlobal) * vOut
+        vOut(:) = tdaFactor * rpa%sqrOccIA(iGlobal:fGlobal) * vOut
 
 
       end if
@@ -648,30 +657,32 @@ contains
         end do
       end do
 
-      ! Compute w_ia = q^ib_A GLR_AB q^ja v_jb
-      qv(:,:) = 0.0_dp
-      do abs = iGlobalAB, fGlobalAB
-        myab = abs - iGlobalAB + 1
-        aa = getABasym(abs, 1)
-        bb = getABasym(abs, 2)
-        ss = getABasym(abs, 3)
-        do jj = 1, rpa%nocc_ud(ss)
-          jas =  rpa%iaTrans(jj, aa, ss)
-          jbs =  rpa%iaTrans(jj, bb, ss)
-          qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          qv(:,myab) = qv(:,myab) + qij(:) * vGlb(jbs) * rpa%sqrOccIA(jbs)
-        end do
+      if (.not. tTDA) then
+        ! Compute w_ia = q^ib_A GLR_AB q^ja v_jb
+        qv(:,:) = 0.0_dp
+        do abs = iGlobalAB, fGlobalAB
+          myab = abs - iGlobalAB + 1
+          aa = getABasym(abs, 1)
+          bb = getABasym(abs, 2)
+          ss = getABasym(abs, 3)
+          do jj = 1, rpa%nocc_ud(ss)
+            jas =  rpa%iaTrans(jj, aa, ss)
+            jbs =  rpa%iaTrans(jj, bb, ss)
+            qij(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+            qv(:,myab) = qv(:,myab) + qij(:) * vGlb(jbs) * rpa%sqrOccIA(jbs)
+          end do
 
-        otmp(:) = qv(:,myab)
-        call hemv(qv(:,myab), lrGamma, otmp, uplo='U')
+          otmp(:) = qv(:,myab)
+          call hemv(qv(:,myab), lrGamma, otmp, uplo='U')
 
-        do ii = 1, rpa%nocc_ud(ss)
-          ibs = rpa%iaTrans(ii, bb, ss)
-          qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          ias = rpa%iaTrans(ii, aa, ss)
-          vGlb2(ias) = vGlb2(ias) - cExchange * rpa%sqrOccIA(ias) * dot_product(qij, qv(:,myab))
+          do ii = 1, rpa%nocc_ud(ss)
+            ibs = rpa%iaTrans(ii, bb, ss)
+            qij(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+            ias = rpa%iaTrans(ii, aa, ss)
+            vGlb2(ias) = vGlb2(ias) - cExchange * rpa%sqrOccIA(ias) * dot_product(qij, qv(:,myab))
+          end do
         end do
-      end do
+      endif
 
       ! Get contribution of all ranks to global array
       call assembleChunks(env, vGlb2)
@@ -941,7 +952,7 @@ contains
     integer :: nMat, ia, jb, ii, jj, ss, tt
     real(dp), allocatable :: oTmp(:), gTmp(:), qTr(:)
     real(dp), parameter :: spinFactor(2) = [1.0_dp, -1.0_dp]
-    real(dp) :: rTmp
+    real(dp) :: rTmp, tdaFactor
     integer :: aa, bb, iat, jbs, abs, ijs, ibs, jas
     integer :: nLoc, myia, myii
 
@@ -965,6 +976,11 @@ contains
     !-----------spin-unpolarized systems--------------
     if (.not. lr%tSpin) then
 
+      tdaFactor = 4.0_dp
+      if (lr%tTDA) then
+        tdaFactor = 2.0_dp
+      endif
+
       if (sym == 'S') then
 
         ! Full range coupling matrix contribution: 4 * sum_A q^ia_A sum_B gamma_AB q^jb_B
@@ -978,7 +994,7 @@ contains
             myia = ia - iGlobal + 1
             qTr(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs,&
                 & rpa%getIA, rpa%win)
-            vP(myia,jb) = 4.0_dp * rpa%sqrOccIA(ia) * dot_product(qTr, oTmp)
+            vP(myia,jb) = tdaFactor * rpa%sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
 
         end do
@@ -994,7 +1010,7 @@ contains
             myia = ia - iGlobal + 1
             qTr(:) = transChrg%qTransIA(ia, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA,&
                 & rpa%win)
-            vP(myia,jb) = vP(myia,jb) + 4.0_dp * rpa%sqrOccIA(ia) * dot_product(qTr, oTmp)
+            vP(myia,jb) = vP(myia,jb) + tdaFactor * rpa%sqrOccIA(ia) * dot_product(qTr, oTmp)
           end do
 
         end do
@@ -1056,18 +1072,24 @@ contains
           qTr(:) = transChrg%qTransIJ(ijs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIJ)
           rTmp = cExchange * rpa%sqrOccIA(iat) * rpa%sqrOccIA(jbs) * dot_product(qTr, oTmp)
           vP(myia,jbs) = vP(myia,jbs) - rTmp
-          vM(myia,jbs) = vM(myia,jbs) - rTmp
 
-          ibs = rpa%iaTrans(ii, bb, ss)
-          qTr(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          oTmp(:) = 0.0_dp
-          call hemv(oTmp, lrGamma, qTr)
+          if (lr%tTDA) then
+            vM(myia,jbs) = vP(myia,jbs)
 
-          jas = rpa%iaTrans(jj, aa, ss)
-          qTr(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
-          rTmp = cExchange * rpa%sqrOccIA(iat) * rpa%sqrOccIA(jbs) * dot_product(qTr, oTmp)
-          vP(myia,jbs) = vP(myia,jbs) - rTmp
-          vM(myia,jbs) = vM(myia,jbs) + rTmp
+          else
+            vM(myia,jbs) = vM(myia,jbs) - rTmp
+
+            ibs = rpa%iaTrans(ii, bb, ss)
+            qTr(:) = transChrg%qTransIA(ibs, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+            oTmp(:) = 0.0_dp
+            call hemv(oTmp, lrGamma, qTr)
+
+            jas = rpa%iaTrans(jj, aa, ss)
+            qTr(:) = transChrg%qTransIA(jas, env, denseDesc, ovrXev, grndEigVecs, rpa%getIA, rpa%win)
+            rTmp = cExchange * rpa%sqrOccIA(iat) * rpa%sqrOccIA(jbs) * dot_product(qTr, oTmp)
+            vP(myia,jbs) = vP(myia,jbs) - rTmp
+            vM(myia,jbs) = vM(myia,jbs) + rTmp
+          endif
         end do
 
       end do
