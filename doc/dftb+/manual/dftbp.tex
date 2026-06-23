@@ -837,7 +837,7 @@ frequencies.
   contiguous range, and also the atom indices listed in \is{Atoms} must be
   contiguous if the \is{MovedAtoms} option is used.
 
-\item[\is{Delta}]\modif{\modtype{len}} Optional step size for numerical
+\item[\is{Delta}]\modif{\modtype{length}} Optional step size for numerical
   differentiation of forces to get the second derivatives of the energy with
   respect to atomic coordinates.
 \end{description}
@@ -885,7 +885,6 @@ selection expressions, as described in appendix \ref{sec:index_selection}.
   calculated from the profile.
 
 \item[\is{KeepStationary}] Remove translational motion from the system.
-
 
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   MD steps.
@@ -1053,7 +1052,7 @@ all of the atoms in the system.
   \kwcb{TemperatureProfile} method specifying a changing temperature.
   (See p.~\pref{sec:dftbp.TemperatureProfile}, but note that profiles are not
   well tested with this thermostat yet.)
-\item[\is{CouplingStrength}]\modif{\modtype{Frequency}} Frequency of
+\item[\is{CouplingStrength}]\modif{\modtype{frequency}} Frequency of
   oscillation of the thermostating particles (see section~2.5 of
   Ref.~\cite{martyna-mp-87-1117}). This is typically related to the
   highest vibrational mode frequency of the system.
@@ -1065,6 +1064,41 @@ all of the atoms in the system.
   \kwcb{v} and \kwcb{g} containing the internal chain positions,
   velocities and forces respectively (these are provided in md.out).
   See also section~\ref{kw:dftbp.MDRestartFrequency}.
+\item[\is{AdaptFillingTemp}] If \is{Yes}, the temperature of the
+  electron filling is always set to the current temperature of the
+  thermostat. (The appropriate tag for the temperature of the electron
+  filling is ignored.)
+
+\end{description}
+
+\paragraph{Langevin\cb}
+\label{sec:dftbp.Langevin}
+
+Langevin thermostat~\cite{} which samples close to the NVT\index{NVT
+  ensemble} ensemble. Dynamics faster than the timescale of the
+thermostat are not sampling from this distribution.
+
+\begin{ptable}
+  \kw{Temperature}      & r|m & & - & \\
+  \kw{TimeConstant}     & r   & \is{Frequency} not set & - & \\
+  \kw{Frequency}        & r   & \is{TimeConstant} not set & - & \\
+  \kw{AdaptFillingTemp} & l   & & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{Temperature}]\modif{\modtype{energy}} Target temperature of
+  the thermostat.  It can be either a real value specifying a constant
+  temperature through the entire run or the \kwcb{TemperatureProfile}
+  method specifying a changing temperature.  (See
+  p.~\pref{sec:dftbp.TemperatureProfile}.)
+\item[\is{TimeConstant}]\modif{\modtype{time}} Is the characteristic
+  timescale $(\tau)$ for the temperature coupling with the
+  reservoir. The Einstein diffusion constant, $D$ of a solute of mass
+  $m$ is $D = \tau k_B T / m$, where $T$ is the temperature and $k_B$
+  the Boltzmann constant.
+\item[\is{Frequency}]\modif{\modtype{frequency}} The characteristic
+  frequency for the temperature coupling. For solids, this should be a
+  characteristic frequency for energy transfer between the system and
+  reservoir (typically the phonon frequency).
 \item[\is{AdaptFillingTemp}] If \is{Yes}, the temperature of the
   electron filling is always set to the current temperature of the
   thermostat. (The appropriate tag for the temperature of the electron
@@ -2604,7 +2638,7 @@ general systems.
 \item[\is{muPoints}] number of processors used to search for the Fermi level.
 \item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
   factorisation pattern of matrices.
-\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
+\item[\is{SpectralRadius}]\modif{\modtype{energy}} extension of the complex
   contour.
 \item[\is{Sparse}] Whether the code should use the sparse ELSI matrix interface.
 \item[\is{Threshold}] Sets the threshold to convert dense matrices to the
@@ -3229,13 +3263,13 @@ The \kw{External} field keyword has the following options
   \kw{Phase}     & i  & Geometry step offset             & 0   & \\
 \end{ptable}
 \begin{description}
-\item[\is{Strength}]\modif{\modtype{Electric field strength}}
+\item[\is{Strength}]\modif{\modtype{electric field strength}}
   Specified strength of the applied field.
 \item[\is{Direction}] Vector direction of the applied field (the code
   normalises this vector). In the case of periodic calculations,
   currently the system {\em must not} be continuous in this
   direction (see above).
-\item[\is{Frequency}]\modif{\modtype{Frequency}} If using molecular
+\item[\is{Frequency}]\modif{\modtype{frequency}} If using molecular
   dynamics, the field can be time varying with this frequency.
 \item[\is{Phase}] Initial field phase in units of geometry steps, this is needed
   if restarting an MD run in an external field to give the offset in phase of
@@ -5606,9 +5640,9 @@ ordered in increasing value.
 \begin{description}
 \item[\is{Static}] Evaluates polarisability with respect to cartesian
   directions of a static uniform electric field.
-\item[\is{Frequencies}]\modif{\modtype{Frequency}} Evaluates
+\item[\is{Frequencies}]\modif{\modtype{frequency}} Evaluates
   polarisability at a list of finite frequencies ($\{\omega\}$).
-\item[\is{FrequencyRange}]\modif{\modtype{Frequency}} Specifies
+\item[\is{FrequencyRange}]\modif{\modtype{frequency}} Specifies
   equispaced driving frequencies for polarisabilities, listed as {\em
     starting ending step-size} frequencies (for example if calculating
   a spectrum).
@@ -5774,7 +5808,7 @@ available for range separated calculations.
     transition at \is{NrOfExcitations} to be included in excited state spectrum
     calculation.
 
-  \item[\is{OscillatorWindow}]\modif{\modtype{Dipole moment}} Screening cut-off
+  \item[\is{OscillatorWindow}]\modif{\modtype{dipole moment}} Screening cut-off
     below which single particle transitions are neglected in excitation spectra
     calculations. This selects from states above the top of the
     \is{EnergyWindow} (if present). This keyword should not be used if
@@ -6055,7 +6089,7 @@ The real-time propagation is available with DFTB as well as xTB Hamiltonians, an
 \item[\is{TimeStep}]\modif{\modtype{time}} Time interval between two
   electronic propagation steps.
 
-\item[\is{FieldStrength}]\modif{\modtype{Electric field strength}}
+\item[\is{FieldStrength}]\modif{\modtype{electric field strength}}
   Peak intensity of the applied time-dependent electric field.
 
 \item[\is{Populations}] If time-dependent (ground state) molecular
@@ -6258,7 +6292,7 @@ Apply time-dependent sinusoidal perturbation to the system.
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar
    \omega$ of the laser.
 
- \item[\is{Phase}] \modif{\modtype{Angular units}} Optional initial
+ \item[\is{Phase}] \modif{\modtype{angular units}} Optional initial
    phase of laser field (inradians by default), such that sinusoidal
    component of the field is described by $\sin(\omega t + \phi)$.
 
