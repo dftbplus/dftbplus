@@ -526,10 +526,7 @@ contains
 
     if (.not. lr%tSpin) then !-----------spin-unpolarized systems--------------
 
-      tdaFactor = 4.0_dp ! Full Casida
-      if (tTDA) then
-        tdaFactor = 2.0_dp
-      endif
+      tdaFactor = merge(2.0_dp, 4.0_dp, tTDA)
 
       if (sym == 'S') then
 
@@ -682,7 +679,7 @@ contains
             vGlb2(ias) = vGlb2(ias) - cExchange * rpa%sqrOccIA(ias) * dot_product(qij, qv(:,myab))
           end do
         end do
-      endif
+      end if
 
       ! Get contribution of all ranks to global array
       call assembleChunks(env, vGlb2)
@@ -976,10 +973,7 @@ contains
     !-----------spin-unpolarized systems--------------
     if (.not. lr%tSpin) then
 
-      tdaFactor = 4.0_dp
-      if (lr%tTDA) then
-        tdaFactor = 2.0_dp
-      endif
+      tdaFactor = merge(2.0_dp, 4.0_dp, lr%tTDA)
 
       if (sym == 'S') then
 
@@ -1089,7 +1083,7 @@ contains
             rTmp = cExchange * rpa%sqrOccIA(iat) * rpa%sqrOccIA(jbs) * dot_product(qTr, oTmp)
             vP(myia,jbs) = vP(myia,jbs) - rTmp
             vM(myia,jbs) = vM(myia,jbs) + rTmp
-          endif
+          end if
         end do
 
       end do

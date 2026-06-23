@@ -611,8 +611,8 @@ contains
     end if
 
     if (this%tTDA .and. this%tSpin) then
-       call error("Tamm-Dancoff Approximation is only implemented for spin-unpolarized Systems")
-    endif
+      call error("Tamm-Dancoff Approximation is only implemented for spin-unpolarized systems")
+    end if
 
     call env%globalTimer%stopTimer(globalTimers%lrSetup)
 
@@ -1314,9 +1314,9 @@ contains
     endif
 
     if (lr%tTDA) then
-        write(stdOut,'(A)') ' '
-        write(stdOut,'(A)') '>> Using Tamm-Dancoff Approximation in Linear Response'
-    endif
+      write(stdOut,'(A)') ' '
+      write(stdOut,'(A)') '>> Using Tamm-Dancoff Approximation in Linear Response'
+    end if
 
     ! Number of excited states to solve for
     nExc = size(eval)
@@ -1386,7 +1386,7 @@ contains
           else
             call actionAminusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, denseDesc,&
                 & ovrXev, grndEigVecs, vecB(:,ii), vM(:,ii), lrGamma)
-          endif
+          end if
 
         end do
 
@@ -1418,7 +1418,7 @@ contains
 
         call symm(workspaceM, 'L', mP, mMsqrt, uplo='U')
         call symm(mH, 'L', mMsqrt, workspaceM, uplo='U')
-      endif
+      end if
 
       ! Diagonalise in subspace
       call heev(mH, evalInt, 'U', 'V', info)
@@ -1444,24 +1444,24 @@ contains
       ! Transformation preserves orthonormality.
       ! Only compute up to nExc index, because only that much needed.
       if (lr%tTDA) then
-        call gemm(vM,vecB,mh)
+        call gemm(vM, vecB, mH)
       else
-        call symm(evecr, 'l', mmsqrt, mh, uplo='u')
-        call symm(evecl, 'l', mmsqrtinv, mh, uplo='u')
+        call symm(evecR, 'L', mMsqrt, mH, uplo='U')
+        call symm(evecL, 'L', mMsqrtinv, mH, uplo='U')
 
         ! need |x-y>=sqrt(w)(a-b)^(-1/2)t, |x+y>=(a-b)^(1/2)t/sqrt(w) for proper solution to original
         ! ev problem, only use first nexc vectors
-        do ii = 1, nexc
-          placeholderreal = sqrt(sqrt(evalint(ii)))
-          evecr(:,ii) = evecr(:,ii) / placeholderreal
-          evecl(:,ii) = evecl(:,ii) * placeholderreal
+        do ii = 1, nExc
+          placeholderReal = sqrt(sqrt(evalInt(ii)))
+          evecR(:,ii) = evecR(:,ii) / placeholderReal
+          evecL(:,ii) = evecL(:,ii) * placeholderReal
         end do
-      endif
+      end if
 
       ! Calculate the residual vectors
       if (lr%tTDA) then
         allocate(dummyTDA(nLoc,subSpaceDim))
-        call gemm(dummyTDA, vP, mh)
+        call gemm(dummyTDA, vP, mH)
         do ii = 1, nExc
           resR(:,ii) = dummyTDA(:,ii) - evalInt(ii) * vM(:,ii)
         end do
@@ -1484,7 +1484,7 @@ contains
         ! (A+B)|R_n> for all n=1,..,nExc
         call gemm(resL, vP, evecR, beta=1.0_dp)
 
-      endif
+      end if
 
       ! calc. norms of residual vectors to check for convergence
       do ii = 1, nExc
@@ -1498,7 +1498,7 @@ contains
           placeHolderReal = dot_product(resL(:,ii), resL(:,ii))
           call assembleChunks(env, placeHolderReal)
           vecNorm(nExc+ii) = placeHolderReal
-        endif
+        end if
 
       end do
       didConverge = all(vecNorm < convThreshStrat)
@@ -1512,6 +1512,7 @@ contains
       ! if converged then exit loop:
       if (didConverge) then
         if (lr%tTDA) then
+          ! Store omega^2 to match the full-Casida convention downstream
           eval(:) = evalInt(1:nExc) * evalInt(1:nExc)
 
           ! In TDA: |X+Y> = |X-Y> = |X>
@@ -1538,7 +1539,7 @@ contains
             call assembleChunks(env, xmy)
           end if
 
-        endif
+        end if
 
         write(stdOut,'(A)') '>> Stratmann converged'
         exit solveLinResp ! terminate diag. routine
@@ -1601,7 +1602,7 @@ contains
           end if
         end do
 
-      endif
+      end if
 
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
