@@ -616,6 +616,10 @@ contains
       call error("Tamm-Dancoff Approximation is only implemented for spin-unpolarized systems")
     end if
 
+    if (this%tTDA .and. this%isSpectrumFolded) then
+      call error("Spectrum folding is not supported with the Tamm-Dancoff approximation")
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%lrSetup)
 
     do isym = 1, size(symmetries)
@@ -967,6 +971,11 @@ contains
   !! The code deals with closed shell systems by diagonalising dedicated singlet/triplet
   !! submatrices.
   !! See Dominguez JCTC 9 4901 (2013)
+  !!
+  !! Under TDA we diagonalise A, We don't need to make the
+  !! hermitian transformation. Its eigenvector already is X = X+Y = X-Y;
+  !! no F -> (X+Y) conversion is needed. Store omega^2 to match the
+  !! Casida convention.
   subroutine buildAndDiagExcMatrixArpack(iGlobal, fGlobal, env, orb, lr, rpa, transChrg,&
       & denseDesc, ovrXev, grndEigVecs, gammaMat, species0, eval, sym, xpy, xmy, isSpectrumFolded,&
       & shiftSpace)
@@ -1115,8 +1124,8 @@ contains
       else
         ! Action of excitation supermatrix on supervector
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-            & ovrXev, grndEigVecs, gammaMat, .false., workd(ipntr(1):ipntr(1)+nLoc-1),&
-            & workd(ipntr(2):ipntr(2)+nLoc-1), .false.)
+            & ovrXev, grndEigVecs, gammaMat, lr%tTDA, workd(ipntr(1):ipntr(1)+nLoc-1),&
+            & workd(ipntr(2):ipntr(2)+nLoc-1), lr%tTDA)
       end if
 
     end do
@@ -1160,7 +1169,6 @@ contains
         allocate(workTmp(fGlobal - iGlobal + 1))
         do iState = 1, nExc
 
-          !TODO: I need to check the last .false. here for TDA
           call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc,&
               & species0, ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
               & workTmp, .false.)
@@ -1195,8 +1203,8 @@ contains
       do iState = 1, nExc
 
         call actionAplusB(iGlobal, fGlobal, env, orb, lr, rpa, transChrg, sym, denseDesc, species0,&
-          & ovrXev, grndEigVecs, gammaMat, .false., xpy(iGlobal:fGlobal,iState),&
-          & Hv(iGlobal:fGlobal), .false.)
+          & ovrXev, grndEigVecs, gammaMat, lr%tTDA, xpy(iGlobal:fGlobal,iState),&
+          & Hv(iGlobal:fGlobal), lr%tTDA)
 
         call assembleChunks(env, Hv)
 
@@ -1212,14 +1220,21 @@ contains
       xmy(:,:) = 0.0_dp
     end if
 
-    ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
-    do iState = 1, nExc
-      omega = sqrt(eval(iState))
-      xpy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * sqrt(rpa%wij(:rpa%nxov_rd) / omega)
+    if (lr%tTDA) then
       if (rpa%tZVector) then
-        xmy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * omega / rpa%wij(:rpa%nxov_rd)
+        xmy(:rpa%nxov_rd,:nExc) = xpy(:rpa%nxov_rd,:nExc)
       end if
-    end do
+      eval(:nExc) = eval(:nExc)**2
+    else
+      ! Conversion from eigenvectors of the hermitian problem (F) to (X+Y)
+      do iState = 1, nExc
+        omega = sqrt(eval(iState))
+        xpy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * sqrt(rpa%wij(:rpa%nxov_rd) / omega)
+        if (rpa%tZVector) then
+          xmy(:rpa%nxov_rd,iState) = xpy(:rpa%nxov_rd,iState) * omega / rpa%wij(:rpa%nxov_rd)
+        end if
+      end do
+    end if
 
   end subroutine buildAndDiagExcMatrixArpack
 
