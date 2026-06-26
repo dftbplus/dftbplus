@@ -710,6 +710,7 @@ contains
           nStartLev = this%indNACouplings(1)
         end if
         nEndLev = this%indNACouplings(2)
+        doVanillaZvector = .false.
 
       else
 
